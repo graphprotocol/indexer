@@ -151,47 +151,51 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
-"@connext/cf-core@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/cf-core/-/cf-core-4.0.16.tgz#57c22749b5d28e13bc070f5651645d5b945fbccb"
-  integrity sha512-dpWmhVLmjyNKvaMtRwunNEwFohuALo2Gomo3LPKEMkSUc0tMnZ7RkTyZtjm+viRV8t4eNbNRK++Msd45TCl3iA==
+"@connext/cf-core@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/cf-core/-/cf-core-4.1.0.tgz#8298638df489927529968614dececbd6b1678eba"
+  integrity sha512-n50/N5Iv/gU/rxhPN8UuZV6pk6dbuAie/0HyJk/xxLhqXbHUcQtoiAJnKrh0nBL4R/qnkXU3EGPUmL7Oc5XsqA==
   dependencies:
     "@connext/contracts" "1.0.4"
-    "@connext/types" "4.0.16"
-    ethers "4.0.41"
+    "@connext/types" "4.1.0"
+    "@openzeppelin/contracts" "2.5.0"
+    ethers "4.0.45"
     eventemitter3 "4.0.0"
-    loglevel "1.6.6"
+    loglevel "1.6.7"
     memoizee "0.4.14"
     p-queue "5.0.0"
     rpc-server "0.0.1"
     typescript-memoize "1.0.0-alpha.3"
-    uuid "3.3.3"
+    uuid "3.4.0"
 
-"@connext/channel-provider@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/channel-provider/-/channel-provider-4.0.16.tgz#4f9da845934544164627f8026574c636b7b4b3f5"
-  integrity sha512-vTsyMm0JLryq8LkbIKEH8v+YAusSeigd/n1DIvOZgKDHwQEIUTAYdAtX8ZXhNvivfytAMirHYKwRV4lF3Vh/sA==
+"@connext/channel-provider@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/channel-provider/-/channel-provider-4.1.0.tgz#ef4a44998867018430d8daedf831d67389439888"
+  integrity sha512-1MLttdDs3i2ZCq+xBTH+OtgS+VCZZXiI2Ko16zuqLDvwz7J19pxvTaM5VeWfBdD1c+ltITn3sZJnt+KpMQebZQ==
   dependencies:
-    "@connext/types" "4.0.16"
+    "@connext/types" "4.1.0"
+    eventemitter3 "4.0.0"
 
-"@connext/client@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/client/-/client-4.0.16.tgz#2582bb568811d3562f5fa8132b3d54ee890832e6"
-  integrity sha512-SLO1daCLQRARoEqijgljd1juAO0+lBmTFI62HrvUDTUuj2bw+J0kQtGTCoKNKY6LvpE9pFPFl9k0O3pnsZp1gw==
+"@connext/client@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/client/-/client-4.1.0.tgz#9d9ff0d2ea9e447d52396db4006e7b3416cc0a37"
+  integrity sha512-/7hrWLHQVPBnUS30RWqiU2MlB8qj7eQ/XlgXYGobucLQyQWPApJpfcXJtL9FBHOyHFh+XGWuy94jw5JJ5ZSIIg==
   dependencies:
-    "@connext/cf-core" "4.0.16"
-    "@connext/channel-provider" "4.0.16"
-    "@connext/messaging" "4.0.16"
-    "@connext/store" "4.0.16"
-    "@connext/types" "4.0.16"
-    core-js "3.6.1"
+    "@connext/cf-core" "4.1.0"
+    "@connext/channel-provider" "4.1.0"
+    "@connext/crypto" "4.1.0"
+    "@connext/messaging" "4.1.0"
+    "@connext/store" "4.1.0"
+    "@connext/types" "4.1.0"
+    core-js "3.6.4"
     eccrypto "1.1.3"
-    ethers "4.0.41"
+    ethers "4.0.45"
+    eventemitter3 "4.0.0"
     human-standard-token-abi "2.0.0"
     regenerator-runtime "0.13.3"
     rpc-server "0.0.1"
     secp256k1 "3.8.0"
-    uuid "3.3.3"
+    uuid "3.4.0"
 
 "@connext/contracts@1.0.4":
   version "1.0.4"
@@ -203,31 +207,32 @@
     ganache-cli "6.7.0"
     openzeppelin-solidity "2.3.0"
 
-"@connext/messaging@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/messaging/-/messaging-4.0.16.tgz#372d39e64ce56e0ff8fe06a6ddb9cc8b522411ac"
-  integrity sha512-PRzoTW/XqsRBww7LOMjnTKuuw6fdrrylH33TUTg9UUFTh13Yvmvuj1qpnTtD0lZAZGoqoxe0N9lQiPwE2RMPwA==
+"@connext/crypto@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/crypto/-/crypto-4.1.0.tgz#3f51b53a25d10ae1383a1987b6f9b3ac38953e62"
+  integrity sha512-TncG6HDJWMRC45BDB7HWbSNwUY5HkqbF5z/bhszAtRApep0d/gGUorplLlp/ziRTri4FN87eCDG30lJ1ws817A==
   dependencies:
-    "@connext/types" "4.0.16"
+    "@connext/types" "4.1.0"
+    eccrypto-js "4.3.5"
+
+"@connext/messaging@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/messaging/-/messaging-4.1.0.tgz#302d584df5b96454b3e396f4b666769575803d33"
+  integrity sha512-CEfZR1rnN1I1ewPB+9ZqKnjpKk7MUzZ5jUMmCE/30302PzxTvjZwIOyXi5Xos7NS8dgJANXjHzC15kDFhJblJQ==
+  dependencies:
+    "@connext/types" "4.1.0"
     ts-nats "1.2.4"
     websocket-nats "0.3.3"
 
-"@connext/store@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/store/-/store-4.0.16.tgz#cb65d3a7bdeed3cba89fe92216922fc6de9448a3"
-  integrity sha512-jS85hfFPdR9QY3K4RXWipvAbjIAmgAX0E1+BNVgbTMpOF3BEdS0aD9fizEGPqCxlq5vFos2pvcCS0JUB4OBglw==
+"@connext/store@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/store/-/store-4.1.0.tgz#b18fb5e7e23cc10404548cc0609f7b8ca5cda268"
+  integrity sha512-tf3PdCi2aWeTftf5Szke2UWb0LO2n3n6Z/JDPMqDZWrPVouqZ0hjbN9E3gWnEMlHcS3uUZkW2MfU1h6S0AzJlg==
   dependencies:
-    "@connext/types" "4.0.16"
-    ethers "4.0.41"
+    "@connext/types" "4.1.0"
+    ethers "4.0.45"
     pisa-client "0.1.4-connext-beta.1"
-    uuid "3.3.3"
-
-"@connext/types@4.0.16":
-  version "4.0.16"
-  resolved "https://registry.npmjs.org/@connext/types/-/types-4.0.16.tgz#63a385111414e5ca2cb43c10ee17050ae459d359"
-  integrity sha512-c81K2x49qaQchX5oWCUvosXh5C9bAHSADHaI0KwD14JkH0jEE+6MtOFms4hT4QwBqxRZT+ESYsI9D1DssaHvHA==
-  dependencies:
-    ethers "4.0.41"
+    uuid "3.4.0"
 
 "@connext/types@4.0.4":
   version "4.0.4"
@@ -235,6 +240,14 @@
   integrity sha512-Wp2EICYUWkYmQXiAr58CsUYKeMlfQLZEPlgN7OxnsM6Jdy0Q1iQHF7CTZkwufHu5gPKSxweB83jCvh5HKY4BOg==
   dependencies:
     ethers "4.0.41"
+
+"@connext/types@4.1.0":
+  version "4.1.0"
+  resolved "https://registry.npmjs.org/@connext/types/-/types-4.1.0.tgz#8959b5e7de878821439ac815f152dd76dc7291dc"
+  integrity sha512-P/dBRCD9VKCRUFMiOZFZeMReyL+mUpxhNyurON+XJk22hj+H1iPXOlEToyNnKMQ4lQtilCNNTiHV9+0pPfWpgA==
+  dependencies:
+    ethers "4.0.45"
+    eventemitter3 "4.0.0"
 
 "@evocateur/libnpmaccess@^3.1.2":
   version "3.1.2"
@@ -310,14 +323,14 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@^0.0.7":
-  version "0.0.7"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.7.tgz#d4c89e20fdad8dce362888da2bdeb790228b0c7d"
-  integrity sha512-WhIImEoj3vnXEow8L2XwDvW78QUY3aeid4lWBTcTD+SSnqIAI8AR7MlX1mNfZI55n+IZtPojlO8sCZsNi6Ka3Q==
+"@graphprotocol/common-ts@^0.0.9":
+  version "0.0.9"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.9.tgz#520ca8a60d3477ce5688fc6818304c10460d0331"
+  integrity sha512-jIlTAAORNr4lCCmD3BzQ2CQl0osF7R7JFpb2c/369qqATO2C79cMWSGpiuxkWMqiZptsZ2OFcOgeEc2msrpXFQ==
   dependencies:
-    "@connext/client" "4.0.16"
-    "@connext/types" "4.0.16"
-    ethers "4.0.41"
+    "@connext/client" "4.1.0"
+    "@connext/types" "4.1.0"
+    ethers "4.0.45"
     express "^4.17.1"
     pg "^7.18.1"
     pg-hstore "^2.3.3"
@@ -1290,6 +1303,11 @@
   dependencies:
     "@types/node" ">= 8"
 
+"@openzeppelin/contracts@2.5.0":
+  version "2.5.0"
+  resolved "https://registry.npmjs.org/@openzeppelin/contracts/-/contracts-2.5.0.tgz#e327a98ba1d26b7756ff62885a0aa0967a375449"
+  integrity sha512-t3jm8FrhL9tkkJTofkznTqo/XXdHi21w5yXwalEnaMOp22ZwZ0f/mmKdlgMMLPFa6bSVHbY88mKESwJT/7m5Lg==
+
 "@sinonjs/commons@^1.7.0":
   version "1.7.1"
   resolved "https://registry.npmjs.org/@sinonjs/commons/-/commons-1.7.1.tgz#da5fd19a5f71177a53778073978873964f49acf1"
@@ -1528,6 +1546,11 @@ aes-js@3.0.0:
   version "3.0.0"
   resolved "https://registry.npmjs.org/aes-js/-/aes-js-3.0.0.tgz#e21df10ad6c2053295bcbb8dab40b09dbea87e4d"
   integrity sha1-4h3xCtbCBTKVvLuNq0Cwnb6ofk0=
+
+aes-js@3.1.2:
+  version "3.1.2"
+  resolved "https://registry.npmjs.org/aes-js/-/aes-js-3.1.2.tgz#db9aabde85d5caabbfc0d4f2a4446960f627146a"
+  integrity sha512-e5pEa2kBnBOgR4Y/p20pskXI74UEz7de8ZGVo58asOtvSVG5YAbJeELPZxOmt+Bnz3rX753YKhfIn4X4l1PPRQ==
 
 agent-base@4, agent-base@^4.3.0:
   version "4.3.0"
@@ -2514,10 +2537,10 @@ core-js@2.4.1:
   resolved "https://registry.npmjs.org/core-js/-/core-js-2.4.1.tgz#4de911e667b0eae9124e34254b53aea6fc618d3e"
   integrity sha1-TekR5mew6ukSTjQlS1OupvxhjT4=
 
-core-js@3.6.1:
-  version "3.6.1"
-  resolved "https://registry.npmjs.org/core-js/-/core-js-3.6.1.tgz#39d5e2e346258cc01eb7d44345b1c3c014ca3f05"
-  integrity sha512-186WjSik2iTGfDjfdCZAxv2ormxtKgemjC3SI6PL31qOA0j5LhTDVjHChccoc7brwLvpvLPiMyRlcO88C4l1QQ==
+core-js@3.6.4:
+  version "3.6.4"
+  resolved "https://registry.npmjs.org/core-js/-/core-js-3.6.4.tgz#440a83536b458114b9cb2ac1580ba377dc470647"
+  integrity sha512-4paDGScNgZP2IXXilaffL9X7968RuvwlkK3xWtZRVqgd8SYNiVKRJvkFd1aqqEuPfN7E68ZHEp9hDj6lHj4Hyw==
 
 core-util-is@1.0.2, core-util-is@~1.0.0:
   version "1.0.2"
@@ -2876,6 +2899,17 @@ ecc-jsbn@~0.1.1:
     jsbn "~0.1.0"
     safer-buffer "^2.1.0"
 
+eccrypto-js@4.3.5:
+  version "4.3.5"
+  resolved "https://registry.npmjs.org/eccrypto-js/-/eccrypto-js-4.3.5.tgz#4f5c0c21f45b8a185ca45bf518656572fa22de23"
+  integrity sha512-Fuus3sIfJiyNuPykNwI3ekju2RS03YTjbfkBuUjiMEP2ZfA4jfbCS7NS2aRWVE0Imdraa3v3LsyZFBYg6NZLBQ==
+  dependencies:
+    aes-js "3.1.2"
+    hash.js "1.1.7"
+    js-sha3 "0.8.0"
+    randombytes "2.1.0"
+    secp256k1 "3.8.0"
+
 eccrypto@1.1.3:
   version "1.1.3"
   resolved "https://registry.npmjs.org/eccrypto/-/eccrypto-1.1.3.tgz#010cb4e9d239ce9752b82c0ac6d8af207fffaf3e"
@@ -3212,7 +3246,7 @@ ethers@4.0.41:
     uuid "2.0.1"
     xmlhttprequest "1.8.0"
 
-ethers@^4.0.37:
+ethers@4.0.45, ethers@^4.0.37:
   version "4.0.45"
   resolved "https://registry.npmjs.org/ethers/-/ethers-4.0.45.tgz#8d4cd764d7c7690836b583d4849203c225eb56e2"
   integrity sha512-N/Wmc6Mw4pQO+Sss1HnKDCSS6KSCx0luoBMiPNq+1GbOaO3YaZOyplBEhj+NEoYsizZYODtkITg2oecPeNnidQ==
@@ -3968,7 +4002,7 @@ hash.js@1.1.3:
     inherits "^2.0.3"
     minimalistic-assert "^1.0.0"
 
-hash.js@^1.0.0, hash.js@^1.0.3:
+hash.js@1.1.7, hash.js@^1.0.0, hash.js@^1.0.3:
   version "1.1.7"
   resolved "https://registry.npmjs.org/hash.js/-/hash.js-1.1.7.tgz#0babca538e8d4ee4a0f8988d68866537a003cf42"
   integrity sha512-taOaskGt4z4SOANNseOviYDvjEJinIkRgmp7LbKP2YTTmVxWBl87s/uzK9r+44BclBSp2X7K1hqeNfz9JbBeXA==
@@ -4928,6 +4962,11 @@ js-sha3@0.5.7:
   resolved "https://registry.npmjs.org/js-sha3/-/js-sha3-0.5.7.tgz#0d4ffd8002d5333aabaf4a23eed2f6374c9f28e7"
   integrity sha1-DU/9gALVMzqrr0oj7tL2N0yfKOc=
 
+js-sha3@0.8.0:
+  version "0.8.0"
+  resolved "https://registry.npmjs.org/js-sha3/-/js-sha3-0.8.0.tgz#b9b7a5da73afad7dedd0f8c463954cbde6818840"
+  integrity sha512-gF1cRrHhIzNfToc802P800N8PpXS+evLLXfsVpowqmAFR9uwbi89WvXg2QspOmXL8QL86J4T1EpFu+yUkwJY3Q==
+
 js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
@@ -5253,10 +5292,10 @@ logform@^2.1.1:
     ms "^2.1.1"
     triple-beam "^1.3.0"
 
-loglevel@1.6.6:
-  version "1.6.6"
-  resolved "https://registry.npmjs.org/loglevel/-/loglevel-1.6.6.tgz#0ee6300cc058db6b3551fa1c4bf73b83bb771312"
-  integrity sha512-Sgr5lbboAUBo3eXCSPL4/KoVz3ROKquOjcctxmHIt+vol2DrqTQe3SwkKKuYhEiWB5kYa13YyopJ69deJ1irzQ==
+loglevel@1.6.7:
+  version "1.6.7"
+  resolved "https://registry.npmjs.org/loglevel/-/loglevel-1.6.7.tgz#b3e034233188c68b889f5b862415306f565e2c56"
+  integrity sha512-cY2eLFrQSAfVPhCgH1s7JI73tMbg9YC3v3+ZHVW67sBS7UxWzNEk/ZBbSfLykBWHp33dqqtOv82gjhKEi81T/A==
 
 lolex@^5.0.0:
   version "5.1.2"
@@ -6663,6 +6702,13 @@ quick-lru@^1.0.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/quick-lru/-/quick-lru-1.1.0.tgz#4360b17c61136ad38078397ff11416e186dcfbb8"
   integrity sha1-Q2CxfGETatOAeDl/8RQW4Ybc+7g=
+
+randombytes@2.1.0:
+  version "2.1.0"
+  resolved "https://registry.npmjs.org/randombytes/-/randombytes-2.1.0.tgz#df6f84372f0270dc65cdf6291349ab7a473d4f2a"
+  integrity sha512-vYl3iOX+4CKUWuxGi9Ukhie6fsqXqS9FE2Zaic4tNFD2N2QQaXOMFbuKK4QmDHC0JO6B1Zp41J0LpT0oR68amQ==
+  dependencies:
+    safe-buffer "^5.1.0"
 
 range-parser@~1.2.1:
   version "1.2.1"
@@ -8193,12 +8239,7 @@ uuid@2.0.1:
   resolved "https://registry.npmjs.org/uuid/-/uuid-2.0.1.tgz#c2a30dedb3e535d72ccf82e343941a50ba8533ac"
   integrity sha1-wqMN7bPlNdcsz4LjQ5QaULqFM6w=
 
-uuid@3.3.3:
-  version "3.3.3"
-  resolved "https://registry.npmjs.org/uuid/-/uuid-3.3.3.tgz#4568f0216e78760ee1dbf3a4d2cf53e224112866"
-  integrity sha512-pW0No1RGHgzlpHJO1nsVrHKpOEIxkGg1xB+v0ZmdNH5OAeAwzAVrCnI2/6Mtx+Uys6iaylxa+D3g4j63IKKjSQ==
-
-uuid@^3.0.1, uuid@^3.3.2, uuid@^3.3.3:
+uuid@3.4.0, uuid@^3.0.1, uuid@^3.3.2, uuid@^3.3.3:
   version "3.4.0"
   resolved "https://registry.npmjs.org/uuid/-/uuid-3.4.0.tgz#b23e4358afa8a202fe7a100af1f5f883f02007ee"
   integrity sha512-HjSDRw6gZE5JMggctHBcjVak08+KEVhSIiDzFnT9S9aegmp85S/bReBVTb4QTFaRNptJ9kuYaNhnbNEOkbKb/A==

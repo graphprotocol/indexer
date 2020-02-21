@@ -14,7 +14,7 @@
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "^0.0.7",
+    "@graphprotocol/common-ts": "^0.0.9",
     "express": "^4.17.1",
     "morgan": "^1.9.1",
     "yargs": "^15.1.0"
