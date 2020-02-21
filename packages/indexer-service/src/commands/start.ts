@@ -81,7 +81,7 @@ export default {
 
     // Temporary logic:
     //
-    // 1. Check if there is enough money to send a payment to a test indexer account
+    // 1. Check if there is enough money (0.1 ETH) to send payments
     // 2. (Maybe) deposit 0.01 ETH into the state channel
     //
     // After that:
