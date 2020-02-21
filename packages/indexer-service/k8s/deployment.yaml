@@ -1,0 +1,24 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: indexer-service
+  labels:
+    app: indexer-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: indexer-service
+  template:
+    metadata:
+      labels:
+        app: indexer-service
+    spec:
+      containers:
+        - name: indexer-service
+          image: indexer-service:to-be-replaced-by-kustomize
+          ports:
+            - containerPort: 80
+          env:
+            - name: GATEWAY_PORT
+              value: '80'
