@@ -20,42 +20,42 @@ spec:
           ports:
             - containerPort: 80
           env:
-        - name: INDEXER_SERVICE_PORT
-          value: '80'
-        - name: INDEXER_SERVICE_ETHEREUM
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-eth-provider
-              key: url
-        - name: INDEXER_SERVICE_CONNEXT_NODE
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-connext-node
-              key: url
-        - name: INDEXER_SERVICE_MNEMONIC
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-eth-account
-              key: mnemonic
-        - name: INDEXER_SERVICE_POSTGRES_HOST
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-postgres-credentials
-              key: host
-        - name: INDEXER_SERVICE_POSTGRES_PORT
-          value: '5432'
-        - name: INDEXER_SERVICE_POSTGRES_USERNAME
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-postgres-credentials
-              key: username
-        - name: INDEXER_SERVICE_POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-postgres-credentials
-              key: password
-        - name: INDEXER_SERVICE_POSTGRES_DATABASE
-          valueFrom:
-            secretKeyRef:
-              name: indexer-service-postgres-credentials
-              key: db
+            - name: INDEXER_SERVICE_PORT
+              value: '80'
+            - name: INDEXER_SERVICE_ETHEREUM
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-eth-provider
+                  key: url
+            - name: INDEXER_SERVICE_CONNEXT_NODE
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-connext-node
+                  key: url
+            - name: INDEXER_SERVICE_MNEMONIC
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-eth-account
+                  key: mnemonic
+            - name: INDEXER_SERVICE_POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-postgres-credentials
+                  key: host
+            - name: INDEXER_SERVICE_POSTGRES_PORT
+              value: '5432'
+            - name: INDEXER_SERVICE_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-postgres-credentials
+                  key: username
+            - name: INDEXER_SERVICE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-postgres-credentials
+                  key: password
+            - name: INDEXER_SERVICE_POSTGRES_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-postgres-credentials
+                  key: db
