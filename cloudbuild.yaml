@@ -2,7 +2,7 @@ images:
   - gcr.io/$PROJECT_ID/indexer-service:$SHORT_SHA
 steps:
   ########################################################################
-  # Gateway
+  # Indexer Service
 
   # Build Docker image
   - name: gcr.io/cloud-builders/docker
