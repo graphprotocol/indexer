@@ -12,5 +12,15 @@
     "start": "yarn prepare && node ./dist/index.js",
     "test": "jest --passWithNoTests --detectOpenHandles --verbose",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
+  },
+  "dependencies": {
+    "@graphprotocol/common-ts": "^0.0.7",
+    "express": "^4.17.1",
+    "morgan": "^1.9.1",
+    "yargs": "^15.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.2",
+    "@types/morgan": "^1.7.37"
   }
 }
