@@ -93,6 +93,8 @@ export default {
     let freeBalance = await client.getFreeBalance()
     let balance = freeBalance[client.signerAddress]
 
+    logger.info(`Signer address: ${client.signerAddress}`)
+
     if (!balance || balance.lt(utils.parseEther('0.1'))) {
       logger.info(`Balance too low: ${balance ? utils.formatEther(balance) : 0} < 0.1`)
       logger.info('Deposit 0.01 ETH')
