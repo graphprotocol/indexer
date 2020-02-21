@@ -1,0 +1,57 @@
+########################################################################
+# Build image
+
+FROM node:slim as build
+
+ARG NPM_TOKEN
+
+ENV NODE_ENV production
+
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY .npmrc.docker .npmrc
+COPY lerna.json .
+COPY tsconfig.json .
+
+# Copy shared and package files
+COPY packages/indexer-service/ ./packages/indexer-service
+
+# Install dependencies; include dev dependencies
+RUN yarn --pure-lockfile --non-interactive --production=false
+
+# Build the indexer-service
+WORKDIR /opt/indexer/packages/indexer-service
+RUN yarn prepare
+
+########################################################################
+# Runtime image
+
+FROM node:10-alpine
+
+ARG NPM_TOKEN
+
+ENV NODE_ENV production
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY .npmrc.docker .npmrc
+COPY lerna.json .
+COPY tsconfig.json .
+
+# Copy build output
+COPY --from=build /opt/indexer/packages/indexer-service/package.json /opt/indexer/packages/gatway/package.json
+COPY --from=build /opt/indexer/packages/indexer-service/dist /opt/indexer/packages/indexer-service/dist
+
+# Install dependencies; exclude dev dependencies
+RUN yarn --pure-lockfile --non-interactive
+
+ENV ETHEREUM ""
+
+# Run the indexer-service
+WORKDIR /opt/indexer/packages/indexer-service
+CMD ["node", "dist/index.js", "start"]

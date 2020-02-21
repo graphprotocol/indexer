@@ -161,6 +161,8 @@ Build configuration: Cloud Build configuration file
 cloudbuild.yaml location: /cloudbuild.yaml
 Substition variables:
   - _NPM_TOKEN
+  - _CLOUDSDK_COMPUTE_ZONE
+  - _CLOUDSDK_CONTAINER_CLUSTER
 ```
 
 # Copyright

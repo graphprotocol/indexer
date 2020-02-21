@@ -1,0 +1,39 @@
+images:
+  - gcr.io/$PROJECT_ID/indexer-service:$SHORT_SHA
+steps:
+  ########################################################################
+  # Gateway
+
+  # Build Docker image
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg
+      - NPM_TOKEN=$_NPM_TOKEN
+      - -t
+      - gcr.io/$PROJECT_ID/indexer-service:$SHORT_SHA
+      - -f
+      - Dockerfile.indexer-service
+      - .
+
+  # Inject image into the k8s config
+  - name: gcr.io/$PROJECT_ID/kustomize
+    args:
+      - edit
+      - set
+      - image
+      - indexer-service=gcr.io/$PROJECT_ID/indexer-service:$SHORT_SHA
+    dir: packages/indexer-service/k8s
+    env:
+      - CLOUDSDK_COMPUTE_ZONE=$_CLOUDSDK_COMPUTE_ZONE
+      - CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER
+
+  # Apply k8s changes
+  - name: gcr.io/$PROJECT_ID/kustomize
+    args:
+      - build
+      - packages/indexer-service/k8s/
+    env:
+      - APPLY=true
+      - CLOUDSDK_COMPUTE_ZONE=$_CLOUDSDK_COMPUTE_ZONE
+      - CLOUDSDK_CONTAINER_CLUSTER=$_CLOUDSDK_CONTAINER_CLUSTER
