@@ -1,6 +1,9 @@
 {
   "name": "root",
   "private": true,
+  "workspaces": [
+    "packages/indexer-service"
+  ],
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
