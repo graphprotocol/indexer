@@ -93,24 +93,27 @@ export default {
 
     // Handle incoming payments
     client.on('RECEIVE_TRANSFER_FINISHED_EVENT', data => {
+      let formattedAmount = utils.formatEther(data.amount).toString()
+
       logger.info(
-        `Received ${utils.formatEther(data.amount).toString()} ETH from ${
-          data.meta.sender
-        }`,
+        `Received payment ${data.paymentId} (${formattedAmount} ETH) from ${data.meta.sender}`,
       )
-      logger.info(`Sending them back 5s`)
 
       setTimeout(async () => {
         try {
-          await client.transfer({
+          logger.info(`Send ${formattedAmount} ETH back to ${data.meta.sender}`)
+          let response = await client.transfer({
             amount: data.amount,
             recipient: data.meta.sender,
-            meta: { sender: client.freeBalanceAddress },
+            meta: { sender: client.publicIdentifier },
           })
+          logger.info(
+            `${formattedAmount} ETH sent back to ${data.meta.sender} via payment ${response.paymentId}`,
+          )
         } catch (e) {
           logger.error(`Failed to send payment back to ${data.meta.sender}: ${e.message}`)
         }
-      }, 5000)
+      }, 1000)
     })
 
     // Spin up a basic webserver
