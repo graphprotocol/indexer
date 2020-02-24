@@ -81,11 +81,6 @@ export default {
 
     // Temporary logic:
     //
-    // 1. Check if there is enough money (0.1 ETH) to send payments
-    // 2. (Maybe) deposit 0.01 ETH into the state channel
-    //
-    // After that:
-    //
     // 1. Listen to incoming payments
     // 2. Whenever there is an incoming payment, send it right back
 
@@ -95,23 +90,6 @@ export default {
 
     logger.info(`Free balance address: ${client.freeBalanceAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
-
-    if (!balance || balance.lt(utils.parseEther('0.1'))) {
-      logger.info(`Balance too low: ${balance ? utils.formatEther(balance) : 0} < 0.1`)
-      logger.info('Deposit 0.01 ETH')
-
-      let state = await client.deposit({
-        amount: utils.parseEther('0.01').toString(),
-      })
-
-      logger.info(
-        `Balance after deposit: ${utils.formatEther(
-          state.freeBalance[client.signerAddress],
-        )}`,
-      )
-    } else {
-      logger.info(`Balance: ${utils.formatEther(balance)}`)
-    }
 
     // Handle incoming payments
     client.on('RECEIVE_TRANSFER_FINISHED_EVENT', data => {
