@@ -93,9 +93,24 @@ export default {
 
     // Handle incoming payments
     client.on('RECEIVE_TRANSFER_FINISHED_EVENT', data => {
-      console.log('Received payment:', data)
+      logger.info(
+        `Received ${utils.formatEther(data.amount).toString()} ETH from ${
+          data.meta.sender
+        }`,
+      )
+      logger.info(`Sending them back 5s`)
 
-      // TODO: Send the payment back to the sender
+      setTimeout(async () => {
+        try {
+          await client.transfer({
+            amount: data.amount,
+            recipient: data.meta.sender,
+            meta: { sender: client.freeBalanceAddress },
+          })
+        } catch (e) {
+          logger.error(`Failed to send payment back to ${data.meta.sender}: ${e.message}`)
+        }
+      }, 5000)
     })
 
     // Spin up a basic webserver
