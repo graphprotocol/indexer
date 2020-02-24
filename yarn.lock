@@ -151,13 +151,13 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
-"@connext/cf-core@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/cf-core/-/cf-core-4.1.0.tgz#8298638df489927529968614dececbd6b1678eba"
-  integrity sha512-n50/N5Iv/gU/rxhPN8UuZV6pk6dbuAie/0HyJk/xxLhqXbHUcQtoiAJnKrh0nBL4R/qnkXU3EGPUmL7Oc5XsqA==
+"@connext/cf-core@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/cf-core/-/cf-core-4.2.0.tgz#7755d425e2c122c7072aa5a4ded8b001c3bf7c43"
+  integrity sha512-nx9n0UCTk7yyBJk2YM9DlA7AMF84THDMkIElL88+VagPDeTgUayE3T+ddnkabqHK4oF3hotLexZLNSXrUEfwlw==
   dependencies:
     "@connext/contracts" "1.0.4"
-    "@connext/types" "4.1.0"
+    "@connext/types" "4.2.0"
     "@openzeppelin/contracts" "2.5.0"
     ethers "4.0.45"
     eventemitter3 "4.0.0"
@@ -168,25 +168,25 @@
     typescript-memoize "1.0.0-alpha.3"
     uuid "3.4.0"
 
-"@connext/channel-provider@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/channel-provider/-/channel-provider-4.1.0.tgz#ef4a44998867018430d8daedf831d67389439888"
-  integrity sha512-1MLttdDs3i2ZCq+xBTH+OtgS+VCZZXiI2Ko16zuqLDvwz7J19pxvTaM5VeWfBdD1c+ltITn3sZJnt+KpMQebZQ==
+"@connext/channel-provider@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/channel-provider/-/channel-provider-4.2.0.tgz#00cf9c9bcbe09fbc616568f3d46fa09bd0076ce1"
+  integrity sha512-zZ08ErnXiYXjseevfMnrV75VNPH1cfcf5HPVmGexO4nXpXrazHbkIInFPXlRFfYNmO2/epMwLK+VfsnkvZEUWQ==
   dependencies:
-    "@connext/types" "4.1.0"
+    "@connext/types" "4.2.0"
     eventemitter3 "4.0.0"
 
-"@connext/client@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/client/-/client-4.1.0.tgz#9d9ff0d2ea9e447d52396db4006e7b3416cc0a37"
-  integrity sha512-/7hrWLHQVPBnUS30RWqiU2MlB8qj7eQ/XlgXYGobucLQyQWPApJpfcXJtL9FBHOyHFh+XGWuy94jw5JJ5ZSIIg==
+"@connext/client@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/client/-/client-4.2.0.tgz#9fc523494b20d82c0f3b0d99fc711e962049f4c3"
+  integrity sha512-ZDiCsLLORA9V/HUyhZ5HZ5LscUw0N/PlBHZT8cla2Y0hMq0xiEGYa340Eixnl4w79AEL4JmR9e2+aKIHzdHe/g==
   dependencies:
-    "@connext/cf-core" "4.1.0"
-    "@connext/channel-provider" "4.1.0"
-    "@connext/crypto" "4.1.0"
-    "@connext/messaging" "4.1.0"
-    "@connext/store" "4.1.0"
-    "@connext/types" "4.1.0"
+    "@connext/cf-core" "4.2.0"
+    "@connext/channel-provider" "4.2.0"
+    "@connext/crypto" "4.2.0"
+    "@connext/messaging" "4.2.0"
+    "@connext/store" "4.2.0"
+    "@connext/types" "4.2.0"
     core-js "3.6.4"
     eccrypto "1.1.3"
     ethers "4.0.45"
@@ -207,29 +207,29 @@
     ganache-cli "6.7.0"
     openzeppelin-solidity "2.3.0"
 
-"@connext/crypto@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/crypto/-/crypto-4.1.0.tgz#3f51b53a25d10ae1383a1987b6f9b3ac38953e62"
-  integrity sha512-TncG6HDJWMRC45BDB7HWbSNwUY5HkqbF5z/bhszAtRApep0d/gGUorplLlp/ziRTri4FN87eCDG30lJ1ws817A==
+"@connext/crypto@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/crypto/-/crypto-4.2.0.tgz#163746a4f2ea50d2a48a1bd81ae582ca9ac3810d"
+  integrity sha512-nERVPlwLPXbkH4e+ZyPGQXrBOp4+VO86J2liRmBzglT8O1qmKa7mVkFtsyod+W+DPCfNj9t8B4sgPOQGxPL5CQ==
   dependencies:
-    "@connext/types" "4.1.0"
+    "@connext/types" "4.2.0"
     eccrypto-js "4.3.5"
 
-"@connext/messaging@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/messaging/-/messaging-4.1.0.tgz#302d584df5b96454b3e396f4b666769575803d33"
-  integrity sha512-CEfZR1rnN1I1ewPB+9ZqKnjpKk7MUzZ5jUMmCE/30302PzxTvjZwIOyXi5Xos7NS8dgJANXjHzC15kDFhJblJQ==
+"@connext/messaging@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/messaging/-/messaging-4.2.0.tgz#57ec70207b19d4ba6e35577fbc8e3239d2a2a45e"
+  integrity sha512-VPfyFc+3dVW+vsMaMoJw3gVw2yoE0n58nxFBdUESc42LKNfBDjUS5IaB3NOcNSsjQtBgY0vg+Tb4n+EsDu163Q==
   dependencies:
-    "@connext/types" "4.1.0"
+    "@connext/types" "4.2.0"
     ts-nats "1.2.4"
     websocket-nats "0.3.3"
 
-"@connext/store@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/store/-/store-4.1.0.tgz#b18fb5e7e23cc10404548cc0609f7b8ca5cda268"
-  integrity sha512-tf3PdCi2aWeTftf5Szke2UWb0LO2n3n6Z/JDPMqDZWrPVouqZ0hjbN9E3gWnEMlHcS3uUZkW2MfU1h6S0AzJlg==
+"@connext/store@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/store/-/store-4.2.0.tgz#6528dadf18984d56be54a9517490f39abb0aa01f"
+  integrity sha512-DxRRPWvfFMZl0n8vYF/6eQS3zStR0qqz+hzM5dXBaRI7afgMelxbddeJ1wWDfQZHjLfTZNcZbCXGxsIbSOGQHg==
   dependencies:
-    "@connext/types" "4.1.0"
+    "@connext/types" "4.2.0"
     ethers "4.0.45"
     pisa-client "0.1.4-connext-beta.1"
     uuid "3.4.0"
@@ -241,10 +241,10 @@
   dependencies:
     ethers "4.0.41"
 
-"@connext/types@4.1.0":
-  version "4.1.0"
-  resolved "https://registry.npmjs.org/@connext/types/-/types-4.1.0.tgz#8959b5e7de878821439ac815f152dd76dc7291dc"
-  integrity sha512-P/dBRCD9VKCRUFMiOZFZeMReyL+mUpxhNyurON+XJk22hj+H1iPXOlEToyNnKMQ4lQtilCNNTiHV9+0pPfWpgA==
+"@connext/types@4.2.0":
+  version "4.2.0"
+  resolved "https://registry.npmjs.org/@connext/types/-/types-4.2.0.tgz#e7fad52c797a548bec4703e8ec278c1932314088"
+  integrity sha512-o7IMD1W/N5gxFV0LRt/0n6j1/qZXdU6sbzyGwphHXCGbXR7G4bXl5ItpXtkbtjNsQAbOOf8KQFuiPovmMx4UJQ==
   dependencies:
     ethers "4.0.45"
     eventemitter3 "4.0.0"
@@ -323,13 +323,13 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@^0.0.9":
-  version "0.0.9"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.9.tgz#520ca8a60d3477ce5688fc6818304c10460d0331"
-  integrity sha512-jIlTAAORNr4lCCmD3BzQ2CQl0osF7R7JFpb2c/369qqATO2C79cMWSGpiuxkWMqiZptsZ2OFcOgeEc2msrpXFQ==
+"@graphprotocol/common-ts@^0.0.10":
+  version "0.0.10"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.10.tgz#18123c063a574ba847b93cc4fbeb7dcc18ef9120"
+  integrity sha512-dug4jK8bb8QS4PGajG+1gT9PTzyv472I74Jas+8AoDhtP8GgZY47u8JjFRlIwC537hWINIAmrG1tTDjRv0cI9A==
   dependencies:
-    "@connext/client" "4.1.0"
-    "@connext/types" "4.1.0"
+    "@connext/client" "4.2.0"
+    "@connext/types" "4.2.0"
     ethers "4.0.45"
     express "^4.17.1"
     pg "^7.18.1"
