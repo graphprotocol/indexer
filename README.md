@@ -120,7 +120,7 @@ necessary:
    kustomize edit set image indexer-service=indexer-service:latest
 
    # Apply the k8s config
-   kustomize build | kubectl apply -f
+   kustomize build | kubectl apply -f -
    ```
 
 ### Deployment using Google Cloud Build and Kubernetes
