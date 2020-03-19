@@ -88,33 +88,34 @@ export default {
     let freeBalance = await client.getFreeBalance()
     let balance = freeBalance[client.signerAddress]
 
+    logger.info(`Signer address: ${client.signerAddress}`)
     logger.info(`Free balance address: ${client.freeBalanceAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
-    // Handle incoming payments
-    client.on('RECEIVE_TRANSFER_FINISHED_EVENT', data => {
-      let formattedAmount = utils.formatEther(data.amount).toString()
+    // // Handle incoming payments
+    // client.on('RECEIVE_TRANSFER_FINISHED_EVENT', data => {
+    //   let formattedAmount = utils.formatEther(data.amount).toString()
 
-      logger.info(
-        `Received payment ${data.paymentId} (${formattedAmount} ETH) from ${data.meta.sender}`,
-      )
+    //   logger.info(
+    //     `Received payment ${data.paymentId} (${formattedAmount} ETH) from ${data.meta.sender}`,
+    //   )
 
-      setTimeout(async () => {
-        try {
-          logger.info(`Send ${formattedAmount} ETH back to ${data.meta.sender}`)
-          let response = await client.transfer({
-            amount: data.amount,
-            recipient: data.meta.sender,
-            meta: { sender: client.publicIdentifier },
-          })
-          logger.info(
-            `${formattedAmount} ETH sent back to ${data.meta.sender} via payment ${response.paymentId}`,
-          )
-        } catch (e) {
-          logger.error(`Failed to send payment back to ${data.meta.sender}: ${e.message}`)
-        }
-      }, 1000)
-    })
+    //   setTimeout(async () => {
+    //     try {
+    //       logger.info(`Send ${formattedAmount} ETH back to ${data.meta.sender}`)
+    //       let response = await client.transfer({
+    //         amount: data.amount,
+    //         recipient: data.meta.sender,
+    //         meta: { sender: client.publicIdentifier },
+    //       })
+    //       logger.info(
+    //         `${formattedAmount} ETH sent back to ${data.meta.sender} via payment ${response.paymentId}`,
+    //       )
+    //     } catch (e) {
+    //       logger.error(`Failed to send payment back to ${data.meta.sender}: ${e.message}`)
+    //     }
+    //   }, 1000)
+    // })
 
     // Spin up a basic webserver
     let serverLogger = logger.child({ component: 'Server' })
