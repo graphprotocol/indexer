@@ -32,6 +32,11 @@ spec:
                 secretKeyRef:
                   name: indexer-service-connext-node
                   key: url
+            - name: INDEXER_SERVICE_CONNEXT_MESSAGING
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-service-connext-messaging
+                  key: url
             - name: INDEXER_SERVICE_MNEMONIC
               valueFrom:
                 secretKeyRef:
