@@ -9,13 +9,14 @@
   "private": false,
   "scripts": {
     "prepare": "tsc",
-    "start": "yarn prepare && node ./dist/index.js",
+    "start": "yarn prepare && node ./dist/index.js start",
     "test": "jest --passWithNoTests --detectOpenHandles --verbose",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@connext/types": "^6.0.0-alpha.10",
-    "@graphprotocol/common-ts": "^0.0.18",
+    "@connext/crypto": "6.0.0-alpha.10",
+    "@connext/types": "6.0.0-alpha.10",
+    "@graphprotocol/common-ts": "0.0.18",
     "ethers": "^4.0.46",
     "express": "^4.17.1",
     "morgan": "^1.9.1",
