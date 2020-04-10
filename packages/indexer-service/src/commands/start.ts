@@ -1,12 +1,16 @@
 import { Argv } from 'yargs'
 import { database, logging, stateChannels } from '@graphprotocol/common-ts'
-import { EventPayloads, EventNames, toBN } from '@connext/types'
-import { formatEther } from 'ethers/utils'
+import { EventPayloads, EventNames, toBN, ConditionalTransferTypes } from '@connext/types'
+import { formatEther, hexlify, randomBytes, solidityKeccak256 } from 'ethers/utils'
 import { AddressZero } from 'ethers/constants'
 import express from 'express'
 import morgan from 'morgan'
 import { Stream } from 'stream'
-import { utils } from 'ethers'
+import { utils, Wallet } from 'ethers'
+import { signChannelMessage } from "@connext/crypto";
+// import { PublicParams } from '@connext/types' TODO: why???
+
+const delay = (time: number) => new Promise(res => setTimeout(res, time))
 
 export default {
   command: 'start',
@@ -98,34 +102,48 @@ export default {
     logger.info(`Free balance address: ${client.freeBalanceAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
+    const wallet = Wallet.fromMnemonic(argv.mnemonic);
+
     // // Handle incoming payments
     client.on(
-      EventNames.CONDITIONAL_TRANSFER_UNLOCKED_EVENT,
-      (data: EventPayloads.SignedTransferUnlocked) => {
-        const amount = toBN(data.amount)
-        let formattedAmount = formatEther(amount as any).toString()
+      EventNames.CONDITIONAL_TRANSFER_RECEIVED_EVENT,
+      async (eventData: EventPayloads.SignedTransferReceived) => {
+        const amount = toBN(eventData.amount)
+        let formattedAmount = formatEther(amount)
 
         logger.info(
-          `Received payment ${data.paymentId} (${formattedAmount} ETH) from ${data.meta.sender}`,
+          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.meta.sender}, unlocking...`,
         )
 
-        setTimeout(async () => {
-          try {
-            logger.info(`Send ${formattedAmount} ETH back to ${data.meta.sender}`)
-            let response = await client.transfer({
-              amount,
-              recipient: data.meta.sender,
-              assetId: AddressZero,
-            })
-            logger.info(
-              `${formattedAmount} ETH sent back to ${data.meta.sender} via payment ${response.paymentId}`,
-            )
-          } catch (e) {
-            logger.error(
-              `Failed to send payment back to ${data.meta.sender}: ${e.message}`,
-            )
-          }
-        }, 1000)
+        const data = hexlify(randomBytes(32));
+        const digest = solidityKeccak256(["bytes32", "bytes32"], [data, eventData.paymentId]);
+        const signature = await signChannelMessage(wallet.privateKey, digest);
+        await client.resolveCondition({
+          conditionType: ConditionalTransferTypes.SignedTransfer,
+          paymentId: eventData.paymentId,
+          data,
+          signature,
+        } as any); // TODO: fix
+
+        logger.info(
+          `Unlocked payment ${eventData.paymentId} for (${formattedAmount} ETH)`,
+        )
+
+        await delay(1000)
+
+        try {
+          logger.info(`Send ${formattedAmount} ETH back to ${eventData.meta.sender}`)
+          let response = await client.transfer({
+            amount,
+            recipient: eventData.meta.sender,
+            assetId: AddressZero,
+          })
+          logger.info(
+            `${formattedAmount} ETH sent back to ${eventData.meta.sender} via payment ${response.paymentId}`,
+          )
+        } catch (e) {
+          logger.error(`Failed to send payment back to ${eventData.meta.sender}: ${e.message}`)
+        }
       },
     )
 
