@@ -7,7 +7,7 @@ import express from 'express'
 import morgan from 'morgan'
 import { Stream } from 'stream'
 import { utils, Wallet } from 'ethers'
-import { signChannelMessage } from "@connext/crypto";
+import { signChannelMessage } from '@connext/crypto'
 // import { PublicParams } from '@connext/types' TODO: why???
 
 const delay = (time: number) => new Promise(res => setTimeout(res, time))
@@ -64,7 +64,7 @@ export default {
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerService' })
 
-    logger.info('Starting up')
+    logger.info('Starting up... v0.0.4')
 
     logger.info('Connect to database')
     let sequelize = await database.connect({
@@ -102,7 +102,10 @@ export default {
     logger.info(`Free balance address: ${client.freeBalanceAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
-    const wallet = Wallet.fromMnemonic(argv.mnemonic);
+    const wallet = Wallet.fromMnemonic(
+      argv.mnemonic,
+      "m/44'/60'/0'/25446/0",
+    )
 
     // // Handle incoming payments
     client.on(
@@ -112,18 +115,21 @@ export default {
         let formattedAmount = formatEther(amount)
 
         logger.info(
-          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.meta.sender}, unlocking...`,
+          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.meta.sender}, unlocking with key from ${wallet.address}...`,
         )
 
-        const data = hexlify(randomBytes(32));
-        const digest = solidityKeccak256(["bytes32", "bytes32"], [data, eventData.paymentId]);
-        const signature = await signChannelMessage(wallet.privateKey, digest);
+        const data = hexlify(randomBytes(32))
+        const digest = solidityKeccak256(
+          ['bytes32', 'bytes32'],
+          [data, eventData.paymentId],
+        )
+        const signature = await signChannelMessage(wallet.privateKey, digest)
         await client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId: eventData.paymentId,
           data,
           signature,
-        } as any); // TODO: fix
+        } as any) // TODO: fix
 
         logger.info(
           `Unlocked payment ${eventData.paymentId} for (${formattedAmount} ETH)`,
@@ -142,7 +148,9 @@ export default {
             `${formattedAmount} ETH sent back to ${eventData.meta.sender} via payment ${response.paymentId}`,
           )
         } catch (e) {
-          logger.error(`Failed to send payment back to ${eventData.meta.sender}: ${e.message}`)
+          logger.error(
+            `Failed to send payment back to ${eventData.meta.sender}: ${e.message}`,
+          )
         }
       },
     )
