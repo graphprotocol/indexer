@@ -5,7 +5,7 @@ import {
   EventNames,
   toBN,
   ConditionalTransferTypes,
-  ResolveSignedTransferParameters,
+  PublicParams,
 } from '@connext/types'
 import { formatEther, hexlify, randomBytes, solidityKeccak256 } from 'ethers/utils'
 import { AddressZero } from 'ethers/constants'
@@ -130,7 +130,7 @@ export default {
           paymentId: eventData.paymentId,
           data: mockAttestation,
           signature,
-        } as ResolveSignedTransferParameters)
+        } as PublicParams.ResolveSignedTransfer)
 
         logger.info(
           `Unlocked payment ${eventData.paymentId} for (${formattedAmount} ETH)`,
