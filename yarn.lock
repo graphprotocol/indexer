@@ -295,7 +295,7 @@
     "@connext/types" "6.0.0-alpha.14"
     eventemitter3 "4.0.0"
 
-"@connext/client@^6.0.0-alpha.10":
+"@connext/client@6.0.0-alpha.14":
   version "6.0.0-alpha.14"
   resolved "https://registry.npmjs.org/@connext/client/-/client-6.0.0-alpha.14.tgz#2b7a0a191bc0331093faf12b5355ca8cf8f0a322"
   integrity sha512-SivC6lieCFpMkIFNO41pVhmjYjUF92tlphr1h2KryFNrhJ5rTGcFqDPsrB409dFCZyiafWQZ9wQcffUWQo2WQA==
@@ -330,14 +330,6 @@
     ganache-cli "6.9.1"
     solc "0.5.11"
 
-"@connext/crypto@6.0.0-alpha.10":
-  version "6.0.0-alpha.10"
-  resolved "https://registry.npmjs.org/@connext/crypto/-/crypto-6.0.0-alpha.10.tgz#68506e512d382a96248cc8a93facca6eaa914cfe"
-  integrity sha512-h2jjro/gC/M/n/oo8xrOy872PH3y99qf+zWMqxYA42yIyIIQt4dV4M3F96RjkB6uY4C0jN9uT7JKKhELq/+f/w==
-  dependencies:
-    "@connext/types" "6.0.0-alpha.10"
-    eccrypto-js "4.5.2"
-
 "@connext/crypto@6.0.0-alpha.14":
   version "6.0.0-alpha.14"
   resolved "https://registry.npmjs.org/@connext/crypto/-/crypto-6.0.0-alpha.14.tgz#e8a0b4e85a13592300e7dfdfbe9b86a43e463025"
@@ -362,7 +354,7 @@
     "@connext/types" "6.0.0-alpha.14"
     ts-natsutil "1.0.4"
 
-"@connext/store@6.0.0-alpha.14", "@connext/store@^6.0.0-alpha.10":
+"@connext/store@6.0.0-alpha.14":
   version "6.0.0-alpha.14"
   resolved "https://registry.npmjs.org/@connext/store/-/store-6.0.0-alpha.14.tgz#6aafe7669c495e501d7c63759a98f13ca483b655"
   integrity sha512-sQz26DC+hEpghxwWDbJDYQx/ZTwXF09zBMcSUFsP2vc94YhQEgV2j716vU/8FuqQ903wqkwcW/FwWSGrVx59Xg==
@@ -376,12 +368,7 @@
     sequelize "5.21.5"
     uuid "3.4.0"
 
-"@connext/types@6.0.0-alpha.10":
-  version "6.0.0-alpha.10"
-  resolved "https://registry.npmjs.org/@connext/types/-/types-6.0.0-alpha.10.tgz#4a63db2176c7551cde96c0b081cd179161df3e03"
-  integrity sha512-EP/rHYbAV/lS1EEdHftqxKgaX5WeMuz/5fAQennFQpN+uO7yZil3aAzhyQ5ifpirq09ibkwC/5gcM+tBfDdLhQ==
-
-"@connext/types@6.0.0-alpha.14", "@connext/types@^6.0.0-alpha.10":
+"@connext/types@6.0.0-alpha.14":
   version "6.0.0-alpha.14"
   resolved "https://registry.npmjs.org/@connext/types/-/types-6.0.0-alpha.14.tgz#a98a3c8485de242506367d8f568fd9cb248932f9"
   integrity sha512-gitFgr8zQCEnTURwJG5iyw4ImjIOD/xBXzoufKPHftWBz+3bKfNqfkDg9FePUZ74NvzIFayktp0/M7WJaU6uYQ==
@@ -465,20 +452,20 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@0.0.18":
-  version "0.0.18"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.18.tgz#8740e4c31dc983c63f0d5879db7a77650a5323cc"
-  integrity sha512-7POkoXQNkhlwasNRFpb+NxAHGNczgcS0WXypcMXRTB/W32zMn9V0vrEv8Rdq9DhxLJWnQpamNcTWLRA+u1sagw==
+"@graphprotocol/common-ts@0.0.19":
+  version "0.0.19"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.19.tgz#90e84c295649a8c15accc305bc086d8e4ac7f5af"
+  integrity sha512-n8eMNp3cyFuMkZKoUk5oFT9q5D1YD6kap/yDzKzC+bFaGe74QzrJvg5uFwgKJfTCPuTiypo+CyZlJc1sh1qZ1g==
   dependencies:
-    "@connext/client" "^6.0.0-alpha.10"
-    "@connext/store" "^6.0.0-alpha.10"
-    "@connext/types" "^6.0.0-alpha.10"
-    ethers "4.0.45"
+    "@connext/client" "6.0.0-alpha.14"
+    "@connext/store" "6.0.0-alpha.14"
+    "@connext/types" "6.0.0-alpha.14"
+    ethers "4.0.46"
     express "^4.17.1"
     pg "^8.0.0"
     pg-hstore "^2.3.3"
     prom-client "^11.5.3"
-    sequelize "^5.21.5"
+    sequelize "5.21.5"
     winston "^3.2.1"
 
 "@istanbuljs/load-nyc-config@^1.0.0":
@@ -1446,9 +1433,9 @@
     universal-user-agent "^4.0.0"
 
 "@octokit/types@^2.0.0", "@octokit/types@^2.0.1", "@octokit/types@^2.8.2":
-  version "2.8.2"
-  resolved "https://registry.npmjs.org/@octokit/types/-/types-2.8.2.tgz#08d1165354637ef32c3134b4b39b7f17bdc17aef"
-  integrity sha512-8cs4DjRAzFoGo1ieUhDyrTdPK016V3JD/H00nbnojSCUYfOXnnJ1owUaAT/3OebTzp/tgdTG6M+8PdCTJzI+/w==
+  version "2.9.0"
+  resolved "https://registry.npmjs.org/@octokit/types/-/types-2.9.0.tgz#b3b69cddab629dd31a559ffb25c9f471301d7538"
+  integrity sha512-IzptUpoDsFlXF+AOys+KnfItIVY3EK+eH9Akv+lJYELnMSGkJnIcClt6Cm0QRR4ecsUTsmFJWn10iFgJ9BQqIQ==
   dependencies:
     "@types/node" ">= 8"
 
@@ -3379,9 +3366,9 @@ esprima@^4.0.0, esprima@^4.0.1:
   integrity sha512-eGuFFw7Upda+g4p+QHvnW0RyTX/SVeJBDM/gCtMARO0cLuT2HcEKnTPvhjV6aGeqrCB/sbNop0Kszm0jsaWU4A==
 
 esquery@^1.0.1:
-  version "1.2.0"
-  resolved "https://registry.npmjs.org/esquery/-/esquery-1.2.0.tgz#a010a519c0288f2530b3404124bfb5f02e9797fe"
-  integrity sha512-weltsSqdeWIX9G2qQZz7KlTRJdkkOCTPgLYJUz1Hacf48R4YOwGPHO3+ORfWedqJKbq5WQmsgK90n+pFLIKt/Q==
+  version "1.2.1"
+  resolved "https://registry.npmjs.org/esquery/-/esquery-1.2.1.tgz#105239e215c5aa480369c7794d74b8b5914c19d4"
+  integrity sha512-/IcAXa9GWOX9BUIb/Tz2QrrAWFWzWGrFIeLeMRwtiuwg9qTFhSYemsi9DixwrFFqVbhBZ47vGcxEnu5mbPqbig==
   dependencies:
     estraverse "^5.0.0"
 
@@ -3424,21 +3411,6 @@ ethereumjs-util@6.1.0:
     rlp "^2.0.0"
     safe-buffer "^5.1.1"
     secp256k1 "^3.0.1"
-
-ethers@4.0.45:
-  version "4.0.45"
-  resolved "https://registry.npmjs.org/ethers/-/ethers-4.0.45.tgz#8d4cd764d7c7690836b583d4849203c225eb56e2"
-  integrity sha512-N/Wmc6Mw4pQO+Sss1HnKDCSS6KSCx0luoBMiPNq+1GbOaO3YaZOyplBEhj+NEoYsizZYODtkITg2oecPeNnidQ==
-  dependencies:
-    aes-js "3.0.0"
-    bn.js "^4.4.0"
-    elliptic "6.5.2"
-    hash.js "1.1.3"
-    js-sha3 "0.5.7"
-    scrypt-js "2.0.4"
-    setimmediate "1.0.4"
-    uuid "2.0.1"
-    xmlhttprequest "1.8.0"
 
 ethers@4.0.46, ethers@^4.0.37, ethers@^4.0.46:
   version "4.0.46"
@@ -7516,27 +7488,6 @@ sequelize@5.21.5:
   version "5.21.5"
   resolved "https://registry.npmjs.org/sequelize/-/sequelize-5.21.5.tgz#44056f3ab8862ccbfeebd5e03ce041c570477ea2"
   integrity sha512-n9hR5K4uQGmBGK/Y/iqewCeSFmKVsd0TRnh0tfoLoAkmXbKC4tpeK96RhKs7d+TTMtrJlgt2TNLVBaAxEwC4iw==
-  dependencies:
-    bluebird "^3.5.0"
-    cls-bluebird "^2.1.0"
-    debug "^4.1.1"
-    dottie "^2.0.0"
-    inflection "1.12.0"
-    lodash "^4.17.15"
-    moment "^2.24.0"
-    moment-timezone "^0.5.21"
-    retry-as-promised "^3.2.0"
-    semver "^6.3.0"
-    sequelize-pool "^2.3.0"
-    toposort-class "^1.0.1"
-    uuid "^3.3.3"
-    validator "^10.11.0"
-    wkx "^0.4.8"
-
-sequelize@^5.21.5:
-  version "5.21.6"
-  resolved "https://registry.npmjs.org/sequelize/-/sequelize-5.21.6.tgz#5bf9b687336ce9157a3b386ad653fa130a5fa38a"
-  integrity sha512-RsgEpP2PP7txeoTWxoLLoe3xX8R2WYQAO7LNba2Ok3/pV5EFfKZry4fJXH56DUHJB909msMCHg0CJKDsQVbjcQ==
   dependencies:
     bluebird "^3.5.0"
     cls-bluebird "^2.1.0"
