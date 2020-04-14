@@ -1,6 +1,12 @@
 import { Argv } from 'yargs'
 import { database, logging, stateChannels } from '@graphprotocol/common-ts'
-import { EventPayloads, EventNames, toBN, ConditionalTransferTypes, ResolveSignedTransferParameters } from '@connext/types'
+import {
+  EventPayloads,
+  EventNames,
+  toBN,
+  ConditionalTransferTypes,
+  ResolveSignedTransferParameters,
+} from '@connext/types'
 import { formatEther, hexlify, randomBytes, solidityKeccak256 } from 'ethers/utils'
 import { AddressZero } from 'ethers/constants'
 import express from 'express'
@@ -8,7 +14,6 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { utils, Wallet } from 'ethers'
 import { signChannelMessage } from '@connext/crypto'
-import { SignedTransferParameters } from '@connext/types'
 
 const delay = (time: number) => new Promise(res => setTimeout(res, time))
 
@@ -64,7 +69,7 @@ export default {
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerService' })
 
-    logger.info('Starting up... v0.0.4')
+    logger.info('Starting up...')
 
     logger.info('Connect to database')
     let sequelize = await database.connect({
@@ -99,13 +104,9 @@ export default {
     logger.info(`Channel free balance: ${utils.formatEther(balance)}`)
 
     logger.info(`Signer address: ${client.freeBalanceAddress}`)
-    logger.info(`Free balance address: ${client.freeBalanceAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
-    const wallet = Wallet.fromMnemonic(
-      argv.mnemonic,
-      "m/44'/60'/0'/25446/0",
-    )
+    const wallet = Wallet.fromMnemonic(argv.mnemonic, "m/44'/60'/0'/25446/0")
 
     // // Handle incoming payments
     client.on(
@@ -114,31 +115,31 @@ export default {
         const amount = toBN(eventData.amount)
         let formattedAmount = formatEther(amount)
 
-        if (!eventData.sender) {
-          logger.error(`Sender not specified, cannot send payment back`)
-          return
-        }
-
         logger.info(
           `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender}, unlocking with key from ${wallet.address}...`,
         )
 
-        const data = hexlify(randomBytes(32))
+        const mockAttestation = hexlify(randomBytes(32))
         const digest = solidityKeccak256(
           ['bytes32', 'bytes32'],
-          [data, eventData.paymentId],
+          [mockAttestation, eventData.paymentId],
         )
         const signature = await signChannelMessage(wallet.privateKey, digest)
         await client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId: eventData.paymentId,
-          data,
+          data: mockAttestation,
           signature,
-        } as ResolveSignedTransferParameters) // TODO: fix
+        } as ResolveSignedTransferParameters)
 
         logger.info(
           `Unlocked payment ${eventData.paymentId} for (${formattedAmount} ETH)`,
         )
+
+        if (!eventData.sender) {
+          logger.error(`Sender not specified, cannot send payment back`)
+          return
+        }
 
         await delay(1000)
 
@@ -153,9 +154,7 @@ export default {
             `${formattedAmount} ETH sent back to ${eventData.sender} via payment ${response.paymentId}`,
           )
         } catch (e) {
-          logger.error(
-            `Failed to send payment back to ${eventData.sender}: ${e.message}`,
-          )
+          logger.error(`Failed to send payment back to ${eventData.sender}: ${e.message}`)
         }
       },
     )
