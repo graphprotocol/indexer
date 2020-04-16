@@ -3,7 +3,6 @@ import { database, logging, stateChannels } from '@graphprotocol/common-ts'
 import {
   EventPayloads,
   EventNames,
-  toBN,
   ConditionalTransferTypes,
   PublicParams,
 } from '@connext/types'
@@ -14,6 +13,7 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { utils, Wallet } from 'ethers'
 import { signChannelMessage } from '@connext/crypto'
+import { toBN } from '@connext/utils'
 
 const delay = (time: number) => new Promise(res => setTimeout(res, time))
 
@@ -100,10 +100,10 @@ export default {
 
     // Obtain current free balance
     let freeBalance = await client.getFreeBalance(AddressZero)
-    let balance = freeBalance[client.freeBalanceAddress]
+    let balance = freeBalance[client.signerAddress]
     logger.info(`Channel free balance: ${utils.formatEther(balance)}`)
 
-    logger.info(`Signer address: ${client.freeBalanceAddress}`)
+    logger.info(`Signer address: ${client.signerAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic, "m/44'/60'/0'/25446/0")
