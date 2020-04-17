@@ -12,8 +12,7 @@ import express from 'express'
 import morgan from 'morgan'
 import { Stream } from 'stream'
 import { utils, Wallet } from 'ethers'
-import { signChannelMessage } from '@connext/crypto'
-import { toBN } from '@connext/utils'
+import { toBN, ChannelSigner } from '@connext/utils'
 
 const delay = (time: number) => new Promise(res => setTimeout(res, time))
 
@@ -107,6 +106,7 @@ export default {
     logger.info(`xpub: ${client.publicIdentifier}`)
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
+    const signer = new ChannelSigner(wallet.privateKey, argv.ethereum)
 
     // // Handle incoming payments
     client.on(
@@ -116,15 +116,22 @@ export default {
         let formattedAmount = formatEther(amount)
 
         logger.info(
-          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender}, unlocking with key from ${wallet.address}...`,
+          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender}, signer is ${eventData.transferMeta.signer}...`,
         )
+
+        if (signer.address !== eventData.transferMeta.signer) {
+          logger.error(
+            `Transfer's specified signer ${eventData.transferMeta.signer} does not match our signer ${signer.address}`,
+          )
+          return
+        }
 
         const mockAttestation = hexlify(randomBytes(32))
         const digest = solidityKeccak256(
           ['bytes32', 'bytes32'],
           [mockAttestation, eventData.paymentId],
         )
-        const signature = await signChannelMessage(wallet.privateKey, digest)
+        const signature = await signer.signMessage(digest)
         await client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId: eventData.paymentId,
