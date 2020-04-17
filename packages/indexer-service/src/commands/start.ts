@@ -157,7 +157,7 @@ export default {
             attemptTransfer = false;
           } catch (e) {
             logger.error(`Caught error unlocking transfer, waiting 5 seconds and retrying...: ${e}`)
-            await delay(5000);
+            await delay(5000)
           } 
         }
 
