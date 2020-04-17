@@ -89,7 +89,7 @@ export default {
       ethereumProvider: argv.ethereum,
       connextMessaging: argv.connextMessaging,
       connextNode: argv.connextNode,
-      logLevel: 1,
+      logLevel: 3,
     })
     logger.info('Created state channel')
 
@@ -106,7 +106,7 @@ export default {
     logger.info(`Signer address: ${client.signerAddress}`)
     logger.info(`xpub: ${client.publicIdentifier}`)
 
-    const wallet = Wallet.fromMnemonic(argv.mnemonic, "m/44'/60'/0'/25446/0")
+    const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
     // // Handle incoming payments
     client.on(
