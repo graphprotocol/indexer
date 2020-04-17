@@ -115,8 +115,15 @@ export default {
         const amount = toBN(eventData.amount)
         let formattedAmount = formatEther(amount)
 
+        if (eventData.type !== ConditionalTransferTypes.SignedTransfer) {
+          logger.warn(
+            `Received transfer with unexpected type ${eventData.type}, doing nothing`,
+          )
+          return
+        }
+
         logger.info(
-          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender}, signer is ${eventData.transferMeta.signer}...`,
+          `Received transfer type ${eventData.type} ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender}, signer is ${eventData.transferMeta.signer}...`,
         )
 
         if (signer.address !== eventData.transferMeta.signer) {
@@ -127,24 +134,35 @@ export default {
         }
 
         const mockAttestation = hexlify(randomBytes(32))
-        const digest = solidityKeccak256(
+        const attestationHash = solidityKeccak256(
           ['bytes32', 'bytes32'],
           [mockAttestation, eventData.paymentId],
         )
-        const signature = await signer.signMessage(digest)
-        await client.resolveCondition({
-          conditionType: ConditionalTransferTypes.SignedTransfer,
-          paymentId: eventData.paymentId,
-          data: mockAttestation,
-          signature,
-        } as PublicParams.ResolveSignedTransfer)
+        const signature = await client.channelProvider.signMessage(attestationHash)
+        
+        let attemptTransfer = true;
+        while (attemptTransfer) {
+          try {
+            const res = await client.resolveCondition({
+              conditionType: ConditionalTransferTypes.SignedTransfer,
+              paymentId: eventData.paymentId,
+              data: mockAttestation,
+              signature,
+            } as PublicParams.ResolveSignedTransfer)
+  
+            logger.info(
+              `Unlocked transfer ${eventData.paymentId} for (${formattedAmount} ETH)`,
+            )
 
-        logger.info(
-          `Unlocked payment ${eventData.paymentId} for (${formattedAmount} ETH)`,
-        )
+            attemptTransfer = false;
+          } catch (e) {
+            logger.error(`Caught error unlocking transfer, waiting 5 seconds and retrying...: ${e}`)
+            await delay(5000);
+          } 
+        }
 
         if (!eventData.sender) {
-          logger.error(`Sender not specified, cannot send payment back`)
+          logger.error(`Sender not specified, cannot send transfer back`)
           return
         }
 
@@ -158,15 +176,15 @@ export default {
             assetId: AddressZero,
           })
           logger.info(
-            `${formattedAmount} ETH sent back to ${eventData.sender} via payment ${response.paymentId}`,
+            `${formattedAmount} ETH sent back to ${eventData.sender} via transfer ${response.paymentId}`,
           )
         } catch (e) {
-          logger.error(`Failed to send payment back to ${eventData.sender}: ${e.message}`)
+          logger.error(`Failed to send transfer back to ${eventData.sender}: ${e.message}`)
         }
       },
     )
 
-    logger.info('Waiting to receive payments...')
+    logger.info('Waiting to receive transfers...')
 
     // Spin up a basic webserver
     let serverLogger = logger.child({ component: 'Server' })
