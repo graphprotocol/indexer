@@ -139,26 +139,28 @@ export default {
           [mockAttestation, eventData.paymentId],
         )
         const signature = await client.channelProvider.signMessage(attestationHash)
-        
-        let attemptTransfer = true;
+
+        let attemptTransfer = true
         while (attemptTransfer) {
           try {
-            const res = await client.resolveCondition({
+            await client.resolveCondition({
               conditionType: ConditionalTransferTypes.SignedTransfer,
               paymentId: eventData.paymentId,
               data: mockAttestation,
               signature,
             } as PublicParams.ResolveSignedTransfer)
-  
+
             logger.info(
               `Unlocked transfer ${eventData.paymentId} for (${formattedAmount} ETH)`,
             )
 
-            attemptTransfer = false;
+            attemptTransfer = false
           } catch (e) {
-            logger.error(`Caught error unlocking transfer, waiting 5 seconds and retrying...: ${e}`)
+            logger.error(
+              `Caught error unlocking transfer, waiting 5 seconds and retrying...: ${e}`,
+            )
             await delay(5000)
-          } 
+          }
         }
 
         if (!eventData.sender) {
@@ -168,18 +170,25 @@ export default {
 
         await delay(1000)
 
-        try {
-          logger.info(`Send ${formattedAmount} ETH back to ${eventData.sender}`)
-          let response = await client.transfer({
-            amount,
-            recipient: eventData.sender,
-            assetId: AddressZero,
-          })
-          logger.info(
-            `${formattedAmount} ETH sent back to ${eventData.sender} via transfer ${response.paymentId}`,
-          )
-        } catch (e) {
-          logger.error(`Failed to send transfer back to ${eventData.sender}: ${e.message}`)
+        attemptTransfer = true
+        while (attemptTransfer) {
+          try {
+            logger.info(`Send ${formattedAmount} ETH back to ${eventData.sender}`)
+            let response = await client.transfer({
+              amount,
+              recipient: eventData.sender,
+              assetId: AddressZero,
+            })
+            logger.info(
+              `${formattedAmount} ETH sent back to ${eventData.sender} via transfer ${response.paymentId}`,
+            )
+            attemptTransfer = false
+          } catch (e) {
+            logger.error(
+              `Failed to send transfer back to ${eventData.sender}, waiting 5 seconds and retrying...: ${e}`,
+            )
+            await delay(5000)
+          }
         }
       },
     )
