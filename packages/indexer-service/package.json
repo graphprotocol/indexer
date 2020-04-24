@@ -14,9 +14,9 @@
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@connext/types": "6.0.3",
-    "@connext/utils": "6.0.3",
-    "@graphprotocol/common-ts": "0.0.20",
+    "@connext/types": "6.0.9",
+    "@connext/utils": "6.0.9",
+    "@graphprotocol/common-ts": "0.0.21",
     "ethers": "^4.0.46",
     "express": "^4.17.1",
     "morgan": "^1.9.1",

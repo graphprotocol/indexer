@@ -110,8 +110,8 @@ export default {
 
     // // Handle incoming payments
     client.on(
-      EventNames.CONDITIONAL_TRANSFER_RECEIVED_EVENT,
-      async (eventData: EventPayloads.SignedTransferReceived) => {
+      EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
+      async (eventData: EventPayloads.SignedTransferCreated) => {
         const amount = toBN(eventData.amount)
         let formattedAmount = formatEther(amount)
 
