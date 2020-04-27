@@ -115,6 +115,11 @@ export default {
         const amount = toBN(eventData.amount)
         let formattedAmount = formatEther(amount)
 
+        if (eventData.sender === client.publicIdentifier) {
+          // our own transfer
+          return
+        }
+
         if (eventData.type !== ConditionalTransferTypes.SignedTransfer) {
           logger.warn(
             `Received transfer with unexpected type ${eventData.type}, doing nothing`,
