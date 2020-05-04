@@ -17,12 +17,15 @@
     "@connext/types": "6.3.8",
     "@connext/utils": "6.3.8",
     "@graphprotocol/common-ts": "0.0.22",
+    "axios": "^0.19.2",
+    "body-parser": "^1.19.0",
     "ethers": "^4.0.46",
     "express": "^4.17.1",
     "morgan": "^1.9.1",
     "yargs": "^15.1.0"
   },
   "devDependencies": {
+    "@types/body-parser": "^1.19.0",
     "@types/express": "^4.17.2",
     "@types/morgan": "^1.7.37"
   }
