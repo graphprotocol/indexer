@@ -4,6 +4,7 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { logging, metrics } from '@graphprotocol/common-ts'
 import { PaidQueryProcessor, FreeQueryProcessor } from './types'
+import { keccak256 } from 'ethers/utils'
 
 export interface ServerOptions {
   logger: logging.Logger
@@ -76,8 +77,9 @@ export const createServer = ({
       try {
         let response = await paidQueryProcessor.addPaidQuery({
           subgraphId,
-          paymentId: paymentId as string,
+          paymentId,
           query,
+          requestCid: keccak256(new TextEncoder().encode(query)),
         })
         res
           .status(response.status || 200)

@@ -17,6 +17,7 @@ export interface PaidQuery {
   subgraphId: string
   paymentId: string
   query: string
+  requestCid: string
 }
 
 export interface FreeQuery {
@@ -53,6 +54,6 @@ export interface ConditionalPaymentUnlockInfo {
 }
 
 export interface PaymentManager extends EventEmitter {
-  unlockPayment(info: ConditionalPaymentUnlockInfo): Promise<void>
-  cancelPayment(paymentId: string): Promise<void>
+  unlockPayment(payment: ConditionalPayment, attestation: string): Promise<void>
+  cancelPayment(payment: ConditionalPayment): Promise<void>
 }

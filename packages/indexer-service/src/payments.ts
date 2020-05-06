@@ -12,6 +12,7 @@ import { Sequelize } from 'sequelize'
 import {
   PaymentManager as PaymentManagerInterface,
   ConditionalPaymentUnlockInfo,
+  ConditionalPayment,
 } from './types'
 import { AddressZero } from 'ethers/constants'
 import { formatEther, solidityKeccak256 } from 'ethers/utils'
@@ -101,13 +102,14 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
     })
   }
 
-  async unlockPayment(info: ConditionalPaymentUnlockInfo) {
-    let formattedAmount = formatEther(info.amount)
+  async unlockPayment(payment: ConditionalPayment, attestation: string) {
+    let formattedAmount = formatEther(payment.amount)
+    let { paymentId } = payment
 
     // Hash attestation and payment ID together (is the payment ID necessary?)
     let attestationHash = solidityKeccak256(
       ['bytes32', 'bytes32'],
-      [info.attestation, info.paymentId],
+      [attestation, paymentId],
     )
 
     // Sign the attestation
@@ -119,27 +121,28 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
       try {
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
-          paymentId: info.paymentId,
-          data: info.attestation,
+          paymentId: paymentId,
+          data: attestation,
           signature,
         } as PublicParams.ResolveSignedTransfer)
 
-        this.logger.info(
-          `Unlocked transfer ${info.paymentId} for (${formattedAmount} ETH)`,
-        )
+        this.logger.info(`Unlocked transfer ${paymentId} for (${formattedAmount} ETH)`)
 
         attemptUnlock = false
       } catch (e) {
         this.logger.error(
-          `Failed to unlock payment '${info.paymentId}', waiting 1 second before retrying. Error: ${e}`,
+          `Failed to unlock payment '${paymentId}', waiting 1 second before retrying. Error: ${e}`,
         )
         await delay(1000)
       }
     }
   }
 
-  async cancelPayment(paymentId: string): Promise<void> {
+  async cancelPayment(payment: ConditionalPayment): Promise<void> {
+    let { paymentId } = payment
+
     this.logger.info(`Cancel payment '${paymentId}'`)
+
     // TODO: Call `this.client.uninstallApp`; for this we need the
     // app instance ID though, it's not clear how we can get to that
   }
