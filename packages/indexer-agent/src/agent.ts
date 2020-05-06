@@ -10,6 +10,6 @@ export class Agent {
   }
 
   async start() {
-    this.logger.info("Start Indexer-Agent")
+    this.logger.info('Start Indexer-Agent')
   }
 }

@@ -5,3 +5,7 @@ export interface AgentConfig {
   logger: logging.Logger
 }
 
+export interface SubgraphKey {
+  name?: string
+  contentHash: string
+}
