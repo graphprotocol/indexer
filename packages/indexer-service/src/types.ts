@@ -42,6 +42,7 @@ export interface FreeQueryProcessor {
 
 export interface ConditionalPayment {
   paymentId: string
+  appIdentityHash: string
   amount: BigNumber
   sender: string
   signer: string

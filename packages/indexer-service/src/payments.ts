@@ -139,12 +139,12 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
   }
 
   async cancelPayment(payment: ConditionalPayment): Promise<void> {
-    let { paymentId } = payment
+    let { paymentId, appIdentityHash } = payment
 
     this.logger.info(`Cancel payment '${paymentId}'`)
 
-    // TODO: Call `this.client.uninstallApp`; for this we need the
-    // app instance ID though, it's not clear how we can get to that
+    // Uninstall the app to cancel the payment
+    await this.client.uninstallApp(appIdentityHash)
   }
 
   async handleConditionalPayment(eventData: EventPayloads.SignedTransferCreated) {
@@ -165,15 +165,21 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
       return
     }
 
+    // Obtain unique app identifier
+    let appIdentityHash = (eventData as any).appIdentityHash
+
     this.logger.info(
       `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender} (signer: ${eventData.transferMeta.signer})`,
     )
 
-    this.emit('payment-received', {
-      id: eventData.paymentId!,
-      amount: amount,
+    let payment: ConditionalPayment = {
+      paymentId: eventData.paymentId!,
+      appIdentityHash,
+      amount,
       sender: eventData.sender,
       signer: eventData.transferMeta.signer,
-    })
+    }
+
+    this.emit('payment-received', payment)
   }
 }
