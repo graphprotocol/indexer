@@ -16,22 +16,27 @@ export default {
       .option('mnemonic', {
         describe: 'Ethereum wallet mnemonic',
         type: 'string',
+        required: true,
       })
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
         type: 'string',
+        required: true,
       })
       .option('connext-messaging', {
         description: 'Connext messaging URL',
         type: 'string',
+        required: true,
       })
       .option('connext-node', {
         description: 'Connext node URL',
         type: 'string',
+        required: true,
       })
       .option('postgres-host', {
         description: 'Postgres host',
         type: 'string',
+        required: true,
       })
       .option('postgres-port', {
         description: 'Postgres port',
@@ -41,14 +46,17 @@ export default {
       .option('postgres-username', {
         description: 'Postgres username',
         type: 'string',
+        required: true,
       })
       .option('postgres-password', {
         description: 'Postres password',
         type: 'string',
+        required: true,
       })
       .option('postgres-database', {
         description: 'Postgres database name',
         type: 'string',
+        required: true,
       })
       .option('port', {
         description: 'Port to serve from',
@@ -64,7 +72,6 @@ export default {
         description: 'Client IPs that can query for free',
         type: 'array',
       })
-      .demandOption(['mnemonic', 'ethereum', 'connext-node', 'postgres-database'])
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerService' })
