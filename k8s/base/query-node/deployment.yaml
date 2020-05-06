@@ -1,0 +1,87 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: query-node
+spec:
+  selector:
+    matchLabels:
+      app: query-node
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: query-node
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8040"
+    spec:
+      nodeSelector:
+        query: "1"
+      tolerations:
+        - key: "query"
+          operator: "Exists"
+          effect: "NoSchedule"
+      volumes:
+        - name: query-node-proxy-config
+          configMap:
+            name: query-node-proxy-config
+        - name: nfs-shared
+          persistentVolumeClaim:
+            claimName: nfs-shared
+            readOnly: false
+      containers:
+        # Proxy that forwards HTTP requests to port 8000 and
+        # WebSocket requests to port 8001
+        - name: nginx
+          image: nginx-image
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: query-node-proxy-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+        # The query node itself
+        - name: graph-node
+          image: graph-node-image
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: ws
+              containerPort: 8001
+            - name: index-node
+              containerPort: 8030
+          volumeMounts:
+             - name: nfs-shared
+               mountPath: /var/lib/graph
+          env:
+            # TODO: Do we even need an ethereum node for a query node?
+            - name: ethereum
+              value: mainnet:https://eth-mainnet.alchemyapi.io/jsonrpc/demo
+            - name: EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE
+              value: synced
+            - name: GRAPH_KILL_IF_UNRESPONSIVE
+              value: 'true'
+            - name: postgres_host
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: postgres_user
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: postgres_pass
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: postgres_db
+              value: graph
+            - name: node_role
+              value: query-node
+            - name: node_id
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name

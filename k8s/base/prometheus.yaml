@@ -1,0 +1,181 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups:
+  - extensions
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      initContainers:
+        - name: init-prometheus
+          image: busybox-image
+          command: ['sh', '-c', 'chown -R 65534:65534 /prometheus;']
+          volumeMounts:
+            - name: prometheus-storage
+              mountPath: /prometheus
+      containers:
+        - name: prometheus-proxy
+          image: nginx-image
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: prometheus-proxy-config
+              mountPath: /etc/nginx/
+        - name: prometheus
+          image: prometheus-image
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.listen-address=:9099"
+            - "--web.external-url=https://localhost:9099/prometheus/"
+            - "--storage.tsdb.retention.time=30d"
+          ports:
+            - containerPort: 9099
+          volumeMounts:
+            - name: prometheus-config
+              mountPath: /etc/prometheus/
+            - name: prometheus-storage
+              mountPath: /prometheus/
+      volumes:
+        - name: prometheus-config
+          configMap:
+            defaultMode: 420
+            name: prometheus-server-conf
+        - name: prometheus-proxy-config
+          configMap:
+            defaultMode: 420
+            name: prometheus-proxy-conf
+        # Terraform creates this volume and claim
+        - name: prometheus-storage
+          persistentVolumeClaim:
+            claimName: prometheus
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-server-conf
+  labels:
+    name: prometheus-server-conf
+data:
+  prometheus.yml: |-
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+    rule_files:
+    alerting:
+    scrape_configs:
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+        - role: pod
+        relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: true
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+          action: replace
+          regex: ([^:]+)(?::\d+)?;(\d+)
+          replacement: $1:$2
+          target_label: __address__
+        - source_labels: [__meta_kubernetes_pod_name]
+          action: replace
+          target_label: kubernetes_pod_name
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-proxy-conf
+  labels:
+    name: prometheus-proxy-conf
+data:
+  nginx.conf: |
+    events {}
+    http {
+      server {
+        # Health check for ingress
+        location = / {
+          if ($request_method = GET) {
+            return 200 "Ok\n";
+          }
+        }
+
+        location /prometheus {
+          proxy_pass http://localhost:9099;
+        }
+      }
+    }
+    stream {}
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  annotations:
+    prometheus.io/scrape: 'true'
+    prometheus.io/port:   '9099'
+spec:
+  type: NodePort
+  selector:
+    app: prometheus
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 80
+    - name: prometheus
+      protocol: TCP
+      port: 9099
+      targetPort: 9099

@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: index-node
+spec:
+  selector:
+    matchLabels:
+      app: index-node
+  serviceName: index-node
+  replicas: 1
+  podManagementPolicy: Parallel
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: index-node
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8040"
+    spec:
+      nodeSelector:
+        index: "1"
+      tolerations:
+        - key: "index"
+          operator: "Exists"
+          effect: "NoSchedule"
+      volumes:
+         - name: nfs-shared
+           persistentVolumeClaim:
+             claimName: nfs-shared
+             readOnly: false
+      containers:
+        - name: graph-node
+          image: graph-node-image
+          resources:
+            requests:
+              cpu: 600m
+          ports:
+            - name: http
+              containerPort: 8000
+            - name: json-rpc
+              containerPort: 8020
+            - name: metrics
+              containerPort: 8040
+          volumeMounts:
+            - name: nfs-shared
+              mountPath: /var/lib/graph
+          env:
+            # The name of the pod that will do block ingestion
+            - name: BLOCK_INGESTOR
+              value: index-node-0
+            - name: GRAPH_KILL_IF_UNRESPONSIVE
+              value: 'true'
+            - name: postgres_host
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: postgres_user
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: postgres_pass
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: postgres_db
+              value: graph
+            - name: node_role
+              value: index-node
+            - name: node_id
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: ethereum
+              valueFrom:
+                configMapKeyRef:
+                  name: ethereum-networks
+                  key: networks

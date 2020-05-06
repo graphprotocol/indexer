@@ -1,0 +1,19 @@
+apiVersion: apps/v1beta2
+kind: Deployment
+metadata:
+  name: query-node
+spec:
+  # Set this to the number of VM's in the query_pool node pool
+  replicas: 2
+  template:
+    spec:
+      containers:
+        - name: graph-node
+          resources:
+            requests:
+              # Set this to a little more than half the number of CPUs
+              # that one VM in the node pool has
+              cpu: 600m
+          env:
+            - name: ipfs
+              value: https://api.staging.thegraph.com/ipfs/

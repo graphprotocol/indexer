@@ -1,0 +1,5 @@
+.tf-indexer-*
+.terraform
+.gcloud-credentials.json
+terraform.tfvars
+terraform.tfstate*

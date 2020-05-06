@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nfs-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      role: nfs-server
+  template:
+    metadata:
+      labels:
+        role: nfs-server
+    spec:
+      volumes:
+        - name: nfs
+          persistentVolumeClaim:
+            claimName: nfs
+            readOnly: false
+      containers:
+      - image: gists/nfs-server
+        name: nfs-server
+        imagePullPolicy: IfNotPresent
+        securityContext:
+            privileged: true
+        volumeMounts:
+          - name: nfs
+            mountPath: /nfs-share
+        env:
+          - name: NFS_OPTION
+            value: fsid=0,rw,sync,insecure,no_root_squash,no_subtree_check,nohide
+
+---
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: nfs-service
+spec:
+  selector:
+    role: nfs-server
+  ports:
+    - name: tcp-2049
+      port: 2049
+      protocol: TCP
+
+---
+
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-shared
+spec:
+  capacity:
+    storage: 256Gi
+  storageClassName: "standard"
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    path: /
+    server: nfs-service.default.svc.cluster.local
+
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-shared
+spec:
+  accessModes:
+  - ReadWriteMany
+  storageClassName: "standard"
+  volumeName: nfs-shared
+  resources:
+    requests:
+      storage: 256Gi

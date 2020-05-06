@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ethereum-networks
+  namespace: default
+data:
+  # List all the networks from which you want to index below. This should
+  # end up being one string with space separated entries.
+  networks: >-
+    mainnet:https://eth-mainnet.alchemyapi.io/jsonrpc/demo
+    rinkeby:https://eth-rinkeby.alchemyapi.io/jsonrpc/demo
