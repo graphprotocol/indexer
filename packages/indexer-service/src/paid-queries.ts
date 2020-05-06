@@ -2,6 +2,11 @@ import { logging, metrics } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
 import { keccak256, hexlify, BigNumber } from 'ethers/utils'
 import assert from 'assert'
+import axios, { AxiosInstance } from 'axios'
+import { randomBytes } from 'crypto'
+import { delay } from '@connext/utils'
+import PQueue from 'p-queue'
+
 import {
   PaidQueryProcessor as PaidQueryProcessorInterface,
   PaidQuery,
@@ -9,8 +14,6 @@ import {
   PaymentManager,
   ConditionalPayment,
 } from './types'
-import axios, { AxiosInstance } from 'axios'
-import { randomBytes } from 'crypto'
 
 export interface PaidQueryProcessorOptions {
   logger: logging.Logger
@@ -26,6 +29,10 @@ interface PendingQuery {
   requestCid?: string
   query?: string
   paid: boolean
+
+  // Information about updates and staleness
+  createdAt: number
+  updatedAt: number
 
   // Helper to create a promise that resolves when the query is ready,
   // and decouples creating the response from resolving it
@@ -62,11 +69,19 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
       // Don't throw on bad responses
       validateStatus: () => true,
     })
+
+    // Start with no pending queries
     this.queries = {}
+
+    // Clean up stale queries (i.e. queries where only one of query and
+    // payment were received after some time) periodically
+    this.periodicallyCleanupStaleQueries()
   }
 
   async addPaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
     let { subgraphId, paymentId, query: queryString } = query
+
+    this.logger.info(`Add query for subgraph '${subgraphId}' (payment ID: ${paymentId})`)
 
     let utf8Query = new TextEncoder().encode(queryString)
     let requestCid = keccak256(utf8Query)
@@ -79,30 +94,50 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
         requestCid,
         query: queryString,
         paid: false,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
         emitter: new EventEmitter(),
       }
     } else {
+      let existingQuery = this.queries[paymentId]
+
+      // Cancel if the same query has already been submitted
+      if (existingQuery.query !== undefined) {
+        throw new Error(
+          `Duplicate query for subgraph '${subgraphId}' and payment '${paymentId}'`,
+        )
+      }
+
       // Update the existing query
-      this.queries[paymentId].query = queryString
-      this.queries[paymentId].requestCid = requestCid
+      existingQuery.query = queryString
+      existingQuery.requestCid = requestCid
+      existingQuery.updatedAt = Date.now()
     }
 
     return await this.processQueryIfReady(paymentId)
   }
 
   async addPayment(payment: ConditionalPayment): Promise<void> {
+    this.logger.info(
+      `Add payment '${payment.paymentId}' (sender: ${payment.sender}, amount: ${payment.amount})`,
+    )
+
     if (this.queries[payment.paymentId] === undefined) {
       // Lazily queue the payment
       this.queries[payment.paymentId] = {
         paymentId: payment.paymentId,
         paymentAmount: payment.amount,
         paid: true,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
         emitter: new EventEmitter(),
       }
     } else {
       // Update the existing query
-      this.queries[payment.paymentId].paid = true
-      this.queries[payment.paymentId].paymentAmount = payment.amount
+      let existingQuery = this.queries[payment.paymentId]
+      existingQuery.paid = true
+      existingQuery.paymentAmount = payment.amount
+      existingQuery.updatedAt = Date.now()
     }
 
     await this.processQueryIfReady(payment.paymentId)
@@ -119,7 +154,9 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
         assert.ok(query.query)
         assert.ok(query.paymentAmount)
 
-        this.logger.debug(`Process query ${query.query} (payment ID: ${query.paymentId})`)
+        this.logger.debug(
+          `Process query for subgraph '${query.subgraphId}' and payment '${query.paymentId}'`,
+        )
 
         // Remove query from the queue
         delete this.queries[paymentId]
@@ -165,5 +202,47 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
       query.emitter.on('resolve', resolve)
       query.emitter.on('reject', reject)
     })
+  }
+
+  periodicallyCleanupStaleQueries() {
+    let worker = async () => {
+      while (true) {
+        // Delete stale queries with a concurrency of 10
+        let cleanupQueue = new PQueue({ concurrency: 10 })
+
+        let now = Date.now()
+
+        // Add stale queries to the queue
+        let paymentIds = Object.keys(this.queries)
+        for (let paymentId of paymentIds) {
+          let query = this.queries[paymentId]
+
+          // Check if the query is stale (no update in >30s)
+          if (now - query.updatedAt > 30000) {
+            // Remove the query from the queue immediately
+            delete this.queries[query.paymentId]
+
+            // Figure out the reason for the timeout
+            let error = query.paid
+              ? new Error(`Payment '${query.paymentId}' timed out waiting for query`)
+              : new Error(
+                  `Query for subgraph '${query.subgraphId}' timed out waiting for payment '${query.paymentId}'`,
+                )
+
+            // Let listeners know that the query is canceled
+            query.emitter.emit('reject', error)
+
+            // Asynchronously cancel the conditional payment
+            cleanupQueue.add(async () => {
+              await this.paymentManager.cancelPayment(query.paymentId)
+            })
+          }
+        }
+
+        // Wait for 10s
+        await delay(10000)
+      }
+    }
+    worker()
   }
 }
