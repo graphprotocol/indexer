@@ -53,35 +53,7 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
 
     client.on(
       EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
-      async (eventData: EventPayloads.SignedTransferCreated) => {
-        // Obtain and format transfer amount
-        let amount = toBN(eventData.amount)
-        let formattedAmount = formatEther(amount)
-
-        // Ignore our own transfers
-        if (eventData.sender === client.publicIdentifier) {
-          return
-        }
-
-        // Skip unsupported transfer types
-        if (eventData.type !== ConditionalTransferTypes.SignedTransfer) {
-          logger.warn(
-            `Received transfer with unexpected type ${eventData.type}, doing nothing`,
-          )
-          return
-        }
-
-        logger.info(
-          `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender} (signer: ${eventData.transferMeta.signer})`,
-        )
-
-        this.emit('payment-received', {
-          id: eventData.paymentId!,
-          amount: amount,
-          sender: eventData.sender,
-          signer: eventData.transferMeta.signer,
-        })
-      },
+      this.handleConditionalPayment,
     )
   }
 
@@ -142,8 +114,8 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
     let signature = await this.client.channelProvider.signMessage(attestationHash)
 
     // Unlock the payment; retry in case there are networking issues
-    let attemptTransfer = true
-    while (attemptTransfer) {
+    let attemptUnlock = true
+    while (attemptUnlock) {
       try {
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
@@ -156,13 +128,49 @@ export class PaymentManager extends EventEmitter implements PaymentManagerInterf
           `Unlocked transfer ${info.paymentId} for (${formattedAmount} ETH)`,
         )
 
-        attemptTransfer = false
+        attemptUnlock = false
       } catch (e) {
         this.logger.error(
-          `Failed to unlock transfer, waiting 1 second before retrying. Error: ${e}`,
+          `Failed to unlock payment '${info.paymentId}', waiting 1 second before retrying. Error: ${e}`,
         )
         await delay(1000)
       }
     }
+  }
+
+  async cancelPayment(paymentId: string): Promise<void> {
+    this.logger.info(`Cancel payment '${paymentId}'`)
+    // TODO: Call `this.client.uninstallApp`; for this we need the
+    // app instance ID though, it's not clear how we can get to that
+  }
+
+  async handleConditionalPayment(eventData: EventPayloads.SignedTransferCreated) {
+    // Obtain and format transfer amount
+    let amount = toBN(eventData.amount)
+    let formattedAmount = formatEther(amount)
+
+    // Ignore our own transfers
+    if (eventData.sender === this.client.publicIdentifier) {
+      return
+    }
+
+    // Skip unsupported payment types
+    if (eventData.type !== ConditionalTransferTypes.SignedTransfer) {
+      this.logger.warn(
+        `Received payment with unexpected type ${eventData.type}, doing nothing`,
+      )
+      return
+    }
+
+    this.logger.info(
+      `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender} (signer: ${eventData.transferMeta.signer})`,
+    )
+
+    this.emit('payment-received', {
+      id: eventData.paymentId!,
+      amount: amount,
+      sender: eventData.sender,
+      signer: eventData.transferMeta.signer,
+    })
   }
 }

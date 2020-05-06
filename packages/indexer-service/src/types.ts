@@ -54,4 +54,5 @@ export interface ConditionalPaymentUnlockInfo {
 
 export interface PaymentManager extends EventEmitter {
   unlockPayment(info: ConditionalPaymentUnlockInfo): Promise<void>
+  cancelPayment(paymentId: string): Promise<void>
 }
