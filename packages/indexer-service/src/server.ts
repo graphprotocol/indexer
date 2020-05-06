@@ -48,6 +48,7 @@ export const createServer = ({
     // Extract the payment ID
     let paymentId = req.headers['x-graph-payment-id']
     if (paymentId !== undefined && typeof paymentId !== 'string') {
+      logger.info(`Query for subgraph '${subgraphId}' has invalid payment ID`)
       return res.status(400).send('Invalid X-Graph-Payment-Id provided')
     }
 
@@ -63,11 +64,15 @@ export const createServer = ({
       // Regular scenario: a payment is required; fail if no
       // payment ID is specified
       if (paymentId === undefined) {
+        logger.info(`Query for subgraph '${subgraphId}' is missing payment ID`)
         return res.status(400).send('No X-Graph-Payment-Id provided')
       }
     }
 
     if (paymentId !== undefined) {
+      logger.info(
+        `Received paid query for subgraph '${subgraphId}' (payment ID: ${paymentId})`,
+      )
       try {
         let response = await paidQueryProcessor.addPaidQuery({
           subgraphId,
@@ -83,6 +88,7 @@ export const createServer = ({
         res.status(500).send()
       }
     } else {
+      logger.info(`Received free query for subgraph '${subgraphId}'`)
       try {
         let response = await freeQueryProcessor.addFreeQuery({
           subgraphId,
