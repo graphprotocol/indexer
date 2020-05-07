@@ -62,21 +62,17 @@ export class Agent {
             networkSubgraph.contentHash == indexerSubgraph.contentHash,
         ),
     )
-
-    if (toDeploy.length > 0) {
-      this.logger.info('Subgraphs to deploy to Indexer:')
-      toDeploy.forEach((subgraph) => {
-        this.logger.info(`    ${subgraph.name}:${subgraph.contentHash}`)
-        // TODO: Deploy subgraph to Indexer
-      })
-    }
-
-    if (toRemove.length > 0) {
-      this.logger.info('Subgraphs to remove from Indexer:')
-      toRemove.forEach((subgraph) => {
-        this.logger.info(`    ${subgraph.contentHash}`)
-        // TODO: Remove subgraph from Indexer
-      })
-    }
+    await Promise.all(
+      toDeploy.map(async (subgraph) => {
+        if (subgraph.name) {
+          await this.indexer.ensure(subgraph.name, subgraph.contentHash)
+        }
+      }),
+    )
+    await Promise.all(
+      toRemove.map(async (subgraph) => {
+        await this.indexer.remove(subgraph.contentHash)
+      }),
+    )
   }
 }
