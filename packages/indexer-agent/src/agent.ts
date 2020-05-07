@@ -33,45 +33,40 @@ export class Agent {
       // Currently the network subgraphs list acts as a set of desired subgraph deployments
       // TODO: Fetch list of subgraphs from the Network subgraphs and use the supplied list of account and subgraph names
       //  to resolve to a "desired" list
+      let networkAccounts: string[] = ['DAOism']
       let networkSubgraphs: SubgraphKey[] = [
         {
           name: 'DAOism/innerdao',
           subgraphId: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
         },
       ]
-
-      await this.resolve(networkSubgraphs, indexerSubgraphs)
+      let accountNetworkSubgraphs: string[] = networkSubgraphs
+        .filter(({ name }) => {
+          return networkAccounts.includes(name.split('/')[0])
+        })
+        .map(({ subgraphId }) => subgraphId)
+      await this.resolve(accountNetworkSubgraphs, indexerSubgraphs)
     }, 5000)
   }
 
   async resolve(
-    networkSubgraphVersions: SubgraphKey[],
-    indexerSubgraphVersions: SubgraphKey[],
+    networkSubgraphVersions: string[],
+    indexerSubgraphVersions: string[],
   ) {
-    let toDeploy: SubgraphKey[] = networkSubgraphVersions.filter(
-      networkSubgraph =>
-        !indexerSubgraphVersions.some(
-          indexerSubgraph =>
-            indexerSubgraph.subgraphId == networkSubgraph.subgraphId,
-        ),
+    let toDeploy: string[] = networkSubgraphVersions.filter(
+      networkSubgraph => !indexerSubgraphVersions.includes(networkSubgraph),
     )
-    let toRemove: SubgraphKey[] = indexerSubgraphVersions.filter(
-      indexerSubgraph =>
-        !networkSubgraphVersions.some(
-          networkSubgraph =>
-            networkSubgraph.subgraphId == indexerSubgraph.subgraphId,
-        ),
+    let toRemove: string[] = indexerSubgraphVersions.filter(
+      indexerSubgraph => !networkSubgraphVersions.includes(indexerSubgraph),
     )
     await Promise.all(
       toDeploy.map(async subgraph => {
-        if (subgraph.name) {
-          await this.indexer.ensure(subgraph.name, subgraph.subgraphId)
-        }
+        await this.indexer.ensure(subgraph, subgraph)
       }),
     )
     await Promise.all(
       toRemove.map(async subgraph => {
-        await this.indexer.remove(subgraph.subgraphId)
+        await this.indexer.remove(subgraph)
       }),
     )
   }

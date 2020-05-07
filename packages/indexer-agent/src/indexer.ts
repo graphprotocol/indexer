@@ -5,8 +5,6 @@ import gql from 'graphql-tag'
 import { RpcClient } from 'jsonrpc-ts'
 import { logging } from '@graphprotocol/common-ts'
 
-import { SubgraphKey } from './types'
-
 const fetch = require('node-fetch')
 
 interface IndexerRpc {
@@ -36,7 +34,7 @@ export class Indexer {
     this.rpc = new RpcClient<IndexerRpc>({ url: adminEndpoint })
   }
 
-  async subgraphs(): Promise<SubgraphKey[]> {
+  async subgraphs(): Promise<string[]> {
     try {
       let result = await this.statuses.query({
         query: gql`
