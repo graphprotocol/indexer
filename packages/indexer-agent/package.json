@@ -18,14 +18,13 @@
     "apollo-cache-inmemory": "^1.6.3",
     "apollo-client": "^2.6.4",
     "apollo-link-http": "^1.5.15",
+    "global": "^4.4.0",
     "graphql": "^14.0.0",
     "graphql-tag": "^2.10.1",
     "jsonrpc-ts": "^0.2.0",
-    "global": "^4.4.0",
-    "yargs": "^15.1.0",
-    "@types/yargs": "^15.0.4"
+    "yargs": "^15.1.0"
   },
   "devDependencies": {
-    "prettier": "2.0.5"
+    "@types/yargs": "^15.0.4"
   }
 }
