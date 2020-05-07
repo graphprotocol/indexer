@@ -2,25 +2,34 @@ import ApolloClient from 'apollo-client'
 import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
+import { RpcClient } from 'jsonrpc-ts'
 import { logging } from '@graphprotocol/common-ts'
 
 import { SubgraphKey } from './types'
 
 const fetch = require('node-fetch')
 
+interface IndexerRpc {
+  subgraph_reassign: { name: string; ipfs_hash: string; node_id: string }
+  subgraph_deploy: { name: string; ipfs_hash: string }
+  subgraph_create: { name: string }
+}
+
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
+  rpc: RpcClient
   logger: logging.Logger
 
-  constructor(url: string, logger: logging.Logger) {
+  constructor(indexNode: string, queryNode: string, logger: logging.Logger) {
     this.statuses = new ApolloClient({
       link: new HttpLink({
-        uri: url,
+        uri: queryNode,
         fetch,
       }),
       cache: new InMemoryCache(),
     })
     this.logger = logger
+    this.rpc = new RpcClient<IndexerRpc>({ url: indexNode })
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {

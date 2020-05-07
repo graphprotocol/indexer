@@ -20,7 +20,11 @@ export class Agent {
 
   constructor(config: AgentConfig) {
     this.logger = config.logger
-    this.indexer = new Indexer(config.queryNode, config.logger)
+    this.indexer = new Indexer(
+      config.indexNode,
+      config.queryNode,
+      config.logger,
+    )
   }
 
   async start() {

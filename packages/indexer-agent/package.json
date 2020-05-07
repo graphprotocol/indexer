@@ -11,7 +11,7 @@
     "compile": "tsc",
     "format": "prettier --write 'src/*.ts'",
     "prepare": "yarn format && yarn compile",
-    "start": "yarn compile && node ./dist/index.js start"
+    "start": "yarn compile && node ./dist/index.js start --index-node http://localhost:8020/ --query-node http://localhost:8030/graphql"
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.0.21",
@@ -20,6 +20,7 @@
     "apollo-link-http": "^1.5.15",
     "graphql": "^14.0.0",
     "graphql-tag": "^2.10.1",
+    "jsonrpc-ts": "^0.2.0",
     "global": "^4.4.0",
     "yargs": "^15.1.0",
     "@types/yargs": "^15.0.4"
