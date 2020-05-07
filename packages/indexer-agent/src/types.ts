@@ -7,6 +7,6 @@ export interface AgentConfig {
 }
 
 export interface SubgraphKey {
-  name?: string
-  contentHash: string
+  name: string
+  subgraphId: string
 }

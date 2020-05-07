@@ -36,7 +36,7 @@ export class Agent {
       let networkSubgraphs: SubgraphKey[] = [
         {
           name: 'DAOism/innerdao',
-          contentHash: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
+          subgraphId: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
         },
       ]
 
@@ -52,26 +52,26 @@ export class Agent {
       networkSubgraph =>
         !indexerSubgraphVersions.some(
           indexerSubgraph =>
-            indexerSubgraph.contentHash == networkSubgraph.contentHash,
+            indexerSubgraph.subgraphId == networkSubgraph.subgraphId,
         ),
     )
     let toRemove: SubgraphKey[] = indexerSubgraphVersions.filter(
       indexerSubgraph =>
         !networkSubgraphVersions.some(
           networkSubgraph =>
-            networkSubgraph.contentHash == indexerSubgraph.contentHash,
+            networkSubgraph.subgraphId == indexerSubgraph.subgraphId,
         ),
     )
     await Promise.all(
       toDeploy.map(async subgraph => {
         if (subgraph.name) {
-          await this.indexer.ensure(subgraph.name, subgraph.contentHash)
+          await this.indexer.ensure(subgraph.name, subgraph.subgraphId)
         }
       }),
     )
     await Promise.all(
       toRemove.map(async subgraph => {
-        await this.indexer.remove(subgraph.contentHash)
+        await this.indexer.remove(subgraph.subgraphId)
       }),
     )
   }

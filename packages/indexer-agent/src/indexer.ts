@@ -37,8 +37,8 @@ export class Indexer {
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {
-    return this.statuses
-      .query({
+    try {
+      let result = await this.statuses.query({
         query: gql`
           query {
             indexingStatuses {
@@ -51,122 +51,124 @@ export class Indexer {
         `,
         fetchPolicy: 'no-cache',
       })
-      .then(response => {
-        return (response.data as any).indexingStatuses
-          .filter(
-            (status: {
-              subgraph: string
-              failed: string
-              synced: string
-              error: string
-              node: string
-            }) => {
-              return status.node !== 'removed'
-            },
-          )
-          .map(
-            (status: {
-              subgraph: string
-              failed: string
-              synced: string
-              error: string
-              node: string
-            }) => {
-              return <SubgraphKey>{ contentHash: status.subgraph }
-            },
-          )
-      })
-      .catch(err => {
-        this.logger.error(`Indexing statuses query failed, ${err}`)
-        throw err
-      })
+      return result.data.indexingStatuses
+        .filter(
+          (status: {
+            subgraph: string
+            failed: string
+            synced: string
+            error: string
+            node: string
+          }) => {
+            return status.node !== 'removed'
+          },
+        )
+        .map(
+          (status: {
+            subgraph: string
+            failed: string
+            synced: string
+            error: string
+            node: string
+          }) => {
+            return status.subgraph
+          },
+        )
+    } catch (error) {
+      this.logger.error(`Indexing statuses query failed`)
+      throw error
+    }
   }
 
   async create(name: string): Promise<any> {
-    let response
     try {
-      response = await this.rpc.makeRequest({
+      this.logger.info(`Create subgraph name '${name}'`)
+      let response = await this.rpc.makeRequest({
         method: 'subgraph_create',
         params: { name: name },
         id: '1',
         jsonrpc: '2.0',
       })
+      this.logger.info(`Created subgraph name '${name}' successfully`)
+      return response.data.result
     } catch (error) {
       if (error.message.includes('already exists')) {
-        this.logger.warn(
-          `Attempted to create a subgraph which already exists: ${name}`,
-        )
+        this.logger.warn(`Subgraph name already exists: ${name}`)
         return
       }
       throw error
     }
-    return response.data.result
   }
 
-  async deploy(name: string, contentHash: string): Promise<any> {
-    let response
+  async deploy(name: string, subgraphId: string): Promise<any> {
     try {
-      response = await this.rpc.makeRequest({
+      this.logger.info(`Deploy subgraph '${subgraphId}' to '${name}'`)
+      let response = await this.rpc.makeRequest({
         method: 'subgraph_deploy',
-        params: { name: name, ipfs_hash: contentHash },
+        params: { name: name, ipfs_hash: subgraphId },
         id: '1',
         jsonrpc: '2.0',
       })
+      this.logger.info(
+        `Deployed subgraph '${subgraphId}' to '${name}' successfully`,
+      )
+      return response.data.result
     } catch (e) {
-      this.logger.error(`Failed to deploy subgraph ${name}:${contentHash}`)
+      this.logger.error(
+        `Failed to deploy subgraph '${subgraphId}' to '${name}'`,
+      )
       throw e
     }
-    return response.data.result
   }
 
-  async remove(contentHash: string): Promise<any> {
-    let response
+  async remove(subgraphId: string): Promise<any> {
     try {
-      response = await this.rpc.makeRequest({
+      this.logger.info(`Remove subgraph '${subgraphId}`)
+      let response = await this.rpc.makeRequest({
         method: 'subgraph_reassign',
-        params: { ipfs_hash: contentHash, node_id: 'removed' },
+        params: { ipfs_hash: subgraphId, node_id: 'removed' },
         id: '1',
         jsonrpc: '2.0',
       })
+      this.logger.info(`Subgraph removed, '${subgraphId}'`)
+      return response.data.result
     } catch (e) {
-      this.logger.error(`Failed to remove subgraph ${name}:${contentHash}`)
+      this.logger.error(`Failed to remove subgraph '${subgraphId}'`)
       throw e
     }
-    this.logger.info(`Subgraph removed, ${contentHash}`)
-    return response.data.result
   }
 
-  async reassign(contentHash: string, node: string): Promise<any> {
-    let response
+  async reassign(subgraphId: string, node: string): Promise<any> {
     try {
-      response = await this.rpc.makeRequest({
+      this.logger.info(`Reassign subgraph '${subgraphId}' to node '${node}'`)
+      let response = await this.rpc.makeRequest({
         method: 'subgraph_reassign',
-        params: { ipfs_hash: contentHash, node_id: node },
+        params: { ipfs_hash: subgraphId, node_id: node },
         id: '1',
         jsonrpc: '2.0',
       })
+      return response.data.result
     } catch (error) {
       if (error.message.includes('unchanged')) {
         this.logger.warn(
-          `Attempted a subgraph reassignment without changes, subgraph: ${contentHash} node_id: ${node}`,
+          `Subgraph deployment assignment unchange:, subgraph: '${subgraphId}' node_id: '${node}'`,
         )
         return
       }
-      this.logger.error(`Failed to reassign subgraph, ${contentHash}`)
+      this.logger.error(`Failed to reassign subgraph, ${subgraphId}`)
       throw error
     }
-    return response.data.result
   }
 
-  async ensure(name: string, contentHash: string): Promise<any> {
-    this.logger.info(`Deploying subgraph ${name}:${contentHash} for indexing`)
+  async ensure(name: string, subgraphId: string): Promise<any> {
+    this.logger.info(
+      `Begin indexing subgraph '${name}' '${subgraphId}'`,
+    )
     return this.create(name)
-      .then(() => this.deploy(name, contentHash))
-      .then(() => this.reassign(contentHash, 'default'))
+      .then(() => this.deploy(name, subgraphId))
+      .then(() => this.reassign(subgraphId, 'default'))
       .catch(e => {
-        this.logger.error(
-          `Failed to begin indexing ${name}:${contentHash}: ${e}`,
-        )
+        this.logger.error(`Failed to ensure '${subgraphId}' is actively deployed to the indexer`)
         throw e
       })
   }
