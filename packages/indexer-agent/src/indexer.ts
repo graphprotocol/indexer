@@ -20,16 +20,20 @@ export class Indexer {
   rpc: RpcClient
   logger: logging.Logger
 
-  constructor(indexNode: string, queryNode: string, logger: logging.Logger) {
+  constructor(
+    adminEndpoint: string,
+    statusEndpoint: string,
+    logger: logging.Logger,
+  ) {
     this.statuses = new ApolloClient({
       link: new HttpLink({
-        uri: queryNode,
+        uri: statusEndpoint,
         fetch,
       }),
       cache: new InMemoryCache(),
     })
     this.logger = logger
-    this.rpc = new RpcClient<IndexerRpc>({ url: indexNode })
+    this.rpc = new RpcClient<IndexerRpc>({ url: adminEndpoint })
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {
@@ -47,7 +51,7 @@ export class Indexer {
         `,
         fetchPolicy: 'no-cache',
       })
-      .then((response) => {
+      .then(response => {
         return (response.data as any).indexingStatuses
           .filter(
             (status: {
@@ -72,7 +76,7 @@ export class Indexer {
             },
           )
       })
-      .catch((err) => {
+      .catch(err => {
         this.logger.error(`Indexing statuses query failed, ${err}`)
         throw err
       })
@@ -159,7 +163,7 @@ export class Indexer {
     return this.create(name)
       .then(() => this.deploy(name, contentHash))
       .then(() => this.reassign(contentHash, 'default'))
-      .catch((e) => {
+      .catch(e => {
         this.logger.error(
           `Failed to begin indexing ${name}:${contentHash}: ${e}`,
         )

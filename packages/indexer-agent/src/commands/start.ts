@@ -9,23 +9,23 @@ export default {
   describe: 'Start the agent',
   builder: (yargs: Argv) => {
     return yargs
-      .option('query-node', {
-        description: 'Graph Node to query for indexing subgraphs',
+      .option('graph-node-status-endpoint', {
+        description: 'Graph Node endpoint for indexing statuses etc.',
         type: 'string'
       })
-      .option('index-node', {
-        description: 'Graph Node to index subgraphs on',
+      .option('graph-node-admin-endpoint', {
+        description: 'Graph Node endpoint for applying and updating subgraph deployments',
         type: 'string'
       })
-      .demandOption(['query-node', 'index-node'])
+      .demandOption(['graph-node-status-endpoint', 'graph-node-admin-endpoint'])
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
 
     logger.info('Starting up agent...')
     let config: AgentConfig = {
-      indexNode: argv.indexNode,
-      queryNode: argv.queryNode,
+      adminEndpoint: argv.graphNodeAdminEndpoint,
+      statusEndpoint: argv.graphNodeStatusEndpoint,
       logger: logger
     }
     let agent = new Agent(config)

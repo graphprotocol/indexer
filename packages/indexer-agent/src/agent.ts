@@ -4,7 +4,7 @@ import { AgentConfig, SubgraphKey } from './types'
 import { Indexer } from './indexer'
 
 let delay = async (ms: number) => {
-  await new Promise((resolve) => setTimeout(resolve, ms))
+  await new Promise(resolve => setTimeout(resolve, ms))
 }
 
 let loop = async (f: () => Promise<void>, interval: number) => {
@@ -21,8 +21,8 @@ export class Agent {
   constructor(config: AgentConfig) {
     this.logger = config.logger
     this.indexer = new Indexer(
-      config.indexNode,
-      config.queryNode,
+      config.adminEndpoint,
+      config.statusEndpoint,
       config.logger,
     )
   }
@@ -49,28 +49,28 @@ export class Agent {
     indexerSubgraphVersions: SubgraphKey[],
   ) {
     let toDeploy: SubgraphKey[] = networkSubgraphVersions.filter(
-      (networkSubgraph) =>
+      networkSubgraph =>
         !indexerSubgraphVersions.some(
-          (indexerSubgraph) =>
+          indexerSubgraph =>
             indexerSubgraph.contentHash == networkSubgraph.contentHash,
         ),
     )
     let toRemove: SubgraphKey[] = indexerSubgraphVersions.filter(
-      (indexerSubgraph) =>
+      indexerSubgraph =>
         !networkSubgraphVersions.some(
-          (networkSubgraph) =>
+          networkSubgraph =>
             networkSubgraph.contentHash == indexerSubgraph.contentHash,
         ),
     )
     await Promise.all(
-      toDeploy.map(async (subgraph) => {
+      toDeploy.map(async subgraph => {
         if (subgraph.name) {
           await this.indexer.ensure(subgraph.name, subgraph.contentHash)
         }
       }),
     )
     await Promise.all(
-      toRemove.map(async (subgraph) => {
+      toRemove.map(async subgraph => {
         await this.indexer.remove(subgraph.contentHash)
       }),
     )
