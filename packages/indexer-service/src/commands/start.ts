@@ -6,8 +6,6 @@ import { PaidQueryProcessor } from '../paid-queries'
 import { FreeQueryProcessor } from '../free-queries'
 import { PaymentManager } from '../payments'
 
-const delay = (time: number) => new Promise(res => setTimeout(res, time))
-
 export default {
   command: 'start',
   describe: 'Start the service',
@@ -63,8 +61,13 @@ export default {
         type: 'number',
         default: 7600,
       })
-      .option('graph-node', {
-        description: 'Graph Node to forward queries to',
+      .option('graph-node-query-endpoint', {
+        description: 'Graph Node endpoint to forward queries to',
+        type: 'string',
+        required: true,
+      })
+      .option('graph-node-status-endpoint', {
+        description: 'Graph Node endpoint for indexing statuses etc.',
         type: 'string',
         required: true,
       })
@@ -97,7 +100,7 @@ export default {
     logger.info('Connected to database')
 
     // Create payment manager
-    let paymentManager = await PaymentManager.create({
+    let paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),
       metrics,
       sequelize,
@@ -110,20 +113,24 @@ export default {
     // Create a query processor for paid queries
     let paidQueryProcessor = new PaidQueryProcessor({
       logger: logger.child({ component: 'PaidQueryProcessor' }),
-      graphNode: argv.graphNode,
+      graphNode: argv.graphNodeQueryEndpoint,
       metrics,
       paymentManager,
     })
 
-    paymentManager.on('payment-received', payment =>
-      paidQueryProcessor.addPayment(payment),
-    )
+    paymentManager.on('payment-received', async ({ stateChannel, payment }) => {
+      try {
+        await paidQueryProcessor.addPayment(stateChannel, payment)
+      } catch (e) {
+        logger.warn(`${e}`)
+      }
+    })
 
     // Create a query process for free queries (for indexers trusted by
     // a fisherman)
     let freeQueryProcessor = new FreeQueryProcessor({
       logger: logger.child({ component: 'FreeQueryProcessor' }),
-      graphNode: argv.graphNode,
+      graphNode: argv.graphNodeQueryEndpoint,
       metrics,
     })
 

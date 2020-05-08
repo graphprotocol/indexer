@@ -1,7 +1,6 @@
 import { logging, metrics } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
-import { keccak256, hexlify, BigNumber } from 'ethers/utils'
-import assert from 'assert'
+import { keccak256, hexlify } from 'ethers/utils'
 import axios, { AxiosInstance } from 'axios'
 import { randomBytes } from 'crypto'
 import { delay } from '@connext/utils'
@@ -12,8 +11,11 @@ import {
   PaidQuery,
   PaidQueryResponse,
   PaymentManager,
+  ConditionalSubgraphPayment,
+  PaymentManagerEventTypes,
   ConditionalPayment,
 } from './types'
+import { StateChannel } from './payments'
 
 export interface PaidQueryProcessorOptions {
   logger: logging.Logger
@@ -29,7 +31,7 @@ interface PendingQuery {
   // A pending query is ready for being processed when both the query
   // and the payment for it have been received
   query?: PaidQuery
-  payment?: ConditionalPayment
+  payment?: ConditionalSubgraphPayment
 
   // Information about updates and staleness
   updatedAt: number
@@ -106,21 +108,26 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
     return await this.processQueryIfReady(paymentId)
   }
 
-  async addPayment(payment: ConditionalPayment): Promise<void> {
+  async addPayment(
+    stateChannel: StateChannel,
+    payment: ConditionalPayment,
+  ): Promise<void> {
     let { paymentId, sender, amount } = payment
 
     this.logger.info(`Add payment '${paymentId}' (sender: ${sender}, amount: ${amount})`)
 
     if (this.queries.has(paymentId)) {
+      this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
       // Update the existing query
       let existingQuery = this.queries.get(paymentId)!
-      existingQuery.payment = payment
+      existingQuery.payment = { payment, subgraphId: stateChannel.subgraph }
       existingQuery.updatedAt = Date.now()
     } else {
+      this.logger.debug(`Query for payment '${paymentId}' not queued, queuing payment`)
       // Add a pending query for the incoming payment
       this.queries.set(paymentId, {
         paymentId,
-        payment,
+        payment: { payment, subgraphId: stateChannel.subgraph },
         updatedAt: Date.now(),
         emitter: new EventEmitter(),
       })
@@ -169,7 +176,10 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
         })
 
         // ...and unlock the payment
-        await this.paymentManager.unlockPayment(query.payment!, attestation)
+        let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
+        if (stateChannel !== undefined) {
+          await stateChannel.unlockPayment(query.payment!.payment, attestation)
+        }
       }
 
       // Don't await the result of the future; the even emitter
@@ -183,49 +193,52 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
     })
   }
 
-  periodicallyCleanupStaleQueries() {
-    let _ = (async () => {
-      while (true) {
-        // Delete stale queries with a concurrency of 10
-        let cleanupQueue = new PQueue({ concurrency: 10 })
+  async periodicallyCleanupStaleQueries() {
+    while (true) {
+      // Delete stale queries with a concurrency of 10
+      let cleanupQueue = new PQueue({ concurrency: 10 })
 
-        let now = Date.now()
+      let now = Date.now()
 
-        // Add stale queries to the queue
-        // Check if the query is stale (no update in >30s)
-        for (let query of this.queries.values())
-          if (now - query.updatedAt > 30000) {
-            // Remove the query from the queue immediately
-            this.queries.delete(query.paymentId)
+      // Add stale queries to the queue
+      // Check if the query is stale (no update in >10s)
+      for (let query of this.queries.values())
+        if (now - query.updatedAt > 10000) {
+          // Remove the query from the queue immediately
+          this.queries.delete(query.paymentId)
 
-            // Figure out the reason for the timeout
-            if (query.payment !== undefined) {
-              // Let listeners know that no query was received
-              query.emitter.emit(
-                'reject',
-                new Error(`Payment '${query.paymentId}' timed out waiting for query`),
+          // Figure out the reason for the timeout
+          if (query.payment !== undefined) {
+            // Let listeners know that no query was received
+            query.emitter.emit(
+              'reject',
+              new Error(`Payment '${query.paymentId}' timed out waiting for query`),
+            )
+
+            // Asynchronously cancel the conditional payment
+            cleanupQueue.add(async () => {
+              let stateChannel = this.paymentManager.stateChannelForSubgraph(
+                query.payment!.subgraphId,
               )
-
-              // Asynchronously cancel the conditional payment
-              cleanupQueue.add(async () => {
-                await this.paymentManager.cancelPayment(query.payment!)
-              })
-            } else {
-              // Let listeners know that no payment was received
-              query.emitter.emit(
-                'reject',
-                new Error(
-                  `Query for subgraph '${
-                    query.query!.subgraphId
-                  }' timed out waiting for payment '${query.paymentId}'`,
-                ),
-              )
-            }
+              if (stateChannel !== undefined) {
+                await stateChannel.cancelPayment(query.payment!.payment)
+              }
+            })
+          } else {
+            // Let listeners know that no payment was received
+            query.emitter.emit(
+              'reject',
+              new Error(
+                `Query for subgraph '${
+                  query.query!.subgraphId
+                }' timed out waiting for payment '${query.paymentId}'`,
+              ),
+            )
           }
+        }
 
-        // Wait for 10s
-        await delay(10000)
-      }
-    })()
+      // Wait for 10s
+      await delay(10000)
+    }
   }
 }
