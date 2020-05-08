@@ -61,7 +61,9 @@ export class Agent {
     )
     await Promise.all(
       toDeploy.map(async subgraph => {
-        await this.indexer.ensure(subgraph, subgraph)
+        let subgraphName: string = subgraph.toString().slice(-10)
+        subgraphName = [subgraphName, subgraphName].join('/')
+        await this.indexer.ensure(subgraphName, subgraph)
       }),
     )
     await Promise.all(
