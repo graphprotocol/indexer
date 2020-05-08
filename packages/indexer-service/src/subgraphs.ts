@@ -35,15 +35,16 @@ export class IndexedSubgraphMonitor extends EventEmitter<IndexedSubgraphMonitorE
           {
             indexingStatuses {
               subgraph
+              node
             }
           }
         `,
         })
 
         // We only need the subgraph (ID) values
-        let subgraphs: string[] = response.data.data.indexingStatuses.map(
-          (status: any) => status.subgraph,
-        )
+        let subgraphs: string[] = response.data.data.indexingStatuses
+          .filter((status: any) => status.node !== 'removed')
+          .map((status: any) => status.subgraph)
 
         // Identify subgraphs changes
         let removed = this.subgraphs.filter(subgraph => subgraphs.indexOf(subgraph) < 0)
