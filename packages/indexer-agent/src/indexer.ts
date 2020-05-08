@@ -41,8 +41,6 @@ export class Indexer {
           query {
             indexingStatuses {
               subgraph
-              synced
-              failed
               node
             }
           }
@@ -50,28 +48,12 @@ export class Indexer {
         fetchPolicy: 'no-cache',
       })
       return result.data.indexingStatuses
-        .filter(
-          (status: {
-            subgraph: string
-            failed: string
-            synced: string
-            error: string
-            node: string
-          }) => {
-            return status.node !== 'removed'
-          },
-        )
-        .map(
-          (status: {
-            subgraph: string
-            failed: string
-            synced: string
-            error: string
-            node: string
-          }) => {
-            return status.subgraph
-          },
-        )
+        .filter((status: { subgraph: string; node: string }) => {
+          return status.node !== 'removed'
+        })
+        .map((status: { subgraph: string; node: string }) => {
+          return status.subgraph
+        })
     } catch (error) {
       this.logger.error(`Indexing statuses query failed`)
       throw error
