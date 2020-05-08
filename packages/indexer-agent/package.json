@@ -21,7 +21,7 @@
     "global": "^4.4.0",
     "graphql": "^14.0.0",
     "graphql-tag": "^2.10.1",
-    "jsonrpc-ts": "^0.2.0",
+    "jayson": "^3.3.0",
     "yargs": "^15.1.0"
   },
   "devDependencies": {
