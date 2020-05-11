@@ -131,7 +131,7 @@ export class Indexer {
     } catch (error) {
       if (error.message.includes('unchanged')) {
         this.logger.warn(
-          `Subgraph deployment assignment unchange:, subgraph: '${subgraphId}' node_id: '${node}'`,
+          `Subgraph deployment assignment unchanged:, subgraph: '${subgraphId}' node_id: '${node}'`,
         )
         return
       }
@@ -146,9 +146,7 @@ export class Indexer {
       .then(() => this.deploy(name, subgraphId))
       .then(() => this.reassign(subgraphId, 'default'))
       .catch(e => {
-        this.logger.error(
-          `Failed to ensure '${subgraphId}' is actively deployed to the indexer`,
-        )
+        this.logger.error(`Failed to ensure '${subgraphId}' is indexing`)
         throw e
       })
   }
