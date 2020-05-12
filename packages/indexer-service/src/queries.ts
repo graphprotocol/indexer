@@ -160,55 +160,60 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
   }
 
+  private async processNow(query: PendingQuery): Promise<void> {
+    let { paymentId } = query
+    let { subgraphId } = query.query!
+
+    this.logger.debug(
+      `Process query for subgraph '${subgraphId}' and payment '${paymentId}'`,
+    )
+
+    // Remove query from the "queue"
+    this.queries.delete(paymentId)
+
+    // Execute query in the Graph Node
+    let response = await this.graphNode.post(
+      `/subgraphs/id/${subgraphId}`,
+      query.query!.query,
+    )
+
+    // Compute the response CID
+    let responseCID = keccak256(new TextEncoder().encode(response.data))
+
+    // TODO: Compute and sign the attestation (maybe with the
+    // help of the payment manager)
+    let attestation = hexlify(randomBytes(32))
+
+    this.logger.debug(
+      `Emit query result for subgraph '${subgraphId}' and payment '${paymentId}'`,
+    )
+
+    // Send the result to the client...
+    query.emitter.emit('resolve', {
+      status: 200,
+      result: {
+        requestCID: query.query!.requestCID,
+        responseCID,
+        attestation,
+        graphQLResponse: response.data,
+      },
+    })
+
+    this.logger.debug(`Unlock payment '${paymentId}'`)
+
+    // ...and unlock the payment
+    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)!
+    await stateChannel.unlockPayment(query.payment!.payment, attestation)
+  }
+
   private async processQueryIfReady(paymentId: string): Promise<QueryResponse> {
     let query = this.queries.get(paymentId)!
 
     // The query is ready when both the query and the payment were received
     if (query.payment !== undefined && query.query !== undefined) {
-      const processNow = async () => {
-        let { subgraphId } = query.query!
-
-        this.logger.debug(
-          `Process query for subgraph '${subgraphId}' and payment '${paymentId}'`,
-        )
-
-        // Remove query from the "queue"
-        this.queries.delete(paymentId)
-
-        // Execute query in the Graph Node
-        let response = await this.graphNode.post(
-          `/subgraphs/id/${subgraphId}`,
-          query.query!.query,
-        )
-
-        // Compute the response CID
-        let responseCID = keccak256(new TextEncoder().encode(response.data))
-
-        // TODO: Compute and sign the attestation (maybe with the
-        // help of the payment manager)
-        let attestation = hexlify(randomBytes(32))
-
-        // Send the result to the client...
-        query.emitter.emit('resolve', {
-          status: 200,
-          result: {
-            requestCID: query.query!.requestCID,
-            responseCID,
-            attestation,
-            graphQLResponse: response.data,
-          },
-        })
-
-        // ...and unlock the payment
-        let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
-        if (stateChannel !== undefined) {
-          await stateChannel.unlockPayment(query.payment!.payment, attestation)
-        }
-      }
-
       // Don't await the result of the future; the even emitter
       // will take care of resolving the future created below
-      processNow()
+      this.processNow(query)
     }
 
     return new Promise((resolve, reject) => {
