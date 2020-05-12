@@ -2,8 +2,8 @@ import EventEmitter from 'eventemitter3'
 import { BigNumber } from 'ethers/utils'
 
 export interface QueryResult {
-  requestCid: string
-  responseCid: string
+  requestCID: string
+  responseCID: string
   attestation: string
   graphQLResponse: string
 }
@@ -17,13 +17,13 @@ export interface PaidQuery {
   subgraphId: string
   paymentId: string
   query: string
-  requestCid: string
+  requestCID: string
 }
 
 export interface FreeQuery {
   subgraphId: string
   query: string
-  requestCid: string
+  requestCID: string
 }
 
 export interface QueryProcessor {

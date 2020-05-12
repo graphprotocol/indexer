@@ -137,13 +137,13 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
-    let { subgraphId, requestCid } = query
+    let { subgraphId, requestCID } = query
 
     // Execute query in the Graph Node
     let response = await this.graphNode.post(`/subgraphs/id/${subgraphId}`, query.query)
 
     // Compute the response CID
-    let responseCid = keccak256(new TextEncoder().encode(response.data))
+    let responseCID = keccak256(new TextEncoder().encode(response.data))
 
     // TODO: Compute and sign the attestation (maybe with the
     // help of the payment manager)
@@ -152,8 +152,8 @@ export class QueryProcessor implements QueryProcessorInterface {
     return {
       status: 200,
       result: {
-        requestCid,
-        responseCid,
+        requestCID: requestCID,
+        responseCID: responseCID,
         attestation,
         graphQLResponse: response.data,
       },
@@ -182,7 +182,7 @@ export class QueryProcessor implements QueryProcessorInterface {
         )
 
         // Compute the response CID
-        let responseCid = keccak256(new TextEncoder().encode(response.data))
+        let responseCID = keccak256(new TextEncoder().encode(response.data))
 
         // TODO: Compute and sign the attestation (maybe with the
         // help of the payment manager)
@@ -192,8 +192,8 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.emitter.emit('resolve', {
           status: 200,
           result: {
-            requestCid: query.query!.requestCid,
-            responseCid,
+            requestCID: query.query!.requestCID,
+            responseCID,
             attestation,
             graphQLResponse: response.data,
           },

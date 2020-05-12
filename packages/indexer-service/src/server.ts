@@ -74,7 +74,7 @@ export const createServer = ({
           subgraphId,
           paymentId,
           query,
-          requestCid: keccak256(new TextEncoder().encode(query)),
+          requestCID: keccak256(new TextEncoder().encode(query)),
         })
         res
           .status(response.status || 200)
@@ -90,7 +90,7 @@ export const createServer = ({
         let response = await queryProcessor.addFreeQuery({
           subgraphId,
           query,
-          requestCid: keccak256(new TextEncoder().encode(query)),
+          requestCID: keccak256(new TextEncoder().encode(query)),
         })
         res
           .status(response.status || 200)
