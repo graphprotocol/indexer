@@ -5,7 +5,7 @@ import { createMetrics, createMetricsServer } from '@graphprotocol/common-ts/dis
 import { PaidQueryProcessor } from '../paid-queries'
 import { FreeQueryProcessor } from '../free-queries'
 import { PaymentManager } from '../payments'
-import { IndexedSubgraphMonitor } from '../subgraphs'
+import { IndexingSubgraphMonitor } from '../subgraphs'
 
 export default {
   command: 'start',
@@ -112,8 +112,8 @@ export default {
     })
 
     // Create indexed subgraph monitor
-    let indexedSubgraphMonitor = new IndexedSubgraphMonitor({
-      logger: logger.child({ component: 'IndexedSubgraphMonitor' }),
+    let indexingSubgraphMonitor = new IndexingSubgraphMonitor({
+      logger: logger.child({ component: 'IndexingSubgraphMonitor' }),
       graphNode: argv.graphNodeStatusEndpoint,
     })
 
@@ -134,7 +134,7 @@ export default {
     })
 
     // Add and remove subgraph state channels as indexed subgraphs change
-    indexedSubgraphMonitor.on('updated', async (update: any) => {
+    indexingSubgraphMonitor.on('updated', async (update: any) => {
       let { added, removed } = update
 
       await paymentManager.createStateChannelsForSubgraphs(added)

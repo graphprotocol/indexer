@@ -3,26 +3,26 @@ import { logging } from '@graphprotocol/common-ts'
 import { delay } from '@connext/utils'
 import EventEmitter from 'eventemitter3'
 
-export interface IndexedSubgraphMonitorOptions {
+export interface IndexingSubgraphMonitorOptions {
   logger: logging.Logger
   graphNode: string
 }
 
-export type IndexedSubgraphMonitorEvents = 'updated'
+export type IndexingSubgraphMonitorEvents = 'updated'
 
-export class IndexedSubgraphMonitor extends EventEmitter<IndexedSubgraphMonitorEvents> {
+export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonitorEvents> {
   subgraphs: string[]
 
-  constructor(options: IndexedSubgraphMonitorOptions) {
+  constructor(options: IndexingSubgraphMonitorOptions) {
     super()
     this.subgraphs = []
-    this.periodicallySyncIndexedSubgraphs(options)
+    this.periodicallySyncIndexingSubgraphs(options)
   }
 
-  async periodicallySyncIndexedSubgraphs({
+  async periodicallySyncIndexingSubgraphs({
     logger,
     graphNode,
-  }: IndexedSubgraphMonitorOptions) {
+  }: IndexingSubgraphMonitorOptions) {
     let client = axios.create({
       baseURL: graphNode,
     })
