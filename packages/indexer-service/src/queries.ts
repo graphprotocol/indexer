@@ -152,6 +152,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     return {
       status: 200,
       result: {
+        subgraphId,
         requestCID: requestCID,
         responseCID: responseCID,
         attestation,
@@ -192,6 +193,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     query.emitter.emit('resolve', {
       status: 200,
       result: {
+        subgraphId,
         requestCID: query.query!.requestCID,
         responseCID,
         attestation,

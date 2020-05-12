@@ -2,6 +2,7 @@ import EventEmitter from 'eventemitter3'
 import { BigNumber } from 'ethers/utils'
 
 export interface QueryResult {
+  subgraphId: string
   requestCID: string
   responseCID: string
   attestation: string
