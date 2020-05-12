@@ -84,7 +84,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     logger.info(`Derive key using path '${path}'`)
 
     let derivedKeyPair = hdNode.derivePath(path)
-    let publicKey = derivedKeyPair.neuter().publicKey
+    let publicKey = derivedKeyPair.publicKey
 
     logger.debug(`Store prefix: ${derivedKeyPair.address.substr(2)}`)
 
