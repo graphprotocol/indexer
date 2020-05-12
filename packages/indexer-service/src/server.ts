@@ -56,10 +56,7 @@ export const createServer = ({
     // Trusted indexer scenario: if the source IP is in our whitelist,
     // we do not require payment; however, if there _is_ a payment,
     // we still take it
-    let paymentRequired = true
-    if (whitelist.indexOf(req.ip) >= 0) {
-      paymentRequired = false
-    }
+    let paymentRequired = !whitelist.includes(req.ip)
 
     if (paymentRequired) {
       // Regular scenario: a payment is required; fail if no
