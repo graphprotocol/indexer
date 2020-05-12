@@ -211,7 +211,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // The query is ready when both the query and the payment were received
     if (query.payment !== undefined && query.query !== undefined) {
-      // Don't await the result of the future; the even emitter
+      // Don't await the result of the future; the event emitter
       // will take care of resolving the future created below
       this.processNow(query)
     }
