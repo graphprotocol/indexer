@@ -216,6 +216,11 @@ export class QueryProcessor implements QueryProcessorInterface {
       this.processNow(query)
     }
 
+    // Return a promise that resolves/rejects when the query's event emitter
+    // emits resolve/reject events. We do this to decouple the query execution
+    // from the returned promise. This gives us the freedom to process the query
+    // in arbitrary ways without having to await its execution here or loop until
+    // the result is ready.
     return new Promise((resolve, reject) => {
       query.emitter.on('resolve', resolve)
       query.emitter.on('reject', reject)
