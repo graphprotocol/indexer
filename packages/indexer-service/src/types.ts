@@ -8,7 +8,7 @@ export interface QueryResult {
   graphQLResponse: string
 }
 
-export interface PaidQueryResponse {
+export interface QueryResponse {
   result: QueryResult
   status: number
 }
@@ -23,21 +23,13 @@ export interface PaidQuery {
 export interface FreeQuery {
   subgraphId: string
   query: string
+  requestCid: string
 }
 
-export interface FreeQueryResponse {
-  subgraphId: string
-  status: number
-  data: any
-}
-
-export interface PaidQueryProcessor {
-  addPaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
+export interface QueryProcessor {
+  addFreeQuery(query: FreeQuery): Promise<QueryResponse>
+  addPaidQuery(query: PaidQuery): Promise<QueryResponse>
   addPayment(stateChannel: StateChannel, payment: ConditionalPayment): Promise<void>
-}
-
-export interface FreeQueryProcessor {
-  addFreeQuery(query: FreeQuery): Promise<FreeQueryResponse>
 }
 
 export interface ConditionalPayment {

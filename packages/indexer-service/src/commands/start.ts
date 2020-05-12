@@ -2,8 +2,7 @@ import { Argv } from 'yargs'
 import { database, logging } from '@graphprotocol/common-ts'
 import { createServer } from '../server'
 import { createMetrics, createMetricsServer } from '@graphprotocol/common-ts/dist/metrics'
-import { PaidQueryProcessor } from '../paid-queries'
-import { FreeQueryProcessor } from '../free-queries'
+import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payments'
 import { IndexingSubgraphMonitor } from '../subgraphs'
 
@@ -118,8 +117,8 @@ export default {
     })
 
     // Create a query processor for paid queries
-    let paidQueryProcessor = new PaidQueryProcessor({
-      logger: logger.child({ component: 'PaidQueryProcessor' }),
+    let queryProcessor = new QueryProcessor({
+      logger: logger.child({ component: 'QueryProcessor' }),
       graphNode: argv.graphNodeQueryEndpoint,
       metrics,
       paymentManager,
@@ -127,7 +126,7 @@ export default {
 
     paymentManager.on('payment-received', async ({ stateChannel, payment }) => {
       try {
-        await paidQueryProcessor.addPayment(stateChannel, payment)
+        await queryProcessor.addPayment(stateChannel, payment)
       } catch (e) {
         logger.warn(`${e}`)
       }
@@ -141,20 +140,11 @@ export default {
       await paymentManager.settleStateChannelsForSubgraphs(removed)
     })
 
-    // Create a query process for free queries (for indexers trusted by
-    // a fisherman)
-    let freeQueryProcessor = new FreeQueryProcessor({
-      logger: logger.child({ component: 'FreeQueryProcessor' }),
-      graphNode: argv.graphNodeQueryEndpoint,
-      metrics,
-    })
-
     // Spin up a basic webserver
     createServer({
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
-      freeQueryProcessor,
-      paidQueryProcessor,
+      queryProcessor,
       whitelist: argv.whitelist || [],
       metrics,
     })

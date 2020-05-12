@@ -7,13 +7,13 @@ import { delay } from '@connext/utils'
 import PQueue from 'p-queue'
 
 import {
-  PaidQueryProcessor as PaidQueryProcessorInterface,
+  QueryProcessor as QueryProcessorInterface,
   PaidQuery,
-  PaidQueryResponse,
+  QueryResponse,
   PaymentManager,
   ConditionalSubgraphPayment,
-  PaymentManagerEventTypes,
   ConditionalPayment,
+  FreeQuery,
 } from './types'
 import { StateChannel } from './payments'
 
@@ -41,7 +41,7 @@ interface PendingQuery {
   emitter: EventEmitter
 }
 
-export class PaidQueryProcessor implements PaidQueryProcessorInterface {
+export class QueryProcessor implements QueryProcessorInterface {
   logger: logging.Logger
   metrics: metrics.Metrics
   paymentManager: PaymentManager
@@ -77,7 +77,7 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
     this.periodicallyCleanupStaleQueries()
   }
 
-  async addPaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
+  async addPaidQuery(query: PaidQuery): Promise<QueryResponse> {
     let { subgraphId, paymentId, query: queryString } = query
 
     this.logger.info(`Add query for subgraph '${subgraphId}' (payment ID: ${paymentId})`)
@@ -136,7 +136,31 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
     await this.processQueryIfReady(paymentId)
   }
 
-  private async processQueryIfReady(paymentId: string): Promise<PaidQueryResponse> {
+  async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
+    let { subgraphId, requestCid } = query
+
+    // Execute query in the Graph Node
+    let response = await this.graphNode.post(`/subgraphs/id/${subgraphId}`, query.query)
+
+    // Compute the response CID
+    let responseCid = keccak256(new TextEncoder().encode(response.data))
+
+    // TODO: Compute and sign the attestation (maybe with the
+    // help of the payment manager)
+    let attestation = hexlify(randomBytes(32))
+
+    return {
+      status: 200,
+      result: {
+        requestCid,
+        responseCid,
+        attestation,
+        graphQLResponse: response.data,
+      },
+    }
+  }
+
+  private async processQueryIfReady(paymentId: string): Promise<QueryResponse> {
     let query = this.queries.get(paymentId)!
 
     // The query is ready when both the query and the payment were received
@@ -170,7 +194,7 @@ export class PaidQueryProcessor implements PaidQueryProcessorInterface {
           result: {
             requestCid: query.query!.requestCid,
             responseCid,
-            attestation: attestation,
+            attestation,
             graphQLResponse: response.data,
           },
         })

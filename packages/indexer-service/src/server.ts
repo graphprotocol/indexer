@@ -3,15 +3,14 @@ import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
 import { logging, metrics } from '@graphprotocol/common-ts'
-import { PaidQueryProcessor, FreeQueryProcessor } from './types'
+import { QueryProcessor } from './types'
 import { keccak256 } from 'ethers/utils'
 
 export interface ServerOptions {
   logger: logging.Logger
   metrics: metrics.Metrics
   port: number
-  paidQueryProcessor: PaidQueryProcessor
-  freeQueryProcessor: FreeQueryProcessor
+  queryProcessor: QueryProcessor
   whitelist: string[]
 }
 
@@ -19,8 +18,7 @@ export const createServer = ({
   logger,
   metrics,
   port,
-  paidQueryProcessor,
-  freeQueryProcessor,
+  queryProcessor,
   whitelist,
 }: ServerOptions) => {
   let loggerStream = new Stream.Writable()
@@ -72,7 +70,7 @@ export const createServer = ({
         `Received paid query for subgraph '${subgraphId}' (payment ID: ${paymentId})`,
       )
       try {
-        let response = await paidQueryProcessor.addPaidQuery({
+        let response = await queryProcessor.addPaidQuery({
           subgraphId,
           paymentId,
           query,
@@ -89,14 +87,15 @@ export const createServer = ({
     } else {
       logger.info(`Received free query for subgraph '${subgraphId}'`)
       try {
-        let response = await freeQueryProcessor.addFreeQuery({
+        let response = await queryProcessor.addFreeQuery({
           subgraphId,
           query,
+          requestCid: keccak256(new TextEncoder().encode(query)),
         })
         res
           .status(response.status || 200)
           .contentType('application/json')
-          .send(response.data)
+          .send(response.result)
       } catch (e) {
         logger.error(`Failed to handle free query: ${e}`)
         res.status(500).send()
