@@ -48,7 +48,10 @@ export const createServer = ({
     let paymentId = req.headers['x-graph-payment-id']
     if (paymentId !== undefined && typeof paymentId !== 'string') {
       logger.info(`Query for subgraph '${subgraphId}' has invalid payment ID`)
-      return res.status(400).send('Invalid X-Graph-Payment-Id provided')
+      return res
+        .status(402)
+        .contentType('application/json')
+        .send({ error: 'Invalid X-Graph-Payment-Id provided' })
     }
 
     // Trusted indexer scenario: if the source IP is in our whitelist,
@@ -61,7 +64,10 @@ export const createServer = ({
       // payment ID is specified
       if (paymentId === undefined) {
         logger.info(`Query for subgraph '${subgraphId}' is missing payment ID`)
-        return res.status(400).send('No X-Graph-Payment-Id provided')
+        return res
+          .status(402)
+          .contentType('application/json')
+          .send({ error: 'No X-Graph-Payment-Id provided' })
       }
     }
 
@@ -82,7 +88,10 @@ export const createServer = ({
           .send(response.result)
       } catch (e) {
         logger.error(`Failed to handle paid query: ${e}`)
-        res.status(500).send()
+        res
+          .status(e.status || 500)
+          .contentType('application/json')
+          .send({ error: `${e.message}` })
       }
     } else {
       logger.info(`Received free query for subgraph '${subgraphId}'`)
@@ -98,7 +107,10 @@ export const createServer = ({
           .send(response.result)
       } catch (e) {
         logger.error(`Failed to handle free query: ${e}`)
-        res.status(500).send()
+        res
+          .status(e.status || 500)
+          .contentType('application/json')
+          .send({ error: `${e.message}` })
       }
     }
   })

@@ -71,3 +71,17 @@ export interface PaymentManager extends EventEmitter<PaymentManagerEventNames> {
   settleStateChannelsForSubgraphs(subgraphs: string[]): Promise<void>
   stateChannelForSubgraph(subgraph: string): StateChannel | undefined
 }
+
+export class QueryError extends Error {
+  status: number
+
+  constructor(message: string, status?: number) {
+    super(message)
+
+    this.status = status || 500
+
+    // Manually set the prototype, following the recommendation on
+    // https://github.com/Microsoft/TypeScript-wiki/blob/master/Breaking-Changes.md#extending-built-ins-like-error-array-and-map-may-no-longer-work
+    Object.setPrototypeOf(this, QueryError.prototype)
+  }
+}

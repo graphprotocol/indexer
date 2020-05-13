@@ -88,7 +88,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
       // Cancel if the same query has already been submitted
       if (existingQuery.query !== undefined) {
-        throw new Error(
+        throw new QueryError(
           `Duplicate query for subgraph '${subgraphId}' and payment '${paymentId}'`,
         )
       }
@@ -124,6 +124,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       existingQuery.updatedAt = Date.now()
     } else {
       this.logger.debug(`Query for payment '${paymentId}' not queued, queuing payment`)
+
       // Add a pending query for the incoming payment
       this.queries.set(paymentId, {
         paymentId,
@@ -138,6 +139,14 @@ export class QueryProcessor implements QueryProcessorInterface {
 
   async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
     let { subgraphId, requestCID } = query
+
+    // Check if we have a state channel for this subgraph;
+    // this is synonymous with us indexing the subgraph
+    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
+
+    if (stateChannel === undefined) {
+      throw new QueryError(`Subgraph not available: ${subgraphId}`, 404)
+    }
 
     // Execute query in the Graph Node
     let response = await this.graphNode.post(`/subgraphs/id/${subgraphId}`, query.query)
@@ -168,6 +177,15 @@ export class QueryProcessor implements QueryProcessorInterface {
     this.logger.debug(
       `Process query for subgraph '${subgraphId}' and payment '${paymentId}'`,
     )
+
+    // Check if we have a state channel for this subgraph;
+    // this is synonymous with us indexing the subgraph
+    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
+
+    if (stateChannel === undefined) {
+      query.emitter.emit('reject', new QueryError(`Unknown subgraph: ${subgraphId}`, 404))
+      return
+    }
 
     // Remove query from the "queue"
     this.queries.delete(paymentId)
@@ -248,7 +266,7 @@ export class QueryProcessor implements QueryProcessorInterface {
             // Let listeners know that no query was received
             query.emitter.emit(
               'reject',
-              new Error(`Payment '${query.paymentId}' timed out waiting for query`),
+              new QueryError(`Payment '${query.paymentId}' timed out waiting for query`),
             )
 
             // Asynchronously cancel the conditional payment
@@ -264,7 +282,7 @@ export class QueryProcessor implements QueryProcessorInterface {
             // Let listeners know that no payment was received
             query.emitter.emit(
               'reject',
-              new Error(
+              new QueryError(
                 `Query for subgraph '${
                   query.query!.subgraphId
                 }' timed out waiting for payment '${query.paymentId}'`,
