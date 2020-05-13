@@ -16,7 +16,7 @@
   "dependencies": {
     "@connext/types": "6.3.8",
     "@connext/utils": "6.3.8",
-    "@graphprotocol/common-ts": "^0.0.24",
+    "@graphprotocol/common-ts": "^0.0.27",
     "axios": "^0.19.2",
     "body-parser": "^1.19.0",
     "bs58": "^4.0.1",
