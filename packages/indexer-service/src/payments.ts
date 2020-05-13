@@ -1,4 +1,4 @@
-import { logging, metrics, stateChannels } from '@graphprotocol/common-ts'
+import { attestations, logging, metrics, stateChannels } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
   IChannelSigner,
@@ -31,6 +31,7 @@ interface StateChannelOptions {
   logger: logging.Logger
   client: IConnextClient
   signer: IChannelSigner
+  privateKey: string
   subgraph: string
   epoch: number
 }
@@ -47,8 +48,16 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
   signer: IChannelSigner
   epoch: number
   subgraph: string
+  privateKey: string
 
-  private constructor({ logger, subgraph, epoch, client, signer }: StateChannelOptions) {
+  private constructor({
+    logger,
+    subgraph,
+    epoch,
+    client,
+    signer,
+    privateKey,
+  }: StateChannelOptions) {
     super()
 
     this.logger = logger
@@ -56,6 +65,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     this.epoch = epoch
     this.client = client
     this.signer = signer
+    this.privateKey = privateKey
 
     this.client.on(
       EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
@@ -122,6 +132,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
         signer,
         subgraph,
         epoch,
+        privateKey: derivedKeyPair.privateKey,
       })
     } catch (e) {
       console.error(e)
@@ -129,13 +140,17 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     }
   }
 
-  async unlockPayment(payment: ConditionalPayment, attestation: string) {
+  async unlockPayment(
+    payment: ConditionalPayment,
+    attestation: attestations.Attestation,
+  ) {
     let formattedAmount = formatEther(payment.amount)
     let { paymentId } = payment
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
     // Hash attestation and payment ID together (is the payment ID necessary?)
+    // FIXME: what should we do here?
     let attestationHash = solidityKeccak256(
       ['bytes32', 'bytes32'],
       [attestation, paymentId],
@@ -148,10 +163,11 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     let attemptUnlock = true
     while (attemptUnlock) {
       try {
+        // FIXME: how should we pass the attestation in here?
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId,
-          data: attestation,
+          data: attestation as any,
           signature,
         } as PublicParams.ResolveSignedTransfer)
 

@@ -1,10 +1,12 @@
 import { Argv } from 'yargs'
-import { database, logging } from '@graphprotocol/common-ts'
+import { database, logging, metrics } from '@graphprotocol/common-ts'
+import { JsonRpcProvider } from 'ethers/providers'
 import { createServer } from '../server'
-import { createMetrics, createMetricsServer } from '@graphprotocol/common-ts/dist/metrics'
 import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payments'
 import { IndexingSubgraphMonitor } from '../subgraphs'
+
+const { createMetrics, createMetricsServer } = metrics
 
 export default {
   command: 'start',
@@ -75,11 +77,20 @@ export default {
         description: 'Client IPs that can query for free',
         type: 'array',
       })
+      .option('dispute-manager-address', {
+        description: 'Address of the dispute manager contract',
+        type: 'string',
+        required: true,
+      })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerService' })
 
     logger.info('Starting up...')
+
+    logger.info('Connecting to Ethereum')
+    let web3 = new JsonRpcProvider(argv.ethereum)
+    let network = await web3.getNetwork()
 
     // Spin up a metrics server
     let metrics = createMetrics()
@@ -122,6 +133,8 @@ export default {
       graphNode: argv.graphNodeQueryEndpoint,
       metrics,
       paymentManager,
+      chainId: network.chainId,
+      disputeManagerAddress: argv.disputeManagerAddress,
     })
 
     paymentManager.on('payment-received', async ({ stateChannel, payment }) => {

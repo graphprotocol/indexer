@@ -1,8 +1,8 @@
-import { logging, metrics } from '@graphprotocol/common-ts'
+import { attestations, logging, metrics } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
 import { keccak256, hexlify } from 'ethers/utils'
 import axios, { AxiosInstance } from 'axios'
-import { randomBytes } from 'crypto'
+import * as bs58 from 'bs58'
 import { delay } from '@connext/utils'
 import PQueue from 'p-queue'
 
@@ -14,14 +14,20 @@ import {
   ConditionalSubgraphPayment,
   ConditionalPayment,
   FreeQuery,
+  StateChannel,
+  QueryError,
 } from './types'
-import { StateChannel } from './payments'
+
+const hashSubgraphId = (subgraphId: string): string =>
+  hexlify(bs58.decode(subgraphId).slice(2))
 
 export interface PaidQueryProcessorOptions {
   logger: logging.Logger
   metrics: metrics.Metrics
   paymentManager: PaymentManager
   graphNode: string
+  chainId: number
+  disputeManagerAddress: string
 }
 
 interface PendingQuery {
@@ -46,11 +52,20 @@ export class QueryProcessor implements QueryProcessorInterface {
   metrics: metrics.Metrics
   paymentManager: PaymentManager
   graphNode: AxiosInstance
+  chainId: number
+  disputeManagerAddress: string
 
   // Pending queries are kept in a map that maps payment IDs to pending queries.
   queries: Map<string, PendingQuery>
 
-  constructor({ logger, metrics, paymentManager, graphNode }: PaidQueryProcessorOptions) {
+  constructor({
+    logger,
+    metrics,
+    paymentManager,
+    graphNode,
+    chainId,
+    disputeManagerAddress,
+  }: PaidQueryProcessorOptions) {
     this.logger = logger
     this.metrics = metrics
     this.paymentManager = paymentManager
@@ -68,6 +83,8 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Don't throw on bad responses
       validateStatus: () => true,
     })
+    this.chainId = chainId
+    this.disputeManagerAddress = disputeManagerAddress
 
     // Start with no pending queries
     this.queries = new Map()
@@ -154,25 +171,49 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Compute the response CID
     let responseCID = keccak256(new TextEncoder().encode(response.data))
 
-    // TODO: Compute and sign the attestation (maybe with the
-    // help of the payment manager)
-    let attestation = hexlify(randomBytes(32))
+    return await this.createResponse({
+      stateChannel,
+      subgraphId,
+      requestCID,
+      responseCID,
+      data: response.data,
+    })
+  }
+
+  private async createResponse({
+    stateChannel,
+    subgraphId,
+    requestCID,
+    responseCID,
+    data,
+  }: {
+    stateChannel: StateChannel
+    subgraphId: string
+    requestCID: string
+    responseCID: string
+    data: string
+  }): Promise<QueryResponse> {
+    // Obtain a signed attestation for the query result
+    let receipt = { requestCID, responseCID, subgraphID: hashSubgraphId(subgraphId) }
+    let attestation = await attestations.createAttestation(
+      stateChannel.privateKey,
+      this.chainId,
+      this.disputeManagerAddress,
+      receipt,
+    )
 
     return {
       status: 200,
       result: {
-        subgraphId,
-        requestCID: requestCID,
-        responseCID: responseCID,
+        graphQLResponse: data,
         attestation,
-        graphQLResponse: response.data,
       },
     }
   }
 
   private async processNow(query: PendingQuery): Promise<void> {
     let { paymentId } = query
-    let { subgraphId } = query.query!
+    let { subgraphId, requestCID } = query.query!
 
     this.logger.debug(
       `Process query for subgraph '${subgraphId}' and payment '${paymentId}'`,
@@ -199,31 +240,29 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Compute the response CID
     let responseCID = keccak256(new TextEncoder().encode(response.data))
 
-    // TODO: Compute and sign the attestation (maybe with the
-    // help of the payment manager)
-    let attestation = hexlify(randomBytes(32))
+    // Create a response that includes a signed attestation
+    let attestedResponse = await this.createResponse({
+      stateChannel,
+      subgraphId,
+      requestCID,
+      responseCID,
+      data: response.data,
+    })
 
     this.logger.debug(
       `Emit query result for subgraph '${subgraphId}' and payment '${paymentId}'`,
     )
 
     // Send the result to the client...
-    query.emitter.emit('resolve', {
-      status: 200,
-      result: {
-        subgraphId,
-        requestCID: query.query!.requestCID,
-        responseCID,
-        attestation,
-        graphQLResponse: response.data,
-      },
-    })
+    query.emitter.emit('resolve', attestedResponse)
 
     this.logger.debug(`Unlock payment '${paymentId}'`)
 
     // ...and unlock the payment
-    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)!
-    await stateChannel.unlockPayment(query.payment!.payment, attestation)
+    await stateChannel.unlockPayment(
+      query.payment!.payment,
+      attestedResponse.result.attestation,
+    )
   }
 
   private async processQueryIfReady(paymentId: string): Promise<QueryResponse> {

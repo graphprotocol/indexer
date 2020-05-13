@@ -1,12 +1,10 @@
 import EventEmitter from 'eventemitter3'
 import { BigNumber } from 'ethers/utils'
+import { attestations } from '@graphprotocol/common-ts'
 
 export interface QueryResult {
-  subgraphId: string
-  requestCID: string
-  responseCID: string
-  attestation: string
   graphQLResponse: string
+  attestation: attestations.Attestation
 }
 
 export interface QueryResponse {
@@ -54,8 +52,12 @@ export type StateChannelEventNames = 'payment-received'
 
 export interface StateChannel extends EventEmitter<StateChannelEventNames> {
   subgraph: string
+  privateKey: string
 
-  unlockPayment(payment: ConditionalPayment, attestation: string): Promise<void>
+  unlockPayment(
+    payment: ConditionalPayment,
+    attestation: attestations.Attestation,
+  ): Promise<void>
   cancelPayment(payment: ConditionalPayment): Promise<void>
   settle(): Promise<void>
 }
