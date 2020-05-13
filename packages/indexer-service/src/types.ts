@@ -1,6 +1,7 @@
 import EventEmitter from 'eventemitter3'
 import { BigNumber } from 'ethers/utils'
 import { attestations } from '@graphprotocol/common-ts'
+import { Wallet } from 'ethers'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -52,7 +53,6 @@ export type StateChannelEventNames = 'payment-received'
 
 export interface StateChannel extends EventEmitter<StateChannelEventNames> {
   subgraph: string
-  privateKey: string
 
   unlockPayment(
     payment: ConditionalPayment,
@@ -69,6 +69,8 @@ export interface PaymentManagerEventTypes {
 export type PaymentManagerEventNames = 'payment-received'
 
 export interface PaymentManager extends EventEmitter<PaymentManagerEventNames> {
+  wallet: Wallet
+
   createStateChannelsForSubgraphs(subgraphs: string[]): Promise<void>
   settleStateChannelsForSubgraphs(subgraphs: string[]): Promise<void>
   stateChannelForSubgraph(subgraph: string): StateChannel | undefined

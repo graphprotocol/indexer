@@ -160,7 +160,6 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
     let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
-
     if (stateChannel === undefined) {
       throw new QueryError(`Subgraph not available: ${subgraphId}`, 404)
     }
@@ -172,7 +171,6 @@ export class QueryProcessor implements QueryProcessorInterface {
     let responseCID = keccak256(new TextEncoder().encode(response.data))
 
     return await this.createResponse({
-      stateChannel,
       subgraphId,
       requestCID,
       responseCID,
@@ -181,13 +179,11 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   private async createResponse({
-    stateChannel,
     subgraphId,
     requestCID,
     responseCID,
     data,
   }: {
-    stateChannel: StateChannel
     subgraphId: string
     requestCID: string
     responseCID: string
@@ -196,7 +192,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Obtain a signed attestation for the query result
     let receipt = { requestCID, responseCID, subgraphID: hashSubgraphId(subgraphId) }
     let attestation = await attestations.createAttestation(
-      stateChannel.privateKey,
+      this.paymentManager.wallet.privateKey,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
@@ -222,7 +218,6 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
     let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
-
     if (stateChannel === undefined) {
       query.emitter.emit('reject', new QueryError(`Unknown subgraph: ${subgraphId}`, 404))
       return
@@ -242,7 +237,6 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Create a response that includes a signed attestation
     let attestedResponse = await this.createResponse({
-      stateChannel,
       subgraphId,
       requestCID,
       responseCID,

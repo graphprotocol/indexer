@@ -44,7 +44,6 @@ interface StateChannelOptions {
   logger: logging.Logger
   client: IConnextClient
   signer: IChannelSigner
-  privateKey: string
   subgraph: string
   epoch: number
 }
@@ -61,16 +60,8 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
   signer: IChannelSigner
   epoch: number
   subgraph: string
-  privateKey: string
 
-  private constructor({
-    logger,
-    subgraph,
-    epoch,
-    client,
-    signer,
-    privateKey,
-  }: StateChannelOptions) {
+  private constructor({ logger, subgraph, epoch, client, signer }: StateChannelOptions) {
     super()
 
     this.logger = logger
@@ -78,7 +69,6 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     this.epoch = epoch
     this.client = client
     this.signer = signer
-    this.privateKey = privateKey
 
     this.client.on(
       EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
@@ -145,7 +135,6 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
         signer,
         subgraph,
         epoch,
-        privateKey: derivedKeyPair.privateKey,
       })
     } catch (e) {
       console.error(e)
