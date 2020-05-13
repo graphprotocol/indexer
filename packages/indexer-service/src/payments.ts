@@ -10,9 +10,17 @@ import {
 import { ChannelSigner, toBN } from '@connext/utils'
 import { Sequelize } from 'sequelize'
 import { AddressZero } from 'ethers/constants'
-import { formatEther, solidityKeccak256, HDNode } from 'ethers/utils'
+import {
+  formatEther,
+  solidityKeccak256,
+  HDNode,
+  joinSignature,
+  toUtf8Bytes,
+  keccak256,
+} from 'ethers/utils'
 import { Wallet } from 'ethers'
 import { EventEmitter } from 'eventemitter3'
+import PQueue from 'p-queue/dist'
 
 import {
   PaymentManager as PaymentManagerInterface,
@@ -21,7 +29,12 @@ import {
   StateChannelEventNames,
   PaymentManagerEventNames,
 } from './types'
-import PQueue from 'p-queue/dist'
+
+const ATTESTATION_TYPE_HASH = keccak256(
+  toUtf8Bytes(
+    'Attestation(bytes32 requestCID,bytes32 responseCID,bytes32 subgraphID,byte v,bytes32 r,bytes32 s)',
+  ),
+)
 
 async function delay(ms: number) {
   return new Promise((resolve, _) => setTimeout(resolve, ms))
@@ -149,15 +162,30 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
-    // Hash attestation and payment ID together (is the payment ID necessary?)
-    // FIXME: what should we do here?
-    let attestationHash = solidityKeccak256(
-      ['bytes32', 'bytes32'],
-      [attestation, paymentId],
+    // To unlock the payment, all we need to do is respond with a
+    // signature of <something> plus the payment ID; we make this
+    // something the hashed attestation object
+    let hashedAttestation = attestations.eip712.hashStruct(
+      ATTESTATION_TYPE_HASH,
+      ['bytes32', 'bytes32', 'bytes32', 'byte', 'bytes32', 'bytes32'],
+      [
+        attestation.requestCID,
+        attestation.responseCID,
+        attestation.subgraphID,
+        attestation.v,
+        attestation.r,
+        attestation.s,
+      ],
     )
 
-    // Sign the attestation
-    let signature = await this.client.channelProvider.signMessage(attestationHash)
+    // Hash attestation and payment ID together (is the payment ID necessary?)
+    let paymentAttestation = solidityKeccak256(
+      ['bytes32', 'bytes32'],
+      [hashedAttestation, paymentId],
+    )
+
+    // Sign the message
+    let signature = await this.client.channelProvider.signMessage(paymentAttestation)
 
     // Unlock the payment; retry in case there are networking issues
     let attemptUnlock = true
@@ -167,7 +195,11 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId,
+
+          // Attach the full attestation to the resolution as metadata
           data: attestation as any,
+
+          // Use the signed attestation to resolve the transfer
           signature,
         } as PublicParams.ResolveSignedTransfer)
 
