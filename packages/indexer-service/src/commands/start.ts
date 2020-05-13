@@ -160,6 +160,7 @@ export default {
       queryProcessor,
       whitelist: argv.whitelist || [],
       metrics,
+      graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
     })
   },
 }
