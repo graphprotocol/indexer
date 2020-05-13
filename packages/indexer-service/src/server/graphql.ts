@@ -7,17 +7,9 @@ export interface GraphQLServerOptions {
   graphNodeStatusEndpoint: string
 }
 
-interface ProofOfIndexingArgs {
-  subgraph: string
-  blockNumber: string
-}
-
 const SCHEMA = gql`
-  scalar BigInt
-  scalar Bytes
-
   type Query {
-    proofOfIndexing(subgraph: String!, blockNumber: BigInt!): Bytes
+    foo: String!
   }
 `
 
@@ -32,21 +24,7 @@ export const createGraphQLServer = ({
   })
 
   let Query = {
-    proofOfIndexing: async (args: ProofOfIndexingArgs) => {
-      // Forward proof of indexing queries to the configured
-      // graph-node status endpoint
-      let response = await client.post('', {
-        query: `
-          {
-            proofOfIndexing(
-              subgraph: "${args.subgraph}",
-              blockNumber: "${args.blockNumber}"
-            )
-          }
-        `,
-      })
-      return response.data.data.proofOfIndexing
-    },
+    foo: () => 'bar',
   }
 
   return graphqlHTTP({
