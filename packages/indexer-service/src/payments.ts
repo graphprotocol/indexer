@@ -245,11 +245,6 @@ export interface PaymentManagerCreateOptions {
   metrics: metrics.Metrics
 }
 
-interface StateChannelKey {
-  subgraph: string
-  epoch: number
-}
-
 export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
   implements PaymentManagerInterface {
   options: PaymentManagerOptions
@@ -257,7 +252,7 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
   logger: logging.Logger
   wallet: Wallet
   epoch: number
-  stateChannels: Map<StateChannelKey, StateChannelInterface>
+  stateChannels: Map<string, StateChannelInterface>
 
   constructor(options: PaymentManagerOptions) {
     super()
@@ -275,7 +270,7 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
     let queue = new PQueue({ concurrency: 2 })
 
     for (let subgraph of subgraphs) {
-      let key = { subgraph, epoch: this.epoch }
+      let key = `${this.epoch}/${subgraph}`
 
       queue.add(async () => {
         if (!this.stateChannels.has(key)) {
@@ -301,7 +296,7 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
     let queue = new PQueue({ concurrency: 2 })
 
     for (let subgraph of subgraphs) {
-      let key = { subgraph, epoch: this.epoch }
+      let key = `${this.epoch}/${subgraph}`
 
       queue.add(async () => {
         if (this.stateChannels.has(key)) {
@@ -316,6 +311,6 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
   }
 
   stateChannelForSubgraph(subgraph: string): StateChannelInterface | undefined {
-    return this.stateChannels.get({ subgraph, epoch: this.epoch })
+    return this.stateChannels.get(`${this.epoch}/${subgraph}`)
   }
 }
