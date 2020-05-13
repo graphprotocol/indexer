@@ -30,7 +30,7 @@ export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonito
     while (true) {
       try {
         // Query graph-node for indexing subgraph versions
-        let response = await client.post('/graphql', {
+        let response = await client.post('', {
           query: `
           {
             indexingStatuses {
