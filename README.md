@@ -124,7 +124,33 @@ all of them and then run them.
 To deploy the indexer components with Kubernetes, the following steps are
 necessary:
 
-1. Indexer service:
+1. Setup Kubernetes
+
+    Local development
+    ```sh        
+    # Start kubernetes cluster   
+    minikube start
+    # Configure kubectl to use the minikube context
+    kubectl config use-context minikube
+    ```
+   
+    Hosted service:staging
+    ```sh     
+    # Configure kubernetes CLI to connect to the remote kubernetes cluster
+    gcloud config set project the-graph-staging;
+    gcloud container clusters get-credentials hosted-service --zone us-central1-a;
+    kubectl config use-context gke_the-graph-staging_us-central1-a_hosted-service;           
+    ```
+   
+   Hosted service:production
+   ```sh     
+   # Configure kubernetes CLI to connect to the remote kubernetes cluster
+   gcloud config set project the-graph-production;
+   gcloud container clusters get-credentials hosted-service --zone us-central1-a;
+   kubectl config use-context gke_the-graph-production_us-central1-a_hosted-service;           
+   ```
+   
+2. Indexer service:
 
    ```sh
    # Build Docker image
@@ -140,10 +166,10 @@ necessary:
    kustomize edit set image indexer-service=indexer-service:latest
 
    # Apply the k8s config
-   kustomize build | kubectl apply -f -
+   kubectl apply -k .
    ```
 
-2. Indexer agent:
+3. Indexer agent:
 
    ```sh
    # Build Docker image
@@ -159,7 +185,7 @@ necessary:
    kustomize edit set image indexer-agent=indexer-agent:latest
 
    # Apply the k8s config
-   kustomize build | kubectl apply -f -
+   kubectl apply -k . 
    ```
    
 ### Deployment using Google Cloud Build and Kubernetes
