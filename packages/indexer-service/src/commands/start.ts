@@ -154,7 +154,7 @@ export default {
     })
 
     // Spin up a basic webserver
-    createServer({
+    await createServer({
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
       queryProcessor,

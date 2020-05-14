@@ -1,35 +1,34 @@
 import graphqlHTTP from 'express-graphql'
-import { buildASTSchema } from 'graphql'
-import gql from 'graphql-tag'
-import axios from 'axios'
+import fetch from 'cross-fetch'
+import { HttpLink } from 'apollo-link-http'
+import {
+  introspectSchema,
+  makeRemoteExecutableSchema,
+  transformSchema,
+  FilterRootFields,
+} from 'graphql-tools'
 
 export interface GraphQLServerOptions {
   graphNodeStatusEndpoint: string
 }
 
-const SCHEMA = gql`
-  type Query {
-    foo: String!
-  }
-`
-
-export const createGraphQLServer = ({
+export const createGraphQLServer = async ({
   graphNodeStatusEndpoint,
 }: GraphQLServerOptions) => {
-  let schema = buildASTSchema(SCHEMA)
-
-  let client = axios.create({
-    baseURL: graphNodeStatusEndpoint,
-    headers: { 'Content-Type': 'application/json' },
+  let nodeLink = new HttpLink({ uri: graphNodeStatusEndpoint, fetch })
+  let nodeSchema = await introspectSchema(nodeLink)
+  let schema = transformSchema(nodeSchema, [
+    new FilterRootFields(
+      (_operation, fieldName, _field) => fieldName === 'indexingStatuses',
+    ),
+  ])
+  let executableSchema = makeRemoteExecutableSchema({
+    schema: schema,
+    link: nodeLink,
   })
 
-  let Query = {
-    foo: () => 'bar',
-  }
-
   return graphqlHTTP({
-    schema,
+    schema: executableSchema,
     graphiql: true,
-    rootValue: Query,
   })
 }

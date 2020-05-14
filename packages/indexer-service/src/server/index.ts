@@ -16,7 +16,7 @@ export interface ServerOptions {
   graphNodeStatusEndpoint: string
 }
 
-export const createServer = ({
+export const createServer = async ({
   logger,
   metrics,
   port,
@@ -46,7 +46,7 @@ export const createServer = ({
   server.use(
     '/status',
     bodyParser.json(),
-    createGraphQLServer({ graphNodeStatusEndpoint }),
+    await createGraphQLServer({ graphNodeStatusEndpoint }),
   )
 
   // Endpoint for subgraph queries
