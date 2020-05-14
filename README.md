@@ -99,6 +99,26 @@ all of them and then run them.
    After this, the indexer service should be up and running at
    http://localhost:7600/.
 
+2. Indexer Agent
+
+    ```sh
+       # Build image
+       docker build \
+         --build-arg NPM_TOKEN=<npm-token> \
+         -f Dockerfile.indexer-agent \
+         -t indexer-agent:latest \
+         .
+    
+       # Run indexer agent 
+       # Note: This assumes a `graph-node` is accessible on localhost with the admin endpoint on port 8020 and status endpoint on port 8030. 
+       docker run \
+         -p 8020:8020 \
+         -p 8030:8030 \
+         -it indexer-agent:latest        
+       ```
+
+   After this, the indexer agent should be up and running.
+
 ### Deployment using Kubernetes
 
 To deploy the indexer components with Kubernetes, the following steps are
@@ -123,6 +143,25 @@ necessary:
    kustomize build | kubectl apply -f -
    ```
 
+2. Indexer agent:
+
+   ```sh
+   # Build Docker image
+   docker build \
+     --build-arg NPM_TOKEN=<npm-token> \
+     -f Dockerfile.indexer-agent \
+     -t indexer-agent:latest \
+     .
+
+   cd packages/indexer-agent/k8s
+
+   # Inject image into the k8s config
+   kustomize edit set image indexer-agent=indexer-agent:latest
+
+   # Apply the k8s config
+   kustomize build | kubectl apply -f -
+   ```
+   
 ### Deployment using Google Cloud Build and Kubernetes
 
 #### Secrets
@@ -147,7 +186,15 @@ necessary:
    kubectl create secret generic indexer-service-connext-node \
      --from-literal=url=<connext-node>
    ```
+2. Indexer agent:
 
+   ```sh
+   # Indexer graph-node
+   kubectl create secret generic indexer-agent-graph-node \
+     --from-literal=admin-endoint=<host> \
+     --from-literal=status-endpoint=<username>    
+   ```
+   
 #### Cloud Build
 
 Set up the following triggers in Cloud Build:
