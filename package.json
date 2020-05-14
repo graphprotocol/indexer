@@ -2,7 +2,8 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "packages/indexer-service"
+    "packages/indexer-service",
+    "packages/indexer-agent"
   ],
   "scripts": {
     "bootstrap": "lerna bootstrap",

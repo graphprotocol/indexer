@@ -10,7 +10,7 @@
   "scripts": {
     "compile": "tsc",
     "format": "prettier --write 'src/*.ts'",
-    "prepare": "yarn format && yarn compile",
+    "prepare": "yarn compile",
     "start": "yarn compile && node ./dist/index.js start --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql"
   },
   "dependencies": {
