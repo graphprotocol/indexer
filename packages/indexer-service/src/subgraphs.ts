@@ -47,9 +47,9 @@ export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonito
           .map((status: any) => status.subgraph)
 
         // Identify subgraphs changes
-        let removed = this.subgraphs.filter(subgraph => subgraphs.indexOf(subgraph) < 0)
-        let added = subgraphs.filter(subgraph => this.subgraphs.indexOf(subgraph) < 0)
-        let unchanged = this.subgraphs.filter(subgraph => subgraphs.indexOf(subgraph) > 0)
+        let removed = this.subgraphs.filter(subgraph => !subgraphs.includes(subgraph))
+        let added = subgraphs.filter(subgraph => !this.subgraphs.includes(subgraph))
+        let unchanged = this.subgraphs.filter(subgraph => subgraphs.includes(subgraph))
 
         // Update indexing subgraphs
         this.subgraphs = subgraphs
