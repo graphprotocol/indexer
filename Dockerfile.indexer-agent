@@ -1,0 +1,58 @@
+########################################################################
+# Build image
+
+FROM node:slim as build
+
+ARG NPM_TOKEN
+
+ENV NODE_ENV production
+
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY .npmrc.docker .npmrc
+COPY tsconfig.json .
+COPY lerna.json .
+
+# Copy shared and package files
+COPY packages/indexer-agent/ ./packages/indexer-agent
+
+# Install dependencies; include dev dependencies
+RUN yarn --pure-lockfile --non-interactive --production=false
+
+# Build the indexer-agent
+WORKDIR /opt/indexer/packages/indexer-agent
+RUN yarn prepare
+
+########################################################################
+# Runtime image
+
+FROM node:10-alpine
+
+ARG NPM_TOKEN
+
+ENV NODE_ENV production
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY .npmrc.docker .npmrc
+COPY tsconfig.json .
+COPY lerna.json .
+
+# Copy build output
+COPY --from=build /opt/indexer/packages/indexer-agent/package.json /opt/indexer/packages/indexer-agent/package.json
+COPY --from=build /opt/indexer/packages/indexer-agent/dist /opt/indexer/packages/indexer-agent/dist
+
+# Install dependencies; exclude dev dependencies
+RUN yarn --pure-lockfile --non-interactive
+
+ENV ETHEREUM ""
+
+# Run the indexer-agent
+WORKDIR /opt/indexer/packages/indexer-agent
+ENTRYPOINT ["node", "dist/index.js", "start"]
+CMD ["--graph-node-status-endpoint", "http://localhost:8020/", "--graph-node-admin-endpoint", "http://localhost:8030/graphql"]
