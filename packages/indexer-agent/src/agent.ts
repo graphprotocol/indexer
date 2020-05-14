@@ -29,35 +29,41 @@ export class Agent {
 
   async start() {
     await loop(async () => {
+      let bootstrapSubgraphs: string[] = ['graphprotocol/network']
+      let accountsToIndex: string[] = ['DAOism']
+
       let indexerSubgraphs = await this.indexer.subgraphs()
       // Currently the network subgraphs list acts as a set of desired subgraph deployments
       // TODO: Fetch list of subgraphs from the Network subgraphs and use the supplied list of account and subgraph names
       //  to resolve to a "desired" list
-      let networkAccounts: string[] = ['DAOism']
       let networkSubgraphs: SubgraphKey[] = [
         {
           name: 'DAOism/innerdao',
           subgraphId: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
         },
       ]
-      let accountNetworkSubgraphs: string[] = networkSubgraphs
+      let subgraphsToIndex: string[] = networkSubgraphs
         .filter(({ name }) => {
-          return networkAccounts.includes(name.split('/')[0])
+          return (
+            accountsToIndex.includes(name.split('/')[0]) ||
+            bootstrapSubgraphs.includes(name)
+          )
         })
         .map(({ subgraphId }) => subgraphId)
-      await this.resolve(accountNetworkSubgraphs, indexerSubgraphs)
+
+      await this.resolve(subgraphsToIndex, indexerSubgraphs)
     }, 5000)
   }
 
   async resolve(
-    networkSubgraphVersions: string[],
-    indexerSubgraphVersions: string[],
+    networkSubgraphs: string[],
+    indexerSubgraphs: string[],
   ) {
-    let toDeploy: string[] = networkSubgraphVersions.filter(
-      networkSubgraph => !indexerSubgraphVersions.includes(networkSubgraph),
+    let toDeploy: string[] = networkSubgraphs.filter(
+      networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
     )
-    let toRemove: string[] = indexerSubgraphVersions.filter(
-      indexerSubgraph => !networkSubgraphVersions.includes(indexerSubgraph),
+    let toRemove: string[] = indexerSubgraphs.filter(
+      indexerSubgraph => !networkSubgraphs.includes(indexerSubgraph),
     )
     await Promise.all(
       toDeploy.map(async subgraph => {
