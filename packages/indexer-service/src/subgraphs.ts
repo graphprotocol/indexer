@@ -29,7 +29,7 @@ export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonito
 
     while (true) {
       try {
-        // Query graph-node for indexed subgraph versions
+        // Query graph-node for indexing subgraph versions
         let response = await client.post('/graphql', {
           query: `
           {
@@ -51,7 +51,7 @@ export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonito
         let added = subgraphs.filter(subgraph => this.subgraphs.indexOf(subgraph) < 0)
         let unchanged = this.subgraphs.filter(subgraph => subgraphs.indexOf(subgraph) > 0)
 
-        // Update indexed subgraphs
+        // Update indexing subgraphs
         this.subgraphs = subgraphs
 
         // Emit the update
@@ -59,7 +59,7 @@ export class IndexingSubgraphMonitor extends EventEmitter<IndexingSubgraphMonito
           this.emit('updated', { removed, added, unchanged })
         }
       } catch (e) {
-        logger.warn(`Failed to query indexed subgraphs: ${e}`)
+        logger.warn(`Failed to query indexing subgraphs: ${e}`)
       }
 
       // Wait 5s

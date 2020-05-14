@@ -110,7 +110,7 @@ export default {
       mnemonic: argv.mnemonic,
     })
 
-    // Create indexed subgraph monitor
+    // Create indexing subgraph monitor
     let indexingSubgraphMonitor = new IndexingSubgraphMonitor({
       logger: logger.child({ component: 'IndexingSubgraphMonitor' }),
       graphNode: argv.graphNodeStatusEndpoint,
@@ -132,7 +132,7 @@ export default {
       }
     })
 
-    // Add and remove subgraph state channels as indexed subgraphs change
+    // Add and remove subgraph state channels as indexing subgraphs change
     indexingSubgraphMonitor.on('updated', async (update: any) => {
       let { added, removed } = update
 
