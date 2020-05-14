@@ -10,7 +10,8 @@
   "scripts": {
     "compile": "tsc",
     "format": "prettier --write 'src/*.ts'",
-    "prepare": "yarn compile",
+    "contracts": "typechain --target=ethers --outDir src/contracts/ ./abis/**/*.json",
+    "prepare": "yarn format && yarn contracts && yarn compile",
     "start": "yarn compile && node ./dist/index.js start --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql"
   },
   "dependencies": {
@@ -18,6 +19,7 @@
     "apollo-cache-inmemory": "^1.6.3",
     "apollo-client": "^2.6.4",
     "apollo-link-http": "^1.5.15",
+    "ethers": "^4.0.47",
     "global": "^4.4.0",
     "graphql": "^14.0.0",
     "graphql-tag": "^2.10.1",
@@ -25,6 +27,8 @@
     "yargs": "^15.1.0"
   },
   "devDependencies": {
-    "@types/yargs": "^15.0.4"
+    "@types/yargs": "^15.0.4",
+    "typechain": "^1.0.5",
+    "typechain-target-ethers": "^1.0.4"
   }
 }

@@ -1,7 +1,9 @@
 import { logging } from '@graphprotocol/common-ts'
+import { ethers, Wallet } from 'ethers'
 
 import { AgentConfig, SubgraphKey } from './types'
 import { Indexer } from './indexer'
+import { Network } from './network'
 
 let delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -16,6 +18,7 @@ let loop = async (f: () => Promise<void>, interval: number) => {
 
 export class Agent {
   indexer: Indexer
+  network: Network
   logger: logging.Logger
 
   constructor(config: AgentConfig) {
@@ -25,23 +28,21 @@ export class Agent {
       config.statusEndpoint,
       config.logger,
     )
+    let wallet = Wallet.fromMnemonic(config.mnemonic)
+    wallet = wallet.connect(ethers.getDefaultProvider())
+    this.network = new Network(this.logger, wallet)
   }
 
   async start() {
+    await this.network.register()
+
     await loop(async () => {
       let bootstrapSubgraphs: string[] = ['graphprotocol/network']
       let accountsToIndex: string[] = ['DAOism']
 
       let indexerSubgraphs = await this.indexer.subgraphs()
-      // Currently the network subgraphs list acts as a set of desired subgraph deployments
-      // TODO: Fetch list of subgraphs from the Network subgraphs and use the supplied list of account and subgraph names
-      //  to resolve to a "desired" list
-      let networkSubgraphs: SubgraphKey[] = [
-        {
-          name: 'DAOism/innerdao',
-          subgraphId: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
-        },
-      ]
+      let networkSubgraphs = await this.network.subgraphs()
+
       let subgraphsToIndex: string[] = networkSubgraphs
         .filter(({ name }) => {
           return (
@@ -55,10 +56,7 @@ export class Agent {
     }, 5000)
   }
 
-  async resolve(
-    networkSubgraphs: string[],
-    indexerSubgraphs: string[],
-  ) {
+  async resolve(networkSubgraphs: string[], indexerSubgraphs: string[]) {
     let toDeploy: string[] = networkSubgraphs.filter(
       networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
     )

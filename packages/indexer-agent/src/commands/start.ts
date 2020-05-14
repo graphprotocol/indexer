@@ -17,13 +17,18 @@ export default {
         description: 'Graph Node endpoint for applying and updating subgraph deployments',
         type: 'string'
       })
-      .demandOption(['graph-node-status-endpoint', 'graph-node-admin-endpoint'])
+      .option('mnemonic', {
+        description: 'Mnemonic for the wallet',
+        type: 'string'
+      })
+      .demandOption(['graph-node-status-endpoint', 'graph-node-admin-endpoint', 'mnemonic'])
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
 
     logger.info('Starting up agent...')
     let config: AgentConfig = {
+      mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
       logger: logger
