@@ -171,6 +171,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     let responseCID = keccak256(new TextEncoder().encode(response.data))
 
     return await this.createResponse({
+      stateChannel,
       subgraphId,
       requestCID,
       responseCID,
@@ -179,11 +180,13 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   private async createResponse({
+    stateChannel,
     subgraphId,
     requestCID,
     responseCID,
     data,
   }: {
+    stateChannel: StateChannel
     subgraphId: string
     requestCID: string
     responseCID: string
@@ -192,7 +195,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Obtain a signed attestation for the query result
     let receipt = { requestCID, responseCID, subgraphID: hashSubgraphId(subgraphId) }
     let attestation = await attestations.createAttestation(
-      this.paymentManager.wallet.privateKey,
+      stateChannel.privateKey,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
@@ -237,6 +240,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Create a response that includes a signed attestation
     let attestedResponse = await this.createResponse({
+      stateChannel,
       subgraphId,
       requestCID,
       responseCID,

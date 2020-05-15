@@ -53,6 +53,7 @@ export type StateChannelEventNames = 'payment-received'
 
 export interface StateChannel extends EventEmitter<StateChannelEventNames> {
   subgraph: string
+  privateKey: string
 
   unlockPayment(
     payment: ConditionalPayment,
