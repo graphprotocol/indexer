@@ -29,12 +29,7 @@ import {
   StateChannelEventNames,
   PaymentManagerEventNames,
 } from './types'
-
-const ATTESTATION_TYPE_HASH = keccak256(
-  toUtf8Bytes(
-    'Attestation(bytes32 requestCID,bytes32 responseCID,bytes32 subgraphID,byte v,bytes32 r,bytes32 s)',
-  ),
-)
+import { randomBytes } from 'crypto'
 
 async function delay(ms: number) {
   return new Promise((resolve, _) => setTimeout(resolve, ms))
@@ -162,44 +157,31 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
-    // To unlock the payment, all we need to do is respond with a
-    // signature of <something> plus the payment ID; we make this
-    // something the hashed attestation object
-    let hashedAttestation = attestations.eip712.hashStruct(
-      ATTESTATION_TYPE_HASH,
-      ['bytes32', 'bytes32', 'bytes32', 'byte', 'bytes32', 'bytes32'],
-      [
-        attestation.requestCID,
-        attestation.responseCID,
-        attestation.subgraphID,
-        attestation.v,
-        attestation.r,
-        attestation.s,
-      ],
-    )
+    // REPLACE:
+    let receipt = keccak256(randomBytes(32))
+    let receiptHash = solidityKeccak256(['bytes32', 'bytes32'], [receipt, paymentId])
+    let signature = await this.client.channelProvider.signMessage(receiptHash)
 
-    // Hash attestation and payment ID together (is the payment ID necessary?)
-    let paymentAttestation = solidityKeccak256(
-      ['bytes32', 'bytes32'],
-      [hashedAttestation, paymentId],
-    )
-
-    // Sign the message
-    let signature = await this.client.channelProvider.signMessage(paymentAttestation)
+    // WITH:
+    // let receipt = {
+    //   requestCID: attestation.requestCID,
+    //   responseCID: attestation.responseCID,
+    //   subgraphID: attestation.subgraphID,
+    // }
+    // let signature = joinSignature({
+    //   r: attestation.r,
+    //   s: attestation.s,
+    //   v: attestation.v,
+    // })
 
     // Unlock the payment; retry in case there are networking issues
     let attemptUnlock = true
     while (attemptUnlock) {
       try {
-        // FIXME: how should we pass the attestation in here?
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId,
-
-          // Attach the full attestation to the resolution as metadata
-          data: attestation as any,
-
-          // Use the signed attestation to resolve the transfer
+          data: receipt as any,
           signature,
         } as PublicParams.ResolveSignedTransfer)
 
