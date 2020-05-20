@@ -37,6 +37,7 @@ export class Agent {
   }
 
   async start() {
+    await this.indexer.test()
     await this.network.register()
     await this.network.ensureMinimumStake(10000)
 

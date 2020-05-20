@@ -41,6 +41,19 @@ export class Indexer {
     this.rpc = jayson.client.http(adminEndpoint)
   }
 
+  async test(): Promise<void> {
+    try {
+      let subgraphs = await this.subgraphs()
+      this.logger.info(
+        `Connected to indexing statuses API, ${subgraphs.length} subgraphs deployed`,
+      )
+      return
+    } catch (e) {
+      this.logger.error(`Failed to connect to indexing statuses API`)
+      throw e
+    }
+  }
+
   async subgraphs(): Promise<string[]> {
     try {
       let result = await this.statuses.query({
