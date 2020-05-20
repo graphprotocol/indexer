@@ -88,18 +88,47 @@ export class Network {
 
   async register(): Promise<void> {
     try {
+      let isRegistered = await this.serviceRegistry.functions.isRegistered(
+        this.indexerPubKey,
+      )
+      if (isRegistered) {
+        this.logger.info(
+          `Indexer '${this.indexerPubKey}' already registered with the network at '${this.indexerUrl}'`,
+        )
+        return
+      }
+
+      this.logger.info(`Register indexer at '${this.indexerUrl}`)
       let receipt = await Ethereum.executeTransaction(
         this.serviceRegistry.functions.register(this.indexerUrl, 'mammoth', {
           gasLimit: 1000000,
           gasPrice: 10000000000,
         }),
+        this.logger,
       )
-      if (receipt) {
-        return receipt.transactionHash
+
+      if (receipt && receipt.events) {
+        let event = receipt.events.find(
+          event =>
+            event.eventSignature ==
+            this.serviceRegistry.interface.events.ServiceRegistered.signature,
+        )
+        if (event) {
+          let eventInputs = this.serviceRegistry.interface.events.ServiceRegistered.decode(
+            event.data,
+            event.topics,
+          )
+          this.logger.info(`Registered indexer...
+                                             publicKey: '${eventInputs.indexer}' 
+                                             url: '${eventInputs.url}' 
+                                             geoHash: '${eventInputs.geohash}'`)
+          return
+        }
       }
-      throw Error(`Failed to register ${url} on the network`)
-    } catch (error) {
-      throw error
+      throw Error(`Failed to register ${this.indexerUrl} on the network`)
+    } catch (e) {
+      this.logger.error(`Failed to register Indexer at '${this.indexerUrl}'`)
+      throw e
     }
   }
 
@@ -110,7 +139,7 @@ export class Network {
           gasLimit: 1000000,
           gasPrice: 10000000000,
         }),
-        this.logger
+        this.logger,
       )
       if (receipt) {
         return receipt.transactionHash
