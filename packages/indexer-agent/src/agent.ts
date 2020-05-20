@@ -38,6 +38,7 @@ export class Agent {
 
   async start() {
     await this.network.register()
+    await this.network.ensureMinimumStake(10000)
 
     await loop(async () => {
       let bootstrapSubgraphs: string[] = ['graphprotocol/network']

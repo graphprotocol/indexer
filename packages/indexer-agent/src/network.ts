@@ -208,4 +208,46 @@ export class Network {
       throw error
     }
   }
+
+  async ensureMinimumStake(minimum: number): Promise<void> {
+    try {
+      this.logger.info(`Ensure at least ${minimum} tokens are available for staking on subgraphs`)
+      let tokens = await this.staking.functions.getIndexerStakeTokens(
+        this.indexerPubKey,
+      )
+      if (tokens.toNumber() >= minimum) {
+        this.logger.info(
+          `Indexer has sufficient staking tokens: ${tokens.toString()}`,
+        )
+        return
+      }
+      let data = [0]
+      this.logger.info(`Amount staked: ${tokens} tokens`)
+      let diff = minimum - tokens.toNumber()
+      this.logger.info(`Stake ${diff} tokens`)
+      let transferReceipt = await Ethereum.executeTransaction(
+        this.token.functions.transferToTokenReceiver(
+          this.staking.address,
+          diff,
+          data,
+          {
+            gasLimit: 1000000,
+            gasPrice: utils.parseUnits('10', 'gwei'),
+          },
+        ),
+        this.logger,
+      )
+      if (transferReceipt) {
+        this.logger.info(`Staked ${diff} tokens`)
+        let tokens = await this.staking.functions.getIndexerStakeTokens(
+          this.indexerPubKey,
+        )
+        this.logger.info(`Total stake: ${tokens}`)
+        return
+      }
+      throw Error(`Failed to stake tokens for indexer '${this.indexerPubKey}'`)
+    } catch (e) {
+      throw e
+    }
+  }
 }
