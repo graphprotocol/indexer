@@ -12,13 +12,15 @@
     "format": "prettier --write 'src/*.ts'",
     "contracts": "typechain --target=ethers --outDir src/contracts/ ./abis/**/*.json",
     "prepare": "yarn format && yarn contracts && yarn compile",
-    "start": "yarn compile && node ./dist/index.js start --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql"
+    "start": "yarn compile && node ./dist/index.js start --ethereum http://localhost:8545 --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql --external-endpoint https://best-indexer-ever.eth --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\""
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.0.21",
+    "@types/bs58": "^4.0.1",
     "apollo-cache-inmemory": "^1.6.3",
     "apollo-client": "^2.6.4",
     "apollo-link-http": "^1.5.15",
+    "bs58": "^4.0.1",
     "ethers": "^4.0.47",
     "global": "^4.4.0",
     "graphql": "^14.0.0",

@@ -1,5 +1,4 @@
 import { logging } from '@graphprotocol/common-ts'
-import { ethers, Wallet } from 'ethers'
 
 import { AgentConfig, SubgraphKey } from './types'
 import { Indexer } from './indexer'
@@ -28,9 +27,13 @@ export class Agent {
       config.statusEndpoint,
       config.logger,
     )
-    let wallet = Wallet.fromMnemonic(config.mnemonic)
-    wallet = wallet.connect(ethers.getDefaultProvider())
-    this.network = new Network(this.logger, wallet)
+    this.network = new Network(
+      this.logger,
+      config.ethereumProvider,
+      config.network,
+      config.externalEndpoint,
+      config.mnemonic,
+    )
   }
 
   async start() {
@@ -68,6 +71,7 @@ export class Agent {
         let subgraphName: string = subgraph.toString().slice(-10)
         subgraphName = [subgraphName, subgraphName].join('/')
         await this.indexer.ensure(subgraphName, subgraph)
+        await this.network.stake(subgraph)
       }),
     )
     await Promise.all(
