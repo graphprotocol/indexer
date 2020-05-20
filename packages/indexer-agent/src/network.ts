@@ -29,8 +29,6 @@ class Ethereum {
     logger.info(
       `Transaction successfully included in block #${receipt.blockNumber}`,
     )
-    let receipt = await tx.wait(5)
-    console.log(`transaction successful!`)
     return receipt
   }
 
@@ -198,8 +196,8 @@ export class Network {
           )
           this.logger
             .info(`${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID}
-                                  channelID: ${eventInputs.channelID},
-                                  channelPubKey: ${eventInputs.channelPubKey}`)
+                                             channelID: ${eventInputs.channelID},
+                                             channelPubKey: ${eventInputs.channelPubKey}`)
           return
         }
       }
@@ -211,7 +209,9 @@ export class Network {
 
   async ensureMinimumStake(minimum: number): Promise<void> {
     try {
-      this.logger.info(`Ensure at least ${minimum} tokens are available for staking on subgraphs`)
+      this.logger.info(
+        `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
+      )
       let tokens = await this.staking.functions.getIndexerStakeTokens(
         this.indexerPubKey,
       )

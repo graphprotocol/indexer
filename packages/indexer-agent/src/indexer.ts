@@ -144,7 +144,7 @@ export class Indexer {
     } catch (error) {
       if (error.message.includes('unchanged')) {
         this.logger.warn(
-          `Subgraph deployment assignment unchanged:, subgraph: '${subgraphId}' node_id: '${node}'`,
+          `Subgraph deployment assignment unchanged, subgraph: '${subgraphId}', node_id: '${node}'`,
         )
         return
       }
@@ -154,12 +154,13 @@ export class Indexer {
   }
 
   async ensure(name: string, subgraphId: string): Promise<any> {
-    this.logger.info(`Begin indexing subgraph '${name}' '${subgraphId}'`)
     return this.create(name)
       .then(() => this.deploy(name, subgraphId))
       .then(() => this.reassign(subgraphId, 'default'))
       .catch(e => {
-        this.logger.error(`Failed to ensure '${subgraphId}' is indexing`)
+        this.logger.error(
+          `Failed to ensure '${name}':'${subgraphId}' is indexing`,
+        )
         throw e
       })
   }

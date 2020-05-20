@@ -41,6 +41,8 @@ export class Agent {
     await this.network.register()
     await this.network.ensureMinimumStake(10000)
 
+    this.logger.info(`Agent booted up`)
+    this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
       let bootstrapSubgraphs: string[] = ['graphprotocol/network']
       let accountsToIndex: string[] = ['DAOism']
@@ -72,8 +74,12 @@ export class Agent {
       toDeploy.map(async subgraph => {
         let subgraphName: string = subgraph.toString().slice(-10)
         subgraphName = [subgraphName, subgraphName].join('/')
+
+        // Ensure the subgraph is deployed to the indexer and allocate stake on the subgraph in the network
+        this.logger.info(`Begin indexing '${subgraphName}':'${subgraph}'...`)
         await this.indexer.ensure(subgraphName, subgraph)
         await this.network.stake(subgraph)
+        this.logger.info(`Now indexing '${subgraphName}':'${subgraph}'`)
       }),
     )
     await Promise.all(
