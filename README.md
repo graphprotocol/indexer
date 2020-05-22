@@ -134,21 +134,14 @@ necessary:
     kubectl config use-context minikube
     ```
    
-    Hosted service:staging
+    Hosted on Google Cloud
+      - Replace the <CLUSTER> and <PROJECT> strings with values from your infrastructure
     ```sh     
     # Configure kubernetes CLI to connect to the remote kubernetes cluster
-    gcloud config set project the-graph-staging;
-    gcloud container clusters get-credentials hosted-service --zone us-central1-a;
-    kubectl config use-context gke_the-graph-staging_us-central1-a_hosted-service;           
+    gcloud config set project <PROJECT>;
+    gcloud container clusters get-credentials <CLUSTER> --zone us-central1-a;
+    kubectl config use-context gke_<PROJECT>_us-central1-a_<CLUSTER>;           
     ```
-   
-   Hosted service:production
-   ```sh     
-   # Configure kubernetes CLI to connect to the remote kubernetes cluster
-   gcloud config set project the-graph-production;
-   gcloud container clusters get-credentials hosted-service --zone us-central1-a;
-   kubectl config use-context gke_the-graph-production_us-central1-a_hosted-service;           
-   ```
    
 2. Indexer service:
 
