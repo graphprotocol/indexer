@@ -18,7 +18,7 @@ import {
   QueryError,
 } from './types'
 
-const hashSubgraphId = (subgraphId: string): string =>
+const hexlifySubgraphId = (subgraphId: string): string =>
   hexlify(bs58.decode(subgraphId).slice(2))
 
 export interface PaidQueryProcessorOptions {
@@ -193,7 +193,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     data: string
   }): Promise<QueryResponse> {
     // Obtain a signed attestation for the query result
-    let receipt = { requestCID, responseCID, subgraphID: hashSubgraphId(subgraphId) }
+    let receipt = { requestCID, responseCID, subgraphID: hexlifySubgraphId(subgraphId) }
     let attestation = await attestations.createAttestation(
       stateChannel.privateKey,
       this.chainId,
