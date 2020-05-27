@@ -5,6 +5,7 @@ export interface AgentConfig {
   statusEndpoint: string
   adminEndpoint: string
   publicIndexerUrl: string
+  indexerGeoCoordinates: [string, string]
   ethereumProvider: string
   network: string
   logger: logging.Logger

@@ -42,6 +42,11 @@ export default {
         type: 'string',
         required: true,
       })
+      .options('indexer-geo-coordinates', {
+        description: `Coordinates describing the Indexer's location using latitude and longitude`,
+        type: 'array',
+        default: ['31.780715', '-41.179504'],
+      })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
@@ -52,6 +57,7 @@ export default {
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
       publicIndexerUrl: argv.publicIndexerUrl,
+      indexerGeoCoordinates: argv.indexerGeoCoordinates,
       ethereumProvider: argv.ethereum,
       network: argv.network,
       logger: logger,

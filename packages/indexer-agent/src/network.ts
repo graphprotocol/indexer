@@ -14,6 +14,8 @@ import { GraphToken } from './contracts/GraphToken'
 import { GraphTokenFactory } from './contracts/GraphTokenFactory'
 import { NetworkAddresses, SubgraphKey } from './types'
 
+const geohash = require('ngeohash')
+
 class Ethereum {
   static async executeTransaction(
     transaction: Promise<ContractTransaction>,
@@ -40,6 +42,7 @@ export class Network {
   indexerPubKey: string
   indexerAddress: string
   indexerUrl: string
+  indexerGeoCoordinates: [string, string]
   mnemonic: string
   logger: logging.Logger
 
@@ -48,6 +51,7 @@ export class Network {
     ethereumProvider: string,
     network: string,
     indexerUrl: string,
+    geoCoordinates: [string, string],
     mnemonic: string,
   ) {
     this.logger = logger.child({ component: 'Network' })
@@ -61,6 +65,7 @@ export class Network {
     this.logger.info(`Wallet created at '${wallet.address}'`)
 
     this.mnemonic = mnemonic
+    this.indexerGeoCoordinates = geoCoordinates
     this.indexerPubKey = wallet.address
     this.indexerAddress = wallet.address
     this.indexerUrl = indexerUrl
@@ -105,10 +110,17 @@ export class Network {
 
       this.logger.info(`Register indexer at '${this.indexerUrl}`)
       let receipt = await Ethereum.executeTransaction(
-        this.serviceRegistry.register(this.indexerUrl, "37.45 74.73", {
-          gasLimit: 1000000,
-          gasPrice: utils.parseUnits('10', 'gwei'),
-        }),
+        this.serviceRegistry.register(
+          this.indexerUrl,
+          geohash.encode(
+            this.indexerGeoCoordinates[0],
+            this.indexerGeoCoordinates[1],
+          ),
+          {
+            gasLimit: 1000000,
+            gasPrice: utils.parseUnits('10', 'gwei'),
+          },
+        ),
         this.logger,
       )
 

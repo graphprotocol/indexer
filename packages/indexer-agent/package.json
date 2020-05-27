@@ -12,7 +12,7 @@
     "format": "prettier --write 'src/**/*.ts'",
     "contracts": "typechain --target=ethers-v4 --outDir src/contracts/ ./abis/**/*.json",
     "prepare": "yarn format && yarn contracts && yarn compile",
-    "start": "yarn compile && node ./dist/index.js start --ethereum http://localhost:8545 --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql --external-endpoint https://best-indexer-ever.eth --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\""
+    "start": "yarn compile && node ./dist/index.js start --ethereum http://localhost:8545 --network ganache --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\""
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.0.21",
@@ -25,6 +25,7 @@
     "graphql": "^14.0.0",
     "graphql-tag": "^2.10.1",
     "jayson": "^3.3.0",
+    "ngeohash": "^0.6.3",
     "yargs": "^15.1.0"
   },
   "devDependencies": {

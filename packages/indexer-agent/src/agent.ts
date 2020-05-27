@@ -32,6 +32,7 @@ export class Agent {
       config.ethereumProvider,
       config.network,
       config.publicIndexerUrl,
+      config.indexerGeoCoordinates,
       config.mnemonic,
     )
   }
