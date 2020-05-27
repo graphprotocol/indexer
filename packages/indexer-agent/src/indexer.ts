@@ -47,7 +47,6 @@ export class Indexer {
       this.logger.info(
         `Connected to indexing statuses API, ${subgraphs.length} subgraphs deployed`,
       )
-      return
     } catch (e) {
       this.logger.error(`Failed to connect to indexing statuses API`)
       throw e

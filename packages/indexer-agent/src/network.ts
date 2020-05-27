@@ -2,6 +2,7 @@ import { logging } from '@graphprotocol/common-ts'
 import * as bs58 from 'bs58'
 import { ContractTransaction, ethers, Wallet, utils } from 'ethers'
 import { ContractReceipt } from 'ethers/contract'
+import { strict as assert } from 'assert'
 
 import { ServiceRegistryFactory } from './contracts/ServiceRegistryFactory'
 import { ServiceRegistry } from './contracts/ServiceRegistry'
@@ -16,7 +17,6 @@ import { SubgraphKey } from './types'
 const SERVICE_REGISTRY_CONTRACT = '0xe982E462b094850F12AF94d21D470e21bE9D0E9C'
 const STAKING_CONTRACT = '0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb'
 const GRAPH_TOKEN_CONTRACT = '0xCfEB869F69431e42cdB54A4F4f105C19C080A601'
-const NETWORK = 'ropsten'
 
 class Ethereum {
   static async executeTransaction(
@@ -27,13 +27,13 @@ class Ethereum {
     logger.info(`Transaction pending: '${tx.hash}'`)
     let receipt = await tx.wait(1)
     logger.info(
-      `Transaction successfully included in block #${receipt.blockNumber}`,
+      `Transaction '${tx.hash}' successfully included in block #${receipt.blockNumber}`,
     )
     return receipt
   }
 
-  static ipfsHashToBytes32(hash: string): Buffer {
-    return bs58.decode(hash).slice(2)
+  static ipfsHashToBytes32(hash: string): string {
+    return utils.hexlify(bs58.decode(hash).slice(2))
   }
 }
 
@@ -42,6 +42,7 @@ export class Network {
   staking: Staking
   token: GraphToken
   indexerPubKey: string
+  indexerAddress: string
   indexerUrl: string
   mnemonic: string
   logger: logging.Logger
@@ -65,6 +66,7 @@ export class Network {
 
     this.mnemonic = mnemonic
     this.indexerPubKey = wallet.address
+    this.indexerAddress = wallet.address
     this.indexerUrl = indexerUrl
 
     this.serviceRegistry = ServiceRegistryFactory.connect(
@@ -86,125 +88,112 @@ export class Network {
 
   async register(): Promise<void> {
     try {
-      let isRegistered = await this.serviceRegistry.functions.isRegistered(
-        this.indexerPubKey,
+      let isRegistered = await this.serviceRegistry.isRegistered(
+        this.indexerAddress,
       )
       if (isRegistered) {
         this.logger.info(
-          `Indexer '${this.indexerPubKey}' already registered with the network at '${this.indexerUrl}'`,
+          `Indexer '${this.indexerAddress}' already registered with the network at '${this.indexerUrl}'`,
         )
         return
       }
 
       this.logger.info(`Register indexer at '${this.indexerUrl}`)
       let receipt = await Ethereum.executeTransaction(
-        this.serviceRegistry.functions.register(this.indexerUrl, 'mammoth', {
-          gasLimit: 1000000,
-          gasPrice: 10000000000,
-        }),
-        this.logger,
-      )
-
-      if (receipt && receipt.events) {
-        let event = receipt.events.find(
-          event =>
-            event.eventSignature ==
-            this.serviceRegistry.interface.events.ServiceRegistered.signature,
-        )
-        if (event) {
-          let eventInputs = this.serviceRegistry.interface.events.ServiceRegistered.decode(
-            event.data,
-            event.topics,
-          )
-          this.logger.info(`Registered indexer...
-                                             publicKey: '${eventInputs.indexer}' 
-                                             url: '${eventInputs.url}' 
-                                             geoHash: '${eventInputs.geohash}'`)
-          return
-        }
-      }
-      throw Error(`Failed to register ${this.indexerUrl} on the network`)
-    } catch (e) {
-      this.logger.error(`Failed to register Indexer at '${this.indexerUrl}'`)
-      throw e
-    }
-  }
-
-  async unregister(url: string): Promise<string | undefined> {
-    try {
-      let receipt = await Ethereum.executeTransaction(
-        this.serviceRegistry.contract.functions.unregister(url, {
-          gasLimit: 1000000,
-          gasPrice: 10000000000,
-        }),
-        this.logger,
-      )
-      if (receipt) {
-        return receipt.transactionHash
-      }
-      throw Error(`Failed to unregister ${url} from the network`)
-    } catch (error) {
-      throw error
-    }
-  }
-
-  async stake(subgraph: string): Promise<void> {
-    try {
-      let epoch = 0
-      let amount = 100
-      let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
-
-      this.logger.info(`Stake on '${subgraph}`)
-      let currentAllocation = await this.staking.functions.getAllocation(
-        this.indexerPubKey,
-        subgraphIdBytes,
-      )
-      if (currentAllocation.tokens.toNumber() > 0) {
-        this.logger.info(`Stake already allocated to '${subgraph}'`)
-        this.logger.info(
-          `${currentAllocation.tokens} tokens allocated on channelID '${
-            currentAllocation.channelID
-          }' since epoch ${currentAllocation.createdAtEpoch.toString()}`,
-        )
-        return
-      }
-
-      // Derive the subgraph specific public key
-      let hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-      let path = 'm/' + [epoch, ...Buffer.from(subgraph)].join('/')
-      let derivedKeyPair = hdNode.derivePath(path)
-      let publicKey = derivedKeyPair.publicKey
-
-      let receipt = await Ethereum.executeTransaction(
-        this.staking.functions.allocate(subgraphIdBytes, amount, publicKey, {
+        this.serviceRegistry.register(this.indexerUrl, "37.45 74.73", {
           gasLimit: 1000000,
           gasPrice: utils.parseUnits('10', 'gwei'),
         }),
         this.logger,
       )
 
-      if (receipt && receipt.events) {
-        let event = receipt.events.find(
-          event =>
-            event.eventSignature ==
-            this.staking.interface.events.AllocationCreated.signature,
-        )
-        if (event) {
-          let eventInputs = this.staking.interface.events.AllocationCreated.decode(
-            event.data,
-            event.topics,
-          )
-          this.logger
-            .info(`${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID}
-                                             channelID: ${eventInputs.channelID},
-                                             channelPubKey: ${eventInputs.channelPubKey}`)
-          return
-        }
-      }
-      throw Error(`Failed to stake on subgraph '${subgraph}'`)
-    } catch (error) {
-      throw error
+      let event = receipt.events!.find(
+        event =>
+          event.eventSignature ==
+          this.serviceRegistry.interface.events.ServiceRegistered.signature,
+      )
+      assert.ok(event)
+
+      let eventInputs = this.serviceRegistry.interface.events.ServiceRegistered.decode(
+        event!.data,
+        event!.topics,
+      )
+      this.logger.info(`Registered indexer \
+        publicKey: '${eventInputs.indexer}' \ 
+        url: '${eventInputs.url}' \
+        geoHash: '${eventInputs.geohash}'`)
+    } catch (e) {
+      this.logger.error(`Failed to register Indexer at '${this.indexerUrl}'`)
+      throw e
     }
+  }
+
+  async unregister(url: string): Promise<void> {
+    try {
+      await Ethereum.executeTransaction(
+        this.serviceRegistry.contract.unregister(url, {
+          gasLimit: 1000000,
+          gasPrice: utils.parseUnits('10', 'gwei'),
+        }),
+        this.logger,
+      )
+    } catch (e) {
+      this.logger.error(
+        `Failed to unregister '${this.indexerUrl}' from the network`,
+      )
+      throw e
+    }
+  }
+
+  async stake(subgraph: string): Promise<void> {
+    let epoch = 0
+    let amount = 100
+    let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
+
+    this.logger.info(`Stake on '${subgraph}'`)
+    let currentAllocation = await this.staking.getAllocation(
+      this.indexerAddress,
+      subgraphIdBytes,
+    )
+    if (currentAllocation.tokens.toNumber() > 0) {
+      this.logger.info(`Stake already allocated to '${subgraph}'`)
+      this.logger.info(
+        `${currentAllocation.tokens} tokens allocated on channelID '${
+          currentAllocation.channelID
+        }' since epoch ${currentAllocation.createdAtEpoch.toString()}`,
+      )
+      return
+    }
+
+    // Derive the subgraph specific public key
+    let hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
+    let path = 'm/' + [epoch, ...Buffer.from(subgraph)].join('/')
+    let derivedKeyPair = hdNode.derivePath(path)
+    let publicKey = derivedKeyPair.publicKey
+
+    let receipt = await Ethereum.executeTransaction(
+      this.staking.allocate(subgraphIdBytes, amount, publicKey, {
+        gasLimit: 1000000,
+        gasPrice: utils.parseUnits('10', 'gwei'),
+      }),
+      this.logger,
+    )
+
+    let event = receipt.events!.find(
+      event =>
+        event.eventSignature ==
+        this.staking.interface.events.AllocationCreated.signature,
+    )
+    assert.ok(event, `Failed to stake on subgraph '${subgraph}'`)
+
+    let eventInputs = this.staking.interface.events.AllocationCreated.decode(
+      event!.data,
+      event!.topics,
+    )
+    this.logger
+      .info(`${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID} \
+          channelID: ${eventInputs.channelID} \
+          channelPubKey: ${eventInputs.channelPubKey}`)
   }
 
   async ensureMinimumStake(minimum: number): Promise<void> {
@@ -212,9 +201,7 @@ export class Network {
       this.logger.info(
         `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
       )
-      let tokens = await this.staking.functions.getIndexerStakeTokens(
-        this.indexerPubKey,
-      )
+      let tokens = await this.staking.getIndexerStakeTokens(this.indexerPubKey)
       if (tokens.toNumber() >= minimum) {
         this.logger.info(
           `Indexer has sufficient staking tokens: ${tokens.toString()}`,
@@ -226,27 +213,19 @@ export class Network {
       let diff = minimum - tokens.toNumber()
       this.logger.info(`Stake ${diff} tokens`)
       let transferReceipt = await Ethereum.executeTransaction(
-        this.token.functions.transferToTokenReceiver(
-          this.staking.address,
-          diff,
-          data,
-          {
-            gasLimit: 1000000,
-            gasPrice: utils.parseUnits('10', 'gwei'),
-          },
-        ),
+        this.token.transferToTokenReceiver(this.staking.address, diff, data, {
+          gasLimit: 1000000,
+          gasPrice: utils.parseUnits('10', 'gwei'),
+        }),
         this.logger,
       )
-      if (transferReceipt) {
-        this.logger.info(`Staked ${diff} tokens`)
-        let tokens = await this.staking.functions.getIndexerStakeTokens(
-          this.indexerPubKey,
-        )
-        this.logger.info(`Total stake: ${tokens}`)
-        return
-      }
-      throw Error(`Failed to stake tokens for indexer '${this.indexerPubKey}'`)
+      this.logger.info(`Staked ${diff} tokens`)
+      tokens = await this.staking.getIndexerStakeTokens(this.indexerPubKey)
+      this.logger.info(`Total stake: ${tokens}`)
     } catch (e) {
+      this.logger.error(
+        `Failed to stake tokens for indexer '${this.indexerPubKey}'`,
+      )
       throw e
     }
   }
