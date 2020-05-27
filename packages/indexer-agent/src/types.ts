@@ -14,3 +14,18 @@ export interface SubgraphKey {
   name: string
   subgraphId: string
 }
+
+interface ContractAddresses {
+  GNS: string
+  GraphToken: string
+  MultisigWallet: string
+  ServiceRegistry: string
+  Staking: string
+}
+
+export interface NetworkAddresses {
+  ropsten: ContractAddresses
+  kovan: ContractAddresses
+  mainnet: ContractAddresses
+  ganache: ContractAddresses
+}

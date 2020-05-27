@@ -3,6 +3,8 @@ import * as bs58 from 'bs58'
 import { ContractTransaction, ethers, Wallet, utils } from 'ethers'
 import { ContractReceipt } from 'ethers/contract'
 import { strict as assert } from 'assert'
+import * as fs from 'fs'
+import * as path from 'path'
 
 import { ServiceRegistryFactory } from './contracts/ServiceRegistryFactory'
 import { ServiceRegistry } from './contracts/ServiceRegistry'
@@ -10,13 +12,7 @@ import { Staking } from './contracts/Staking'
 import { StakingFactory } from './contracts/StakingFactory'
 import { GraphToken } from './contracts/GraphToken'
 import { GraphTokenFactory } from './contracts/GraphTokenFactory'
-import { SubgraphKey } from './types'
-
-// TODO: Determine how contract addresses and network are set
-//  Should they be fetched from the contracts repo? Set as optional startup parameters?
-const SERVICE_REGISTRY_CONTRACT = '0xe982E462b094850F12AF94d21D470e21bE9D0E9C'
-const STAKING_CONTRACT = '0xD833215cBcc3f914bD1C9ece3EE7BF8B14f841bb'
-const GRAPH_TOKEN_CONTRACT = '0xCfEB869F69431e42cdB54A4F4f105C19C080A601'
+import { NetworkAddresses, SubgraphKey } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -69,12 +65,21 @@ export class Network {
     this.indexerAddress = wallet.address
     this.indexerUrl = indexerUrl
 
+    const addresses: NetworkAddresses = JSON.parse(
+      fs.readFileSync(path.join(__dirname, '..', 'addresses.json'), 'utf-8'),
+    )
     this.serviceRegistry = ServiceRegistryFactory.connect(
-      SERVICE_REGISTRY_CONTRACT,
+      addresses[network as keyof NetworkAddresses].ServiceRegistry,
       wallet,
     )
-    this.staking = StakingFactory.connect(STAKING_CONTRACT, wallet)
-    this.token = GraphTokenFactory.connect(GRAPH_TOKEN_CONTRACT, wallet)
+    this.staking = StakingFactory.connect(
+      addresses[network as keyof NetworkAddresses].Staking,
+      wallet,
+    )
+    this.token = GraphTokenFactory.connect(
+      addresses[network as keyof NetworkAddresses].GraphToken,
+      wallet,
+    )
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {

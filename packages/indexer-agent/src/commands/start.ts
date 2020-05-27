@@ -34,6 +34,7 @@ export default {
         description:
           'Ethereum network where the protocol contracts are deployed',
         type: 'string',
+        choices: ['ganache', 'kovan', 'mainnet', 'ropsten'],
         default: 'ropsten',
       })
       .option('mnemonic', {
