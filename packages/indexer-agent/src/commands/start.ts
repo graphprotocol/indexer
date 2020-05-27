@@ -11,30 +11,36 @@ export default {
     return yargs
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
-        type: 'string'
+        type: 'string',
+        required: true,
       })
       .option('graph-node-status-endpoint', {
         description: 'Graph Node endpoint for indexing statuses etc.',
-        type: 'string'
+        type: 'string',
+        required: true,
       })
       .option('graph-node-admin-endpoint', {
-        description: 'Graph Node endpoint for applying and updating subgraph deployments',
-        type: 'string'
+        description:
+          'Graph Node endpoint for applying and updating subgraph deployments',
+        type: 'string',
+        required: true,
       })
-      .option('external-endpoint', {
+      .option('public-indexer-url', {
         description: 'Indexer endpoint for receiving requests from the network',
-        type: 'string'
+        type: 'string',
+        required: true,
       })
       .option('network', {
-        description: 'Ethereum network where the protocol contracts are deployed',
+        description:
+          'Ethereum network where the protocol contracts are deployed',
         type: 'string',
-        default: 'ropsten'
+        default: 'ropsten',
       })
       .option('mnemonic', {
         description: 'Mnemonic for the wallet',
         type: 'string',
+        required: true,
       })
-      .demandOption(['ethereum','graph-node-status-endpoint', 'graph-node-admin-endpoint', 'mnemonic', 'external-endpoint'])
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
@@ -47,7 +53,7 @@ export default {
       externalEndpoint: argv.externalEndpoint,
       ethereumProvider: argv.ethereum,
       network: argv.network,
-      logger: logger
+      logger: logger,
     }
     let agent = new Agent(config)
     await agent.start()
