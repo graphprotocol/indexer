@@ -50,7 +50,7 @@ export default {
       mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
-      externalEndpoint: argv.externalEndpoint,
+      publicIndexerUrl: argv.publicIndexerUrl,
       ethereumProvider: argv.ethereum,
       network: argv.network,
       logger: logger,

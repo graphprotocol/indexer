@@ -9,14 +9,13 @@
   "private": false,
   "scripts": {
     "compile": "tsc",
-    "format": "prettier --write 'src/*.ts'",
-    "contracts": "typechain --target=ethers --outDir src/contracts/ ./abis/**/*.json",
+    "format": "prettier --write 'src/**/*.ts'",
+    "contracts": "typechain --target=ethers-v4 --outDir src/contracts/ ./abis/**/*.json",
     "prepare": "yarn format && yarn contracts && yarn compile",
     "start": "yarn compile && node ./dist/index.js start --ethereum http://localhost:8545 --graph-node-admin-endpoint http://localhost:8020/ --graph-node-status-endpoint http://localhost:8030/graphql --external-endpoint https://best-indexer-ever.eth --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\""
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.0.21",
-    "@types/bs58": "^4.0.1",
     "apollo-cache-inmemory": "^1.6.3",
     "apollo-client": "^2.6.4",
     "apollo-link-http": "^1.5.15",
@@ -29,8 +28,10 @@
     "yargs": "^15.1.0"
   },
   "devDependencies": {
+    "@typechain/ethers-v4": "^1.0.0",
+    "@types/bs58": "^4.0.1",
     "@types/yargs": "^15.0.4",
-    "typechain": "^1.0.5",
+    "typechain": "^2.0.0",
     "typechain-target-ethers": "^1.0.4"
   }
 }

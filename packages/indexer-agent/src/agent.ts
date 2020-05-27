@@ -31,20 +31,20 @@ export class Agent {
       this.logger,
       config.ethereumProvider,
       config.network,
-      config.externalEndpoint,
+      config.publicIndexerUrl,
       config.mnemonic,
     )
   }
 
   async start() {
-    await this.indexer.test()
+    await this.indexer.connect()
     await this.network.register()
     await this.network.ensureMinimumStake(10000)
 
     this.logger.info(`Agent booted up`)
     this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
-      let bootstrapSubgraphs: string[] = ['graphprotocol/network']
+      let bootstrapSubgraph: string = 'graphprotocol/network'
       let accountsToIndex: string[] = ['DAOism']
 
       let indexerSubgraphs = await this.indexer.subgraphs()
@@ -54,7 +54,7 @@ export class Agent {
         .filter(({ name }) => {
           return (
             accountsToIndex.includes(name.split('/')[0]) ||
-            bootstrapSubgraphs.includes(name)
+            bootstrapSubgraph == name
           )
         })
         .map(({ subgraphId }) => subgraphId)
@@ -73,7 +73,7 @@ export class Agent {
     await Promise.all(
       toDeploy.map(async subgraph => {
         let subgraphName: string = subgraph.toString().slice(-10)
-        subgraphName = [subgraphName, subgraphName].join('/')
+        subgraphName = ['indexer-agent', subgraphName].join('/')
 
         // Ensure the subgraph is deployed to the indexer and allocate stake on the subgraph in the network
         this.logger.info(`Begin indexing '${subgraphName}':'${subgraph}'...`)

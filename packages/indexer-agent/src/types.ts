@@ -4,7 +4,7 @@ export interface AgentConfig {
   mnemonic: string
   statusEndpoint: string
   adminEndpoint: string
-  externalEndpoint: string
+  publicIndexerUrl: string
   ethereumProvider: string
   network: string
   logger: logging.Logger

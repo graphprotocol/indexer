@@ -41,7 +41,7 @@ export class Indexer {
     this.rpc = jayson.client.http(adminEndpoint)
   }
 
-  async test(): Promise<void> {
+  async connect(): Promise<void> {
     try {
       let subgraphs = await this.subgraphs()
       this.logger.info(
