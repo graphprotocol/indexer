@@ -15,11 +15,6 @@
         "internalType": "address",
         "name": "_epochManager",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "_curation",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -106,6 +101,24 @@
         "internalType": "address",
         "name": "from",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "curationFees",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "rebateFees",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "effectiveAllocation",
+        "type": "uint256"
       }
     ],
     "name": "AllocationSettled",
@@ -128,6 +141,19 @@
       }
     ],
     "name": "OwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "param",
+        "type": "string"
+      }
+    ],
+    "name": "ParameterUpdated",
     "type": "event"
   },
   {
@@ -383,7 +409,7 @@
   },
   {
     "inputs": [],
-    "name": "maxSettlementEpochs",
+    "name": "maxAllocationEpochs",
     "outputs": [
       {
         "internalType": "uint256",
@@ -558,11 +584,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_maxSettlementEpochs",
+        "name": "_maxAllocationEpochs",
         "type": "uint256"
       }
     ],
-    "name": "setMaxSettlementEpochs",
+    "name": "setMaxAllocationEpochs",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -644,7 +670,7 @@
         "type": "address"
       }
     ],
-    "name": "getIndexerStakeTokens",
+    "name": "getIndexerStakedTokens",
     "outputs": [
       {
         "internalType": "uint256",
@@ -699,6 +725,47 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "_epoch",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_indexer",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_subgraphID",
+        "type": "bytes32"
+      }
+    ],
+    "name": "getSettlement",
+    "outputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "fees",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "allocation",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct Rebates.Settlement",
+        "name": "",
+        "type": "tuple"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "address",
         "name": "_indexer",
         "type": "address"
@@ -727,29 +794,26 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_from",
-        "type": "address"
-      },
+        "internalType": "uint256",
+        "name": "_tokens",
+        "type": "uint256"
+      }
+    ],
+    "name": "stake",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "uint256",
-        "name": "_value",
+        "name": "_tokens",
         "type": "uint256"
-      },
-      {
-        "internalType": "bytes",
-        "name": "_data",
-        "type": "bytes"
       }
     ],
-    "name": "tokensReceived",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
+    "name": "unstake",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -779,12 +843,17 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "_channelID",
+        "type": "address"
+      },
+      {
         "internalType": "uint256",
         "name": "_tokens",
         "type": "uint256"
       }
     ],
-    "name": "unstake",
+    "name": "settle",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

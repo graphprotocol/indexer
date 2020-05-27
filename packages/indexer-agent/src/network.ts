@@ -35,6 +35,11 @@ class Ethereum {
   }
 }
 
+const txOverrides = {
+  gasLimit: 1000000,
+  gasPrice: utils.parseUnits('10', 'gwei'),
+}
+
 export class Network {
   serviceRegistry: ServiceRegistry
   staking: Staking
@@ -148,10 +153,7 @@ export class Network {
   async unregister(url: string): Promise<void> {
     try {
       await Ethereum.executeTransaction(
-        this.serviceRegistry.contract.unregister(url, {
-          gasLimit: 1000000,
-          gasPrice: utils.parseUnits('10', 'gwei'),
-        }),
+        this.serviceRegistry.contract.unregister(url, txOverrides),
         this.logger,
       )
     } catch (e) {
@@ -189,10 +191,7 @@ export class Network {
     let publicKey = derivedKeyPair.publicKey
 
     let receipt = await Ethereum.executeTransaction(
-      this.staking.allocate(subgraphIdBytes, amount, publicKey, {
-        gasLimit: 1000000,
-        gasPrice: utils.parseUnits('10', 'gwei'),
-      }),
+      this.staking.allocate(subgraphIdBytes, amount, publicKey, txOverrides),
       this.logger,
     )
 
@@ -218,26 +217,26 @@ export class Network {
       this.logger.info(
         `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
       )
-      let tokens = await this.staking.getIndexerStakeTokens(this.indexerPubKey)
+      let tokens = await this.staking.getIndexerStakedTokens(this.indexerPubKey)
       if (tokens.toNumber() >= minimum) {
         this.logger.info(
           `Indexer has sufficient staking tokens: ${tokens.toString()}`,
         )
         return
       }
-      let data = [0]
       this.logger.info(`Amount staked: ${tokens} tokens`)
       let diff = minimum - tokens.toNumber()
       this.logger.info(`Stake ${diff} tokens`)
-      let transferReceipt = await Ethereum.executeTransaction(
-        this.token.transferToTokenReceiver(this.staking.address, diff, data, {
-          gasLimit: 1000000,
-          gasPrice: utils.parseUnits('10', 'gwei'),
-        }),
+      await Ethereum.executeTransaction(
+        this.token.approve(this.staking.address, diff, txOverrides),
+        this.logger,
+      )
+      await Ethereum.executeTransaction(
+        this.staking.stake(diff, txOverrides),
         this.logger,
       )
       this.logger.info(`Staked ${diff} tokens`)
-      tokens = await this.staking.getIndexerStakeTokens(this.indexerPubKey)
+      tokens = await this.staking.getIndexerStakedTokens(this.indexerPubKey)
       this.logger.info(`Total stake: ${tokens}`)
     } catch (e) {
       this.logger.error(
