@@ -44,7 +44,6 @@ export class Network {
   serviceRegistry: ServiceRegistry
   staking: Staking
   token: GraphToken
-  indexerPubKey: string
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
@@ -71,7 +70,6 @@ export class Network {
 
     this.mnemonic = mnemonic
     this.indexerGeoCoordinates = geoCoordinates
-    this.indexerPubKey = wallet.address
     this.indexerAddress = wallet.address
     this.indexerUrl = indexerUrl
 
@@ -103,6 +101,7 @@ export class Network {
 
   async register(): Promise<void> {
     try {
+      this.logger.info(`Register indexer at '${this.indexerUrl}`)
       let isRegistered = await this.serviceRegistry.isRegistered(
         this.indexerAddress,
       )
@@ -113,13 +112,12 @@ export class Network {
         return
       }
 
-      this.logger.info(`Register indexer at '${this.indexerUrl}`)
       let receipt = await Ethereum.executeTransaction(
         this.serviceRegistry.register(
           this.indexerUrl,
           geohash.encode(
-            this.indexerGeoCoordinates[0],
-            this.indexerGeoCoordinates[1],
+            +this.indexerGeoCoordinates[0],
+            +this.indexerGeoCoordinates[1],
           ),
           {
             gasLimit: 1000000,
@@ -140,26 +138,11 @@ export class Network {
         event!.data,
         event!.topics,
       )
-      this.logger.info(`Registered indexer \
-        publicKey: '${eventInputs.indexer}' \ 
-        url: '${eventInputs.url}' \
-        geoHash: '${eventInputs.geohash}'`)
-    } catch (e) {
-      this.logger.error(`Failed to register Indexer at '${this.indexerUrl}'`)
-      throw e
-    }
-  }
-
-  async unregister(url: string): Promise<void> {
-    try {
-      await Ethereum.executeTransaction(
-        this.serviceRegistry.contract.unregister(url, txOverrides),
-        this.logger,
+      this.logger.info(
+        `Registered indexer publicKey: '${eventInputs.indexer}' url: '${eventInputs.url}' geoHash: '${eventInputs.geohash}'`,
       )
     } catch (e) {
-      this.logger.error(
-        `Failed to unregister '${this.indexerUrl}' from the network`,
-      )
+      this.logger.error(`Failed to register indexer at '${this.indexerUrl}'`)
       throw e
     }
   }
@@ -206,10 +189,9 @@ export class Network {
       event!.data,
       event!.topics,
     )
-    this.logger
-      .info(`${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID} \
-          channelID: ${eventInputs.channelID} \
-          channelPubKey: ${eventInputs.channelPubKey}`)
+    this.logger.info(
+      `${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID} channelID: ${eventInputs.channelID} channelPubKey: ${eventInputs.channelPubKey}`,
+    )
   }
 
   async ensureMinimumStake(minimum: number): Promise<void> {
@@ -217,7 +199,9 @@ export class Network {
       this.logger.info(
         `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
       )
-      let tokens = await this.staking.getIndexerStakedTokens(this.indexerPubKey)
+      let tokens = await this.staking.getIndexerStakedTokens(
+        this.indexerAddress,
+      )
       if (tokens.toNumber() >= minimum) {
         this.logger.info(
           `Indexer has sufficient staking tokens: ${tokens.toString()}`,
@@ -236,11 +220,11 @@ export class Network {
         this.logger,
       )
       this.logger.info(`Staked ${diff} tokens`)
-      tokens = await this.staking.getIndexerStakedTokens(this.indexerPubKey)
+      tokens = await this.staking.getIndexerStakedTokens(this.indexerAddress)
       this.logger.info(`Total stake: ${tokens}`)
     } catch (e) {
       this.logger.error(
-        `Failed to stake tokens for indexer '${this.indexerPubKey}'`,
+        `Failed to stake tokens for indexer '${this.indexerAddress}'`,
       )
       throw e
     }
