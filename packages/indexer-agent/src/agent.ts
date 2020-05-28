@@ -32,6 +32,7 @@ export class Agent {
       config.ethereumProvider,
       config.network,
       config.publicIndexerUrl,
+      config.queryEndpoint,
       config.indexerGeoCoordinates,
       config.mnemonic,
     )
@@ -46,16 +47,15 @@ export class Agent {
     this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
       let bootstrapSubgraph: string = 'graphprotocol/network'
-      let accountsToIndex: string[] = ['DAOism']
+      let accountsToIndex: string[] = ['indexer-agent']
 
       let indexerSubgraphs = await this.indexer.subgraphs()
       let networkSubgraphs = await this.network.subgraphs()
-
       let subgraphsToIndex: string[] = networkSubgraphs
-        .filter(({ name }) => {
+        .filter(subgraph => {
           return (
-            accountsToIndex.includes(name.split('/')[0]) ||
-            bootstrapSubgraph == name
+            accountsToIndex.includes(subgraph.owner) ||
+            bootstrapSubgraph == subgraph.name
           )
         })
         .map(({ subgraphId }) => subgraphId)

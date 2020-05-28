@@ -4,6 +4,7 @@ export interface AgentConfig {
   mnemonic: string
   statusEndpoint: string
   adminEndpoint: string
+  queryEndpoint: string
   publicIndexerUrl: string
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string
@@ -13,7 +14,35 @@ export interface AgentConfig {
 
 export interface SubgraphKey {
   name: string
+  owner: string
   subgraphId: string
+}
+interface SubgraphOwner {
+  id: string
+  name: string
+  balance: number
+}
+
+interface NamedSubgraph {
+  id: string
+  name: string
+  nameSystem: string
+  owner: SubgraphOwner
+}
+
+interface SubgraphVersion {
+  id: string
+  version: number
+  displayName: string
+  description: string
+  networks: string[]
+  namedSubgraph: NamedSubgraph
+}
+
+export interface SubgraphStake {
+  id: string
+  totalStake: number
+  versions: SubgraphVersion[]
 }
 
 interface ContractAddresses {

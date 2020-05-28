@@ -5,6 +5,10 @@ import { ContractReceipt } from 'ethers/contract'
 import { strict as assert } from 'assert'
 import * as fs from 'fs'
 import * as path from 'path'
+import ApolloClient from 'apollo-client'
+import { HttpLink } from 'apollo-link-http'
+import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
+import gql from 'graphql-tag'
 
 import { ServiceRegistryFactory } from './contracts/ServiceRegistryFactory'
 import { ServiceRegistry } from './contracts/ServiceRegistry'
@@ -12,8 +16,9 @@ import { Staking } from './contracts/Staking'
 import { StakingFactory } from './contracts/StakingFactory'
 import { GraphToken } from './contracts/GraphToken'
 import { GraphTokenFactory } from './contracts/GraphTokenFactory'
-import { NetworkAddresses, SubgraphKey } from './types'
+import { NetworkAddresses, SubgraphKey, SubgraphStake } from './types'
 
+const fetch = require('node-fetch')
 const geohash = require('ngeohash')
 
 class Ethereum {
@@ -41,6 +46,7 @@ const txOverrides = {
 }
 
 export class Network {
+  subgraph: ApolloClient<NormalizedCacheObject>
   serviceRegistry: ServiceRegistry
   staking: Staking
   token: GraphToken
@@ -55,10 +61,18 @@ export class Network {
     ethereumProvider: string,
     network: string,
     indexerUrl: string,
+    indexerGraphqlUrl: string,
     geoCoordinates: [string, string],
     mnemonic: string,
   ) {
     this.logger = logger.child({ component: 'Network' })
+    this.subgraph = new ApolloClient({
+      link: new HttpLink({
+        uri: indexerGraphqlUrl + 'subgraphs/name/graphprotocol/network',
+        fetch,
+      }),
+      cache: new InMemoryCache(),
+    })
     let wallet = Wallet.fromMnemonic(mnemonic)
     let eth = new ethers.providers.JsonRpcProvider(ethereumProvider)
 
@@ -91,12 +105,54 @@ export class Network {
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {
-    return [
-      {
-        name: 'DAOism/innerdao',
-        subgraphId: 'QmXsVSmFN7b5vNNia2JPbeE7NLkVHPPgZS2cHsvfH6myuV',
-      },
-    ]
+    const minimumStake = 0
+    try {
+      let result = await this.subgraph.query({
+        query: gql`
+          query {
+            subgraphs {
+              id
+              totalStake
+              versions {
+                id
+                version
+                displayName
+                description
+                networks
+                namedSubgraph {
+                  id
+                  name
+                  nameSystem
+                  owner {
+                    id
+                    name
+                    balance
+                  }
+                }
+              }
+            }
+          }
+        `,
+        fetchPolicy: 'no-cache',
+      })
+      return result.data.subgraphs
+        .filter((subgraph: SubgraphStake) => {
+          return subgraph.totalStake >= minimumStake
+        })
+        .map((subgraph: SubgraphStake) => {
+          let latestVersion = subgraph.versions.sort(
+            (a, b) => b.version - a.version,
+          )[0]
+          return {
+            name: latestVersion.namedSubgraph.name,
+            owner: latestVersion.namedSubgraph.owner.name,
+            subgraphId: subgraph.id,
+          } as SubgraphKey
+        })
+    } catch (error) {
+      this.logger.error(`Network subgraphs query failed`)
+      throw error
+    }
   }
 
   async register(): Promise<void> {

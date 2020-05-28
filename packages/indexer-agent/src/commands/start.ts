@@ -14,6 +14,11 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('graph-node-query-endpoint', {
+        description: 'Graph Node endpoint for querying subgraphs',
+        type: 'string',
+        required: true,
+      })
       .option('graph-node-status-endpoint', {
         description: 'Graph Node endpoint for indexing statuses etc.',
         type: 'string',
@@ -56,6 +61,7 @@ export default {
       mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
+      queryEndpoint: argv.graphNodeQueryEndpoint,
       publicIndexerUrl: argv.publicIndexerUrl,
       indexerGeoCoordinates: argv.indexerGeoCoordinates,
       ethereumProvider: argv.ethereum,
