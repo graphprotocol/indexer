@@ -11,6 +11,6 @@ resources:
 - shell.yaml
 - nfs.yaml
 - prometheus.yaml
-- gafana.yaml
+- grafana.yaml
 
 namespace: default
