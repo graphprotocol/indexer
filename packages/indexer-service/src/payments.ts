@@ -157,22 +157,19 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
-    // REPLACE:
-    let receipt = keccak256(randomBytes(32))
-    let receiptHash = solidityKeccak256(['bytes32', 'bytes32'], [receipt, paymentId])
-    let signature = await this.client.channelProvider.signMessage(receiptHash)
 
-    // WITH:
-    // let receipt = {
-    //   requestCID: attestation.requestCID,
-    //   responseCID: attestation.responseCID,
-    //   subgraphID: attestation.subgraphID,
-    // }
-    // let signature = joinSignature({
-    //   r: attestation.r,
-    //   s: attestation.s,
-    //   v: attestation.v,
-    // })
+    let receipt = {
+      requestCID: attestation.requestCID,
+      responseCID: attestation.responseCID,
+      subgraphID: attestation.subgraphID,
+    }
+    let signature = joinSignature({
+      r: attestation.r,
+      s: attestation.s,
+      v: attestation.v,
+    })
+
+    
 
     // Unlock the payment; retry in case there are networking issues
     let attemptUnlock = true
@@ -181,8 +178,10 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId,
-          data: receipt as any,
-          signature,
+          attestation: {
+            ...receipt,
+            signature
+          }
         } as PublicParams.ResolveSignedTransfer)
 
         this.logger.info(`Unlocked payment '${paymentId}'`)
