@@ -169,8 +169,6 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
       v: attestation.v,
     })
 
-    
-
     // Unlock the payment; retry in case there are networking issues
     let attemptUnlock = true
     while (attemptUnlock) {

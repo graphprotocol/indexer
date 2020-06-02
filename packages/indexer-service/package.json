@@ -14,8 +14,8 @@
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@connext/types": "6.3.8",
-    "@connext/utils": "6.3.8",
+    "@connext/types": "6.6.5",
+    "@connext/utils": "6.6.5",
     "@graphprotocol/common-ts": "^0.0.27",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
