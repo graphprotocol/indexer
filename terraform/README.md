@@ -55,6 +55,7 @@ create a Google Cloud configuration locally:
 proj_id=$(gcloud projects list --format='get(project_id)' --filter="name=$project")
 gcloud config configurations create $project
 gcloud config set project "$proj_id"
+gcloud config set compute/zone us-central1-a
 ```
 
 Enable a number of Google Cloud API's that the indexer requires:
