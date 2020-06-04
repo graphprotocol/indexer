@@ -127,7 +127,7 @@ new cluster into your local `~/.kube/config` file and set it as your
 default context:
 ```shell
 gcloud container clusters get-credentials $indexer
-kubectl config use-context $indexer
+kubectl config use-context $(kubectl config get-contexts --output='name' | grep $indexer)
 ```
 
 ## Creating the Kubernetes resources for the indexer
