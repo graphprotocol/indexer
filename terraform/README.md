@@ -70,7 +70,8 @@ infrastructure, requires that we have a service account. Pick a name for
 that and store it in the variable `svc_name` and then run:
 ```shell
 gcloud iam service-accounts create $svc_name \
-    --description="Service account for Terraform"
+    --description="Service account for Terraform" \
+    --display-name="$svc_name"
 gcloud iam service-accounts list
 # Get the email of the service account from the list
 svc=$(gcloud iam service-accounts list --format='get(email)' --filter="displayName=$svc_name")
