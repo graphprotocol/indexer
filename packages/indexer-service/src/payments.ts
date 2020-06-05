@@ -12,11 +12,8 @@ import { Sequelize } from 'sequelize'
 import { AddressZero } from 'ethers/constants'
 import {
   formatEther,
-  solidityKeccak256,
   HDNode,
   joinSignature,
-  toUtf8Bytes,
-  keccak256,
 } from 'ethers/utils'
 import { Wallet } from 'ethers'
 import { EventEmitter } from 'eventemitter3'
@@ -29,7 +26,6 @@ import {
   StateChannelEventNames,
   PaymentManagerEventNames,
 } from './types'
-import { randomBytes } from 'crypto'
 
 async function delay(ms: number) {
   return new Promise((resolve, _) => setTimeout(resolve, ms))
@@ -157,7 +153,6 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
-
     let receipt = {
       requestCID: attestation.requestCID,
       responseCID: attestation.responseCID,
@@ -176,10 +171,8 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
           paymentId,
-          attestation: {
-            ...receipt,
-            signature
-          }
+          responseCID: receipt.responseCID,
+          signature,
         } as PublicParams.ResolveSignedTransfer)
 
         this.logger.info(`Unlocked payment '${paymentId}'`)
