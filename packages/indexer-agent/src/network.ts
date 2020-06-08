@@ -40,6 +40,20 @@ class Ethereum {
   static ipfsHashToBytes32(hash: string): string {
     return utils.hexlify(bs58.decode(hash).slice(2))
   }
+
+  static bytesToIPSFHash(bytes: string): string {
+    return bs58.encode(Ethereum.addQm(utils.arrayify(bytes)))
+  }
+
+  static addQm(a: Uint8Array): Uint8Array {
+    let out = new Uint8Array(34)
+    out[0] = 0x12
+    out[1] = 0x20
+    for (let i = 0; i < 32; i++) {
+      out[i + 2] = a[i]
+    }
+    return out as Uint8Array
+  }
 }
 
 const txOverrides = {
@@ -153,8 +167,12 @@ export class Network {
         .map((subgraph: NetworkSubgraph) => {
           return {
             name: subgraph.name,
-            owner: subgraph.owner.defaultName.name,
-            subgraphId: subgraph.id,
+            owner: subgraph.owner
+              ? subgraph.owner.defaultName.name
+              : 'indexer-agent',
+            subgraphId: Ethereum.bytesToIPSFHash(
+              subgraph.currentVersion.subgraphDeployment.id,
+            ),
           } as SubgraphKey
         })
     } catch (error) {

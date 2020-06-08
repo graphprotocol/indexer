@@ -43,9 +43,6 @@ export class Agent {
     this.logger.info('Bootstrapping the test network')
 
     const graphNetworkSubgraphName = 'graphprotocol/network-kovan'
-    // ganache
-    const graphNetworkSubgraphId_ganache =
-      'QmTWRhewNXYUgrLbcvS2PBNcw7xhHTGgeAiaCXvrjECMiG'
     const graphNetworkSubgraphId =
       'QmaTgzW8yNBhbeer5zytGK1RAJcrHJUKSr9BCi3QuqV5SB'
     const graphNetworkSubgraphMetadata =
