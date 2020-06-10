@@ -39,35 +39,44 @@ export class Agent {
   }
 
   async bootstrapTestNetwork() {
-    this.logger.info('Indexer booted up..')
     this.logger.info('Bootstrapping the test network')
+    const subgraphs = [
+      [
+        'graphprotocol/network-kovan',
+        'QmaTgzW8yNBhbeer5zytGK1RAJcrHJUKSr9BCi3QuqV5SB',
+        'QmUdTzZz9bRQ4t637xjTgEWavJ49ctPDrQNxVLU2Btg4Vg',
+      ],
+      [
+        'uniswapprotocol/uniswap',
+        'QmRZ5q4kZaavwQE4nqddtAndLbQwaxQg1pY4sCFL1VL7Hb',
+        'QmNPARiMvD8Yg2kfdkNPkWzSNgfUgRAuE81tMLG2YDKwrJ',
+      ],
+    ]
+    const publishPromises = subgraphs.map(
+      async subgraph =>
+        await this.publishSubgraph(subgraph[0], subgraph[1], subgraph[2]),
+    )
 
-    const graphNetworkSubgraphName = 'graphprotocol/network-kovan'
-    const graphNetworkSubgraphId =
-      'QmaTgzW8yNBhbeer5zytGK1RAJcrHJUKSr9BCi3QuqV5SB'
-    const graphNetworkSubgraphMetadata =
-      'QmUdTzZz9bRQ4t637xjTgEWavJ49ctPDrQNxVLU2Btg4Vg'
-    this.logger.info(`Publish the Network Subgraph`)
-    await this.network.publish(
-      graphNetworkSubgraphName,
-      graphNetworkSubgraphId,
-      graphNetworkSubgraphMetadata,
-    )
-    this.logger.info(
-      `Begin indexing the network subgraph: '${graphNetworkSubgraphName}':'${graphNetworkSubgraphId}'`,
-    )
-    await this.indexer.ensure(graphNetworkSubgraphName, graphNetworkSubgraphId)
-    await this.network.stake(graphNetworkSubgraphId)
-    this.logger.info(
-      `Now indexing '${graphNetworkSubgraphName}':'${graphNetworkSubgraphId}'`,
-    )
+    await Promise.all(publishPromises)
+
     await delay(20000)
   }
 
+  async publishSubgraph(name: string, id: string, metadata: string) {
+    this.logger.info(`Publish '${name}' to the network`)
+    await this.network.publish(name, id, metadata)
+    this.logger.info(`Begin indexing subgraph: '${name}':'${id}'`)
+    await this.indexer.ensure(name, id)
+    await this.network.stake(id)
+    this.logger.info(`Now indexing '${name}':'${id}'`)
+  }
+
   async setupIndexer() {
+    this.logger.info(`Connecting to indexer and ensuring regisration and stake on the network`)
     await this.indexer.connect()
     await this.network.register()
     await this.network.ensureMinimumStake(100)
+    this.logger.info(`Indexer active and registered on network..`)
   }
 
   async start() {
