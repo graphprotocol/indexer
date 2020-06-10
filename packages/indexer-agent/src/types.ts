@@ -55,6 +55,7 @@ interface ContractAddresses {
   MultisigWallet: string
   ServiceRegistry: string
   Staking: string
+  EpochManager: string
 }
 
 export interface NetworkAddresses {

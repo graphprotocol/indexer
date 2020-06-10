@@ -16,6 +16,8 @@ import { Staking } from './contracts/Staking'
 import { StakingFactory } from './contracts/StakingFactory'
 import { GraphToken } from './contracts/GraphToken'
 import { GraphTokenFactory } from './contracts/GraphTokenFactory'
+import { EpochManager } from './contracts/EpochManager'
+import { EpochManagerFactory } from './contracts/EpochManagerFactory'
 import { Gns } from './contracts/Gns'
 import { GnsFactory } from './contracts/GnsFactory'
 import { NetworkAddresses, SubgraphKey, NetworkSubgraph } from './types'
@@ -67,6 +69,7 @@ export class Network {
   staking: Staking
   gns: Gns
   token: GraphToken
+  epochManager: EpochManager
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
@@ -121,6 +124,10 @@ export class Network {
     )
     this.gns = GnsFactory.connect(
       addresses[network as keyof NetworkAddresses].GNS,
+      wallet,
+    )
+    this.epochManager = EpochManagerFactory.connect(
+      addresses[network as keyof NetworkAddresses].EpochManager,
       wallet,
     )
   }
@@ -256,15 +263,16 @@ export class Network {
   }
 
   async stake(subgraph: string): Promise<void> {
-    let epoch = 0
     let amount = 100
     let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
 
-    this.logger.info(`Stake on '${subgraph}'`)
+    let currentEpoch = await this.epochManager.currentEpoch()
+    this.logger.info(`Stake on '${subgraph}' in epoch '${currentEpoch}'`)
     let currentAllocation = await this.staking.getAllocation(
       this.indexerAddress,
       subgraphIdBytes,
     )
+
     if (currentAllocation.tokens.toNumber() > 0) {
       this.logger.info(`Stake already allocated to '${subgraph}'`)
       this.logger.info(
@@ -277,7 +285,7 @@ export class Network {
 
     // Derive the subgraph specific public key
     let hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    let path = 'm/' + [epoch, ...Buffer.from(subgraph)].join('/')
+    let path = 'm/' + [currentEpoch, ...Buffer.from(subgraph)].join('/')
     let derivedKeyPair = hdNode.derivePath(path)
     let publicKey = derivedKeyPair.publicKey
 
