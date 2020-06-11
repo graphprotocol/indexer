@@ -43,13 +43,8 @@ export class Agent {
     const subgraphs = [
       [
         'graphprotocol/network-kovan',
-        'QmaTgzW8yNBhbeer5zytGK1RAJcrHJUKSr9BCi3QuqV5SB',
+        'Qma3PvKVRvvMMbUwyovxaPBzDTaspuEmzVfHAcP8xoNhUX',
         'QmUdTzZz9bRQ4t637xjTgEWavJ49ctPDrQNxVLU2Btg4Vg',
-      ],
-      [
-        'uniswapprotocol/uniswap',
-        'QmRZ5q4kZaavwQE4nqddtAndLbQwaxQg1pY4sCFL1VL7Hb',
-        'QmNPARiMvD8Yg2kfdkNPkWzSNgfUgRAuE81tMLG2YDKwrJ',
       ],
     ]
     const publishPromises = subgraphs.map(
@@ -59,7 +54,7 @@ export class Agent {
 
     await Promise.all(publishPromises)
 
-    await delay(20000)
+    await delay(100000)
   }
 
   async publishSubgraph(name: string, id: string, metadata: string) {

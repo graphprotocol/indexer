@@ -55,7 +55,7 @@ export default {
       .options('bootstrap', {
         description: `Bootstrap the network with the network subgraph and several test subgraphs`,
         type: 'boolean',
-        default: 'false',
+        default: false,
       })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {

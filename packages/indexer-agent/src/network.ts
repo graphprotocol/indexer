@@ -133,7 +133,7 @@ export class Network {
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {
-    const minimumStake = 0
+    const minimumStake = 100
     try {
       let result = await this.subgraph.query({
         query: gql`
