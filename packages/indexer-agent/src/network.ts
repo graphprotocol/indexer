@@ -298,7 +298,7 @@ export class Network {
       )
       let tokens = await this.token.balanceOf(this.indexerAddress)
       if (tokens <= ethers.utils.bigNumberify(minimum)) {
-        this.logger.info(
+        this.logger.warn(
           `The indexer account has insufficient tokens, '${tokens}'. to ensure minimum stake. Please use an account with sufficient GRT`,
         )
       }
@@ -327,7 +327,7 @@ export class Network {
       )
       assert.ok(
         approveEvent,
-        `Failed to approve '${diff}' tokens for staking on indexer`,
+        `Failed to approve '${diff}' tokens for staking`,
       )
 
       let approveEventInputs = this.token.interface.events.Approval.decode(
@@ -348,14 +348,14 @@ export class Network {
           event.eventSignature ==
           this.staking.interface.events.StakeDeposited.signature,
       )
-      assert.ok(stakeEvent, `Failed to stake '${diff}' on indexer`)
+      assert.ok(stakeEvent, `Failed to stake '${diff}'`)
 
       let stakeEventInputs = this.staking.interface.events.StakeDeposited.decode(
         stakeEvent!.data,
         stakeEvent!.topics,
       )
       this.logger.info(
-        `${stakeEventInputs.tokens} tokens staked on indexer: ${stakeEventInputs.indexer}`,
+        `${stakeEventInputs.tokens} tokens staked`,
       )
 
       this.logger.info(`Staked ${diff} tokens`)
@@ -363,7 +363,7 @@ export class Network {
       this.logger.info(`Total stake: ${tokens}`)
     } catch (e) {
       this.logger.error(
-        `Failed to stake tokens for indexer '${this.indexerAddress}'`,
+        `Failed to stake tokens on behalf of indexer '${this.indexerAddress}'`,
       )
       throw e
     }
