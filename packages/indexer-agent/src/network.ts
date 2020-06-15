@@ -88,7 +88,7 @@ export class Network {
     this.logger = logger.child({ component: 'Network' })
     this.subgraph = new ApolloClient({
       link: new HttpLink({
-        uri: indexerGraphqlUrl + 'subgraphs/name/graphprotocol/network-kovan',
+        uri: new URL('/subgraphs/name/graphprotocol/network', indexerGraphqlUrl).toString,
         fetch,
       }),
       cache: new InMemoryCache(),
@@ -138,7 +138,7 @@ export class Network {
       let result = await this.subgraph.query({
         query: gql`
           query {
-            subgraphs {
+            subgraphs(where: { currentVersion_not: null }) {
               id
               totalNameSignaledGRT
               totalNameSignalMinted
