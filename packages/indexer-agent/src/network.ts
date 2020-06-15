@@ -236,32 +236,6 @@ export class Network {
     }
   }
 
-  async publish(name: string, subgraphId: string, metadataHash: string) {
-    this.logger.info(`Publishing subgraph '${name}':'${subgraphId}'`)
-    let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraphId)
-    let metadataBytes = Ethereum.ipfsHashToBytes32(metadataHash)
-
-    let receipt = await Ethereum.executeTransaction(
-      this.gns.publish(name, subgraphIdBytes, metadataBytes, txOverrides),
-      this.logger,
-    )
-
-    let event = receipt.events!.find(
-      event =>
-        event.eventSignature ==
-        this.gns.interface.events.SubgraphPublished.signature,
-    )
-    assert.ok(event, `Failed to publish subgraph '${name}':'${subgraphId}'`)
-
-    let eventInputs = this.gns.interface.events.SubgraphPublished.decode(
-      event!.data,
-      event!.topics,
-    )
-    this.logger.info(
-      `${eventInputs.name} published by ${eventInputs.owner}, subgraphID: '${eventInputs.SubgraphID}', metadata: '${eventInputs.metadataHash}'`,
-    )
-  }
-
   async stake(subgraph: string): Promise<void> {
     let amount = 100
     let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)

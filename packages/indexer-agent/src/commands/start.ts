@@ -52,11 +52,6 @@ export default {
         type: 'array',
         default: ['31.780715', '-41.179504'],
       })
-      .options('bootstrap', {
-        description: `Bootstrap the network with the network subgraph and several test subgraphs`,
-        type: 'boolean',
-        default: false,
-      })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
@@ -74,13 +69,7 @@ export default {
       logger: logger,
     }
     let agent = new Agent(config)
-    if (argv.bootstrap) {
-      await agent.setupIndexer()
-      await agent.bootstrapTestNetwork()
-      await agent.start()
-    } else {
       await agent.setupIndexer()
       await agent.start()
-    }
   },
 }
