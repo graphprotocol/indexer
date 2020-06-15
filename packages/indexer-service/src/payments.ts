@@ -6,16 +6,12 @@ import {
   EventPayloads,
   ConditionalTransferTypes,
   PublicParams,
+  EventPayload,
+  CreatedSignedTransferMeta,
 } from '@connext/types'
 import { ChannelSigner, toBN } from '@connext/utils'
 import { Sequelize } from 'sequelize'
-import { AddressZero } from 'ethers/constants'
-import {
-  formatEther,
-  HDNode,
-  joinSignature,
-} from 'ethers/utils'
-import { Wallet } from 'ethers'
+import { Wallet, constants, utils } from 'ethers'
 import { EventEmitter } from 'eventemitter3'
 import PQueue from 'p-queue/dist'
 
@@ -34,7 +30,7 @@ async function delay(ms: number) {
 interface StateChannelOptions {
   logger: logging.Logger
   client: IConnextClient
-  signer: IChannelSigner
+  signer: ChannelSigner
   subgraph: string
   epoch: number
   privateKey: string
@@ -49,7 +45,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
   implements StateChannelInterface {
   logger: logging.Logger
   client: IConnextClient
-  signer: IChannelSigner
+  signer: ChannelSigner
   epoch: number
   subgraph: string
   privateKey: string
@@ -92,7 +88,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     logger.info(`Create state channel`)
 
     // Derive an epoch and subgraph specific private key
-    let hdNode = HDNode.fromMnemonic(mnemonic)
+    let hdNode = utils.HDNode.fromMnemonic(mnemonic)
     let path = 'm/' + [epoch, ...Buffer.from(subgraph)].join('/')
 
     logger.info(`Derive key using path '${path}'`)
@@ -118,13 +114,13 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
       })
 
       // Obtain current free balance
-      let freeBalance = await client.getFreeBalance(AddressZero)
+      let freeBalance = await client.getFreeBalance(constants.AddressZero)
       let balance = freeBalance[client.signerAddress]
 
       logger.info(`Public key: ${publicKey}`)
       logger.info(`Signer address: ${client.signerAddress}`)
       logger.info(`Public identifier: ${client.publicIdentifier}`)
-      logger.info(`Free balance: ${formatEther(balance)}`)
+      logger.info(`Free balance: ${utils.formatEther(balance)}`)
 
       let signer = new ChannelSigner(derivedKeyPair.privateKey, ethereum)
 
@@ -148,7 +144,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     payment: ConditionalPayment,
     attestation: attestations.Attestation,
   ) {
-    let formattedAmount = formatEther(payment.amount)
+    let formattedAmount = utils.formatEther(payment.amount)
     let { paymentId } = payment
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
@@ -156,9 +152,9 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     let receipt = {
       requestCID: attestation.requestCID,
       responseCID: attestation.responseCID,
-      subgraphID: attestation.subgraphID,
+      subgraphDeploymentID: attestation.subgraphDeploymentID,
     }
-    let signature = joinSignature({
+    let signature = utils.joinSignature({
       r: attestation.r,
       s: attestation.s,
       v: attestation.v,
@@ -196,37 +192,39 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
     await this.client.uninstallApp(appIdentityHash)
   }
 
-  async handleConditionalPayment(eventData: EventPayloads.SignedTransferCreated) {
-    // Obtain and format transfer amount
-    let amount = toBN(eventData.amount)
-    let formattedAmount = formatEther(amount)
-
+  async handleConditionalPayment(payload: EventPayloads.ConditionalTransferCreated<any>) {
     // Ignore our own transfers
-    if (eventData.sender === this.client.publicIdentifier) {
+    if (payload.sender === this.client.publicIdentifier) {
       return
     }
 
     // Skip unsupported payment types
-    if (eventData.type !== ConditionalTransferTypes.SignedTransfer) {
+    if (payload.type !== ConditionalTransferTypes.SignedTransfer) {
       this.logger.warn(
-        `Received payment with unexpected type ${eventData.type}, doing nothing`,
+        `Received payment with unexpected type ${payload.type}, doing nothing`,
       )
       return
     }
 
+    let signedPayload = payload as EventPayloads.SignedTransferCreated
+
+    // Obtain and format transfer amount
+    let amount = toBN(payload.amount)
+    let formattedAmount = utils.formatEther(amount)
+
     // Obtain unique app identifier
-    let appIdentityHash = (eventData as any).appIdentityHash
+    let appIdentityHash = (payload as any).appIdentityHash
 
     this.logger.info(
-      `Received payment ${eventData.paymentId} (${formattedAmount} ETH) from ${eventData.sender} (signer: ${eventData.transferMeta.signer})`,
+      `Received payment ${payload.paymentId} (${formattedAmount} ETH) from ${payload.sender} (signer: ${signedPayload.transferMeta.signerAddress})`,
     )
 
     let payment: ConditionalPayment = {
-      paymentId: eventData.paymentId!,
+      paymentId: payload.paymentId!,
       appIdentityHash,
       amount,
-      sender: eventData.sender,
-      signer: eventData.transferMeta.signer,
+      sender: payload.sender,
+      signer: signedPayload.transferMeta.signerAddress,
     }
 
     this.emit('payment-received', payment)
@@ -235,14 +233,14 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
   async settle() {
     let freeBalance = await this.client.getFreeBalance()
     let balance = freeBalance[this.client.signerAddress]
-    let formattedAmount = formatEther(balance)
+    let formattedAmount = utils.formatEther(balance)
 
     this.logger.info(`Settle (${formattedAmount} ETH)`)
 
     await this.client.withdraw({
       // On-chain, everything is set up so that all withdrawals
       // go to the staking contract (so not really AddressZero)
-      recipient: AddressZero,
+      recipient: constants.AddressZero,
 
       // Withdraw everything from the state channel
       amount: balance,

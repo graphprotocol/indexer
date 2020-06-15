@@ -4,7 +4,7 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { logging, metrics } from '@graphprotocol/common-ts'
 import { QueryProcessor } from '../types'
-import { keccak256 } from 'ethers/utils'
+import { utils } from 'ethers'
 import { createGraphQLServer } from './graphql'
 
 export interface ServerOptions {
@@ -93,10 +93,10 @@ export const createServer = async ({
         )
         try {
           let response = await queryProcessor.addPaidQuery({
-            subgraphId,
+            subgraphDeploymentID: subgraphId,
             paymentId,
             query,
-            requestCID: keccak256(new TextEncoder().encode(query)),
+            requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
           res
             .status(response.status || 200)
@@ -113,9 +113,9 @@ export const createServer = async ({
         logger.info(`Received free query for subgraph '${subgraphId}'`)
         try {
           let response = await queryProcessor.addFreeQuery({
-            subgraphId,
+            subgraphDeploymentID: subgraphId,
             query,
-            requestCID: keccak256(new TextEncoder().encode(query)),
+            requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
           res
             .status(response.status || 200)

@@ -1,7 +1,6 @@
 import EventEmitter from 'eventemitter3'
-import { BigNumber } from 'ethers/utils'
 import { attestations } from '@graphprotocol/common-ts'
-import { Wallet } from 'ethers'
+import { Wallet, BigNumberish } from 'ethers'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -14,14 +13,14 @@ export interface QueryResponse {
 }
 
 export interface PaidQuery {
-  subgraphId: string
+  subgraphDeploymentID: string
   paymentId: string
   query: string
   requestCID: string
 }
 
 export interface FreeQuery {
-  subgraphId: string
+  subgraphDeploymentID: string
   query: string
   requestCID: string
 }
@@ -35,14 +34,14 @@ export interface QueryProcessor {
 export interface ConditionalPayment {
   paymentId: string
   appIdentityHash: string
-  amount: BigNumber
+  amount: BigNumberish
   sender: string
   signer: string
 }
 
 export interface ConditionalSubgraphPayment {
   payment: ConditionalPayment
-  subgraphId: string
+  subgraphDeploymentID: string
 }
 
 export interface StateChannelEventTypes {

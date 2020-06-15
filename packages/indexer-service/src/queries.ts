@@ -1,6 +1,6 @@
 import { attestations, logging, metrics } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
-import { keccak256, hexlify } from 'ethers/utils'
+import { utils } from 'ethers'
 import axios, { AxiosInstance } from 'axios'
 import * as bs58 from 'bs58'
 import { delay } from '@connext/utils'
@@ -18,8 +18,8 @@ import {
   QueryError,
 } from './types'
 
-const hexlifySubgraphId = (subgraphId: string): string =>
-  hexlify(bs58.decode(subgraphId).slice(2))
+const hexlifySubgraphId = (subgraphDeploymentID: string): string =>
+  utils.hexlify(bs58.decode(subgraphDeploymentID).slice(2))
 
 export interface PaidQueryProcessorOptions {
   logger: logging.Logger
@@ -95,9 +95,11 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async addPaidQuery(query: PaidQuery): Promise<QueryResponse> {
-    let { subgraphId, paymentId, query: queryString } = query
+    let { subgraphDeploymentID, paymentId, query: queryString } = query
 
-    this.logger.info(`Add query for subgraph '${subgraphId}' (payment ID: ${paymentId})`)
+    this.logger.info(
+      `Add query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
+    )
 
     if (this.queries.has(paymentId)) {
       // Update the existing query
@@ -106,7 +108,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Cancel if the same query has already been submitted
       if (existingQuery.query !== undefined) {
         throw new QueryError(
-          `Duplicate query for subgraph '${subgraphId}' and payment '${paymentId}'`,
+          `Duplicate query for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
         )
       }
 
@@ -137,7 +139,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
       // Update the existing query
       let existingQuery = this.queries.get(paymentId)!
-      existingQuery.payment = { payment, subgraphId: stateChannel.subgraph }
+      existingQuery.payment = { payment, subgraphDeploymentID: stateChannel.subgraph }
       existingQuery.updatedAt = Date.now()
     } else {
       this.logger.debug(`Query for payment '${paymentId}' not queued, queuing payment`)
@@ -145,7 +147,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Add a pending query for the incoming payment
       this.queries.set(paymentId, {
         paymentId,
-        payment: { payment, subgraphId: stateChannel.subgraph },
+        payment: { payment, subgraphDeploymentID: stateChannel.subgraph },
         updatedAt: Date.now(),
         emitter: new EventEmitter(),
       })
@@ -155,24 +157,27 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
-    let { subgraphId, requestCID } = query
+    let { subgraphDeploymentID, requestCID } = query
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
+    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphDeploymentID)
     if (stateChannel === undefined) {
-      throw new QueryError(`Subgraph not available: ${subgraphId}`, 404)
+      throw new QueryError(`Subgraph not available: ${subgraphDeploymentID}`, 404)
     }
 
     // Execute query in the Graph Node
-    let response = await this.graphNode.post(`/subgraphs/id/${subgraphId}`, query.query)
+    let response = await this.graphNode.post(
+      `/subgraphs/id/${subgraphDeploymentID}`,
+      query.query,
+    )
 
     // Compute the response CID
-    let responseCID = keccak256(new TextEncoder().encode(response.data))
+    let responseCID = utils.keccak256(new TextEncoder().encode(response.data))
 
     return await this.createResponse({
       stateChannel,
-      subgraphId,
+      subgraphDeploymentID,
       requestCID,
       responseCID,
       data: response.data,
@@ -181,19 +186,23 @@ export class QueryProcessor implements QueryProcessorInterface {
 
   private async createResponse({
     stateChannel,
-    subgraphId,
+    subgraphDeploymentID,
     requestCID,
     responseCID,
     data,
   }: {
     stateChannel: StateChannel
-    subgraphId: string
+    subgraphDeploymentID: string
     requestCID: string
     responseCID: string
     data: string
   }): Promise<QueryResponse> {
     // Obtain a signed attestation for the query result
-    let receipt = { requestCID, responseCID, subgraphID: hexlifySubgraphId(subgraphId) }
+    let receipt = {
+      requestCID,
+      responseCID,
+      subgraphDeploymentID: hexlifySubgraphId(subgraphDeploymentID),
+    }
     let attestation = await attestations.createAttestation(
       stateChannel.privateKey,
       this.chainId,
@@ -212,17 +221,20 @@ export class QueryProcessor implements QueryProcessorInterface {
 
   private async processNow(query: PendingQuery): Promise<void> {
     let { paymentId } = query
-    let { subgraphId, requestCID } = query.query!
+    let { subgraphDeploymentID, requestCID } = query.query!
 
     this.logger.debug(
-      `Process query for subgraph '${subgraphId}' and payment '${paymentId}'`,
+      `Process query for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
     )
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphId)
+    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphDeploymentID)
     if (stateChannel === undefined) {
-      query.emitter.emit('reject', new QueryError(`Unknown subgraph: ${subgraphId}`, 404))
+      query.emitter.emit(
+        'reject',
+        new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404),
+      )
       return
     }
 
@@ -231,24 +243,24 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Execute query in the Graph Node
     let response = await this.graphNode.post(
-      `/subgraphs/id/${subgraphId}`,
+      `/subgraphs/id/${subgraphDeploymentID}`,
       query.query!.query,
     )
 
     // Compute the response CID
-    let responseCID = keccak256(new TextEncoder().encode(response.data))
+    let responseCID = utils.keccak256(new TextEncoder().encode(response.data))
 
     // Create a response that includes a signed attestation
     let attestedResponse = await this.createResponse({
       stateChannel,
-      subgraphId,
+      subgraphDeploymentID,
       requestCID,
       responseCID,
       data: response.data,
     })
 
     this.logger.debug(
-      `Emit query result for subgraph '${subgraphId}' and payment '${paymentId}'`,
+      `Emit query result for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
     )
 
     // Send the result to the client...
@@ -309,7 +321,7 @@ export class QueryProcessor implements QueryProcessorInterface {
             // Asynchronously cancel the conditional payment
             cleanupQueue.add(async () => {
               let stateChannel = this.paymentManager.stateChannelForSubgraph(
-                query.payment!.subgraphId,
+                query.payment!.subgraphDeploymentID,
               )
               if (stateChannel !== undefined) {
                 await stateChannel.cancelPayment(query.payment!.payment)
@@ -321,7 +333,7 @@ export class QueryProcessor implements QueryProcessorInterface {
               'reject',
               new QueryError(
                 `Query for subgraph '${
-                  query.query!.subgraphId
+                  query.query!.subgraphDeploymentID
                 }' timed out waiting for payment '${query.paymentId}'`,
               ),
             )

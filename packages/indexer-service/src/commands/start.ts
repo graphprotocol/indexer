@@ -1,6 +1,6 @@
 import { Argv } from 'yargs'
 import { database, logging, metrics } from '@graphprotocol/common-ts'
-import { JsonRpcProvider } from 'ethers/providers'
+import { providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payments'
@@ -89,7 +89,7 @@ export default {
     logger.info('Starting up...')
 
     logger.info('Connecting to Ethereum')
-    let web3 = new JsonRpcProvider(argv.ethereum)
+    let web3 = new providers.JsonRpcProvider(argv.ethereum)
     let network = await web3.getNetwork()
 
     // Spin up a metrics server
