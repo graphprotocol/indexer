@@ -1,5 +1,10 @@
 import { Argv } from 'yargs'
-import { database, logging, metrics } from '@graphprotocol/common-ts'
+import {
+  contracts as networkContracts,
+  database,
+  logging,
+  metrics,
+} from '@graphprotocol/common-ts'
 import { providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
@@ -92,6 +97,13 @@ export default {
     let web3 = new providers.JsonRpcProvider(argv.ethereum)
     let network = await web3.getNetwork()
 
+    logger.info('Connect to contracts')
+    let contracts = await networkContracts.connectContracts(
+      web3,
+      (await web3.getNetwork()).chainId,
+    )
+    logger.info('Connected to contracts')
+
     // Spin up a metrics server
     let metrics = createMetrics()
     createMetricsServer({
@@ -119,6 +131,7 @@ export default {
       connextMessaging: argv.connextMessaging,
       connextNode: argv.connextNode,
       mnemonic: argv.mnemonic,
+      contracts,
     })
 
     // Create indexing subgraph monitor

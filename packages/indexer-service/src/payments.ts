@@ -1,4 +1,10 @@
-import { attestations, logging, metrics, stateChannels } from '@graphprotocol/common-ts'
+import {
+  attestations,
+  logging,
+  metrics,
+  stateChannels,
+  contracts as networkContracts,
+} from '@graphprotocol/common-ts'
 import {
   IConnextClient,
   IChannelSigner,
@@ -256,6 +262,7 @@ interface PaymentManagerOptions {
   connextMessaging: string
   connextNode: string
   mnemonic: string
+  contracts: networkContracts.NetworkContracts
 }
 
 export interface PaymentManagerCreateOptions {
@@ -269,40 +276,42 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
 
   logger: logging.Logger
   wallet: Wallet
-  epoch: number
   stateChannels: Map<string, StateChannelInterface>
+  contracts: networkContracts.NetworkContracts
 
   constructor(options: PaymentManagerOptions) {
     super()
-
-    // Hard-code epoch to 0 for now
-    this.epoch = 0
 
     this.options = options
     this.logger = options.logger
     this.wallet = Wallet.fromMnemonic(options.mnemonic)
     this.stateChannels = new Map()
+    this.contracts = options.contracts
   }
 
   async createStateChannelsForSubgraphs(subgraphs: string[]) {
     let queue = new PQueue({ concurrency: 2 })
 
-    for (let subgraph of subgraphs) {
-      let key = `${this.epoch}/${subgraph}`
+    // Create state channels using the current epoch for now
+    // TODO: This will need to use the indexer database shared between
+    // indexer agent and service in order to establish channels based
+    // on the epoch they were created at
+    let epoch = (await this.contracts.epochManager.currentEpoch()).toNumber()
 
+    for (let subgraph of subgraphs) {
       queue.add(async () => {
-        if (!this.stateChannels.has(key)) {
+        if (!this.stateChannels.has(subgraph)) {
           let stateChannel = await StateChannel.create({
             ...this.options,
             subgraph,
-            epoch: this.epoch,
+            epoch,
           })
 
           stateChannel.on('payment-received', payment => {
             this.emit('payment-received', { payment, stateChannel })
           })
 
-          this.stateChannels.set(key, stateChannel)
+          this.stateChannels.set(subgraph, stateChannel)
         }
       })
     }
@@ -314,13 +323,11 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
     let queue = new PQueue({ concurrency: 2 })
 
     for (let subgraph of subgraphs) {
-      let key = `${this.epoch}/${subgraph}`
-
       queue.add(async () => {
-        if (this.stateChannels.has(key)) {
-          let stateChannel = this.stateChannels.get(key)!
+        if (this.stateChannels.has(subgraph)) {
+          let stateChannel = this.stateChannels.get(subgraph)!
           await stateChannel.settle()
-          this.stateChannels.delete(key)
+          this.stateChannels.delete(subgraph)
         }
       })
     }
@@ -329,6 +336,6 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
   }
 
   stateChannelForSubgraph(subgraph: string): StateChannelInterface | undefined {
-    return this.stateChannels.get(`${this.epoch}/${subgraph}`)
+    return this.stateChannels.get(subgraph)
   }
 }
