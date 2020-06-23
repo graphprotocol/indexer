@@ -265,12 +265,15 @@ export class Network {
     let path = 'm/' + [currentEpoch, ...Buffer.from(subgraph)].join('/')
     let derivedKeyPair = hdNode.derivePath(path)
     let publicKey = derivedKeyPair.publicKey
+    let uncompressedPublicKey = utils.computePublicKey(publicKey)
+
+    this.logger.debug(`Deriving channel key using path '${path}'`)
 
     let receipt = await Ethereum.executeTransaction(
-      this.staking.allocate(
+      this.contracts.staking.allocate(
         subgraphIdBytes,
         amount,
-        publicKey,
+        uncompressedPublicKey,
         this.indexerAddress,
         utils.parseUnits('0.01', '18'),
         txOverrides,
