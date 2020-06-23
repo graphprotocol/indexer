@@ -1,26 +1,23 @@
-import { logging } from '@graphprotocol/common-ts'
+import {
+  logging,
+  contracts as networkContracts,
+} from '@graphprotocol/common-ts'
 import * as bs58 from 'bs58'
-import { ContractTransaction, ethers, Wallet, utils } from 'ethers'
-import { ContractReceipt } from 'ethers/contract'
+import {
+  ContractTransaction,
+  ContractReceipt,
+  BigNumber,
+  providers,
+  Wallet,
+  utils,
+} from 'ethers'
 import { strict as assert } from 'assert'
-import * as fs from 'fs'
-import * as path from 'path'
 import ApolloClient from 'apollo-client'
 import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
 
-import { ServiceRegistryFactory } from './contracts/ServiceRegistryFactory'
-import { ServiceRegistry } from './contracts/ServiceRegistry'
-import { Staking } from './contracts/Staking'
-import { StakingFactory } from './contracts/StakingFactory'
-import { GraphToken } from './contracts/GraphToken'
-import { GraphTokenFactory } from './contracts/GraphTokenFactory'
-import { EpochManager } from './contracts/EpochManager'
-import { EpochManagerFactory } from './contracts/EpochManagerFactory'
-import { Gns } from './contracts/Gns'
-import { GnsFactory } from './contracts/GnsFactory'
-import { NetworkAddresses, SubgraphKey, NetworkSubgraph } from './types'
+import { SubgraphKey, NetworkSubgraph } from './types'
 
 const fetch = require('node-fetch')
 const geohash = require('ngeohash')
@@ -65,70 +62,77 @@ const txOverrides = {
 
 export class Network {
   subgraph: ApolloClient<NormalizedCacheObject>
-  serviceRegistry: ServiceRegistry
-  staking: Staking
-  gns: Gns
-  token: GraphToken
-  epochManager: EpochManager
+  contracts: networkContracts.NetworkContracts
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
   mnemonic: string
   logger: logging.Logger
 
-  constructor(
+  private constructor(
     logger: logging.Logger,
+    indexerAddress: string,
+    indexerUrl: string,
+    geoCoordinates: [string, string],
+    contracts: networkContracts.NetworkContracts,
+    mnemonic: string,
+    subgraph: ApolloClient<NormalizedCacheObject>,
+  ) {
+    this.logger = logger
+    this.indexerAddress = indexerAddress
+    this.indexerUrl = indexerUrl
+    this.indexerGeoCoordinates = geoCoordinates
+    this.contracts = contracts
+    this.mnemonic = mnemonic
+    this.subgraph = subgraph
+  }
+
+  static async create(
+    parentLogger: logging.Logger,
     ethereumProvider: string,
     network: string,
     indexerUrl: string,
     indexerGraphqlUrl: string,
     geoCoordinates: [string, string],
     mnemonic: string,
-  ) {
-    this.logger = logger.child({ component: 'Network' })
-    this.subgraph = new ApolloClient({
+    networkSubgraphDeployment: string,
+  ): Promise<Network> {
+    let logger = parentLogger.child({ component: 'Network' })
+    let subgraph = new ApolloClient({
       link: new HttpLink({
-        uri: new URL('/subgraphs/name/graphprotocol/network', indexerGraphqlUrl).toString,
+        uri: new URL(
+          `/subgraphs/id/${networkSubgraphDeployment}`,
+          indexerGraphqlUrl,
+        ).toString(),
         fetch,
       }),
       cache: new InMemoryCache(),
     })
     let wallet = Wallet.fromMnemonic(mnemonic)
-    let eth = new ethers.providers.JsonRpcProvider(ethereumProvider)
+    let eth = new providers.JsonRpcProvider(ethereumProvider)
 
-    this.logger.info(
+    logger.info(
       `Create a wallet instance connected to '${network}' via '${ethereumProvider}'`,
     )
     wallet = wallet.connect(eth)
-    this.logger.info(`Wallet created at '${wallet.address}'`)
+    logger.info(`Wallet created at '${wallet.address}'`)
 
-    this.mnemonic = mnemonic
-    this.indexerGeoCoordinates = geoCoordinates
-    this.indexerAddress = wallet.address
-    this.indexerUrl = indexerUrl
+    logger.info(`Connecting to contracts`)
+    let networkInfo = await eth.getNetwork()
+    let contracts = await networkContracts.connectContracts(
+      wallet,
+      networkInfo.chainId,
+    )
+    logger.info(`Connected to contracts`)
 
-    const addresses: NetworkAddresses = JSON.parse(
-      fs.readFileSync(path.join(__dirname, '..', 'addresses.json'), 'utf-8'),
-    )
-    this.serviceRegistry = ServiceRegistryFactory.connect(
-      addresses[network as keyof NetworkAddresses].ServiceRegistry,
-      wallet,
-    )
-    this.staking = StakingFactory.connect(
-      addresses[network as keyof NetworkAddresses].Staking,
-      wallet,
-    )
-    this.token = GraphTokenFactory.connect(
-      addresses[network as keyof NetworkAddresses].GraphToken,
-      wallet,
-    )
-    this.gns = GnsFactory.connect(
-      addresses[network as keyof NetworkAddresses].GNS,
-      wallet,
-    )
-    this.epochManager = EpochManagerFactory.connect(
-      addresses[network as keyof NetworkAddresses].EpochManager,
-      wallet,
+    return new Network(
+      logger,
+      wallet.address,
+      indexerUrl,
+      geoCoordinates,
+      contracts,
+      mnemonic,
+      subgraph,
     )
   }
 
@@ -190,8 +194,8 @@ export class Network {
 
   async register(): Promise<void> {
     try {
-      this.logger.info(`Register indexer at '${this.indexerUrl}`)
-      let isRegistered = await this.serviceRegistry.isRegistered(
+      this.logger.info(`Register indexer at '${this.indexerUrl}'`)
+      let isRegistered = await this.contracts.serviceRegistry.isRegistered(
         this.indexerAddress,
       )
       if (isRegistered) {
@@ -202,7 +206,7 @@ export class Network {
       }
 
       let receipt = await Ethereum.executeTransaction(
-        this.serviceRegistry.register(
+        this.contracts.serviceRegistry.register(
           this.indexerUrl,
           geohash.encode(
             +this.indexerGeoCoordinates[0],
@@ -216,16 +220,19 @@ export class Network {
         this.logger,
       )
 
-      let event = receipt.events!.find(
-        event =>
-          event.eventSignature ==
-          this.serviceRegistry.interface.events.ServiceRegistered.signature,
+      let event = receipt.events!.find(event =>
+        event.topics.includes(
+          this.contracts.serviceRegistry.interface.getEventTopic(
+            'ServiceRegistered',
+          ),
+        ),
       )
       assert.ok(event)
 
-      let eventInputs = this.serviceRegistry.interface.events.ServiceRegistered.decode(
-        event!.data,
-        event!.topics,
+      let eventInputs = this.contracts.serviceRegistry.interface.decodeEventLog(
+        'ServiceRegistered',
+        event.data,
+        event.topics,
       )
       this.logger.info(
         `Registered indexer publicKey: '${eventInputs.indexer}' url: '${eventInputs.url}' geoHash: '${eventInputs.geohash}'`,
@@ -240,9 +247,9 @@ export class Network {
     let amount = 100
     let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
 
-    let currentEpoch = await this.epochManager.currentEpoch()
+    let currentEpoch = await this.contracts.epochManager.currentEpoch()
     this.logger.info(`Stake on '${subgraph}' in epoch '${currentEpoch}'`)
-    let currentAllocation = await this.staking.getAllocation(
+    let currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
       subgraphIdBytes,
     )
@@ -275,16 +282,17 @@ export class Network {
       this.logger,
     )
 
-    let event = receipt.events!.find(
-      event =>
-        event.eventSignature ==
-        this.staking.interface.events.AllocationCreated.signature,
+    let event = receipt.events!.find(event =>
+      event.topics.includes(
+        this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+      ),
     )
     assert.ok(event, `Failed to stake on subgraph '${subgraph}'`)
 
-    let eventInputs = this.staking.interface.events.AllocationCreated.decode(
-      event!.data,
-      event!.topics,
+    let eventInputs = this.contracts.staking.interface.decodeEventLog(
+      'AllocationCreated',
+      event.data,
+      event.topics,
     )
     this.logger.info(
       `${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID} channelID: ${eventInputs.channelID} channelPubKey: ${eventInputs.channelPubKey}`,
@@ -296,17 +304,17 @@ export class Network {
       this.logger.info(
         `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
       )
-      let tokens = await this.token.balanceOf(this.indexerAddress)
-      if (tokens <= ethers.utils.bigNumberify(minimum)) {
+      let tokens = await this.contracts.token.balanceOf(this.indexerAddress)
+      if (tokens <= BigNumber.from(minimum)) {
         this.logger.warn(
           `The indexer account has insufficient tokens, '${tokens}'. to ensure minimum stake. Please use an account with sufficient GRT`,
         )
       }
       this.logger.info(`The indexer account has '${tokens}' GRT`)
-      let approvedTokens = await this.staking.getIndexerStakedTokens(
+      let approvedTokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      if (approvedTokens >= ethers.utils.bigNumberify(minimum)) {
+      if (approvedTokens >= BigNumber.from(minimum)) {
         this.logger.info(
           `Indexer has sufficient staking tokens: ${approvedTokens.toString()}`,
         )
@@ -317,49 +325,53 @@ export class Network {
       let stakeAmount = utils.parseUnits(String(diff), 1)
       this.logger.info(`Stake ${diff} tokens`)
       let approveReceipt = await Ethereum.executeTransaction(
-        this.token.approve(this.staking.address, stakeAmount, txOverrides),
+        this.contracts.token.approve(
+          this.contracts.staking.address,
+          stakeAmount,
+          txOverrides,
+        ),
         this.logger,
       )
-      let approveEvent = approveReceipt.events!.find(
-        event =>
-          event.eventSignature ==
-          this.token.interface.events.Approval.signature,
-      )
-      assert.ok(
-        approveEvent,
-        `Failed to approve '${diff}' tokens for staking`,
-      )
 
-      let approveEventInputs = this.token.interface.events.Approval.decode(
-        approveEvent!.data,
-        approveEvent!.topics,
+      let approveEvent = approveReceipt.events!.find(event =>
+        event.topics.includes(
+          this.contracts.token.interface.getEventTopic('Approval'),
+        ),
+      )
+      assert.ok(approveEvent, `Failed to approve '${diff}' tokens for staking`)
+
+      let approveEventInputs = this.contracts.token.interface.decodeEventLog(
+        'Approval',
+        approveEvent.data,
+        approveEvent.topics,
       )
       this.logger.info(
         `${approveEventInputs.value} tokens approved for transfer, owner: '${approveEventInputs.owner}' spender: '${approveEventInputs.spender}'`,
       )
 
       let stakeReceipt = await Ethereum.executeTransaction(
-        this.staking.stake(stakeAmount, txOverrides),
+        this.contracts.staking.stake(stakeAmount, txOverrides),
         this.logger,
       )
 
-      let stakeEvent = stakeReceipt.events!.find(
-        event =>
-          event.eventSignature ==
-          this.staking.interface.events.StakeDeposited.signature,
+      let stakeEvent = stakeReceipt.events!.find(event =>
+        event.topics.includes(
+          this.contracts.staking.interface.getEventTopic('StakeDeposited'),
+        ),
       )
       assert.ok(stakeEvent, `Failed to stake '${diff}'`)
 
-      let stakeEventInputs = this.staking.interface.events.StakeDeposited.decode(
-        stakeEvent!.data,
-        stakeEvent!.topics,
+      let stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
+        'StakeDeposited',
+        stakeEvent.data,
+        stakeEvent.topics,
       )
-      this.logger.info(
-        `${stakeEventInputs.tokens} tokens staked`,
-      )
+      this.logger.info(`${stakeEventInputs.tokens} tokens staked`)
 
       this.logger.info(`Staked ${diff} tokens`)
-      tokens = await this.staking.getIndexerStakedTokens(this.indexerAddress)
+      tokens = await this.contracts.staking.getIndexerStakedTokens(
+        this.indexerAddress,
+      )
       this.logger.info(`Total stake: ${tokens}`)
     } catch (e) {
       this.logger.error(
