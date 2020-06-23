@@ -10,6 +10,7 @@ export interface AgentConfig {
   ethereumProvider: string
   network: string
   logger: logging.Logger
+  networkSubgraphDeployment: string
 }
 
 export interface SubgraphKey {

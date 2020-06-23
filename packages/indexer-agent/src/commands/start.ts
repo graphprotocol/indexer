@@ -52,6 +52,11 @@ export default {
         type: 'array',
         default: ['31.780715', '-41.179504'],
       })
+      .option('network-subgraph-deployment', {
+        description: 'Network subgraph deployment',
+        type: 'string',
+        required: true,
+      })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerAgent' })
@@ -67,9 +72,10 @@ export default {
       ethereumProvider: argv.ethereum,
       network: argv.network,
       logger: logger,
+      networkSubgraphDeployment: argv.networkSubgraphDeployment,
     }
-    let agent = new Agent(config)
-      await agent.setupIndexer()
-      await agent.start()
+    let agent = await Agent.create(config)
+    await agent.setupIndexer()
+    await agent.start()
   },
 }
