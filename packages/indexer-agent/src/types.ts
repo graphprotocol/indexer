@@ -38,13 +38,16 @@ interface GraphName {
 
 interface GraphAccount {
   id: string
-  defaultName: GraphName
 }
 
 export interface NetworkSubgraph {
   id: string
-  name: string
-  owner?: GraphAccount
+  name: {
+    id: string
+    name: string
+    nameSystem: string
+  }
+  owner: GraphAccount
   totalNameSignaledGRT: number
   totalNameSignalMinted: number
   currentVersion: SubgraphVersion

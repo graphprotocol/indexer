@@ -148,16 +148,14 @@ export class Network {
               totalNameSignalMinted
               owner {
                 id
-                defaultName {
-                  id
-                  nameSystem
-                  name
-                }
               }
-              name
+              name {
+                id
+                name
+                nameSystem
+              }
               currentVersion {
                 id
-                unpublished
                 subgraphDeployment {
                   id
                   totalStake
@@ -177,10 +175,8 @@ export class Network {
         })
         .map((subgraph: NetworkSubgraph) => {
           return {
-            name: subgraph.name,
-            owner: subgraph.owner
-              ? subgraph.owner.defaultName.name
-              : 'indexer-agent',
+            name: subgraph.name.name,
+            owner: subgraph.owner.id,
             subgraphId: Ethereum.bytesToIPSFHash(
               subgraph.currentVersion.subgraphDeployment.id,
             ),
