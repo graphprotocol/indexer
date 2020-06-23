@@ -168,7 +168,10 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
 
     // Unlock the payment; retry in case there are networking issues
     let attemptUnlock = true
-    while (attemptUnlock) {
+    let attempts = 0
+    while (attemptUnlock && attempts < 5) {
+      attempts += 1
+
       try {
         await this.client.resolveCondition({
           conditionType: ConditionalTransferTypes.SignedTransfer,
