@@ -4,18 +4,16 @@ import {
   metrics,
   stateChannels,
   contracts as networkContracts,
+  subgraph,
 } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
-  IChannelSigner,
   EventNames,
   EventPayloads,
   ConditionalTransferTypes,
   PublicParams,
-  EventPayload,
-  CreatedSignedTransferMeta,
 } from '@connext/types'
-import { ChannelSigner, toBN } from '@connext/utils'
+import { ChannelSigner, toBN, getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { Sequelize } from 'sequelize'
 import { Wallet, constants, utils } from 'ethers'
 import { EventEmitter } from 'eventemitter3'
@@ -25,53 +23,63 @@ import {
   PaymentManager as PaymentManagerInterface,
   StateChannel as StateChannelInterface,
   ConditionalPayment,
-  StateChannelEventNames,
-  PaymentManagerEventNames,
+  ChannelInfo,
+  StateChannelEvents,
+  PaymentManagerEvents,
+  PaymentReceivedEvent,
 } from './types'
+import { Evt } from 'evt'
+import base58 from 'bs58'
 
-async function delay(ms: number) {
+const delay = async (ms: number) => {
   return new Promise((resolve, _) => setTimeout(resolve, ms))
 }
 
+const bytesToIPFSHash = (bytes: string): string => {
+  return base58.encode(addQm(utils.arrayify(bytes)))
+}
+
+const addQm = (a: Uint8Array): Uint8Array => {
+  let out = new Uint8Array(34)
+  out[0] = 0x12
+  out[1] = 0x20
+  for (let i = 0; i < 32; i++) {
+    out[i + 2] = a[i]
+  }
+  return out as Uint8Array
+}
+
 interface StateChannelOptions {
+  info: ChannelInfo
   logger: logging.Logger
   client: IConnextClient
   signer: ChannelSigner
-  subgraph: string
-  epoch: number
   privateKey: string
 }
 
 interface StateChannelCreateOptions extends PaymentManagerOptions {
-  epoch: number
-  subgraph: string
+  info: ChannelInfo
 }
 
-export class StateChannel extends EventEmitter<StateChannelEventNames>
-  implements StateChannelInterface {
-  logger: logging.Logger
-  client: IConnextClient
-  signer: ChannelSigner
-  epoch: number
-  subgraph: string
+export class StateChannel implements StateChannelInterface {
+  info: ChannelInfo
   privateKey: string
+  events: StateChannelEvents
 
-  private constructor({
-    logger,
-    subgraph,
-    epoch,
-    client,
-    signer,
-    privateKey,
-  }: StateChannelOptions) {
-    super()
+  private logger: logging.Logger
+  private client: IConnextClient
+  private signer: ChannelSigner
+
+  private constructor({ info, logger, client, signer, privateKey }: StateChannelOptions) {
+    this.info = info
+    this.privateKey = privateKey
+    this.events = {
+      paymentReceived: new Evt<ConditionalPayment>(),
+    }
 
     this.logger = logger
-    this.subgraph = subgraph
-    this.epoch = epoch
     this.client = client
     this.signer = signer
-    this.privateKey = privateKey
 
     this.client.on(
       EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
@@ -80,28 +88,34 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
   }
 
   static async create({
-    subgraph,
+    info,
     logger: parentLogger,
     sequelize,
     ethereum,
     connextMessaging,
     connextNode,
-    mnemonic,
-    epoch,
+    wallet,
   }: StateChannelCreateOptions): Promise<StateChannel> {
-    let logger = parentLogger.child({ component: `StateChannel(${subgraph}, ${epoch})` })
+    let subgraphDeploymentID = bytesToIPFSHash(info.subgraphDeploymentID)
+    let logger = parentLogger.child({
+      component: `StateChannel(${subgraphDeploymentID}, ${info.createdAtEpoch})`,
+    })
 
-    logger.info(`Create state channel`)
+    logger.info(
+      `Create state channel for subgraph ID (hex: ${info.subgraphDeploymentID}, base58: ${subgraphDeploymentID})`,
+    )
 
     // Derive an epoch and subgraph specific private key
-    let hdNode = utils.HDNode.fromMnemonic(mnemonic)
-    let path = 'm/' + [epoch, ...Buffer.from(subgraph)].join('/')
+    let hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
+    let path =
+      'm/' + [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID)].join('/')
 
     logger.info(`Derive key using path '${path}'`)
 
     let derivedKeyPair = hdNode.derivePath(path)
     let publicKey = derivedKeyPair.publicKey
 
+    logger.debug(`Public key ${publicKey}:`)
     logger.debug(`Store prefix: ${derivedKeyPair.address.substr(2)}`)
 
     try {
@@ -123,22 +137,35 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
       let freeBalance = await client.getFreeBalance(constants.AddressZero)
       let balance = freeBalance[client.signerAddress]
 
-      logger.info(`Public key: ${publicKey}`)
-      logger.info(`Signer address: ${client.signerAddress}`)
-      logger.info(`Public identifier: ${client.publicIdentifier}`)
-      logger.info(`Free balance: ${utils.formatEther(balance)}`)
+      logger.info(`On-chain public key: ${info.publicKey}`)
+      logger.info(`On-chain signer address: ${info.id}`)
+
+      logger.info(`Channel public key: ${publicKey}`)
+      logger.info(`Channel signer address: ${client.signerAddress}`)
+      logger.info(`Channel public identifier: ${client.publicIdentifier}`)
+      logger.info(`Channel free balance: ${utils.formatEther(balance)}`)
+
+      if (client.publicIdentifier !== getPublicIdentifierFromPublicKey(info.publicKey)) {
+        throw new Error(
+          `Public channel identifier ${
+            client.publicIdentifier
+          } doesn't match on-chain identifier ${getPublicIdentifierFromPublicKey(
+            info.publicKey,
+          )}`,
+        )
+      }
 
       let signer = new ChannelSigner(derivedKeyPair.privateKey, ethereum)
 
       logger.info(`Created state channel successfully`)
 
       return new StateChannel({
+        info,
+        privateKey: derivedKeyPair.privateKey,
+
         logger,
         client,
         signer,
-        subgraph,
-        epoch,
-        privateKey: derivedKeyPair.privateKey,
       })
     } catch (e) {
       console.error(e)
@@ -236,7 +263,7 @@ export class StateChannel extends EventEmitter<StateChannelEventNames>
       signer: signedPayload.transferMeta.signerAddress,
     }
 
-    this.emit('payment-received', payment)
+    this.events.paymentReceived.post(payment)
   }
 
   async settle() {
@@ -264,7 +291,7 @@ interface PaymentManagerOptions {
   ethereum: string
   connextMessaging: string
   connextNode: string
-  mnemonic: string
+  wallet: Wallet
   contracts: networkContracts.NetworkContracts
 }
 
@@ -273,48 +300,43 @@ export interface PaymentManagerCreateOptions {
   metrics: metrics.Metrics
 }
 
-export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
-  implements PaymentManagerInterface {
-  options: PaymentManagerOptions
-
-  logger: logging.Logger
+export class PaymentManager implements PaymentManagerInterface {
   wallet: Wallet
-  stateChannels: Map<string, StateChannelInterface>
-  contracts: networkContracts.NetworkContracts
+  events: PaymentManagerEvents
+
+  private options: PaymentManagerOptions
+  private logger: logging.Logger
+  private stateChannels: Map<string, StateChannelInterface>
+  private contracts: networkContracts.NetworkContracts
 
   constructor(options: PaymentManagerOptions) {
-    super()
+    this.wallet = options.wallet
+    this.events = {
+      paymentReceived: new Evt<PaymentReceivedEvent>(),
+    }
 
     this.options = options
     this.logger = options.logger
-    this.wallet = Wallet.fromMnemonic(options.mnemonic)
     this.stateChannels = new Map()
     this.contracts = options.contracts
   }
 
-  async createStateChannelsForSubgraphs(subgraphs: string[]) {
-    let queue = new PQueue({ concurrency: 2 })
+  async createStateChannels(channels: ChannelInfo[]) {
+    let queue = new PQueue({ concurrency: 10 })
 
-    // Create state channels using the current epoch for now
-    // TODO: This will need to use the indexer database shared between
-    // indexer agent and service in order to establish channels based
-    // on the epoch they were created at
-    let epoch = (await this.contracts.epochManager.currentEpoch()).toNumber()
-
-    for (let subgraph of subgraphs) {
+    for (let channel of channels) {
       queue.add(async () => {
-        if (!this.stateChannels.has(subgraph)) {
+        if (!this.stateChannels.has(channel.id)) {
           let stateChannel = await StateChannel.create({
             ...this.options,
-            subgraph,
-            epoch,
+            info: channel,
           })
 
-          stateChannel.on('payment-received', payment => {
-            this.emit('payment-received', { payment, stateChannel })
-          })
+          stateChannel.events.paymentReceived.attach(payment =>
+            this.events.paymentReceived.post({ stateChannel, payment }),
+          )
 
-          this.stateChannels.set(subgraph, stateChannel)
+          this.stateChannels.set(channel.id, stateChannel)
         }
       })
     }
@@ -322,15 +344,15 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
     await queue.onIdle()
   }
 
-  async settleStateChannelsForSubgraphs(subgraphs: string[]) {
-    let queue = new PQueue({ concurrency: 2 })
+  async settleStateChannels(channels: ChannelInfo[]) {
+    let queue = new PQueue({ concurrency: 10 })
 
-    for (let subgraph of subgraphs) {
+    for (let channel of channels) {
       queue.add(async () => {
-        if (this.stateChannels.has(subgraph)) {
-          let stateChannel = this.stateChannels.get(subgraph)!
+        let stateChannel = this.stateChannels.get(channel.id)
+        if (stateChannel !== undefined) {
           await stateChannel.settle()
-          this.stateChannels.delete(subgraph)
+          this.stateChannels.delete(channel.id)
         }
       })
     }
@@ -338,7 +360,7 @@ export class PaymentManager extends EventEmitter<PaymentManagerEventNames>
     await queue.onIdle()
   }
 
-  stateChannelForSubgraph(subgraph: string): StateChannelInterface | undefined {
-    return this.stateChannels.get(subgraph)
+  stateChannel(id: string): StateChannelInterface | undefined {
+    return this.stateChannels.get(id)
   }
 }
