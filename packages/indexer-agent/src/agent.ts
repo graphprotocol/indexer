@@ -1,4 +1,5 @@
 import { logging } from '@graphprotocol/common-ts'
+import PQueue from 'p-queue'
 
 import { AgentConfig } from './types'
 import { Indexer } from './indexer'
@@ -96,28 +97,42 @@ export class Agent {
   }
 
   async resolve(networkSubgraphs: string[], indexerSubgraphs: string[]) {
-    let toDeploy: string[] = networkSubgraphs.filter(
-      networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
+    // Identify which subgraphs to deploy and which to remove
+    let toDeploy = new Set(
+      networkSubgraphs.filter(
+        networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
+      ),
     )
-    let toRemove: string[] = indexerSubgraphs.filter(
-      indexerSubgraph => !networkSubgraphs.includes(indexerSubgraph),
+    let toRemove = new Set(
+      indexerSubgraphs.filter(
+        indexerSubgraph => !networkSubgraphs.includes(indexerSubgraph),
+      ),
     )
-    await Promise.all(
-      toDeploy.map(async subgraph => {
-        let subgraphName: string = subgraph.toString().slice(-10)
-        subgraphName = ['indexer-agent', subgraphName].join('/')
 
-        // Ensure the subgraph is deployed to the indexer and allocate stake on the subgraph in the network
+    // Deploy/remove up to 20 subgraphs in parallel
+    let queue = new PQueue({ concurrency: 20 })
+
+    for (let subgraph of toDeploy) {
+      let subgraphName: string = subgraph.toString().slice(-10)
+      subgraphName = ['indexer-agent', subgraphName].join('/')
+
+      queue.add(async () => {
         this.logger.info(`Begin indexing '${subgraphName}':'${subgraph}'...`)
+
+        // Ensure the subgraph is deployed to the indexer
         await this.indexer.ensure(subgraphName, subgraph)
+
+        // Allocate stake on the subgraph in the network
         await this.network.stake(subgraph)
+
         this.logger.info(`Now indexing '${subgraphName}':'${subgraph}'`)
-      }),
-    )
-    await Promise.all(
-      toRemove.map(async subgraph => {
-        await this.indexer.remove(subgraph)
-      }),
-    )
+      })
+    }
+
+    for (let subgraph of toRemove) {
+      queue.add(() => this.indexer.remove(subgraph))
+    }
+
+    await queue.onIdle()
   }
 }
