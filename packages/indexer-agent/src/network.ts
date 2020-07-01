@@ -149,11 +149,6 @@ export class Network {
               owner {
                 id
               }
-              name {
-                id
-                name
-                nameSystem
-              }
               currentVersion {
                 id
                 subgraphDeployment {
@@ -167,15 +162,13 @@ export class Network {
         fetchPolicy: 'no-cache',
       })
       return result.data.subgraphs
-        .filter((subgraph: NetworkSubgraph) => {
-          return (
+        .filter(
+          (subgraph: NetworkSubgraph) =>
             subgraph.currentVersion.subgraphDeployment.totalStake >=
-            minimumStake
-          )
-        })
+            minimumStake,
+        )
         .map((subgraph: NetworkSubgraph) => {
           return {
-            name: subgraph.name.name,
             owner: subgraph.owner.id,
             subgraphId: Ethereum.bytesToIPSFHash(
               subgraph.currentVersion.subgraphDeployment.id,

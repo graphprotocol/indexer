@@ -14,7 +14,6 @@ export interface AgentConfig {
 }
 
 export interface SubgraphKey {
-  name: string
   owner: string
   subgraphId: string
 }

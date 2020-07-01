@@ -1,6 +1,6 @@
 import { logging } from '@graphprotocol/common-ts'
 
-import { AgentConfig, SubgraphKey } from './types'
+import { AgentConfig } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 
