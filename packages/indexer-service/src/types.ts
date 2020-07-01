@@ -1,6 +1,6 @@
-import EventEmitter from 'eventemitter3'
 import { attestations } from '@graphprotocol/common-ts'
 import { Wallet, BigNumberish } from 'ethers'
+import { Evt } from 'evt'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -20,6 +20,7 @@ export interface PaidQuery {
 }
 
 export interface FreeQuery {
+  stateChannelID: string
   subgraphDeploymentID: string
   query: string
   requestCID: string
@@ -41,18 +42,26 @@ export interface ConditionalPayment {
 
 export interface ConditionalSubgraphPayment {
   payment: ConditionalPayment
+  stateChannelID: string
   subgraphDeploymentID: string
 }
 
-export interface StateChannelEventTypes {
-  'payment-received': ConditionalPayment
+export interface ChannelInfo {
+  id: string
+  publicKey: string
+  subgraphDeploymentID: string
+  createdAtEpoch: number
 }
 
-export type StateChannelEventNames = 'payment-received'
+export interface StateChannelEvents {
+  paymentReceived: Evt<ConditionalPayment>
+}
 
-export interface StateChannel extends EventEmitter<StateChannelEventNames> {
-  subgraph: string
+export interface StateChannel {
+  info: ChannelInfo
   privateKey: string
+
+  events: StateChannelEvents
 
   unlockPayment(
     payment: ConditionalPayment,
@@ -62,18 +71,22 @@ export interface StateChannel extends EventEmitter<StateChannelEventNames> {
   settle(): Promise<void>
 }
 
-export interface PaymentManagerEventTypes {
-  'payment-received': { payment: ConditionalPayment; stateChannel: StateChannel }
+export interface PaymentReceivedEvent {
+  payment: ConditionalPayment
+  stateChannel: StateChannel
 }
 
-export type PaymentManagerEventNames = 'payment-received'
+export interface PaymentManagerEvents {
+  paymentReceived: Evt<PaymentReceivedEvent>
+}
 
-export interface PaymentManager extends EventEmitter<PaymentManagerEventNames> {
+export interface PaymentManager {
   wallet: Wallet
+  events: PaymentManagerEvents
 
-  createStateChannelsForSubgraphs(subgraphs: string[]): Promise<void>
-  settleStateChannelsForSubgraphs(subgraphs: string[]): Promise<void>
-  stateChannelForSubgraph(subgraph: string): StateChannel | undefined
+  createStateChannels(channels: ChannelInfo[]): Promise<void>
+  settleStateChannels(channels: ChannelInfo[]): Promise<void>
+  stateChannel(id: string): StateChannel | undefined
 }
 
 export class QueryError extends Error {
