@@ -139,7 +139,11 @@ export class QueryProcessor implements QueryProcessorInterface {
       this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
       // Update the existing query
       let existingQuery = this.queries.get(paymentId)!
-      existingQuery.payment = { payment, subgraphDeploymentID: stateChannel.subgraph }
+      existingQuery.payment = {
+        payment,
+        stateChannelID: stateChannel.info.id,
+        subgraphDeploymentID: stateChannel.info.subgraphDeploymentID,
+      }
       existingQuery.updatedAt = Date.now()
     } else {
       this.logger.debug(`Query for payment '${paymentId}' not queued, queuing payment`)
@@ -147,7 +151,11 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Add a pending query for the incoming payment
       this.queries.set(paymentId, {
         paymentId,
-        payment: { payment, subgraphDeploymentID: stateChannel.subgraph },
+        payment: {
+          payment,
+          stateChannelID: stateChannel.info.id,
+          subgraphDeploymentID: stateChannel.info.subgraphDeploymentID,
+        },
         updatedAt: Date.now(),
         emitter: new EventEmitter(),
       })
@@ -161,9 +169,12 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphDeploymentID)
+    let stateChannel = this.paymentManager.stateChannel(query.stateChannelID)
     if (stateChannel === undefined) {
-      throw new QueryError(`Subgraph not available: ${subgraphDeploymentID}`, 404)
+      throw new QueryError(
+        `State channel '${query.stateChannelID}' for subgraph '${subgraphDeploymentID}' not available`,
+        404,
+      )
     }
 
     // Execute query in the Graph Node
@@ -221,6 +232,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
   private async processNow(query: PendingQuery): Promise<void> {
     let { paymentId } = query
+    let { stateChannelID } = query.payment!
     let { subgraphDeploymentID, requestCID } = query.query!
 
     this.logger.debug(
@@ -229,7 +241,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannelForSubgraph(subgraphDeploymentID)
+    let stateChannel = this.paymentManager.stateChannel(stateChannelID)
     if (stateChannel === undefined) {
       query.emitter.emit(
         'reject',
@@ -320,8 +332,8 @@ export class QueryProcessor implements QueryProcessorInterface {
 
             // Asynchronously cancel the conditional payment
             cleanupQueue.add(async () => {
-              let stateChannel = this.paymentManager.stateChannelForSubgraph(
-                query.payment!.subgraphDeploymentID,
+              let stateChannel = this.paymentManager.stateChannel(
+                query.payment!.stateChannelID,
               )
               if (stateChannel !== undefined) {
                 await stateChannel.cancelPayment(query.payment!.payment)
