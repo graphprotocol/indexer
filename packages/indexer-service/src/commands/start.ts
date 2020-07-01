@@ -5,11 +5,11 @@ import {
   logging,
   metrics,
 } from '@graphprotocol/common-ts'
-import { providers } from 'ethers'
+import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payments'
-import { IndexingSubgraphMonitor } from '../subgraphs'
+import { NetworkMonitor } from '../network-monitor'
 
 const { createMetrics, createMetricsServer } = metrics
 
@@ -87,6 +87,11 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('network-subgraph-deployment', {
+        description: 'Network subgraph deployment',
+        type: 'string',
+        required: true,
+      })
   },
   handler: async (argv: { [key: string]: any } & Argv['argv']) => {
     let logger = logging.createLogger({ appName: 'IndexerService' })
@@ -122,6 +127,8 @@ export default {
     })
     logger.info('Connected to database')
 
+    let wallet = Wallet.fromMnemonic(argv.mnemonic)
+
     // Create payment manager
     let paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),
@@ -130,14 +137,16 @@ export default {
       ethereum: argv.ethereum,
       connextMessaging: argv.connextMessaging,
       connextNode: argv.connextNode,
-      mnemonic: argv.mnemonic,
+      wallet,
       contracts,
     })
 
-    // Create indexing subgraph monitor
-    let indexingSubgraphMonitor = new IndexingSubgraphMonitor({
-      logger: logger.child({ component: 'IndexingSubgraphMonitor' }),
-      graphNode: argv.graphNodeStatusEndpoint,
+    // Create registered channel monitor
+    let networkMonitor = new NetworkMonitor({
+      logger: logger.child({ component: 'NetworkMonitor' }),
+      wallet,
+      graphNode: argv.graphNodeQueryEndpoint,
+      networkSubgraphDeployment: argv.networkSubgraphDeployment,
     })
 
     // Create a query processor for paid queries
@@ -150,7 +159,7 @@ export default {
       disputeManagerAddress: argv.disputeManagerAddress,
     })
 
-    paymentManager.on('payment-received', async ({ stateChannel, payment }) => {
+    paymentManager.events.paymentReceived.attach(async ({ stateChannel, payment }) => {
       try {
         await queryProcessor.addPayment(stateChannel, payment)
       } catch (e) {
@@ -159,11 +168,9 @@ export default {
     })
 
     // Add and remove subgraph state channels as indexing subgraphs change
-    indexingSubgraphMonitor.on('updated', async (update: any) => {
-      let { added, removed } = update
-
-      await paymentManager.createStateChannelsForSubgraphs(added)
-      await paymentManager.settleStateChannelsForSubgraphs(removed)
+    networkMonitor.channelsUpdated.attach(async (update: any) => {
+      await paymentManager.createStateChannels(update.added)
+      await paymentManager.settleStateChannels(update.removed)
     })
 
     // Spin up a basic webserver
