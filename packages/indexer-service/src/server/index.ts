@@ -57,17 +57,17 @@ export const createServer = async ({
     bodyParser.raw({ type: 'application/json' }),
 
     async (req, res, _) => {
-      let { id: subgraphId } = req.params
+      let { id: subgraphDeploymentID } = req.params
       let query = req.body.toString()
 
       // Extract the payment ID
       let paymentId = req.headers['x-graph-payment-id']
       if (paymentId !== undefined && typeof paymentId !== 'string') {
-        logger.info(`Query for subgraph '${subgraphId}' has invalid payment ID`)
+        logger.info(`Query for subgraph '${subgraphDeploymentID}' has invalid payment ID`)
         return res
           .status(402)
           .contentType('application/json')
-          .send({ error: 'Invalid X-Graph-Payment-Id provided' })
+          .send({ error: 'Invalid X-Graph-Payment-ID provided' })
       }
 
       // Trusted indexer scenario: if the source IP is in our whitelist,
@@ -79,21 +79,23 @@ export const createServer = async ({
         // Regular scenario: a payment is required; fail if no
         // payment ID is specified
         if (paymentId === undefined) {
-          logger.info(`Query for subgraph '${subgraphId}' is missing payment ID`)
+          logger.info(
+            `Query for subgraph '${subgraphDeploymentID}' is missing payment ID`,
+          )
           return res
             .status(402)
             .contentType('application/json')
-            .send({ error: 'No X-Graph-Payment-Id provided' })
+            .send({ error: 'No X-Graph-Payment-ID provided' })
         }
       }
 
       if (paymentId !== undefined) {
         logger.info(
-          `Received paid query for subgraph '${subgraphId}' (payment ID: ${paymentId})`,
+          `Received paid query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
         )
         try {
           let response = await queryProcessor.addPaidQuery({
-            subgraphDeploymentID: subgraphId,
+            subgraphDeploymentID,
             paymentId,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
@@ -110,10 +112,24 @@ export const createServer = async ({
             .send({ error: `${e.message}` })
         }
       } else {
-        logger.info(`Received free query for subgraph '${subgraphId}'`)
+        logger.info(`Received free query for subgraph '${subgraphDeploymentID}'`)
+
+        // Extract the state channel ID (only required for free queries)
+        let stateChannelID = req.headers['x-graph-state-channel-id']
+        if (stateChannelID === undefined || typeof stateChannelID !== 'string') {
+          logger.info(
+            `Query for subgraph '${subgraphDeploymentID}' has invalid state channel ID`,
+          )
+          return res
+            .status(402)
+            .contentType('application/json')
+            .send({ error: 'Invalid X-Graph-State-Channel-ID provided' })
+        }
+
         try {
           let response = await queryProcessor.addFreeQuery({
-            subgraphDeploymentID: subgraphId,
+            subgraphDeploymentID,
+            stateChannelID,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
