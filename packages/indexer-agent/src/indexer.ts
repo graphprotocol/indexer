@@ -153,14 +153,15 @@ export class Indexer {
   }
 
   async ensure(name: string, subgraphId: string): Promise<any> {
-    return this.create(name)
-      .then(() => this.deploy(name, subgraphId))
-      .then(() => this.reassign(subgraphId, 'default'))
-      .catch(e => {
-        this.logger.error(
-          `Failed to ensure '${name}':'${subgraphId}' is indexing`,
-        )
-        throw e
-      })
+    try {
+      await this.create(name)
+      await this.deploy(name, subgraphId)
+      await this.reassign(subgraphId, 'default')
+    } catch (e) {
+      this.logger.error(
+        `Failed to ensure '${name}':'${subgraphId}' is indexing`,
+      )
+      throw e
+    }
   }
 }
