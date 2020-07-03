@@ -1,7 +1,7 @@
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import PQueue from 'p-queue'
 
-import { AgentConfig, Subgraph } from './types'
+import { AgentConfig } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 
