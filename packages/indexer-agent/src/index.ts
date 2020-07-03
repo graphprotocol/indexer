@@ -1,9 +1,11 @@
 import * as yargs from 'yargs'
 
+import start from './commands/start'
+
 yargs
   .scriptName('indexer-agent')
   .env('INDEXER_AGENT')
-  .command(require('./commands/start').default)
+  .command(start)
   .fail(function(msg, err, yargs) {
     if (err) {
       console.error(err)

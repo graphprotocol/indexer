@@ -16,20 +16,19 @@ import ApolloClient from 'apollo-client'
 import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
+import fetch from 'node-fetch'
+import geohash from 'ngeohash'
 
 import { SubgraphKey, NetworkSubgraph } from './types'
-
-const fetch = require('node-fetch')
-const geohash = require('ngeohash')
 
 class Ethereum {
   static async executeTransaction(
     transaction: Promise<ContractTransaction>,
     logger: logging.Logger,
   ): Promise<ContractReceipt> {
-    let tx = await transaction
+    const tx = await transaction
     logger.info(`Transaction pending: '${tx.hash}'`)
-    let receipt = await tx.wait(1)
+    const receipt = await tx.wait(1)
     logger.info(
       `Transaction '${tx.hash}' successfully included in block #${receipt.blockNumber}`,
     )
@@ -45,7 +44,7 @@ class Ethereum {
   }
 
   static addQm(a: Uint8Array): Uint8Array {
-    let out = new Uint8Array(34)
+    const out = new Uint8Array(34)
     out[0] = 0x12
     out[1] = 0x20
     for (let i = 0; i < 32; i++) {
@@ -97,19 +96,19 @@ export class Network {
     mnemonic: string,
     networkSubgraphDeployment: string,
   ): Promise<Network> {
-    let logger = parentLogger.child({ component: 'Network' })
-    let subgraph = new ApolloClient({
+    const logger = parentLogger.child({ component: 'Network' })
+    const subgraph = new ApolloClient({
       link: new HttpLink({
         uri: new URL(
           `/subgraphs/id/${networkSubgraphDeployment}`,
           indexerGraphqlUrl,
         ).toString(),
-        fetch,
+        fetch: fetch as never,
       }),
       cache: new InMemoryCache(),
     })
     let wallet = Wallet.fromMnemonic(mnemonic)
-    let eth = new providers.JsonRpcProvider(ethereumProvider)
+    const eth = new providers.JsonRpcProvider(ethereumProvider)
 
     logger.info(
       `Create a wallet instance connected to '${network}' via '${ethereumProvider}'`,
@@ -118,8 +117,8 @@ export class Network {
     logger.info(`Wallet created at '${wallet.address}'`)
 
     logger.info(`Connecting to contracts`)
-    let networkInfo = await eth.getNetwork()
-    let contracts = await networkContracts.connectContracts(
+    const networkInfo = await eth.getNetwork()
+    const contracts = await networkContracts.connectContracts(
       wallet,
       networkInfo.chainId,
     )
@@ -139,7 +138,7 @@ export class Network {
   async subgraphs(): Promise<SubgraphKey[]> {
     const minimumStake = 100
     try {
-      let result = await this.subgraph.query({
+      const result = await this.subgraph.query({
         query: gql`
           query {
             subgraphs(where: { currentVersion_not: null }) {
@@ -184,7 +183,7 @@ export class Network {
   async register(): Promise<void> {
     try {
       this.logger.info(`Register indexer at '${this.indexerUrl}'`)
-      let isRegistered = await this.contracts.serviceRegistry.isRegistered(
+      const isRegistered = await this.contracts.serviceRegistry.isRegistered(
         this.indexerAddress,
       )
       if (isRegistered) {
@@ -194,7 +193,7 @@ export class Network {
         return
       }
 
-      let receipt = await Ethereum.executeTransaction(
+      const receipt = await Ethereum.executeTransaction(
         this.contracts.serviceRegistry.register(
           this.indexerUrl,
           geohash.encode(
@@ -209,7 +208,7 @@ export class Network {
         this.logger,
       )
 
-      let event = receipt.events!.find(event =>
+      const event = receipt.events?.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
             'ServiceRegistered',
@@ -218,7 +217,7 @@ export class Network {
       )
       assert.ok(event)
 
-      let eventInputs = this.contracts.serviceRegistry.interface.decodeEventLog(
+      const eventInputs = this.contracts.serviceRegistry.interface.decodeEventLog(
         'ServiceRegistered',
         event.data,
         event.topics,
@@ -233,12 +232,12 @@ export class Network {
   }
 
   async stake(subgraph: string): Promise<void> {
-    let amount = 100
-    let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
+    const amount = 100
+    const subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
 
-    let currentEpoch = await this.contracts.epochManager.currentEpoch()
+    const currentEpoch = await this.contracts.epochManager.currentEpoch()
     this.logger.info(`Stake on '${subgraph}' in epoch '${currentEpoch}'`)
-    let currentAllocation = await this.contracts.staking.getAllocation(
+    const currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
       subgraphIdBytes,
     )
@@ -254,15 +253,15 @@ export class Network {
     }
 
     // Derive the subgraph specific public key
-    let hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    let path = 'm/' + [currentEpoch, ...Buffer.from(subgraph)].join('/')
-    let derivedKeyPair = hdNode.derivePath(path)
-    let publicKey = derivedKeyPair.publicKey
-    let uncompressedPublicKey = utils.computePublicKey(publicKey)
+    const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
+    const path = 'm/' + [currentEpoch, ...Buffer.from(subgraph)].join('/')
+    const derivedKeyPair = hdNode.derivePath(path)
+    const publicKey = derivedKeyPair.publicKey
+    const uncompressedPublicKey = utils.computePublicKey(publicKey)
 
     this.logger.debug(`Deriving channel key using path '${path}'`)
 
-    let receipt = await Ethereum.executeTransaction(
+    const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         subgraphIdBytes,
         amount,
@@ -274,14 +273,14 @@ export class Network {
       this.logger,
     )
 
-    let event = receipt.events!.find(event =>
+    const event = receipt.events?.find(event =>
       event.topics.includes(
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
     )
     assert.ok(event, `Failed to stake on subgraph '${subgraph}'`)
 
-    let eventInputs = this.contracts.staking.interface.decodeEventLog(
+    const eventInputs = this.contracts.staking.interface.decodeEventLog(
       'AllocationCreated',
       event.data,
       event.topics,
@@ -303,7 +302,7 @@ export class Network {
         )
       }
       this.logger.info(`The indexer account has '${tokens}' GRT`)
-      let approvedTokens = await this.contracts.staking.getIndexerStakedTokens(
+      const approvedTokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
       if (approvedTokens >= BigNumber.from(minimum)) {
@@ -313,10 +312,10 @@ export class Network {
         return
       }
       this.logger.info(`Amount staked: ${approvedTokens} tokens`)
-      let diff = minimum - approvedTokens.toNumber()
-      let stakeAmount = utils.parseUnits(String(diff), 1)
+      const diff = minimum - approvedTokens.toNumber()
+      const stakeAmount = utils.parseUnits(String(diff), 1)
       this.logger.info(`Stake ${diff} tokens`)
-      let approveReceipt = await Ethereum.executeTransaction(
+      const approveReceipt = await Ethereum.executeTransaction(
         this.contracts.token.approve(
           this.contracts.staking.address,
           stakeAmount,
@@ -325,14 +324,14 @@ export class Network {
         this.logger,
       )
 
-      let approveEvent = approveReceipt.events!.find(event =>
+      const approveEvent = approveReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.token.interface.getEventTopic('Approval'),
         ),
       )
       assert.ok(approveEvent, `Failed to approve '${diff}' tokens for staking`)
 
-      let approveEventInputs = this.contracts.token.interface.decodeEventLog(
+      const approveEventInputs = this.contracts.token.interface.decodeEventLog(
         'Approval',
         approveEvent.data,
         approveEvent.topics,
@@ -341,19 +340,19 @@ export class Network {
         `${approveEventInputs.value} tokens approved for transfer, owner: '${approveEventInputs.owner}' spender: '${approveEventInputs.spender}'`,
       )
 
-      let stakeReceipt = await Ethereum.executeTransaction(
+      const stakeReceipt = await Ethereum.executeTransaction(
         this.contracts.staking.stake(stakeAmount, txOverrides),
         this.logger,
       )
 
-      let stakeEvent = stakeReceipt.events!.find(event =>
+      const stakeEvent = stakeReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
         ),
       )
       assert.ok(stakeEvent, `Failed to stake '${diff}'`)
 
-      let stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
+      const stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
         'StakeDeposited',
         stakeEvent.data,
         stakeEvent.topics,

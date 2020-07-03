@@ -7,7 +7,7 @@ import { AgentConfig } from '../types'
 export default {
   command: 'start',
   describe: 'Start the agent',
-  builder: (yargs: Argv) => {
+  builder: (yargs: Argv): Argv => {
     return yargs
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
@@ -58,11 +58,14 @@ export default {
         required: true,
       })
   },
-  handler: async (argv: { [key: string]: any } & Argv['argv']) => {
-    let logger = logging.createLogger({ appName: 'IndexerAgent' })
+  handler: async (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    argv: { [key: string]: any } & Argv['argv'],
+  ): Promise<void> => {
+    const logger = logging.createLogger({ appName: 'IndexerAgent' })
 
     logger.info('Starting up agent...')
-    let config: AgentConfig = {
+    const config: AgentConfig = {
       mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
@@ -74,7 +77,7 @@ export default {
       logger: logger,
       networkSubgraphDeployment: argv.networkSubgraphDeployment,
     }
-    let agent = await Agent.create(config)
+    const agent = await Agent.create(config)
     await agent.setupIndexer()
     await agent.start()
   },

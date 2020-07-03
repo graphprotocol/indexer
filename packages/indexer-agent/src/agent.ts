@@ -5,11 +5,12 @@ import { AgentConfig } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 
-let delay = async (ms: number) => {
+const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
 }
 
-let loop = async (f: () => Promise<void>, interval: number) => {
+const loop = async (f: () => Promise<void>, interval: number) => {
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     await f()
     await delay(interval)
@@ -35,12 +36,12 @@ export class Agent {
   }
 
   static async create(config: AgentConfig): Promise<Agent> {
-    let indexer = new Indexer(
+    const indexer = new Indexer(
       config.adminEndpoint,
       config.statusEndpoint,
       config.logger,
     )
-    let network = await Network.create(
+    const network = await Network.create(
       config.logger,
       config.ethereumProvider,
       config.network,
@@ -58,9 +59,9 @@ export class Agent {
     )
   }
 
-  async setupIndexer() {
+  async setupIndexer(): Promise<void> {
     this.logger.info(
-      `Connecting to indexer and ensuring regisration and stake on the network`,
+      `Connecting to indexer and ensuring registration and stake on the network`,
     )
     await this.indexer.connect()
     await this.network.register()
@@ -68,7 +69,7 @@ export class Agent {
     this.logger.info(`Indexer active and registered on network..`)
   }
 
-  async start() {
+  async start(): Promise<void> {
     this.logger.info(`Agent booted up`)
 
     await this.indexer.ensure(
@@ -82,10 +83,10 @@ export class Agent {
 
     this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
-      let indexerSubgraphs = await this.indexer.subgraphs()
-      let networkSubgraphs = await this.network.subgraphs()
+      const indexerSubgraphs = await this.indexer.subgraphs()
+      const networkSubgraphs = await this.network.subgraphs()
 
-      let subgraphsToIndex: string[] = [
+      const subgraphsToIndex: string[] = [
         ...networkSubgraphs.map(({ subgraphId }) => subgraphId),
 
         // Ensure the network subgraph deployment _always_ keeps indexing
@@ -96,23 +97,26 @@ export class Agent {
     }, 5000)
   }
 
-  async resolve(networkSubgraphs: string[], indexerSubgraphs: string[]) {
+  async resolve(
+    networkSubgraphs: string[],
+    indexerSubgraphs: string[],
+  ): Promise<void> {
     // Identify which subgraphs to deploy and which to remove
-    let toDeploy = new Set(
+    const toDeploy = new Set(
       networkSubgraphs.filter(
         networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
       ),
     )
-    let toRemove = new Set(
+    const toRemove = new Set(
       indexerSubgraphs.filter(
         indexerSubgraph => !networkSubgraphs.includes(indexerSubgraph),
       ),
     )
 
     // Deploy/remove up to 20 subgraphs in parallel
-    let queue = new PQueue({ concurrency: 20 })
+    const queue = new PQueue({ concurrency: 20 })
 
-    for (let subgraph of toDeploy) {
+    for (const subgraph of toDeploy) {
       let subgraphName: string = subgraph.toString().slice(-10)
       subgraphName = ['indexer-agent', subgraphName].join('/')
 
@@ -129,7 +133,7 @@ export class Agent {
       })
     }
 
-    for (let subgraph of toRemove) {
+    for (const subgraph of toRemove) {
       queue.add(() => this.indexer.remove(subgraph))
     }
 

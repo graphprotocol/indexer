@@ -2,11 +2,9 @@ import ApolloClient from 'apollo-client'
 import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
-import { Client } from 'jayson/promise'
+import jayson, { Client } from 'jayson/promise'
 import { logging } from '@graphprotocol/common-ts'
-
-const jayson = require('jayson/promise')
-const fetch = require('node-fetch')
+import fetch from 'node-fetch'
 
 interface SubgraphCreateParams {
   name: string
@@ -33,17 +31,19 @@ export class Indexer {
     this.statuses = new ApolloClient({
       link: new HttpLink({
         uri: statusEndpoint,
-        fetch,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetch: fetch as any,
       }),
       cache: new InMemoryCache(),
     })
     this.logger = logger
-    this.rpc = jayson.client.http(adminEndpoint)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.rpc = jayson.Client.http(adminEndpoint as any)
   }
 
   async connect(): Promise<void> {
     try {
-      let subgraphs = await this.subgraphs()
+      const subgraphs = await this.subgraphs()
       this.logger.info(
         `Connected to indexing statuses API, ${subgraphs.length} subgraphs deployed`,
       )
@@ -55,7 +55,7 @@ export class Indexer {
 
   async subgraphs(): Promise<string[]> {
     try {
-      let result = await this.statuses.query({
+      const result = await this.statuses.query({
         query: gql`
           query {
             indexingStatuses {
@@ -79,14 +79,15 @@ export class Indexer {
     }
   }
 
-  async create(name: string): Promise<any> {
+  async create(name: string): Promise<void> {
     try {
       this.logger.info(`Create subgraph name '${name}'`)
-      let params: SubgraphCreateParams = { name: name }
-      let response = await this.rpc.request('subgraph_create', params)
-      if (response.error) throw response.error
+      const params: SubgraphCreateParams = { name: name }
+      const response = await this.rpc.request('subgraph_create', params)
+      if (response.error) {
+        throw response.error
+      }
       this.logger.info(`Created subgraph name '${name}' successfully`)
-      return response.result
     } catch (error) {
       if (error.message.includes('already exists')) {
         this.logger.warn(`Subgraph name already exists: ${name}`)
@@ -96,16 +97,17 @@ export class Indexer {
     }
   }
 
-  async deploy(name: string, subgraphId: string): Promise<any> {
+  async deploy(name: string, subgraphId: string): Promise<void> {
     try {
       this.logger.info(`Deploy subgraph '${subgraphId}' to '${name}'`)
-      let params: SubgraphDeployParams = { name: name, ipfs_hash: subgraphId }
-      let response = await this.rpc.request('subgraph_deploy', params)
-      if (response.error) throw response.error
+      const params: SubgraphDeployParams = { name: name, ipfs_hash: subgraphId }
+      const response = await this.rpc.request('subgraph_deploy', params)
+      if (response.error) {
+        throw response.error
+      }
       this.logger.info(
         `Deployed subgraph '${subgraphId}' to '${name}' successfully`,
       )
-      return response.result
     } catch (e) {
       this.logger.error(
         `Failed to deploy subgraph '${subgraphId}' to '${name}'`,
@@ -114,32 +116,35 @@ export class Indexer {
     }
   }
 
-  async remove(subgraphId: string): Promise<any> {
+  async remove(subgraphId: string): Promise<void> {
     try {
       this.logger.info(`Remove subgraph '${subgraphId}`)
-      let params: SubgraphReassignParams = {
+      const params: SubgraphReassignParams = {
         ipfs_hash: subgraphId,
         node_id: 'removed',
       }
-      let response = await this.rpc.request('subgraph_reassign', params)
+      const response = await this.rpc.request('subgraph_reassign', params)
+      if (response.error) {
+        throw response.error
+      }
       this.logger.info(`Subgraph removed, '${subgraphId}'`)
-      return response.result
     } catch (e) {
       this.logger.error(`Failed to remove subgraph '${subgraphId}'`)
       throw e
     }
   }
 
-  async reassign(subgraphId: string, node: string): Promise<any> {
+  async reassign(subgraphId: string, node: string): Promise<void> {
     try {
       this.logger.info(`Reassign subgraph '${subgraphId}' to node '${node}'`)
-      let params: SubgraphReassignParams = {
+      const params: SubgraphReassignParams = {
         ipfs_hash: subgraphId,
         node_id: node,
       }
-      let response = await this.rpc.request('subgraph_reassign', params)
-      if (response.error) throw response.error
-      return response.result
+      const response = await this.rpc.request('subgraph_reassign', params)
+      if (response.error) {
+        throw response.error
+      }
     } catch (error) {
       if (error.message.includes('unchanged')) {
         this.logger.warn(
@@ -152,7 +157,7 @@ export class Indexer {
     }
   }
 
-  async ensure(name: string, subgraphId: string): Promise<any> {
+  async ensure(name: string, subgraphId: string): Promise<void> {
     try {
       await this.create(name)
       await this.deploy(name, subgraphId)
