@@ -249,7 +249,8 @@ export class Network {
 
     // Derive the deployment specific public key
     const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    const path = 'm/' + [currentEpoch, ...Buffer.from(deployment)].join('/')
+    const path =
+      'm/' + [currentEpoch, ...Buffer.from(deployment.ipfsHash)].join('/')
     const derivedKeyPair = hdNode.derivePath(path)
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
