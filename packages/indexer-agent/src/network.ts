@@ -305,17 +305,17 @@ export class Network {
         )
       }
       this.logger.info(`The indexer account has '${tokens}' GRT`)
-      const approvedTokens = await this.contracts.staking.getIndexerStakedTokens(
+      const stakedTokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      if (approvedTokens >= BigNumber.from(minimum)) {
+      if (stakedTokens >= BigNumber.from(minimum)) {
         this.logger.info(
-          `Indexer has sufficient staking tokens: ${approvedTokens.toString()}`,
+          `Indexer has sufficient staking tokens: ${stakedTokens.toString()}`,
         )
         return
       }
-      this.logger.info(`Amount staked: ${approvedTokens} tokens`)
-      const diff = minimum - approvedTokens.toNumber()
+      this.logger.info(`Amount staked: ${stakedTokens} tokens`)
+      const diff = minimum - stakedTokens.toNumber()
       const stakeAmount = utils.parseUnits(String(diff), 1)
       this.logger.info(`Stake ${diff} tokens`)
       const approveReceipt = await Ethereum.executeTransaction(
