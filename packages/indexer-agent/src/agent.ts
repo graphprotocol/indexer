@@ -79,7 +79,7 @@ export class Agent {
       )}/${this.networkSubgraphDeployment.slice(23)}`,
       this.networkSubgraphDeployment,
     )
-    await this.network.stake(this.networkSubgraphDeployment)
+    await this.network.allocate(this.networkSubgraphDeployment)
 
     this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
@@ -128,7 +128,7 @@ export class Agent {
         await this.indexer.ensure(name, deployment)
 
         // Allocate stake on the deployment in the network
-        await this.network.stake(deployment)
+        await this.network.allocate(deployment)
 
         this.logger.info(`Now indexing '${name}':'${deployment}'`)
       })

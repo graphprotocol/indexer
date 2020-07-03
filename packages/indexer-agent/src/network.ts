@@ -231,7 +231,7 @@ export class Network {
     }
   }
 
-  async stake(subgraphDeploymentID: string): Promise<void> {
+  async allocate(subgraphDeploymentID: string): Promise<void> {
     const amount = 100
     const subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraphDeploymentID)
 
