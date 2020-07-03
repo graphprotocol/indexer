@@ -13,9 +13,9 @@ export interface AgentConfig {
   networkSubgraphDeployment: string
 }
 
-export interface SubgraphKey {
+export interface SubgraphDeploymentKey {
   owner: string
-  subgraphId: string
+  subgraphDeploymentID: string
 }
 
 interface SubgraphDeployment {
@@ -39,13 +39,8 @@ interface GraphAccount {
   id: string
 }
 
-export interface NetworkSubgraph {
+export interface Subgraph {
   id: string
-  name: {
-    id: string
-    name: string
-    nameSystem: string
-  }
   owner: GraphAccount
   totalNameSignaledGRT: number
   totalNameSignalMinted: number
@@ -59,11 +54,4 @@ interface ContractAddresses {
   ServiceRegistry: string
   Staking: string
   EpochManager: string
-}
-
-export interface NetworkAddresses {
-  ropsten: ContractAddresses
-  kovan: ContractAddresses
-  mainnet: ContractAddresses
-  ganache: ContractAddresses
 }

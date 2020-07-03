@@ -19,7 +19,7 @@ import gql from 'graphql-tag'
 import fetch from 'node-fetch'
 import geohash from 'ngeohash'
 
-import { SubgraphKey, NetworkSubgraph } from './types'
+import { SubgraphDeploymentKey, Subgraph } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -135,7 +135,7 @@ export class Network {
     )
   }
 
-  async subgraphs(): Promise<SubgraphKey[]> {
+  async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentKey[]> {
     const minimumStake = 100
     try {
       const result = await this.subgraph.query({
@@ -162,17 +162,17 @@ export class Network {
       })
       return result.data.subgraphs
         .filter(
-          (subgraph: NetworkSubgraph) =>
+          (subgraph: Subgraph) =>
             subgraph.currentVersion.subgraphDeployment.totalStake >=
             minimumStake,
         )
-        .map((subgraph: NetworkSubgraph) => {
+        .map((subgraph: Subgraph) => {
           return {
             owner: subgraph.owner.id,
-            subgraphId: Ethereum.bytesToIPSFHash(
+            subgraphDeploymentID: Ethereum.bytesToIPSFHash(
               subgraph.currentVersion.subgraphDeployment.id,
             ),
-          } as SubgraphKey
+          } as SubgraphDeploymentKey
         })
     } catch (error) {
       this.logger.error(`Network subgraphs query failed`)
@@ -231,30 +231,33 @@ export class Network {
     }
   }
 
-  async stake(subgraph: string): Promise<void> {
+  async stake(subgraphDeploymentID: string): Promise<void> {
     const amount = 100
-    const subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraph)
+    const subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraphDeploymentID)
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    this.logger.info(`Stake on '${subgraph}' in epoch '${currentEpoch}'`)
+    this.logger.info(
+      `Stake on '${subgraphDeploymentID}' in epoch '${currentEpoch}'`,
+    )
     const currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
       subgraphIdBytes,
     )
 
     if (currentAllocation.tokens.toNumber() > 0) {
-      this.logger.info(`Stake already allocated to '${subgraph}'`)
+      this.logger.info(`Stake already allocated to '${subgraphDeploymentID}'`)
       this.logger.info(
-        `${currentAllocation.tokens} tokens allocated on channelID '${
+        `${currentAllocation.tokens} tokens allocated on channel '${
           currentAllocation.channelID
         }' since epoch ${currentAllocation.createdAtEpoch.toString()}`,
       )
       return
     }
 
-    // Derive the subgraph specific public key
+    // Derive the subgraphDeploymentID specific public key
     const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    const path = 'm/' + [currentEpoch, ...Buffer.from(subgraph)].join('/')
+    const path =
+      'm/' + [currentEpoch, ...Buffer.from(subgraphDeploymentID)].join('/')
     const derivedKeyPair = hdNode.derivePath(path)
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
@@ -278,7 +281,7 @@ export class Network {
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
     )
-    assert.ok(event, `Failed to stake on subgraph '${subgraph}'`)
+    assert.ok(event, `Failed to stake on '${subgraphDeploymentID}'`)
 
     const eventInputs = this.contracts.staking.interface.decodeEventLog(
       'AllocationCreated',
@@ -286,7 +289,7 @@ export class Network {
       event.topics,
     )
     this.logger.info(
-      `${eventInputs.tokens} tokens staked on ${eventInputs.subgraphID} channelID: ${eventInputs.channelID} channelPubKey: ${eventInputs.channelPubKey}`,
+      `${eventInputs.tokens} tokens staked on '${eventInputs.subgraphDeploymentID}', channel: ${eventInputs.channelID}, channelPubKey: ${eventInputs.channelPubKey}`,
     )
   }
 

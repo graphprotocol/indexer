@@ -83,58 +83,59 @@ export class Agent {
 
     this.logger.info(`Polling for subgraph changes`)
     await loop(async () => {
-      const indexerSubgraphs = await this.indexer.subgraphs()
-      const networkSubgraphs = await this.network.subgraphs()
+      const indexerDeployments = await this.indexer.subgraphDeployments()
+      const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
 
-      const subgraphsToIndex: string[] = [
-        ...networkSubgraphs.map(({ subgraphId }) => subgraphId),
+      const deploymentsToIndex: string[] = [
+        ...networkSubgraphs.map(
+          ({ subgraphDeploymentID }) => subgraphDeploymentID,
+        ),
 
         // Ensure the network subgraph deployment _always_ keeps indexing
         this.networkSubgraphDeployment,
       ]
 
-      await this.resolve(subgraphsToIndex, indexerSubgraphs)
+      await this.resolve(deploymentsToIndex, indexerDeployments)
     }, 5000)
   }
 
   async resolve(
-    networkSubgraphs: string[],
-    indexerSubgraphs: string[],
+    networkDeployments: string[],
+    indexerDeployments: string[],
   ): Promise<void> {
     // Identify which subgraphs to deploy and which to remove
     const toDeploy = new Set(
-      networkSubgraphs.filter(
-        networkSubgraph => !indexerSubgraphs.includes(networkSubgraph),
+      networkDeployments.filter(
+        deployment => !indexerDeployments.includes(deployment),
       ),
     )
     const toRemove = new Set(
-      indexerSubgraphs.filter(
-        indexerSubgraph => !networkSubgraphs.includes(indexerSubgraph),
+      indexerDeployments.filter(
+        deployment => !networkDeployments.includes(deployment),
       ),
     )
 
     // Deploy/remove up to 20 subgraphs in parallel
     const queue = new PQueue({ concurrency: 20 })
 
-    for (const subgraph of toDeploy) {
-      let subgraphName: string = subgraph.toString().slice(-10)
-      subgraphName = ['indexer-agent', subgraphName].join('/')
+    for (const deployment of toDeploy) {
+      const name = `indexer-agent/${deployment.toString().slice(-10)}`
 
       queue.add(async () => {
-        this.logger.info(`Begin indexing '${subgraphName}':'${subgraph}'...`)
+        this.logger.info(`Begin indexing '${name}':'${deployment}'...`)
 
-        // Ensure the subgraph is deployed to the indexer
-        await this.indexer.ensure(subgraphName, subgraph)
+        // Ensure the deployment is deployed to the indexer
+        await this.indexer.ensure(name, deployment)
 
-        // Allocate stake on the subgraph in the network
-        await this.network.stake(subgraph)
+        // Allocate stake on the deployment in the network
+        await this.network.stake(deployment)
 
-        this.logger.info(`Now indexing '${subgraphName}':'${subgraph}'`)
+        this.logger.info(`Now indexing '${name}':'${deployment}'`)
       })
     }
 
-    for (const subgraph of toRemove) {
-      queue.add(() => this.indexer.remove(subgraph))
+    for (const deployment of toRemove) {
+      queue.add(() => this.indexer.remove(deployment))
     }
 
     await queue.onIdle()
