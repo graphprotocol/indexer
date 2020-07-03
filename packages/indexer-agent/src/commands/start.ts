@@ -57,6 +57,11 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('connext-node', {
+        description: 'Connext node URL',
+        type: 'string',
+        required: true,
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -76,6 +81,7 @@ export default {
       network: argv.network,
       logger: logger,
       networkSubgraphDeployment: argv.networkSubgraphDeployment,
+      connextNode: argv.connextNode,
     }
     const agent = await Agent.create(config)
     await agent.setupIndexer()

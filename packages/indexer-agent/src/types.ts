@@ -11,6 +11,7 @@ export interface AgentConfig {
   network: string
   logger: logging.Logger
   networkSubgraphDeployment: string
+  connextNode: string
 }
 
 export interface SubgraphDeploymentKey {

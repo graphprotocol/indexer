@@ -50,6 +50,7 @@ export class Agent {
       config.indexerGeoCoordinates,
       config.mnemonic,
       config.networkSubgraphDeployment,
+      config.connextNode,
     )
     return new Agent(
       config.logger,

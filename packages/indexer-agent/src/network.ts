@@ -2,6 +2,7 @@ import {
   logging,
   contracts as networkContracts,
 } from '@graphprotocol/common-ts'
+import axios, { AxiosInstance } from 'axios'
 import * as bs58 from 'bs58'
 import {
   ContractTransaction,
@@ -18,8 +19,11 @@ import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
 import fetch from 'node-fetch'
 import geohash from 'ngeohash'
+import { getPublicIdentifierFromPublicKey } from '@connext/utils'
+import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
 
 import { SubgraphDeploymentKey, Subgraph } from './types'
+import { JsonRpcProvider } from '@connext/types'
 
 class Ethereum {
   static async executeTransaction(
@@ -67,6 +71,8 @@ export class Network {
   indexerGeoCoordinates: [string, string]
   mnemonic: string
   logger: logging.Logger
+  ethereumProvider: JsonRpcProvider
+  connextNode: AxiosInstance
 
   private constructor(
     logger: logging.Logger,
@@ -76,6 +82,8 @@ export class Network {
     contracts: networkContracts.NetworkContracts,
     mnemonic: string,
     subgraph: ApolloClient<NormalizedCacheObject>,
+    ethereumProvider: JsonRpcProvider,
+    connextNode: AxiosInstance,
   ) {
     this.logger = logger
     this.indexerAddress = indexerAddress
@@ -84,17 +92,20 @@ export class Network {
     this.contracts = contracts
     this.mnemonic = mnemonic
     this.subgraph = subgraph
+    this.ethereumProvider = ethereumProvider
+    this.connextNode = connextNode
   }
 
   static async create(
     parentLogger: logging.Logger,
-    ethereumProvider: string,
+    ethereumProviderUrl: string,
     network: string,
     indexerUrl: string,
     indexerGraphqlUrl: string,
     geoCoordinates: [string, string],
     mnemonic: string,
     networkSubgraphDeployment: string,
+    connextNode: string,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
     const subgraph = new ApolloClient({
@@ -108,16 +119,16 @@ export class Network {
       cache: new InMemoryCache(),
     })
     let wallet = Wallet.fromMnemonic(mnemonic)
-    const eth = new providers.JsonRpcProvider(ethereumProvider)
+    const ethereumProvider = new providers.JsonRpcProvider(ethereumProviderUrl)
 
     logger.info(
       `Create a wallet instance connected to '${network}' via '${ethereumProvider}'`,
     )
-    wallet = wallet.connect(eth)
+    wallet = wallet.connect(ethereumProvider)
     logger.info(`Wallet created at '${wallet.address}'`)
 
     logger.info(`Connecting to contracts`)
-    const networkInfo = await eth.getNetwork()
+    const networkInfo = await ethereumProvider.getNetwork()
     const contracts = await networkContracts.connectContracts(
       wallet,
       networkInfo.chainId,
@@ -132,6 +143,11 @@ export class Network {
       contracts,
       mnemonic,
       subgraph,
+      ethereumProvider,
+      axios.create({
+        baseURL: connextNode,
+        responseType: 'json',
+      }),
     )
   }
 
@@ -264,12 +280,24 @@ export class Network {
 
     this.logger.debug(`Deriving channel key using path '${path}'`)
 
+    // CREATE2 address for the channel
+    const channelIdentifier = getPublicIdentifierFromPublicKey(
+      uncompressedPublicKey,
+    )
+    const nodeConfig = await this.connextNode.get('/config')
+    const create2Address = await getCreate2MultisigAddress(
+      channelIdentifier,
+      nodeConfig.data.nodeIdentifier,
+      nodeConfig.data.contractAddresses,
+      this.ethereumProvider,
+    )
+
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         subgraphIdBytes,
         amount,
         uncompressedPublicKey,
-        this.indexerAddress,
+        create2Address,
         utils.parseUnits('0.01', '18'),
         txOverrides,
       ),
