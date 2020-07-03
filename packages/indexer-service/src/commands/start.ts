@@ -16,7 +16,7 @@ const { createMetrics, createMetricsServer } = metrics
 export default {
   command: 'start',
   describe: 'Start the service',
-  builder: (yargs: Argv) => {
+  builder: (yargs: Argv): Argv => {
     return yargs
       .option('mnemonic', {
         describe: 'Ethereum wallet mnemonic',
@@ -93,31 +93,32 @@ export default {
         required: true,
       })
   },
-  handler: async (argv: { [key: string]: any } & Argv['argv']) => {
-    let logger = logging.createLogger({ appName: 'IndexerService' })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
+    const logger = logging.createLogger({ appName: 'IndexerService' })
 
     logger.info('Starting up...')
 
     logger.info('Connecting to Ethereum')
-    let web3 = new providers.JsonRpcProvider(argv.ethereum)
-    let network = await web3.getNetwork()
+    const web3 = new providers.JsonRpcProvider(argv.ethereum)
+    const network = await web3.getNetwork()
 
     logger.info('Connect to contracts')
-    let contracts = await networkContracts.connectContracts(
+    const contracts = await networkContracts.connectContracts(
       web3,
       (await web3.getNetwork()).chainId,
     )
     logger.info('Connected to contracts')
 
     // Spin up a metrics server
-    let metrics = createMetrics()
+    const metrics = createMetrics()
     createMetricsServer({
       logger: logger.child({ component: 'MetricsServer' }),
       registry: metrics.registry,
     })
 
     logger.info('Connect to database')
-    let sequelize = await database.connect({
+    const sequelize = await database.connect({
       logging: undefined,
       host: argv.postgresHost,
       port: argv.postgresPort,
@@ -127,10 +128,10 @@ export default {
     })
     logger.info('Connected to database')
 
-    let wallet = Wallet.fromMnemonic(argv.mnemonic)
+    const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
     // Create payment manager
-    let paymentManager = new PaymentManager({
+    const paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),
       metrics,
       sequelize,
@@ -142,7 +143,7 @@ export default {
     })
 
     // Create registered channel monitor
-    let networkMonitor = new NetworkMonitor({
+    const networkMonitor = new NetworkMonitor({
       logger: logger.child({ component: 'NetworkMonitor' }),
       wallet,
       graphNode: argv.graphNodeQueryEndpoint,
@@ -150,7 +151,7 @@ export default {
     })
 
     // Create a query processor for paid queries
-    let queryProcessor = new QueryProcessor({
+    const queryProcessor = new QueryProcessor({
       logger: logger.child({ component: 'QueryProcessor' }),
       graphNode: argv.graphNodeQueryEndpoint,
       metrics,
@@ -168,7 +169,7 @@ export default {
     })
 
     // Add and remove subgraph state channels as indexing subgraphs change
-    networkMonitor.channelsUpdated.attach(async (update: any) => {
+    networkMonitor.channelsUpdated.attach(async update => {
       await paymentManager.createStateChannels(update.added)
       await paymentManager.settleStateChannels(update.removed)
     })

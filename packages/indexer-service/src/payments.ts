@@ -4,7 +4,6 @@ import {
   metrics,
   stateChannels,
   contracts as networkContracts,
-  subgraph,
 } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
@@ -16,8 +15,8 @@ import {
 import { ChannelSigner, toBN, getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { Sequelize } from 'sequelize'
 import { Wallet, constants, utils } from 'ethers'
-import { EventEmitter } from 'eventemitter3'
-import PQueue from 'p-queue/dist'
+import PQueue from 'p-queue'
+import { strict as assert } from 'assert'
 
 import {
   PaymentManager as PaymentManagerInterface,
@@ -32,7 +31,7 @@ import { Evt } from 'evt'
 import base58 from 'bs58'
 
 const delay = async (ms: number) => {
-  return new Promise((resolve, _) => setTimeout(resolve, ms))
+  return new Promise(resolve => setTimeout(resolve, ms))
 }
 
 const bytesToIPFSHash = (bytes: string): string => {
@@ -40,7 +39,7 @@ const bytesToIPFSHash = (bytes: string): string => {
 }
 
 const addQm = (a: Uint8Array): Uint8Array => {
-  let out = new Uint8Array(34)
+  const out = new Uint8Array(34)
   out[0] = 0x12
   out[1] = 0x20
   for (let i = 0; i < 32; i++) {
@@ -96,8 +95,8 @@ export class StateChannel implements StateChannelInterface {
     connextNode,
     wallet,
   }: StateChannelCreateOptions): Promise<StateChannel> {
-    let subgraphDeploymentID = bytesToIPFSHash(info.subgraphDeploymentID)
-    let logger = parentLogger.child({
+    const subgraphDeploymentID = bytesToIPFSHash(info.subgraphDeploymentID)
+    const logger = parentLogger.child({
       component: `StateChannel(${subgraphDeploymentID}, ${info.createdAtEpoch})`,
     })
 
@@ -106,20 +105,20 @@ export class StateChannel implements StateChannelInterface {
     )
 
     // Derive an epoch and subgraph specific private key
-    let hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
-    let path =
+    const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
+    const path =
       'm/' + [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID)].join('/')
 
     logger.info(`Derive key using path '${path}'`)
 
-    let derivedKeyPair = hdNode.derivePath(path)
-    let publicKey = derivedKeyPair.publicKey
+    const derivedKeyPair = hdNode.derivePath(path)
+    const publicKey = derivedKeyPair.publicKey
 
     logger.debug(`Public key ${publicKey}:`)
     logger.debug(`Store prefix: ${derivedKeyPair.address.substr(2)}`)
 
     try {
-      let client = await stateChannels.createStateChannel({
+      const client = await stateChannels.createStateChannel({
         logger,
         logLevel: 1,
         sequelize,
@@ -134,8 +133,8 @@ export class StateChannel implements StateChannelInterface {
       })
 
       // Obtain current free balance
-      let freeBalance = await client.getFreeBalance(constants.AddressZero)
-      let balance = freeBalance[client.signerAddress]
+      const freeBalance = await client.getFreeBalance(constants.AddressZero)
+      const balance = freeBalance[client.signerAddress]
 
       logger.info(`On-chain public key: ${info.publicKey}`)
       logger.info(`On-chain signer address: ${info.id}`)
@@ -155,7 +154,7 @@ export class StateChannel implements StateChannelInterface {
         )
       }
 
-      let signer = new ChannelSigner(derivedKeyPair.privateKey, ethereum)
+      const signer = new ChannelSigner(derivedKeyPair.privateKey, ethereum)
 
       logger.info(`Created state channel successfully`)
 
@@ -176,18 +175,18 @@ export class StateChannel implements StateChannelInterface {
   async unlockPayment(
     payment: ConditionalPayment,
     attestation: attestations.Attestation,
-  ) {
-    let formattedAmount = utils.formatEther(payment.amount)
-    let { paymentId } = payment
+  ): Promise<void> {
+    const formattedAmount = utils.formatEther(payment.amount)
+    const { paymentId } = payment
 
     this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
 
-    let receipt = {
+    const receipt = {
       requestCID: attestation.requestCID,
       responseCID: attestation.responseCID,
       subgraphDeploymentID: attestation.subgraphDeploymentID,
     }
-    let signature = utils.joinSignature({
+    const signature = utils.joinSignature({
       r: attestation.r,
       s: attestation.s,
       v: attestation.v,
@@ -220,7 +219,7 @@ export class StateChannel implements StateChannelInterface {
   }
 
   async cancelPayment(payment: ConditionalPayment): Promise<void> {
-    let { paymentId, appIdentityHash } = payment
+    const { paymentId, appIdentityHash } = payment
 
     this.logger.info(`Cancel payment '${paymentId}'`)
 
@@ -228,7 +227,9 @@ export class StateChannel implements StateChannelInterface {
     await this.client.uninstallApp(appIdentityHash)
   }
 
-  async handleConditionalPayment(payload: EventPayloads.ConditionalTransferCreated<any>) {
+  async handleConditionalPayment(
+    payload: EventPayloads.ConditionalTransferCreated<never>,
+  ): Promise<void> {
     // Ignore our own transfers
     if (payload.sender === this.client.publicIdentifier) {
       return
@@ -242,22 +243,21 @@ export class StateChannel implements StateChannelInterface {
       return
     }
 
-    let signedPayload = payload as EventPayloads.SignedTransferCreated
+    const signedPayload = payload as EventPayloads.SignedTransferCreated
 
     // Obtain and format transfer amount
-    let amount = toBN(payload.amount)
-    let formattedAmount = utils.formatEther(amount)
-
-    // Obtain unique app identifier
-    let appIdentityHash = (payload as any).appIdentityHash
+    const amount = toBN(payload.amount)
+    const formattedAmount = utils.formatEther(amount)
 
     this.logger.info(
       `Received payment ${payload.paymentId} (${formattedAmount} ETH) from ${payload.sender} (signer: ${signedPayload.transferMeta.signerAddress})`,
     )
 
-    let payment: ConditionalPayment = {
-      paymentId: payload.paymentId!,
-      appIdentityHash,
+    assert.ok(payload.paymentId, 'No payment ID on the signed transfer event')
+
+    const payment: ConditionalPayment = {
+      paymentId: payload.paymentId,
+      appIdentityHash: payload.appIdentityHash,
       amount,
       sender: payload.sender,
       signer: signedPayload.transferMeta.signerAddress,
@@ -266,10 +266,10 @@ export class StateChannel implements StateChannelInterface {
     this.events.paymentReceived.post(payment)
   }
 
-  async settle() {
-    let freeBalance = await this.client.getFreeBalance()
-    let balance = freeBalance[this.client.signerAddress]
-    let formattedAmount = utils.formatEther(balance)
+  async settle(): Promise<void> {
+    const freeBalance = await this.client.getFreeBalance()
+    const balance = freeBalance[this.client.signerAddress]
+    const formattedAmount = utils.formatEther(balance)
 
     this.logger.info(`Settle (${formattedAmount} ETH)`)
 
@@ -321,13 +321,13 @@ export class PaymentManager implements PaymentManagerInterface {
     this.contracts = options.contracts
   }
 
-  async createStateChannels(channels: ChannelInfo[]) {
-    let queue = new PQueue({ concurrency: 10 })
+  async createStateChannels(channels: ChannelInfo[]): Promise<void> {
+    const queue = new PQueue({ concurrency: 10 })
 
-    for (let channel of channels) {
+    for (const channel of channels) {
       queue.add(async () => {
         if (!this.stateChannels.has(channel.id)) {
-          let stateChannel = await StateChannel.create({
+          const stateChannel = await StateChannel.create({
             ...this.options,
             info: channel,
           })
@@ -344,12 +344,12 @@ export class PaymentManager implements PaymentManagerInterface {
     await queue.onIdle()
   }
 
-  async settleStateChannels(channels: ChannelInfo[]) {
-    let queue = new PQueue({ concurrency: 10 })
+  async settleStateChannels(channels: ChannelInfo[]): Promise<void> {
+    const queue = new PQueue({ concurrency: 10 })
 
-    for (let channel of channels) {
+    for (const channel of channels) {
       queue.add(async () => {
-        let stateChannel = this.stateChannels.get(channel.id)
+        const stateChannel = this.stateChannels.get(channel.id)
         if (stateChannel !== undefined) {
           await stateChannel.settle()
           this.stateChannels.delete(channel.id)

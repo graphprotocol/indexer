@@ -1,4 +1,4 @@
-import express, { response } from 'express'
+import express from 'express'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
@@ -18,19 +18,18 @@ export interface ServerOptions {
 
 export const createServer = async ({
   logger,
-  metrics,
   port,
   queryProcessor,
   whitelist,
   graphNodeStatusEndpoint,
-}: ServerOptions) => {
-  let loggerStream = new Stream.Writable()
+}: ServerOptions): Promise<express.Express> => {
+  const loggerStream = new Stream.Writable()
   loggerStream._write = (chunk, _, next) => {
     logger.debug(chunk.toString().trim())
     next()
   }
 
-  let server = express()
+  const server = express()
 
   // Log requests to the logger stream
   server.use(morgan('tiny', { stream: loggerStream }))
@@ -38,7 +37,7 @@ export const createServer = async ({
   // server.use(bodyParser.raw({ type: 'application/json' }))
 
   // Endpoint for health checks
-  server.get('/', (_, res, __) => {
+  server.get('/', (_, res) => {
     res.status(200).send('Ready to roll!')
   })
 
@@ -56,12 +55,12 @@ export const createServer = async ({
     // Accept JSON but don't parse it
     bodyParser.raw({ type: 'application/json' }),
 
-    async (req, res, _) => {
-      let { id: subgraphDeploymentID } = req.params
-      let query = req.body.toString()
+    async (req, res) => {
+      const { id: subgraphDeploymentID } = req.params
+      const query = req.body.toString()
 
       // Extract the payment ID
-      let paymentId = req.headers['x-graph-payment-id']
+      const paymentId = req.headers['x-graph-payment-id']
       if (paymentId !== undefined && typeof paymentId !== 'string') {
         logger.info(`Query for subgraph '${subgraphDeploymentID}' has invalid payment ID`)
         return res
@@ -73,7 +72,7 @@ export const createServer = async ({
       // Trusted indexer scenario: if the source IP is in our whitelist,
       // we do not require payment; however, if there _is_ a payment,
       // we still take it
-      let paymentRequired = !whitelist.includes(req.ip)
+      const paymentRequired = !whitelist.includes(req.ip)
 
       if (paymentRequired) {
         // Regular scenario: a payment is required; fail if no
@@ -94,7 +93,7 @@ export const createServer = async ({
           `Received paid query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
         )
         try {
-          let response = await queryProcessor.addPaidQuery({
+          const response = await queryProcessor.addPaidQuery({
             subgraphDeploymentID,
             paymentId,
             query,
@@ -115,7 +114,7 @@ export const createServer = async ({
         logger.info(`Received free query for subgraph '${subgraphDeploymentID}'`)
 
         // Extract the state channel ID (only required for free queries)
-        let stateChannelID = req.headers['x-graph-state-channel-id']
+        const stateChannelID = req.headers['x-graph-state-channel-id']
         if (stateChannelID === undefined || typeof stateChannelID !== 'string') {
           logger.info(
             `Query for subgraph '${subgraphDeploymentID}' has invalid state channel ID`,
@@ -127,7 +126,7 @@ export const createServer = async ({
         }
 
         try {
-          let response = await queryProcessor.addFreeQuery({
+          const response = await queryProcessor.addFreeQuery({
             subgraphDeploymentID,
             stateChannelID,
             query,

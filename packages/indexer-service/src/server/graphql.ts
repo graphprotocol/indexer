@@ -14,15 +14,13 @@ export interface GraphQLServerOptions {
 
 export const createGraphQLServer = async ({
   graphNodeStatusEndpoint,
-}: GraphQLServerOptions) => {
-  let nodeLink = new HttpLink({ uri: graphNodeStatusEndpoint, fetch })
-  let nodeSchema = await introspectSchema(nodeLink)
-  let schema = transformSchema(nodeSchema, [
-    new FilterRootFields(
-      (_operation, fieldName, _field) => fieldName === 'indexingStatuses',
-    ),
+}: GraphQLServerOptions): Promise<graphqlHTTP.Middleware> => {
+  const nodeLink = new HttpLink({ uri: graphNodeStatusEndpoint, fetch })
+  const nodeSchema = await introspectSchema(nodeLink)
+  const schema = transformSchema(nodeSchema, [
+    new FilterRootFields((_operation, fieldName) => fieldName === 'indexingStatuses'),
   ])
-  let executableSchema = makeRemoteExecutableSchema({
+  const executableSchema = makeRemoteExecutableSchema({
     schema: schema,
     link: nodeLink,
   })

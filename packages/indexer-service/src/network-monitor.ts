@@ -1,4 +1,3 @@
-import axios, { AxiosInstance } from 'axios'
 import gql from 'graphql-tag'
 import { Evt } from 'evt'
 import { logging, subgraph as networkSubgraph } from '@graphprotocol/common-ts'
@@ -37,16 +36,17 @@ export class NetworkMonitor {
     wallet,
     networkSubgraphDeployment,
     graphNode,
-  }: NetworkMonitorOptions) {
-    let url = new URL(`/subgraphs/id/${networkSubgraphDeployment}`, graphNode)
-    let client = await networkSubgraph.createNetworkSubgraphClient({
+  }: NetworkMonitorOptions): Promise<never> {
+    const url = new URL(`/subgraphs/id/${networkSubgraphDeployment}`, graphNode)
+    const client = await networkSubgraph.createNetworkSubgraphClient({
       url: url.toString(),
     })
 
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       try {
         // Query graph-node for indexing subgraph versions
-        let result = await client
+        const result = await client
           .query(
             gql`
               query indexedSubgraphs($id: ID!) {
@@ -71,7 +71,8 @@ export class NetworkMonitor {
         }
 
         // Extract the channels
-        let channels: ChannelInfo[] = result.data.indexer.channels.map(
+        const channels: ChannelInfo[] = result.data.indexer.channels.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ({ id, publicKey, subgraphDeployment, createdAtEpoch }: any) => ({
             id,
             publicKey,
@@ -81,11 +82,13 @@ export class NetworkMonitor {
         )
 
         // Identify channel changes
-        let removed = this.channels.filter(channel => !channelInList(channels, channel))
-        let added = channels.filter(
+        const removed = this.channels.filter(channel => !channelInList(channels, channel))
+        const added = channels.filter(
           newChannel => !channelInList(this.channels, newChannel),
         )
-        let unchanged = this.channels.filter(channel => channelInList(channels, channel))
+        const unchanged = this.channels.filter(channel =>
+          channelInList(channels, channel),
+        )
 
         // Update channels
         this.channels = channels

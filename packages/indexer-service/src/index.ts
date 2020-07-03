@@ -1,9 +1,10 @@
-import { stateChannels } from '@graphprotocol/common-ts'
 import * as yargs from 'yargs'
+
+import start from './commands/start'
 
 yargs
   .scriptName('indexer-service')
   .env('INDEXER_SERVICE')
-  .command(require('./commands/start').default)
+  .command(start)
   .demandCommand(1, 'Choose a command from the above list')
   .help().argv

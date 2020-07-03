@@ -17,6 +17,7 @@ import {
   StateChannel,
   QueryError,
 } from './types'
+import { strict as assert } from 'assert'
 
 const hexlifySubgraphId = (subgraphDeploymentID: string): string =>
   utils.hexlify(bs58.decode(subgraphDeploymentID).slice(2))
@@ -78,7 +79,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       responseType: 'text',
 
       // Don't transform the response in any way
-      transformResponse: (data: any) => data,
+      transformResponse: data => data,
 
       // Don't throw on bad responses
       validateStatus: () => true,
@@ -95,15 +96,16 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async addPaidQuery(query: PaidQuery): Promise<QueryResponse> {
-    let { subgraphDeploymentID, paymentId, query: queryString } = query
+    const { subgraphDeploymentID, paymentId } = query
 
     this.logger.info(
       `Add query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
     )
 
-    if (this.queries.has(paymentId)) {
+    const existingQuery = this.queries.get(paymentId)
+
+    if (existingQuery) {
       // Update the existing query
-      let existingQuery = this.queries.get(paymentId)!
 
       // Cancel if the same query has already been submitted
       if (existingQuery.query !== undefined) {
@@ -131,14 +133,16 @@ export class QueryProcessor implements QueryProcessorInterface {
     stateChannel: StateChannel,
     payment: ConditionalPayment,
   ): Promise<void> {
-    let { paymentId, sender, amount } = payment
+    const { paymentId, sender, amount } = payment
 
     this.logger.info(`Add payment '${paymentId}' (sender: ${sender}, amount: ${amount})`)
 
-    if (this.queries.has(paymentId)) {
-      this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
+    const existingQuery = this.queries.get(paymentId)
+
+    if (existingQuery) {
       // Update the existing query
-      let existingQuery = this.queries.get(paymentId)!
+
+      this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
       existingQuery.payment = {
         payment,
         stateChannelID: stateChannel.info.id,
@@ -165,11 +169,11 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
-    let { subgraphDeploymentID, requestCID } = query
+    const { subgraphDeploymentID, requestCID } = query
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannel(query.stateChannelID)
+    const stateChannel = this.paymentManager.stateChannel(query.stateChannelID)
     if (stateChannel === undefined) {
       throw new QueryError(
         `State channel '${query.stateChannelID}' for subgraph '${subgraphDeploymentID}' not available`,
@@ -178,13 +182,13 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
 
     // Execute query in the Graph Node
-    let response = await this.graphNode.post(
+    const response = await this.graphNode.post(
       `/subgraphs/id/${subgraphDeploymentID}`,
       query.query,
     )
 
     // Compute the response CID
-    let responseCID = utils.keccak256(new TextEncoder().encode(response.data))
+    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
 
     return await this.createResponse({
       stateChannel,
@@ -209,12 +213,12 @@ export class QueryProcessor implements QueryProcessorInterface {
     data: string
   }): Promise<QueryResponse> {
     // Obtain a signed attestation for the query result
-    let receipt = {
+    const receipt = {
       requestCID,
       responseCID,
       subgraphDeploymentID: hexlifySubgraphId(subgraphDeploymentID),
     }
-    let attestation = await attestations.createAttestation(
+    const attestation = await attestations.createAttestation(
       stateChannel.privateKey,
       this.chainId,
       this.disputeManagerAddress,
@@ -231,9 +235,19 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   private async processNow(query: PendingQuery): Promise<void> {
-    let { paymentId } = query
-    let { stateChannelID } = query.payment!
-    let { subgraphDeploymentID, requestCID } = query.query!
+    assert.ok(
+      query.payment,
+      'Programmer error: must not process pending queries without a payment',
+    )
+
+    assert.ok(
+      query.query,
+      'Programmer error: must not process pending queries without a query',
+    )
+
+    const { paymentId } = query
+    const { stateChannelID } = query.payment
+    const { subgraphDeploymentID, requestCID } = query.query
 
     this.logger.debug(
       `Process query for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
@@ -241,7 +255,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    let stateChannel = this.paymentManager.stateChannel(stateChannelID)
+    const stateChannel = this.paymentManager.stateChannel(stateChannelID)
     if (stateChannel === undefined) {
       query.emitter.emit(
         'reject',
@@ -254,16 +268,16 @@ export class QueryProcessor implements QueryProcessorInterface {
     this.queries.delete(paymentId)
 
     // Execute query in the Graph Node
-    let response = await this.graphNode.post(
+    const response = await this.graphNode.post(
       `/subgraphs/id/${subgraphDeploymentID}`,
-      query.query!.query,
+      query.query.query,
     )
 
     // Compute the response CID
-    let responseCID = utils.keccak256(new TextEncoder().encode(response.data))
+    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
 
     // Create a response that includes a signed attestation
-    let attestedResponse = await this.createResponse({
+    const attestedResponse = await this.createResponse({
       stateChannel,
       subgraphDeploymentID,
       requestCID,
@@ -282,13 +296,18 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // ...and unlock the payment
     await stateChannel.unlockPayment(
-      query.payment!.payment,
+      query.payment.payment,
       attestedResponse.result.attestation,
     )
   }
 
   private async processQueryIfReady(paymentId: string): Promise<QueryResponse> {
-    let query = this.queries.get(paymentId)!
+    const query = this.queries.get(paymentId)
+
+    assert.ok(
+      query,
+      `Programmer error: trying to process non-existent query for payment '${paymentId}'`,
+    )
 
     // The query is ready when both the query and the payment were received
     if (query.payment !== undefined && query.query !== undefined) {
@@ -308,22 +327,25 @@ export class QueryProcessor implements QueryProcessorInterface {
     })
   }
 
-  async periodicallyCleanupStaleQueries() {
+  async periodicallyCleanupStaleQueries(): Promise<void> {
+    // eslint-disable-next-line no-constant-condition
     while (true) {
       // Delete stale queries with a concurrency of 10
-      let cleanupQueue = new PQueue({ concurrency: 10 })
+      const cleanupQueue = new PQueue({ concurrency: 10 })
 
-      let now = Date.now()
+      const now = Date.now()
 
       // Add stale queries to the queue
       // Check if the query is stale (no update in >10s)
-      for (let query of this.queries.values())
+      for (const query of this.queries.values())
         if (now - query.updatedAt > 10000) {
           // Remove the query from the queue immediately
           this.queries.delete(query.paymentId)
 
           // Figure out the reason for the timeout
-          if (query.payment !== undefined) {
+          if (query.payment) {
+            const payment = query.payment
+
             // Let listeners know that no query was received
             query.emitter.emit(
               'reject',
@@ -332,22 +354,24 @@ export class QueryProcessor implements QueryProcessorInterface {
 
             // Asynchronously cancel the conditional payment
             cleanupQueue.add(async () => {
-              let stateChannel = this.paymentManager.stateChannel(
-                query.payment!.stateChannelID,
+              const stateChannel = this.paymentManager.stateChannel(
+                payment.stateChannelID,
               )
               if (stateChannel !== undefined) {
-                await stateChannel.cancelPayment(query.payment!.payment)
+                await stateChannel.cancelPayment(payment.payment)
               }
             })
-          } else {
+          } else if (query.query) {
             // Let listeners know that no payment was received
             query.emitter.emit(
               'reject',
               new QueryError(
-                `Query for subgraph '${
-                  query.query!.subgraphDeploymentID
-                }' timed out waiting for payment '${query.paymentId}'`,
+                `Query for subgraph '${query.query.subgraphDeploymentID}' timed out waiting for payment '${query.paymentId}'`,
               ),
+            )
+          } else {
+            throw new Error(
+              'Programmer error: stale query must either have a payment or a query',
             )
           }
         }
