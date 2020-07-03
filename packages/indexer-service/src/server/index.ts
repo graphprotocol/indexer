@@ -2,14 +2,14 @@ import express from 'express'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
-import { logging, metrics } from '@graphprotocol/common-ts'
 import { QueryProcessor } from '../types'
 import { utils } from 'ethers'
 import { createGraphQLServer } from './graphql'
+import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 export interface ServerOptions {
-  logger: logging.Logger
-  metrics: metrics.Metrics
+  logger: Logger
+  metrics: Metrics
   port: number
   queryProcessor: QueryProcessor
   whitelist: string[]
@@ -56,8 +56,10 @@ export const createServer = async ({
     bodyParser.raw({ type: 'application/json' }),
 
     async (req, res) => {
-      const { id: subgraphDeploymentID } = req.params
+      const { id } = req.params
       const query = req.body.toString()
+
+      const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
       // Extract the payment ID
       const paymentId = req.headers['x-graph-payment-id']

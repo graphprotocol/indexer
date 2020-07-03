@@ -1,10 +1,10 @@
-import { attestations } from '@graphprotocol/common-ts'
+import { Attestation, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Wallet, BigNumberish } from 'ethers'
 import { Evt } from 'evt'
 
 export interface QueryResult {
   graphQLResponse: string
-  attestation: attestations.Attestation
+  attestation: Attestation
 }
 
 export interface QueryResponse {
@@ -13,7 +13,7 @@ export interface QueryResponse {
 }
 
 export interface PaidQuery {
-  subgraphDeploymentID: string
+  subgraphDeploymentID: SubgraphDeploymentID
   paymentId: string
   query: string
   requestCID: string
@@ -21,7 +21,7 @@ export interface PaidQuery {
 
 export interface FreeQuery {
   stateChannelID: string
-  subgraphDeploymentID: string
+  subgraphDeploymentID: SubgraphDeploymentID
   query: string
   requestCID: string
 }
@@ -43,13 +43,13 @@ export interface ConditionalPayment {
 export interface ConditionalSubgraphPayment {
   payment: ConditionalPayment
   stateChannelID: string
-  subgraphDeploymentID: string
+  subgraphDeploymentID: SubgraphDeploymentID
 }
 
 export interface ChannelInfo {
   id: string
   publicKey: string
-  subgraphDeploymentID: string
+  subgraphDeploymentID: SubgraphDeploymentID
   createdAtEpoch: number
 }
 
@@ -63,10 +63,7 @@ export interface StateChannel {
 
   events: StateChannelEvents
 
-  unlockPayment(
-    payment: ConditionalPayment,
-    attestation: attestations.Attestation,
-  ): Promise<void>
+  unlockPayment(payment: ConditionalPayment, attestation: Attestation): Promise<void>
   cancelPayment(payment: ConditionalPayment): Promise<void>
   settle(): Promise<void>
 }

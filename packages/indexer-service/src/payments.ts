@@ -1,9 +1,9 @@
 import {
-  attestations,
-  logging,
-  metrics,
-  stateChannels,
-  contracts as networkContracts,
+  Logger,
+  createStateChannel,
+  Attestation,
+  Metrics,
+  NetworkContracts,
 } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
@@ -28,29 +28,14 @@ import {
   PaymentReceivedEvent,
 } from './types'
 import { Evt } from 'evt'
-import base58 from 'bs58'
 
 const delay = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const bytesToIPFSHash = (bytes: string): string => {
-  return base58.encode(addQm(utils.arrayify(bytes)))
-}
-
-const addQm = (a: Uint8Array): Uint8Array => {
-  const out = new Uint8Array(34)
-  out[0] = 0x12
-  out[1] = 0x20
-  for (let i = 0; i < 32; i++) {
-    out[i + 2] = a[i]
-  }
-  return out as Uint8Array
-}
-
 interface StateChannelOptions {
   info: ChannelInfo
-  logger: logging.Logger
+  logger: Logger
   client: IConnextClient
   signer: ChannelSigner
   privateKey: string
@@ -65,7 +50,7 @@ export class StateChannel implements StateChannelInterface {
   privateKey: string
   events: StateChannelEvents
 
-  private logger: logging.Logger
+  private logger: Logger
   private client: IConnextClient
   private signer: ChannelSigner
 
@@ -95,19 +80,19 @@ export class StateChannel implements StateChannelInterface {
     connextNode,
     wallet,
   }: StateChannelCreateOptions): Promise<StateChannel> {
-    const subgraphDeploymentID = bytesToIPFSHash(info.subgraphDeploymentID)
+    const subgraphDeploymentID = info.subgraphDeploymentID
+
     const logger = parentLogger.child({
       component: `StateChannel(${subgraphDeploymentID}, ${info.createdAtEpoch})`,
     })
 
-    logger.info(
-      `Create state channel for subgraph ID (hex: ${info.subgraphDeploymentID}, base58: ${subgraphDeploymentID})`,
-    )
+    logger.info(`Create state channel`)
 
     // Derive an epoch and subgraph specific private key
     const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
     const path =
-      'm/' + [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID)].join('/')
+      'm/' +
+      [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID.ipfsHash)].join('/')
 
     logger.info(`Derive key using path '${path}'`)
 
@@ -118,7 +103,7 @@ export class StateChannel implements StateChannelInterface {
     logger.debug(`Store prefix: ${derivedKeyPair.address.substr(2)}`)
 
     try {
-      const client = await stateChannels.createStateChannel({
+      const client = await createStateChannel({
         logger,
         logLevel: 1,
         sequelize,
@@ -174,7 +159,7 @@ export class StateChannel implements StateChannelInterface {
 
   async unlockPayment(
     payment: ConditionalPayment,
-    attestation: attestations.Attestation,
+    attestation: Attestation,
   ): Promise<void> {
     const formattedAmount = utils.formatEther(payment.amount)
     const { paymentId } = payment
@@ -285,19 +270,19 @@ export class StateChannel implements StateChannelInterface {
 }
 
 interface PaymentManagerOptions {
-  logger: logging.Logger
-  metrics: metrics.Metrics
+  logger: Logger
+  metrics: Metrics
   sequelize: Sequelize
   ethereum: string
   connextMessaging: string
   connextNode: string
   wallet: Wallet
-  contracts: networkContracts.NetworkContracts
+  contracts: NetworkContracts
 }
 
 export interface PaymentManagerCreateOptions {
-  logger: logging.Logger
-  metrics: metrics.Metrics
+  logger: Logger
+  metrics: Metrics
 }
 
 export class PaymentManager implements PaymentManagerInterface {
@@ -305,9 +290,9 @@ export class PaymentManager implements PaymentManagerInterface {
   events: PaymentManagerEvents
 
   private options: PaymentManagerOptions
-  private logger: logging.Logger
+  private logger: Logger
   private stateChannels: Map<string, StateChannelInterface>
-  private contracts: networkContracts.NetworkContracts
+  private contracts: NetworkContracts
 
   constructor(options: PaymentManagerOptions) {
     this.wallet = options.wallet

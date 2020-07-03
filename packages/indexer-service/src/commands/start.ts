@@ -1,17 +1,17 @@
 import { Argv } from 'yargs'
 import {
-  contracts as networkContracts,
-  database,
-  logging,
-  metrics,
+  createLogger,
+  connectContracts,
+  createMetrics,
+  createMetricsServer,
+  connect,
+  SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payments'
 import { NetworkMonitor } from '../network-monitor'
-
-const { createMetrics, createMetricsServer } = metrics
 
 export default {
   command: 'start',
@@ -95,7 +95,7 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const logger = logging.createLogger({ appName: 'IndexerService' })
+    const logger = createLogger({ appName: 'IndexerService' })
 
     logger.info('Starting up...')
 
@@ -104,10 +104,7 @@ export default {
     const network = await web3.getNetwork()
 
     logger.info('Connect to contracts')
-    const contracts = await networkContracts.connectContracts(
-      web3,
-      (await web3.getNetwork()).chainId,
-    )
+    const contracts = await connectContracts(web3, (await web3.getNetwork()).chainId)
     logger.info('Connected to contracts')
 
     // Spin up a metrics server
@@ -118,7 +115,7 @@ export default {
     })
 
     logger.info('Connect to database')
-    const sequelize = await database.connect({
+    const sequelize = await connect({
       logging: undefined,
       host: argv.postgresHost,
       port: argv.postgresPort,
@@ -147,7 +144,7 @@ export default {
       logger: logger.child({ component: 'NetworkMonitor' }),
       wallet,
       graphNode: argv.graphNodeQueryEndpoint,
-      networkSubgraphDeployment: argv.networkSubgraphDeployment,
+      networkSubgraphDeployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
     })
 
     // Create a query processor for paid queries

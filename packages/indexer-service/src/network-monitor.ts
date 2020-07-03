@@ -1,6 +1,10 @@
 import gql from 'graphql-tag'
 import { Evt } from 'evt'
-import { logging, subgraph as networkSubgraph } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  createNetworkSubgraphClient,
+  SubgraphDeploymentID,
+} from '@graphprotocol/common-ts'
 import { delay } from '@connext/utils'
 import { Wallet } from 'ethers'
 import { ChannelInfo } from './types'
@@ -15,10 +19,10 @@ const channelInList = (channels: ChannelInfo[], needle: ChannelInfo): boolean =>
   channels.find(channel => channel.id === needle.id) !== undefined
 
 export interface NetworkMonitorOptions {
-  logger: logging.Logger
+  logger: Logger
   wallet: Wallet
   graphNode: string
-  networkSubgraphDeployment: string
+  networkSubgraphDeployment: SubgraphDeploymentID
 }
 
 export class NetworkMonitor {
@@ -37,10 +41,12 @@ export class NetworkMonitor {
     networkSubgraphDeployment,
     graphNode,
   }: NetworkMonitorOptions): Promise<never> {
-    const url = new URL(`/subgraphs/id/${networkSubgraphDeployment}`, graphNode)
-    const client = await networkSubgraph.createNetworkSubgraphClient({
+    const url = new URL(`/subgraphs/id/${networkSubgraphDeployment.ipfsHash}`, graphNode)
+    const client = await createNetworkSubgraphClient({
       url: url.toString(),
     })
+
+    const indexerAddress = wallet.address.toLowerCase()
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -62,12 +68,18 @@ export class NetworkMonitor {
                 }
               }
             `,
-            { id: wallet.address.toLowerCase() },
+            { id: indexerAddress },
           )
           .toPromise()
 
+        if (result.error) {
+          throw new Error(
+            `Failed to query data for indexer '${indexerAddress}': ${result.error}`,
+          )
+        }
+
         if (!result.data || !result.data.indexer) {
-          throw new Error(`Indexer '${wallet.address}' has not registered itself yet`)
+          throw new Error(`Indexer '${indexerAddress}' has not registered itself yet`)
         }
 
         // Extract the channels
@@ -76,7 +88,7 @@ export class NetworkMonitor {
           ({ id, publicKey, subgraphDeployment, createdAtEpoch }: any) => ({
             id,
             publicKey,
-            subgraphDeploymentID: subgraphDeployment.id,
+            subgraphDeploymentID: new SubgraphDeploymentID(subgraphDeployment.id),
             createdAtEpoch,
           }),
         )

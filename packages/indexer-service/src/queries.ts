@@ -1,8 +1,12 @@
-import { attestations, logging, metrics } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  Metrics,
+  createAttestation,
+  SubgraphDeploymentID,
+} from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
 import { utils } from 'ethers'
 import axios, { AxiosInstance } from 'axios'
-import * as bs58 from 'bs58'
 import { delay } from '@connext/utils'
 import PQueue from 'p-queue'
 
@@ -19,12 +23,9 @@ import {
 } from './types'
 import { strict as assert } from 'assert'
 
-const hexlifySubgraphId = (subgraphDeploymentID: string): string =>
-  utils.hexlify(bs58.decode(subgraphDeploymentID).slice(2))
-
 export interface PaidQueryProcessorOptions {
-  logger: logging.Logger
-  metrics: metrics.Metrics
+  logger: Logger
+  metrics: Metrics
   paymentManager: PaymentManager
   graphNode: string
   chainId: number
@@ -49,8 +50,8 @@ interface PendingQuery {
 }
 
 export class QueryProcessor implements QueryProcessorInterface {
-  logger: logging.Logger
-  metrics: metrics.Metrics
+  logger: Logger
+  metrics: Metrics
   paymentManager: PaymentManager
   graphNode: AxiosInstance
   chainId: number
@@ -183,7 +184,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Execute query in the Graph Node
     const response = await this.graphNode.post(
-      `/subgraphs/id/${subgraphDeploymentID}`,
+      `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
       query.query,
     )
 
@@ -207,7 +208,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     data,
   }: {
     stateChannel: StateChannel
-    subgraphDeploymentID: string
+    subgraphDeploymentID: SubgraphDeploymentID
     requestCID: string
     responseCID: string
     data: string
@@ -216,9 +217,9 @@ export class QueryProcessor implements QueryProcessorInterface {
     const receipt = {
       requestCID,
       responseCID,
-      subgraphDeploymentID: hexlifySubgraphId(subgraphDeploymentID),
+      subgraphDeploymentID: subgraphDeploymentID.bytes32,
     }
-    const attestation = await attestations.createAttestation(
+    const attestation = await createAttestation(
       stateChannel.privateKey,
       this.chainId,
       this.disputeManagerAddress,
@@ -269,7 +270,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Execute query in the Graph Node
     const response = await this.graphNode.post(
-      `/subgraphs/id/${subgraphDeploymentID}`,
+      `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
       query.query.query,
     )
 
