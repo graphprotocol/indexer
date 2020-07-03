@@ -1,7 +1,7 @@
-import { logging } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import PQueue from 'p-queue'
 
-import { AgentConfig } from './types'
+import { AgentConfig, Subgraph } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 
@@ -20,14 +20,14 @@ const loop = async (f: () => Promise<void>, interval: number) => {
 export class Agent {
   indexer: Indexer
   network: Network
-  logger: logging.Logger
-  networkSubgraphDeployment: string
+  logger: Logger
+  networkSubgraphDeployment: SubgraphDeploymentID
 
   private constructor(
-    logger: logging.Logger,
+    logger: Logger,
     indexer: Indexer,
     network: Network,
-    networkSubgraphDeployment: string,
+    networkSubgraphDeployment: SubgraphDeploymentID,
   ) {
     this.logger = logger
     this.indexer = indexer
@@ -67,17 +67,17 @@ export class Agent {
     await this.indexer.connect()
     await this.network.register()
     await this.network.ensureMinimumStake(100000)
-    this.logger.info(`Indexer active and registered on network..`)
+    this.logger.info(`Indexer active and registered on network`)
   }
 
   async start(): Promise<void> {
     this.logger.info(`Agent booted up`)
 
     await this.indexer.ensure(
-      `${this.networkSubgraphDeployment.slice(
+      `${this.networkSubgraphDeployment.ipfsHash.slice(
         0,
         23,
-      )}/${this.networkSubgraphDeployment.slice(23)}`,
+      )}/${this.networkSubgraphDeployment.ipfsHash.slice(23)}`,
       this.networkSubgraphDeployment,
     )
     await this.network.allocate(this.networkSubgraphDeployment)
@@ -87,7 +87,7 @@ export class Agent {
       const indexerDeployments = await this.indexer.subgraphDeployments()
       const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
 
-      const deploymentsToIndex: string[] = [
+      const deploymentsToIndex: SubgraphDeploymentID[] = [
         ...networkSubgraphs.map(
           ({ subgraphDeploymentID }) => subgraphDeploymentID,
         ),
@@ -101,26 +101,39 @@ export class Agent {
   }
 
   async resolve(
-    networkDeployments: string[],
-    indexerDeployments: string[],
+    networkDeployments: SubgraphDeploymentID[],
+    indexerDeployments: SubgraphDeploymentID[],
   ): Promise<void> {
     // Identify which subgraphs to deploy and which to remove
-    const toDeploy = new Set(
-      networkDeployments.filter(
-        deployment => !indexerDeployments.includes(deployment),
-      ),
+    let toDeploy = networkDeployments.filter(
+      deployment =>
+        !indexerDeployments.find(
+          indexerDeployment => deployment.bytes32 === indexerDeployment.bytes32,
+        ),
     )
-    const toRemove = new Set(
-      indexerDeployments.filter(
-        deployment => !networkDeployments.includes(deployment),
-      ),
+
+    let toRemove = indexerDeployments.filter(
+      deployment =>
+        !networkDeployments.find(
+          networkDeployment => deployment.bytes32 === networkDeployment.bytes32,
+        ),
     )
+
+    const uniqueDeploymentsOnly = (
+      value: SubgraphDeploymentID,
+      index: number,
+      array: SubgraphDeploymentID[],
+    ): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
+
+    // Ensure there are no duplicates in the deployments
+    toDeploy = toDeploy.filter(uniqueDeploymentsOnly)
+    toRemove = toRemove.filter(uniqueDeploymentsOnly)
 
     // Deploy/remove up to 20 subgraphs in parallel
-    const queue = new PQueue({ concurrency: 20 })
+    const queue = new PQueue({ concurrency: 1 })
 
     for (const deployment of toDeploy) {
-      const name = `indexer-agent/${deployment.toString().slice(-10)}`
+      const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
       queue.add(async () => {
         this.logger.info(`Begin indexing '${name}':'${deployment}'...`)

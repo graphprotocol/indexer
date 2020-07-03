@@ -1,9 +1,10 @@
 import {
-  logging,
-  contracts as networkContracts,
+  Logger,
+  NetworkContracts,
+  connectContracts,
+  SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import axios, { AxiosInstance } from 'axios'
-import * as bs58 from 'bs58'
 import {
   ContractTransaction,
   ContractReceipt,
@@ -28,7 +29,7 @@ import { JsonRpcProvider } from '@connext/types'
 class Ethereum {
   static async executeTransaction(
     transaction: Promise<ContractTransaction>,
-    logger: logging.Logger,
+    logger: Logger,
   ): Promise<ContractReceipt> {
     const tx = await transaction
     logger.info(`Transaction pending: '${tx.hash}'`)
@@ -37,24 +38,6 @@ class Ethereum {
       `Transaction '${tx.hash}' successfully included in block #${receipt.blockNumber}`,
     )
     return receipt
-  }
-
-  static ipfsHashToBytes32(hash: string): string {
-    return utils.hexlify(bs58.decode(hash).slice(2))
-  }
-
-  static bytesToIPSFHash(bytes: string): string {
-    return bs58.encode(Ethereum.addQm(utils.arrayify(bytes)))
-  }
-
-  static addQm(a: Uint8Array): Uint8Array {
-    const out = new Uint8Array(34)
-    out[0] = 0x12
-    out[1] = 0x20
-    for (let i = 0; i < 32; i++) {
-      out[i + 2] = a[i]
-    }
-    return out as Uint8Array
   }
 }
 
@@ -65,21 +48,21 @@ const txOverrides = {
 
 export class Network {
   subgraph: ApolloClient<NormalizedCacheObject>
-  contracts: networkContracts.NetworkContracts
+  contracts: NetworkContracts
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
   mnemonic: string
-  logger: logging.Logger
+  logger: Logger
   ethereumProvider: JsonRpcProvider
   connextNode: AxiosInstance
 
   private constructor(
-    logger: logging.Logger,
+    logger: Logger,
     indexerAddress: string,
     indexerUrl: string,
     geoCoordinates: [string, string],
-    contracts: networkContracts.NetworkContracts,
+    contracts: NetworkContracts,
     mnemonic: string,
     subgraph: ApolloClient<NormalizedCacheObject>,
     ethereumProvider: JsonRpcProvider,
@@ -97,21 +80,21 @@ export class Network {
   }
 
   static async create(
-    parentLogger: logging.Logger,
+    parentLogger: Logger,
     ethereumProviderUrl: string,
     network: string,
     indexerUrl: string,
     indexerGraphqlUrl: string,
     geoCoordinates: [string, string],
     mnemonic: string,
-    networkSubgraphDeployment: string,
+    networkSubgraphDeployment: SubgraphDeploymentID,
     connextNode: string,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
     const subgraph = new ApolloClient({
       link: new HttpLink({
         uri: new URL(
-          `/subgraphs/id/${networkSubgraphDeployment}`,
+          `/subgraphs/id/${networkSubgraphDeployment.ipfsHash}`,
           indexerGraphqlUrl,
         ).toString(),
         fetch: fetch as never,
@@ -122,17 +105,14 @@ export class Network {
     const ethereumProvider = new providers.JsonRpcProvider(ethereumProviderUrl)
 
     logger.info(
-      `Create a wallet instance connected to '${network}' via '${ethereumProvider}'`,
+      `Create a wallet instance connected to '${network}' via '${ethereumProviderUrl}'`,
     )
     wallet = wallet.connect(ethereumProvider)
     logger.info(`Wallet created at '${wallet.address}'`)
 
     logger.info(`Connecting to contracts`)
     const networkInfo = await ethereumProvider.getNetwork()
-    const contracts = await networkContracts.connectContracts(
-      wallet,
-      networkInfo.chainId,
-    )
+    const contracts = await connectContracts(wallet, networkInfo.chainId)
     logger.info(`Connected to contracts`)
 
     return new Network(
@@ -185,7 +165,7 @@ export class Network {
         .map((subgraph: Subgraph) => {
           return {
             owner: subgraph.owner.id,
-            subgraphDeploymentID: Ethereum.bytesToIPSFHash(
+            subgraphDeploymentID: new SubgraphDeploymentID(
               subgraph.currentVersion.subgraphDeployment.id,
             ),
           } as SubgraphDeploymentKey
@@ -247,21 +227,18 @@ export class Network {
     }
   }
 
-  async allocate(subgraphDeploymentID: string): Promise<void> {
+  async allocate(deployment: SubgraphDeploymentID): Promise<void> {
     const amount = 100
-    const subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraphDeploymentID)
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    this.logger.info(
-      `Stake on '${subgraphDeploymentID}' in epoch '${currentEpoch}'`,
-    )
+    this.logger.info(`Stake on '${deployment}' in epoch '${currentEpoch}'`)
     const currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
-      subgraphIdBytes,
+      deployment.bytes32,
     )
 
     if (currentAllocation.tokens.toNumber() > 0) {
-      this.logger.info(`Stake already allocated to '${subgraphDeploymentID}'`)
+      this.logger.info(`Stake already allocated to '${deployment}'`)
       this.logger.info(
         `${currentAllocation.tokens} tokens allocated on channel '${
           currentAllocation.channelID
@@ -270,10 +247,9 @@ export class Network {
       return
     }
 
-    // Derive the subgraphDeploymentID specific public key
+    // Derive the deployment specific public key
     const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    const path =
-      'm/' + [currentEpoch, ...Buffer.from(subgraphDeploymentID)].join('/')
+    const path = 'm/' + [currentEpoch, ...Buffer.from(deployment)].join('/')
     const derivedKeyPair = hdNode.derivePath(path)
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
@@ -294,7 +270,7 @@ export class Network {
 
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
-        subgraphIdBytes,
+        deployment.bytes32,
         amount,
         uncompressedPublicKey,
         create2Address,
@@ -309,7 +285,7 @@ export class Network {
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
     )
-    assert.ok(event, `Failed to stake on '${subgraphDeploymentID}'`)
+    assert.ok(event, `Failed to stake on '${deployment.bytes32}'`)
 
     const eventInputs = this.contracts.staking.interface.decodeEventLog(
       'AllocationCreated',
@@ -317,7 +293,11 @@ export class Network {
       event.topics,
     )
     this.logger.info(
-      `${eventInputs.tokens} tokens staked on '${eventInputs.subgraphDeploymentID}', channel: ${eventInputs.channelID}, channelPubKey: ${eventInputs.channelPubKey}`,
+      `${eventInputs.tokens} tokens staked on '${new SubgraphDeploymentID(
+        eventInputs.subgraphDeploymentID,
+      )}', channel: ${eventInputs.channelID}, channelPubKey: ${
+        eventInputs.channelPubKey
+      }`,
     )
   }
 

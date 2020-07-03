@@ -3,7 +3,7 @@ import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
 import jayson, { Client } from 'jayson/promise'
-import { logging } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
 
 interface SubgraphCreateParams {
@@ -21,13 +21,9 @@ interface SubgraphReassignParams {
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
   rpc: Client
-  logger: logging.Logger
+  logger: Logger
 
-  constructor(
-    adminEndpoint: string,
-    statusEndpoint: string,
-    logger: logging.Logger,
-  ) {
+  constructor(adminEndpoint: string, statusEndpoint: string, logger: Logger) {
     this.statuses = new ApolloClient({
       link: new HttpLink({
         uri: statusEndpoint,
@@ -53,7 +49,7 @@ export class Indexer {
     }
   }
 
-  async subgraphDeployments(): Promise<string[]> {
+  async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
     try {
       const result = await this.statuses.query({
         query: gql`
@@ -71,7 +67,7 @@ export class Indexer {
           return status.node !== 'removed'
         })
         .map((status: { subgraphDeployment: string; node: string }) => {
-          return status.subgraphDeployment
+          return new SubgraphDeploymentID(status.subgraphDeployment)
         })
     } catch (error) {
       this.logger.error(`Indexing statuses query failed`)
@@ -90,21 +86,24 @@ export class Indexer {
       this.logger.info(`Created subgraph name '${name}' successfully`)
     } catch (error) {
       if (error.message.includes('already exists')) {
-        this.logger.warn(`Subgraph name already exists: ${name}`)
+        this.logger.debug(`Subgraph name already exists: ${name}`)
         return
       }
       throw error
     }
   }
 
-  async deploy(name: string, subgraphDeploymentID: string): Promise<void> {
+  async deploy(
+    name: string,
+    subgraphDeploymentID: SubgraphDeploymentID,
+  ): Promise<void> {
     try {
       this.logger.info(
         `Deploy subgraph deployment '${subgraphDeploymentID}' to '${name}'`,
       )
       const params: SubgraphDeployParams = {
         name: name,
-        ipfs_hash: subgraphDeploymentID,
+        ipfs_hash: subgraphDeploymentID.ipfsHash,
       }
       const response = await this.rpc.request('subgraph_deploy', params)
       if (response.error) {
@@ -121,11 +120,11 @@ export class Indexer {
     }
   }
 
-  async remove(subgraphDeploymentID: string): Promise<void> {
+  async remove(subgraphDeploymentID: SubgraphDeploymentID): Promise<void> {
     try {
       this.logger.info(`Remove subgraph deployment '${subgraphDeploymentID}`)
       const params: SubgraphReassignParams = {
-        ipfs_hash: subgraphDeploymentID,
+        ipfs_hash: subgraphDeploymentID.ipfsHash,
         node_id: 'removed',
       }
       const response = await this.rpc.request('subgraph_reassign', params)
@@ -141,13 +140,16 @@ export class Indexer {
     }
   }
 
-  async reassign(subgraphDeploymentID: string, node: string): Promise<void> {
+  async reassign(
+    subgraphDeploymentID: SubgraphDeploymentID,
+    node: string,
+  ): Promise<void> {
     try {
       this.logger.info(
         `Reassign subgraph deployment '${subgraphDeploymentID}' to node '${node}'`,
       )
       const params: SubgraphReassignParams = {
-        ipfs_hash: subgraphDeploymentID,
+        ipfs_hash: subgraphDeploymentID.ipfsHash,
         node_id: node,
       }
       const response = await this.rpc.request('subgraph_reassign', params)
@@ -156,7 +158,7 @@ export class Indexer {
       }
     } catch (error) {
       if (error.message.includes('unchanged')) {
-        this.logger.warn(
+        this.logger.debug(
           `Subgraph deployment assignment unchanged, deployment: '${subgraphDeploymentID}', node_id: '${node}'`,
         )
         return
@@ -168,16 +170,18 @@ export class Indexer {
     }
   }
 
-  async ensure(name: string, subgraphDeploymentID: string): Promise<void> {
+  async ensure(
+    name: string,
+    subgraphDeploymentID: SubgraphDeploymentID,
+  ): Promise<void> {
     try {
       await this.create(name)
       await this.deploy(name, subgraphDeploymentID)
       await this.reassign(subgraphDeploymentID, 'default')
     } catch (e) {
       this.logger.error(
-        `Failed to ensure '${name}':'${subgraphDeploymentID}' is indexing`,
+        `Failed to ensure '${name}':'${subgraphDeploymentID}' is indexing: ${e.message}`,
       )
-      throw e
     }
   }
 }

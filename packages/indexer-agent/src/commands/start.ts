@@ -1,5 +1,5 @@
 import { Argv } from 'yargs'
-import { logging } from '@graphprotocol/common-ts'
+import { createLogger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 import { Agent } from '../agent'
 import { AgentConfig } from '../types'
@@ -67,7 +67,7 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
-    const logger = logging.createLogger({ appName: 'IndexerAgent' })
+    const logger = createLogger({ appName: 'IndexerAgent' })
 
     logger.info('Starting up agent...')
     const config: AgentConfig = {
@@ -80,7 +80,9 @@ export default {
       ethereumProvider: argv.ethereum,
       network: argv.network,
       logger: logger,
-      networkSubgraphDeployment: argv.networkSubgraphDeployment,
+      networkSubgraphDeployment: new SubgraphDeploymentID(
+        argv.networkSubgraphDeployment,
+      ),
       connextNode: argv.connextNode,
     }
     const agent = await Agent.create(config)

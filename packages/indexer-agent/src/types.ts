@@ -1,4 +1,4 @@
-import { logging } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 export interface AgentConfig {
   mnemonic: string
@@ -9,14 +9,14 @@ export interface AgentConfig {
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string
   network: string
-  logger: logging.Logger
-  networkSubgraphDeployment: string
+  logger: Logger
+  networkSubgraphDeployment: SubgraphDeploymentID
   connextNode: string
 }
 
 export interface SubgraphDeploymentKey {
   owner: string
-  subgraphDeploymentID: string
+  subgraphDeploymentID: SubgraphDeploymentID
 }
 
 interface SubgraphDeployment {
