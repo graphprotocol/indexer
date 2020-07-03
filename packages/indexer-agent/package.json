@@ -10,7 +10,7 @@
   "scripts": {
     "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
-    "prepare": "yarn lint && yarn format && tsc",
+    "prepare": "yarn format && yarn lint && tsc",
     "start": "yarn prepare && node ./dist/index.js start",
     "start:ganache": "yarn prepare && node ./dist/index.js start --ethereum http://localhost:8545 --network ganache --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
     "start:ganache:bootstrap": "yarn prepare && node ./dist/index.js start --test --ethereum http://localhost:8545 --network ganache --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
