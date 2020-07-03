@@ -840,10 +840,10 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@^0.0.39":
-  version "0.0.39"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.39.tgz#f476210c5a0302672f0ddc36b57ef0aa850fc425"
-  integrity sha512-91Wh0XELmC5495AhTwhc3u5pbzuEEMrD541ury3QgTRZUxXfcWJqRvEdkMTlCpdnI6N94axxO4hN2pjSbsVWNw==
+"@graphprotocol/common-ts@^0.0.41":
+  version "0.0.41"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.0.41.tgz#4a90bd8c170c909450d0b5b0f4189e1b0764499e"
+  integrity sha512-FSSZOUYyIFs++44ODoXxNY3tejZMjY1uSt9SITPRDTZcN0vFvAyJKeTlrUt7DKx3R4J8y0R7G/XcGOHlQOBG4A==
   dependencies:
     "@connext/client" "^7.0.0-alpha.6"
     "@connext/store" "^7.0.0-alpha.6"
@@ -854,6 +854,7 @@
     ethers "^5.0.2"
     express "^4.17.1"
     graphql "^15.1.0"
+    humanhash "^1.0.4"
     pg "^8.2.1"
     pg-hstore "^2.3.3"
     prom-client "^11.5.3"
@@ -5172,6 +5173,13 @@ human-signals@^1.1.1:
   version "1.1.1"
   resolved "https://registry.npmjs.org/human-signals/-/human-signals-1.1.1.tgz#c5b1cd14f50aeae09ab6c59fe63ba3395fe4dfa3"
   integrity sha512-SEQu7vl8KjNL2eoGBLF3+wAjpsNfA9XMlXAYj/3EdaNfAlxKthD1xjEQfGOUhllCGGJVNY34bRr6lPINhNjyZw==
+
+humanhash@^1.0.4:
+  version "1.0.4"
+  resolved "https://registry.npmjs.org/humanhash/-/humanhash-1.0.4.tgz#47bb842cb66f2ac49740ac6ad9cac364f4d28bea"
+  integrity sha512-fxOhEl/Ezv7PobYOTomDmQKWaSC0hk0mzl5et5McPtr+6LRBP7LYoeFLPjKW6xOSGmMNLj50BufrrgX+M5EvEA==
+  dependencies:
+    uuid "^3.3.2"
 
 humanize-ms@^1.2.1:
   version "1.2.1"
