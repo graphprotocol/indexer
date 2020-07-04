@@ -82,11 +82,6 @@ export default {
         description: 'Client IPs that can query for free',
         type: 'array',
       })
-      .option('dispute-manager-address', {
-        description: 'Address of the dispute manager contract',
-        type: 'string',
-        required: true,
-      })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
         type: 'string',
@@ -154,7 +149,7 @@ export default {
       metrics,
       paymentManager,
       chainId: network.chainId,
-      disputeManagerAddress: argv.disputeManagerAddress,
+      disputeManagerAddress: contracts.disputeManager.address,
     })
 
     paymentManager.events.paymentReceived.attach(async ({ stateChannel, payment }) => {
