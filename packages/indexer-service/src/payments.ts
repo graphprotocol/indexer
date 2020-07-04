@@ -221,14 +221,14 @@ export class StateChannel implements StateChannelInterface {
     }
 
     // Skip unsupported payment types
-    if (payload.type !== ConditionalTransferTypes.SignedTransfer) {
+    if (payload.type !== ConditionalTransferTypes.GraphTransfer) {
       this.logger.warn(
         `Received payment with unexpected type ${payload.type}, doing nothing`,
       )
       return
     }
 
-    const signedPayload = payload as EventPayloads.SignedTransferCreated
+    const signedPayload = payload as EventPayloads.GraphTransferCreated
 
     // Obtain and format transfer amount
     const amount = toBN(payload.amount)
