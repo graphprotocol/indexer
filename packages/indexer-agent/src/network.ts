@@ -4,6 +4,7 @@ import {
   connectContracts,
   SubgraphDeploymentID,
   formatGRT,
+  parseGRT,
 } from '@graphprotocol/common-ts'
 import axios, { AxiosInstance } from 'axios'
 import {
@@ -133,7 +134,8 @@ export class Network {
   }
 
   async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentKey[]> {
-    const minimumStake = 100
+    const minimumStake = parseGRT('100')
+
     try {
       const result = await this.subgraph.query({
         query: gql`
@@ -157,20 +159,23 @@ export class Network {
         `,
         fetchPolicy: 'no-cache',
       })
-      return result.data.subgraphs
-        .filter(
-          (subgraph: Subgraph) =>
-            subgraph.currentVersion.subgraphDeployment.totalStake >=
-            minimumStake,
-        )
-        .map((subgraph: Subgraph) => {
-          return {
-            owner: subgraph.owner.id,
-            subgraphDeploymentID: new SubgraphDeploymentID(
-              subgraph.currentVersion.subgraphDeployment.id,
+      return (
+        result.data.subgraphs
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter((subgraph: any) =>
+            parseGRT(subgraph.currentVersion.subgraphDeployment.totalStake).gte(
+              minimumStake,
             ),
-          } as SubgraphDeploymentKey
-        })
+          )
+          .map((subgraph: Subgraph) => {
+            return {
+              owner: subgraph.owner.id,
+              subgraphDeploymentID: new SubgraphDeploymentID(
+                subgraph.currentVersion.subgraphDeployment.id,
+              ),
+            } as SubgraphDeploymentKey
+          })
+      )
     } catch (error) {
       this.logger.error(`Network subgraphs query failed`)
       throw error
