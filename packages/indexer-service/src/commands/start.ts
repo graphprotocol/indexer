@@ -4,7 +4,7 @@ import {
   connectContracts,
   createMetrics,
   createMetricsServer,
-  connect,
+  connectDatabase,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
@@ -115,7 +115,7 @@ export default {
     })
 
     logger.info('Connect to database')
-    const sequelize = await connect({
+    const sequelize = await connectDatabase({
       logging: undefined,
       host: argv.postgresHost,
       port: argv.postgresPort,

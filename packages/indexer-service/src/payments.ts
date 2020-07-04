@@ -185,11 +185,11 @@ export class StateChannel implements StateChannelInterface {
 
       try {
         await this.client.resolveCondition({
-          conditionType: ConditionalTransferTypes.SignedTransfer,
+          conditionType: ConditionalTransferTypes.GraphTransfer,
           paymentId,
           responseCID: receipt.responseCID,
           signature,
-        } as PublicParams.ResolveSignedTransfer)
+        } as PublicParams.ResolveGraphTransfer)
 
         this.logger.info(`Unlocked payment '${paymentId}'`)
 
