@@ -234,7 +234,8 @@ export class Network {
   }
 
   async allocate(deployment: SubgraphDeploymentID): Promise<void> {
-    const amount = 100
+    const amount = parseGRT('1')
+    const price = parseGRT('0.01')
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     this.logger.info(`Stake on '${deployment}' in epoch '${currentEpoch}'`)
@@ -243,7 +244,8 @@ export class Network {
       deployment.bytes32,
     )
 
-    if (currentAllocation.tokens.toNumber() > 0) {
+    // Cannot allocate (for now) if we have already allocated to this subgraph
+    if (currentAllocation.tokens.gt('0')) {
       this.logger.info(`Stake already allocated to '${deployment}'`)
       this.logger.info(
         `${currentAllocation.tokens} tokens allocated on channel '${
@@ -275,13 +277,15 @@ export class Network {
       this.ethereumProvider,
     )
 
+    this.logger.debug(`Using '${create2Address}' as the channel proxy address`)
+
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         deployment.bytes32,
         amount,
         uncompressedPublicKey,
         create2Address,
-        utils.parseUnits('0.01', '18'),
+        price,
         txOverrides,
       ),
       this.logger,
