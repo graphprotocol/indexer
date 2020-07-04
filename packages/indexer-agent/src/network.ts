@@ -162,11 +162,11 @@ export class Network {
       return (
         result.data.subgraphs
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((subgraph: any) =>
-            parseGRT(subgraph.currentVersion.subgraphDeployment.totalStake).gte(
-              minimumStake,
-            ),
-          )
+          .filter((subgraph: any) => {
+            const deployment = subgraph.currentVersion.subgraphDeployment
+            const totalStake = BigNumber.from(deployment.totalStake)
+            return totalStake.gte(minimumStake)
+          })
           .map((subgraph: Subgraph) => {
             return {
               owner: subgraph.owner.id,
@@ -238,7 +238,11 @@ export class Network {
     const price = parseGRT('0.01')
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    this.logger.info(`Stake on '${deployment}' in epoch '${currentEpoch}'`)
+    this.logger.info(
+      `Allocate ${formatGRT(
+        amount,
+      )} GRT to '${deployment}' in epoch '${currentEpoch}'`,
+    )
     const currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
       deployment.bytes32,
@@ -246,9 +250,10 @@ export class Network {
 
     // Cannot allocate (for now) if we have already allocated to this subgraph
     if (currentAllocation.tokens.gt('0')) {
-      this.logger.info(`Stake already allocated to '${deployment}'`)
       this.logger.info(
-        `${currentAllocation.tokens} tokens allocated on channel '${
+        `Already allocated ${formatGRT(
+          currentAllocation.tokens,
+        )} GRT to '${deployment}' using channel '${
           currentAllocation.channelID
         }' since epoch ${currentAllocation.createdAtEpoch.toString()}`,
       )
