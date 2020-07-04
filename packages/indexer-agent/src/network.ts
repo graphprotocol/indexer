@@ -313,15 +313,6 @@ export class Network {
 
       // Check if the indexer account owns >= minimum GRT
       let tokens = await this.contracts.token.balanceOf(this.indexerAddress)
-      if (tokens.lt(minimum)) {
-        throw new Error(
-          `The indexer account only owns ${formatGRT(
-            tokens,
-          )} GRT, which is not enough to ensure the minimum stake of ${formatGRT(
-            minimum,
-          )} GRT`,
-        )
-      }
 
       this.logger.info(`The indexer account owns ${tokens} GRT`)
 
@@ -335,12 +326,23 @@ export class Network {
         this.logger.info(
           `Currently staked ${formatGRT(
             stakedTokens,
-          )} GRT, which is above the minimum of ${formatGRT(minimum)} GRT`,
+          )} GRT, which is enough for the minimum of ${formatGRT(minimum)} GRT`,
         )
         return
       }
 
       const missingStake = minimum.sub(stakedTokens)
+
+      // Check if we have enough tokens to stake the missing amount
+      if (tokens.lt(minimum)) {
+        throw new Error(
+          `The indexer account only owns ${formatGRT(
+            tokens,
+          )} GRT, but ${formatGRT(
+            missingStake,
+          )} GRT are needed for the minimum stake of ${formatGRT(minimum)} GRT`,
+        )
+      }
 
       this.logger.info(
         `Currently staked ${formatGRT(
