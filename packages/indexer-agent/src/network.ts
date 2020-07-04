@@ -284,6 +284,23 @@ export class Network {
 
     this.logger.debug(`Using '${create2Address}' as the channel proxy address`)
 
+    // Identify how many GRT the indexer has staked
+    const stakes = await this.contracts.staking.stakes(this.indexerAddress)
+    const freeStake = stakes.tokensIndexer
+      .sub(stakes.tokensAllocated)
+      .sub(stakes.tokensLocked)
+
+    // If there isn't enough left for allocating, abort
+    if (freeStake.lt(amount)) {
+      throw new Error(
+        `Failed to allocate ${formatGRT(
+          amount,
+        )} GRT to '${deployment}': indexer only has ${formatGRT(
+          freeStake,
+        )} GRT stake free for allocating`,
+      )
+    }
+
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         deployment.bytes32,
@@ -301,7 +318,7 @@ export class Network {
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
     )
-    assert.ok(event, `Failed to stake on '${deployment.bytes32}'`)
+    assert.ok(event, `Failed to allocate to '${deployment}'`)
 
     const eventInputs = this.contracts.staking.interface.decodeEventLog(
       'AllocationCreated',
@@ -309,7 +326,9 @@ export class Network {
       event.topics,
     )
     this.logger.info(
-      `${eventInputs.tokens} tokens staked on '${new SubgraphDeploymentID(
+      `${formatGRT(
+        eventInputs.tokens,
+      )} GRT allocated to '${new SubgraphDeploymentID(
         eventInputs.subgraphDeploymentID,
       )}', channel: ${eventInputs.channelID}, channelPubKey: ${
         eventInputs.channelPubKey
@@ -347,7 +366,7 @@ export class Network {
 
       const missingStake = minimum.sub(stakedTokens)
 
-      // Check if we have enough tokens to stake the missing amount
+      // Check if we have enough GRT to stake the missing amount
       if (tokens.lt(minimum)) {
         throw new Error(
           `The indexer account only owns ${formatGRT(
@@ -430,7 +449,7 @@ export class Network {
       )
     } catch (e) {
       this.logger.error(
-        `Failed to stake tokens on behalf of indexer '${this.indexerAddress}': ${e}`,
+        `Failed to stake GRT on behalf of indexer '${this.indexerAddress}': ${e}`,
       )
       throw e
     }
