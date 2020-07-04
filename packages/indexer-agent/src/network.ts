@@ -3,6 +3,7 @@ import {
   NetworkContracts,
   connectContracts,
   SubgraphDeploymentID,
+  formatGRT,
 } from '@graphprotocol/common-ts'
 import axios, { AxiosInstance } from 'axios'
 import {
@@ -302,83 +303,118 @@ export class Network {
     )
   }
 
-  async ensureMinimumStake(minimum: number): Promise<void> {
+  async ensureMinimumStake(minimum: BigNumber): Promise<void> {
     try {
       this.logger.info(
-        `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
+        `Ensure at least ${formatGRT(
+          minimum,
+        )} GRT are staked to be able to allocate on subgraphs`,
       )
+
+      // Check if the indexer account owns >= minimum GRT
       let tokens = await this.contracts.token.balanceOf(this.indexerAddress)
-      if (tokens <= BigNumber.from(minimum)) {
-        this.logger.warn(
-          `The indexer account has insufficient tokens, '${tokens}'. to ensure minimum stake. Please use an account with sufficient GRT`,
+      if (tokens.lt(minimum)) {
+        throw new Error(
+          `The indexer account only owns ${formatGRT(
+            tokens,
+          )} GRT, which is not enough to ensure the minimum stake of ${formatGRT(
+            minimum,
+          )} GRT`,
         )
       }
-      this.logger.info(`The indexer account has '${tokens}' GRT`)
+
+      this.logger.info(`The indexer account owns ${tokens} GRT`)
+
+      // Identify how many GRT the indexer has already staked
       const stakedTokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      if (stakedTokens >= BigNumber.from(minimum)) {
+
+      // We're done if the indexer has staked enough already
+      if (stakedTokens.gte(minimum)) {
         this.logger.info(
-          `Indexer has sufficient staking tokens: ${stakedTokens.toString()}`,
+          `Currently staked ${formatGRT(
+            stakedTokens,
+          )} GRT, which is above the minimum of ${formatGRT(minimum)} GRT`,
         )
         return
       }
-      this.logger.info(`Amount staked: ${stakedTokens} tokens`)
-      const diff = minimum - stakedTokens.toNumber()
-      const stakeAmount = utils.parseUnits(String(diff), 1)
-      this.logger.info(`Stake ${diff} tokens`)
+
+      const missingStake = minimum.sub(stakedTokens)
+
+      this.logger.info(
+        `Currently staked ${formatGRT(
+          stakedTokens,
+        )} GRT, need to stake another ${formatGRT(missingStake)} GRT`,
+      )
+
+      this.logger.info(`Approve ${formatGRT(missingStake)} GRT for staking`)
+
+      // If not, make sure to stake the remaining amount
+
+      // First, approve the missing amount for staking
       const approveReceipt = await Ethereum.executeTransaction(
         this.contracts.token.approve(
           this.contracts.staking.address,
-          stakeAmount,
+          missingStake,
           txOverrides,
         ),
         this.logger,
       )
-
       const approveEvent = approveReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.token.interface.getEventTopic('Approval'),
         ),
       )
-      assert.ok(approveEvent, `Failed to approve '${diff}' tokens for staking`)
-
+      assert.ok(
+        approveEvent,
+        `Failed to approve '${formatGRT(missingStake)}' GRT for staking`,
+      )
       const approveEventInputs = this.contracts.token.interface.decodeEventLog(
         'Approval',
         approveEvent.data,
         approveEvent.topics,
       )
+
       this.logger.info(
-        `${approveEventInputs.value} tokens approved for transfer, owner: '${approveEventInputs.owner}' spender: '${approveEventInputs.spender}'`,
+        `${formatGRT(
+          approveEventInputs.value,
+        )} GRT approved for staking, owner: '${
+          approveEventInputs.owner
+        }' spender: '${approveEventInputs.spender}'`,
       )
 
+      // Then, stake the missing amount
       const stakeReceipt = await Ethereum.executeTransaction(
-        this.contracts.staking.stake(stakeAmount, txOverrides),
+        this.contracts.staking.stake(missingStake, txOverrides),
         this.logger,
       )
-
       const stakeEvent = stakeReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
         ),
       )
-      assert.ok(stakeEvent, `Failed to stake '${diff}'`)
-
+      assert.ok(stakeEvent, `Failed to stake ${formatGRT(missingStake)} GRT`)
       const stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
         'StakeDeposited',
         stakeEvent.data,
         stakeEvent.topics,
       )
-      this.logger.info(`${stakeEventInputs.tokens} tokens staked`)
 
-      this.logger.info(`Staked ${diff} tokens`)
+      this.logger.info(
+        `Successfully staked ${formatGRT(stakeEventInputs.tokens)} GRT`,
+      )
+
+      // Finally, confirm the new amount by logging it
       tokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      this.logger.info(`Total stake: ${tokens}`)
+      this.logger.info(
+        `New stake: ${formatGRT(tokens)} (minimum: ${formatGRT(minimum)} GRT)`,
+      )
     } catch (e) {
       this.logger.error(
-        `Failed to stake tokens on behalf of indexer '${this.indexerAddress}'`,
+        `Failed to stake tokens on behalf of indexer '${this.indexerAddress}': ${e}`,
       )
       throw e
     }

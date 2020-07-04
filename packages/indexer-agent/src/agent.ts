@@ -1,4 +1,8 @@
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  SubgraphDeploymentID,
+  parseGRT,
+} from '@graphprotocol/common-ts'
 import PQueue from 'p-queue'
 
 import { AgentConfig } from './types'
@@ -66,7 +70,7 @@ export class Agent {
     )
     await this.indexer.connect()
     await this.network.register()
-    await this.network.ensureMinimumStake(100000)
+    await this.network.ensureMinimumStake(parseGRT('100'))
     this.logger.info(`Indexer active and registered on network`)
   }
 
