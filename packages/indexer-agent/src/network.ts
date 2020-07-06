@@ -185,14 +185,22 @@ export class Network {
   async register(): Promise<void> {
     try {
       this.logger.info(`Register indexer at '${this.indexerUrl}'`)
+
+      // Register the indexer (only if it hasn't been registered yet or
+      // if its URL is different from what is registered on chain)
       const isRegistered = await this.contracts.serviceRegistry.isRegistered(
         this.indexerAddress,
       )
       if (isRegistered) {
-        this.logger.info(
-          `Indexer '${this.indexerAddress}' already registered with the network at '${this.indexerUrl}'`,
+        const service = await this.contracts.serviceRegistry.services(
+          this.indexerAddress,
         )
-        return
+        if (service.url === this.indexerUrl) {
+          this.logger.info(
+            `Indexer '${this.indexerAddress}' already registered with the network at '${this.indexerUrl}'`,
+          )
+          return
+        }
       }
 
       const receipt = await Ethereum.executeTransaction(
