@@ -296,8 +296,6 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Send the result to the client...
     query.emitter.emit('resolve', attestedResponse)
 
-    this.logger.debug(`Unlock payment`, { paymentId })
-
     // ...and unlock the payment
     await stateChannel.unlockPayment(
       query.payment.payment,
