@@ -90,17 +90,21 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const logger = createLogger({ appName: 'IndexerService' })
+    const logger = createLogger({ name: 'IndexerService' })
 
     logger.info('Starting up...')
 
-    logger.info('Connecting to Ethereum')
+    logger.info('Connecting to Ethereum', { provider: argv.ethereum })
     const web3 = new providers.JsonRpcProvider(argv.ethereum)
     const network = await web3.getNetwork()
+    logger.info('Successfully connected to Ethereum', { provider: web3.connection.url })
 
-    logger.info('Connect to contracts')
-    const contracts = await connectContracts(web3, (await web3.getNetwork()).chainId)
-    logger.info('Connected to contracts')
+    logger.info('Connect to contracts', {
+      network: network.name,
+      chainId: network.chainId,
+    })
+    const contracts = await connectContracts(web3, network.chainId)
+    logger.info('Successfully to contracts')
 
     // Spin up a metrics server
     const metrics = createMetrics()
@@ -109,7 +113,11 @@ export default {
       registry: metrics.registry,
     })
 
-    logger.info('Connect to database')
+    logger.info('Connect to database', {
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      database: argv.postgresDatabase,
+    })
     const sequelize = await connectDatabase({
       logging: undefined,
       host: argv.postgresHost,
@@ -118,7 +126,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    logger.info('Connected to database')
+    logger.info('Successfully connected to database')
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
 

@@ -21,13 +21,13 @@ const loop = async (f: () => Promise<void>, interval: number) => {
   }
 }
 
-export class Agent {
+class Agent {
   indexer: Indexer
   network: Network
   logger: Logger
   networkSubgraphDeployment: SubgraphDeploymentID
 
-  private constructor(
+  constructor(
     logger: Logger,
     indexer: Indexer,
     network: Network,
@@ -39,44 +39,16 @@ export class Agent {
     this.networkSubgraphDeployment = networkSubgraphDeployment
   }
 
-  static async create(config: AgentConfig): Promise<Agent> {
-    const indexer = new Indexer(
-      config.adminEndpoint,
-      config.statusEndpoint,
-      config.logger,
-    )
-    const network = await Network.create(
-      config.logger,
-      config.ethereumProvider,
-      config.network,
-      config.publicIndexerUrl,
-      config.queryEndpoint,
-      config.indexerGeoCoordinates,
-      config.mnemonic,
-      config.networkSubgraphDeployment,
-      config.connextNode,
-    )
-    return new Agent(
-      config.logger,
-      indexer,
-      network,
-      config.networkSubgraphDeployment,
-    )
-  }
-
-  async setupIndexer(): Promise<void> {
-    this.logger.info(
-      `Connecting to indexer and ensuring registration and stake on the network`,
-    )
+  async start(): Promise<void> {
+    this.logger.info(`Connect to graph node(s)`)
     await this.indexer.connect()
+
+    this.logger.info(`Register indexer and stake on the network`)
     await this.network.register()
     await this.network.ensureMinimumStake(parseGRT('1000'))
     this.logger.info(`Indexer active and registered on network`)
-  }
 
-  async start(): Promise<void> {
-    this.logger.info(`Agent booted up`)
-
+    // Make sure the network subgraph is being indexed
     await this.indexer.ensure(
       `${this.networkSubgraphDeployment.ipfsHash.slice(
         0,
@@ -86,9 +58,14 @@ export class Agent {
     )
     await this.network.allocate(this.networkSubgraphDeployment)
 
-    this.logger.info(`Polling for subgraph changes`)
+    this.logger.info(`Periodically synchronizing subgraphs`)
+
     await loop(async () => {
+      // Identify subgraph deployments indexed locally
       const indexerDeployments = await this.indexer.subgraphDeployments()
+
+      // Identify subgraph deployments on the network that are worth picking up;
+      // these may overlap with the ones we're already indexing
       const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
 
       const deploymentsToIndex: SubgraphDeploymentID[] = [
@@ -140,7 +117,10 @@ export class Agent {
       const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
       queue.add(async () => {
-        this.logger.info(`Begin indexing '${name}':'${deployment}'...`)
+        this.logger.info(`Begin indexing subgraph deployment`, {
+          name,
+          deployment,
+        })
 
         // Ensure the deployment is deployed to the indexer
         await this.indexer.ensure(name, deployment)
@@ -148,7 +128,10 @@ export class Agent {
         // Allocate stake on the deployment in the network
         await this.network.allocate(deployment)
 
-        this.logger.info(`Now indexing '${name}':'${deployment}'`)
+        this.logger.info(`Now indexing subgraph deployment`, {
+          name,
+          deployment,
+        })
       })
     }
 
@@ -158,4 +141,31 @@ export class Agent {
 
     await queue.onIdle()
   }
+}
+
+export const startAgent = async (config: AgentConfig): Promise<Agent> => {
+  const indexer = new Indexer(
+    config.adminEndpoint,
+    config.statusEndpoint,
+    config.logger,
+  )
+  const network = await Network.create(
+    config.logger,
+    config.ethereumProvider,
+    config.network,
+    config.publicIndexerUrl,
+    config.queryEndpoint,
+    config.indexerGeoCoordinates,
+    config.mnemonic,
+    config.networkSubgraphDeployment,
+    config.connextNode,
+  )
+  const agent = new Agent(
+    config.logger,
+    indexer,
+    network,
+    config.networkSubgraphDeployment,
+  )
+  await agent.start()
+  return agent
 }

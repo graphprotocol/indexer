@@ -3,6 +3,7 @@ import {
   Metrics,
   createAttestation,
   SubgraphDeploymentID,
+  formatGRT,
 } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
 import { utils } from 'ethers'
@@ -99,9 +100,7 @@ export class QueryProcessor implements QueryProcessorInterface {
   async addPaidQuery(query: PaidQuery): Promise<QueryResponse> {
     const { subgraphDeploymentID, paymentId } = query
 
-    this.logger.info(
-      `Add query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
-    )
+    this.logger.info(`Add query`, { deployment: subgraphDeploymentID.display, paymentId })
 
     const existingQuery = this.queries.get(paymentId)
 
@@ -136,14 +135,14 @@ export class QueryProcessor implements QueryProcessorInterface {
   ): Promise<void> {
     const { paymentId, sender, amount } = payment
 
-    this.logger.info(`Add payment '${paymentId}' (sender: ${sender}, amount: ${amount})`)
+    this.logger.info(`Add payment`, { paymentId, sender, amountGRT: formatGRT(amount) })
 
     const existingQuery = this.queries.get(paymentId)
 
     if (existingQuery) {
-      // Update the existing query
+      this.logger.debug(`Query for payment already queued, adding payment`, { paymentId })
 
-      this.logger.debug(`Query for payment '${paymentId}' already queued, adding payment`)
+      // Update the existing query
       existingQuery.payment = {
         payment,
         stateChannelID: stateChannel.info.id,
@@ -151,7 +150,9 @@ export class QueryProcessor implements QueryProcessorInterface {
       }
       existingQuery.updatedAt = Date.now()
     } else {
-      this.logger.debug(`Query for payment '${paymentId}' not queued, queuing payment`)
+      this.logger.debug(`Query for payment not yet queued, queuing payment`, {
+        paymentId,
+      })
 
       // Add a pending query for the incoming payment
       this.queries.set(paymentId, {
@@ -250,9 +251,10 @@ export class QueryProcessor implements QueryProcessorInterface {
     const { stateChannelID } = query.payment
     const { subgraphDeploymentID, requestCID } = query.query
 
-    this.logger.debug(
-      `Process query for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
-    )
+    this.logger.debug(`Process query`, {
+      deployment: subgraphDeploymentID.display,
+      paymentId,
+    })
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
@@ -286,14 +288,15 @@ export class QueryProcessor implements QueryProcessorInterface {
       data: response.data,
     })
 
-    this.logger.debug(
-      `Emit query result for subgraph '${subgraphDeploymentID}' and payment '${paymentId}'`,
-    )
+    this.logger.debug(`Emit query result`, {
+      deployment: subgraphDeploymentID.display,
+      paymentId,
+    })
 
     // Send the result to the client...
     query.emitter.emit('resolve', attestedResponse)
 
-    this.logger.debug(`Unlock payment '${paymentId}'`)
+    this.logger.debug(`Unlock payment`, { paymentId })
 
     // ...and unlock the payment
     await stateChannel.unlockPayment(

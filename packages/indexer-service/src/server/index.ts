@@ -64,7 +64,10 @@ export const createServer = async ({
       // Extract the payment ID
       const paymentId = req.headers['x-graph-payment-id']
       if (paymentId !== undefined && typeof paymentId !== 'string') {
-        logger.info(`Query for subgraph '${subgraphDeploymentID}' has invalid payment ID`)
+        logger.info(`Query has invalid payment ID`, {
+          deployment: subgraphDeploymentID.display,
+          paymentId,
+        })
         return res
           .status(402)
           .contentType('application/json')
@@ -80,9 +83,9 @@ export const createServer = async ({
         // Regular scenario: a payment is required; fail if no
         // payment ID is specified
         if (paymentId === undefined) {
-          logger.info(
-            `Query for subgraph '${subgraphDeploymentID}' is missing payment ID`,
-          )
+          logger.info(`Query is missing payment ID`, {
+            deployment: subgraphDeploymentID.display,
+          })
           return res
             .status(402)
             .contentType('application/json')
@@ -91,9 +94,10 @@ export const createServer = async ({
       }
 
       if (paymentId !== undefined) {
-        logger.info(
-          `Received paid query for subgraph '${subgraphDeploymentID}' (payment ID: ${paymentId})`,
-        )
+        logger.info(`Received paid query`, {
+          deployment: subgraphDeploymentID.display,
+          paymentId,
+        })
         try {
           const response = await queryProcessor.addPaidQuery({
             subgraphDeploymentID,
@@ -105,22 +109,23 @@ export const createServer = async ({
             .status(response.status || 200)
             .contentType('application/json')
             .send(response.result)
-        } catch (e) {
-          logger.error(`Failed to handle paid query: ${e}`)
+        } catch (error) {
+          logger.error(`Failed to handle paid query`, { error })
           res
-            .status(e.status || 500)
+            .status(error.status || 500)
             .contentType('application/json')
-            .send({ error: `${e.message}` })
+            .send({ error: `${error.message}` })
         }
       } else {
-        logger.info(`Received free query for subgraph '${subgraphDeploymentID}'`)
+        logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
 
         // Extract the state channel ID (only required for free queries)
         const stateChannelID = req.headers['x-graph-state-channel-id']
         if (stateChannelID === undefined || typeof stateChannelID !== 'string') {
-          logger.info(
-            `Query for subgraph '${subgraphDeploymentID}' has invalid state channel ID`,
-          )
+          logger.info(`Free query has invalid state channel ID`, {
+            deployment: subgraphDeploymentID.display,
+            stateChannelID,
+          })
           return res
             .status(402)
             .contentType('application/json')
@@ -138,12 +143,12 @@ export const createServer = async ({
             .status(response.status || 200)
             .contentType('application/json')
             .send(response.result)
-        } catch (e) {
-          logger.error(`Failed to handle free query: ${e}`)
+        } catch (error) {
+          logger.error(`Failed to handle free query`, { error })
           res
-            .status(e.status || 500)
+            .status(error.status || 500)
             .contentType('application/json')
-            .send({ error: `${e.message}` })
+            .send({ error: `${error.message}` })
         }
       }
     },

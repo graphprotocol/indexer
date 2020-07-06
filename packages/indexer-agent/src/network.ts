@@ -34,11 +34,13 @@ class Ethereum {
     logger: Logger,
   ): Promise<ContractReceipt> {
     const tx = await transaction
-    logger.info(`Transaction pending: '${tx.hash}'`)
+    logger.info(`Transaction pending`, { tx: tx.hash })
     const receipt = await tx.wait(1)
-    logger.info(
-      `Transaction '${tx.hash}' successfully included in block #${receipt.blockNumber}`,
-    )
+    logger.info(`Transaction successfully included in block`, {
+      tx: tx.hash,
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+    })
     return receipt
   }
 }
@@ -106,16 +108,17 @@ export class Network {
     let wallet = Wallet.fromMnemonic(mnemonic)
     const ethereumProvider = new providers.JsonRpcProvider(ethereumProviderUrl)
 
-    logger.info(
-      `Create a wallet instance connected to '${network}' via '${ethereumProviderUrl}'`,
-    )
+    logger.info(`Create wallet`, {
+      network,
+      provider: ethereumProviderUrl,
+    })
     wallet = wallet.connect(ethereumProvider)
-    logger.info(`Wallet created at '${wallet.address}'`)
+    logger.info(`Successfully created wallet`, { address: wallet.address })
 
     logger.info(`Connecting to contracts`)
     const networkInfo = await ethereumProvider.getNetwork()
     const contracts = await connectContracts(wallet, networkInfo.chainId)
-    logger.info(`Connected to contracts`)
+    logger.info(`Successfully connected to contracts`)
 
     return new Network(
       logger,
@@ -177,14 +180,24 @@ export class Network {
           })
       )
     } catch (error) {
-      this.logger.error(`Network subgraphs query failed`)
+      this.logger.error(`Failed to query subgraphs on the network`)
       throw error
     }
   }
 
   async register(): Promise<void> {
+    const geoHash = geohash.encode(
+      +this.indexerGeoCoordinates[0],
+      +this.indexerGeoCoordinates[1],
+    )
+
     try {
-      this.logger.info(`Register indexer at '${this.indexerUrl}'`)
+      this.logger.info(`Register indexer`, {
+        address: this.indexerAddress,
+        url: this.indexerUrl,
+        geoCoordinates: this.indexerGeoCoordinates,
+        geoHash,
+      })
 
       // Register the indexer (only if it hasn't been registered yet or
       // if its URL is different from what is registered on chain)
@@ -196,28 +209,22 @@ export class Network {
           this.indexerAddress,
         )
         if (service.url === this.indexerUrl) {
-          this.logger.info(
-            `Indexer '${this.indexerAddress}' already registered with the network at '${this.indexerUrl}'`,
-          )
+          this.logger.info(`Indexer already registered`, {
+            address: this.indexerAddress,
+            url: service.url,
+            geoHash: service.geohash,
+          })
           return
         }
       }
 
       const receipt = await Ethereum.executeTransaction(
-        this.contracts.serviceRegistry.register(
-          this.indexerUrl,
-          geohash.encode(
-            +this.indexerGeoCoordinates[0],
-            +this.indexerGeoCoordinates[1],
-          ),
-          {
-            gasLimit: 1000000,
-            gasPrice: utils.parseUnits('10', 'gwei'),
-          },
-        ),
+        this.contracts.serviceRegistry.register(this.indexerUrl, geoHash, {
+          gasLimit: 1000000,
+          gasPrice: utils.parseUnits('10', 'gwei'),
+        }),
         this.logger,
       )
-
       const event = receipt.events?.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
@@ -232,12 +239,18 @@ export class Network {
         event.data,
         event.topics,
       )
-      this.logger.info(
-        `Registered indexer publicKey: '${eventInputs.indexer}' url: '${eventInputs.url}' geoHash: '${eventInputs.geohash}'`,
-      )
-    } catch (e) {
-      this.logger.error(`Failed to register indexer at '${this.indexerUrl}'`)
-      throw e
+      this.logger.info(`Successfully registered indexer`, {
+        address: eventInputs.indexer,
+        url: eventInputs.url,
+        goeHash: eventInputs.geohash,
+      })
+    } catch (error) {
+      this.logger.error(`Failed to register indexer`, {
+        address: this.indexerAddress,
+        url: this.indexerUrl,
+        error,
+      })
+      throw error
     }
   }
 
@@ -246,11 +259,11 @@ export class Network {
     const price = parseGRT('0.01')
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    this.logger.info(
-      `Allocate ${formatGRT(
-        amount,
-      )} GRT to '${deployment}' in epoch '${currentEpoch}'`,
-    )
+    this.logger.info(`Allocate to subgraph deployment`, {
+      deployment: deployment.display,
+      amountGRT: formatGRT(amount),
+      epoch: currentEpoch.toString(),
+    })
     const currentAllocation = await this.contracts.staking.getAllocation(
       this.indexerAddress,
       deployment.bytes32,
@@ -258,13 +271,12 @@ export class Network {
 
     // Cannot allocate (for now) if we have already allocated to this subgraph
     if (currentAllocation.tokens.gt('0')) {
-      this.logger.info(
-        `Already allocated ${formatGRT(
-          currentAllocation.tokens,
-        )} GRT to '${deployment}' using channel '${
-          currentAllocation.channelID
-        }' since epoch ${currentAllocation.createdAtEpoch.toString()}`,
-      )
+      this.logger.info(`Already allocated on subgraph deployment`, {
+        deployment: deployment.display,
+        amountGRT: formatGRT(currentAllocation.tokens),
+        channel: currentAllocation.channelID,
+        epoch: currentAllocation.createdAtEpoch.toString(),
+      })
       return
     }
 
@@ -276,7 +288,7 @@ export class Network {
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
 
-    this.logger.debug(`Deriving channel key using path '${path}'`)
+    this.logger.debug(`Deriving channel key`, { path })
 
     // CREATE2 address for the channel
     const channelIdentifier = getPublicIdentifierFromPublicKey(
@@ -290,7 +302,7 @@ export class Network {
       this.ethereumProvider,
     )
 
-    this.logger.debug(`Using '${create2Address}' as the channel proxy address`)
+    this.logger.debug(`Identified channel proxy address`, { create2Address })
 
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
@@ -326,36 +338,46 @@ export class Network {
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
     )
-    assert.ok(event, `Failed to allocate to '${deployment}'`)
+
+    if (!event) {
+      throw new Error(
+        `Failed to allocate ${formatGRT(
+          amount,
+        )} GRT to '${deployment}': allocation was never created`,
+      )
+    }
 
     const eventInputs = this.contracts.staking.interface.decodeEventLog(
       'AllocationCreated',
       event.data,
       event.topics,
     )
-    this.logger.info(
-      `${formatGRT(
-        eventInputs.tokens,
-      )} GRT allocated to '${new SubgraphDeploymentID(
-        eventInputs.subgraphDeploymentID,
-      )}', channel: ${eventInputs.channelID}, channelPubKey: ${
-        eventInputs.channelPubKey
-      }`,
-    )
+
+    this.logger.info(`Successfully allocated to subgraph deployment`, {
+      deployment: new SubgraphDeploymentID(eventInputs.subgraphDeploymentID)
+        .display,
+      amountGRT: formatGRT(eventInputs.tokens),
+      channel: formatGRT(eventInputs.channelID),
+      channelPubKey: eventInputs.channelPubKey,
+      epoch: eventInputs.epoch.toString(),
+    })
   }
 
   async ensureMinimumStake(minimum: BigNumber): Promise<void> {
     try {
       this.logger.info(
-        `Ensure at least ${formatGRT(
-          minimum,
-        )} GRT are staked to be able to allocate on subgraphs`,
+        `Ensure enough is staked to be able to allocate to subgraphs`,
+        {
+          minimumGRT: formatGRT(minimum),
+        },
       )
 
       // Check if the indexer account owns >= minimum GRT
       let tokens = await this.contracts.token.balanceOf(this.indexerAddress)
 
-      this.logger.info(`The indexer account owns ${tokens} GRT`)
+      this.logger.info(`Indexer account balance`, {
+        amountGRT: formatGRT(tokens),
+      })
 
       // Identify how many GRT the indexer has already staked
       const stakedTokens = await this.contracts.staking.getIndexerStakedTokens(
@@ -364,11 +386,10 @@ export class Network {
 
       // We're done if the indexer has staked enough already
       if (stakedTokens.gte(minimum)) {
-        this.logger.info(
-          `Currently staked ${formatGRT(
-            stakedTokens,
-          )} GRT, which is enough for the minimum of ${formatGRT(minimum)} GRT`,
-        )
+        this.logger.info(`Indexer has sufficient stake`, {
+          stakeGRT: formatGRT(stakedTokens),
+          minimumGRT: formatGRT(minimum),
+        })
         return
       }
 
@@ -385,13 +406,15 @@ export class Network {
         )
       }
 
-      this.logger.info(
-        `Currently staked ${formatGRT(
-          stakedTokens,
-        )} GRT, need to stake another ${formatGRT(missingStake)} GRT`,
-      )
+      this.logger.info(`Indexer has insufficient stake`, {
+        stakeGRT: formatGRT(stakedTokens),
+        minimumGRT: formatGRT(minimum),
+        missingStake: formatGRT(missingStake),
+      })
 
-      this.logger.info(`Approve ${formatGRT(missingStake)} GRT for staking`)
+      this.logger.info(`Approve missing amount for staking`, {
+        amount: formatGRT(missingStake),
+      })
 
       // If not, make sure to stake the remaining amount
 
@@ -409,23 +432,23 @@ export class Network {
           this.contracts.token.interface.getEventTopic('Approval'),
         ),
       )
-      assert.ok(
-        approveEvent,
-        `Failed to approve '${formatGRT(missingStake)}' GRT for staking`,
-      )
+      if (!approveEvent) {
+        throw new Error(
+          `Failed to approve ${formatGRT(
+            missingStake,
+          )} GRT for staking: approval was never granted`,
+        )
+      }
       const approveEventInputs = this.contracts.token.interface.decodeEventLog(
         'Approval',
         approveEvent.data,
         approveEvent.topics,
       )
 
-      this.logger.info(
-        `${formatGRT(
-          approveEventInputs.value,
-        )} GRT approved for staking, owner: '${
-          approveEventInputs.owner
-        }' spender: '${approveEventInputs.spender}'`,
-      )
+      this.logger.info(`Successfully approved missing stake`, {
+        owner: approveEventInputs.owner,
+        spender: approveEventInputs.spender,
+      })
 
       // Then, stake the missing amount
       const stakeReceipt = await Ethereum.executeTransaction(
@@ -437,29 +460,38 @@ export class Network {
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
         ),
       )
-      assert.ok(stakeEvent, `Failed to stake ${formatGRT(missingStake)} GRT`)
+      if (!stakeEvent) {
+        throw new Error(
+          `Failed to stake ${formatGRT(
+            missingStake,
+          )} GRT: the deposit never came through`,
+        )
+      }
       const stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
         'StakeDeposited',
         stakeEvent.data,
         stakeEvent.topics,
       )
 
-      this.logger.info(
-        `Successfully staked ${formatGRT(stakeEventInputs.tokens)} GRT`,
-      )
+      this.logger.info(`Successfully staked`, {
+        amountGRT: formatGRT(stakeEventInputs.tokens),
+      })
 
       // Finally, confirm the new amount by logging it
       tokens = await this.contracts.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      this.logger.info(
-        `New stake: ${formatGRT(tokens)} (minimum: ${formatGRT(minimum)} GRT)`,
-      )
-    } catch (e) {
-      this.logger.error(
-        `Failed to stake GRT on behalf of indexer '${this.indexerAddress}': ${e}`,
-      )
-      throw e
+
+      this.logger.info(`New stake`, {
+        stakeGRT: formatGRT(tokens),
+        minimum: formatGRT(minimum),
+      })
+    } catch (error) {
+      this.logger.error(`Failed to stake GRT on behalf of indexer`, {
+        address: this.indexerAddress,
+        error,
+      })
+      throw error
     }
   }
 }
