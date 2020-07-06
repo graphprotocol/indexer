@@ -109,8 +109,8 @@ export class NetworkMonitor {
         if (removed.length > 0 || added.length > 0) {
           this.channelsUpdated.post({ added, removed, unchanged })
         }
-      } catch (e) {
-        logger.warn(`Failed to query channels: ${e}`)
+      } catch (error) {
+        logger.warn(`Failed to query channels`, { error })
       }
 
       // Wait 5s

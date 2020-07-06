@@ -6,18 +6,6 @@ import jayson, { Client } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
 
-interface SubgraphCreateParams {
-  name: string
-}
-interface SubgraphDeployParams {
-  name: string
-  ipfs_hash: string
-}
-interface SubgraphReassignParams {
-  ipfs_hash: string
-  node_id: string
-}
-
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
   rpc: Client
@@ -39,12 +27,15 @@ export class Indexer {
 
   async connect(): Promise<void> {
     try {
-      const subgraphDeployments = await this.subgraphDeployments()
-      this.logger.info(
-        `Connected to indexing statuses API, ${subgraphDeployments.length} deployments are being indexed`,
-      )
+      this.logger.info(`Check if indexing status API is available`)
+      const currentDeployments = await this.subgraphDeployments()
+      this.logger.info(`Successfully connected to indexing status API`, {
+        currentDeployments: currentDeployments.map(
+          deployment => deployment.display,
+        ),
+      })
     } catch (e) {
-      this.logger.error(`Failed to connect to indexing statuses API`)
+      this.logger.error(`Failed to connect to indexing status API`)
       throw e
     }
   }
@@ -70,118 +61,119 @@ export class Indexer {
           return new SubgraphDeploymentID(status.subgraphDeployment)
         })
     } catch (error) {
-      this.logger.error(`Indexing statuses query failed`)
+      this.logger.error(`Failed to query indexing status API`)
       throw error
     }
   }
 
   async create(name: string): Promise<void> {
     try {
-      this.logger.info(`Create subgraph name '${name}'`)
-      const params: SubgraphCreateParams = { name: name }
-      const response = await this.rpc.request('subgraph_create', params)
+      this.logger.info(`Create subgraph name`, { name })
+      const response = await this.rpc.request('subgraph_create', { name })
       if (response.error) {
         throw response.error
       }
-      this.logger.info(`Created subgraph name '${name}' successfully`)
+      this.logger.info(`Successfully created subgraph name`, { name })
     } catch (error) {
       if (error.message.includes('already exists')) {
-        this.logger.debug(`Subgraph name already exists: ${name}`)
+        this.logger.debug(`Subgraph name already exists`, { name })
         return
       }
       throw error
     }
   }
 
-  async deploy(
-    name: string,
-    subgraphDeploymentID: SubgraphDeploymentID,
-  ): Promise<void> {
+  async deploy(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      this.logger.info(
-        `Deploy subgraph deployment '${subgraphDeploymentID}' to '${name}'`,
-      )
-      const params: SubgraphDeployParams = {
-        name: name,
-        ipfs_hash: subgraphDeploymentID.ipfsHash,
-      }
-      const response = await this.rpc.request('subgraph_deploy', params)
+      this.logger.info(`Deploy subgraph deployment`, {
+        name,
+        deployment: deployment.display,
+      })
+      const response = await this.rpc.request('subgraph_deploy', {
+        name,
+        ipfs_hash: deployment.ipfsHash,
+      })
       if (response.error) {
         throw response.error
       }
-      this.logger.info(
-        `Deployed subgraph deployment '${subgraphDeploymentID}' to '${name}' successfully`,
-      )
+      this.logger.info(`Successfully deployed subgraph deployment`, {
+        name,
+        deployment: deployment.display,
+      })
     } catch (e) {
-      this.logger.error(
-        `Failed to deploy subgraph '${subgraphDeploymentID}' to '${name}'`,
-      )
+      this.logger.error(`Failed to deploy subgraph deployment`, {
+        name,
+        deployment: deployment.display,
+      })
       throw e
     }
   }
 
-  async remove(subgraphDeploymentID: SubgraphDeploymentID): Promise<void> {
+  async remove(deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      this.logger.info(`Remove subgraph deployment '${subgraphDeploymentID}`)
-      const params: SubgraphReassignParams = {
-        ipfs_hash: subgraphDeploymentID.ipfsHash,
+      this.logger.info(`Remove subgraph deployment`, {
+        deployment: deployment.display,
+      })
+      const response = await this.rpc.request('subgraph_reassign', {
         node_id: 'removed',
-      }
-      const response = await this.rpc.request('subgraph_reassign', params)
+        ipfs_hash: deployment.ipfsHash,
+      })
       if (response.error) {
         throw response.error
       }
-      this.logger.info(`Subgraph deployment removed, '${subgraphDeploymentID}'`)
+      this.logger.info(`Successfully removed subgraph deployment`, {
+        deployment: deployment.display,
+      })
     } catch (e) {
-      this.logger.error(
-        `Failed to remove subgraph deployment '${subgraphDeploymentID}'`,
-      )
+      this.logger.error(`Failed to remove subgraph deployment`, {
+        deployment: deployment.display,
+      })
       throw e
     }
   }
 
   async reassign(
-    subgraphDeploymentID: SubgraphDeploymentID,
+    deployment: SubgraphDeploymentID,
     node: string,
   ): Promise<void> {
     try {
-      this.logger.info(
-        `Reassign subgraph deployment '${subgraphDeploymentID}' to node '${node}'`,
-      )
-      const params: SubgraphReassignParams = {
-        ipfs_hash: subgraphDeploymentID.ipfsHash,
+      this.logger.info(`Reassign subgraph deployment`, {
+        deployment: deployment.display,
+        node,
+      })
+      const response = await this.rpc.request('subgraph_reassign', {
         node_id: node,
-      }
-      const response = await this.rpc.request('subgraph_reassign', params)
+        ipfs_hash: deployment.ipfsHash,
+      })
       if (response.error) {
         throw response.error
       }
     } catch (error) {
       if (error.message.includes('unchanged')) {
-        this.logger.debug(
-          `Subgraph deployment assignment unchanged, deployment: '${subgraphDeploymentID}', node_id: '${node}'`,
-        )
+        this.logger.debug(`Subgraph deployment assignment unchanged`, {
+          deployment: deployment.display,
+          node,
+        })
         return
       }
-      this.logger.error(
-        `Failed to reassign subgraph deployment '${subgraphDeploymentID}'`,
-      )
+      this.logger.error(`Failed to reassign subgraph deployment`, {
+        deployment: deployment.display,
+      })
       throw error
     }
   }
 
-  async ensure(
-    name: string,
-    subgraphDeploymentID: SubgraphDeploymentID,
-  ): Promise<void> {
+  async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
       await this.create(name)
-      await this.deploy(name, subgraphDeploymentID)
-      await this.reassign(subgraphDeploymentID, 'default')
-    } catch (e) {
-      this.logger.error(
-        `Failed to ensure '${name}':'${subgraphDeploymentID}' is indexing: ${e.message}`,
-      )
+      await this.deploy(name, deployment)
+      await this.reassign(deployment, 'default')
+    } catch (error) {
+      this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
+        name,
+        deployment: deployment.display,
+        error,
+      })
     }
   }
 }

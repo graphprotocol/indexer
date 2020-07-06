@@ -4,6 +4,7 @@ import {
   Attestation,
   Metrics,
   NetworkContracts,
+  formatGRT,
 } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
@@ -16,7 +17,6 @@ import { ChannelSigner, toBN, getPublicIdentifierFromPublicKey } from '@connext/
 import { Sequelize } from 'sequelize'
 import { Wallet, constants, utils } from 'ethers'
 import PQueue from 'p-queue'
-import { strict as assert } from 'assert'
 
 import {
   PaymentManager as PaymentManagerInterface,
@@ -83,7 +83,9 @@ export class StateChannel implements StateChannelInterface {
     const subgraphDeploymentID = info.subgraphDeploymentID
 
     const logger = parentLogger.child({
-      component: `StateChannel(${subgraphDeploymentID}, ${info.createdAtEpoch})`,
+      component: `StateChannel`,
+      deployment: subgraphDeploymentID.display,
+      createdAtEpoch: info.createdAtEpoch.toString(),
     })
 
     logger.info(`Create state channel`)
@@ -94,13 +96,13 @@ export class StateChannel implements StateChannelInterface {
       'm/' +
       [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID.ipfsHash)].join('/')
 
-    logger.info(`Derive key using path '${path}'`)
+    logger.info(`Derive channel key`, { path })
 
     const derivedKeyPair = hdNode.derivePath(path)
-    const publicKey = derivedKeyPair.publicKey
+    const publicKey = utils.computePublicKey(derivedKeyPair.publicKey, false)
+    const storePrefix = derivedKeyPair.address.substr(2)
 
-    logger.debug(`Public key ${publicKey}:`)
-    logger.debug(`Store prefix: ${derivedKeyPair.address.substr(2)}`)
+    logger.debug(`Channel parameters`, { publicKey, storePrefix })
 
     try {
       const client = await createStateChannel({
@@ -121,13 +123,14 @@ export class StateChannel implements StateChannelInterface {
       const freeBalance = await client.getFreeBalance(constants.AddressZero)
       const balance = freeBalance[client.signerAddress]
 
-      logger.info(`On-chain public key: ${info.publicKey}`)
-      logger.info(`On-chain signer address: ${info.id}`)
-
-      logger.info(`Channel public key: ${publicKey}`)
-      logger.info(`Channel signer address: ${client.signerAddress}`)
-      logger.info(`Channel public identifier: ${client.publicIdentifier}`)
-      logger.info(`Channel free balance: ${utils.formatEther(balance)}`)
+      logger.debug(`Channel configuration`, {
+        onChainPublicKey: info.publicKey,
+        onChainSignerAddress: info.id,
+        publicKey,
+        signerAddress: client.signerAddress,
+        publicIdentifier: client.publicIdentifier,
+        freeBalance: utils.formatEther(balance),
+      })
 
       if (client.publicIdentifier !== getPublicIdentifierFromPublicKey(info.publicKey)) {
         throw new Error(
@@ -146,8 +149,7 @@ export class StateChannel implements StateChannelInterface {
       return new StateChannel({
         info,
         privateKey: derivedKeyPair.privateKey,
-
-        logger,
+        logger: logger.child({ publicIdentifier: client.publicIdentifier }),
         client,
         signer,
       })
@@ -161,10 +163,10 @@ export class StateChannel implements StateChannelInterface {
     payment: ConditionalPayment,
     attestation: Attestation,
   ): Promise<void> {
-    const formattedAmount = utils.formatEther(payment.amount)
+    const formattedAmount = formatGRT(payment.amount)
     const { paymentId } = payment
 
-    this.logger.info(`Unlock payment '${paymentId}' (${formattedAmount} ETH)`)
+    this.logger.info(`Unlock payment`, { paymentId, amountGRT: formattedAmount })
 
     const receipt = {
       requestCID: attestation.requestCID,
@@ -191,13 +193,18 @@ export class StateChannel implements StateChannelInterface {
           signature,
         } as PublicParams.ResolveGraphTransfer)
 
-        this.logger.info(`Unlocked payment '${paymentId}'`)
+        this.logger.info(`Successfully unlocked payment`, {
+          paymentId,
+          amountGRT: formattedAmount,
+        })
 
         attemptUnlock = false
-      } catch (e) {
-        this.logger.error(
-          `Failed to unlock payment '${paymentId}', waiting 1 second before retrying. ${e}`,
-        )
+      } catch (error) {
+        this.logger.error(`Failed to unlock payment, trying again in 1s`, {
+          paymentId,
+          amountGRT: formattedAmount,
+          error,
+        })
         await delay(1000)
       }
     }
@@ -206,7 +213,7 @@ export class StateChannel implements StateChannelInterface {
   async cancelPayment(payment: ConditionalPayment): Promise<void> {
     const { paymentId, appIdentityHash } = payment
 
-    this.logger.info(`Cancel payment '${paymentId}'`)
+    this.logger.info(`Cancel payment`, { paymentId })
 
     // Uninstall the app to cancel the payment
     await this.client.uninstallApp(appIdentityHash)
@@ -222,9 +229,13 @@ export class StateChannel implements StateChannelInterface {
 
     // Skip unsupported payment types
     if (payload.type !== ConditionalTransferTypes.GraphTransfer) {
-      this.logger.warn(
-        `Received payment with unexpected type ${payload.type}, doing nothing`,
-      )
+      this.logger.warn(`Ignoring payment with unexpected type`, { type: payload.type })
+      return
+    }
+
+    // Skip payments without payment ID
+    if (!payload.paymentId) {
+      this.logger.warn(`Ignoring payment without payment ID`)
       return
     }
 
@@ -232,13 +243,14 @@ export class StateChannel implements StateChannelInterface {
 
     // Obtain and format transfer amount
     const amount = toBN(payload.amount)
-    const formattedAmount = utils.formatEther(amount)
+    const formattedAmount = formatGRT(amount)
 
-    this.logger.info(
-      `Received payment ${payload.paymentId} (${formattedAmount} ETH) from ${payload.sender} (signer: ${signedPayload.transferMeta.signerAddress})`,
-    )
-
-    assert.ok(payload.paymentId, 'No payment ID on the signed transfer event')
+    this.logger.info(`Received payment`, {
+      paymentId: payload.paymentId,
+      amountGRT: formattedAmount,
+      sender: payload.sender,
+      signer: signedPayload.transferMeta.signerAddress,
+    })
 
     const payment: ConditionalPayment = {
       paymentId: payload.paymentId,
@@ -254,9 +266,9 @@ export class StateChannel implements StateChannelInterface {
   async settle(): Promise<void> {
     const freeBalance = await this.client.getFreeBalance()
     const balance = freeBalance[this.client.signerAddress]
-    const formattedAmount = utils.formatEther(balance)
+    const formattedAmount = formatGRT(balance)
 
-    this.logger.info(`Settle (${formattedAmount} ETH)`)
+    this.logger.info(`Settle channel`, { amountGRT: formattedAmount })
 
     await this.client.withdraw({
       // On-chain, everything is set up so that all withdrawals
