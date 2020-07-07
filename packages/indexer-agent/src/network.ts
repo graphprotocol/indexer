@@ -16,7 +16,9 @@ import { Staking } from './contracts/Staking'
 import { StakingFactory } from './contracts/StakingFactory'
 import { GraphToken } from './contracts/GraphToken'
 import { GraphTokenFactory } from './contracts/GraphTokenFactory'
-import { NetworkAddresses, SubgraphKey, SubgraphStake } from './types'
+import { Gns } from './contracts/Gns'
+import { GnsFactory } from './contracts/GnsFactory'
+import { NetworkAddresses, SubgraphKey, NetworkSubgraph } from './types'
 
 const fetch = require('node-fetch')
 const geohash = require('ngeohash')
@@ -42,13 +44,14 @@ class Ethereum {
 
 const txOverrides = {
   gasLimit: 1000000,
-  gasPrice: utils.parseUnits('10', 'gwei'),
+  gasPrice: utils.parseUnits('25', 'gwei'),
 }
 
 export class Network {
   subgraph: ApolloClient<NormalizedCacheObject>
   serviceRegistry: ServiceRegistry
   staking: Staking
+  gns: Gns
   token: GraphToken
   indexerAddress: string
   indexerUrl: string
@@ -68,7 +71,7 @@ export class Network {
     this.logger = logger.child({ component: 'Network' })
     this.subgraph = new ApolloClient({
       link: new HttpLink({
-        uri: indexerGraphqlUrl + 'subgraphs/name/graphprotocol/network',
+        uri: indexerGraphqlUrl + 'subgraphs/name/graphprotocol/network-kovan',
         fetch,
       }),
       cache: new InMemoryCache(),
@@ -102,6 +105,10 @@ export class Network {
       addresses[network as keyof NetworkAddresses].GraphToken,
       wallet,
     )
+    this.gns = GnsFactory.connect(
+      addresses[network as keyof NetworkAddresses].GNS,
+      wallet,
+    )
   }
 
   async subgraphs(): Promise<SubgraphKey[]> {
@@ -112,22 +119,23 @@ export class Network {
           query {
             subgraphs {
               id
-              totalStake
-              versions {
+              totalNameSignaledGRT
+              totalNameSignalMinted
+              owner {
                 id
-                version
-                displayName
-                description
-                networks
-                namedSubgraph {
+                defaultName {
                   id
-                  name
                   nameSystem
-                  owner {
-                    id
-                    name
-                    balance
-                  }
+                  name
+                }
+              }
+              name
+              currentVersion {
+                id
+                unpublished
+                subgraphDeployment {
+                  id
+                  totalStake
                 }
               }
             }
@@ -136,16 +144,16 @@ export class Network {
         fetchPolicy: 'no-cache',
       })
       return result.data.subgraphs
-        .filter((subgraph: SubgraphStake) => {
-          return subgraph.totalStake >= minimumStake
+        .filter((subgraph: NetworkSubgraph) => {
+          return (
+            subgraph.currentVersion.subgraphDeployment.totalStake >=
+            minimumStake
+          )
         })
-        .map((subgraph: SubgraphStake) => {
-          let latestVersion = subgraph.versions.sort(
-            (a, b) => b.version - a.version,
-          )[0]
+        .map((subgraph: NetworkSubgraph) => {
           return {
-            name: latestVersion.namedSubgraph.name,
-            owner: latestVersion.namedSubgraph.owner.name,
+            name: subgraph.name,
+            owner: subgraph.owner.defaultName.name,
             subgraphId: subgraph.id,
           } as SubgraphKey
         })
@@ -203,6 +211,32 @@ export class Network {
     }
   }
 
+  async publish(name: string, subgraphId: string, metadataHash: string) {
+    this.logger.info(`Publishing subgraph '${name}':'${subgraphId}'`)
+    let subgraphIdBytes = Ethereum.ipfsHashToBytes32(subgraphId)
+    let metadataBytes = Ethereum.ipfsHashToBytes32(metadataHash)
+
+    let receipt = await Ethereum.executeTransaction(
+      this.gns.publish(name, subgraphIdBytes, metadataBytes, txOverrides),
+      this.logger,
+    )
+
+    let event = receipt.events!.find(
+      event =>
+        event.eventSignature ==
+        this.gns.interface.events.SubgraphPublished.signature,
+    )
+    assert.ok(event, `Failed to publish subgraph '${name}':'${subgraphId}'`)
+
+    let eventInputs = this.gns.interface.events.SubgraphPublished.decode(
+      event!.data,
+      event!.topics,
+    )
+    this.logger.info(
+      `${eventInputs.name} published by ${eventInputs.owner}, subgraphID: '${eventInputs.SubgraphID}', metadata: '${eventInputs.metadataHash}'`,
+    )
+  }
+
   async stake(subgraph: string): Promise<void> {
     let epoch = 0
     let amount = 100
@@ -230,7 +264,14 @@ export class Network {
     let publicKey = derivedKeyPair.publicKey
 
     let receipt = await Ethereum.executeTransaction(
-      this.staking.allocate(subgraphIdBytes, amount, publicKey, txOverrides),
+      this.staking.allocate(
+        subgraphIdBytes,
+        amount,
+        publicKey,
+        this.indexerAddress,
+        utils.parseUnits('0.01', '18'),
+        txOverrides,
+      ),
       this.logger,
     )
 
@@ -255,26 +296,68 @@ export class Network {
       this.logger.info(
         `Ensure at least ${minimum} tokens are available for staking on subgraphs`,
       )
-      let tokens = await this.staking.getIndexerStakedTokens(
+      let tokens = await this.token.balanceOf(this.indexerAddress)
+      if (tokens <= ethers.utils.bigNumberify(minimum)) {
+        this.logger.info(
+          `The indexer account has insufficient tokens, '${tokens}'. to ensure minimum stake. Please use an account with sufficient GRT`,
+        )
+      }
+      this.logger.info(`The indexer account has '${tokens}' GRT`)
+      let approvedTokens = await this.staking.getIndexerStakedTokens(
         this.indexerAddress,
       )
-      if (tokens.toNumber() >= minimum) {
+      if (approvedTokens >= ethers.utils.bigNumberify(minimum)) {
         this.logger.info(
-          `Indexer has sufficient staking tokens: ${tokens.toString()}`,
+          `Indexer has sufficient staking tokens: ${approvedTokens.toString()}`,
         )
         return
       }
-      this.logger.info(`Amount staked: ${tokens} tokens`)
-      let diff = minimum - tokens.toNumber()
+      this.logger.info(`Amount staked: ${approvedTokens} tokens`)
+      let diff = minimum - approvedTokens.toNumber()
+      let stakeAmount = utils.parseUnits(String(diff), 1)
       this.logger.info(`Stake ${diff} tokens`)
-      await Ethereum.executeTransaction(
-        this.token.approve(this.staking.address, diff, txOverrides),
+      let approveReceipt = await Ethereum.executeTransaction(
+        this.token.approve(this.staking.address, stakeAmount, txOverrides),
         this.logger,
       )
-      await Ethereum.executeTransaction(
-        this.staking.stake(diff, txOverrides),
+      let approveEvent = approveReceipt.events!.find(
+        event =>
+          event.eventSignature ==
+          this.token.interface.events.Approval.signature,
+      )
+      assert.ok(
+        approveEvent,
+        `Failed to approve '${diff}' tokens for staking on indexer`,
+      )
+
+      let approveEventInputs = this.token.interface.events.Approval.decode(
+        approveEvent!.data,
+        approveEvent!.topics,
+      )
+      this.logger.info(
+        `${approveEventInputs.value} tokens approved for transfer, owner: '${approveEventInputs.owner}' spender: '${approveEventInputs.spender}'`,
+      )
+
+      let stakeReceipt = await Ethereum.executeTransaction(
+        this.staking.stake(stakeAmount, txOverrides),
         this.logger,
       )
+
+      let stakeEvent = stakeReceipt.events!.find(
+        event =>
+          event.eventSignature ==
+          this.staking.interface.events.StakeDeposited.signature,
+      )
+      assert.ok(stakeEvent, `Failed to stake '${diff}' on indexer`)
+
+      let stakeEventInputs = this.staking.interface.events.StakeDeposited.decode(
+        stakeEvent!.data,
+        stakeEvent!.topics,
+      )
+      this.logger.info(
+        `${stakeEventInputs.tokens} tokens staked on indexer: ${stakeEventInputs.indexer}`,
+      )
+
       this.logger.info(`Staked ${diff} tokens`)
       tokens = await this.staking.getIndexerStakedTokens(this.indexerAddress)
       this.logger.info(`Total stake: ${tokens}`)

@@ -17,32 +17,36 @@ export interface SubgraphKey {
   owner: string
   subgraphId: string
 }
-interface SubgraphOwner {
-  id: string
-  name: string
-  balance: number
-}
 
-interface NamedSubgraph {
+interface SubgraphDeployment {
   id: string
-  name: string
-  nameSystem: string
-  owner: SubgraphOwner
+  totalStake: number
 }
 
 interface SubgraphVersion {
   id: string
-  version: number
-  displayName: string
-  description: string
-  networks: string[]
-  namedSubgraph: NamedSubgraph
+  unpublished: boolean
+  subgraphDeployment: SubgraphDeployment
 }
 
-export interface SubgraphStake {
+interface GraphName {
   id: string
-  totalStake: number
-  versions: SubgraphVersion[]
+  nameSystem: string
+  name: string
+}
+
+interface GraphAccount {
+  id: string
+  defaultName: GraphName
+}
+
+export interface NetworkSubgraph {
+  id: string
+  name: string
+  owner?: GraphAccount
+  totalNameSignaledGRT: number
+  totalNameSignalMinted: number
+  currentVersion: SubgraphVersion
 }
 
 interface ContractAddresses {
