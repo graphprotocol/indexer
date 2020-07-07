@@ -99,10 +99,10 @@ export class StateChannel implements StateChannelInterface {
     logger.info(`Derive channel key`, { path })
 
     const derivedKeyPair = hdNode.derivePath(path)
-    const publicKey = utils.computePublicKey(derivedKeyPair.publicKey, false)
+    const uncompressedPublicKey = utils.computePublicKey(derivedKeyPair.publicKey, false)
     const storePrefix = derivedKeyPair.address.substr(2)
 
-    logger.debug(`Channel parameters`, { publicKey, storePrefix })
+    logger.debug(`Channel parameters`, { publicKey: uncompressedPublicKey, storePrefix })
 
     try {
       const client = await createStateChannel({
@@ -126,7 +126,7 @@ export class StateChannel implements StateChannelInterface {
       logger.debug(`Channel configuration`, {
         onChainPublicKey: info.publicKey,
         onChainSignerAddress: info.id,
-        publicKey,
+        publicKey: uncompressedPublicKey,
         signerAddress: client.signerAddress,
         publicIdentifier: client.publicIdentifier,
         freeBalance: utils.formatEther(balance),
