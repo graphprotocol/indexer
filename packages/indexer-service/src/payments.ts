@@ -270,14 +270,19 @@ export class StateChannel implements StateChannelInterface {
 
     this.logger.info(`Settle channel`, { amountGRT: formattedAmount })
 
-    await this.client.withdraw({
-      // On-chain, everything is set up so that all withdrawals
-      // go to the staking contract (so not really AddressZero)
-      recipient: constants.AddressZero,
+    try {
+      await this.client.withdraw({
+        // On-chain, everything is set up so that all withdrawals
+        // go to the staking contract (so not really AddressZero)
+        recipient: constants.AddressZero,
 
-      // Withdraw everything from the state channel
-      amount: balance,
-    })
+        // Withdraw everything from the state channel
+        amount: balance,
+      })
+      this.logger.info(`Successfully settled channel`, { amountGRT: formattedAmount })
+    } catch (error) {
+      this.logger.warn(`Failed to settle channel`, { amountGRT: formattedAmount, error })
+    }
   }
 }
 
@@ -346,10 +351,22 @@ export class PaymentManager implements PaymentManagerInterface {
 
     for (const channel of channels) {
       queue.add(async () => {
+        this.logger.info(`Settle state channel`, {
+          channelID: channel.id,
+          deployment: channel.subgraphDeploymentID.display,
+          createdAtEpoch: channel.createdAtEpoch,
+        })
+
         const stateChannel = this.stateChannels.get(channel.id)
         if (stateChannel !== undefined) {
           await stateChannel.settle()
           this.stateChannels.delete(channel.id)
+        } else {
+          this.logger.warn(`Failed to settle state channel: Unknown channel ID`, {
+            channelID: channel.id,
+            deployment: channel.subgraphDeploymentID.display,
+            createdAtEpoch: channel.createdAtEpoch,
+          })
         }
       })
     }
