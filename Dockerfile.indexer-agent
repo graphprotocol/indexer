@@ -53,4 +53,3 @@ ENV ETHEREUM ""
 # Run the indexer-agent
 WORKDIR /opt/indexer/packages/indexer-agent
 ENTRYPOINT ["node", "dist/index.js", "start"]
-CMD ["--graph-node-status-endpoint", "http://localhost:8020/", "--graph-node-admin-endpoint", "http://localhost:8030/graphql"]
