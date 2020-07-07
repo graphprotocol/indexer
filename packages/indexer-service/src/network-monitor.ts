@@ -57,7 +57,7 @@ export class NetworkMonitor {
             gql`
               query indexedSubgraphs($id: ID!) {
                 indexer(id: $id) {
-                  channels {
+                  channels(where: { settled: null }) {
                     id
                     publicKey
                     subgraphDeployment {
