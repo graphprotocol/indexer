@@ -7,6 +7,8 @@ ARG NPM_TOKEN
 
 ENV NODE_ENV production
 
+RUN apt-get update && apt-get install -y python build-essential
+
 WORKDIR /opt/indexer
 
 # Copy root files
@@ -21,10 +23,6 @@ COPY packages/indexer-service/ ./packages/indexer-service
 
 # Install dependencies; include dev dependencies
 RUN yarn --pure-lockfile --non-interactive --production=false
-
-# Build the indexer-service
-WORKDIR /opt/indexer/packages/indexer-service
-RUN yarn prepare
 
 ########################################################################
 # Runtime image

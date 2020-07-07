@@ -1,0 +1,22 @@
+name: Indexer Service Image
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build and push Indexer Service image
+        uses: docker/build-push-action@v1.1.0
+        with:
+          username: jannispohlmann
+          password: ${{secrets.dockerhub_token}}
+          repository: graphprotocol/indexer-service
+          tags: latest
+          tag_with_sha: true
+          dockerfile: Dockerfile.indexer-service
+          build_args: NPM_TOKEN=${{secrets.npm_token}}
