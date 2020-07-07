@@ -68,6 +68,9 @@ class Agent {
       // these may overlap with the ones we're already indexing
       const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
 
+      // Identify subgraphs allocated to
+      const allocatedDeployments = await this.network.subgraphDeploymentsAllocatedTo()
+
       const deploymentsToIndex: SubgraphDeploymentID[] = [
         ...networkSubgraphs.map(
           ({ subgraphDeploymentID }) => subgraphDeploymentID,
@@ -77,13 +80,18 @@ class Agent {
         this.networkSubgraphDeployment,
       ]
 
-      await this.resolve(deploymentsToIndex, indexerDeployments)
+      await this.resolve(
+        deploymentsToIndex,
+        indexerDeployments,
+        allocatedDeployments,
+      )
     }, 5000)
   }
 
   async resolve(
     networkDeployments: SubgraphDeploymentID[],
     indexerDeployments: SubgraphDeploymentID[],
+    allocatedDeployments: SubgraphDeploymentID[],
   ): Promise<void> {
     // Identify which subgraphs to deploy and which to remove
     let toDeploy = networkDeployments.filter(
@@ -92,11 +100,19 @@ class Agent {
           indexerDeployment => deployment.bytes32 === indexerDeployment.bytes32,
         ),
     )
-
     let toRemove = indexerDeployments.filter(
       deployment =>
         !networkDeployments.find(
           networkDeployment => deployment.bytes32 === networkDeployment.bytes32,
+        ),
+    )
+
+    // Identify deployments to allocate (or reallocate) to
+    let toAllocate = networkDeployments.filter(
+      deployment =>
+        !allocatedDeployments.find(
+          allocatedDeployment =>
+            allocatedDeployment.bytes32 === deployment.bytes32,
         ),
     )
 
@@ -109,10 +125,18 @@ class Agent {
     // Ensure there are no duplicates in the deployments
     toDeploy = toDeploy.filter(uniqueDeploymentsOnly)
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
+    toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
 
     // Deploy/remove up to 20 subgraphs in parallel
     const queue = new PQueue({ concurrency: 1 })
 
+    // Allocate to all deployments worth indexing and that we haven't
+    // allocated to yet
+    for (const deployment of toAllocate) {
+      await this.network.allocate(deployment)
+    }
+
+    // Index all new deployments worth indexing
     for (const deployment of toDeploy) {
       const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
@@ -125,9 +149,6 @@ class Agent {
         // Ensure the deployment is deployed to the indexer
         await this.indexer.ensure(name, deployment)
 
-        // Allocate stake on the deployment in the network
-        await this.network.allocate(deployment)
-
         this.logger.info(`Now indexing subgraph deployment`, {
           name,
           deployment,
@@ -135,8 +156,11 @@ class Agent {
       })
     }
 
+    // Stop indexing deployments that are no longer worth indexing
     for (const deployment of toRemove) {
-      queue.add(() => this.indexer.remove(deployment))
+      queue.add(() => {
+        this.indexer.remove(deployment)
+      })
     }
 
     await queue.onIdle()

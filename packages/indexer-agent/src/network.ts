@@ -185,6 +185,34 @@ export class Network {
     }
   }
 
+  async subgraphDeploymentsAllocatedTo(): Promise<SubgraphDeploymentID[]> {
+    try {
+      const result = await this.subgraph.query({
+        query: gql`
+          query indexerAllocations($indexer: String!) {
+            allocations(where: { indexer: $indexer, activeChannel_not: null }) {
+              subgraphDeployment {
+                id
+              }
+            }
+          }
+        `,
+        variables: {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+        },
+        fetchPolicy: 'no-cache',
+      })
+      return result.data.allocations.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (allocation: any) =>
+          new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+      )
+    } catch (error) {
+      this.logger.error(`Failed to query active indexer allocations`)
+      throw error
+    }
+  }
+
   async register(): Promise<void> {
     const geoHash = geohash.encode(
       +this.indexerGeoCoordinates[0],
