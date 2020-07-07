@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./packages",
+    "paths": {
+      "@graphprotocol/*": ["./*/src"]
+    },
+    "skipLibCheck": true
+  }
+}
