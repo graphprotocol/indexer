@@ -1,0 +1,25 @@
+{
+  "name": "@graphprotocol/indexer-agent",
+  "version": "0.0.0",
+  "description": "Indexer agent",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "https://github.com/graphprotocol/indexer",
+  "author": "Graph Protocol",
+  "private": false,
+  "scripts": {
+    "compile": "tsc",
+    "format": "prettier --write 'src/*.ts'",
+    "prepare": "yarn format && yarn compile",
+    "start": "yarn compile && node ./dist/index.js start"
+  },
+  "dependencies": {
+    "@graphprotocol/common-ts": "0.0.21",
+    "global": "^4.4.0",
+    "yargs": "^15.1.0",
+    "@types/yargs": "^15.0.4"
+  },
+  "devDependencies": {
+    "prettier": "2.0.5"
+  }
+}
