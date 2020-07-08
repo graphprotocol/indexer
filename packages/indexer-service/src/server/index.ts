@@ -110,7 +110,7 @@ export const createServer = async ({
             .contentType('application/json')
             .send(response.result)
         } catch (error) {
-          logger.error(`Failed to handle paid query`, { error })
+          logger.error(`Failed to handle paid query`, { error: error.message })
           res
             .status(error.status || 500)
             .contentType('application/json')
@@ -144,7 +144,7 @@ export const createServer = async ({
             .contentType('application/json')
             .send(response.result)
         } catch (error) {
-          logger.error(`Failed to handle free query`, { error })
+          logger.error(`Failed to handle free query`, { error: error.message })
           res
             .status(error.status || 500)
             .contentType('application/json')
