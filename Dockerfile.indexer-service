@@ -27,7 +27,7 @@ RUN yarn --pure-lockfile --non-interactive --production=false
 ########################################################################
 # Runtime image
 
-FROM node:10-alpine
+FROM node:alpine
 
 ARG NPM_TOKEN
 
