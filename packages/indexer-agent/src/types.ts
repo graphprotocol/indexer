@@ -12,6 +12,7 @@ export interface AgentConfig {
   logger: Logger
   networkSubgraphDeployment: SubgraphDeploymentID
   connextNode: string
+  indexNodeIDs: string[]
 }
 
 export interface SubgraphDeploymentKey {

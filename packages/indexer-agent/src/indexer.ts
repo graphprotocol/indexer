@@ -10,8 +10,14 @@ export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
   rpc: Client
   logger: Logger
+  indexNodeIDs: string[]
 
-  constructor(adminEndpoint: string, statusEndpoint: string, logger: Logger) {
+  constructor(
+    adminEndpoint: string,
+    statusEndpoint: string,
+    logger: Logger,
+    indexNodeIDs: string[],
+  ) {
     this.statuses = new ApolloClient({
       link: new HttpLink({
         uri: statusEndpoint,
@@ -23,6 +29,7 @@ export class Indexer {
     this.logger = logger
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.rpc = jayson.Client.http(adminEndpoint as any)
+    this.indexNodeIDs = indexNodeIDs
   }
 
   async connect(): Promise<void> {
@@ -167,7 +174,14 @@ export class Indexer {
     try {
       await this.create(name)
       await this.deploy(name, deployment)
-      await this.reassign(deployment, 'default')
+
+      // Pick a random index node to assign the deployment too; TODO: Improve
+      // this to assign based on load (i.e. always pick the index node with the
+      // least amount of deployments assigned)
+      const targetNode = this.indexNodeIDs[
+        Math.floor(Math.random() * this.indexNodeIDs.length)
+      ]
+      await this.reassign(deployment, targetNode)
     } catch (error) {
       this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
         name,

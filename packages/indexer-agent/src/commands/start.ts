@@ -61,6 +61,12 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('graph-index-node-ids', {
+        description: 'Node IDs of Graph nodes to use for indexing',
+        type: 'string',
+        array: true,
+        required: true,
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,6 +88,7 @@ export default {
         argv.networkSubgraphDeployment,
       ),
       connextNode: argv.connextNode,
+      indexNodeIDs: argv.graphIndexNodeIds,
     })
   },
 }

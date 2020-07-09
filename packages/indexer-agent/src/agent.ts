@@ -172,6 +172,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.adminEndpoint,
     config.statusEndpoint,
     config.logger,
+    config.indexNodeIDs,
   )
   const network = await Network.create(
     config.logger,
