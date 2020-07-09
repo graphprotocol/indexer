@@ -34,7 +34,7 @@ variable "machine_type" {
 
 variable "database_tier" {
   type = string
-  default = "db-g1-small"
+  default = "db-custom-4-4096"
   description = "The type of machine to use for the database"
 }
 
