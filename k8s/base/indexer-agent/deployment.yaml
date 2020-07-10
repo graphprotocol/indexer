@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-agent
+spec:
+  selector:
+    matchLabels:
+      app: indexer-agent
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: indexer-agent
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "7300"
+    spec:
+      # Temporary: Allow to pull private Docker images
+      imagePullSecrets:
+        - name: docker-registry
+      containers:
+        - name: indexer-agent
+          image: indexer-agent-image
+          resources:
+            requests:
+              cpu: 600m
+          ports:
+            - name: http
+              containerPort: 7600
+            - name: metrics
+              containerPort: 7300
+          env:
+            - name: INDEXER_AGENT_MNEMONIC
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-mnemonic
+                  key: mnemonic
+            - name: INDEXER_AGENT_INDEX_NODE_IDS
+              value: index-node-0
+            - name: INDEXER_AGENT_ETHEREUM
+              value: https://kovan.alchemyapi.io/jsonrpc/demo/
+            - name: INDEXER_AGENT_CONNEXT_MESSAGING
+              value: nats://35.223.123.63:4222
+            - name: INDEXER_AGENT_CONNEXT_NODE
+              value: http://34.102.148.33/payments/
+            - name: INDEXER_AGENT_GRAPH_NODE_QUERY_ENDPOINT
+              value: http://query-node.default.svc.cluster.local/
+            - name: INDEXER_AGENT_GRAPH_NODE_ADMIN_ENDPOINT
+              value: http://index-node.default.svc.cluster.local/
+            - name: INDEXER_AGENT_PUBLIC_INDEXER_URL
+              value: http://localhost/
+            - name: INDEXER_AGENT_GRAPH_NODE_STATUS_ENDPOINT
+              value: http://query-node.default.svc.cluster.local/index-node/graphql
+            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT
+              value: QmTdvk5CJvCjv5ehw5QRry6kCP6Poph4Jr9szJW1Qh6BCP
+            - name: INDEXER_AGENT_POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: INDEXER_AGENT_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: INDEXER_AGENT_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: INDEXER_AGENT_POSTGRES_DATABASE
+              value: indexer-agent

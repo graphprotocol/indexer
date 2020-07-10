@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-service
+spec:
+  template:
+    spec:
+      containers:
+        - name: indexer-service
+          env:
+            # Set this to your Ethereum node/provider
+            - name: INDEXER_SERVICE_ETHEREUM
+              value: https://kovan.alchemyapi.io/jsonrpc/demo/

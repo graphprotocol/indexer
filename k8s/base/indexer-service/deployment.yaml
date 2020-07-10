@@ -1,0 +1,69 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: indexer-service
+spec:
+  selector:
+    matchLabels:
+      app: indexer-service
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: indexer-service
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "7300"
+    spec:
+      # Temporary: Allow to pull private Docker images
+      imagePullSecrets:
+        - name: docker-registry
+      containers:
+        - name: indexer-service
+          image: indexer-service-image
+          resources:
+            requests:
+              cpu: 600m
+          ports:
+            - name: http
+              containerPort: 7600
+            - name: metrics
+              containerPort: 7300
+          env:
+            - name: INDEXER_SERVICE_MNEMONIC
+              valueFrom:
+                secretKeyRef:
+                  name: indexer-mnemonic
+                  key: mnemonic
+            - name: INDEXER_SERVICE_PORT
+              value: "7600"
+            - name: INDEXER_SERVICE_ETHEREUM
+              value: https://kovan.alchemyapi.io/jsonrpc/demo/
+            - name: INDEXER_SERVICE_CONNEXT_MESSAGING
+              value: nats://35.223.123.63:4222
+            - name: INDEXER_SERVICE_CONNEXT_NODE
+              value: http://34.102.148.33/payments/
+            - name: INDEXER_SERVICE_GRAPH_NODE_QUERY_ENDPOINT
+              value: http://query-node.default.svc.cluster.local/
+            - name: INDEXER_SERVICE_GRAPH_NODE_STATUS_ENDPOINT
+              value: http://query-node.default.svc.cluster.local/index-node/graphql
+            - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT
+              value: QmTdvk5CJvCjv5ehw5QRry6kCP6Poph4Jr9szJW1Qh6BCP
+            - name: INDEXER_SERVICE_POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: INDEXER_SERVICE_POSTGRES_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: INDEXER_SERVICE_POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
+            - name: INDEXER_SERVICE_POSTGRES_DATABASE
+              value: indexer-service
