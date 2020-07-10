@@ -1,16 +1,20 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-- index-node/ethereum_networks.yaml
-- index-node/stateful_set.yaml
-- index-node/service.yaml
-- query-node/backend_config.yaml
-- query-node/deployment.yaml
-- query-node/proxy.yaml
-- query-node/service.yaml
-- shell.yaml
-- nfs.yaml
-- prometheus.yaml
-- grafana.yaml
+  - index-node/ethereum_networks.yaml
+  - index-node/stateful_set.yaml
+  - index-node/service.yaml
+  - query-node/backend_config.yaml
+  - query-node/deployment.yaml
+  - query-node/proxy.yaml
+  - query-node/service.yaml
+  - indexer-agent/deployment.yaml
+  - indexer-service/backend_config.yaml
+  - indexer-service/deployment.yaml
+  - indexer-service/service.yaml
+  - shell.yaml
+  - nfs.yaml
+  - prometheus.yaml
+  - grafana.yaml
 
 namespace: default

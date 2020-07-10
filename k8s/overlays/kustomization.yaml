@@ -6,11 +6,17 @@ bases:
 # to use
 images:
   - name: graph-node-image
-    newName: gcr.io/the-graph-staging/graph-node
-    newTag: 90bf899
+    newName: graphprotocol/graph-node
+    newTag: latest
   - name: graph-node-debug
-    newName: gcr.io/the-graph-staging/graph-node-debug
-    newTag: 90bf899
+    newName: graphprotocol/graph-node-debug
+    newTag: latest
+  - name: indexer-agent-image
+    newName: registry.hub.docker.com/graphprotocol/indexer-agent
+    newTag: latest
+  - name: indexer-service-image
+    newName: registry.hub.docker.com/graphprotocol/indexer-service
+    newTag: latest
   - name: prometheus-image
     newName: prom/prometheus
     newTag: v2.17.1
@@ -21,7 +27,9 @@ images:
     newName: nginx
     newTag: latest
 patchesStrategicMerge:
-- index_node.yaml
-- query_node.yaml
-- ethereum_networks.yaml
-- prometheus.yaml
+  - ethereum_networks.yaml
+  - index_node.yaml
+  - query_node.yaml
+  - indexer_agent.yaml
+  - indexer_service.yaml
+  - prometheus.yaml
