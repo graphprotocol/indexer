@@ -197,6 +197,11 @@ resource "google_sql_database" "graph" {
   instance = google_sql_database_instance.graph.name
 }
 
+resource "google_sql_database" "indexer-service" {
+  name     = "indexer-service"
+  instance = google_sql_database_instance.graph.name
+}
+
 resource "google_sql_user" "graph" {
   name     = "graph"
   instance = google_sql_database_instance.graph.name
@@ -211,6 +216,18 @@ resource "kubernetes_secret" "postgres-credentials" {
     host = google_sql_database_instance.graph.first_ip_address
     user = google_sql_user.graph.name
     password = var.database_password
+  }
+}
+
+#
+# Private Ethereum keys
+#
+resource "kubernetes_secret" "indexer-mnemonic" {
+  metadata {
+    name = "indexer-mnemonic"
+  }
+  data = {
+    mnemonic = var.indexer_mnemonic
   }
 }
 

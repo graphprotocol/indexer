@@ -43,6 +43,11 @@ variable "database_password" {
   description = "The database password"
 }
 
+variable "indexer_mnemonic" {
+  type = string
+  description = "Mnemonic for the indexer's Ethereum private key"
+}
+
 variable "sizes" {
   type = object({
     query_pool = number
