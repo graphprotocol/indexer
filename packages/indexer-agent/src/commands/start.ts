@@ -61,11 +61,16 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('graph-index-node-ids', {
+      .option('index-node-ids', {
         description: 'Node IDs of Graph nodes to use for indexing',
         type: 'string',
         array: true,
         required: true,
+        coerce: arg =>
+          arg.reduce(
+            (acc: string[], value: string) => [...acc, ...value.split(',')],
+            [],
+          ),
       })
   },
   handler: async (
@@ -88,7 +93,7 @@ export default {
         argv.networkSubgraphDeployment,
       ),
       connextNode: argv.connextNode,
-      indexNodeIDs: argv.graphIndexNodeIds,
+      indexNodeIDs: argv.indexNodeIds,
     })
   },
 }
