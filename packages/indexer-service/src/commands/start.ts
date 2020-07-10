@@ -6,6 +6,7 @@ import {
   createMetricsServer,
   connectDatabase,
   SubgraphDeploymentID,
+  defineStateChannelStoreModels,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -126,6 +127,8 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
+    await defineStateChannelStoreModels(sequelize)
+    await sequelize.sync()
     logger.info('Successfully connected to database')
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
