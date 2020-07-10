@@ -1,0 +1,10 @@
+{
+  "auths": {
+    "${docker-server}": {
+      "username": "${docker-username}",
+      "password": "${docker-password}",
+      "email": "${docker-email}",
+      "auth": "${auth}"
+    }
+  }
+}

@@ -67,3 +67,17 @@ variable "prometheus_disk_size" {
   default = 256
   description = "The size of the disk that stores monitoring data (in GB)"
 }
+
+# Temporary
+variable "dockerhub_username" {
+  type = string
+  description = "DockerHub username"
+}
+variable "dockerhub_password" {
+  type = string
+  description = "DockerHub password"
+}
+variable "dockerhub_email" {
+  type = string
+  description = "DockerHub email"
+}
