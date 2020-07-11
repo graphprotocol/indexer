@@ -1,4 +1,5 @@
 import express from 'express'
+import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
@@ -33,6 +34,7 @@ export const createServer = async ({
 
   // Log requests to the logger stream
   server.use(morgan('tiny', { stream: loggerStream }))
+  server.use(cors())
 
   // server.use(bodyParser.raw({ type: 'application/json' }))
 
