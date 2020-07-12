@@ -119,6 +119,12 @@ export class StateChannel implements StateChannelInterface {
         storePrefix: derivedKeyPair.address.substr(2),
       })
 
+      // Collateralize the channel immediately, so there are no delays later;
+      // otherwise the first payment to the channel would cause an on-chain
+      // collateralization, which, depending on the Ethereum network, can
+      // take minutes
+      await client.requestCollateral(constants.AddressZero)
+
       // Obtain current free balance
       const freeBalance = await client.getFreeBalance(constants.AddressZero)
       const balance = freeBalance[client.signerAddress]
