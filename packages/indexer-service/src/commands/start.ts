@@ -39,6 +39,12 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('connext-log-level', {
+        description: 'Connext log level (1-5, default: 0)',
+        type: 'number',
+        required: false,
+        default: 0,
+      })
       .option('postgres-host', {
         description: 'Postgres host',
         type: 'string',
@@ -141,6 +147,7 @@ export default {
       ethereum: argv.ethereum,
       connextMessaging: argv.connextMessaging,
       connextNode: argv.connextNode,
+      connextLogLevel: argv.connextLogLevel,
       wallet,
       contracts,
     })

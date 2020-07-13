@@ -78,6 +78,7 @@ export class StateChannel implements StateChannelInterface {
     ethereum,
     connextMessaging,
     connextNode,
+    connextLogLevel,
     wallet,
   }: StateChannelCreateOptions): Promise<StateChannel> {
     const subgraphDeploymentID = info.subgraphDeploymentID
@@ -107,7 +108,7 @@ export class StateChannel implements StateChannelInterface {
     try {
       const client = await createStateChannel({
         logger,
-        logLevel: 1,
+        logLevel: connextLogLevel,
         sequelize,
         ethereumProvider: ethereum,
         connextMessaging,
@@ -299,6 +300,7 @@ interface PaymentManagerOptions {
   ethereum: string
   connextMessaging: string
   connextNode: string
+  connextLogLevel: number
   wallet: Wallet
   contracts: NetworkContracts
 }
