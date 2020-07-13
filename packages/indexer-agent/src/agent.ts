@@ -93,6 +93,12 @@ class Agent {
     indexerDeployments: SubgraphDeploymentID[],
     allocatedDeployments: SubgraphDeploymentID[],
   ): Promise<void> {
+    this.logger.info(`Synchronization result`, {
+      worthIndexing: networkDeployments.map(d => d.display),
+      alreadyIndexing: indexerDeployments.map(d => d.display),
+      alreadyAllocated: allocatedDeployments.map(d => d.display),
+    })
+
     // Identify which subgraphs to deploy and which to remove
     let toDeploy = networkDeployments.filter(
       networkDeployment =>
@@ -129,7 +135,11 @@ class Agent {
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
 
-    this.logger.info(`Subgraph updates:`, { toDeploy, toRemove, toAllocate })
+    this.logger.info(`Apply changes`, {
+      deploy: toDeploy,
+      remove: toRemove,
+      allocate: toAllocate,
+    })
 
     // Deploy/remove up to 20 subgraphs in parallel
     const queue = new PQueue({ concurrency: 20 })
