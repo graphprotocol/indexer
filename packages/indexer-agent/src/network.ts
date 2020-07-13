@@ -136,7 +136,7 @@ export class Network {
     )
   }
 
-  async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentKey[]> {
+  async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentID[]> {
     const minimumStake = parseGRT('100')
 
     try {
@@ -170,14 +170,12 @@ export class Network {
             const totalStake = BigNumber.from(deployment.totalStake)
             return totalStake.gte(minimumStake)
           })
-          .map((subgraph: Subgraph) => {
-            return {
-              owner: subgraph.owner.id,
-              subgraphDeploymentID: new SubgraphDeploymentID(
+          .map(
+            (subgraph: Subgraph) =>
+              new SubgraphDeploymentID(
                 subgraph.currentVersion.subgraphDeployment.id,
               ),
-            } as SubgraphDeploymentKey
-          })
+          )
       )
     } catch (error) {
       this.logger.error(`Failed to query subgraphs on the network`)

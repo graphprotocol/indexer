@@ -61,30 +61,30 @@ class Agent {
     this.logger.info(`Periodically synchronizing subgraphs`)
 
     await loop(async () => {
-      // Identify subgraph deployments indexed locally
-      const indexerDeployments = await this.indexer.subgraphDeployments()
+      try {
+        // Identify subgraph deployments indexed locally
+        const indexerDeployments = await this.indexer.subgraphDeployments()
 
-      // Identify subgraph deployments on the network that are worth picking up;
-      // these may overlap with the ones we're already indexing
-      const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
+        // Identify subgraph deployments on the network that are worth picking up;
+        // these may overlap with the ones we're already indexing
+        const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
 
-      // Identify subgraphs allocated to
-      const allocatedDeployments = await this.network.subgraphDeploymentsAllocatedTo()
-
-      const deploymentsToIndex: SubgraphDeploymentID[] = [
-        ...networkSubgraphs.map(
-          ({ subgraphDeploymentID }) => subgraphDeploymentID,
-        ),
+        // Identify subgraphs allocated to
+        const allocatedDeployments = await this.network.subgraphDeploymentsAllocatedTo()
 
         // Ensure the network subgraph deployment _always_ keeps indexing
-        this.networkSubgraphDeployment,
-      ]
+        networkSubgraphs.push(this.networkSubgraphDeployment)
 
-      await this.resolve(
-        deploymentsToIndex,
-        indexerDeployments,
-        allocatedDeployments,
-      )
+        await this.resolve(
+          networkSubgraphs,
+          indexerDeployments,
+          allocatedDeployments,
+        )
+      } catch (error) {
+        this.logger.warn(`Synchronization loop failed:`, {
+          error: error.message,
+        })
+      }
     }, 5000)
   }
 
@@ -95,24 +95,26 @@ class Agent {
   ): Promise<void> {
     // Identify which subgraphs to deploy and which to remove
     let toDeploy = networkDeployments.filter(
-      deployment =>
+      networkDeployment =>
         !indexerDeployments.find(
-          indexerDeployment => deployment.bytes32 === indexerDeployment.bytes32,
+          indexerDeployment =>
+            networkDeployment.bytes32 === indexerDeployment.bytes32,
         ),
     )
     let toRemove = indexerDeployments.filter(
-      deployment =>
+      indexerDeployment =>
         !networkDeployments.find(
-          networkDeployment => deployment.bytes32 === networkDeployment.bytes32,
+          networkDeployment =>
+            indexerDeployment.bytes32 === networkDeployment.bytes32,
         ),
     )
 
     // Identify deployments to allocate (or reallocate) to
     let toAllocate = networkDeployments.filter(
-      deployment =>
+      networkDeployment =>
         !allocatedDeployments.find(
           allocatedDeployment =>
-            allocatedDeployment.bytes32 === deployment.bytes32,
+            allocatedDeployment.bytes32 === networkDeployment.bytes32,
         ),
     )
 
@@ -127,8 +129,10 @@ class Agent {
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
 
+    this.logger.info(`Subgraph updates:`, { toDeploy, toRemove, toAllocate })
+
     // Deploy/remove up to 20 subgraphs in parallel
-    const queue = new PQueue({ concurrency: 1 })
+    const queue = new PQueue({ concurrency: 20 })
 
     // Allocate to all deployments worth indexing and that we haven't
     // allocated to yet
