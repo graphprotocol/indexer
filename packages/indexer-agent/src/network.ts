@@ -167,7 +167,7 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((subgraph: any) => {
             const deployment = subgraph.currentVersion.subgraphDeployment
-            const totalStake = BigNumber.from(deployment.totalStake)
+            const totalStake = parseGRT(deployment.totalStake)
             return totalStake.gte(minimumStake)
           })
           .map(
