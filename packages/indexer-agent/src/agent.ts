@@ -136,9 +136,9 @@ class Agent {
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
 
     this.logger.info(`Apply changes`, {
-      deploy: toDeploy,
-      remove: toRemove,
-      allocate: toAllocate,
+      deploy: toDeploy.map(d => d.display),
+      remove: toRemove.map(d => d.display),
+      allocate: toAllocate.map(d => d.display),
     })
 
     // Deploy/remove up to 20 subgraphs in parallel
