@@ -22,9 +22,9 @@
     "typescript": "^3.8.2"
   },
   "dependencies": {
-    "@connext/types": "^7.0.0-alpha.18",
-    "@connext/utils": "^7.0.0-alpha.18",
-    "@graphprotocol/common-ts": "^0.0.48",
+    "@connext/types": "^7.0.0-alpha.20",
+    "@connext/utils": "^7.0.0-alpha.20",
+    "@graphprotocol/common-ts": "^0.0.49",
     "@graphprotocol/contracts": "^0.3.1-beta",
     "@types/node": "^13.7.4",
     "ethers": "^5.0.2"
