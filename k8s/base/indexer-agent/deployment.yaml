@@ -43,7 +43,7 @@ spec:
             - name: INDEXER_AGENT_CONNEXT_MESSAGING
               value: nats://35.223.123.63:4222
             - name: INDEXER_AGENT_CONNEXT_NODE
-              value: http://34.102.148.33/payments/
+              value: http://35.225.238.237/
             - name: INDEXER_AGENT_GRAPH_NODE_QUERY_ENDPOINT
               value: http://query-node.default.svc.cluster.local/
             - name: INDEXER_AGENT_GRAPH_NODE_ADMIN_ENDPOINT
