@@ -85,8 +85,8 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('whitelist', {
-        description: 'Client IPs that can query for free',
+      .option('free-query-auth-token', {
+        description: 'Auth token that clients can use to query for free',
         type: 'array',
       })
       .option('network-subgraph-deployment', {
@@ -189,9 +189,9 @@ export default {
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
       queryProcessor,
-      whitelist: argv.whitelist || [],
       metrics,
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
+      freeQueryAuthToken: argv.freeQueryAuthToken,
     })
   },
 }

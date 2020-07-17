@@ -12,6 +12,11 @@ export interface QueryResponse {
   status: number
 }
 
+export interface FreeQueryResponse {
+  result: string
+  status: number
+}
+
 export interface PaidQuery {
   subgraphDeploymentID: SubgraphDeploymentID
   paymentId: string
@@ -20,14 +25,12 @@ export interface PaidQuery {
 }
 
 export interface FreeQuery {
-  stateChannelID: string
   subgraphDeploymentID: SubgraphDeploymentID
   query: string
-  requestCID: string
 }
 
 export interface QueryProcessor {
-  addFreeQuery(query: FreeQuery): Promise<QueryResponse>
+  addFreeQuery(query: FreeQuery): Promise<FreeQueryResponse>
   addPaidQuery(query: PaidQuery): Promise<QueryResponse>
   addPayment(stateChannel: StateChannel, payment: ConditionalPayment): Promise<void>
 }
