@@ -13,7 +13,7 @@ export interface ServerOptions {
   metrics: Metrics
   port: number
   queryProcessor: QueryProcessor
-  whitelist: string[]
+  freeQueryAuthToken: string
   graphNodeStatusEndpoint: string
 }
 
@@ -21,7 +21,7 @@ export const createServer = async ({
   logger,
   port,
   queryProcessor,
-  whitelist,
+  freeQueryAuthToken,
   graphNodeStatusEndpoint,
 }: ServerOptions): Promise<express.Express> => {
   const loggerStream = new Stream.Writable()
@@ -76,10 +76,11 @@ export const createServer = async ({
           .send({ error: 'Invalid X-Graph-Payment-ID provided' })
       }
 
-      // Trusted indexer scenario: if the source IP is in our whitelist,
-      // we do not require payment; however, if there _is_ a payment,
-      // we still take it
-      const paymentRequired = !whitelist.includes(req.ip)
+      // Trusted indexer scenario: if the sender provides the free
+      // query auth token, we do not require payment; however, if
+      // there _is_ a payment, we still take it
+      const paymentRequired =
+        req.headers['authorization'] !== `Bearer ${freeQueryAuthToken}`
 
       if (paymentRequired) {
         // Regular scenario: a payment is required; fail if no
@@ -122,24 +123,10 @@ export const createServer = async ({
         logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
 
         // Extract the state channel ID (only required for free queries)
-        const stateChannelID = req.headers['x-graph-state-channel-id']
-        if (stateChannelID === undefined || typeof stateChannelID !== 'string') {
-          logger.info(`Free query has invalid state channel ID`, {
-            deployment: subgraphDeploymentID.display,
-            stateChannelID,
-          })
-          return res
-            .status(402)
-            .contentType('application/json')
-            .send({ error: 'Invalid X-Graph-State-Channel-ID provided' })
-        }
-
         try {
           const response = await queryProcessor.addFreeQuery({
             subgraphDeploymentID,
-            stateChannelID,
             query,
-            requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
           res
             .status(response.status || 200)

@@ -21,6 +21,7 @@ import {
   FreeQuery,
   StateChannel,
   QueryError,
+  FreeQueryResponse,
 } from './types'
 import { strict as assert } from 'assert'
 
@@ -170,18 +171,8 @@ export class QueryProcessor implements QueryProcessorInterface {
     await this.processQueryIfReady(paymentId)
   }
 
-  async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
-    const { subgraphDeploymentID, requestCID } = query
-
-    // Check if we have a state channel for this subgraph;
-    // this is synonymous with us indexing the subgraph
-    const stateChannel = this.paymentManager.stateChannel(query.stateChannelID)
-    if (stateChannel === undefined) {
-      throw new QueryError(
-        `State channel '${query.stateChannelID}' for subgraph '${subgraphDeploymentID}' not available`,
-        404,
-      )
-    }
+  async addFreeQuery(query: FreeQuery): Promise<FreeQueryResponse> {
+    const { subgraphDeploymentID } = query
 
     // Execute query in the Graph Node
     const response = await this.graphNode.post(
@@ -189,16 +180,10 @@ export class QueryProcessor implements QueryProcessorInterface {
       query.query,
     )
 
-    // Compute the response CID
-    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
-
-    return await this.createResponse({
-      stateChannel,
-      subgraphDeploymentID,
-      requestCID,
-      responseCID,
-      data: response.data,
-    })
+    return {
+      status: 200,
+      result: response.data,
+    }
   }
 
   private async createResponse({
