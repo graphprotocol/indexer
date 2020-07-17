@@ -6,7 +6,7 @@ import {
   formatGRT,
 } from '@graphprotocol/common-ts'
 import { EventEmitter } from 'events'
-import { utils } from 'ethers'
+import { utils, Wallet } from 'ethers'
 import axios, { AxiosInstance } from 'axios'
 import { delay } from '@connext/utils'
 import PQueue from 'p-queue'
@@ -21,7 +21,6 @@ import {
   FreeQuery,
   StateChannel,
   QueryError,
-  FreeQueryResponse,
 } from './types'
 import { strict as assert } from 'assert'
 
@@ -171,8 +170,8 @@ export class QueryProcessor implements QueryProcessorInterface {
     await this.processQueryIfReady(paymentId)
   }
 
-  async addFreeQuery(query: FreeQuery): Promise<FreeQueryResponse> {
-    const { subgraphDeploymentID } = query
+  async addFreeQuery(query: FreeQuery): Promise<QueryResponse> {
+    const { subgraphDeploymentID, requestCID } = query
 
     // Execute query in the Graph Node
     const response = await this.graphNode.post(
@@ -180,20 +179,27 @@ export class QueryProcessor implements QueryProcessorInterface {
       query.query,
     )
 
-    return {
-      status: 200,
-      result: response.data,
-    }
+    // Compute the response CID
+    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
+
+    // Create a response that includes a signed attestation
+    return await this.createResponse({
+      signerWallet: this.paymentManager.wallet,
+      subgraphDeploymentID,
+      requestCID,
+      responseCID,
+      data: response.data,
+    })
   }
 
   private async createResponse({
-    stateChannel,
+    signerWallet,
     subgraphDeploymentID,
     requestCID,
     responseCID,
     data,
   }: {
-    stateChannel: StateChannel
+    signerWallet: Wallet
     subgraphDeploymentID: SubgraphDeploymentID
     requestCID: string
     responseCID: string
@@ -206,7 +212,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       subgraphDeploymentID: subgraphDeploymentID.bytes32,
     }
     const attestation = await createAttestation(
-      stateChannel.privateKey,
+      signerWallet.privateKey,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
@@ -266,7 +272,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Create a response that includes a signed attestation
     const attestedResponse = await this.createResponse({
-      stateChannel,
+      signerWallet: stateChannel.wallet,
       subgraphDeploymentID,
       requestCID,
       responseCID,

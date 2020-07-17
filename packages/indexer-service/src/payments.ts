@@ -38,7 +38,7 @@ interface StateChannelOptions {
   logger: Logger
   client: IConnextClient
   signer: ChannelSigner
-  privateKey: string
+  wallet: Wallet
 }
 
 interface StateChannelCreateOptions extends PaymentManagerOptions {
@@ -47,16 +47,16 @@ interface StateChannelCreateOptions extends PaymentManagerOptions {
 
 export class StateChannel implements StateChannelInterface {
   info: ChannelInfo
-  privateKey: string
+  wallet: Wallet
   events: StateChannelEvents
 
   private logger: Logger
   private client: IConnextClient
   private signer: ChannelSigner
 
-  private constructor({ info, logger, client, signer, privateKey }: StateChannelOptions) {
+  private constructor({ info, logger, client, signer, wallet }: StateChannelOptions) {
     this.info = info
-    this.privateKey = privateKey
+    this.wallet = wallet
     this.events = {
       paymentReceived: new Evt<ConditionalPayment>(),
     }
@@ -102,6 +102,7 @@ export class StateChannel implements StateChannelInterface {
     const derivedKeyPair = hdNode.derivePath(path)
     const uncompressedPublicKey = utils.computePublicKey(derivedKeyPair.publicKey, false)
     const storePrefix = derivedKeyPair.address.substr(2)
+    const stateChannelWallet = new Wallet(derivedKeyPair.privateKey)
 
     logger.debug(`Channel parameters`, { publicKey: uncompressedPublicKey, storePrefix })
 
@@ -155,7 +156,7 @@ export class StateChannel implements StateChannelInterface {
 
       return new StateChannel({
         info,
-        privateKey: derivedKeyPair.privateKey,
+        wallet: stateChannelWallet,
         logger: logger.child({ publicIdentifier: client.publicIdentifier }),
         client,
         signer,

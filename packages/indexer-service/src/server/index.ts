@@ -127,6 +127,7 @@ export const createServer = async ({
           const response = await queryProcessor.addFreeQuery({
             subgraphDeploymentID,
             query,
+            requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
           res
             .status(response.status || 200)
