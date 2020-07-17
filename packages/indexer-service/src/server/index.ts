@@ -77,8 +77,7 @@ export const createServer = async ({
       }
 
       // Trusted indexer scenario: if the sender provides the free
-      // query auth token, we do not require payment; however, if
-      // there _is_ a payment, we still take it
+      // query auth token, we do not require payment
       const paymentRequired =
         req.headers['authorization'] !== `Bearer ${freeQueryAuthToken}`
 
@@ -94,13 +93,12 @@ export const createServer = async ({
             .contentType('application/json')
             .send({ error: 'No X-Graph-Payment-ID provided' })
         }
-      }
 
-      if (paymentId !== undefined) {
         logger.info(`Received paid query`, {
           deployment: subgraphDeploymentID.display,
           paymentId,
         })
+
         try {
           const response = await queryProcessor.addPaidQuery({
             subgraphDeploymentID,
