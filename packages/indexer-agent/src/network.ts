@@ -24,8 +24,6 @@ import fetch from 'node-fetch'
 import geohash from 'ngeohash'
 import { getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
-
-import { SubgraphDeploymentKey, Subgraph } from './types'
 import { JsonRpcProvider } from '@connext/types'
 
 class Ethereum {
@@ -138,25 +136,16 @@ export class Network {
 
   async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentID[]> {
     const minimumStake = parseGRT('100')
+    const minimumSignal = parseGRT('100')
 
     try {
       const result = await this.subgraph.query({
         query: gql`
           query {
-            subgraphs(where: { currentVersion_not: null }) {
+            subgraphDeployments {
               id
-              totalNameSignaledGRT
-              totalNameSignalMinted
-              owner {
-                id
-              }
-              currentVersion {
-                id
-                subgraphDeployment {
-                  id
-                  totalStake
-                }
-              }
+              totalStake
+              totalSignaledGRT
             }
           }
         `,
@@ -165,17 +154,15 @@ export class Network {
       return (
         result.data.subgraphs
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((subgraph: any) => {
-            const deployment = subgraph.currentVersion.subgraphDeployment
+          .filter((deployment: any) => {
             const totalStake = parseGRT(deployment.totalStake)
-            return totalStake.gte(minimumStake)
+            const totalSignal = parseGRT(deployment.totalSignaledGRT)
+            return (
+              totalStake.gte(minimumStake) || totalSignal.gte(minimumSignal)
+            )
           })
-          .map(
-            (subgraph: Subgraph) =>
-              new SubgraphDeploymentID(
-                subgraph.currentVersion.subgraphDeployment.id,
-              ),
-          )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
       )
     } catch (error) {
       this.logger.error(`Failed to query subgraphs on the network`)
