@@ -152,7 +152,7 @@ export class Network {
         fetchPolicy: 'no-cache',
       })
       return (
-        result.data.subgraphs
+        result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
             const totalStake = parseGRT(deployment.totalStake)
