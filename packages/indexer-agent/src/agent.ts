@@ -159,7 +159,7 @@ class Agent {
       queue.add(async () => {
         this.logger.info(`Begin indexing subgraph deployment`, {
           name,
-          deployment,
+          deployment: deployment.display,
         })
 
         // Ensure the deployment is deployed to the indexer
@@ -174,7 +174,7 @@ class Agent {
       })
     }
 
-    await queue.onEmpty()
+    await queue.onIdle()
   }
 }
 
