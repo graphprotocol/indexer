@@ -62,6 +62,8 @@ class Agent {
 
     await loop(async () => {
       try {
+        this.logger.info('Synchronizing subgraphs')
+
         // Identify subgraph deployments indexed locally
         const indexerDeployments = await this.indexer.subgraphDeployments()
 
@@ -141,14 +143,14 @@ class Agent {
       allocate: toAllocate.map(d => d.display),
     })
 
-    // Deploy/remove up to 20 subgraphs in parallel
-    const queue = new PQueue({ concurrency: 20 })
-
     // Allocate to all deployments worth indexing and that we haven't
     // allocated to yet
     for (const deployment of toAllocate) {
       await this.network.allocate(deployment)
     }
+
+    // Deploy/remove up to 10 subgraphs in parallel
+    const queue = new PQueue({ concurrency: 10 })
 
     // Index all new deployments worth indexing
     for (const deployment of toDeploy) {
@@ -162,22 +164,17 @@ class Agent {
 
         // Ensure the deployment is deployed to the indexer
         await this.indexer.ensure(name, deployment)
-
-        this.logger.info(`Now indexing subgraph deployment`, {
-          name,
-          deployment,
-        })
       })
     }
 
     // Stop indexing deployments that are no longer worth indexing
     for (const deployment of toRemove) {
-      queue.add(() => {
-        this.indexer.remove(deployment)
+      queue.add(async () => {
+        await this.indexer.remove(deployment)
       })
     }
 
-    await queue.onIdle()
+    await queue.onEmpty()
   }
 }
 
