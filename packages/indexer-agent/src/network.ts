@@ -93,6 +93,7 @@ export class Network {
     connextNode: string,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
+
     const subgraph = new ApolloClient({
       link: new HttpLink({
         uri: new URL(
@@ -103,13 +104,25 @@ export class Network {
       }),
       cache: new InMemoryCache(),
     })
-    let wallet = Wallet.fromMnemonic(mnemonic)
-    const ethereumProvider = new providers.JsonRpcProvider(ethereumProviderUrl)
+
+    let providerUrl
+    try {
+      providerUrl = new URL(ethereumProviderUrl)
+    } catch (e) {
+      throw new Error(`Invalid Ethereum URL '${ethereumProviderUrl}': ${e}`)
+    }
+
+    const ethereumProvider = new providers.JsonRpcProvider({
+      url: providerUrl.toString(),
+      user: providerUrl.username,
+      password: providerUrl.password,
+    })
 
     logger.info(`Create wallet`, {
       network,
       provider: ethereumProviderUrl,
     })
+    let wallet = Wallet.fromMnemonic(mnemonic)
     wallet = wallet.connect(ethereumProvider)
     logger.info(`Successfully created wallet`, { address: wallet.address })
 
