@@ -333,7 +333,7 @@ export class PaymentManager implements PaymentManagerInterface {
   }
 
   async createStateChannels(channels: ChannelInfo[]): Promise<void> {
-    const queue = new PQueue({ concurrency: 10 })
+    const queue = new PQueue({ concurrency: 5 })
 
     for (const channel of channels) {
       queue.add(async () => {
@@ -356,7 +356,7 @@ export class PaymentManager implements PaymentManagerInterface {
   }
 
   async settleStateChannels(channels: ChannelInfo[]): Promise<void> {
-    const queue = new PQueue({ concurrency: 10 })
+    const queue = new PQueue({ concurrency: 5 })
 
     for (const channel of channels) {
       queue.add(async () => {
