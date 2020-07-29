@@ -321,10 +321,11 @@ export class Network {
       uncompressedPublicKey,
     )
     const nodeConfig = await this.connextNode.get('/config')
+    const network = await this.ethereumProvider.getNetwork()
     const create2Address = await getCreate2MultisigAddress(
       channelIdentifier,
       nodeConfig.data.nodeIdentifier,
-      nodeConfig.data.contractAddresses,
+      nodeConfig.data.contractAddresses[network.chainId],
       this.ethereumProvider,
     )
 
