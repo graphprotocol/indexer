@@ -6,7 +6,6 @@ import {
   createMetricsServer,
   connectDatabase,
   SubgraphDeploymentID,
-  defineStateChannelStoreModels,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -28,22 +27,6 @@ export default {
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
-      })
-      .option('connext-messaging', {
-        description: 'Connext messaging URL',
-        type: 'string',
-        required: true,
-      })
-      .option('connext-node', {
-        description: 'Connext node URL',
-        type: 'string',
-        required: true,
-      })
-      .option('connext-log-level', {
-        description: 'Connext log level (1-5, default: 0)',
-        type: 'number',
-        required: false,
-        default: 0,
       })
       .option('postgres-host', {
         description: 'Postgres host',
@@ -143,7 +126,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    await defineStateChannelStoreModels(sequelize)
+    // TODO: (Liam) Define your database models here, before the call to sync()
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
@@ -155,9 +138,6 @@ export default {
       metrics,
       sequelize,
       ethereum: argv.ethereum,
-      connextMessaging: argv.connextMessaging,
-      connextNode: argv.connextNode,
-      connextLogLevel: argv.connextLogLevel,
       wallet,
       contracts,
     })
@@ -178,14 +158,6 @@ export default {
       paymentManager,
       chainId: network.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
-    })
-
-    paymentManager.events.paymentReceived.attach(async ({ stateChannel, payment }) => {
-      try {
-        await queryProcessor.addPayment(stateChannel, payment)
-      } catch (e) {
-        logger.warn(`${e}`)
-      }
     })
 
     // Add and remove subgraph state channels as indexing subgraphs change

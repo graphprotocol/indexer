@@ -1,20 +1,30 @@
-import { Attestation, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { Wallet, BigNumberish } from 'ethers'
-import { Evt } from 'evt'
+import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Wallet } from 'ethers'
 
 export interface QueryResult {
   graphQLResponse: string
   attestation: Attestation
 }
 
-export interface QueryResponse {
+export interface UnattestedQueryResult {
+  graphQLResponse: string
+  attestation: Receipt
+}
+
+export interface PaidQueryResponse {
   result: QueryResult
+  status: number
+  paymentAppState: string
+}
+
+export interface UnpaidQueryResponse {
+  result: UnattestedQueryResult
   status: number
 }
 
 export interface PaidQuery {
   subgraphDeploymentID: SubgraphDeploymentID
-  paymentId: string
+  paymentAppState: string
   query: string
   requestCID: string
 }
@@ -26,23 +36,8 @@ export interface FreeQuery {
 }
 
 export interface QueryProcessor {
-  addFreeQuery(query: FreeQuery): Promise<QueryResponse>
-  addPaidQuery(query: PaidQuery): Promise<QueryResponse>
-  addPayment(stateChannel: StateChannel, payment: ConditionalPayment): Promise<void>
-}
-
-export interface ConditionalPayment {
-  paymentId: string
-  appIdentityHash: string
-  amount: BigNumberish
-  sender: string
-  signer: string
-}
-
-export interface ConditionalSubgraphPayment {
-  payment: ConditionalPayment
-  stateChannelID: string
-  subgraphDeploymentID: SubgraphDeploymentID
+  executeFreeQuery(query: FreeQuery): Promise<UnpaidQueryResponse>
+  executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
 }
 
 export interface Allocation {
@@ -52,37 +47,19 @@ export interface Allocation {
   createdAtEpoch: number
 }
 
-export interface StateChannelEvents {
-  paymentReceived: Evt<ConditionalPayment>
-}
-
 export interface StateChannel {
   allocation: Allocation
   wallet: Wallet
-
-  events: StateChannelEvents
-
-  unlockPayment(payment: ConditionalPayment, attestation: Attestation): Promise<void>
-  cancelPayment(payment: ConditionalPayment): Promise<void>
+  unlockPayment(attestation: Attestation): Promise<string>
   settle(): Promise<void>
-}
-
-export interface PaymentReceivedEvent {
-  payment: ConditionalPayment
-  stateChannel: StateChannel
-}
-
-export interface PaymentManagerEvents {
-  paymentReceived: Evt<PaymentReceivedEvent>
 }
 
 export interface PaymentManager {
   wallet: Wallet
-  events: PaymentManagerEvents
 
   createStateChannels(allocations: Allocation[]): Promise<void>
   settleStateChannels(allocations: Allocation[]): Promise<void>
-  stateChannel(id: string): StateChannel | undefined
+  stateChannel(paymentAppState: string): StateChannel | undefined
 }
 
 export class QueryError extends Error {
