@@ -9,7 +9,6 @@ import {
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '@graphprotocol/common-ts'
-import axios, { AxiosInstance } from 'axios'
 import {
   ContractTransaction,
   ContractReceipt,
@@ -17,6 +16,7 @@ import {
   providers,
   Wallet,
   utils,
+  ethers,
 } from 'ethers'
 import { strict as assert } from 'assert'
 import ApolloClient from 'apollo-client'
@@ -25,9 +25,6 @@ import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
 import fetch from 'node-fetch'
 import geohash from 'ngeohash'
-import { getPublicIdentifierFromPublicKey } from '@connext/utils'
-import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
-import { JsonRpcProvider } from '@connext/types'
 import { Allocation } from './types'
 
 class Ethereum {
@@ -60,8 +57,7 @@ export class Network {
   indexerGeoCoordinates: [string, string]
   mnemonic: string
   logger: Logger
-  ethereumProvider: JsonRpcProvider
-  connextNode: AxiosInstance
+  ethereumProvider: providers.JsonRpcProvider
 
   private constructor(
     logger: Logger,
@@ -71,8 +67,7 @@ export class Network {
     contracts: NetworkContracts,
     mnemonic: string,
     subgraph: ApolloClient<NormalizedCacheObject>,
-    ethereumProvider: JsonRpcProvider,
-    connextNode: AxiosInstance,
+    ethereumProvider: providers.JsonRpcProvider,
   ) {
     this.logger = logger
     this.indexerAddress = indexerAddress
@@ -82,7 +77,6 @@ export class Network {
     this.mnemonic = mnemonic
     this.subgraph = subgraph
     this.ethereumProvider = ethereumProvider
-    this.connextNode = connextNode
   }
 
   static async create(
@@ -93,7 +87,6 @@ export class Network {
     geoCoordinates: [string, string],
     mnemonic: string,
     networkSubgraphDeployment: SubgraphDeploymentID,
-    connextNode: string,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
 
@@ -144,10 +137,6 @@ export class Network {
       mnemonic,
       subgraph,
       ethereumProvider,
-      axios.create({
-        baseURL: connextNode,
-        responseType: 'json',
-      }),
     )
   }
 
@@ -155,7 +144,7 @@ export class Network {
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     const globalRule = rules.find(
-      rule => rule.deployment === INDEXING_RULE_GLOBAL,
+      (rule) => rule.deployment === INDEXING_RULE_GLOBAL,
     )
 
     try {
@@ -187,7 +176,7 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
             const deploymentRule =
-              rules.find(rule => rule.deployment === deployment.id) ||
+              rules.find((rule) => rule.deployment === deployment.id) ||
               globalRule
 
             // The deployment is not eligible for deployment if it doesn't have an allocation amount
@@ -407,7 +396,7 @@ export class Network {
         }),
         this.logger,
       )
-      const event = receipt.events?.find(event =>
+      const event = receipt.events?.find((event) =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
             'ServiceRegistered',
@@ -476,26 +465,9 @@ export class Network {
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
 
-    this.logger.debug(`Deriving channel key`, { path })
-
-    // CREATE2 address for the channel
-    const channelIdentifier = getPublicIdentifierFromPublicKey(
-      uncompressedPublicKey,
-    )
-    const network = await this.ethereumProvider.getNetwork()
-    const nodeConfig = await this.connextNode.get(`/config/${network.chainId}`)
-    const create2Address = await getCreate2MultisigAddress(
-      channelIdentifier,
-      nodeConfig.data.nodeIdentifier,
-      nodeConfig.data.contractAddresses[network.chainId],
-      this.ethereumProvider,
-    )
-
-    this.logger.debug(`Identified channel proxy address`, { create2Address })
-
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
-    const freeStake = stakes.tokensStaked
+    const freeStake = stakes.tokensAllocated
       .sub(stakes.tokensAllocated)
       .sub(stakes.tokensLocked)
 
@@ -514,7 +486,7 @@ export class Network {
       deployment: deployment.display,
       amount: formatGRT(amount),
       uncompressedPublicKey,
-      create2Address,
+      create2Address: ethers.constants.AddressZero, // TODO: Deploy GRTAssetHolder
       price,
       txOverrides,
     })
@@ -524,14 +496,14 @@ export class Network {
         deployment.bytes32,
         amount,
         uncompressedPublicKey,
-        create2Address,
+        /* _channelProxy */ ethers.constants.AddressZero, // TODO: Deploy GRTAssetHolder
         price,
         txOverrides,
       ),
       this.logger,
     )
 
-    const event = receipt.events?.find(event =>
+    const event = receipt.events?.find((event) =>
       event.topics.includes(
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
@@ -648,7 +620,7 @@ export class Network {
         ),
         this.logger,
       )
-      const approveEvent = approveReceipt.events?.find(event =>
+      const approveEvent = approveReceipt.events?.find((event) =>
         event.topics.includes(
           this.contracts.token.interface.getEventTopic('Approval'),
         ),
@@ -676,7 +648,7 @@ export class Network {
         this.contracts.staking.stake(missingStake, txOverrides),
         this.logger,
       )
-      const stakeEvent = stakeReceipt.events?.find(event =>
+      const stakeEvent = stakeReceipt.events?.find((event) =>
         event.topics.includes(
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
         ),

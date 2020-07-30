@@ -200,10 +200,6 @@ necessary:
      --from-literal=url=<ethereum-provider>
    kubectl create secret generic indexer-service-eth-account \
      --from-literal=mnemonic=<mnemonic>
-
-   # State channels
-   kubectl create secret generic indexer-service-connext-node \
-     --from-literal=url=<connext-node>
    ```
 2. Indexer agent:
 

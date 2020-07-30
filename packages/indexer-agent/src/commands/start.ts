@@ -56,11 +56,6 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('connext-node', {
-        description: 'Connext node URL',
-        type: 'string',
-        required: true,
-      })
       .option('index-node-ids', {
         description: 'Node IDs of Graph nodes to use for indexing',
         type: 'string',
@@ -159,7 +154,6 @@ export default {
       networkSubgraphDeployment: new SubgraphDeploymentID(
         argv.networkSubgraphDeployment,
       ),
-      connextNode: argv.connextNode,
       indexNodeIDs: argv.indexNodeIds,
       indexerManagement: indexerManagementClient,
       defaultAllocation: argv.defaultDeploymentAllocation,

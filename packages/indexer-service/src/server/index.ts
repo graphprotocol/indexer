@@ -64,16 +64,17 @@ export const createServer = async ({
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
       // Extract the payment ID
-      const paymentId = req.headers['x-graph-payment-id']
-      if (paymentId !== undefined && typeof paymentId !== 'string') {
-        logger.info(`Query has invalid payment ID`, {
+      // TODO: (Liam) Grab latest state from header here:
+      const paymentAppState = req.headers['x-graph-state-channel']
+      if (paymentAppState !== undefined && typeof paymentAppState !== 'string') {
+        logger.info(`Query has invalid state channel`, {
           deployment: subgraphDeploymentID.display,
-          paymentId,
+          paymentAppState,
         })
         return res
           .status(402)
           .contentType('application/json')
-          .send({ error: 'Invalid X-Graph-Payment-ID provided' })
+          .send({ error: 'Invalid X-Graph-State-Channel provided' })
       }
 
       // Trusted indexer scenario: if the sender provides the free
@@ -83,9 +84,9 @@ export const createServer = async ({
 
       if (paymentRequired) {
         // Regular scenario: a payment is required; fail if no
-        // payment ID is specified
-        if (paymentId === undefined) {
-          logger.info(`Query is missing payment ID`, {
+        // state channel is specified
+        if (paymentAppState === undefined) {
+          logger.info(`Query is missing state channel`, {
             deployment: subgraphDeploymentID.display,
           })
           return res
@@ -96,18 +97,20 @@ export const createServer = async ({
 
         logger.info(`Received paid query`, {
           deployment: subgraphDeploymentID.display,
-          paymentId,
+          paymentAppState,
         })
 
         try {
-          const response = await queryProcessor.addPaidQuery({
+          const response = await queryProcessor.executePaidQuery({
             subgraphDeploymentID,
-            paymentId,
+            paymentAppState,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
+          // TODO: (Liam) Note how state channel is being sent out here via the same header as above
           res
             .status(response.status || 200)
+            .header('x-graph-state-channel', response.paymentAppState)
             .contentType('application/json')
             .send(response.result)
         } catch (error) {
@@ -120,9 +123,8 @@ export const createServer = async ({
       } else {
         logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
 
-        // Extract the state channel ID (only required for free queries)
         try {
-          const response = await queryProcessor.addFreeQuery({
+          const response = await queryProcessor.executeFreeQuery({
             subgraphDeploymentID,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),

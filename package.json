@@ -22,8 +22,6 @@
     "typescript": "^3.8.2"
   },
   "dependencies": {
-    "@connext/types": "^7.3.2",
-    "@connext/utils": "^7.3.2",
     "@graphprotocol/common-ts": "^0.1.4",
     "@graphprotocol/contracts": "^0.4.7-testnet-phase1",
     "@types/node": "^13.7.4",

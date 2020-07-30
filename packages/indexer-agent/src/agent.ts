@@ -330,7 +330,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexerGeoCoordinates,
     config.mnemonic,
     config.networkSubgraphDeployment,
-    config.connextNode,
   )
   const agent = new Agent(
     config.logger,

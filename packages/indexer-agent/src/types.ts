@@ -17,7 +17,6 @@ export interface AgentConfig {
   ethereumProvider: string
   logger: Logger
   networkSubgraphDeployment: SubgraphDeploymentID
-  connextNode: string
   indexNodeIDs: string[]
 }
 
