@@ -331,6 +331,7 @@ export class Network {
       deployment: deployment.display,
     })
     const currentAllocations = await this.allocations(deployment)
+    this.logger.info(`Current allocations`, { allocations: currentAllocations })
 
     // For now: Cannot allocate (for now) if we have already allocated to this
     // subgraph
@@ -394,6 +395,15 @@ export class Network {
         )} GRT stake free for allocating`,
       )
     }
+
+    this.logger.info(`Allocate`, {
+      deployment: deployment.display,
+      amount,
+      uncompressedPublicKey,
+      create2Address,
+      price,
+      txOverrides,
+    })
 
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
