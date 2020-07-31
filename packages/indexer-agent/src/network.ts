@@ -187,7 +187,7 @@ export class Network {
       const result = await this.subgraph.query({
         query: gql`
           query allocations($indexer: String!) {
-            allocations(where: { indexer: $indexer, activeChannel_not: null }) {
+            allocations(where: { indexer: $indexer, status: Active }) {
               subgraphDeployment {
                 id
               }
@@ -219,7 +219,7 @@ export class Network {
               where: {
                 indexer: $indexer
                 subgraphDeployment: $deployment
-                activeChannel_not: null
+                status: Active
               }
             ) {
               id
