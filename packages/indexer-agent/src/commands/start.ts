@@ -34,13 +34,6 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('network', {
-        description:
-          'Ethereum network where the protocol contracts are deployed',
-        type: 'string',
-        choices: ['ganache', 'kovan', 'mainnet', 'ropsten'],
-        default: 'ropsten',
-      })
       .option('mnemonic', {
         description: 'Mnemonic for the wallet',
         type: 'string',
@@ -87,7 +80,6 @@ export default {
       publicIndexerUrl: argv.publicIndexerUrl,
       indexerGeoCoordinates: argv.indexerGeoCoordinates,
       ethereumProvider: argv.ethereum,
-      network: argv.network,
       logger,
       networkSubgraphDeployment: new SubgraphDeploymentID(
         argv.networkSubgraphDeployment,

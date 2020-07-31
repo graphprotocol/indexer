@@ -85,7 +85,6 @@ export class Network {
   static async create(
     parentLogger: Logger,
     ethereumProviderUrl: string,
-    network: string,
     indexerUrl: string,
     indexerGraphqlUrl: string,
     geoCoordinates: [string, string],
@@ -118,9 +117,11 @@ export class Network {
       user: providerUrl.username,
       password: providerUrl.password,
     })
+    const network = await ethereumProvider.getNetwork()
 
     logger.info(`Create wallet`, {
-      network,
+      network: network.name,
+      chainId: network.chainId,
       provider: ethereumProviderUrl,
     })
     let wallet = Wallet.fromMnemonic(mnemonic)
@@ -128,8 +129,7 @@ export class Network {
     logger.info(`Successfully created wallet`, { address: wallet.address })
 
     logger.info(`Connecting to contracts`)
-    const networkInfo = await ethereumProvider.getNetwork()
-    const contracts = await connectContracts(wallet, networkInfo.chainId)
+    const contracts = await connectContracts(wallet, network.chainId)
     logger.info(`Successfully connected to contracts`)
 
     return new Network(

@@ -194,7 +194,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
   const network = await Network.create(
     config.logger,
     config.ethereumProvider,
-    config.network,
     config.publicIndexerUrl,
     config.queryEndpoint,
     config.indexerGeoCoordinates,

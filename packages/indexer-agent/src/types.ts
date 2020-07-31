@@ -9,7 +9,6 @@ export interface AgentConfig {
   publicIndexerUrl: string
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string
-  network: string
   logger: Logger
   networkSubgraphDeployment: SubgraphDeploymentID
   connextNode: string
