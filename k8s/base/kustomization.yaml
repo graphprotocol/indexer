@@ -16,5 +16,6 @@ resources:
   - nfs.yaml
   - prometheus.yaml
   - grafana.yaml
+  - ingress.yaml
 
 namespace: default
