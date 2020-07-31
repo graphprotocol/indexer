@@ -1,4 +1,5 @@
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { BigNumber } from 'ethers'
 
 export interface AgentConfig {
   mnemonic: string
@@ -15,45 +16,14 @@ export interface AgentConfig {
   indexNodeIDs: string[]
 }
 
-export interface SubgraphDeploymentKey {
-  owner: string
-  subgraphDeploymentID: SubgraphDeploymentID
-}
-
 interface SubgraphDeployment {
   id: string
-  totalStake: number
+  totalStake: BigNumber
 }
 
-interface SubgraphVersion {
+export interface Allocation {
   id: string
-  unpublished: boolean
-  subgraphDeployment: SubgraphDeployment
-}
-
-interface GraphName {
-  id: string
-  nameSystem: string
-  name: string
-}
-
-interface GraphAccount {
-  id: string
-}
-
-export interface Subgraph {
-  id: string
-  owner: GraphAccount
-  totalNameSignaledGRT: number
-  totalNameSignalMinted: number
-  currentVersion: SubgraphVersion
-}
-
-interface ContractAddresses {
-  GNS: string
-  GraphToken: string
-  MultisigWallet: string
-  ServiceRegistry: string
-  Staking: string
-  EpochManager: string
+  subgraphDeployment: SubgraphDeploymentID
+  allocatedTokens: BigNumber
+  createdAtEpoch: number
 }

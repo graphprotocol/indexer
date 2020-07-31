@@ -25,6 +25,7 @@ import geohash from 'ngeohash'
 import { getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
 import { JsonRpcProvider } from '@connext/types'
+import { Allocation } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -157,8 +158,8 @@ export class Network {
           query {
             subgraphDeployments {
               id
-              totalStake
-              totalSignaledGRT
+              stake: stakedTokens
+              signal: signalAmount
             }
           }
         `,
@@ -168,11 +169,9 @@ export class Network {
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
-            const totalStake = parseGRT(deployment.totalStake)
-            const totalSignal = parseGRT(deployment.totalSignaledGRT)
-            return (
-              totalStake.gte(minimumStake) || totalSignal.gte(minimumSignal)
-            )
+            const stake = parseGRT(deployment.stake)
+            const signal = parseGRT(deployment.signal)
+            return stake.gte(minimumStake) || signal.gte(minimumSignal)
           })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
@@ -187,7 +186,7 @@ export class Network {
     try {
       const result = await this.subgraph.query({
         query: gql`
-          query indexerAllocations($indexer: String!) {
+          query allocations($indexer: String!) {
             allocations(where: { indexer: $indexer, activeChannel_not: null }) {
               subgraphDeployment {
                 id
@@ -204,6 +203,50 @@ export class Network {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (allocation: any) =>
           new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+      )
+    } catch (error) {
+      this.logger.error(`Failed to query active indexer allocations`)
+      throw error
+    }
+  }
+
+  async allocations(deployment: SubgraphDeploymentID): Promise<Allocation[]> {
+    try {
+      const result = await this.subgraph.query({
+        query: gql`
+          query allocations($indexer: String!, $deployment: String!) {
+            allocations(
+              where: {
+                indexer: $indexer
+                subgraphDeployment: $deployment
+                activeChannel_not: null
+              }
+            ) {
+              id
+              createdAtEpoch
+              allocatedTokens
+              subgraphDeployment {
+                id
+              }
+            }
+          }
+        `,
+        variables: {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+          deployment: deployment.bytes32,
+        },
+        fetchPolicy: 'no-cache',
+      })
+      return result.data.allocations.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (allocation: any) => ({
+          id: allocation.id,
+          createdAtEpoch: allocation.createdAtEpoch,
+          allocatedTokens: parseGRT(allocation.allocatedTokens),
+          subgraphDeployment: new SubgraphDeploymentID(
+            allocation.subgraphDeployment.id,
+          ),
+        }),
       )
     } catch (error) {
       this.logger.error(`Failed to query active indexer allocations`)
@@ -284,27 +327,29 @@ export class Network {
     const amount = parseGRT('1')
     const price = parseGRT('0.01')
 
+    this.logger.info(`Identify current allocation`, {
+      deployment: deployment.display,
+    })
+    const currentAllocations = await this.allocations(deployment)
+
+    // For now: Cannot allocate (for now) if we have already allocated to this
+    // subgraph
+    if (currentAllocations.length > 0) {
+      this.logger.info(`Already allocated on subgraph deployment`, {
+        deployment: deployment.display,
+        amountGRT: formatGRT(currentAllocations[0].allocatedTokens),
+        channel: currentAllocations[0].id,
+        epoch: currentAllocations[0].createdAtEpoch,
+      })
+      return
+    }
+
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     this.logger.info(`Allocate to subgraph deployment`, {
       deployment: deployment.display,
       amountGRT: formatGRT(amount),
       epoch: currentEpoch.toString(),
     })
-    const currentAllocation = await this.contracts.staking.getAllocation(
-      this.indexerAddress,
-      deployment.bytes32,
-    )
-
-    // Cannot allocate (for now) if we have already allocated to this subgraph
-    if (currentAllocation.tokens.gt('0')) {
-      this.logger.info(`Already allocated on subgraph deployment`, {
-        deployment: deployment.display,
-        amountGRT: formatGRT(currentAllocation.tokens),
-        channel: currentAllocation.channelID,
-        epoch: currentAllocation.createdAtEpoch.toString(),
-      })
-      return
-    }
 
     // Derive the deployment specific public key
     const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
@@ -333,7 +378,7 @@ export class Network {
 
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
-    const freeStake = stakes.tokensIndexer
+    const freeStake = stakes.tokensStaked
       .sub(stakes.tokensAllocated)
       .sub(stakes.tokensLocked)
 
