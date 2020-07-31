@@ -365,8 +365,8 @@ export class Network {
     const channelIdentifier = getPublicIdentifierFromPublicKey(
       uncompressedPublicKey,
     )
-    const nodeConfig = await this.connextNode.get('/config')
     const network = await this.ethereumProvider.getNetwork()
+    const nodeConfig = await this.connextNode.get(`/config/${network.chainId}`)
     const create2Address = await getCreate2MultisigAddress(
       channelIdentifier,
       nodeConfig.data.nodeIdentifier,
