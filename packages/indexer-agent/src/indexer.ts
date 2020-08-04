@@ -5,6 +5,7 @@ import gql from 'graphql-tag'
 import jayson, { Client } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
+import { IndexingStatus } from './types'
 
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
@@ -67,6 +68,44 @@ export class Indexer {
         .map((status: { subgraphDeployment: string; node: string }) => {
           return new SubgraphDeploymentID(status.subgraphDeployment)
         })
+    } catch (error) {
+      this.logger.error(`Failed to query indexing status API`)
+      throw error
+    }
+  }
+
+  async indexingStatus(
+    deployment: SubgraphDeploymentID,
+  ): Promise<IndexingStatus> {
+    try {
+      const result = await this.statuses.query({
+        query: gql`
+          query indexingStatus($deployments: [String!]!) {
+            indexingStatuses(subgraphs: $deployments) {
+              subgraphDeployment: subgraph
+              synced
+              health
+              fatalError {
+                handler
+                message
+              }
+            }
+          }
+        `,
+        variables: { deployments: [deployment.ipfsHash] },
+        fetchPolicy: 'no-cache',
+      })
+      return (
+        result.data.indexingStatuses
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((status: any) => ({
+            ...status,
+            subgraphDeployment: new SubgraphDeploymentID(
+              status.subgraphDeployment,
+            ),
+          }))
+          .pop()
+      )
     } catch (error) {
       this.logger.error(`Failed to query indexing status API`)
       throw error

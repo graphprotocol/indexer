@@ -13,10 +13,12 @@ const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
 }
 
-const loop = async (f: () => Promise<void>, interval: number) => {
+const loop = async (f: () => Promise<boolean>, interval: number) => {
   // eslint-disable-next-line no-constant-condition
   while (true) {
-    await f()
+    if (!(await f())) {
+      break
+    }
     await delay(interval)
   }
 }
@@ -56,8 +58,33 @@ class Agent {
       )}/${this.networkSubgraphDeployment.ipfsHash.slice(23)}`,
       this.networkSubgraphDeployment,
     )
-    await this.network.allocate(this.networkSubgraphDeployment)
 
+    // Wait until the network subgraph is synced
+    await loop(async () => {
+      this.logger.info(`Waiting for network subgraph deployment to be synced`)
+
+      // Check the network subgraph status
+      const status = await this.indexer.indexingStatus(
+        this.networkSubgraphDeployment,
+      )
+
+      // Throw if the subgraph has failed
+      if (status.health !== 'healthy') {
+        throw new Error(
+          `Failed to index network subgraph deployment '${this.networkSubgraphDeployment}': ${status.fatalError.message}`,
+        )
+      }
+
+      if (status.synced) {
+        // The deployment has synced, we're ready to go
+        return false
+      } else {
+        // The subgraph has not synced yet, keep waiting
+        return true
+      }
+    }, 5000)
+
+    this.logger.info(`Network subgraph deployment is synced`)
     this.logger.info(`Periodically synchronizing subgraphs`)
 
     await loop(async () => {
@@ -87,6 +114,8 @@ class Agent {
           error: error.message,
         })
       }
+
+      return true
     }, 5000)
   }
 

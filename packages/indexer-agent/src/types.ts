@@ -26,3 +26,15 @@ export interface Allocation {
   allocatedTokens: BigNumber
   createdAtEpoch: number
 }
+
+export interface IndexingStatus {
+  subgraphDeployment: SubgraphDeploymentID
+  health: string
+  synced: boolean
+  fatalError: IndexingError
+}
+
+export interface IndexingError {
+  handler: string
+  message: string
+}
