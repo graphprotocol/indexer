@@ -145,8 +145,8 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Update the existing query
       existingQuery.payment = {
         payment,
-        stateChannelID: stateChannel.info.id,
-        subgraphDeploymentID: stateChannel.info.subgraphDeploymentID,
+        stateChannelID: stateChannel.allocation.id,
+        subgraphDeploymentID: stateChannel.allocation.subgraphDeploymentID,
       }
       existingQuery.updatedAt = Date.now()
     } else {
@@ -159,8 +159,8 @@ export class QueryProcessor implements QueryProcessorInterface {
         paymentId,
         payment: {
           payment,
-          stateChannelID: stateChannel.info.id,
-          subgraphDeploymentID: stateChannel.info.subgraphDeploymentID,
+          stateChannelID: stateChannel.allocation.id,
+          subgraphDeploymentID: stateChannel.allocation.subgraphDeploymentID,
         },
         updatedAt: Date.now(),
         emitter: new EventEmitter(),

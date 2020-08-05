@@ -22,7 +22,7 @@ import {
   PaymentManager as PaymentManagerInterface,
   StateChannel as StateChannelInterface,
   ConditionalPayment,
-  ChannelInfo,
+  Allocation,
   StateChannelEvents,
   PaymentManagerEvents,
   PaymentReceivedEvent,
@@ -34,7 +34,7 @@ const delay = async (ms: number) => {
 }
 
 interface StateChannelOptions {
-  info: ChannelInfo
+  allocation: Allocation
   logger: Logger
   client: IConnextClient
   signer: ChannelSigner
@@ -42,11 +42,11 @@ interface StateChannelOptions {
 }
 
 interface StateChannelCreateOptions extends PaymentManagerOptions {
-  info: ChannelInfo
+  allocation: Allocation
 }
 
 export class StateChannel implements StateChannelInterface {
-  info: ChannelInfo
+  allocation: Allocation
   wallet: Wallet
   events: StateChannelEvents
 
@@ -54,8 +54,14 @@ export class StateChannel implements StateChannelInterface {
   private client: IConnextClient
   private signer: ChannelSigner
 
-  private constructor({ info, logger, client, signer, wallet }: StateChannelOptions) {
-    this.info = info
+  private constructor({
+    allocation,
+    logger,
+    client,
+    signer,
+    wallet,
+  }: StateChannelOptions) {
+    this.allocation = allocation
     this.wallet = wallet
     this.events = {
       paymentReceived: new Evt<ConditionalPayment>(),
@@ -72,7 +78,7 @@ export class StateChannel implements StateChannelInterface {
   }
 
   static async create({
-    info,
+    allocation,
     logger: parentLogger,
     sequelize,
     ethereum,
@@ -81,12 +87,12 @@ export class StateChannel implements StateChannelInterface {
     connextLogLevel,
     wallet,
   }: StateChannelCreateOptions): Promise<StateChannel> {
-    const subgraphDeploymentID = info.subgraphDeploymentID
+    const subgraphDeploymentID = allocation.subgraphDeploymentID
 
     const logger = parentLogger.child({
       component: `StateChannel`,
       deployment: subgraphDeploymentID.display,
-      createdAtEpoch: info.createdAtEpoch.toString(),
+      createdAtEpoch: allocation.createdAtEpoch.toString(),
     })
 
     logger.info(`Create state channel`)
@@ -95,7 +101,7 @@ export class StateChannel implements StateChannelInterface {
     const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
     const path =
       'm/' +
-      [info.createdAtEpoch, ...Buffer.from(subgraphDeploymentID.ipfsHash)].join('/')
+      [allocation.createdAtEpoch, ...Buffer.from(subgraphDeploymentID.ipfsHash)].join('/')
 
     logger.info(`Derive channel key`, { path })
 
@@ -132,20 +138,22 @@ export class StateChannel implements StateChannelInterface {
       const balance = freeBalance[client.signerAddress]
 
       logger.debug(`Channel configuration`, {
-        onChainPublicKey: info.publicKey,
-        onChainSignerAddress: info.id,
+        onChainPublicKey: allocation.publicKey,
+        onChainSignerAddress: allocation.id,
         publicKey: uncompressedPublicKey,
         signerAddress: client.signerAddress,
         publicIdentifier: client.publicIdentifier,
         freeBalance: utils.formatEther(balance),
       })
 
-      if (client.publicIdentifier !== getPublicIdentifierFromPublicKey(info.publicKey)) {
+      if (
+        client.publicIdentifier !== getPublicIdentifierFromPublicKey(allocation.publicKey)
+      ) {
         throw new Error(
           `Public channel identifier ${
             client.publicIdentifier
           } doesn't match on-chain identifier ${getPublicIdentifierFromPublicKey(
-            info.publicKey,
+            allocation.publicKey,
           )}`,
         )
       }
@@ -155,7 +163,7 @@ export class StateChannel implements StateChannelInterface {
       logger.info(`Created state channel successfully`)
 
       return new StateChannel({
-        info,
+        allocation: allocation,
         wallet: stateChannelWallet,
         logger: logger.child({ publicIdentifier: client.publicIdentifier }),
         client,
@@ -332,22 +340,22 @@ export class PaymentManager implements PaymentManagerInterface {
     this.contracts = options.contracts
   }
 
-  async createStateChannels(channels: ChannelInfo[]): Promise<void> {
+  async createStateChannels(allocations: Allocation[]): Promise<void> {
     const queue = new PQueue({ concurrency: 5 })
 
-    for (const channel of channels) {
+    for (const allocation of allocations) {
       queue.add(async () => {
-        if (!this.stateChannels.has(channel.id)) {
+        if (!this.stateChannels.has(allocation.id)) {
           const stateChannel = await StateChannel.create({
             ...this.options,
-            info: channel,
+            allocation,
           })
 
           stateChannel.events.paymentReceived.attach(payment =>
             this.events.paymentReceived.post({ stateChannel, payment }),
           )
 
-          this.stateChannels.set(channel.id, stateChannel)
+          this.stateChannels.set(allocation.id, stateChannel)
         }
       })
     }
@@ -355,26 +363,26 @@ export class PaymentManager implements PaymentManagerInterface {
     await queue.onIdle()
   }
 
-  async settleStateChannels(channels: ChannelInfo[]): Promise<void> {
+  async settleStateChannels(allocations: Allocation[]): Promise<void> {
     const queue = new PQueue({ concurrency: 5 })
 
-    for (const channel of channels) {
+    for (const allocation of allocations) {
       queue.add(async () => {
         this.logger.info(`Settle state channel`, {
-          channelID: channel.id,
-          deployment: channel.subgraphDeploymentID.display,
-          createdAtEpoch: channel.createdAtEpoch,
+          channelID: allocation.id,
+          deployment: allocation.subgraphDeploymentID.display,
+          createdAtEpoch: allocation.createdAtEpoch,
         })
 
-        const stateChannel = this.stateChannels.get(channel.id)
+        const stateChannel = this.stateChannels.get(allocation.id)
         if (stateChannel !== undefined) {
           await stateChannel.settle()
-          this.stateChannels.delete(channel.id)
+          this.stateChannels.delete(allocation.id)
         } else {
-          this.logger.warn(`Failed to settle state channel: Unknown channel ID`, {
-            channelID: channel.id,
-            deployment: channel.subgraphDeploymentID.display,
-            createdAtEpoch: channel.createdAtEpoch,
+          this.logger.warn(`Failed to settle channel: Unknown channel ID`, {
+            channelID: allocation.id,
+            deployment: allocation.subgraphDeploymentID.display,
+            createdAtEpoch: allocation.createdAtEpoch,
           })
         }
       })

@@ -7,16 +7,16 @@ import {
 } from '@graphprotocol/common-ts'
 import { delay } from '@connext/utils'
 import { Wallet } from 'ethers'
-import { ChannelInfo } from './types'
+import { Allocation } from './types'
 
-export interface ChannelsUpdatedEvent {
-  added: ChannelInfo[]
-  removed: ChannelInfo[]
-  unchanged: ChannelInfo[]
+export interface AllocationsUpdatedEvent {
+  added: Allocation[]
+  removed: Allocation[]
+  unchanged: Allocation[]
 }
 
-const channelInList = (channels: ChannelInfo[], needle: ChannelInfo): boolean =>
-  channels.find(channel => channel.id === needle.id) !== undefined
+const allocationInList = (allocations: Allocation[], needle: Allocation): boolean =>
+  allocations.find(allocation => allocation.id === needle.id) !== undefined
 
 export interface NetworkMonitorOptions {
   logger: Logger
@@ -26,16 +26,16 @@ export interface NetworkMonitorOptions {
 }
 
 export class NetworkMonitor {
-  channelsUpdated: Evt<ChannelsUpdatedEvent>
-  channels: ChannelInfo[]
+  allocationsUpdated: Evt<AllocationsUpdatedEvent>
+  allocations: Allocation[]
 
   constructor(options: NetworkMonitorOptions) {
-    this.channelsUpdated = Evt.create<ChannelsUpdatedEvent>()
-    this.channels = []
-    this.periodicallySyncChannels(options)
+    this.allocationsUpdated = Evt.create<AllocationsUpdatedEvent>()
+    this.allocations = []
+    this.periodicallySyncAllocations(options)
   }
 
-  async periodicallySyncChannels({
+  async periodicallySyncAllocations({
     logger,
     wallet,
     networkSubgraphDeployment,
@@ -57,7 +57,7 @@ export class NetworkMonitor {
             gql`
               query indexedSubgraphs($id: ID!) {
                 indexer(id: $id) {
-                  channels(where: { settled: null }) {
+                  allocations(where: { status: Active }) {
                     id
                     publicKey
                     subgraphDeployment {
@@ -82,8 +82,8 @@ export class NetworkMonitor {
           throw new Error(`Indexer '${indexerAddress}' has not registered itself yet`)
         }
 
-        // Extract the channels
-        const channels: ChannelInfo[] = result.data.indexer.channels.map(
+        // Extract the allocations
+        const allocations: Allocation[] = result.data.indexer.allocations.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ({ id, publicKey, subgraphDeployment, createdAtEpoch }: any) => ({
             id,
@@ -93,24 +93,26 @@ export class NetworkMonitor {
           }),
         )
 
-        // Identify channel changes
-        const removed = this.channels.filter(channel => !channelInList(channels, channel))
-        const added = channels.filter(
-          newChannel => !channelInList(this.channels, newChannel),
+        // Identify allocation changes
+        const removed = this.allocations.filter(
+          allocation => !allocationInList(allocations, allocation),
         )
-        const unchanged = this.channels.filter(channel =>
-          channelInList(channels, channel),
+        const added = allocations.filter(
+          newAllocation => !allocationInList(this.allocations, newAllocation),
+        )
+        const unchanged = this.allocations.filter(allocation =>
+          allocationInList(allocations, allocation),
         )
 
-        // Update channels
-        this.channels = channels
+        // Update allocations
+        this.allocations = allocations
 
         // Emit the update
         if (removed.length > 0 || added.length > 0) {
-          this.channelsUpdated.post({ added, removed, unchanged })
+          this.allocationsUpdated.post({ added, removed, unchanged })
         }
       } catch (error) {
-        logger.warn(`Failed to query channels`, { error: error.message })
+        logger.warn(`Failed to query allocations`, { error: error.message })
       }
 
       // Wait 5s

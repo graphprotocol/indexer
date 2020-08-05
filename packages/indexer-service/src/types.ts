@@ -45,7 +45,7 @@ export interface ConditionalSubgraphPayment {
   subgraphDeploymentID: SubgraphDeploymentID
 }
 
-export interface ChannelInfo {
+export interface Allocation {
   id: string
   publicKey: string
   subgraphDeploymentID: SubgraphDeploymentID
@@ -57,7 +57,7 @@ export interface StateChannelEvents {
 }
 
 export interface StateChannel {
-  info: ChannelInfo
+  allocation: Allocation
   wallet: Wallet
 
   events: StateChannelEvents
@@ -80,8 +80,8 @@ export interface PaymentManager {
   wallet: Wallet
   events: PaymentManagerEvents
 
-  createStateChannels(channels: ChannelInfo[]): Promise<void>
-  settleStateChannels(channels: ChannelInfo[]): Promise<void>
+  createStateChannels(allocations: Allocation[]): Promise<void>
+  settleStateChannels(allocations: Allocation[]): Promise<void>
   stateChannel(id: string): StateChannel | undefined
 }
 

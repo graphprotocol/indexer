@@ -189,7 +189,7 @@ export default {
     })
 
     // Add and remove subgraph state channels as indexing subgraphs change
-    networkMonitor.channelsUpdated.attach(async update => {
+    networkMonitor.allocationsUpdated.attach(async update => {
       await paymentManager.createStateChannels(update.added)
       await paymentManager.settleStateChannels(update.removed)
     })
