@@ -462,7 +462,7 @@ export class Network {
       deployment: new SubgraphDeploymentID(eventInputs.subgraphDeploymentID)
         .display,
       amountGRT: formatGRT(eventInputs.tokens),
-      channel: formatGRT(eventInputs.channelID),
+      channel: eventInputs.channelID,
       channelPubKey: eventInputs.channelPubKey,
       epoch: eventInputs.epoch.toString(),
     })
