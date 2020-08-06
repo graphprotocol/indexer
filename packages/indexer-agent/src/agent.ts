@@ -5,9 +5,12 @@ import {
 } from '@graphprotocol/common-ts'
 import PQueue from 'p-queue'
 
-import { AgentConfig } from './types'
+import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
+
+const MINIMUM_STAKE = parseGRT('10000000')
+const MINIMUM_SIGNAL = parseGRT('10000000')
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -91,23 +94,34 @@ class Agent {
       try {
         this.logger.info('Synchronizing subgraphs')
 
+        // Identify the currente poch
+        const epoch = (
+          await this.network.contracts.epochManager.currentEpoch()
+        ).toNumber()
+        const maxEpochsPerAllocation = await this.network.contracts.staking.maxAllocationEpochs()
+
         // Identify subgraph deployments indexed locally
         const indexerDeployments = await this.indexer.subgraphDeployments()
 
         // Identify subgraph deployments on the network that are worth picking up;
         // these may overlap with the ones we're already indexing
-        const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing()
+        const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing(
+          MINIMUM_STAKE,
+          MINIMUM_SIGNAL,
+        )
 
-        // Identify subgraphs allocated to
-        const allocatedDeployments = await this.network.subgraphDeploymentsAllocatedTo()
+        // Identify active allocations
+        const allocations = await this.network.activeAllocations()
 
         // Ensure the network subgraph deployment _always_ keeps indexing
         networkSubgraphs.push(this.networkSubgraphDeployment)
 
         await this.resolve(
+          epoch,
+          maxEpochsPerAllocation,
           networkSubgraphs,
           indexerDeployments,
-          allocatedDeployments,
+          allocations,
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
@@ -120,14 +134,22 @@ class Agent {
   }
 
   async resolve(
+    epoch: number,
+    maxEpochsPerAllocation: number,
     networkDeployments: SubgraphDeploymentID[],
     indexerDeployments: SubgraphDeploymentID[],
-    allocatedDeployments: SubgraphDeploymentID[],
+    allocations: Allocation[],
   ): Promise<void> {
     this.logger.info(`Synchronization result`, {
+      epoch,
+      maxEpochsPerAllocation,
       worthIndexing: networkDeployments.map(d => d.display),
       alreadyIndexing: indexerDeployments.map(d => d.display),
-      alreadyAllocated: allocatedDeployments.map(d => d.display),
+      alreadyAllocated: allocations.map(a => ({
+        id: a.id,
+        deployment: a.subgraphDeployment.id.display,
+        createdAtEpoch: a.createdAtEpoch,
+      })),
     })
 
     // Identify which subgraphs to deploy and which to remove
@@ -146,12 +168,30 @@ class Agent {
         ),
     )
 
+    const settleAllocationsBeforeEpoch =
+      epoch - Math.max(1, maxEpochsPerAllocation) + 1
+
+    this.logger.info(`Settle all allocations before epoch`, {
+      epoch: settleAllocationsBeforeEpoch,
+    })
+
+    // Identify allocations to settle
+    let toSettle = allocations.filter(
+      allocation =>
+        // Either the allocation is old (approaching the max allocation epochs)
+        allocation.createdAtEpoch < settleAllocationsBeforeEpoch ||
+        // ...or the deployment isn't worth it anymore
+        (allocation.subgraphDeployment.signalAmount.lt(MINIMUM_SIGNAL) &&
+          allocation.subgraphDeployment.stakedTokens.lt(MINIMUM_STAKE)),
+    )
+
     // Identify deployments to allocate (or reallocate) to
     let toAllocate = networkDeployments.filter(
       networkDeployment =>
-        !allocatedDeployments.find(
-          allocatedDeployment =>
-            allocatedDeployment.bytes32 === networkDeployment.bytes32,
+        !allocations.find(
+          allocation =>
+            allocation.subgraphDeployment.id.bytes32 ===
+            networkDeployment.bytes32,
         ),
     )
 
@@ -161,16 +201,31 @@ class Agent {
       array: SubgraphDeploymentID[],
     ): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
 
+    const uniqueAllocationsOnly = (
+      value: Allocation,
+      index: number,
+      array: Allocation[],
+    ): boolean => array.findIndex(v => value.id === v.id) === index
+
     // Ensure there are no duplicates in the deployments
     toDeploy = toDeploy.filter(uniqueDeploymentsOnly)
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
+    toSettle = toSettle.filter(uniqueAllocationsOnly)
 
     this.logger.info(`Apply changes`, {
       deploy: toDeploy.map(d => d.display),
       remove: toRemove.map(d => d.display),
       allocate: toAllocate.map(d => d.display),
+      settle: toSettle.map(
+        a => `${a.id} (deployment: ${a.subgraphDeployment.id})`,
+      ),
     })
+
+    // Settle first
+    for (const allocation of toSettle) {
+      await this.network.settle(allocation)
+    }
 
     // Allocate to all deployments worth indexing and that we haven't
     // allocated to yet
