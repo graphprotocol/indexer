@@ -148,18 +148,18 @@ export class Network {
     )
   }
 
-  async subgraphDeploymentsWorthIndexing(): Promise<SubgraphDeploymentID[]> {
-    const minimumStake = parseGRT('100')
-    const minimumSignal = parseGRT('100')
-
+  async subgraphDeploymentsWorthIndexing(
+    minimumStake: BigNumber,
+    minimumSignal: BigNumber,
+  ): Promise<SubgraphDeploymentID[]> {
     try {
       const result = await this.subgraph.query({
         query: gql`
           query {
             subgraphDeployments {
               id
-              stake: stakedTokens
-              signal: signalAmount
+              stakedTokens
+              signalAmount
             }
           }
         `,
@@ -169,9 +169,11 @@ export class Network {
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
-            const stake = parseGRT(deployment.stake)
-            const signal = parseGRT(deployment.signal)
-            return stake.gte(minimumStake) || signal.gte(minimumSignal)
+            const stakedTokens = parseGRT(deployment.stakedTokens)
+            const signalAmount = parseGRT(deployment.signalAmount)
+            return (
+              stakedTokens.gte(minimumStake) || signalAmount.gte(minimumSignal)
+            )
           })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
@@ -182,14 +184,19 @@ export class Network {
     }
   }
 
-  async subgraphDeploymentsAllocatedTo(): Promise<SubgraphDeploymentID[]> {
+  async activeAllocations(): Promise<Allocation[]> {
     try {
       const result = await this.subgraph.query({
         query: gql`
           query allocations($indexer: String!) {
             allocations(where: { indexer: $indexer, status: Active }) {
+              id
+              allocatedTokens
+              createdAtEpoch
               subgraphDeployment {
                 id
+                stakedTokens
+                signalAmount
               }
             }
           }
@@ -201,8 +208,16 @@ export class Network {
       })
       return result.data.allocations.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (allocation: any) =>
-          new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+        (allocation: any) => ({
+          id: allocation.id,
+          subgraphDeployment: {
+            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+            stakedTokens: parseGRT(allocation.subgraphDeployment.stakedTokens),
+            signalAmount: parseGRT(allocation.subgraphDeployment.signalAmount),
+          },
+          allocatedTokens: parseGRT(allocation.allocatedTokens),
+          createdAtEpoch: allocation.createdAtEpoch,
+        }),
       )
     } catch (error) {
       this.logger.error(`Failed to query active indexer allocations`)
@@ -210,7 +225,9 @@ export class Network {
     }
   }
 
-  async allocations(deployment: SubgraphDeploymentID): Promise<Allocation[]> {
+  async deploymentAllocations(
+    deployment: SubgraphDeploymentID,
+  ): Promise<Allocation[]> {
     try {
       const result = await this.subgraph.query({
         query: gql`
@@ -227,6 +244,8 @@ export class Network {
               allocatedTokens
               subgraphDeployment {
                 id
+                stakedTokens
+                signalAmount
               }
             }
           }
@@ -243,9 +262,11 @@ export class Network {
           id: allocation.id,
           createdAtEpoch: allocation.createdAtEpoch,
           allocatedTokens: parseGRT(allocation.allocatedTokens),
-          subgraphDeployment: new SubgraphDeploymentID(
-            allocation.subgraphDeployment.id,
-          ),
+          subgraphDeployment: {
+            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+            stakedTokens: parseGRT(allocation.subgraphDeployment.stakedTokens),
+            signalAmount: parseGRT(allocation.subgraphDeployment.signalAmount),
+          },
         }),
       )
     } catch (error) {
@@ -330,7 +351,7 @@ export class Network {
     this.logger.info(`Identify current allocation`, {
       deployment: deployment.display,
     })
-    const currentAllocations = await this.allocations(deployment)
+    const currentAllocations = await this.deploymentAllocations(deployment)
     this.logger.info(`Current allocations`, { allocations: currentAllocations })
 
     // For now: Cannot allocate (for now) if we have already allocated to this
@@ -398,7 +419,7 @@ export class Network {
 
     this.logger.info(`Allocate`, {
       deployment: deployment.display,
-      amount,
+      amount: formatGRT(amount),
       uncompressedPublicKey,
       create2Address,
       price,
@@ -445,6 +466,29 @@ export class Network {
       channelPubKey: eventInputs.channelPubKey,
       epoch: eventInputs.epoch.toString(),
     })
+  }
+
+  async settle(allocation: Allocation): Promise<void> {
+    try {
+      this.logger.info(`Settle allocation`, {
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id.display,
+        createdAtEpoch: allocation.createdAtEpoch,
+      })
+      await this.contracts.staking.settle(allocation.id)
+      this.logger.info(`Settled allocation`, {
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id.display,
+        createdAtEpoch: allocation.createdAtEpoch,
+      })
+    } catch (error) {
+      this.logger.warn(`Failed to settle allocation`, {
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id,
+        createdAtEpoch: allocation.createdAtEpoch,
+        error: error.message,
+      })
+    }
   }
 
   async ensureMinimumStake(minimum: BigNumber): Promise<void> {

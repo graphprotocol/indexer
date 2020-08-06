@@ -16,13 +16,14 @@ export interface AgentConfig {
 }
 
 interface SubgraphDeployment {
-  id: string
-  totalStake: BigNumber
+  id: SubgraphDeploymentID
+  stakedTokens: BigNumber
+  signalAmount: BigNumber
 }
 
 export interface Allocation {
   id: string
-  subgraphDeployment: SubgraphDeploymentID
+  subgraphDeployment: SubgraphDeployment
   allocatedTokens: BigNumber
   createdAtEpoch: number
 }
