@@ -26,10 +26,12 @@ export interface NetworkMonitorOptions {
 }
 
 export class NetworkMonitor {
+  logger: Logger
   allocationsUpdated: Evt<AllocationsUpdatedEvent>
   allocations: Allocation[]
 
   constructor(options: NetworkMonitorOptions) {
+    this.logger = options.logger.child({ component: 'NetworkMonitor' })
     this.allocationsUpdated = Evt.create<AllocationsUpdatedEvent>()
     this.allocations = []
     this.periodicallySyncAllocations(options)
@@ -69,6 +71,9 @@ export class NetworkMonitor {
               }
             `,
             { id: indexerAddress },
+            {
+              requestPolicy: 'network-only',
+            },
           )
           .toPromise()
 

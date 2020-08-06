@@ -297,7 +297,10 @@ export class StateChannel implements StateChannelInterface {
       })
       this.logger.info(`Successfully settled channel`, { amountGRT: formattedAmount })
     } catch (error) {
-      this.logger.warn(`Failed to settle channel`, { amountGRT: formattedAmount, error })
+      this.logger.warn(`Failed to settle channel`, {
+        amountGRT: formattedAmount,
+        error: error.message,
+      })
     }
   }
 }
