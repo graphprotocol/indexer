@@ -286,6 +286,11 @@ export class StateChannel implements StateChannelInterface {
 
     this.logger.info(`Settle channel`, { amountGRT: formattedAmount })
 
+    if (balance.isZero()) {
+      this.logger.info(`Settling unused channel via a no-op`)
+      return
+    }
+
     try {
       await this.client.withdraw({
         // On-chain, everything is set up so that all withdrawals
