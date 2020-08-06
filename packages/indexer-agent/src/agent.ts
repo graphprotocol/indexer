@@ -94,7 +94,7 @@ class Agent {
       try {
         this.logger.info('Synchronizing subgraphs')
 
-        // Identify the currente poch
+        // Identify the current epoch
         const epoch = (
           await this.network.contracts.epochManager.currentEpoch()
         ).toNumber()
