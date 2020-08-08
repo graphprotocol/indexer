@@ -47,7 +47,7 @@ export interface Allocation {
   createdAtEpoch: number
 }
 
-export interface StateChannel {
+export interface AllocationPaymentClient {
   allocation: Allocation
   wallet: Wallet
   unlockPayment(attestation: Attestation): Promise<string>
@@ -59,7 +59,7 @@ export interface PaymentManager {
 
   createStateChannels(allocations: Allocation[]): Promise<void>
   settleStateChannels(allocations: Allocation[]): Promise<void>
-  stateChannel(paymentAppState: string): StateChannel | undefined
+  stateChannel(paymentAppState: string): AllocationPaymentClient | undefined
 }
 
 export class QueryError extends Error {

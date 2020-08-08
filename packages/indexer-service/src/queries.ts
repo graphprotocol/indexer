@@ -15,7 +15,7 @@ import {
   PaymentManager,
   FreeQuery,
   QueryError,
-  StateChannel,
+  AllocationPaymentClient,
 } from './types'
 
 export interface PaidQueryProcessorOptions {
@@ -98,7 +98,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     responseCID,
     data,
   }: {
-    stateChannel: StateChannel
+    stateChannel: AllocationPaymentClient
     subgraphDeploymentID: SubgraphDeploymentID
     requestCID: string
     responseCID: string

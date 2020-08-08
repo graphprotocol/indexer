@@ -5,7 +5,7 @@ import PQueue from 'p-queue'
 
 import {
   PaymentManager as PaymentManagerInterface,
-  StateChannel as StateChannelInterface,
+  AllocationPaymentClient as StateChannelInterface,
   Allocation,
 } from './types'
 
