@@ -57,9 +57,9 @@ export interface AllocationPaymentClient {
 export interface PaymentManager {
   wallet: Wallet
 
-  createStateChannels(allocations: Allocation[]): Promise<void>
-  settleStateChannels(allocations: Allocation[]): Promise<void>
-  stateChannel(paymentAppState: string): AllocationPaymentClient | undefined
+  createAllocationPaymentClients(allocations: Allocation[]): void
+  collectAllocationPayments(allocations: Allocation[]): Promise<void>
+  getAllocationPaymentClient(paymentAppState: string): AllocationPaymentClient | undefined
 }
 
 export class QueryError extends Error {

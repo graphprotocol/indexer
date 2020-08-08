@@ -10,7 +10,7 @@ import {
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { PaymentManager } from '../payments'
+import { PaymentManager } from '../payment-manager'
 import { NetworkMonitor } from '../network-monitor'
 
 export default {
@@ -162,8 +162,8 @@ export default {
 
     // Add and remove subgraph state channels as indexing subgraphs change
     networkMonitor.allocationsUpdated.attach(async update => {
-      await paymentManager.createStateChannels(update.added)
-      await paymentManager.settleStateChannels(update.removed)
+      await paymentManager.createAllocationPaymentClients(update.added)
+      await paymentManager.collectAllocationPayments(update.removed)
     })
 
     // Spin up a basic webserver

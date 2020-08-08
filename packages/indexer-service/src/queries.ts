@@ -55,7 +55,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       responseType: 'text',
 
       // Don't transform the response in any way
-      transformResponse: data => data,
+      transformResponse: (data) => data,
 
       // Don't throw on bad responses
       validateStatus: () => true,
@@ -92,13 +92,13 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   private async createResponse({
-    stateChannel,
+    allocationClient,
     subgraphDeploymentID,
     requestCID,
     responseCID,
     data,
   }: {
-    stateChannel: AllocationPaymentClient
+    allocationClient: AllocationPaymentClient
     subgraphDeploymentID: SubgraphDeploymentID
     requestCID: string
     responseCID: string
@@ -111,13 +111,13 @@ export class QueryProcessor implements QueryProcessorInterface {
       subgraphDeploymentID: subgraphDeploymentID.bytes32,
     }
     const attestation = await createAttestation(
-      stateChannel.wallet.privateKey,
+      allocationClient.wallet.privateKey,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
     )
 
-    const paymentAppState = await stateChannel.unlockPayment(attestation)
+    const paymentAppState = await allocationClient.unlockPayment(attestation)
 
     return {
       status: 200,
@@ -146,8 +146,10 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    const stateChannel = this.paymentManager.stateChannel(paymentAppState)
-    if (stateChannel === undefined) {
+    const allocationClient = this.paymentManager.getAllocationPaymentClient(
+      paymentAppState,
+    )
+    if (allocationClient === undefined) {
       throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)
     }
 
@@ -163,7 +165,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Create a response that includes a signed attestation
     return await this.createResponse({
-      stateChannel,
+      allocationClient,
       subgraphDeploymentID,
       requestCID,
       responseCID,
