@@ -4,7 +4,6 @@ import {
   connectContracts,
   createMetrics,
   createMetricsServer,
-  connectDatabase,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
@@ -118,16 +117,7 @@ export default {
       port: argv.postgresPort,
       database: argv.postgresDatabase,
     })
-    const sequelize = await connectDatabase({
-      logging: undefined,
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      username: argv.postgresUsername,
-      password: argv.postgresPassword,
-      database: argv.postgresDatabase,
-    })
-    // TODO: (Liam) Define your database models here, before the call to sync()
-    await sequelize.sync()
+
     logger.info('Successfully connected to database')
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
@@ -136,10 +126,7 @@ export default {
     const paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),
       metrics,
-      sequelize,
-      ethereum: argv.ethereum,
       wallet,
-      contracts,
     })
 
     // Create registered channel monitor
@@ -170,6 +157,7 @@ export default {
     await createServer({
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
+      paymentManager,
       queryProcessor,
       metrics,
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
