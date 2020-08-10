@@ -1,11 +1,6 @@
-import {
-  Logger,
-  Metrics,
-  createAttestation,
-  SubgraphDeploymentID,
-} from '@graphprotocol/common-ts'
+import { Logger, Metrics, createAttestation, Receipt } from '@graphprotocol/common-ts'
 import { utils } from 'ethers'
-import axios, { AxiosInstance } from 'axios'
+import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
 import {
   QueryProcessor as QueryProcessorInterface,
@@ -15,7 +10,6 @@ import {
   PaymentManager,
   FreeQuery,
   QueryError,
-  AllocationPaymentClient,
 } from './types'
 
 export interface PaidQueryProcessorOptions {
@@ -55,7 +49,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       responseType: 'text',
 
       // Don't transform the response in any way
-      transformResponse: (data) => data,
+      transformResponse: data => data,
 
       // Don't throw on bad responses
       validateStatus: () => true,
@@ -76,7 +70,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     // Compute the response CID
     const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
 
-    const attestation = {
+    const attestation: Receipt = {
       requestCID,
       responseCID,
       subgraphDeploymentID: subgraphDeploymentID.bytes32,
@@ -91,25 +85,50 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
   }
 
-  private async createResponse({
-    allocationClient,
-    subgraphDeploymentID,
-    requestCID,
-    responseCID,
-    data,
-  }: {
-    allocationClient: AllocationPaymentClient
-    subgraphDeploymentID: SubgraphDeploymentID
-    requestCID: string
-    responseCID: string
-    data: string
-  }): Promise<PaidQueryResponse> {
+  async executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
+    const { subgraphDeploymentID, stateChannelMessage, allocationID, requestCID } = query
+
+    this.logger.info(`Execute paid query`, {
+      deployment: subgraphDeploymentID.display,
+      stateChannelMessage,
+    })
+
+    this.logger.debug(`Process query`, {
+      deployment: subgraphDeploymentID.display,
+      stateChannelMessage,
+    })
+
+    // Check if we have a state channel for this subgraph;
+    // this is synonymous with us indexing the subgraph
+    const allocationClient = this.paymentManager.getAllocationPaymentClient(allocationID)
+
+    if (allocationClient === undefined)
+      throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)
+
+    // This may throw an error with a signed envelopedResponse (DeclineQuery)
+    await allocationClient.validatePayment(query)
+
+    let response: AxiosResponse<string>
+    try {
+      response = await this.graphNode.post<string>(
+        `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
+        query.query,
+      )
+    } catch (error) {
+      error.envelopedResponse = await allocationClient.declineQuery(query)
+      throw error
+    }
+
+    // Compute the response CID
+    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
+
     // Obtain a signed attestation for the query result
     const receipt = {
       requestCID,
       responseCID,
       subgraphDeploymentID: subgraphDeploymentID.bytes32,
     }
+
     const attestation = await createAttestation(
       allocationClient.wallet.privateKey,
       this.chainId,
@@ -117,59 +136,18 @@ export class QueryProcessor implements QueryProcessorInterface {
       receipt,
     )
 
-    const paymentAppState = await allocationClient.unlockPayment(attestation)
+    const envelopedAttestation = await allocationClient.provideAttestation(
+      query,
+      attestation,
+    )
 
     return {
       status: 200,
       result: {
-        graphQLResponse: data,
+        graphQLResponse: response.data,
         attestation,
       },
-      paymentAppState,
+      envelopedAttestation: JSON.stringify(envelopedAttestation),
     }
-  }
-
-  async executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
-    const { subgraphDeploymentID, paymentAppState, requestCID } = query
-
-    this.logger.info(`Execute paid query`, {
-      deployment: subgraphDeploymentID.display,
-      paymentAppState,
-    })
-
-    this.logger.debug(`Process query`, {
-      deployment: subgraphDeploymentID.display,
-      paymentAppState,
-    })
-
-    // TODO: (Liam) Verify the channel here, and lock it?.
-
-    // Check if we have a state channel for this subgraph;
-    // this is synonymous with us indexing the subgraph
-    const allocationClient = this.paymentManager.getAllocationPaymentClient(
-      paymentAppState,
-    )
-    if (allocationClient === undefined) {
-      throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)
-    }
-
-    // TODO: (Liam) Add logic to reject the query if it fails?
-    // Execute query in the Graph Node
-    const response = await this.graphNode.post(
-      `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
-      query.query,
-    )
-
-    // Compute the response CID
-    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
-
-    // Create a response that includes a signed attestation
-    return await this.createResponse({
-      allocationClient,
-      subgraphDeploymentID,
-      requestCID,
-      responseCID,
-      data: response.data,
-    })
   }
 }

@@ -1,6 +1,5 @@
-import { Logger, Metrics, NetworkContracts } from '@graphprotocol/common-ts'
+import { Logger, Metrics } from '@graphprotocol/common-ts'
 
-import { Sequelize } from 'sequelize'
 import { Wallet } from 'ethers'
 
 import {
@@ -13,10 +12,7 @@ import { AllocationPaymentClient } from './allocation-client'
 interface PaymentManagerOptions {
   logger: Logger
   metrics: Metrics
-  sequelize: Sequelize
-  ethereum: string
   wallet: Wallet
-  contracts: NetworkContracts
 }
 
 export interface PaymentManagerCreateOptions {
@@ -27,17 +23,13 @@ export interface PaymentManagerCreateOptions {
 export class PaymentManager implements PaymentManagerInterface {
   wallet: Wallet
 
-  private options: PaymentManagerOptions
   private logger: Logger
   private allocationClients: Map<string, AllocationPaymentClientInterface>
-  private contracts: NetworkContracts
 
   constructor(options: PaymentManagerOptions) {
     this.wallet = options.wallet
-    this.options = options
     this.logger = options.logger
     this.allocationClients = new Map()
-    this.contracts = options.contracts
   }
 
   createAllocationPaymentClients(allocations: Allocation[]): void {
@@ -46,7 +38,7 @@ export class PaymentManager implements PaymentManagerInterface {
         this.allocationClients.set(
           allocation.id,
           new AllocationPaymentClient({
-            ...this.options,
+            wallet: this.wallet,
             logger: this.logger.child({ allocationId: allocation.id }),
             allocation,
             client: null,
@@ -80,7 +72,9 @@ export class PaymentManager implements PaymentManagerInterface {
     )
   }
 
-  getAllocationPaymentClient(id: string): AllocationPaymentClientInterface | undefined {
-    return this.allocationClients.get(id)
+  getAllocationPaymentClient(
+    allocationId: string,
+  ): AllocationPaymentClientInterface | undefined {
+    return this.allocationClients.get(allocationId)
   }
 }

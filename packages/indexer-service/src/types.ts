@@ -1,3 +1,4 @@
+import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Wallet } from 'ethers'
 
@@ -14,7 +15,7 @@ export interface UnattestedQueryResult {
 export interface PaidQueryResponse {
   result: QueryResult
   status: number
-  paymentAppState: string
+  envelopedAttestation: string
 }
 
 export interface UnpaidQueryResponse {
@@ -23,8 +24,9 @@ export interface UnpaidQueryResponse {
 }
 
 export interface PaidQuery {
+  allocationID: string
   subgraphDeploymentID: SubgraphDeploymentID
-  paymentAppState: string
+  stateChannelMessage: any
   query: string
   requestCID: string
 }
@@ -50,7 +52,10 @@ export interface Allocation {
 export interface AllocationPaymentClient {
   allocation: Allocation
   wallet: Wallet
-  unlockPayment(attestation: Attestation): Promise<string>
+  handleMessage(message: WireMessage): Promise<WireMessage | undefined>
+  validatePayment(query: PaidQuery): Promise<void>
+  provideAttestation(query: PaidQuery, attestation: Attestation): Promise<WireMessage>
+  declineQuery(query: PaidQuery): Promise<WireMessage>
   settle(): Promise<void>
 }
 
@@ -59,7 +64,7 @@ export interface PaymentManager {
 
   createAllocationPaymentClients(allocations: Allocation[]): void
   collectAllocationPayments(allocations: Allocation[]): Promise<void>
-  getAllocationPaymentClient(paymentAppState: string): AllocationPaymentClient | undefined
+  getAllocationPaymentClient(allocationId: string): AllocationPaymentClient | undefined
 }
 
 export class QueryError extends Error {

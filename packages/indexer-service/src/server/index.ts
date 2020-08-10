@@ -7,19 +7,21 @@ import { QueryProcessor } from '../types'
 import { utils } from 'ethers'
 import { createGraphQLServer } from './graphql'
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { PaymentManager } from '../payment-manager'
 
 export interface ServerOptions {
   logger: Logger
-  metrics: Metrics
-  port: number
+  metrics?: Metrics
+  port?: number
+  paymentManager: PaymentManager
   queryProcessor: QueryProcessor
   freeQueryAuthToken: string
   graphNodeStatusEndpoint: string
 }
 
-export const createServer = async ({
+export const createApp = async ({
   logger,
-  port,
+  paymentManager,
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
@@ -30,28 +32,28 @@ export const createServer = async ({
     next()
   }
 
-  const server = express()
+  const app = express()
 
   // Log requests to the logger stream
-  server.use(morgan('tiny', { stream: loggerStream }))
-  server.use(cors())
+  app.use(morgan('tiny', { stream: loggerStream }))
+  app.use(cors())
 
-  // server.use(bodyParser.raw({ type: 'application/json' }))
+  // app.use(bodyParser.raw({ type: 'application/json' }))
 
   // Endpoint for health checks
-  server.get('/', (_, res) => {
+  app.get('/', (_, res) => {
     res.status(200).send('Ready to roll!')
   })
 
   // Endpoint for the public status GraphQL API
-  server.use(
+  app.use(
     '/status',
     bodyParser.json(),
     await createGraphQLServer({ graphNodeStatusEndpoint }),
   )
 
   // Endpoint for subgraph queries
-  server.post(
+  app.post(
     '/subgraphs/id/:id',
 
     // Accept JSON but don't parse it
@@ -63,18 +65,17 @@ export const createServer = async ({
 
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
-      // Extract the payment ID
-      // TODO: (Liam) Grab latest state from header here:
-      const paymentAppState = req.headers['x-graph-state-channel']
-      if (paymentAppState !== undefined && typeof paymentAppState !== 'string') {
+      // Extract the payment
+      const envelopedPayment = req.headers['x-graph-payment']
+      if (envelopedPayment !== undefined && typeof envelopedPayment !== 'string') {
         logger.info(`Query has invalid state channel`, {
           deployment: subgraphDeploymentID.display,
-          paymentAppState,
+          envelopedPayment,
         })
         return res
           .status(402)
           .contentType('application/json')
-          .send({ error: 'Invalid X-Graph-State-Channel provided' })
+          .send({ error: 'Invalid X-Graph-Payment provided' })
       }
 
       // Trusted indexer scenario: if the sender provides the free
@@ -85,32 +86,37 @@ export const createServer = async ({
       if (paymentRequired) {
         // Regular scenario: a payment is required; fail if no
         // state channel is specified
-        if (paymentAppState === undefined) {
-          logger.info(`Query is missing state channel`, {
+        if (envelopedPayment === undefined) {
+          logger.info(`Query is missing signed state`, {
             deployment: subgraphDeploymentID.display,
           })
           return res
             .status(402)
             .contentType('application/json')
-            .send({ error: 'No X-Graph-Payment-ID provided' })
+            .send({ error: 'No X-Graph-Payment provided' })
         }
 
         logger.info(`Received paid query`, {
           deployment: subgraphDeploymentID.display,
-          paymentAppState,
+          envelopedPayment,
         })
 
         try {
+          const { message: stateChannelMessage, allocationID } = JSON.parse(
+            envelopedPayment,
+          )
+
           const response = await queryProcessor.executePaidQuery({
+            allocationID,
             subgraphDeploymentID,
-            paymentAppState,
+            stateChannelMessage,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
           // TODO: (Liam) Note how state channel is being sent out here via the same header as above
           res
             .status(response.status || 200)
-            .header('x-graph-state-channel', response.paymentAppState)
+            .header('x-graph-payment', response.envelopedAttestation)
             .contentType('application/json')
             .send(response.result)
         } catch (error) {
@@ -144,9 +150,64 @@ export const createServer = async ({
     },
   )
 
-  server.listen(port, () => {
+  // Endpoint for channel messages
+  app.post(
+    '/channel-messages-inbox',
+
+    // Accept JSON and parse it
+    bodyParser.json(),
+
+    async (req, res) => {
+      const { allocationID, message } = req.body
+
+      logger.info(`Received state channel message`, { allocationID, message })
+
+      const client = paymentManager.getAllocationPaymentClient(allocationID)
+
+      if (!client)
+        return res
+          .status(500)
+          .contentType('application/json')
+          .send({ error: 'Invalid allocationId' })
+
+      let status = 200
+      let response: any
+      try {
+        response = await client.handleMessage(message)
+      } catch (error) {
+        logger.error(`Failed to handle state channel message`, { error: error.message })
+        status = 500
+        response = error.message
+      } finally {
+        res
+          .status(status)
+          .contentType('application/json')
+          .send(response)
+      }
+    },
+  )
+  return app
+}
+
+export const createServer = async ({
+  logger,
+  port,
+  paymentManager,
+  queryProcessor,
+  freeQueryAuthToken,
+  graphNodeStatusEndpoint,
+}: ServerOptions): Promise<express.Express> => {
+  const app = await createApp({
+    logger,
+    paymentManager,
+    queryProcessor,
+    freeQueryAuthToken,
+    graphNodeStatusEndpoint,
+  })
+
+  app.listen(port, () => {
     logger.debug(`Listening on port ${port}`)
   })
 
-  return server
+  return app
 }
