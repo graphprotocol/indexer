@@ -15,8 +15,12 @@
     "test": "jest --passWithNoTests --detectOpenHandles --verbose",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
+  "resolutions": {
+    "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
+  },
   "dependencies": {
     "@statechannels/nitro-protocol": "^0.2.0",
+    "@statechannels/server-wallet": "0.2.1",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
     "body-parser": "^1.19.0",
