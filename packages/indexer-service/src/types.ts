@@ -53,9 +53,13 @@ export interface AllocationPaymentClient {
   allocation: Allocation
   wallet: Wallet
   handleMessage(message: WireMessage): Promise<WireMessage | undefined>
-  validatePayment(query: PaidQuery): Promise<void>
-  provideAttestation(query: PaidQuery, attestation: Attestation): Promise<WireMessage>
-  declineQuery(query: PaidQuery): Promise<WireMessage>
+  validatePayment(query: PaidQuery): Promise<string>
+  provideAttestation(
+    channelId: string,
+    query: PaidQuery,
+    attestation: Attestation,
+  ): Promise<WireMessage>
+  declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage>
   settle(): Promise<void>
 }
 
