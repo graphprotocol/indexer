@@ -118,7 +118,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   }
 
   // eslint-disable-next-line
-  async validatePayment(query: PaidQuery): Promise<void> {
+  async validatePayment(query: PaidQuery): Promise<string> {
     const { subgraphDeploymentID, stateChannelMessage, requestCID } = query
 
     //
@@ -128,7 +128,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //    take decoded message
     //
 
-    await this.serverWallet.pushMessage(stateChannelMessage.data)
+    const out = await this.serverWallet.pushMessage(stateChannelMessage.data)
 
     // Push decoded message into the wallet
     //
@@ -154,16 +154,15 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //   query should still return a 40x or 50x but include a QueryDeclined signed state
     //   (see below) -- this is not implemented yet.
 
-    return
+    return out.channelResults[0].channelId
   }
 
   // eslint-disable-next-line
   async provideAttestation(
+    channelId: string,
     query: PaidQuery,
     attestation: Attestation,
   ): Promise<WireMessage> {
-    const channelId = this.channelIds[query.stateChannelMessage.sender]
-
     const {
       channelResult: { appData, allocations },
     } = await this.serverWallet.getState({ channelId })
@@ -179,9 +178,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     return outboundMsg as WireMessage
   }
 
-  async declineQuery(query: PaidQuery): Promise<WireMessage> {
-    const channelId = this.channelIds[query.stateChannelMessage.sender]
-
+  async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
     const {
       channelResult: { appData, allocations },
     } = await this.serverWallet.getState({ channelId })
