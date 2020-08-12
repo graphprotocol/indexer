@@ -54,8 +54,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
     if (!channel) throw Error('Received a new state that did nothing')
 
-    this.logger.info('something', { channel, outbox })
-
     /**
      * Initial request to create a channel is received. In this case, join
      * the channel and — we assume it is unfunded here — auto-advance to
