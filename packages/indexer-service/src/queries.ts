@@ -100,7 +100,9 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    const allocationClient = this.paymentManager.getAllocationPaymentClient(allocationID)
+    const allocationClient = this.paymentManager.getAllocationPaymentClient(
+      allocationID.toLowerCase(),
+    )
 
     if (allocationClient === undefined)
       throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)

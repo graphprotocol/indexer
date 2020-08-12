@@ -113,6 +113,9 @@ export const createApp = async ({
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
+
+          logger.debug(`Received successful payment`)
+
           // TODO: (Liam) Note how state channel is being sent out here via the same header as above
           res
             .status(response.status || 200)
@@ -160,8 +163,6 @@ export const createApp = async ({
     async (req, res) => {
       const { sender, recipient, data } = req.body
 
-      logger.info(`Received state channel message`, { sender, recipient, data })
-
       // TODO: (Liam) Utility, or put allocationId in the message
       const allocationID = `0x${data.signedStates[0].participants[1].destination.substr(
         26,
@@ -184,6 +185,7 @@ export const createApp = async ({
         status = 500
         response = error.message
       } finally {
+        logger.info(`Handled channel creation successfully`)
         res
           .status(status)
           .contentType('application/json')
