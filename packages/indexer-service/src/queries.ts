@@ -108,7 +108,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)
 
     // This may throw an error with a signed envelopedResponse (DeclineQuery)
-    await allocationClient.validatePayment(query)
+    const channelId = await allocationClient.validatePayment(query)
 
     let response: AxiosResponse<string>
     try {
@@ -117,7 +117,7 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.query,
       )
     } catch (error) {
-      error.envelopedResponse = await allocationClient.declineQuery(query)
+      error.envelopedResponse = await allocationClient.declineQuery(channelId, query)
       throw error
     }
 
@@ -139,6 +139,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     )
 
     const envelopedAttestation = await allocationClient.provideAttestation(
+      channelId,
       query,
       attestation,
     )
