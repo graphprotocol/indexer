@@ -158,22 +158,27 @@ export const createApp = async ({
     bodyParser.json(),
 
     async (req, res) => {
-      const { allocationID, message } = req.body
+      const { sender, recipient, data } = req.body
 
-      logger.info(`Received state channel message`, { allocationID, message })
+      logger.info(`Received state channel message`, { sender, recipient, data })
 
+      // TODO: (Liam) Utility, or put allocationId in the message
+      const allocationID = `0x${data.signedStates[0].participants[1].destination.substr(
+        26,
+      )}`.toLowerCase()
+      logger.info(allocationID)
       const client = paymentManager.getAllocationPaymentClient(allocationID)
 
       if (!client)
         return res
           .status(500)
           .contentType('application/json')
-          .send({ error: 'Invalid allocationId' })
+          .send({ error: `Invalid allocationId: ${allocationID}` })
 
       let status = 200
       let response: any
       try {
-        response = await client.handleMessage(message)
+        response = await client.handleMessage({ sender, recipient, data })
       } catch (error) {
         logger.error(`Failed to handle state channel message`, { error: error.message })
         status = 500
