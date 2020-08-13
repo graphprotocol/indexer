@@ -3,10 +3,16 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
-import { QueryProcessor } from '../types'
+import {
+  QueryProcessor,
+  withContext,
+  PaidQueryResponse,
+  FreeQueryResponse,
+} from '../types'
 import { utils } from 'ethers'
 import { createGraphQLServer } from './graphql'
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { parsePaymentAppState } from '../payments'
 
 export interface ServerOptions {
   logger: Logger
@@ -63,82 +69,55 @@ export const createServer = async ({
 
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
+      // TODO: (Zac) Change x-graph-payment-id to x-graph-payment in the gateway
       // Extract the payment ID
-      const paymentId = req.headers['x-graph-payment-id']
-      if (paymentId !== undefined && typeof paymentId !== 'string') {
-        logger.info(`Query has invalid payment ID`, {
-          deployment: subgraphDeploymentID.display,
-          paymentId,
-        })
-        return res
-          .status(402)
-          .contentType('application/json')
-          .send({ error: 'Invalid X-Graph-Payment-ID provided' })
-      }
 
-      // Trusted indexer scenario: if the sender provides the free
-      // query auth token, we do not require payment
-      const paymentRequired =
-        req.headers['authorization'] !== `Bearer ${freeQueryAuthToken}`
+      let response: PaidQueryResponse | FreeQueryResponse
 
-      if (paymentRequired) {
-        // Regular scenario: a payment is required; fail if no
-        // payment ID is specified
-        if (paymentId === undefined) {
-          logger.info(`Query is missing payment ID`, {
+      try {
+        // Trusted indexer scenario: if the sender provides the free
+        // query auth token, we do not require payment
+        const paymentRequired =
+          req.headers['authorization'] !== `Bearer ${freeQueryAuthToken}`
+
+        if (paymentRequired) {
+          const paymentAppState = withContext(
+            'Parsing X-Graph-Payment',
+            () => parsePaymentAppState(req.headers['x-graph-payment']),
+            402,
+          )
+
+          logger.info(`Received paid query`, {
             deployment: subgraphDeploymentID.display,
+            paymentAppState,
           })
-          return res
-            .status(402)
-            .contentType('application/json')
-            .send({ error: 'No X-Graph-Payment-ID provided' })
-        }
 
-        logger.info(`Received paid query`, {
-          deployment: subgraphDeploymentID.display,
-          paymentId,
-        })
-
-        try {
-          const response = await queryProcessor.addPaidQuery({
+          response = await queryProcessor.executePaidQuery({
             subgraphDeploymentID,
-            paymentId,
+            paymentAppState,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
-          res
-            .status(response.status || 200)
-            .contentType('application/json')
-            .send(response.result)
-        } catch (error) {
-          logger.error(`Failed to handle paid query`, { error: error.message })
-          res
-            .status(error.status || 500)
-            .contentType('application/json')
-            .send({ error: `${error.message}` })
-        }
-      } else {
-        logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
-
-        // Extract the state channel ID (only required for free queries)
-        try {
-          const response = await queryProcessor.addFreeQuery({
+        } else {
+          logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
+          response = await queryProcessor.executeFreeQuery({
             subgraphDeploymentID,
             query,
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
-          res
-            .status(response.status || 200)
-            .contentType('application/json')
-            .send(response.result)
-        } catch (error) {
-          logger.error(`Failed to handle free query`, { error: error.message })
-          res
-            .status(error.status || 500)
-            .contentType('application/json')
-            .send({ error: `${error.message}` })
         }
+      } catch (error) {
+        logger.error(`Failed to handle query`, { error: error.message })
+        return res
+          .status(error.status ?? 500)
+          .contentType('application/json')
+          .send({ error: `${error.message}` })
       }
+
+      return res
+        .status(response.status)
+        .contentType('application/json')
+        .send(response.result)
     },
   )
 

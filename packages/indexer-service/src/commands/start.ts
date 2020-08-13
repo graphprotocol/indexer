@@ -143,7 +143,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    await defineStateChannelStoreModels(sequelize)
+    const paymentStoreModel = await defineStateChannelStoreModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
@@ -160,6 +160,7 @@ export default {
       connextLogLevel: argv.connextLogLevel,
       wallet,
       contracts,
+      paymentStoreModel,
     })
 
     // Create registered channel monitor
@@ -178,14 +179,6 @@ export default {
       paymentManager,
       chainId: network.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
-    })
-
-    paymentManager.events.paymentReceived.attach(async ({ stateChannel, payment }) => {
-      try {
-        await queryProcessor.addPayment(stateChannel, payment)
-      } catch (e) {
-        logger.warn(`${e}`)
-      }
     })
 
     // Add and remove subgraph state channels as indexing subgraphs change

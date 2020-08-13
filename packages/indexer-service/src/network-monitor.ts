@@ -50,8 +50,7 @@ export class NetworkMonitor {
 
     const indexerAddress = wallet.address.toLowerCase()
 
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
+    for (;;) {
       try {
         // Query graph-node for indexing subgraph versions
         const result = await client
