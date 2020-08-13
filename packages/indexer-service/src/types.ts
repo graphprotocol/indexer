@@ -6,7 +6,6 @@ import {
   Uint256,
   RawSignature,
   Brand,
-  PaymentStore,
   Bytes32,
 } from '@graphprotocol/common-ts'
 
