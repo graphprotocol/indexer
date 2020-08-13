@@ -28,7 +28,7 @@ import PQueue from 'p-queue'
 import {
   PaymentManager as PaymentManagerInterface,
   StateChannel as StateChannelInterface,
-  ChannelInfo,
+  Allocation,
   PaymentAppState,
   UnvalidatedPaymentAppState,
   QueryError,
@@ -56,7 +56,7 @@ const deriveChannelKeyPair = (
 }
 
 interface StateChannelOptions {
-  info: ChannelInfo
+  allocation: Allocation
   logger: Logger
   client: IConnextClient
   signer: ChannelSigner
@@ -68,7 +68,7 @@ interface StateChannelOptions {
 }
 
 interface StateChannelCreateOptions extends PaymentManagerOptions {
-  info: ChannelInfo
+  allocation: Allocation
   paymentIdToChannel: Map<HexBytes32, StateChannel>
 }
 
@@ -90,7 +90,7 @@ async function retryWithDelay<T>(attempts: number, f: () => Awaitable<T>): Promi
 }
 
 export class StateChannel implements StateChannelInterface {
-  info: ChannelInfo
+  allocation: Allocation
   wallet: Wallet
   events: StateChannelEvents
   contracts: NetworkContracts
@@ -140,7 +140,7 @@ export class StateChannel implements StateChannelInterface {
    * Each app may have multiple payments
    */
   static async create({
-    info,
+    allocation,
     logger: parentLogger,
     sequelize,
     ethereum,
@@ -152,14 +152,14 @@ export class StateChannel implements StateChannelInterface {
     paymentStoreModel,
     paymentIdToChannel,
   }: StateChannelCreateOptions): Promise<StateChannel> {
-    const subgraphDeploymentID = info.subgraphDeploymentID
+    const subgraphDeploymentID = allocation.subgraphDeploymentID
     // TODO: (Zac) Cancel the flush operation since we now have multiple buffers
     const buffer = new PaymentStoreBuffer(sequelize, paymentStoreModel)
 
     const logger = parentLogger.child({
       component: `StateChannel`,
       deployment: subgraphDeploymentID.display,
-      createdAtEpoch: info.createdAtEpoch.toString(),
+      createdAtEpoch: allocation.createdAtEpoch.toString(),
     })
 
     logger.info(`Create state channel`)
@@ -224,7 +224,9 @@ export class StateChannel implements StateChannelInterface {
         freeBalance: utils.formatEther(balance),
       })
 
-      if (client.publicIdentifier !== getPublicIdentifierFromPublicKey(info.publicKey)) {
+      if (
+        client.publicIdentifier !== getPublicIdentifierFromPublicKey(allocation.publicKey)
+      ) {
         throw new Error(
           `Programmer error: Public channel identifier ${
             client.publicIdentifier
@@ -243,7 +245,7 @@ export class StateChannel implements StateChannelInterface {
       logger.info(`Created state channel successfully`)
 
       return new StateChannel({
-        info,
+        allocation,
         wallet: stateChannelWallet,
         logger: logger.child({ publicIdentifier: client.publicIdentifier }),
         client,
@@ -286,7 +288,7 @@ export class StateChannel implements StateChannelInterface {
       // TODO: (Zac) Casting here is incorrect, because this may be shorter than HexBytes32
       // I don't think it will cause any problems with what's implemented so far, but should fix
       totalCollateralization: payload.amount.toHexString() as HexBytes32,
-      channelId: this.info.id as HexBytes32,
+      channelId: this.allocation.id as HexBytes32,
       totalPayment: null,
       finished: false,
       requestCID: null,
@@ -320,7 +322,7 @@ export class StateChannel implements StateChannelInterface {
 
     const unfinishedBusiness = await this.model.findAll({
       where: {
-        channelId: this.info.id,
+        channelId: this.allocation.id,
         finished: false,
       },
     })
@@ -333,6 +335,11 @@ export class StateChannel implements StateChannelInterface {
     const formattedAmount = formatGRT(balance)
 
     this.logger.info(`Settle channel`, { amountGRT: formattedAmount })
+
+    if (balance.isZero()) {
+      this.logger.info(`Settling unused channel via a no-op`)
+      return
+    }
 
     try {
       await retryWithDelay(5, () =>
@@ -350,7 +357,10 @@ export class StateChannel implements StateChannelInterface {
       )
       this.logger.info(`Successfully settled channel`, { amountGRT: formattedAmount })
     } catch (error) {
-      this.logger.warn(`Failed to settle channel`, { amountGRT: formattedAmount, error })
+      this.logger.warn(`Failed to settle channel`, {
+        amountGRT: formattedAmount,
+        error: error.message,
+      })
     }
   }
 
@@ -386,7 +396,7 @@ export class StateChannel implements StateChannelInterface {
       finalAmount = finalState.totalPayment
     }
 
-    this.logger.info('Finilized app', { amount: formatGRT(finalAmount) })
+    this.logger.info('Finalized app', { amount: formatGRT(finalAmount) })
 
     finalState.finished = true
     await finalState.save()
@@ -574,21 +584,21 @@ export class PaymentManager implements PaymentManagerInterface {
     this.paymentIdToChannel = new Map()
   }
 
-  createStateChannels(channels: ChannelInfo[]): Promise<void> {
+  createStateChannels(allocations: Allocation[]): Promise<void> {
     const queue = new PQueue({ concurrency: 5 })
 
-    for (const channel of channels) {
+    for (const allocation of allocations) {
       queue.add(async () => {
         // TODO: (Zac) This does not account for the possibility of overlapping
         // promises for the same id. Is StateChannel creation idempotent?
-        if (!this.stateChannels.has(channel.id)) {
+        if (!this.stateChannels.has(allocation.id)) {
           const stateChannel = await StateChannel.create({
             ...this.options,
-            info: channel,
+            allocation,
             paymentIdToChannel: this.paymentIdToChannel,
           })
 
-          this.stateChannels.set(channel.id, stateChannel)
+          this.stateChannels.set(allocation.id, stateChannel)
         }
       })
     }
@@ -596,29 +606,29 @@ export class PaymentManager implements PaymentManagerInterface {
     return queue.onIdle()
   }
 
-  settleStateChannels(channels: ChannelInfo[]): Promise<void> {
+  settleStateChannels(allocations: Allocation[]): Promise<void> {
     const queue = new PQueue({ concurrency: 5 })
 
-    for (const channel of channels) {
+    for (const allocation of allocations) {
       queue.add(async () => {
         this.logger.info(`Settle state channel`, {
-          channelID: channel.id,
-          deployment: channel.subgraphDeploymentID.display,
-          createdAtEpoch: channel.createdAtEpoch,
+          channelID: allocation.id,
+          deployment: allocation.subgraphDeploymentID.display,
+          createdAtEpoch: allocation.createdAtEpoch,
         })
 
-        const stateChannel = this.stateChannels.get(channel.id)
+        const stateChannel = this.stateChannels.get(allocation.id)
         if (stateChannel !== undefined) {
           await stateChannel.settle()
 
           // TODO: (Zac) Prevent race conditions here by deleting the channel first,
           // then settling the app, etc?
-          this.stateChannels.delete(channel.id)
+          this.stateChannels.delete(allocation.id)
         } else {
           this.logger.warn(`Failed to settle state channel: Unknown channel ID`, {
-            channelID: channel.id,
-            deployment: channel.subgraphDeploymentID.display,
-            createdAtEpoch: channel.createdAtEpoch,
+            channelID: allocation.id,
+            deployment: allocation.subgraphDeploymentID.display,
+            createdAtEpoch: allocation.createdAtEpoch,
           })
         }
       })

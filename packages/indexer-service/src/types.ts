@@ -75,7 +75,7 @@ export interface Allocation {
 }
 
 export interface StateChannel {
-  info: Allocation
+  allocation: Allocation
   wallet: Wallet
   settle(): Promise<void>
 }
