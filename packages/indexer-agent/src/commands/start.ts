@@ -23,6 +23,11 @@ export default {
         type: 'string',
         required: true,
       })
+      .option('indexer-management-endpoint', {
+        description: 'Indexer management endpoint for indexer rules',
+        type: 'string',
+        required: true,
+      })
       .option('graph-node-admin-endpoint', {
         description:
           'Graph Node endpoint for applying and updating subgraph deployments',
@@ -77,6 +82,7 @@ export default {
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
       queryEndpoint: argv.graphNodeQueryEndpoint,
+      rulesEndpoint: argv.indexerRulesEndpoint,
       publicIndexerUrl: argv.publicIndexerUrl,
       indexerGeoCoordinates: argv.indexerGeoCoordinates,
       ethereumProvider: argv.ethereum,

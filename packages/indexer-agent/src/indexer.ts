@@ -5,10 +5,11 @@ import gql from 'graphql-tag'
 import jayson, { Client } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
-import { IndexingStatus } from './types'
+import { IndexingRules, IndexingStatus } from './types'
 
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
+  rules: ApolloClient<NormalizedCacheObject>
   rpc: Client
   logger: Logger
   indexNodeIDs: string[]
@@ -16,10 +17,19 @@ export class Indexer {
   constructor(
     adminEndpoint: string,
     statusEndpoint: string,
+    rulesEndpoint: string,
     logger: Logger,
     indexNodeIDs: string[],
   ) {
     this.statuses = new ApolloClient({
+      link: new HttpLink({
+        uri: statusEndpoint,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetch: fetch as any,
+      }),
+      cache: new InMemoryCache(),
+    })
+    this.rules = new ApolloClient({
       link: new HttpLink({
         uri: statusEndpoint,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,6 +80,34 @@ export class Indexer {
         })
     } catch (error) {
       this.logger.error(`Failed to query indexing status API`)
+      throw error
+    }
+  }
+
+  async indexerRules(merged: boolean): Promise<IndexingRules[]> {
+    try {
+      const result = await this.rules.query({
+        query: gql`
+          query indexingRules($merged: Boolean!) {
+            indexingRules(merged: $merged) {
+              deployment
+              allocation
+              maxAllocationPercentage
+              minSignal
+              maxSignal
+              minStake
+              minAverageQueryFees
+              custom
+              indexingDecision
+            }
+          }
+        `,
+        variables: { merged },
+        fetchPolicy: 'no-cache',
+      })
+      return result.data.indexingRules
+    } catch (error) {
+      this.logger.error(`Failed to query indexer management server`)
       throw error
     }
   }
