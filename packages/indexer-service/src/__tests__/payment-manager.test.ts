@@ -25,8 +25,7 @@ import {
   mockCreatedChannelMessage,
   mockQuery,
   mockCloseChannelMessage,
-  mockAttestation,
-  mockQueryRequestMessage,
+  testAttestation,
   mockChannelId,
 } from './payment-manager-mocks'
 
@@ -97,7 +96,7 @@ describe('PaymentManager', () => {
       const attestationMessage = await allocationClient.provideAttestation(
         mockChannelId,
         mockQuery(),
-        mockAttestation(),
+        testAttestation(),
       )
     })
 
