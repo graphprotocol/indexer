@@ -5,6 +5,8 @@ import {
 } from '@statechannels/client-api-schema'
 import { Message as PushMessage } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
+import { toJS, AppData } from '@statechannels/graph'
+import { ChannelResult } from '@statechannels/client-api-schema'
 
 import { Wallet } from 'ethers'
 
@@ -45,6 +47,12 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       component: 'AllocationPaymentClient',
       createdAtEpoch: allocation.createdAtEpoch,
     })
+  }
+
+  public async getChannelResult(channelId: string): Promise<ChannelResult> {
+    const { channelResult } = await this.serverWallet.getState({ channelId })
+    if (!channelResult) throw new Error(`No channel result for channelId ${channelId}.`)
+    return channelResult
   }
 
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
@@ -170,7 +178,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     query: PaidQuery,
     attestation: Attestation,
   ): Promise<WireMessage> {
-    const { appData, allocations } = await this.getChannelState(channelId)
+    const { appData, allocations } = await this.getChannelResult(channelId)
+
+    // todo:
+    // 1. Update allocations.
+    // 2. Update appData.
 
     const {
       channelResult,
@@ -187,7 +199,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   }
 
   async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
-    const { appData, allocations } = await this.getChannelState(channelId)
+    const { appData, allocations } = await this.getChannelResult(channelId)
 
     const {
       channelResult,
