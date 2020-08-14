@@ -25,6 +25,9 @@ import {
   mockCreatedChannelMessage,
   mockQuery,
   mockCloseChannelMessage,
+  mockAttestation,
+  mockQueryRequestMessage,
+  mockChannelId,
 } from './payment-manager-mocks'
 
 const logger = createLogger({ name: 'server.test.ts' })
@@ -45,6 +48,10 @@ describe('PaymentManager', () => {
 
   afterAll(async () => {
     await serverWalletKnex.destroy()
+  })
+
+  afterEach(async () => {
+    await serverWalletKnex('channels').truncate()
   })
 
   it('is defined', async () => {
@@ -83,6 +90,17 @@ describe('PaymentManager', () => {
       await expect(allocationClient.validatePayment(mockQuery())).resolves.not.toThrow()
     })
 
+    it('can provide attestation response', async () => {
+      await allocationClient.handleMessage(mockCreatedChannelMessage())
+      await allocationClient.validatePayment(mockQuery())
+
+      const attestationMessage = await allocationClient.provideAttestation(
+        mockChannelId,
+        mockQuery(),
+        mockAttestation(),
+      )
+    })
+
     it.skip('can deny a query', async () => {
       const outbound = await allocationClient.declineQuery('', mockQuery())
 
@@ -94,8 +112,6 @@ describe('PaymentManager', () => {
 
       expect(nextState).toMatchObject({ turnNum: 5 })
     })
-
-    // it can accept a payment
 
     it('can accept a channel closure', async () => {
       const outbound = await allocationClient.handleMessage(mockCloseChannelMessage())
