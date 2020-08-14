@@ -25,7 +25,7 @@ import geohash from 'ngeohash'
 import { getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
 import { JsonRpcProvider } from '@connext/types'
-import { Allocation } from './types'
+import { Allocation, IndexingRules } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -149,8 +149,7 @@ export class Network {
   }
 
   async subgraphDeploymentsWorthIndexing(
-    minimumStake: BigNumber,
-    minimumSignal: BigNumber,
+    rules: IndexingRules[],
   ): Promise<SubgraphDeploymentID[]> {
     try {
       const result = await this.subgraph.query({
@@ -158,8 +157,15 @@ export class Network {
           query {
             subgraphDeployments {
               id
-              stakedTokens
-              signalAmount
+              totalStake
+              totalSignalMinted
+              totalSubgraphIndexingRewards
+              totalQueryFeesCollected
+              indexerAllocations {
+                indexer
+                tokensAllocated
+                feesCollected
+              }
             }
           }
         `,
@@ -169,11 +175,35 @@ export class Network {
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
-            const stakedTokens = parseGRT(deployment.stakedTokens)
-            const signalAmount = parseGRT(deployment.signalAmount)
-            return (
-              stakedTokens.gte(minimumStake) || signalAmount.gte(minimumSignal)
+            const deploymentRule = rules.find(
+              rule => (rule.deployment = deployment.id),
             )
+
+            // Skip the indexing rules checks if the decision basis is 'always' or 'never'
+            if (deploymentRule?.decisionBasis == 'ALWAYS') {
+              return true
+            } else if (deploymentRule?.decisionBasis == 'NEVER') {
+              return false
+            }
+
+            if (deploymentRule) {
+              const stakedTokens = parseGRT(deployment.totalStake)
+              const signalAmount = parseGRT(deployment.totalSignalMinted)
+              const avgQueryFeeRewards = parseGRT(
+                deployment.totalQueryFeesCollected,
+              ).div(BigNumber.from(deployment.indexerAllocations.length))
+
+              return (
+                (deploymentRule.minStake?.lte(stakedTokens) ||
+                  deploymentRule.minSignal?.lte(signalAmount) ||
+                  deploymentRule.minAverageQueryFees?.lte(
+                    avgQueryFeeRewards,
+                  )) &&
+                deploymentRule.maxSignal?.gte(signalAmount)
+              )
+            } else {
+              throw 'No indexer rules found on indexer management server'
+            }
           })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))

@@ -103,11 +103,13 @@ class Agent {
         // Identify subgraph deployments indexed locally
         const indexerDeployments = await this.indexer.subgraphDeployments()
 
+        // Fetch all indexing rules
+        const rules = await this.indexer.indexerRules(true)
+
         // Identify subgraph deployments on the network that are worth picking up;
         // these may overlap with the ones we're already indexing
         const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing(
-          MINIMUM_STAKE,
-          MINIMUM_SIGNAL,
+          rules,
         )
 
         // Identify active allocations
@@ -272,6 +274,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
   const indexer = new Indexer(
     config.adminEndpoint,
     config.statusEndpoint,
+    config.rulesEndpoint,
     config.logger,
     config.indexNodeIDs,
   )
