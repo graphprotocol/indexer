@@ -101,7 +101,20 @@ export class StateChannel implements StateChannelInterface {
   private buffer: PaymentStoreBuffer
   private model: PaymentStoreModel
   private paymentIdToChannel: Map<HexBytes32, StateChannel>
-  // TODO: (Zac) Manage order of state channels, and automatically
+
+  // A list of apps, in the order they were installed.
+  // Connext has a limit of apps that can be installed on any channel.
+  // The limit is something like 32. With each new concurrent app installed,
+  // the amount of gas required to file a dispute increases significantly so
+  // we want to keep the installed apps to a minimum. In practice at least 2 apps
+  // are required: An 'active' app which is being drained by queries, and a
+  // 'standby' app that has been setup so that when it is time to transfer to a
+  // new app there isn't a latency hiccup for queries while setting up the app.
+  // Here, we extend this to 3 apps to give a little bit of a buffer to avoid
+  // any race conditions.
+  private appsByInstall: HexBytes32[]
+
+  // TODO: (Zac) HIGH Manage order of apps, and automatically
   // finalize when there are too many
 
   private constructor({
@@ -128,12 +141,15 @@ export class StateChannel implements StateChannelInterface {
     this.buffer = buffer
     this.model = model
     this.paymentIdToChannel = paymentIdToChannel
+    this.appsByInstall = []
 
     this.client.on(
       EventNames.CONDITIONAL_TRANSFER_CREATED_EVENT,
       this.handleAppInstall.bind(this),
     )
   }
+
+  // TODO: (Zac) MED Load state channels and apps on startup, finalizing if necessary
 
   /**
    * Creates a StateChannel. The StateChannel may have multiple apps installed on it.
@@ -153,7 +169,6 @@ export class StateChannel implements StateChannelInterface {
     paymentIdToChannel,
   }: StateChannelCreateOptions): Promise<StateChannel> {
     const subgraphDeploymentID = allocation.subgraphDeploymentID
-    // TODO: (Zac) Cancel the flush operation since we now have multiple buffers
     const buffer = new PaymentStoreBuffer(sequelize, paymentStoreModel)
 
     const logger = parentLogger.child({
@@ -281,11 +296,23 @@ export class StateChannel implements StateChannelInterface {
       return
     }
 
-    // TODO: (Zac) Validate inputs from hub
+    // Close the oldest app
+    try {
+      while (this.appsByInstall.length > 3) {
+        const oldest = this.appsByInstall[0]
+        const state = await this.buffer.take(oldest)
+        await this.finalizeApp(state)
+      }
+    } catch (error) {
+      this.logger.error('Failed in finalize app. Will try again on settle', { error })
+      // Press on to install the new app
+    }
+
+    // TODO: (Zac) LOW Validate inputs from hub
     const initialPaymentState: PaymentStore = {
       paymentId: payload.paymentId as HexBytes32,
       connextAppIdHash: payload.appIdentityHash as HexBytes32,
-      // TODO: (Zac) Casting here is incorrect, because this may be shorter than HexBytes32
+      // TODO: (Zac) LOW Casting here is incorrect, because this may be shorter than HexBytes32
       // I don't think it will cause any problems with what's implemented so far, but should fix
       totalCollateralization: payload.amount.toHexString() as HexBytes32,
       channelId: this.allocation.id as HexBytes32,
@@ -296,6 +323,7 @@ export class StateChannel implements StateChannelInterface {
       consumerSignature: null,
       attestationSignature: null,
     }
+    this.appsByInstall.push(payload.paymentId as HexBytes32)
     await this.model.create(initialPaymentState)
     this.paymentIdToChannel.set(payload.paymentId as HexBytes32, this)
 
@@ -309,13 +337,13 @@ export class StateChannel implements StateChannelInterface {
       sender: payload.sender,
     })
   }
+  // TODO: (Zac) LOW: Move all per-app logic into the state channel
 
-  // TODO: (Zac) Can't settle app here. No good.
   async settle(): Promise<void> {
-    // TODO: (Zac) Figure out the right way to handle transactions here.
+    // TODO: (Zac) MED Figure out the right way to handle transactions here.
     // We don't want to accept queries while finishing apps,
     // We don't want to install new apps while closing channels,
-    // TODO: (Zac) Coordinate with the buffer, and coordinate with outstanding queries
+    // TODO: (Zac) MED Coordinate with the buffer, and coordinate with outstanding queries
 
     // Ensure any payments to be collected are on disk
     await this.buffer.finish()
@@ -369,7 +397,16 @@ export class StateChannel implements StateChannelInterface {
   }
 
   private async finalizeApp(finalState: CompleteModel<PaymentStore>): Promise<void> {
-    // TODO: (Zac) Upgrade transaction types to serializable?
+    // Remove from list of installed apps
+    for (;;) {
+      const index = this.appsByInstall.indexOf(finalState.paymentId)
+      if (index < 0) {
+        break
+      }
+      this.appsByInstall.splice(index)
+    }
+
+    // TODO: (Zac) LOW Upgrade transaction types to serializable?
     if (finalState.totalPayment == null) {
       // It is possible that we never served any queries on this channel.
       // In that case, uninstall the app to cancel any payments
@@ -452,7 +489,14 @@ class PaymentStoreBuffer {
     return this.flushTask
   }
 
-  // TODO: (Performance) We don't always need to load all fields
+  // TODO: (Zac) This is kind of silly, the method breakdown kind of fell apart.
+  async take(paymentId: HexBytes32): Promise<CompleteModel<PaymentStore>> {
+    // TODO: (Zac) This silences errors. No good. It is late and I am tired.
+    await this.flushToDiskById(paymentId)
+    return await this.loadPaymentState(paymentId)
+  }
+
+  // TODO: (Zac) Performance: We don't always need to load all fields
   private async loadPaymentState(
     paymentId: HexBytes32,
     transaction?: Transaction,
@@ -486,20 +530,21 @@ class PaymentStoreBuffer {
         const prevState = await this.loadPaymentState(payment.paymentId)
 
         if (
-          prevState.totalPayment != null &&
-          BigInt(prevState.totalPayment) >= payment.totalPayment
+          prevState.totalPayment == null ||
+          BigInt(prevState.totalPayment) < payment.totalPayment
         ) {
-          return
+          // TODO: (Zac) LOW This may not be HexBytes32. Needs fix
+          prevState.totalPayment = ('0x' +
+            payment.totalPayment.toString(16)) as HexBytes32
+          prevState.consumerSignature = payment.signature
+          prevState.attestationSignature = utils.joinSignature(
+            attestation,
+          ) as RawSignature
+          prevState.requestCID = attestation.requestCID as HexBytes32
+          prevState.responseCID = attestation.responseCID as HexBytes32
+
+          prevState.save({ transaction })
         }
-
-        // TODO: (Zac) This may not be HexBytes32. Needs fix
-        prevState.totalPayment = ('0x' + payment.totalPayment.toString(16)) as HexBytes32
-        prevState.consumerSignature = payment.signature
-        prevState.attestationSignature = utils.joinSignature(attestation) as RawSignature
-        prevState.requestCID = attestation.requestCID as HexBytes32
-        prevState.responseCID = attestation.responseCID as HexBytes32
-
-        prevState.save({ transaction })
       },
     )
   }
@@ -523,25 +568,30 @@ class PaymentStoreBuffer {
       const dirty = this.dirty[index]
       this.dirty[index] = this.dirty[this.dirty.length - 1]
       this.dirty.pop()
-      const data = this.byId.get(dirty)
-      if (data == null) {
-        continue
-      }
-      // This is necessary because addPayment may be called concurrently.
-      // Without this line, addPayment would not add the id to the dirty list,
-      // and the payment may never flush
-      this.byId.delete(dirty)
-      const [payment, attestation] = data
+      await this.flushToDiskById(dirty)
+    }
+  }
 
-      // Flush to disk
-      try {
-        await this.flushToDisk(payment, attestation)
-      } catch (error) {
-        // If we fail to save, try again later
-        // Calling addPayment again mixes whatever state we took out with
-        // any new state that had been put in
-        this.addPayment(payment, attestation)
-      }
+  private async flushToDiskById(id: HexBytes32) {
+    const data = this.byId.get(id)
+    if (data == null) {
+      return
+    }
+    const [payment, attestation] = data
+
+    // This is necessary because addPayment may be called concurrently.
+    // Without this line, addPayment would not add the id to the dirty list,
+    // and the payment may never flush
+    this.byId.delete(id)
+
+    // Flush to disk
+    try {
+      await this.flushToDisk(payment, attestation)
+    } catch (error) {
+      // If we fail to save, try again later
+      // Calling addPayment again mixes whatever state we took out with
+      // any new state that had been put in
+      this.addPayment(payment, attestation)
     }
   }
 
@@ -589,8 +639,9 @@ export class PaymentManager implements PaymentManagerInterface {
 
     for (const allocation of allocations) {
       queue.add(async () => {
-        // TODO: (Zac) This does not account for the possibility of overlapping
+        // TODO: (Zac) LOW This does not account for the possibility of overlapping
         // promises for the same id. Is StateChannel creation idempotent?
+        // TODO: (Zac) LOW Consider also that delete may happen while this is being created
         if (!this.stateChannels.has(allocation.id)) {
           const stateChannel = await StateChannel.create({
             ...this.options,
@@ -605,6 +656,9 @@ export class PaymentManager implements PaymentManagerInterface {
 
     return queue.onIdle()
   }
+
+  // TODO: (Zac) HIGH Automatically finalize apps with a cap
+  // TODO: (Zac) HIGH Automatically finalize apps uninstalled by the gateway
 
   settleStateChannels(allocations: Allocation[]): Promise<void> {
     const queue = new PQueue({ concurrency: 5 })
@@ -621,7 +675,7 @@ export class PaymentManager implements PaymentManagerInterface {
         if (stateChannel !== undefined) {
           await stateChannel.settle()
 
-          // TODO: (Zac) Prevent race conditions here by deleting the channel first,
+          // TODO: (Zac) HIGH Prevent race conditions here by deleting the channel first,
           // then settling the app, etc?
           this.stateChannels.delete(allocation.id)
         } else {
@@ -637,13 +691,13 @@ export class PaymentManager implements PaymentManagerInterface {
     return queue.onIdle()
   }
 
-  // TODO: (Zac) Rename totalPayment to totalPaid
+  // TODO: (Zac) LOW Rename totalPayment to totalPaid
   async lockPayment(payment: UnvalidatedPaymentAppState): Promise<Wallet> {
     if (payment.amount > payment.totalPayment) {
       throw new QueryError('Expected payment to be included in totalPayment')
     }
 
-    // WARN: TODO: (Zac) For the first phases of the testnet the Indexer
+    // WARN: TODO: MED (Zac) For the first phases of the testnet the Indexer
     // will trust the Consumer, because the Consumer can be a trusted The Graph Gateway.
     // In the future when there are multiple Gateways or Consumers are
     // in-browser wallets there are a number of things that we want to verify:
@@ -676,7 +730,6 @@ export class PaymentManager implements PaymentManagerInterface {
     //  - totalPaid is in Eth/Dai
     //  - swapRate(in contract) is Eth:GRT or Dai:GRT
 
-    // TODO: (Zac) Add paymentIds to this collection
     const stateChannel = this.paymentIdToChannel.get(payment.paymentId)
     if (stateChannel === undefined) {
       throw new QueryError('Unrecognized paymentId')

@@ -69,9 +69,6 @@ export const createServer = async ({
 
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
-      // TODO: (Zac) Change x-graph-payment-id to x-graph-payment in the gateway
-      // Extract the payment ID
-
       let response: PaidQueryResponse | FreeQueryResponse
 
       try {

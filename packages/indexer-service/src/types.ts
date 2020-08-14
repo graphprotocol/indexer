@@ -50,14 +50,14 @@ export interface PaidQuery {
   subgraphDeploymentID: SubgraphDeploymentID
   paymentAppState: PaymentAppState
   query: string
-  // TODO: (Zac) Does this need to be here?
+  // TODO: (Zac) LOW Does this need to be here?
   requestCID: string
 }
 
 export interface FreeQuery {
   subgraphDeploymentID: SubgraphDeploymentID
   query: string
-  // TODO: (Zac) Does this need to be here?
+  // TODO: (Zac) LOW Does this need to be here?
   requestCID: string
 }
 
@@ -66,7 +66,6 @@ export interface QueryProcessor {
   executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
 }
 
-// TODO: (Zac) Is this.id the same as the appHash?
 export interface Allocation {
   id: string
   publicKey: string
