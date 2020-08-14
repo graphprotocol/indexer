@@ -29,7 +29,7 @@ import {
   mockChannelId,
   mockAppData,
 } from './payment-manager-mocks'
-import { toJS } from '@statechannels/graph'
+import { toJS, fromJS, StateType } from '@statechannels/graph'
 
 const logger = createLogger({ name: 'server.test.ts' })
 
@@ -103,6 +103,8 @@ describe('PaymentManager', () => {
       const signedStates = (attestationMessage.data as any).signedStates as SignedState[]
       const appData = toJS(signedStates[0].appData)
       expect(appData.constants).toEqual(mockAppData().constants)
+      expect(appData.variable.responseCID).toEqual(mockAttestation().responseCID)
+      expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
     })
 
     it.skip('can deny a query', async () => {
