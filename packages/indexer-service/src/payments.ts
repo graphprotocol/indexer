@@ -552,7 +552,7 @@ class PaymentStoreBuffer {
   private async flush(): Promise<void> {
     for (;;) {
       if (!this.finishing) {
-        await delay(1000 / this.dirty.length)
+        await delay(1000 / (this.dirty.length + 1))
       }
 
       // Pop and swap a random dirty entry
