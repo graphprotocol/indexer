@@ -383,7 +383,7 @@
     evt "1.8.4"
     sequelize "6.3.4"
 
-"@connext/types@7.3.2", "@connext/types@^7.3.2":
+"@connext/types@7.3.2", "@connext/types@^7.2.1", "@connext/types@^7.3.2":
   version "7.3.2"
   resolved "https://registry.npmjs.org/@connext/types/-/types-7.3.2.tgz#d0271e48da3bac2d43369da1f6a24e5171627a4c"
   integrity sha512-5iutId2aGO0RtN5TC1d53FQ+6aqcB23bpB/NgzVShNXtEdHOXVcbHa3BFMi/HXxuAe9W1WFQpZ2iU3k5ihyR0g==
