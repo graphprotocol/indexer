@@ -199,7 +199,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     }
     // todo:
     // 1. Update allocations.
-    // 2. Update appData.
 
     const {
       channelResult,

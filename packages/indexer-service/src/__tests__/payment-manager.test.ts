@@ -21,13 +21,15 @@ import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db
 import { PaymentManager } from '../payment-manager'
 import { AllocationPaymentClient } from '../types'
 import {
-  testAllocation,
+  mockAllocation,
   mockCreatedChannelMessage,
   mockQuery,
   mockCloseChannelMessage,
-  testAttestation,
+  mockAttestation,
   mockChannelId,
+  mockAppData,
 } from './payment-manager-mocks'
+import { toJS } from '@statechannels/graph'
 
 const logger = createLogger({ name: 'server.test.ts' })
 
@@ -58,7 +60,7 @@ describe('PaymentManager', () => {
   })
 
   it('can create an allocation client', () => {
-    const testAlloc = testAllocation()
+    const testAlloc = mockAllocation()
     paymentManager.createAllocationPaymentClients([testAlloc])
     const client = paymentManager.getAllocationPaymentClient('abc')
     expect(client).toBeDefined()
@@ -96,8 +98,11 @@ describe('PaymentManager', () => {
       const attestationMessage = await allocationClient.provideAttestation(
         mockChannelId,
         mockQuery(),
-        testAttestation(),
+        mockAttestation(),
       )
+      const signedStates = (attestationMessage.data as any).signedStates as SignedState[]
+      const appData = toJS(signedStates[0].appData)
+      expect(appData.constants).toEqual(mockAppData().constants)
     })
 
     it.skip('can deny a query', async () => {

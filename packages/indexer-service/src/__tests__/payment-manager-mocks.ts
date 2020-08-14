@@ -8,15 +8,7 @@ import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { getChannelId } from '@statechannels/nitro-protocol'
 import { AppData, StateType, fromJS } from '@statechannels/graph'
 
-const TEST_SUBGRAPH_ID = new SubgraphDeploymentID(
-  base58.encode([
-    0x12,
-    0x20,
-    ...utils.arrayify(utils.sha256(Buffer.from('network-subgraph-indexer-1'))),
-  ]),
-)
-
-export const testSubgraphId = (): SubgraphDeploymentID =>
+export const mockSubgraphId = (): SubgraphDeploymentID =>
   new SubgraphDeploymentID(
     base58.encode([
       0x12,
@@ -25,14 +17,14 @@ export const testSubgraphId = (): SubgraphDeploymentID =>
     ]),
   )
 
-export const testAllocation = (): Allocation => ({
+export const mockAllocation = (): Allocation => ({
   id: 'abc',
   publicKey: '-- unused --',
-  subgraphDeploymentID: testSubgraphId(),
+  subgraphDeploymentID: mockSubgraphId(),
   createdAtEpoch: 0,
 })
 
-export const testAttestation = (): Attestation => ({
+export const mockAttestation = (): Attestation => ({
   requestCID: constants.HashZero,
   responseCID: constants.HashZero,
   subgraphDeploymentID: constants.HashZero,
@@ -41,8 +33,8 @@ export const testAttestation = (): Attestation => ({
   v: 0,
 })
 
-const sampleAttestation = testAttestation()
-const testAppData = (): AppData => ({
+const sampleAttestation = mockAttestation()
+export const mockAppData = (): AppData => ({
   constants: {
     chainId: 0,
     canonicalIndexerAddress: constants.AddressZero,
@@ -65,7 +57,7 @@ const mockFirstState = (): State => ({
   channelNonce: 0,
   chainId: '0',
   appDefinition: constants.AddressZero,
-  appData: fromJS(testAppData()),
+  appData: fromJS(mockAppData()),
   participants: [
     {
       participantId: 'gateway',
@@ -146,7 +138,7 @@ export const mockQueryRequestMessage = (): WireMessage => ({
 
 export const mockQuery = (): PaidQuery => ({
   stateChannelMessage: mockQueryRequestMessage(),
-  subgraphDeploymentID: TEST_SUBGRAPH_ID,
+  subgraphDeploymentID: mockSubgraphId(),
   query: '',
   allocationID: 'abc',
   requestCID: '',
