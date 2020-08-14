@@ -5,7 +5,7 @@ import {
 } from '@statechannels/client-api-schema'
 import { Message as PushMessage } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
-import { toJS, AppData } from '@statechannels/graph'
+import { toJS, AppData, StateType, fromJS } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
 import { Wallet } from 'ethers'
@@ -178,8 +178,25 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     query: PaidQuery,
     attestation: Attestation,
   ): Promise<WireMessage> {
-    const { appData, allocations } = await this.getChannelResult(channelId)
+    const { appData: appData, allocations } = await this.getChannelResult(channelId)
+    const currentAppData = toJS(appData)
+    if (currentAppData.variable.stateType !== StateType.QueryRequested) {
+      throw new Error('Current wallet state must be QueryRequested')
+    }
 
+    const newAppData: AppData = {
+      ...currentAppData,
+      variable: {
+        ...currentAppData.variable,
+        stateType: StateType.AttestationProvided,
+        responseCID: attestation.responseCID,
+        signature: ethers.utils.joinSignature({
+          r: attestation.r,
+          s: attestation.s,
+          v: attestation.v,
+        }),
+      },
+    }
     // todo:
     // 1. Update allocations.
     // 2. Update appData.
@@ -189,7 +206,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData,
+      appData: fromJS(newAppData),
       allocations,
     })
 
