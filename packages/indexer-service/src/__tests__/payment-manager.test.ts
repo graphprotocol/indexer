@@ -52,10 +52,11 @@ describe('PaymentManager', () => {
   })
 
   it('can create an allocation client', () => {
-    paymentManager.createAllocationPaymentClients([testAllocation()])
+    const testAlloc = testAllocation()
+    paymentManager.createAllocationPaymentClients([testAlloc])
     const client = paymentManager.getAllocationPaymentClient('abc')
     expect(client).toBeDefined()
-    expect(client!.allocation).toBe(testAllocation())
+    expect(client!.allocation).toBe(testAlloc)
   })
 
   describe('AllocationClient', () => {
