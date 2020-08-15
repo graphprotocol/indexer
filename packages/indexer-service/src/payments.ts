@@ -5,6 +5,7 @@ import {
   Metrics,
   NetworkContracts,
   formatGRT,
+  SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
   IConnextClient,
@@ -31,6 +32,20 @@ import { Evt } from 'evt'
 
 const delay = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+const deriveChannelKeyPair = (
+  wallet: Wallet,
+  epoch: number,
+  deployment: SubgraphDeploymentID,
+): { keyPair: utils.HDNode; publicKey: string } => {
+  const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
+  const path = 'm/' + [epoch, ...Buffer.from(deployment.ipfsHash)].join('/')
+  const keyPair = hdNode.derivePath(path)
+  return {
+    keyPair,
+    publicKey: utils.computePublicKey(keyPair.publicKey, false),
+  }
 }
 
 interface StateChannelOptions {
@@ -98,19 +113,29 @@ export class StateChannel implements StateChannelInterface {
     logger.info(`Create state channel`)
 
     // Derive an epoch and subgraph specific private key
-    const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
-    const path =
-      'm/' +
-      [allocation.createdAtEpoch, ...Buffer.from(subgraphDeploymentID.ipfsHash)].join('/')
+    let { keyPair, publicKey } = deriveChannelKeyPair(
+      wallet,
+      allocation.createdAtEpoch,
+      subgraphDeploymentID,
+    )
 
-    logger.info(`Derive channel key`, { path })
+    // Check if the derived key matches the channel public key published on chain
+    if (publicKey !== allocation.publicKey) {
+      // It does not -> the channel public key of the allocation was created at
+      // allocation.createdAtEpoch-1, but the allocation transaction was only mined
+      // at allocation.createdAtEpoch. To avoid a mismatch, we have to derive
+      // the channel key pair using allocation.createdAtEpoch-1.
+      ;({ keyPair, publicKey } = deriveChannelKeyPair(
+        wallet,
+        allocation.createdAtEpoch - 1,
+        subgraphDeploymentID,
+      ))
+    }
 
-    const derivedKeyPair = hdNode.derivePath(path)
-    const uncompressedPublicKey = utils.computePublicKey(derivedKeyPair.publicKey, false)
-    const storePrefix = derivedKeyPair.address.substr(2)
-    const stateChannelWallet = new Wallet(derivedKeyPair.privateKey)
+    const storePrefix = keyPair.address.substr(2)
+    const stateChannelWallet = new Wallet(keyPair.privateKey)
 
-    logger.debug(`Channel parameters`, { publicKey: uncompressedPublicKey, storePrefix })
+    logger.debug(`Channel parameters`, { publicKey, storePrefix })
 
     try {
       const client = await createStateChannel({
@@ -120,11 +145,11 @@ export class StateChannel implements StateChannelInterface {
         ethereumProvider: ethereum,
         connextMessaging,
         connextNode,
-        privateKey: derivedKeyPair.privateKey,
+        privateKey: keyPair.privateKey,
 
         // Use the Ethereum address of the channel as the store prefix,
         // stripping the leading `0x`
-        storePrefix: derivedKeyPair.address.substr(2),
+        storePrefix: keyPair.address.substr(2),
       })
 
       // Collateralize the channel immediately, so there are no delays later;
@@ -140,7 +165,7 @@ export class StateChannel implements StateChannelInterface {
       logger.debug(`Channel configuration`, {
         onChainPublicKey: allocation.publicKey,
         onChainSignerAddress: allocation.id,
-        publicKey: uncompressedPublicKey,
+        publicKey,
         signerAddress: client.signerAddress,
         publicIdentifier: client.publicIdentifier,
         freeBalance: utils.formatEther(balance),
@@ -150,15 +175,19 @@ export class StateChannel implements StateChannelInterface {
         client.publicIdentifier !== getPublicIdentifierFromPublicKey(allocation.publicKey)
       ) {
         throw new Error(
-          `Public channel identifier ${
+          `Programmer error: Public channel identifier ${
             client.publicIdentifier
           } doesn't match on-chain identifier ${getPublicIdentifierFromPublicKey(
             allocation.publicKey,
-          )}`,
+          )}. This is because the transaction that created the allocation with the public key '${
+            allocation.publicKey
+          }' for the subgraph deployment '${
+            subgraphDeploymentID.bytes32
+          }' took longer than one epoch to be mined. The epoch length of the protocol should probably be increased.`,
         )
       }
 
-      const signer = new ChannelSigner(derivedKeyPair.privateKey, ethereum)
+      const signer = new ChannelSigner(keyPair.privateKey, ethereum)
 
       logger.info(`Created state channel successfully`)
 
