@@ -98,46 +98,16 @@ export const mockChannelId = getChannelId({
   chainId: sampleFirstState.chainId,
 })
 
-export const mockCreatedChannelMessage = (): WireMessage => ({
-  sender: 'gateway',
-  recipient: 'me',
-  data: {
-    signedStates: [
-      {
-        ...mockFirstState(),
-        signatures: [
-          {
-            signer: MOCK_GATEWAY.wallet.address,
-            signature: signState(mockFirstState(), MOCK_GATEWAY.wallet.privateKey),
-          },
-        ],
-      },
-    ],
-  },
-})
+export const mockCreatedChannelMessage = (): WireMessage =>
+  mockGatewayMessage(mockFirstState())
 
 const mockRunningState = (): State => ({
   ...mockFirstState(),
   turnNum: 4,
 })
 
-export const mockQueryRequestMessage = (): WireMessage => ({
-  sender: 'gateway',
-  recipient: 'me',
-  data: {
-    signedStates: [
-      {
-        ...mockRunningState(),
-        signatures: [
-          {
-            signer: MOCK_GATEWAY.wallet.address,
-            signature: signState(mockRunningState(), MOCK_GATEWAY.wallet.privateKey),
-          },
-        ],
-      },
-    ],
-  },
-})
+export const mockQueryRequestMessage = (): WireMessage =>
+  mockGatewayMessage(mockRunningState())
 
 export const mockQuery = (): PaidQuery => ({
   stateChannelMessage: mockQueryRequestMessage(),
@@ -153,17 +123,19 @@ const mockClosingState = (): State => ({
   isFinal: true,
 })
 
-export const mockCloseChannelMessage = (): WireMessage => ({
+export const mockCloseChannelMessage = (): WireMessage =>
+  mockGatewayMessage(mockClosingState())
+const mockGatewayMessage = (state: State): WireMessage => ({
   sender: 'gateway',
   recipient: 'me',
   data: {
     signedStates: [
       {
-        ...mockClosingState(),
+        ...state,
         signatures: [
           {
             signer: MOCK_GATEWAY.wallet.address,
-            signature: signState(mockClosingState(), MOCK_GATEWAY.wallet.privateKey),
+            signature: signState(state, MOCK_GATEWAY.wallet.privateKey),
           },
         ],
       },
