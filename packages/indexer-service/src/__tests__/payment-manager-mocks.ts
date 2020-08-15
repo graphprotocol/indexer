@@ -81,7 +81,10 @@ const mockFirstState = (): State => ({
         amount: BN.from(0),
         destination: makeDestination(constants.AddressZero),
       },
-      { amount: BN.from(0), destination: makeDestination(constants.AddressZero) },
+      {
+        amount: BN.from(0),
+        destination: makeDestination(constants.AddressZero),
+      },
     ],
   },
 })

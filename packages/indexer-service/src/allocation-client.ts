@@ -197,8 +197,35 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
         }),
       },
     }
-    // todo:
-    // 1. Update allocations.
+
+    // todo: allocations need to be updated
+    // Allocations have to be zero for now due to https://github.com/statechannels/the-graph/issues/55
+    // Assume a single allocation for now
+    /*const paymentAmount = 0.01
+    const firstAllocation = allocations[0]
+    const newAllocations: SCAllocation[] = [
+      {
+        ...firstAllocation,
+        allocationItems: [
+          {
+            ...firstAllocation.allocationItems[0],
+            amount: BN.from(
+              ethers.BigNumber.from(firstAllocation.allocationItems[0].amount).sub(
+                paymentAmount,
+              ),
+            ),
+          },
+          {
+            ...firstAllocation.allocationItems[1],
+            amount: BN.from(
+              ethers.BigNumber.from(firstAllocation.allocationItems[1].amount).add(
+                paymentAmount,
+              ),
+            ),
+          },
+        ],
+      },
+    ]*/
 
     const {
       channelResult,
