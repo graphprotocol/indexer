@@ -130,6 +130,7 @@ export class StateChannel implements StateChannelInterface {
       // allocation.createdAtEpoch-1, but the allocation transaction was only mined
       // at allocation.createdAtEpoch. To avoid a mismatch, we have to derive
       // the channel key pair using allocation.createdAtEpoch-1.
+      // eslint-disable-next-line @typescript-eslint/no-extra-semi
       ;({ keyPair, publicKey } = deriveChannelKeyPair(
         wallet,
         allocation.createdAtEpoch - 1,
