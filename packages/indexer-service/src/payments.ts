@@ -54,6 +54,7 @@ interface StateChannelOptions {
   client: IConnextClient
   signer: ChannelSigner
   wallet: Wallet
+  contracts: NetworkContracts
 }
 
 interface StateChannelCreateOptions extends PaymentManagerOptions {
@@ -64,6 +65,7 @@ export class StateChannel implements StateChannelInterface {
   allocation: Allocation
   wallet: Wallet
   events: StateChannelEvents
+  contracts: NetworkContracts
 
   private logger: Logger
   private client: IConnextClient
@@ -75,9 +77,11 @@ export class StateChannel implements StateChannelInterface {
     client,
     signer,
     wallet,
+    contracts,
   }: StateChannelOptions) {
     this.allocation = allocation
     this.wallet = wallet
+    this.contracts = contracts
     this.events = {
       paymentReceived: new Evt<ConditionalPayment>(),
     }
@@ -101,6 +105,7 @@ export class StateChannel implements StateChannelInterface {
     connextNode,
     connextLogLevel,
     wallet,
+    contracts,
   }: StateChannelCreateOptions): Promise<StateChannel> {
     const subgraphDeploymentID = allocation.subgraphDeploymentID
 
@@ -156,10 +161,10 @@ export class StateChannel implements StateChannelInterface {
       // otherwise the first payment to the channel would cause an on-chain
       // collateralization, which, depending on the Ethereum network, can
       // take minutes
-      await client.requestCollateral(constants.AddressZero)
+      await client.requestCollateral(contracts.token.address)
 
       // Obtain current free balance
-      const freeBalance = await client.getFreeBalance(constants.AddressZero)
+      const freeBalance = await client.getFreeBalance(contracts.token.address)
       const balance = freeBalance[client.signerAddress]
 
       logger.debug(`Channel configuration`, {
@@ -197,6 +202,7 @@ export class StateChannel implements StateChannelInterface {
         logger: logger.child({ publicIdentifier: client.publicIdentifier }),
         client,
         signer,
+        contracts,
       })
     } catch (e) {
       console.error(e)
@@ -328,6 +334,9 @@ export class StateChannel implements StateChannelInterface {
 
         // Withdraw everything from the state channel
         amount: balance,
+
+        // Withdraw in GRT
+        assetId: this.contracts.token.address,
       })
       this.logger.info(`Successfully settled channel`, { amountGRT: formattedAmount })
     } catch (error) {
