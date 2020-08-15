@@ -243,13 +243,25 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
   async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
     const { appData, allocations } = await this.getChannelResult(channelId)
+    const currentAppData = toJS(appData)
+    if (currentAppData.variable.stateType !== StateType.QueryRequested) {
+      throw new Error('Current wallet state must be QueryRequested')
+    }
+
+    const newAppData: AppData = {
+      ...currentAppData,
+      variable: {
+        ...currentAppData.variable,
+        stateType: StateType.QueryDeclined,
+      },
+    }
 
     const {
       channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData,
+      appData: fromJS(newAppData),
       allocations,
     })
 

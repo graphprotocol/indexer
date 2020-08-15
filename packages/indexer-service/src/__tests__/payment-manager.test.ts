@@ -100,21 +100,31 @@ describe('PaymentManager', () => {
         mockQuery(),
         mockAttestation(),
       )
-      const signedStates = (attestationMessage.data as any).signedStates as SignedState[]
-      const appData = toJS(signedStates[0].appData)
+      const {
+        data: {
+          signedStates: [nextState],
+        },
+      } = attestationMessage as { data: { signedStates: SignedState[] } }
+      const appData = toJS(nextState.appData)
       expect(appData.constants).toEqual(mockAppData().constants)
       expect(appData.variable.responseCID).toEqual(mockAttestation().responseCID)
       expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
     })
 
-    it.skip('can deny a query', async () => {
-      const outbound = await allocationClient.declineQuery('', mockQuery())
+    it('can deny a query', async () => {
+      await allocationClient.handleMessage(mockCreatedChannelMessage())
+      await allocationClient.validatePayment(mockQuery())
+      const outbound = await allocationClient.declineQuery(mockChannelId, mockQuery())
 
       const {
         data: {
           signedStates: [nextState],
         },
       } = outbound as { data: { signedStates: SignedState[] } }
+
+      const appData = toJS(nextState.appData)
+      expect(appData.constants).toEqual(mockAppData().constants)
+      expect(appData.variable.stateType).toEqual(StateType.QueryDeclined)
 
       expect(nextState).toMatchObject({ turnNum: 5 })
     })
