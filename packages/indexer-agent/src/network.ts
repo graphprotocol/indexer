@@ -475,7 +475,13 @@ export class Network {
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
       })
-      await this.contracts.staking.settle(allocation.id)
+      // TODO: here is where we send the proof of indexing for the settled allocation
+      // The POI is received by the contract and emitted as event for future disputes
+      // The extra parameter to settle() is included in the lastest version of testnet
+      // contracts
+      // WARN: this is random placeholder to be filled with the real POI
+      const proofOfIndexing = utils.hexlify(utils.randomBytes(32))
+      await this.contracts.staking.settle(allocation.id, proofOfIndexing)
       this.logger.info(`Settled allocation`, {
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
