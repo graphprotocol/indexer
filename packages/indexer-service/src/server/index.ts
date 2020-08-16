@@ -83,10 +83,16 @@ export const createServer = async ({
             () => parsePaymentAppState(req.headers['x-graph-payment']),
             402,
           )
+          // TODO: fix
+          const serializeablePaymentAppState = {
+            ...paymentAppState,
+            totalPayment: paymentAppState.totalPayment.toString(),
+            amount: paymentAppState.amount.toString(),
+          }
 
           logger.info(`Received paid query`, {
             deployment: subgraphDeploymentID.display,
-            paymentAppState,
+            paymentAppState: serializeablePaymentAppState,
           })
 
           response = await queryProcessor.executePaidQuery({

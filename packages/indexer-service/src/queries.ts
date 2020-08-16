@@ -127,9 +127,16 @@ export class QueryProcessor implements QueryProcessorInterface {
   async executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
     const { subgraphDeploymentID, paymentAppState, requestCID } = query
 
+    // TODO: fix
+    const serializeablePaymentAppState = {
+      ...paymentAppState,
+      totalPayment: paymentAppState.totalPayment.toString(),
+      amount: paymentAppState.amount.toString(),
+    }
+
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
-      paymentAppState,
+      paymentAppState: serializeablePaymentAppState,
     })
 
     const signerWallet = await this.paymentManager.lockPayment(paymentAppState)
