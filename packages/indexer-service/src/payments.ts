@@ -23,6 +23,7 @@ import {
 import { ChannelSigner, toBN, getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { Sequelize, Transaction } from 'sequelize'
 import { Wallet, constants, utils, BigNumber } from 'ethers'
+import { Evt } from 'evt'
 import PQueue from 'p-queue'
 
 import {
@@ -36,6 +37,20 @@ import {
   parseUint256,
   validateSignature,
 } from './types'
+
+// TODO: should this be removed?
+interface StateChannelEvents {
+  paymentReceived: Evt<ConditionalPayment>
+}
+
+// TODO: should this be removed?
+export interface ConditionalPayment {
+  paymentId: string
+  appIdentityHash: string
+  amount: BigNumber
+  sender: string
+  signer: string
+}
 
 const delay = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms))
