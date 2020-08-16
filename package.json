@@ -24,8 +24,7 @@
   "dependencies": {
     "@connext/types": "^7.3.2",
     "@connext/utils": "^7.3.2",
-    "@graphprotocol/common-ts": "^0.1.4",
-    "@connext/types": "^7.2.1",
+    "@graphprotocol/common-ts": "^0.2.0-alpha.1",
     "@graphprotocol/contracts": "^0.4.7-testnet-phase1",
     "@types/node": "^13.7.4",
     "ethers": "^5.0.2"
