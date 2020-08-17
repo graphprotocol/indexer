@@ -40,22 +40,3 @@ export interface IndexingError {
   handler: string
   message: string
 }
-
-enum IndexingDecisionBasis {
-  rules = 'RULES',
-  never = 'NEVER',
-  always = 'ALWAYS',
-}
-
-//TODO: import this interface from common-ts?
-export interface IndexingRules {
-  deployment: string
-  allocation: BigNumber | null
-  maxAllocationPercentage: number | null
-  minSignal: BigNumber | null
-  maxSignal: BigNumber | null
-  minStake: BigNumber | null
-  minAverageQueryFees: BigNumber | null
-  custom: string | null
-  decisionBasis: IndexingDecisionBasis
-}
