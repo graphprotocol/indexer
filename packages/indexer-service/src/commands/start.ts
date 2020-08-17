@@ -32,7 +32,7 @@ export default {
       .option('connext-messaging', {
         description: 'Connext messaging URL',
         type: 'string',
-        required: true,
+        required: false,
       })
       .option('connext-node', {
         description: 'Connext node URL',
