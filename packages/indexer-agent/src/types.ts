@@ -29,11 +29,25 @@ export interface Allocation {
   createdAtEpoch: number
 }
 
+export interface EthereumBlock {
+  number: number
+  hash: string
+}
+
+export interface EthereumIndexingStatus {
+  network: string
+  latestBlock: EthereumBlock
+  chainHeadBlock: EthereumBlock
+}
+
+export type ChainIndexingStatus = EthereumIndexingStatus
+
 export interface IndexingStatus {
   subgraphDeployment: SubgraphDeploymentID
   health: string
   synced: boolean
   fatalError: IndexingError
+  chains: ChainIndexingStatus[]
 }
 
 export interface IndexingError {
