@@ -5,6 +5,8 @@ import {
   SubgraphDeploymentID,
   formatGRT,
   parseGRT,
+  IndexingRuleAttributes,
+  IndexingDecisionBasis,
 } from '@graphprotocol/common-ts'
 import axios, { AxiosInstance } from 'axios'
 import {
@@ -25,7 +27,7 @@ import geohash from 'ngeohash'
 import { getPublicIdentifierFromPublicKey } from '@connext/utils'
 import { getCreate2MultisigAddress } from '@connext/cf-core/dist/utils'
 import { JsonRpcProvider } from '@connext/types'
-import { Allocation, IndexingRules } from './types'
+import { Allocation } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -149,22 +151,25 @@ export class Network {
   }
 
   async subgraphDeploymentsWorthIndexing(
-    rules: IndexingRules[],
+    rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     try {
+      // TODO: Paginate here to not miss any deployments
       const result = await this.subgraph.query({
         query: gql`
           query {
             subgraphDeployments {
-              id
-              totalStake
-              totalSignalMinted
-              totalSubgraphIndexingRewards
-              totalQueryFeesCollected
+              stakedTokens
+              signalAmount
+              signalledTokens
+              indexingRewardAmount
+              queryFeesAmount
               indexerAllocations {
-                indexer
-                tokensAllocated
-                feesCollected
+                indexer {
+                  id
+                }
+                allocatedTokens
+                queryFeesCollected
               }
             }
           }
@@ -176,30 +181,38 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
             const deploymentRule = rules.find(
-              rule => (rule.deployment = deployment.id),
+              rule => rule.deployment === deployment.id,
             )
 
             // Skip the indexing rules checks if the decision basis is 'always' or 'never'
-            if (deploymentRule?.decisionBasis == 'ALWAYS') {
+            if (
+              deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
+            ) {
               return true
-            } else if (deploymentRule?.decisionBasis == 'NEVER') {
+            } else if (
+              deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER
+            ) {
               return false
             }
 
             if (deploymentRule) {
-              const stakedTokens = parseGRT(deployment.totalStake)
-              const signalAmount = parseGRT(deployment.totalSignalMinted)
-              const avgQueryFeeRewards = parseGRT(
-                deployment.totalQueryFeesCollected,
-              ).div(BigNumber.from(deployment.indexerAllocations.length))
-
+              const stakedTokens = parseGRT(deployment.stakedTokens)
+              const signalAmount = parseGRT(deployment.signalAmount)
+              const avgQueryFees = parseGRT(deployment.queryFeesAmount).div(
+                BigNumber.from(deployment.indexerAllocations.length),
+              )
               return (
-                (deploymentRule.minStake?.lte(stakedTokens) ||
-                  deploymentRule.minSignal?.lte(signalAmount) ||
-                  deploymentRule.minAverageQueryFees?.lte(
-                    avgQueryFeeRewards,
-                  )) &&
-                deploymentRule.maxSignal?.gte(signalAmount)
+                // stake >= minStake?
+                (deploymentRule.minStake &&
+                  stakedTokens.gte(deploymentRule.minStake)) ||
+                // signal >= minSignal && signal <= maxSignal?
+                (deploymentRule.minSignal &&
+                  signalAmount.gte(deploymentRule.minSignal)) ||
+                (deploymentRule.maxSignal &&
+                  signalAmount.lte(deploymentRule.maxSignal)) ||
+                // avgQueryFees >= minAvgQueryFees?
+                (deploymentRule.minAverageQueryFees &&
+                  avgQueryFees.gte(deploymentRule.minAverageQueryFees))
               )
             } else {
               throw 'No indexer rules found on indexer management server'

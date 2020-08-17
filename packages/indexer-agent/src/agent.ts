@@ -98,7 +98,9 @@ class Agent {
         const epoch = (
           await this.network.contracts.epochManager.currentEpoch()
         ).toNumber()
-        const maxEpochsPerAllocation = await this.network.contracts.staking.maxAllocationEpochs()
+        const maxEpochsPerAllocation = (
+          await this.network.contracts.staking.maxAllocationEpochs()
+        ).toNumber()
 
         // Identify subgraph deployments indexed locally
         const indexerDeployments = await this.indexer.subgraphDeployments()

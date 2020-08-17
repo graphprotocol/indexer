@@ -3,9 +3,13 @@ import { HttpLink } from 'apollo-link-http'
 import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
 import jayson, { Client } from 'jayson/promise'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  SubgraphDeploymentID,
+  IndexingRuleAttributes,
+} from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
-import { IndexingRules, IndexingStatus } from './types'
+import { IndexingStatus } from './types'
 
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
@@ -84,7 +88,7 @@ export class Indexer {
     }
   }
 
-  async indexerRules(merged: boolean): Promise<IndexingRules[]> {
+  async indexerRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
     try {
       const result = await this.rules.query({
         query: gql`
