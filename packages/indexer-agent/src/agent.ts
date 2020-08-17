@@ -119,11 +119,18 @@ class Agent {
         // Fetch all indexing rules
         const rules = await this.indexer.indexerRules(true)
 
+        if (rules.length === 0) {
+          this.logger.warn(
+            'No indexing rules defined yet. Use the `graph indexer` CLI to add rules',
+          )
+        }
+
         // Identify subgraph deployments on the network that are worth picking up;
         // these may overlap with the ones we're already indexing
-        const networkSubgraphs = await this.network.subgraphDeploymentsWorthIndexing(
-          rules,
-        )
+        const networkSubgraphs =
+          rules.length === 0
+            ? []
+            : await this.network.subgraphDeploymentsWorthIndexing(rules)
 
         // Identify active allocations
         const allocations = await this.network.activeAllocations()
@@ -303,7 +310,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
   const indexer = new Indexer(
     config.adminEndpoint,
     config.statusEndpoint,
-    config.rulesEndpoint,
+    config.indexerManagement,
     config.logger,
     config.indexNodeIDs,
   )
