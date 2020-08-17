@@ -319,7 +319,9 @@ export class StateChannel implements StateChannelInterface {
         await this.finalizeApp(state)
       }
     } catch (error) {
-      this.logger.error('Failed in finalize app. Will try again on settle', { error })
+      this.logger.error('Failed in finalize app. Will try again on settle', {
+        error: error.message,
+      })
       // Press on to install the new app
     }
 
