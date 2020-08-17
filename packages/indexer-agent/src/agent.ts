@@ -228,6 +228,22 @@ class Agent {
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
     toSettle = toSettle.filter(uniqueAllocationsOnly)
 
+    // For the network subgraph deployment:
+    // - always deploy (for now)
+    // - never allocate on it
+    if (
+      !toDeploy.find(
+        deployment =>
+          deployment.bytes32 === this.networkSubgraphDeployment.bytes32,
+      )
+    ) {
+      toDeploy.push(this.networkSubgraphDeployment)
+    }
+    toAllocate = toAllocate.filter(
+      deployment =>
+        deployment.bytes32 !== this.networkSubgraphDeployment.bytes32,
+    )
+
     this.logger.info(`Apply changes`, {
       deploy: toDeploy.map(d => d.display),
       remove: toRemove.map(d => d.display),
