@@ -29,11 +29,16 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   constructor({ allocation, logger, wallet }: AllocationPaymentClientOptions) {
     this.allocation = allocation
     this.wallet = wallet
-    this.logger = logger
+
+    this.logger = logger.child({
+      component: 'AllocationPaymentClient',
+      allocation: allocation.id,
+      createdAtEpoch: allocation.createdAtEpoch,
+    })
   }
 
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
-    this.logger.info(`AllocationPaymentClient received message from ${sender}`)
+    this.logger.info('AllocationPaymentClient received message', {sender})
 
     const {
       channelResults: [channel],
