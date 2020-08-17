@@ -43,7 +43,7 @@ export default {
         description: 'Connext log level (1-5, default: 0)',
         type: 'number',
         required: false,
-        default: 0,
+        default: 3,
       })
       .option('postgres-host', {
         description: 'Postgres host',

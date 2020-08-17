@@ -410,6 +410,7 @@ export class StateChannel implements StateChannelInterface {
   }
 
   savePayment(payment: PaymentAppState, attestation: Attestation): void {
+    console.log(`Saving payment: ${payment}, attestation: ${attestation}`)
     this.buffer.addPayment(payment, attestation)
   }
 
@@ -750,6 +751,8 @@ export class PaymentManager implements PaymentManagerInterface {
     //  - swapRate(in contract) is Eth:GRT or Dai:GRT
 
     const stateChannel = this.paymentIdToChannel.get(payment.paymentId)
+    console.log('this.paymentIdToChannel: ', this.paymentIdToChannel)
+    console.log('stateChannel: ', stateChannel)
     if (stateChannel === undefined) {
       throw new QueryError('Unrecognized paymentId')
     }
