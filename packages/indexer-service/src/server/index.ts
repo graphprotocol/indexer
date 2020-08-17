@@ -162,13 +162,17 @@ export const createApp = async ({
 
       const client = paymentManager.getAllocationPaymentClient(allocationId)
 
-      if (!client)
+      if (!client) {
+        logger.error(`Indexer does not recognize allocation`, {
+          allocationId,
+        })
         return res
           .status(500)
           .contentType('application/json')
           .send({
             error: `Indexer at ${req.url} does not recognize allocation ${allocationId}`,
           })
+      }
 
       try {
         const response = await client.handleMessage({ sender, recipient, data })
