@@ -15,19 +15,25 @@ interface AllocationPaymentClientOptions {
   allocation: Allocation
   logger: Logger
   wallet: Wallet
+  serverWallet: ServerWallet
 }
 
 export class AllocationPaymentClient implements AllocationPaymentClientInterface {
-  channelIds: Record<string, string> = {}
   allocation: Allocation
   wallet: Wallet
+  serverWallet: ServerWallet
 
   private logger: Logger
-  private serverWallet: ServerWallet = new ServerWallet() //TODO: put unique pk in here?
 
-  constructor({ allocation, logger, wallet }: AllocationPaymentClientOptions) {
+  constructor({
+    allocation,
+    logger,
+    wallet,
+    serverWallet,
+  }: AllocationPaymentClientOptions) {
     this.allocation = allocation
     this.wallet = wallet
+    this.serverWallet = serverWallet
 
     this.logger = logger.child({
       component: 'AllocationPaymentClient',
@@ -46,8 +52,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
     this.logger.info('AllocationPaymentClient received message', { sender })
 
-    const me = await this.getParticipant()
-
     const {
       channelResults: [channel],
       outbox,
@@ -61,8 +65,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * the running stage. Two outbound messages (turnNum 0 and 3) to be sent.
      */
     if (channel.status === 'proposed' && outbox.length === 0) {
-      this.channelIds[sender] = channel.channelId
-
       const {
         /**
          * We expect two messages coming out of the wallet; the first
@@ -79,8 +81,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       } = await this.serverWallet.joinChannel(channel)
 
       return {
-        sender: me.participantId,
-        recipient: sender,
+        sender: (outboundJoinedChannelState as WireMessage).sender,
+        recipient: (outboundJoinedChannelState as WireMessage).recipient,
         data: {
           signedStates: [
             // eslint-disable-next-line
@@ -101,18 +103,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      */
     if (channel.status === 'closed' && outbox.length === 1) {
       const [{ params: outboundClosedChannelState }] = outbox
-
-      return {
-        sender: me.participantId,
-        recipient: sender,
-        data: {
-          signedStates: [
-            // eslint-disable-next-line
-            ((outboundClosedChannelState as WireMessage).data as PushMessage)
-              .signedStates![0],
-          ],
-        },
-      }
+      return outboundClosedChannelState as WireMessage
     }
 
     throw new Error(

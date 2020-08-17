@@ -1,3 +1,5 @@
+import { Wallet as ServerWallet } from '@statechannels/server-wallet'
+import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Logger, Metrics } from '@graphprotocol/common-ts'
 
 import { Wallet } from 'ethers'
@@ -24,12 +26,22 @@ export class PaymentManager implements PaymentManagerInterface {
   wallet: Wallet
 
   private logger: Logger
-  private allocationClients: Map<string, AllocationPaymentClientInterface>
+  private serverWallet: ServerWallet
+  private allocationClients: Map<string, AllocationPaymentClient>
 
   constructor(options: PaymentManagerOptions) {
     this.wallet = options.wallet
     this.logger = options.logger
     this.allocationClients = new Map()
+    this.serverWallet = new ServerWallet() // TODO: put unique pk in here?
+  }
+
+  getAllocationIdFromMessage(message: WireMessage): string {
+    // TODO: Better validation of the message than this
+    // eslint-disable-next-line
+    return `0x${(message.data as any).signedStates[0].participants[1].destination.substr(
+      26,
+    )}`
   }
 
   createAllocationPaymentClients(allocations: Allocation[]): void {
@@ -39,6 +51,7 @@ export class PaymentManager implements PaymentManagerInterface {
           allocation.id,
           new AllocationPaymentClient({
             wallet: this.wallet,
+            serverWallet: this.serverWallet,
             logger: this.logger.child({ allocationId: allocation.id }),
             allocation,
           }),
