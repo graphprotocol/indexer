@@ -3,7 +3,7 @@ import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Message as PushMessage } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
 
-import { Wallet as EthersWallet } from 'ethers'
+import { Wallet } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -16,13 +16,13 @@ interface AllocationPaymentClientOptions {
   logger: Logger
   client: null // May re-use these properties
   signer: null // so keeping "null" for now
-  wallet: EthersWallet
+  wallet: Wallet
 }
 
 export class AllocationPaymentClient implements AllocationPaymentClientInterface {
   channelIds: Record<string, string> = {}
   allocation: Allocation
-  wallet: EthersWallet
+  wallet: Wallet
 
   private logger: Logger
   private client: null
