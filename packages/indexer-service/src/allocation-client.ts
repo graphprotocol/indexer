@@ -56,6 +56,14 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       this.channelIds[sender] = channel.channelId
 
       const {
+        /**
+         * We expect two messages coming out of the wallet; the first
+         * being a countersignature on turnNum 0 (meaning the channel has 
+         * been joined) and the second being a new signed state with
+         * turnNum 3 — representing the "post fund setup". We expect _both_
+         * during Phase 1, where channels are not funded on-chain, thus
+         * signing the "post fund setup" is an instant operation.
+         */
         outbox: [
           { params: outboundJoinedChannelState },
           { params: outboundFundedChannelState },
