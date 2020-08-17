@@ -154,6 +154,10 @@ export class Network {
   async subgraphDeploymentsWorthIndexing(
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
+    const globalRule = rules.find(
+      rule => rule.deployment === INDEXING_RULE_GLOBAL,
+    )
+
     try {
       // TODO: Paginate here to not miss any deployments
       const result = await this.subgraph.query({
@@ -181,9 +185,9 @@ export class Network {
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
-            const deploymentRule = rules.find(
-              rule => rule.deployment === deployment.id,
-            )
+            const deploymentRule =
+              rules.find(rule => rule.deployment === deployment.id) ||
+              globalRule
 
             // Skip the indexing rules checks if the decision basis is 'always' or 'never'
             if (
@@ -216,14 +220,16 @@ export class Network {
                   avgQueryFees.gte(deploymentRule.minAverageQueryFees))
               )
             } else {
-              throw 'No indexer rules found on indexer management server'
+              return false
             }
           })
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
       )
     } catch (error) {
-      this.logger.error(`Failed to query subgraphs on the network`)
+      this.logger.error(`Failed to query subgraphs on the network`, {
+        error: error.message,
+      })
       throw error
     }
   }
