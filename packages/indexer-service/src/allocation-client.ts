@@ -8,7 +8,7 @@ import { Logger, Attestation } from '@graphprotocol/common-ts'
 import { toJS, AppData, StateType, fromJS } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
-import { Wallet } from 'ethers'
+import { Wallet, utils } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -190,7 +190,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
         ...currentAppData.variable,
         stateType: StateType.AttestationProvided,
         responseCID: attestation.responseCID,
-        signature: ethers.utils.joinSignature({
+        signature: utils.joinSignature({
           r: attestation.r,
           s: attestation.s,
           v: attestation.v,

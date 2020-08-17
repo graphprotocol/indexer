@@ -28,8 +28,9 @@ import {
   mockAttestation,
   mockChannelId,
   mockAppData,
+  mockPostFundMessage,
 } from './payment-manager-mocks'
-import { toJS, fromJS, StateType } from '@statechannels/graph'
+import { toJS, StateType } from '@statechannels/graph'
 
 const logger = createLogger({ name: 'server.test.ts' })
 
@@ -71,6 +72,8 @@ describe('PaymentManager', () => {
     let allocationClient: AllocationPaymentClient
 
     beforeAll(() => {
+      const testAlloc = mockAllocation()
+      paymentManager.createAllocationPaymentClients([testAlloc])
       allocationClient = paymentManager.getAllocationPaymentClient('abc')!
     })
 
@@ -130,6 +133,8 @@ describe('PaymentManager', () => {
     })
 
     it('can accept a channel closure', async () => {
+      await allocationClient.handleMessage(mockCreatedChannelMessage())
+      await allocationClient.handleMessage(mockPostFundMessage())
       const outbound = await allocationClient.handleMessage(mockCloseChannelMessage())
 
       const {
@@ -138,7 +143,7 @@ describe('PaymentManager', () => {
         },
       } = outbound as { data: { signedStates: SignedState[] } }
 
-      expect(outboundState).toMatchObject({ turnNum: 5, status: 'closed' })
+      expect(outboundState).toMatchObject({ turnNum: 4, isFinal: true })
     })
   })
 })

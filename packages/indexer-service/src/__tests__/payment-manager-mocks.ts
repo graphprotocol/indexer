@@ -78,7 +78,7 @@ const mockFirstState = (): State => ({
     assetHolderAddress: constants.AddressZero,
     allocationItems: [
       {
-        amount: BN.from(0),
+        amount: BN.from(1),
         destination: makeDestination(constants.AddressZero),
       },
       {
@@ -101,6 +101,14 @@ export const mockChannelId = getChannelId({
 export const mockCreatedChannelMessage = (): WireMessage =>
   mockGatewayMessage(mockFirstState())
 
+const mockPostFundState = (): State => ({
+  ...mockFirstState(),
+  turnNum: 2,
+})
+
+export const mockPostFundMessage = (): WireMessage =>
+  mockGatewayMessage(mockPostFundState())
+
 const mockRunningState = (): State => ({
   ...mockFirstState(),
   turnNum: 4,
@@ -119,12 +127,13 @@ export const mockQuery = (): PaidQuery => ({
 
 const mockClosingState = (): State => ({
   ...mockFirstState(),
-  turnNum: 6,
+  turnNum: 4,
   isFinal: true,
 })
 
 export const mockCloseChannelMessage = (): WireMessage =>
   mockGatewayMessage(mockClosingState())
+
 const mockGatewayMessage = (state: State): WireMessage => ({
   sender: 'gateway',
   recipient: 'me',
