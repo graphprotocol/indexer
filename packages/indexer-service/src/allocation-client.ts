@@ -29,7 +29,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   constructor({ allocation, logger, wallet }: AllocationPaymentClientOptions) {
     this.allocation = allocation
     this.wallet = wallet
-    
+
     this.logger = logger.child({
       component: 'AllocationPaymentClient',
       allocation: allocation.id,
@@ -38,13 +38,14 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   }
 
   async getParticipant(): Promise<Participant> {
-    const participant =  await this.serverWallet.getParticipant()
-    if (!participant) throw new Error("Server wallet not initialized; no participant entry")
+    const participant = await this.serverWallet.getParticipant()
+    if (!participant)
+      throw new Error('Server wallet not initialized; no participant entry')
     return participant
   }
 
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
-    this.logger.info('AllocationPaymentClient received message', {sender})
+    this.logger.info('AllocationPaymentClient received message', { sender })
 
     const me = await this.getParticipant()
 
@@ -54,7 +55,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     } = await this.serverWallet.pushMessage(data as PushMessage)
 
     if (!channel) throw Error('Received a new state that did nothing')
-
 
     /**
      * Initial request to create a channel is received. In this case, join
@@ -67,7 +67,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       const {
         /**
          * We expect two messages coming out of the wallet; the first
-         * being a countersignature on turnNum 0 (meaning the channel has 
+         * being a countersignature on turnNum 0 (meaning the channel has
          * been joined) and the second being a new signed state with
          * turnNum 3 — representing the "post fund setup". We expect _both_
          * during Phase 1, where channels are not funded on-chain, thus
@@ -116,7 +116,9 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       }
     }
 
-    throw new Error('Received a message which was neither a new channel request, nor a closure request')
+    throw new Error(
+      'Received a message which was neither a new channel request, nor a closure request',
+    )
   }
 
   // eslint-disable-next-line
@@ -131,7 +133,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //
 
     const {
-      channelResults: [channel]
+      channelResults: [channel],
     } = await this.serverWallet.pushMessage(stateChannelMessage.data)
 
     // Push decoded message into the wallet
