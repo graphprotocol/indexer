@@ -94,7 +94,7 @@ describe('PaymentManager', () => {
       await expect(allocationClient.validatePayment(mockQuery())).resolves.not.toThrow()
     })
 
-    it.only('can provide attestation response', async () => {
+    it('can provide attestation response', async () => {
       await allocationClient.handleMessage(mockCreatedChannelMessage())
       await allocationClient.validatePayment(mockQuery())
 
