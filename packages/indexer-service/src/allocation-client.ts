@@ -2,13 +2,14 @@ import { Wallet as ServerWallet } from '@statechannels/server-wallet'
 import {
   Message as WireMessage,
   GetStateResponse,
+  Allocation as SCAllocation,
 } from '@statechannels/client-api-schema'
-import { Message as PushMessage } from '@statechannels/wallet-core'
+import { Message as PushMessage, BN } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
 import { toJS, AppData, StateType, fromJS } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
-import { Wallet, utils } from 'ethers'
+import { Wallet, utils, BigNumber } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -198,10 +199,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       },
     }
 
-    // todo: allocations need to be updated
-    // Allocations have to be zero for now due to https://github.com/statechannels/the-graph/issues/55
     // Assume a single allocation for now
-    /*const paymentAmount = 0.01
+    const paymentAmount = 1
     const firstAllocation = allocations[0]
     const newAllocations: SCAllocation[] = [
       {
@@ -210,7 +209,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           {
             ...firstAllocation.allocationItems[0],
             amount: BN.from(
-              ethers.BigNumber.from(firstAllocation.allocationItems[0].amount).sub(
+              BigNumber.from(firstAllocation.allocationItems[0].amount).sub(
                 paymentAmount,
               ),
             ),
@@ -218,14 +217,14 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           {
             ...firstAllocation.allocationItems[1],
             amount: BN.from(
-              ethers.BigNumber.from(firstAllocation.allocationItems[1].amount).add(
+              BigNumber.from(firstAllocation.allocationItems[1].amount).add(
                 paymentAmount,
               ),
             ),
           },
         ],
       },
-    ]*/
+    ]
 
     const {
       channelResult,
@@ -233,7 +232,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     } = await this.serverWallet.updateChannel({
       channelId,
       appData: fromJS(newAppData),
-      allocations,
+      allocations: newAllocations,
     })
 
     this.cachedState[channelId] = channelResult

@@ -78,7 +78,7 @@ const mockFirstState = (): State => ({
     assetHolderAddress: constants.AddressZero,
     allocationItems: [
       {
-        amount: BN.from(1),
+        amount: BN.from(100),
         destination: makeDestination(constants.AddressZero),
       },
       {
