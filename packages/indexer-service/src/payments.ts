@@ -430,8 +430,8 @@ export class StateChannel implements StateChannelInterface {
       await retryWithDelay(5, () => this.client.uninstallApp(finalState.connextAppIdHash))
     } else {
       // Make the final move of the game.
-      await retryWithDelay(5, () =>
-        this.client.resolveCondition({
+      await retryWithDelay(5, async () => {
+        const move = {
           conditionType: ConditionalTransferTypes.GraphBatchedTransfer,
           // PaymentId is a part of the app state, so it's not immediately obvious why it's here.
           // The answer is that Connext uses this to disambiguate what app is being resolved
@@ -441,8 +441,10 @@ export class StateChannel implements StateChannelInterface {
           totalPaid: BigNumber.from(finalState.totalPayment),
           consumerSignature: finalState.consumerSignature,
           attestationSignature: finalState.attestationSignature,
-        } as PublicParams.ResolveGraphBatchedTransfer),
-      )
+        } as PublicParams.ResolveGraphBatchedTransfer
+        this.logger.warn('Resolving app with these parameters:', move)
+        await this.client.resolveCondition(move)
+      })
     }
 
     let finalAmount = '0x0'
