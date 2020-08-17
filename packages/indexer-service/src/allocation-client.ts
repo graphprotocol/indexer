@@ -6,7 +6,7 @@ import {
 } from '@statechannels/client-api-schema'
 import { Message as PushMessage, BN } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
-import { toJS, AppData, StateType, fromJS } from '@statechannels/graph'
+import { toJS, AppData, StateType, fromJS, computeNextState } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
 import { Wallet, utils, BigNumber } from 'ethers'
@@ -185,13 +185,10 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       throw new Error('Current wallet state must be QueryRequested')
     }
 
-    // todo: a more robust implementation should use the computeNextState function of the AttestatonStateMachine contract
-    //  to create the updated AppData and allocations.
-    const newAppData: AppData = {
-      ...currentAppData,
-      variable: {
-        ...currentAppData.variable,
-        stateType: StateType.AttestationProvided,
+    const nextState = computeNextState(currentAppData, allocations, {
+      toStateType: StateType.AttestationProvided,
+      query,
+      attestation: {
         responseCID: attestation.responseCID,
         signature: utils.joinSignature({
           r: attestation.r,
@@ -199,42 +196,15 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           v: attestation.v,
         }),
       },
-    }
-
-    // Assume a single allocation for now
-    const paymentAmount = 1
-    const firstAllocation = allocations[0]
-    const newAllocations: SCAllocation[] = [
-      {
-        ...firstAllocation,
-        allocationItems: [
-          {
-            ...firstAllocation.allocationItems[0],
-            amount: BN.from(
-              BigNumber.from(firstAllocation.allocationItems[0].amount).sub(
-                paymentAmount,
-              ),
-            ),
-          },
-          {
-            ...firstAllocation.allocationItems[1],
-            amount: BN.from(
-              BigNumber.from(firstAllocation.allocationItems[1].amount).add(
-                paymentAmount,
-              ),
-            ),
-          },
-        ],
-      },
-    ]
+    })
 
     const {
       channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData: fromJS(newAppData),
-      allocations: newAllocations,
+      appData: fromJS(nextState.appData),
+      allocations: nextState.allocation,
     })
 
     this.cachedState[channelId] = channelResult
@@ -249,21 +219,19 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       throw new Error('Current wallet state must be QueryRequested')
     }
 
-    const newAppData: AppData = {
-      ...currentAppData,
-      variable: {
-        ...currentAppData.variable,
-        stateType: StateType.QueryDeclined,
-      },
-    }
+    const nextState = computeNextState(currentAppData, allocations, {
+      toStateType: StateType.QueryDeclined,
+      query,
+      attestation: { responseCID: '', signature: '' },
+    })
 
     const {
       channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData: fromJS(newAppData),
-      allocations,
+      appData: fromJS(nextState.appData),
+      allocations: nextState.allocation,
     })
 
     this.cachedState[channelId] = channelResult
