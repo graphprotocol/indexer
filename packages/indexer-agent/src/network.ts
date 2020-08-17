@@ -7,6 +7,7 @@ import {
   parseGRT,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
+  INDEXING_RULE_GLOBAL,
 } from '@graphprotocol/common-ts'
 import axios, { AxiosInstance } from 'axios'
 import {

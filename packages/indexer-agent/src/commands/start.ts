@@ -1,5 +1,12 @@
 import { Argv } from 'yargs'
-import { createLogger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  createLogger,
+  SubgraphDeploymentID,
+  connectDatabase,
+  defineIndexerManagementModels,
+  createIndexerManagementServer,
+  createIndexerManagementClient,
+} from '@graphprotocol/common-ts'
 
 import { startAgent } from '../agent'
 
@@ -20,11 +27,6 @@ export default {
       })
       .option('graph-node-status-endpoint', {
         description: 'Graph Node endpoint for indexing statuses etc.',
-        type: 'string',
-        required: true,
-      })
-      .option('indexer-management-endpoint', {
-        description: 'Indexer management endpoint for indexer rules',
         type: 'string',
         required: true,
       })
@@ -70,6 +72,39 @@ export default {
             [],
           ),
       })
+      .option('indexer-management-port', {
+        description: 'Port to serve the indexer management API at',
+        type: 'number',
+        default: 9700,
+        required: false,
+      })
+      .option('postgres-host', {
+        description: 'Postgres host',
+        type: 'string',
+        required: true,
+      })
+      .option('postgres-port', {
+        description: 'Postgres port',
+        type: 'number',
+        default: 5432,
+      })
+      .option('postgres-username', {
+        description: 'Postgres username',
+        type: 'string',
+        required: false,
+        default: 'postgres',
+      })
+      .option('postgres-password', {
+        description: 'Postgres password',
+        type: 'string',
+        default: '',
+        required: false,
+      })
+      .option('postgres-database', {
+        description: 'Postgres database name',
+        type: 'string',
+        required: true,
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,12 +112,39 @@ export default {
   ): Promise<void> => {
     const logger = createLogger({ name: 'IndexerAgent' })
 
+    logger.info('Connect to database', {
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      database: argv.postgresDatabase,
+    })
+    const sequelize = await connectDatabase({
+      logging: undefined,
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      username: argv.postgresUsername,
+      password: argv.postgresPassword,
+      database: argv.postgresDatabase,
+    })
+    const models = await defineIndexerManagementModels(sequelize)
+    await sequelize.sync()
+    logger.info('Successfully connected to database')
+
+    logger.info('Launch indexer management API server')
+    const indexerManagementClient = await createIndexerManagementClient({
+      models,
+    })
+    await createIndexerManagementServer({
+      logger,
+      client: indexerManagementClient,
+      port: argv.indexerManagementPort,
+    })
+    logger.info(`Launched indexer management API server`)
+
     await startAgent({
       mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
       queryEndpoint: argv.graphNodeQueryEndpoint,
-      rulesEndpoint: argv.indexerRulesEndpoint,
       publicIndexerUrl: argv.publicIndexerUrl,
       indexerGeoCoordinates: argv.indexerGeoCoordinates,
       ethereumProvider: argv.ethereum,
@@ -92,6 +154,7 @@ export default {
       ),
       connextNode: argv.connextNode,
       indexNodeIDs: argv.indexNodeIds,
+      indexerManagement: indexerManagementClient,
     })
   },
 }

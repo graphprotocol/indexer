@@ -7,33 +7,27 @@ import {
   Logger,
   SubgraphDeploymentID,
   IndexingRuleAttributes,
+  IndexerManagementClient,
 } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
 import { IndexingStatus } from './types'
 
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
-  rules: ApolloClient<NormalizedCacheObject>
   rpc: Client
+  indexerManagement: IndexerManagementClient
   logger: Logger
   indexNodeIDs: string[]
 
   constructor(
     adminEndpoint: string,
     statusEndpoint: string,
-    rulesEndpoint: string,
+    indexerManagement: IndexerManagementClient,
     logger: Logger,
     indexNodeIDs: string[],
   ) {
+    this.indexerManagement = indexerManagement
     this.statuses = new ApolloClient({
-      link: new HttpLink({
-        uri: statusEndpoint,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fetch: fetch as any,
-      }),
-      cache: new InMemoryCache(),
-    })
-    this.rules = new ApolloClient({
       link: new HttpLink({
         uri: statusEndpoint,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -90,25 +84,29 @@ export class Indexer {
 
   async indexerRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
     try {
-      const result = await this.rules.query({
-        query: gql`
-          query indexingRules($merged: Boolean!) {
-            indexingRules(merged: $merged) {
-              deployment
-              allocation
-              maxAllocationPercentage
-              minSignal
-              maxSignal
-              minStake
-              minAverageQueryFees
-              custom
-              indexingDecision
+      const result = await this.indexerManagement
+        .query(
+          gql`
+            query indexingRules($merged: Boolean!) {
+              indexingRules(merged: $merged) {
+                deployment
+                allocation
+                maxAllocationPercentage
+                minSignal
+                maxSignal
+                minStake
+                minAverageQueryFees
+                custom
+                indexingDecision
+              }
             }
-          }
-        `,
-        variables: { merged },
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          { merged },
+          {
+            fetchPolicy: 'no-cache',
+          },
+        )
+        .toPromise()
       return result.data.indexingRules
     } catch (error) {
       this.logger.error(`Failed to query indexer management server`)

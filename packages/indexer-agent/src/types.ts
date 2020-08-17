@@ -1,4 +1,8 @@
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  SubgraphDeploymentID,
+  IndexerManagementClient,
+} from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 
 export interface AgentConfig {
@@ -6,7 +10,7 @@ export interface AgentConfig {
   statusEndpoint: string
   adminEndpoint: string
   queryEndpoint: string
-  rulesEndpoint: string
+  indexerManagement: IndexerManagementClient
   publicIndexerUrl: string
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string
