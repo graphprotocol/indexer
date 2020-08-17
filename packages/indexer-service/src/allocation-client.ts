@@ -1,6 +1,6 @@
 import { Wallet as ServerWallet } from '@statechannels/server-wallet'
 import { Message as WireMessage } from '@statechannels/client-api-schema'
-import { Message as PushMessage } from '@statechannels/wallet-core'
+import { Message as PushMessage, Participant } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
 
 import { Wallet } from 'ethers'
@@ -22,14 +22,14 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   allocation: Allocation
   wallet: Wallet
 
+  private participant: Participant
   private logger: Logger
-
   private serverWallet: ServerWallet = new ServerWallet() //TODO: put unique pk in here?
 
   constructor({ allocation, logger, wallet }: AllocationPaymentClientOptions) {
     this.allocation = allocation
     this.wallet = wallet
-
+    
     this.logger = logger.child({
       component: 'AllocationPaymentClient',
       allocation: allocation.id,
@@ -37,8 +37,16 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     })
   }
 
+  async getParticipant(): Promise<Participant> {
+    const participant =  await this.serverWallet.getParticipant()
+    if (!participant) throw new Error("Server wallet not initialized; no participant entry")
+    return participant
+  }
+
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
     this.logger.info('AllocationPaymentClient received message', {sender})
+
+    const me = await this.getParticipant()
 
     const {
       channelResults: [channel],
@@ -46,6 +54,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     } = await this.serverWallet.pushMessage(data as PushMessage)
 
     if (!channel) throw Error('Received a new state that did nothing')
+
 
     /**
      * Initial request to create a channel is received. In this case, join
@@ -69,10 +78,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           { params: outboundFundedChannelState },
         ],
       } = await this.serverWallet.joinChannel(channel)
-
-      const me = await this.serverWallet.getParticipant()
-
-      if (!me) throw new Error('unreachable1')
 
       return {
         sender: me.participantId,
@@ -98,10 +103,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     if (channel.status === 'closed' && outbox.length === 1) {
       const [{ params: outboundClosedChannelState }] = outbox
 
-      const me = await this.serverWallet.getParticipant()
-
-      if (!me) throw new Error('unreachable2')
-
       return {
         sender: me.participantId,
         recipient: sender,
@@ -115,7 +116,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       }
     }
 
-    throw new Error('unreachable3')
+    throw new Error('Received a message which was neither a new channel request, nor a closure request')
   }
 
   // eslint-disable-next-line
