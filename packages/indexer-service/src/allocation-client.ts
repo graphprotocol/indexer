@@ -102,6 +102,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * This is an expected response from the counterparty upon seeing 0 and 3,
      * they will countersign 3 and send it back. Now, we don't need to reply.
      */
+    if (channelResult.status === 'running' && outbox.length === 0) {
+      return;
+    }
+
+
     if (channelResult.status === 'closed' && outbox.length === 1) {
       const [{ params: outboundClosedChannelState }] = outbox
       return outboundClosedChannelState as WireMessage
