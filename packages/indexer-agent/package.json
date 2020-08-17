@@ -27,7 +27,7 @@
     "bs58": "^4.0.1",
     "global": "^4.4.0",
     "graphql": "^14.0.0",
-    "graphql-tag": "^2.10.1",
+    "graphql-tag": "^2.10.3",
     "jayson": "^3.3.0",
     "ngeohash": "^0.6.3",
     "p-queue": "^6.4.0",
