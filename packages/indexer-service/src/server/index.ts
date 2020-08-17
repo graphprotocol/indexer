@@ -158,18 +158,17 @@ export const createApp = async ({
     async (req, res) => {
       const { sender, recipient, data } = req.body
 
-      // TODO: (Liam) Utility, or put allocationId in the message
-      const allocationID = `0x${data.signedStates[0].participants[1].destination.substr(
-        26,
-      )}`.toLowerCase()
-      logger.info(allocationID)
-      const client = paymentManager.getAllocationPaymentClient(allocationID)
+      const allocationId = paymentManager.getAllocationIdFromMessage(req.body)
+
+      const client = paymentManager.getAllocationPaymentClient(allocationId)
 
       if (!client)
         return res
           .status(500)
           .contentType('application/json')
-          .send({ error: `Invalid allocation: ${allocationID}` })
+          .send({
+            error: `Indexer at ${req.url} does not recognize allocation ${allocationId}`,
+          })
 
       try {
         const response = await client.handleMessage({ sender, recipient, data })
