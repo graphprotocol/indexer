@@ -1,6 +1,9 @@
 import { Wallet as ServerWallet } from '@statechannels/server-wallet'
-import { Message as WireMessage } from '@statechannels/client-api-schema'
-import { Message as PushMessage, Participant } from '@statechannels/wallet-core'
+import {
+  Message as WireMessage,
+  GetStateResponse,
+} from '@statechannels/client-api-schema'
+import { Message as PushMessage } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
 
 import { Wallet } from 'ethers'
@@ -18,7 +21,10 @@ interface AllocationPaymentClientOptions {
   serverWallet: ServerWallet
 }
 
+type ChannelID = string
 export class AllocationPaymentClient implements AllocationPaymentClientInterface {
+  // TODO: Import ChannelResult type
+  cachedState: Record<ChannelID, GetStateResponse['result']> = {}
   allocation: Allocation
   wallet: Wallet
   serverWallet: ServerWallet
@@ -42,29 +48,24 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     })
   }
 
-  async getParticipant(): Promise<Participant> {
-    const participant = await this.serverWallet.getParticipant()
-    if (!participant)
-      throw new Error('Server wallet not initialized; no participant entry')
-    return participant
-  }
-
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
     this.logger.info('AllocationPaymentClient received message', { sender })
 
     const {
-      channelResults: [channel],
+      channelResults: [channelResult],
       outbox,
     } = await this.serverWallet.pushMessage(data as PushMessage)
 
-    if (!channel) throw Error('Received a new state that did nothing')
+    if (!channelResult) throw Error('Received a new state that did nothing')
+
+    this.cachedState[channelResult.channelId] = channelResult
 
     /**
-     * Initial request to create a channel is received. In this case, join
+     * Initial request to create a channelResult is received. In this case, join
      * the channel and — we assume it is unfunded here — auto-advance to
      * the running stage. Two outbound messages (turnNum 0 and 3) to be sent.
      */
-    if (channel.status === 'proposed' && outbox.length === 0) {
+    if (channelResult.status === 'proposed' && outbox.length === 0) {
       const {
         /**
          * We expect two messages coming out of the wallet; the first
@@ -78,7 +79,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           { params: outboundJoinedChannelState },
           { params: outboundFundedChannelState },
         ],
-      } = await this.serverWallet.joinChannel(channel)
+      } = await this.serverWallet.joinChannel(channelResult)
 
       return {
         sender: (outboundJoinedChannelState as WireMessage).sender,
@@ -101,7 +102,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * This is an expected response from the counterparty upon seeing 0 and 3,
      * they will countersign 3 and send it back. Now, we don't need to reply.
      */
-    if (channel.status === 'closed' && outbox.length === 1) {
+    if (channelResult.status === 'closed' && outbox.length === 1) {
       const [{ params: outboundClosedChannelState }] = outbox
       return outboundClosedChannelState as WireMessage
     }
@@ -123,8 +124,10 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //
 
     const {
-      channelResults: [channel],
+      channelResults: [channelResult],
     } = await this.serverWallet.pushMessage(stateChannelMessage.data as PushMessage)
+
+    this.cachedState[channelResult.channelId] = channelResult
 
     // Push decoded message into the wallet
     //
@@ -150,7 +153,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //   query should still return a 40x or 50x but include a QueryDeclined signed state
     //   (see below) -- this is not implemented yet.
 
-    return channel.channelId
+    return channelResult.channelId
   }
 
   async provideAttestation(
@@ -158,27 +161,27 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     query: PaidQuery,
     attestation: Attestation,
   ): Promise<WireMessage> {
-    const {
-      channelResult: { appData, allocations },
-    } = await this.serverWallet.getState({ channelId })
+    const { appData, allocations } = await this.getChannelState(channelId)
 
     const {
+      channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
       appData,
       allocations,
     })
+
+    this.cachedState[channelId] = channelResult
 
     return outboundMsg as WireMessage
   }
 
   async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
-    const {
-      channelResult: { appData, allocations },
-    } = await this.serverWallet.getState({ channelId })
+    const { appData, allocations } = await this.getChannelState(channelId)
 
     const {
+      channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
@@ -186,7 +189,19 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       allocations,
     })
 
+    this.cachedState[channelId] = channelResult
+
     return outboundMsg as WireMessage
+  }
+
+  private async getChannelState(
+    channelId: ChannelID,
+  ): Promise<GetStateResponse['result']> {
+    if (!this.cachedState[channelId]) {
+      const { channelResult } = await this.serverWallet.getState({ channelId })
+      this.cachedState[channelId] = channelResult
+    }
+    return this.cachedState[channelId]
   }
 
   async settle(): Promise<void> {
