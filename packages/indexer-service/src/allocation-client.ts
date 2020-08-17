@@ -22,7 +22,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   allocation: Allocation
   wallet: Wallet
 
-  private participant: Participant
   private logger: Logger
   private serverWallet: ServerWallet = new ServerWallet() //TODO: put unique pk in here?
 
@@ -134,7 +133,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
     const {
       channelResults: [channel],
-    } = await this.serverWallet.pushMessage(stateChannelMessage.data)
+    } = await this.serverWallet.pushMessage(stateChannelMessage.data as PushMessage)
 
     // Push decoded message into the wallet
     //
