@@ -5,6 +5,7 @@ import {
   createMetrics,
   createMetricsServer,
   SubgraphDeploymentID,
+  connectDatabase,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -117,6 +118,17 @@ export default {
       port: argv.postgresPort,
       database: argv.postgresDatabase,
     })
+
+    const sequelize = await connectDatabase({
+      logging: undefined,
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      username: argv.postgresUsername,
+      password: argv.postgresPassword,
+      database: argv.postgresDatabase,
+    })
+
+    await sequelize.sync()
 
     logger.info('Successfully connected to database')
 
