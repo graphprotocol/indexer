@@ -185,6 +185,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       throw new Error('Current wallet state must be QueryRequested')
     }
 
+    // todo: a more robust implementation should use the computeNextState function of the AttestatonStateMachine contract
+    //  to create the updated AppData and allocations.
     const newAppData: AppData = {
       ...currentAppData,
       variable: {
