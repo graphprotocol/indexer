@@ -313,7 +313,7 @@ export class StateChannel implements StateChannelInterface {
 
     // Close the oldest app
     try {
-      while (this.appsByInstall.length > 3) {
+      while (this.appsByInstall.length > 1) {
         const oldest = this.appsByInstall[0]
         const state = await this.buffer.take(oldest)
         await this.finalizeApp(state)
@@ -558,7 +558,7 @@ class PaymentStoreBuffer {
           prevState.requestCID = attestation.requestCID as HexBytes32
           prevState.responseCID = attestation.responseCID as HexBytes32
 
-          prevState.save({ transaction })
+          await prevState.save({ transaction })
         }
       },
     )
