@@ -26,7 +26,7 @@ export interface UnpaidQueryResponse {
 export interface PaidQuery {
   allocationID: string
   subgraphDeploymentID: SubgraphDeploymentID
-  stateChannelMessage: any
+  stateChannelMessage: WireMessage
   query: string
   requestCID: string
 }
