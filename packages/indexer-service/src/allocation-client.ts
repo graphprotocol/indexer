@@ -130,7 +130,9 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //    take decoded message
     //
 
-    const out = await this.serverWallet.pushMessage(stateChannelMessage.data)
+    const {
+      channelResults: [channel]
+    } = await this.serverWallet.pushMessage(stateChannelMessage.data)
 
     // Push decoded message into the wallet
     //
@@ -156,10 +158,9 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     //   query should still return a 40x or 50x but include a QueryDeclined signed state
     //   (see below) -- this is not implemented yet.
 
-    return out.channelResults[0].channelId
+    return channel.channelId
   }
 
-  // eslint-disable-next-line
   async provideAttestation(
     channelId: string,
     query: PaidQuery,
