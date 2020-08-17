@@ -38,8 +38,6 @@ export const createApp = async ({
   app.use(morgan('tiny', { stream: loggerStream }))
   app.use(cors())
 
-  // app.use(bodyParser.raw({ type: 'application/json' }))
-
   // Endpoint for health checks
   app.get('/', (_, res) => {
     res.status(200).send('Ready to roll!')
@@ -68,7 +66,7 @@ export const createApp = async ({
       // Extract the payment
       const envelopedPayment = req.headers['x-graph-payment']
       if (envelopedPayment !== undefined && typeof envelopedPayment !== 'string') {
-        logger.info(`Query has invalid state channel`, {
+        logger.info(`Query has invalid enveloped payment`, {
           deployment: subgraphDeploymentID.display,
           envelopedPayment,
         })
@@ -114,9 +112,6 @@ export const createApp = async ({
             requestCID: utils.keccak256(new TextEncoder().encode(query)),
           })
 
-          logger.debug(`Received successful payment`)
-
-          // TODO: (Liam) Note how state channel is being sent out here via the same header as above
           res
             .status(response.status || 200)
             .header('x-graph-payment', response.envelopedAttestation)
@@ -174,22 +169,20 @@ export const createApp = async ({
         return res
           .status(500)
           .contentType('application/json')
-          .send({ error: `Invalid allocationId: ${allocationID}` })
+          .send({ error: `Invalid allocation: ${allocationID}` })
 
-      let status = 200
-      let response: any
       try {
-        response = await client.handleMessage({ sender, recipient, data })
+        const response = await client.handleMessage({ sender, recipient, data })
+        logger.info(`Handled channel creation successfully`, {
+          sender,
+          recipient,
+        })
+        return res.status(200).send(response)
       } catch (error) {
-        logger.error(`Failed to handle state channel message`, { error: error.message })
-        status = 500
-        response = error.message
-      } finally {
-        logger.info(`Handled channel creation successfully`)
-        res
-          .status(status)
-          .contentType('application/json')
-          .send(response)
+        logger.error(`Failed to handle state channel message`, {
+          error: error.message,
+        })
+        return res.status(500).send({ error: error.message })
       }
     },
   )

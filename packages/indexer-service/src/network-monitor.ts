@@ -113,7 +113,7 @@ export class NetworkMonitor {
 
         // Emit the update
         if (removed.length > 0 || added.length > 0) {
-          logger.info('Syncing allocations with graph node', {
+          logger.info('Syncing allocations with the network', {
             url,
             indexerAddress,
             added,
