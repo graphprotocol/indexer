@@ -131,6 +131,19 @@ export class Indexer {
                 handler
                 message
               }
+              chains {
+                network
+                ... on EthereumIndexingStatus {
+                  latestBlock {
+                    number
+                    hash
+                  }
+                  chainHeadBlock {
+                    number
+                    hash
+                  }
+                }
+              }
             }
           }
         `,

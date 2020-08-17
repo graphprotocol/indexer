@@ -82,6 +82,17 @@ class Agent {
         // The deployment has synced, we're ready to go
         return false
       } else {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const latestBlock = status.chains[0]!.latestBlock.number
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const chainHeadBlock = status.chains[0]!.chainHeadBlock.number
+        const syncedPercent = (
+          (100 * (latestBlock * 1.0)) /
+          chainHeadBlock
+        ).toFixed(2)
+        this.logger.info(
+          `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
+        )
         // The subgraph has not synced yet, keep waiting
         return true
       }
