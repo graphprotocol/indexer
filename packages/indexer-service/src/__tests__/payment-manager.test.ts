@@ -5,7 +5,7 @@
 //
 process.env.SERVER_DB_NAME = 'indexer-sw'
 
-import { Wallet } from 'ethers'
+import { Wallet, constants } from 'ethers'
 
 import {
   createLogger,
@@ -109,9 +109,14 @@ describe('PaymentManager', () => {
         },
       } = attestationMessage as { data: { signedStates: SignedState[] } }
       const appData = toJS(nextState.appData)
+
       expect(appData.constants).toEqual(mockAppData().constants)
       expect(appData.variable.responseCID).toEqual(mockAttestation().responseCID)
       expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
+      expect((nextState.outcome as SimpleAllocation).allocationItems).toEqual([
+        { amount: BN.from(99), destination: makeDestination(constants.AddressZero) },
+        { amount: BN.from(1), destination: makeDestination(constants.AddressZero) },
+      ])
     })
 
     it('can deny a query', async () => {
