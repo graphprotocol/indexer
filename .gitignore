@@ -107,3 +107,6 @@ dist
 
 # Terraform state files
 *.tfstate*
+
+# Etherlime (added by server wallet)
+.etherlime-store
