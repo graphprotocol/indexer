@@ -41,8 +41,6 @@ export class PaymentManager implements PaymentManagerInterface {
             wallet: this.wallet,
             logger: this.logger.child({ allocationId: allocation.id }),
             allocation,
-            client: null,
-            signer: null,
           }),
         )
     }

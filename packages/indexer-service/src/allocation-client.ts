@@ -14,8 +14,6 @@ import {
 interface AllocationPaymentClientOptions {
   allocation: Allocation
   logger: Logger
-  client: null // May re-use these properties
-  signer: null // so keeping "null" for now
   wallet: Wallet
 }
 
@@ -25,23 +23,13 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   wallet: Wallet
 
   private logger: Logger
-  private client: null
-  private signer: null
 
   private serverWallet: ServerWallet = new ServerWallet() //TODO: put unique pk in here?
 
-  constructor({
-    allocation,
-    logger,
-    client,
-    signer,
-    wallet,
-  }: AllocationPaymentClientOptions) {
+  constructor({ allocation, logger, wallet }: AllocationPaymentClientOptions) {
     this.allocation = allocation
     this.wallet = wallet
     this.logger = logger
-    this.client = client
-    this.signer = signer
   }
 
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
