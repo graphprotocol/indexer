@@ -164,6 +164,7 @@ export class Network {
         query: gql`
           query {
             subgraphDeployments {
+              id
               stakedTokens
               signalAmount
               signalledTokens
@@ -201,11 +202,42 @@ export class Network {
             }
 
             if (deploymentRule) {
-              const stakedTokens = parseGRT(deployment.stakedTokens)
-              const signalAmount = parseGRT(deployment.signalAmount)
-              const avgQueryFees = parseGRT(deployment.queryFeesAmount).div(
-                BigNumber.from(deployment.indexerAllocations.length),
+              const stakedTokens = BigNumber.from(deployment.stakedTokens)
+              const signalAmount = BigNumber.from(deployment.signalAmount)
+              const avgQueryFees = BigNumber.from(
+                deployment.queryFeesAmount,
+              ).div(
+                BigNumber.from(
+                  Math.max(1, deployment.indexerAllocations.length),
+                ),
               )
+
+              this.logger.trace('Deciding whether to allocate and index', {
+                deployment: {
+                  id: deployment.id.display,
+                  stakedTokens: stakedTokens.toString(),
+                  signalAmount: signalAmount.toString(),
+                  avgQueryFees: avgQueryFees.toString(),
+                },
+                indexingRule: {
+                  deployment: deploymentRule.deployment,
+                  minStake: deploymentRule.minStake
+                    ? BigNumber.from(deploymentRule.minStake).toString()
+                    : null,
+                  minSignal: deploymentRule.minSignal
+                    ? BigNumber.from(deploymentRule.minSignal).toString()
+                    : null,
+                  maxSignal: deploymentRule.maxSignal
+                    ? BigNumber.from(deploymentRule.maxSignal).toString()
+                    : null,
+                  minAverageQueryFees: deploymentRule.minAverageQueryFees
+                    ? BigNumber.from(
+                        deploymentRule.minAverageQueryFees,
+                      ).toString()
+                    : null,
+                },
+              })
+
               return (
                 // stake >= minStake?
                 (deploymentRule.minStake &&
