@@ -1,13 +1,13 @@
 ########################################################################
 # Build image
 
-FROM node:slim as build
+FROM node:12.16.0-slim as build
 
 ARG NPM_TOKEN
 
 ENV NODE_ENV production
 
-RUN apt-get update && apt-get install -y python build-essential
+RUN apt-get update && apt-get install -y python build-essential git
 
 WORKDIR /opt/indexer
 
@@ -27,13 +27,13 @@ RUN yarn --pure-lockfile --non-interactive --production=false
 ########################################################################
 # Runtime image
 
-FROM node:slim
+FROM node:12.16.0-slim
 
 ARG NPM_TOKEN
 
 ENV NODE_ENV production
 
-RUN apt-get update && apt-get install -y python build-essential
+RUN apt-get update && apt-get install -y python build-essential git
 
 WORKDIR /opt/indexer
 
