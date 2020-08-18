@@ -97,7 +97,7 @@ export class Indexer {
                 minStake
                 minAverageQueryFees
                 custom
-                indexingDecision
+                decisionBasis
               }
             }
           `,
