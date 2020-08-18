@@ -2,14 +2,17 @@ import { Wallet as ServerWallet } from '@statechannels/server-wallet'
 import {
   Message as WireMessage,
   GetStateResponse,
-  Allocation as SCAllocation,
 } from '@statechannels/client-api-schema'
-import { Message as PushMessage, BN } from '@statechannels/wallet-core'
+import { Message as PushMessage } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
-import { toJS, AppData, StateType, fromJS, computeNextState } from '@statechannels/graph'
+import {
+  StateType,
+  computeNextState,
+  Attestation as SCAttestation,
+} from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
-import { Wallet, utils, BigNumber } from 'ethers'
+import { Wallet, utils } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -179,77 +182,40 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     query: PaidQuery,
     attestation: Attestation,
   ): Promise<WireMessage> {
+    return this.nextState(StateType.AttestationProvided, channelId, query, attestation)
+  }
+
+  async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
+    return this.nextState(StateType.AttestationProvided, channelId, query)
+  }
+
+  private async nextState(
+    stateType: StateType,
+    channelId: string,
+    query: PaidQuery,
+    attestation: Attestation | null = null,
+  ): Promise<WireMessage> {
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
 
-    const nextState = computeNextState(appData, allocations, {
-      toStateType: StateType.AttestationProvided,
-      query,
-      attestation: {
+    let inputAttestation: SCAttestation = {
+      responseCID: '',
+      signature: '',
+    }
+    if (attestation) {
+      inputAttestation = {
         responseCID: attestation.responseCID,
         signature: utils.joinSignature({
           r: attestation.r,
           s: attestation.s,
           v: attestation.v,
         }),
-      },
-    })
-
-    const {
-      channelResult,
-      outbox: [{ params: outboundMsg }],
-    } = await this.serverWallet.updateChannel({
-      channelId,
-      appData: nextState.appData,
-      allocations: nextState.allocation,
-    })
-
-    this.cachedState[channelId] = channelResult
-
-    return outboundMsg as WireMessage
-  }
-
-  async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
-    const { appData, allocations } = await this.getChannelResult(channelId)
-
-    const nextState = computeNextState(appData, allocations, {
-      toStateType: StateType.QueryDeclined,
-      query,
-      attestation: { responseCID: '', signature: '' },
-    })
-
-    const {
-      channelResult,
-      outbox: [{ params: outboundMsg }],
-    } = await this.serverWallet.updateChannel({
-      channelId,
-      appData: nextState.appData,
-      allocations: nextState.allocation,
-    })
-
-    this.cachedState[channelId] = channelResult
-
-    return outboundMsg as WireMessage
-  }
-
-  async nextState(
-    stateType: StateType,
-    channelId: string,
-    query: PaidQuery,
-    attestation: Attestation,
-  ): Promise<WireMessage> {
-    const { appData: appData, allocations } = await this.getChannelResult(channelId)
+      }
+    }
 
     const nextState = computeNextState(appData, allocations, {
       toStateType: stateType,
       query,
-      attestation: {
-        responseCID: attestation.responseCID,
-        signature: utils.joinSignature({
-          r: attestation.r,
-          s: attestation.s,
-          v: attestation.v,
-        }),
-      },
+      attestation: inputAttestation,
     })
 
     const {
