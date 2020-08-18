@@ -13,7 +13,7 @@ import {
   createMetrics,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
-import { signState, SignedState } from '@statechannels/wallet-core'
+import { signState, SignedState, calculateChannelId } from '@statechannels/wallet-core'
 
 // This is a bit awkward, but is convenient to create reproducible tests
 import serverWalletKnex from '@statechannels/server-wallet/lib/src/db/connection'
@@ -114,6 +114,8 @@ describe('PaymentManager', () => {
       },
     }
 
+    const channelId = calculateChannelId(MOCK_FIRST_STATE)
+
     const MOCK_CREATED_CHANNEL_MESSAGE = {
       sender: 'gateway',
       recipient: 'me',
@@ -181,7 +183,7 @@ describe('PaymentManager', () => {
     })
 
     it('can deny a query', async () => {
-      const outbound = await allocationClient.declineQuery(MOCK_QUERY)
+      const outbound = await allocationClient.declineQuery(channelId, MOCK_QUERY)
 
       const {
         data: {
