@@ -281,10 +281,6 @@ class Agent {
         // Note: we're not waiting here, as sometimes indexing a subgrah
         // will block if the IPFS files cannot be retrieved
         this.indexer.ensure(name, deployment)
-
-        // Instead of blocking, we're simply sleeping for a bit;
-        // that way we don't do too much at the same time
-        await delay(2000)
       })
     }
 
