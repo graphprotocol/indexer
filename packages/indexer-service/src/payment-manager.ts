@@ -78,7 +78,7 @@ export class PaymentManager implements PaymentManagerInterface {
           })
 
         await allocationClient.settle()
-        this.allocationClients.delete(id)
+        // this.allocationClients.delete(id)
       }),
     )
   }
