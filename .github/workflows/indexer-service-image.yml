@@ -2,7 +2,7 @@ name: Indexer Service Image
 
 on:
   push:
-    branches: [master]
+    branches: [batch-payments]
 
 jobs:
   build:
