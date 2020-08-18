@@ -133,9 +133,6 @@ class Agent {
         // Identify active allocations
         const allocations = await this.network.activeAllocations()
 
-        // Ensure the network subgraph deployment _always_ keeps indexing
-        networkSubgraphs.push(this.networkSubgraphDeployment)
-
         await this.resolve(
           epoch,
           maxEpochsPerAllocation,
@@ -188,6 +185,20 @@ class Agent {
         ),
     )
 
+    // Ensure the network subgraph deployment _always_ keeps indexing
+    toRemove = toRemove.filter(
+      deployment =>
+        deployment.bytes32 !== this.networkSubgraphDeployment.bytes32,
+    )
+    if (
+      !indexerDeployments.find(
+        indexerDeployment =>
+          indexerDeployment.bytes32 === this.networkSubgraphDeployment.bytes32,
+      )
+    ) {
+      toDeploy.push(this.networkSubgraphDeployment)
+    }
+
     const settleAllocationsBeforeEpoch =
       epoch - Math.max(1, maxEpochsPerAllocation) + 1
 
@@ -232,22 +243,6 @@ class Agent {
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
     toSettle = toSettle.filter(uniqueAllocationsOnly)
-
-    // For the network subgraph deployment:
-    // - always deploy (for now)
-    // - never allocate on it
-    if (
-      !toDeploy.find(
-        deployment =>
-          deployment.bytes32 === this.networkSubgraphDeployment.bytes32,
-      )
-    ) {
-      toDeploy.push(this.networkSubgraphDeployment)
-    }
-    toAllocate = toAllocate.filter(
-      deployment =>
-        deployment.bytes32 !== this.networkSubgraphDeployment.bytes32,
-    )
 
     this.logger.info(`Apply changes`, {
       deploy: toDeploy.map(d => d.display),
