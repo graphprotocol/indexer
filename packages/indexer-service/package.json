@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@statechannels/nitro-protocol": "^0.2.0",
-    "@statechannels/server-wallet": "0.2.1",
+    "@statechannels/server-wallet": "0.2.3",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
     "body-parser": "^1.19.0",
