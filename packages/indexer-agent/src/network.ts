@@ -467,7 +467,7 @@ export class Network {
 
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
-    const freeStake = stakes.tokensAllocated
+    const freeStake = stakes.tokensStaked
       .sub(stakes.tokensAllocated)
       .sub(stakes.tokensLocked)
 
