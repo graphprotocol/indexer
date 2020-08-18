@@ -103,9 +103,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * they will countersign 3 and send it back. Now, we don't need to reply.
      */
     if (channelResult.status === 'running' && outbox.length === 0) {
-      return;
+      return
     }
-
 
     if (channelResult.status === 'closed' && outbox.length === 1) {
       const [{ params: outboundClosedChannelState }] = outbox
