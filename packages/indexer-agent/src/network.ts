@@ -496,7 +496,7 @@ export class Network {
         deployment.bytes32,
         amount,
         uncompressedPublicKey,
-        /* _channelProxy */ ethers.constants.AddressZero, // TODO: Deploy GRTAssetHolder
+        Wallet.fromMnemonic(this.mnemonic).address,
         price,
         txOverrides,
       ),
