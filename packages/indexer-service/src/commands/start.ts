@@ -13,6 +13,8 @@ import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payment-manager'
 import { NetworkMonitor } from '../network-monitor'
 
+import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
+
 export default {
   command: 'start',
   describe: 'Start the service',
@@ -133,6 +135,18 @@ export default {
     logger.info('Successfully connected to database')
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
+
+    if ((await SigningWallet.query()).length === 0) {
+      await SigningWallet.query().insert(
+        SigningWallet.fromJson({
+          privateKey: wallet.privateKey,
+          address: wallet.address,
+        }),
+      )
+      logger.info('Seeded state channels wallet with account from mnemonic provided', {
+        address: wallet.address,
+      })
+    }
 
     // Create payment manager
     const paymentManager = new PaymentManager({
