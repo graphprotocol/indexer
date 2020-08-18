@@ -186,7 +186,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   }
 
   async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
-    return this.nextState(StateType.AttestationProvided, channelId, query)
+    return this.nextState(StateType.QueryDeclined, channelId, query)
   }
 
   private async nextState(
