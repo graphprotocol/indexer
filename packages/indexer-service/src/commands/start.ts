@@ -136,18 +136,18 @@ export default {
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
-    if ((await SigningWallet.query()).length === 0) {
-      await SigningWallet.query().insert(
-        SigningWallet.fromJson({
-          privateKey: wallet.privateKey,
-          address: wallet.address,
-        }),
-      )
-      logger.info('Seeded state channels wallet with account from mnemonic provided', {
-        address: wallet.address,
+    const { privateKey, address } = wallet
+    await SigningWallet.query()
+      .insert(SigningWallet.fromJson({ privateKey, address }))
+      .catch(err => {
+        // ignore duplicate entry error
+        // handle constraint violation by warning that they already have a _different_ signing key
       })
-    }
-
+      .finally(() => {
+        logger.info('Seeded state channels wallet with account from mnemonic provided', {
+          address: wallet.address,
+        })
+      })
     // Create payment manager
     const paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),
