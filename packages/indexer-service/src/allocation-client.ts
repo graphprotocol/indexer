@@ -51,7 +51,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
   }
 
   public async getChannelResult(channelId: string): Promise<ChannelResult> {
-    const { channelResult } = await this.serverWallet.getState({ channelId })
+    const channelResult = await this.getChannelState(channelId)
     if (!channelResult) throw new Error(`No channel result for channelId ${channelId}.`)
     return channelResult
   }
