@@ -180,12 +180,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     attestation: Attestation,
   ): Promise<WireMessage> {
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
-    const currentAppData = toJS(appData)
-    if (currentAppData.variable.stateType !== StateType.QueryRequested) {
-      throw new Error('Current wallet state must be QueryRequested')
-    }
 
-    const nextState = computeNextState(currentAppData, allocations, {
+    const nextState = computeNextState(appData, allocations, {
       toStateType: StateType.AttestationProvided,
       query,
       attestation: {
@@ -203,7 +199,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData: fromJS(nextState.appData),
+      appData: nextState.appData,
       allocations: nextState.allocation,
     })
 
@@ -214,12 +210,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
   async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
     const { appData, allocations } = await this.getChannelResult(channelId)
-    const currentAppData = toJS(appData)
-    if (currentAppData.variable.stateType !== StateType.QueryRequested) {
-      throw new Error('Current wallet state must be QueryRequested')
-    }
 
-    const nextState = computeNextState(currentAppData, allocations, {
+    const nextState = computeNextState(appData, allocations, {
       toStateType: StateType.QueryDeclined,
       query,
       attestation: { responseCID: '', signature: '' },
@@ -230,7 +222,42 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       outbox: [{ params: outboundMsg }],
     } = await this.serverWallet.updateChannel({
       channelId,
-      appData: fromJS(nextState.appData),
+      appData: nextState.appData,
+      allocations: nextState.allocation,
+    })
+
+    this.cachedState[channelId] = channelResult
+
+    return outboundMsg as WireMessage
+  }
+
+  async nextState(
+    stateType: StateType,
+    channelId: string,
+    query: PaidQuery,
+    attestation: Attestation,
+  ): Promise<WireMessage> {
+    const { appData: appData, allocations } = await this.getChannelResult(channelId)
+
+    const nextState = computeNextState(appData, allocations, {
+      toStateType: stateType,
+      query,
+      attestation: {
+        responseCID: attestation.responseCID,
+        signature: utils.joinSignature({
+          r: attestation.r,
+          s: attestation.s,
+          v: attestation.v,
+        }),
+      },
+    })
+
+    const {
+      channelResult,
+      outbox: [{ params: outboundMsg }],
+    } = await this.serverWallet.updateChannel({
+      channelId,
+      appData: nextState.appData,
       allocations: nextState.allocation,
     })
 
