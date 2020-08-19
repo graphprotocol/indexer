@@ -46,7 +46,10 @@ export class PaymentManager implements PaymentManagerInterface {
 
   createAllocationPaymentClients(allocations: Allocation[]): void {
     for (const allocation of allocations) {
-      if (!this.allocationClients.has(allocation.id))
+      if (!this.allocationClients.has(allocation.id)) {
+        this.logger.debug('Creating AllocationPaymentClient', {
+          allocationId: allocation.id,
+        })
         this.allocationClients.set(
           allocation.id,
           new AllocationPaymentClient({
@@ -56,6 +59,7 @@ export class PaymentManager implements PaymentManagerInterface {
             allocation,
           }),
         )
+      }
     }
   }
 

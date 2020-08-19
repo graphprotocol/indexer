@@ -96,7 +96,6 @@ export const createApp = async ({
 
         logger.info(`Received paid query`, {
           deployment: subgraphDeploymentID.display,
-          envelopedPayment,
         })
 
         try {
@@ -176,10 +175,6 @@ export const createApp = async ({
 
       try {
         const response = await client.handleMessage({ sender, recipient, data })
-        logger.info(`Handled channel creation successfully`, {
-          sender,
-          recipient,
-        })
         return res.status(200).send(response)
       } catch (error) {
         logger.error(`Failed to handle state channel message`, {
