@@ -55,6 +55,9 @@ class Agent {
     await this.network.ensureMinimumStake(parseGRT('1000'))
     this.logger.info(`Indexer active and registered on network`)
 
+    // Ensure there is a 'global' indexer rule
+    await this.indexer.ensureGlobalIndexerRule()
+
     // Make sure the network subgraph is being indexed
     await this.indexer.ensure(
       `${this.networkSubgraphDeployment.ipfsHash.slice(
@@ -270,11 +273,10 @@ class Agent {
       )
       for (const deployment of toAllocate) {
         const allocation =
-          rules.find(rule => rule.deployment === deployment.ipfsHash)
+          rules.find(rule => rule.deployment === deployment.bytes32)
             ?.allocation || globalRule?.allocation
 
-        // It is safe to access .allocation since `network.subgraphDeploymentsWorthIndexing` ensures all toAllocate and
-        // toDeploy deployments have an associated rule with a non-null allocation
+        // It is safe to assume allocation is not null since a `global` rule is ensure to exist during `indexer-agent` startup
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await this.network.allocate(deployment, allocation!)
       }
@@ -318,6 +320,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexerManagement,
     config.logger,
     config.indexNodeIDs,
+    config.defaultAllocation,
   )
   const network = await Network.create(
     config.logger,

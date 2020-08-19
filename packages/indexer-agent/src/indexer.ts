@@ -8,6 +8,7 @@ import {
   SubgraphDeploymentID,
   IndexingRuleAttributes,
   IndexerManagementClient,
+  INDEXING_RULE_GLOBAL,
 } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
 import { IndexingStatus } from './types'
@@ -18,6 +19,7 @@ export class Indexer {
   indexerManagement: IndexerManagementClient
   logger: Logger
   indexNodeIDs: string[]
+  defaultAllocation: string
 
   constructor(
     adminEndpoint: string,
@@ -25,6 +27,7 @@ export class Indexer {
     indexerManagement: IndexerManagementClient,
     logger: Logger,
     indexNodeIDs: string[],
+    defaultAllocation: string,
   ) {
     this.indexerManagement = indexerManagement
     this.statuses = new ApolloClient({
@@ -39,6 +42,7 @@ export class Indexer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.rpc = jayson.Client.http(adminEndpoint as any)
     this.indexNodeIDs = indexNodeIDs
+    this.defaultAllocation = defaultAllocation
   }
 
   async connect(): Promise<void> {
@@ -110,6 +114,67 @@ export class Indexer {
       return result.data.indexingRules
     } catch (error) {
       this.logger.error(`Failed to query indexer management server`)
+      throw error
+    }
+  }
+
+  async ensureGlobalIndexerRule(): Promise<void> {
+    try {
+      const currentGlobalRule = await this.indexerManagement
+        .query(
+          gql`
+            query indexingRule($deployment: String!, $merged: Boolean!) {
+              indexingRule(deployment: $depoyment, merged: $merged) {
+                deployment
+                allocation
+                decisionBasis
+              }
+            }
+          `,
+          { deployment: INDEXING_RULE_GLOBAL, merged: false },
+          {
+            fetchPolicy: 'no-cache',
+          },
+        )
+        .toPromise()
+      if (currentGlobalRule.data.indexingRule.length === 0) {
+        this.logger.info(`No existing 'global' indexer rule found`)
+        const defaultRule = {
+          deployment: INDEXING_RULE_GLOBAL,
+          allocation: this.defaultAllocation,
+          indexingDecision: 'rule',
+        }
+        const newGlobalRule = await this.indexerManagement
+          .mutation(
+            gql`
+              mutation setIndexingRule($rule: IndexingRuleInput!) {
+                setIndexingRule(rule: $rule) {
+                  deployment
+                  allocation
+                  maxAllocationPercentage
+                  minSignal
+                  maxSignal
+                  minStake
+                  minAverageQueryFees
+                  custom
+                  indexingDecision
+                }
+              }
+            `,
+            { defaultRule },
+          )
+          .toPromise()
+        this.logger.info(`'global' indexer rule set to default`, {
+          rule: {
+            deployment: new SubgraphDeploymentID(
+              newGlobalRule.data.setIndexingRule.deployment,
+            ).display,
+            allocation: newGlobalRule.data.setIndexingRule.allocation,
+          },
+        })
+      }
+    } catch (error) {
+      this.logger.error('Failed to query indexer management server')
       throw error
     }
   }
