@@ -56,7 +56,7 @@ class Agent {
     this.logger.info(`Indexer active and registered on network`)
 
     // Ensure there is a 'global' indexer rule
-    await this.indexer.ensureGlobalIndexerRule()
+    await this.indexer.ensureGlobalIndexingRule()
 
     // Make sure the network subgraph is being indexed
     await this.indexer.ensure(
