@@ -11,6 +11,7 @@ export interface AgentConfig {
   adminEndpoint: string
   queryEndpoint: string
   indexerManagement: IndexerManagementClient
+  defaultAllocation: string
   publicIndexerUrl: string
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string

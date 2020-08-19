@@ -72,6 +72,13 @@ export default {
             [],
           ),
       })
+      .option('default-deployment-allocation', {
+        description:
+          'Default amount of GRT to allocate to each subgraph deployment',
+        type: 'string',
+        default: '1',
+        required: false,
+      })
       .option('indexer-management-port', {
         description: 'Port to serve the indexer management API at',
         type: 'number',
@@ -155,6 +162,7 @@ export default {
       connextNode: argv.connextNode,
       indexNodeIDs: argv.indexNodeIds,
       indexerManagement: indexerManagementClient,
+      defaultAllocation: argv.defaultDeploymentAllocation,
     })
   },
 }

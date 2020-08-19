@@ -191,8 +191,13 @@ export class Network {
               globalRule
 
             // The deployment is not eligible for deployment if it doesn't have an allocation amount
-            // It costs real tokens to allocate on a deployment, so we can't make magnitude assumptions!
             if (!deploymentRule?.allocation) {
+              this.logger.debug(
+                `Could not find matching rule with non-null 'allocation':`,
+                {
+                  deployment: deployment.display,
+                },
+              )
               return false
             }
             // Skip the indexing rules checks if the decision basis is 'always' or 'never'
