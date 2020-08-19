@@ -375,7 +375,7 @@ export class StateChannel implements StateChannelInterface {
       await this.finalizeApp(finalState as CompleteModel<PaymentStore>)
     }
 
-    const freeBalance = await this.client.getFreeBalance()
+    const freeBalance = await this.client.getFreeBalance(this.contracts.token.address)
     const balance = freeBalance[this.client.signerAddress]
     const formattedAmount = formatGRT(balance)
 
