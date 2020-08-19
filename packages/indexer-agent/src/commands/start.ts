@@ -82,7 +82,7 @@ export default {
       .option('indexer-management-port', {
         description: 'Port to serve the indexer management API at',
         type: 'number',
-        default: 9700,
+        default: 8000,
         required: false,
       })
       .option('postgres-host', {
