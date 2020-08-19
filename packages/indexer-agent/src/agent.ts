@@ -1,5 +1,7 @@
 import {
   Logger,
+  IndexingRuleAttributes,
+  INDEXING_RULE_GLOBAL,
   SubgraphDeploymentID,
   parseGRT,
 } from '@graphprotocol/common-ts'
@@ -139,6 +141,7 @@ class Agent {
           networkSubgraphs,
           indexerDeployments,
           allocations,
+          rules,
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
@@ -156,6 +159,7 @@ class Agent {
     networkDeployments: SubgraphDeploymentID[],
     indexerDeployments: SubgraphDeploymentID[],
     allocations: Allocation[],
+    rules: IndexingRuleAttributes[],
   ): Promise<void> {
     this.logger.info(`Synchronization result`, {
       epoch,
@@ -260,8 +264,20 @@ class Agent {
 
     // Allocate to all deployments worth indexing and that we haven't
     // allocated to yet
-    for (const deployment of toAllocate) {
-      await this.network.allocate(deployment)
+    if (toAllocate.length > 0) {
+      const globalRule = rules.find(
+        rule => rule.deployment === INDEXING_RULE_GLOBAL,
+      )
+      for (const deployment of toAllocate) {
+        const allocation =
+          rules.find(rule => rule.deployment === deployment.ipfsHash)
+            ?.allocation || globalRule?.allocation
+
+        // It is safe to access .allocation since `network.subgraphDeploymentsWorthIndexing` ensures all toAllocate and
+        // toDeploy deployments have an associated rule with a non-null allocation
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await this.network.allocate(deployment, allocation!)
+      }
     }
 
     // Deploy/remove up to 10 subgraphs in parallel
@@ -278,7 +294,7 @@ class Agent {
         })
 
         // Ensure the deployment is deployed to the indexer
-        // Note: we're not waiting here, as sometimes indexing a subgrah
+        // Note: we're not waiting here, as sometimes indexing a subgraph
         // will block if the IPFS files cannot be retrieved
         this.indexer.ensure(name, deployment)
       })

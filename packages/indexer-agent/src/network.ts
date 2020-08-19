@@ -190,6 +190,11 @@ export class Network {
               rules.find(rule => rule.deployment === deployment.id) ||
               globalRule
 
+            // The deployment is not eligible for deployment if it doesn't have an allocation amount
+            // It costs real tokens to allocate on a deployment, so we can't make magnitude assumptions!
+            if (!deploymentRule?.allocation) {
+              return false
+            }
             // Skip the indexing rules checks if the decision basis is 'always' or 'never'
             if (
               deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
@@ -426,8 +431,11 @@ export class Network {
     }
   }
 
-  async allocate(deployment: SubgraphDeploymentID): Promise<void> {
-    const amount = parseGRT('1')
+  async allocate(
+    deployment: SubgraphDeploymentID,
+    allocation: string,
+  ): Promise<void> {
+    const amount = parseGRT(allocation)
     const price = parseGRT('0.01')
 
     this.logger.info(`Identify current allocation`, {
