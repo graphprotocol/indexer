@@ -123,14 +123,15 @@ export class Indexer {
       const globalRule = await this.indexerManagement
         .query(
           gql`
-            {
-              indexingRule(deployment: "global", merged: false) {
+            query indexingRule($deployment: String!) {
+              indexingRule(deployment: $deployment, merged: false) {
                 deployment
                 allocation
                 decisionBasis
               }
             }
           `,
+          { deployment: INDEXING_RULE_GLOBAL },
           { fetchPolicy: 'no-cache' },
         )
         .toPromise()
