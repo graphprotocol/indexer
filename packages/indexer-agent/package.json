@@ -30,6 +30,7 @@
     "graphql-tag": "^2.11.0",
     "jayson": "^3.3.0",
     "ngeohash": "^0.6.3",
+    "p-filter": "^2.1.0",
     "p-queue": "^6.4.0",
     "yargs": "^15.1.0"
   },
