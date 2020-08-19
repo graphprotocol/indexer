@@ -43,14 +43,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
     this.logger = logger.child({
       component: 'AllocationPaymentClient',
-      allocation: allocation.id,
       createdAtEpoch: allocation.createdAtEpoch,
     })
   }
 
   async handleMessage({ data, sender }: WireMessage): Promise<WireMessage | undefined> {
-    this.logger.info('AllocationPaymentClient received message', { sender })
-
     const {
       channelResults: [channelResult],
       outbox,
@@ -81,6 +78,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
         ],
       } = await this.serverWallet.joinChannel(channelResult)
 
+      this.logger.info(`Channel creation succeeded`, {
+        sender,
+        channelid: channelResult.channelId,
+      })
+
       return {
         sender: (outboundJoinedChannelState as WireMessage).sender,
         recipient: (outboundJoinedChannelState as WireMessage).recipient,
@@ -107,6 +109,9 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     }
 
     if (channelResult.status === 'closed' && outbox.length === 1) {
+      this.logger.info('Closed channel', {
+        channelId: channelResult.channelId,
+      })
       const [{ params: outboundClosedChannelState }] = outbox
       return outboundClosedChannelState as WireMessage
     }
