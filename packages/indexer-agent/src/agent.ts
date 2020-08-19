@@ -10,6 +10,8 @@ import PQueue from 'p-queue'
 import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
+import { BigNumber } from 'ethers'
+import pFilter from 'p-filter'
 
 const MINIMUM_STAKE = parseGRT('10000000')
 const MINIMUM_SIGNAL = parseGRT('10000000')
@@ -250,6 +252,29 @@ class Agent {
     toRemove = toRemove.filter(uniqueDeploymentsOnly)
     toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
     toSettle = toSettle.filter(uniqueAllocationsOnly)
+
+    // The network subgraph may be behind and reporting outdated allocation
+    // data; don't settle allocations that are already settled on chain
+    toSettle = await pFilter(toSettle, async allocation => {
+      try {
+        this.logger.trace(`Cross-checking allocation state with contracts`, {
+          allocation: allocation.id,
+        })
+        const onChainAllocation = await this.network.contracts.staking.getAllocation(
+          allocation.id,
+        )
+        return onChainAllocation.settledAtEpoch !== BigNumber.from('0')
+      } catch (error) {
+        this.logger.warn(
+          `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
+          {
+            allocation: allocation.id,
+            error: error.message,
+          },
+        )
+        return true
+      }
+    })
 
     this.logger.info(`Apply changes`, {
       deploy: toDeploy.map(d => d.display),
