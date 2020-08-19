@@ -90,14 +90,8 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
-      stateChannelMessage,
+      allocationID: allocationID,
     })
-
-    this.logger.debug(`Process query`, {
-      deployment: subgraphDeploymentID.display,
-      stateChannelMessage,
-    })
-
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
     const allocationClient = this.paymentManager.getAllocationPaymentClient(
@@ -105,7 +99,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     )
 
     if (allocationClient === undefined)
-      throw new QueryError(`Unknown subgraph: ${subgraphDeploymentID}`, 404)
+      throw new QueryError(`Unknown allocationID: ${allocationID}`, 404)
 
     // This may throw an error with a signed envelopedResponse (DeclineQuery)
     const channelId = await allocationClient.validatePayment(query)
