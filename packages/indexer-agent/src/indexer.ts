@@ -118,33 +118,33 @@ export class Indexer {
     }
   }
 
-  async ensureGlobalIndexerRule(): Promise<void> {
+  async ensureGlobalIndexingRule(): Promise<void> {
     try {
-      const currentGlobalRule = await this.indexerManagement
+      const globalRule = await this.indexerManagement
         .query(
           gql`
-            query indexingRule($deployment: String!, $merged: Boolean!) {
-              indexingRule(deployment: $depoyment, merged: $merged) {
+            {
+              indexingRule(deployment: "global", merged: false) {
                 deployment
                 allocation
                 decisionBasis
               }
             }
           `,
-          { deployment: INDEXING_RULE_GLOBAL, merged: false },
-          {
-            fetchPolicy: 'no-cache',
-          },
+          { fetchPolicy: 'no-cache' },
         )
         .toPromise()
-      if (currentGlobalRule.data.indexingRule.length === 0) {
-        this.logger.info(`No existing 'global' indexer rule found`)
-        const defaultRule = {
+
+      if (!globalRule.data.indexingRule) {
+        this.logger.info(`Creating default "global" indexing rule`)
+
+        const defaults = {
           deployment: INDEXING_RULE_GLOBAL,
           allocation: this.defaultAllocation,
-          indexingDecision: 'rule',
+          decisionBasis: 'rules',
         }
-        const newGlobalRule = await this.indexerManagement
+
+        const defaultGlobalRule = await this.indexerManagement
           .mutation(
             gql`
               mutation setIndexingRule($rule: IndexingRuleInput!) {
@@ -157,24 +157,22 @@ export class Indexer {
                   minStake
                   minAverageQueryFees
                   custom
-                  indexingDecision
+                  decisionBasis
                 }
               }
             `,
-            { defaultRule },
+            { rule: defaults },
           )
           .toPromise()
-        this.logger.info(`'global' indexer rule set to default`, {
-          rule: {
-            deployment: new SubgraphDeploymentID(
-              newGlobalRule.data.setIndexingRule.deployment,
-            ).display,
-            allocation: newGlobalRule.data.setIndexingRule.allocation,
-          },
+
+        this.logger.info(`Created default "global" indexing rule`, {
+          rule: defaultGlobalRule.data.setIndexingRule,
         })
       }
     } catch (error) {
-      this.logger.error('Failed to query indexer management server')
+      this.logger.error('Failed to ensure default "global" indexing rule', {
+        error: error.message,
+      })
       throw error
     }
   }
