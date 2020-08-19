@@ -486,7 +486,7 @@ export class Network {
       deployment: deployment.display,
       amount: formatGRT(amount),
       uncompressedPublicKey,
-      create2Address: ethers.constants.AddressZero, // TODO: Deploy GRTAssetHolder
+      create2Address: ethers.constants.AddressZero,
       price,
       txOverrides,
     })
@@ -496,7 +496,7 @@ export class Network {
         deployment.bytes32,
         amount,
         uncompressedPublicKey,
-        Wallet.fromMnemonic(this.mnemonic).address,
+        ethers.constants.AddressZero,
         price,
         txOverrides,
       ),
