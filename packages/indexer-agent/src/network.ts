@@ -394,7 +394,7 @@ export class Network {
           gasLimit: 1000000,
           gasPrice: utils.parseUnits('10', 'gwei'),
         }),
-        this.logger,
+        this.logger.child({ action: 'register' }),
       )
       const event = receipt.events?.find((event) =>
         event.topics.includes(
@@ -500,7 +500,7 @@ export class Network {
         price,
         txOverrides,
       ),
-      this.logger,
+      this.logger.child({ action: 'allocate' }),
     )
 
     const event = receipt.events?.find((event) =>
@@ -539,7 +539,10 @@ export class Network {
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
       })
-      await this.contracts.staking.settle(allocation.id)
+      await Ethereum.executeTransaction(
+        this.contracts.staking.settle(allocation.id),
+        this.logger.child({ action: 'settle allocation' }),
+      )
       this.logger.info(`Settled allocation`, {
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
@@ -617,7 +620,7 @@ export class Network {
           missingStake,
           txOverrides,
         ),
-        this.logger,
+        this.logger.child({ action: 'approve' }),
       )
       const approveEvent = approveReceipt.events?.find((event) =>
         event.topics.includes(
@@ -645,7 +648,7 @@ export class Network {
       // Then, stake the missing amount
       const stakeReceipt = await Ethereum.executeTransaction(
         this.contracts.staking.stake(missingStake, txOverrides),
-        this.logger,
+        this.logger.child({ action: 'stake' }),
       )
       const stakeEvent = stakeReceipt.events?.find((event) =>
         event.topics.includes(
