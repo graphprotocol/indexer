@@ -444,7 +444,7 @@ export class Network {
       this.logger.info(`Already allocated on subgraph deployment`, {
         deployment: deployment.display,
         amountGRT: formatGRT(currentAllocations[0].allocatedTokens),
-        channel: currentAllocations[0].id,
+        allocationId: currentAllocations[0].id,
         epoch: currentAllocations[0].createdAtEpoch,
       })
       return
@@ -527,8 +527,7 @@ export class Network {
       deployment: new SubgraphDeploymentID(eventInputs.subgraphDeploymentID)
         .display,
       amountGRT: formatGRT(eventInputs.tokens),
-      channel: eventInputs.channelID,
-      channelPubKey: eventInputs.channelPubKey,
+      allocationId: eventInputs.channelID,
       epoch: eventInputs.epoch.toString(),
     })
   }
