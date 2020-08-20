@@ -204,11 +204,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     if (attestation) {
       inputAttestation = {
         responseCID: attestation.responseCID,
-        signature: utils.joinSignature({
-          r: attestation.r,
-          s: attestation.s,
-          v: attestation.v,
-        }),
+        signature: utils.joinSignature(attestation),
       }
     }
 
