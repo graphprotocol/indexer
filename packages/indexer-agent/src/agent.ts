@@ -5,20 +5,24 @@ import {
   SubgraphDeploymentID,
   parseGRT,
 } from '@graphprotocol/common-ts'
-import PQueue from 'p-queue'
-
+import { dedupeWith, groupBy, repeat } from '@thi.ng/iterators'
 import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 import { BigNumber } from 'ethers'
+import PQueue from 'p-queue'
+import pMap from 'p-map'
 import pFilter from 'p-filter'
-
-const MINIMUM_STAKE = parseGRT('10000000')
-const MINIMUM_SIGNAL = parseGRT('10000000')
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
 }
+
+const deploymentInList = (
+  list: SubgraphDeploymentID[],
+  deployment: SubgraphDeploymentID,
+): boolean =>
+  list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
 const loop = async (f: () => Promise<boolean>, interval: number) => {
   // eslint-disable-next-line no-constant-condition
@@ -116,10 +120,10 @@ class Agent {
         const epoch = (
           await this.network.contracts.epochManager.currentEpoch()
         ).toNumber()
-        const maxEpochsPerAllocation = await this.network.contracts.staking.maxAllocationEpochs()
+        const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
 
         // Identify subgraph deployments indexed locally
-        const indexerDeployments = await this.indexer.subgraphDeployments()
+        const activeDeployments = await this.indexer.subgraphDeployments()
 
         // Fetch all indexing rules
         const rules = await this.indexer.indexerRules(true)
@@ -132,21 +136,32 @@ class Agent {
 
         // Identify subgraph deployments on the network that are worth picking up;
         // these may overlap with the ones we're already indexing
-        const networkSubgraphs =
+        const targetDeployments =
           rules.length === 0
             ? []
             : await this.network.subgraphDeploymentsWorthIndexing(rules)
 
-        // Identify active allocations
-        const allocations = await this.network.activeAllocations()
+        // Ensure the network subgraph deployment is _always_ indexed and considered for allocations (depending on rules)
+        if (
+          !deploymentInList(targetDeployments, this.networkSubgraphDeployment)
+        ) {
+          targetDeployments.push(this.networkSubgraphDeployment)
+        }
 
-        await this.resolve(
-          epoch,
-          maxEpochsPerAllocation,
-          networkSubgraphs,
-          indexerDeployments,
-          allocations,
+        // Identify active allocations
+        const activeAllocations = await this.network.activeAllocations()
+
+        // Reconcile deployments
+        await this.reconcileDeployments(activeDeployments, targetDeployments)
+
+        // Reconcile allocations
+        await this.reconcileAllocations(
+          activeAllocations,
+          targetDeployments,
           rules,
+          epoch,
+          maxAllocationEpochs,
+          Math.max(1, maxAllocationEpochs - 1),
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
@@ -158,164 +173,46 @@ class Agent {
     }, 5000)
   }
 
-  async resolve(
-    epoch: number,
-    maxEpochsPerAllocation: number,
-    networkDeployments: SubgraphDeploymentID[],
-    indexerDeployments: SubgraphDeploymentID[],
-    allocations: Allocation[],
-    rules: IndexingRuleAttributes[],
+  async reconcileDeployments(
+    activeDeployments: SubgraphDeploymentID[],
+    targetDeployments: SubgraphDeploymentID[],
   ): Promise<void> {
-    this.logger.info(`Synchronization result`, {
-      epoch,
-      maxEpochsPerAllocation,
-      worthIndexing: networkDeployments.map(d => d.display),
-      alreadyIndexing: indexerDeployments.map(d => d.display),
-      alreadyAllocated: allocations.map(a => ({
-        id: a.id,
-        deployment: a.subgraphDeployment.id.display,
-        createdAtEpoch: a.createdAtEpoch,
-      })),
-    })
-
-    // Identify which subgraphs to deploy and which to remove
-    let toDeploy = networkDeployments.filter(
-      networkDeployment =>
-        !indexerDeployments.find(
-          indexerDeployment =>
-            networkDeployment.bytes32 === indexerDeployment.bytes32,
-        ),
-    )
-    let toRemove = indexerDeployments.filter(
-      indexerDeployment =>
-        !networkDeployments.find(
-          networkDeployment =>
-            indexerDeployment.bytes32 === networkDeployment.bytes32,
-        ),
-    )
-
-    // Ensure the network subgraph deployment _always_ keeps indexing
-    toRemove = toRemove.filter(
-      deployment =>
-        deployment.bytes32 !== this.networkSubgraphDeployment.bytes32,
-    )
-    if (
-      !indexerDeployments.find(
-        indexerDeployment =>
-          indexerDeployment.bytes32 === this.networkSubgraphDeployment.bytes32,
-      )
-    ) {
-      toDeploy.push(this.networkSubgraphDeployment)
-    }
-
-    const settleAllocationsBeforeEpoch =
-      epoch - Math.max(1, maxEpochsPerAllocation) + 1
-
-    this.logger.info(`Settle all allocations before epoch`, {
-      epoch: settleAllocationsBeforeEpoch,
-    })
-
-    // Identify allocations to settle
-    let toSettle = allocations.filter(
-      allocation =>
-        // Either the allocation is old (approaching the max allocation epochs)
-        allocation.createdAtEpoch < settleAllocationsBeforeEpoch ||
-        // ...or the deployment isn't worth it anymore
-        (allocation.subgraphDeployment.signalAmount.lt(MINIMUM_SIGNAL) &&
-          allocation.subgraphDeployment.stakedTokens.lt(MINIMUM_STAKE)),
-    )
-
-    // Identify deployments to allocate (or reallocate) to
-    let toAllocate = networkDeployments.filter(
-      networkDeployment =>
-        !allocations.find(
-          allocation =>
-            allocation.subgraphDeployment.id.bytes32 ===
-            networkDeployment.bytes32,
-        ),
-    )
-
     const uniqueDeploymentsOnly = (
       value: SubgraphDeploymentID,
       index: number,
       array: SubgraphDeploymentID[],
     ): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
 
-    const uniqueAllocationsOnly = (
-      value: Allocation,
-      index: number,
-      array: Allocation[],
-    ): boolean => array.findIndex(v => value.id === v.id) === index
+    activeDeployments = activeDeployments.filter(uniqueDeploymentsOnly)
+    targetDeployments = activeDeployments.filter(uniqueDeploymentsOnly)
 
-    // Ensure there are no duplicates in the deployments
-    toDeploy = toDeploy.filter(uniqueDeploymentsOnly)
-    toRemove = toRemove.filter(uniqueDeploymentsOnly)
-    toAllocate = toAllocate.filter(uniqueDeploymentsOnly)
-    toSettle = toSettle.filter(uniqueAllocationsOnly)
-
-    // The network subgraph may be behind and reporting outdated allocation
-    // data; don't settle allocations that are already settled on chain
-    toSettle = await pFilter(toSettle, async allocation => {
-      try {
-        this.logger.trace(`Cross-checking allocation state with contracts`, {
-          allocation: allocation.id,
-        })
-        const onChainAllocation = await this.network.contracts.staking.getAllocation(
-          allocation.id,
-        )
-        return onChainAllocation.settledAtEpoch !== BigNumber.from('0')
-      } catch (error) {
-        this.logger.warn(
-          `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
-          {
-            allocation: allocation.id,
-            error: error.message,
-          },
-        )
-        return true
-      }
+    this.logger.info('Reconcile deployments', {
+      active: activeDeployments.map(id => id.display),
+      target: targetDeployments.map(id => id.display),
     })
 
-    this.logger.info(`Apply changes`, {
-      deploy: toDeploy.map(d => d.display),
-      remove: toRemove.map(d => d.display),
-      allocate: toAllocate.map(d => d.display),
-      settle: toSettle.map(
-        a => `${a.id} (deployment: ${a.subgraphDeployment.id})`,
-      ),
+    // Identify which subgraphs to deploy and which to remove
+    const deploy = targetDeployments.filter(
+      deployment => !deploymentInList(activeDeployments, deployment),
+    )
+    const remove = activeDeployments.filter(
+      deployment => !deploymentInList(targetDeployments, deployment),
+    )
+
+    this.logger.info('Deployment changes', {
+      deploy: deploy.map(id => id.display),
+      remove: remove.map(id => id.display),
     })
-
-    // Settle first
-    for (const allocation of toSettle) {
-      await this.network.settle(allocation)
-    }
-
-    // Allocate to all deployments worth indexing and that we haven't
-    // allocated to yet
-    if (toAllocate.length > 0) {
-      const globalRule = rules.find(
-        rule => rule.deployment === INDEXING_RULE_GLOBAL,
-      )
-      for (const deployment of toAllocate) {
-        const allocation =
-          rules.find(rule => rule.deployment === deployment.bytes32)
-            ?.allocationAmount || globalRule?.allocationAmount
-
-        // It is safe to assume allocation is not null since a `global` rule is ensure to exist during `indexer-agent` startup
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        await this.network.allocate(deployment, allocation!)
-      }
-    }
 
     // Deploy/remove up to 10 subgraphs in parallel
     const queue = new PQueue({ concurrency: 10 })
 
     // Index all new deployments worth indexing
-    for (const deployment of toDeploy) {
-      const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
+    queue.addAll(
+      deploy.map(deployment => async () => {
+        const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
-      queue.add(async () => {
-        this.logger.info(`Begin indexing subgraph deployment`, {
+        this.logger.info(`Index subgraph deployment`, {
           name,
           deployment: deployment.display,
         })
@@ -324,17 +221,182 @@ class Agent {
         // Note: we're not waiting here, as sometimes indexing a subgraph
         // will block if the IPFS files cannot be retrieved
         this.indexer.ensure(name, deployment)
-      })
-    }
+      }),
+    )
 
     // Stop indexing deployments that are no longer worth indexing
-    for (const deployment of toRemove) {
-      queue.add(async () => {
-        await this.indexer.remove(deployment)
-      })
-    }
+    queue.addAll(
+      remove.map(deployment => async () => this.indexer.remove(deployment)),
+    )
 
     await queue.onIdle()
+  }
+
+  async reconcileAllocations(
+    activeAllocations: Allocation[],
+    targetDeployments: SubgraphDeploymentID[],
+    rules: IndexingRuleAttributes[],
+    currentEpoch: number,
+    maxAllocationEpochs: number,
+    desiredStaggerEpochs: number,
+  ): Promise<void> {
+    const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
+
+    // Bounding
+    const staggerEpochs = Math.max(
+      0,
+      Math.min(desiredStaggerEpochs, allocationLifetime - 1),
+    )
+
+    this.logger.info(`Reconcile allocations`, {
+      currentEpoch,
+      maxAllocationEpochs,
+      allocationLifetime,
+      desiredStaggerEpochs,
+      effectiveStaggerEpochs: staggerEpochs,
+      active: activeAllocations.map(allocation => ({
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id.display,
+        createdAtEpoch: allocation.createdAtEpoch,
+      })),
+    })
+
+    // Calculate the union of active deployments and target deployments
+    const deployments = [
+      ...dedupeWith((a, b) => a.bytes32 === b.bytes32, [
+        ...targetDeployments.map(deployment => deployment),
+        ...activeAllocations.map(
+          allocation => allocation.subgraphDeployment.id,
+        ),
+      ]),
+    ]
+
+    // Group allocations by deployment
+    const allocationsByDeployment = groupBy(
+      allocation => allocation.subgraphDeployment.id.bytes32,
+      activeAllocations,
+    )
+
+    await pMap(
+      deployments,
+      async deployment => {
+        const allocations = allocationsByDeployment[deployment.bytes32]
+
+        // Identify all allocations that have reached the end of their lifetime
+        let expiredAllocations = allocations.filter(
+          allocation =>
+            allocation.createdAtEpoch + allocationLifetime >= currentEpoch,
+        )
+
+        // The network subgraph may be behind and reporting outdated allocation
+        // data; don't settle allocations that are already settled on chain
+        expiredAllocations = await pFilter(
+          expiredAllocations,
+          async allocation => {
+            try {
+              this.logger.trace(
+                `Cross-checking allocation state with contracts`,
+                {
+                  allocation: allocation.id,
+                },
+              )
+              const onChainAllocation = await this.network.contracts.staking.getAllocation(
+                allocation.id,
+              )
+              return onChainAllocation.settledAtEpoch !== BigNumber.from('0')
+            } catch (error) {
+              this.logger.warn(
+                `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
+                {
+                  allocation: allocation.id,
+                  error: error.message,
+                },
+              )
+              return true
+            }
+          },
+        )
+
+        this.logger.info(`Settle expired allocations`, {
+          allocations: expiredAllocations.map(allocation => allocation.id),
+        })
+
+        // Settle expired allocations
+        const settledAllocations = await pFilter(
+          expiredAllocations,
+          async allocation => await this.network.settle(allocation),
+          {
+            concurrency: 1,
+          },
+        )
+
+        // Check if the deployment is worth indexing it all; if not, then
+        // we don't need to create any new allocations; we'll fade out our
+        // allocation capacity
+        if (!deploymentInList(targetDeployments, deployment)) {
+          this.logger.debug(
+            `Subgraph deployment is no longer worth indexing; fade out capacity by not creating new allocations`,
+            {
+              deployment: deployment.display,
+            },
+          )
+          return
+        }
+
+        const maxCreatedAtEpoch = allocations.reduce(
+          (max, allocation) => Math.max(max, allocation.createdAtEpoch, 0),
+          0,
+        )
+
+        // Check if we should create any new allocations; if the check
+        // below is true, then we still have some time until the staggered
+        // allocations should be created
+        if (maxCreatedAtEpoch + staggerEpochs > currentEpoch) {
+          this.logger.debug(
+            `Subgraph deployment requires no new (staggered) allocaitons yet`,
+            {
+              deployment: deployment.display,
+              maxCreatedAtEpoch,
+              staggerEpochs,
+              currentEpoch,
+            },
+          )
+          return
+        }
+
+        // Check if we have an indexingRule for the deployment
+        const rule =
+          rules.find(rule => rule.deployment === deployment.bytes32) ||
+          rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL)
+
+        if (rule === null || rule === undefined) {
+          this.logger.warn(
+            `Programmer error: No index rule found for deployment, which conflicts with it being considered worth indexing`,
+            { deployment: deployment.display },
+          )
+          return
+        }
+
+        const parallelAllocations = Math.max(1, rule.parallelAllocations || 1)
+
+        const allocationsToCreate = Math.max(
+          0,
+          parallelAllocations -
+            (allocations.length - settledAllocations.length),
+        )
+
+        const amountPerAllocation = (rule.allocationAmount
+          ? BigNumber.from(rule.allocationAmount)
+          : this.indexer.defaultAllocationAmount
+        ).div(parallelAllocations)
+
+        await pMap(
+          repeat(amountPerAllocation, allocationsToCreate),
+          async amount => await this.network.allocate(deployment, amount),
+        )
+      },
+      { concurrency: 1 },
+    )
   }
 }
 
@@ -345,7 +407,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexerManagement,
     config.logger,
     config.indexNodeIDs,
-    config.defaultAllocation,
+    config.defaultAllocationAmount,
   )
   const network = await Network.create(
     config.logger,

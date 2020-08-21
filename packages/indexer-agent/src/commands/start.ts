@@ -6,6 +6,7 @@ import {
   defineIndexerManagementModels,
   createIndexerManagementServer,
   createIndexerManagementClient,
+  parseGRT,
 } from '@graphprotocol/common-ts'
 
 import { startAgent } from '../agent'
@@ -67,11 +68,11 @@ export default {
             [],
           ),
       })
-      .option('default-deployment-allocation', {
+      .option('default-allocation-amount', {
         description:
-          'Default amount of GRT to allocate to each subgraph deployment',
+          'Default amount of GRT to allocate to a subgraph deployment',
         type: 'string',
-        default: '1',
+        default: '0.01',
         required: false,
       })
       .option('indexer-management-port', {
@@ -156,7 +157,7 @@ export default {
       ),
       indexNodeIDs: argv.indexNodeIds,
       indexerManagement: indexerManagementClient,
-      defaultAllocation: argv.defaultDeploymentAllocation,
+      defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
     })
   },
 }
