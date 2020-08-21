@@ -362,13 +362,15 @@ export class Network {
       +this.indexerGeoCoordinates[1],
     )
 
+    const logger = this.logger.child({
+      address: this.indexerAddress,
+      url: this.indexerUrl,
+      geoCoordinates: this.indexerGeoCoordinates,
+      geoHash,
+    })
+
     try {
-      this.logger.info(`Register indexer`, {
-        address: this.indexerAddress,
-        url: this.indexerUrl,
-        geoCoordinates: this.indexerGeoCoordinates,
-        geoHash,
-      })
+      logger.info(`Register indexer`)
 
       // Register the indexer (only if it hasn't been registered yet or
       // if its URL is different from what is registered on chain)
@@ -380,11 +382,7 @@ export class Network {
           this.indexerAddress,
         )
         if (service.url === this.indexerUrl) {
-          this.logger.info(`Indexer already registered`, {
-            address: this.indexerAddress,
-            url: service.url,
-            geoHash: service.geohash,
-          })
+          logger.info(`Indexer already registered`)
           return
         }
       }
@@ -394,7 +392,7 @@ export class Network {
           gasLimit: 1000000,
           gasPrice: utils.parseUnits('10', 'gwei'),
         }),
-        this.logger.child({ action: 'register' }),
+        logger.child({ action: 'register' }),
       )
       const event = receipt.events?.find((event) =>
         event.topics.includes(
@@ -405,21 +403,10 @@ export class Network {
       )
       assert.ok(event)
 
-      const eventInputs = this.contracts.serviceRegistry.interface.decodeEventLog(
-        'ServiceRegistered',
-        event.data,
-        event.topics,
-      )
-      this.logger.info(`Successfully registered indexer`, {
-        address: eventInputs.indexer,
-        url: eventInputs.url,
-        goeHash: eventInputs.geohash,
-      })
+      logger.info(`Successfully registered indexer`)
     } catch (error) {
-      this.logger.error(`Failed to register indexer`, {
-        address: this.indexerAddress,
-        url: this.indexerUrl,
-        error,
+      logger.error(`Failed to register indexer`, {
+        error: error.message || error,
       })
       throw error
     }
@@ -432,17 +419,16 @@ export class Network {
     const amount = parseGRT(allocation)
     const price = parseGRT('0.01')
 
-    this.logger.info(`Identify current allocation`, {
-      deployment: deployment.display,
-    })
+    const logger = this.logger.child({ deployment: deployment.display })
+
+    logger.info(`Identify current allocations`)
     const currentAllocations = await this.deploymentAllocations(deployment)
-    this.logger.info(`Current allocations`, { allocations: currentAllocations })
+    logger.info(`Current allocations`, { allocations: currentAllocations })
 
     // For now: Cannot allocate (for now) if we have already allocated to this
     // subgraph
     if (currentAllocations.length > 0) {
-      this.logger.info(`Already allocated on subgraph deployment`, {
-        deployment: deployment.display,
+      logger.info(`Already allocated on subgraph deployment`, {
         amountGRT: formatGRT(currentAllocations[0].allocatedTokens),
         allocationId: currentAllocations[0].id,
         epoch: currentAllocations[0].createdAtEpoch,
@@ -451,8 +437,7 @@ export class Network {
     }
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    this.logger.info(`Allocate to subgraph deployment`, {
-      deployment: deployment.display,
+    logger.info(`Allocate to subgraph deployment`, {
       amountGRT: formatGRT(amount),
       epoch: currentEpoch.toString(),
     })
@@ -482,8 +467,7 @@ export class Network {
       )
     }
 
-    this.logger.info(`Allocate`, {
-      deployment: deployment.display,
+    logger.info(`Allocate`, {
       amount: formatGRT(amount),
       uncompressedPublicKey,
       create2Address: ethers.constants.AddressZero,
@@ -500,7 +484,7 @@ export class Network {
         price,
         txOverrides,
       ),
-      this.logger.child({ action: 'allocate' }),
+      logger.child({ action: 'allocate' }),
     )
 
     const event = receipt.events?.find((event) =>
@@ -523,9 +507,7 @@ export class Network {
       event.topics,
     )
 
-    this.logger.info(`Successfully allocated to subgraph deployment`, {
-      deployment: new SubgraphDeploymentID(eventInputs.subgraphDeploymentID)
-        .display,
+    logger.info(`Successfully allocated to subgraph deployment`, {
       amountGRT: formatGRT(eventInputs.tokens),
       allocationId: eventInputs.channelID,
       epoch: eventInputs.epoch.toString(),
@@ -533,27 +515,21 @@ export class Network {
   }
 
   async settle(allocation: Allocation): Promise<void> {
+    const logger = this.logger.child({
+      allocation: allocation.id,
+      deployment: allocation.subgraphDeployment.id.display,
+      createdAtEpoch: allocation.createdAtEpoch,
+    })
     try {
-      this.logger.info(`Settle allocation`, {
-        id: allocation.id,
-        deployment: allocation.subgraphDeployment.id.display,
-        createdAtEpoch: allocation.createdAtEpoch,
-      })
+      logger.info(`Settle allocation`)
       await Ethereum.executeTransaction(
         this.contracts.staking.settle(allocation.id),
-        this.logger.child({ action: 'settle allocation' }),
+        logger.child({ action: 'settle' }),
       )
-      this.logger.info(`Settled allocation`, {
-        id: allocation.id,
-        deployment: allocation.subgraphDeployment.id.display,
-        createdAtEpoch: allocation.createdAtEpoch,
-      })
+      logger.info(`Successfully settled allocation`)
     } catch (error) {
-      this.logger.warn(`Failed to settle allocation`, {
-        id: allocation.id,
-        deployment: allocation.subgraphDeployment.id,
-        createdAtEpoch: allocation.createdAtEpoch,
-        error: error.message,
+      logger.warn(`Failed to settle allocation`, {
+        error: error.message || error,
       })
     }
   }
