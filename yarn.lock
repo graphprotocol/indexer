@@ -2048,10 +2048,10 @@
     "@openzeppelin/contracts" "3.0.1"
     ethers "4.0.45"
 
-"@statechannels/server-wallet@0.3.1":
-  version "0.3.1"
-  resolved "https://registry.npmjs.org/@statechannels/server-wallet/-/server-wallet-0.3.1.tgz#6d04ee882d7b7b36a8a13fb958190b21deed4b6b"
-  integrity sha512-pX2FYB42jFYjZjrJka4rjeSLbu3VZqDhF2bFRgCCgck8aDfjkm/B3dtiRI02WOrlvqZE0W30h+BaMihU00v2nw==
+"@statechannels/server-wallet@^0.3.2":
+  version "0.3.2"
+  resolved "https://registry.npmjs.org/@statechannels/server-wallet/-/server-wallet-0.3.2.tgz#d670d994392b440cc2bfbc16bf090682a0b62143"
+  integrity sha512-9aWDxpkf2uK3CvueNlX5T53/0zpoUZ4/pzhqJEx4LKcadreoyNlbVvPPFRrvBaGXTEU2/9+txwYAhPZ5Ep5BUw==
   dependencies:
     "@bitauth/libauth" "1.17.1"
     "@statechannels/client-api-schema" "^0.3.0"
