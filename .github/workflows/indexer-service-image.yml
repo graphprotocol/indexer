@@ -2,7 +2,7 @@ name: Indexer Service Image
 
 on:
   push:
-    branches: [liam/allocationManager]
+    branches: [master]
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
         with:
           username: jannispohlmann
           password: ${{secrets.dockerhub_token}}
-          repository: graphprotocol/indexer-service-sc
+          repository: graphprotocol/indexer-service
           tags: latest
           tag_with_sha: true
           dockerfile: Dockerfile.indexer-service
