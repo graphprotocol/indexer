@@ -12,7 +12,7 @@ import {
 } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
-import { Wallet, utils } from 'ethers'
+import { Wallet, utils, constants } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -79,7 +79,6 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
       if (joinResult.outbox.length !== 1) {
         throw new Error('Expected only one outbox item after joining channel')
       }
-      joinResult.outbox[0]
       const {
         /**
          * We expect two messages coming out of the wallet; the first
@@ -89,15 +88,21 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
          * during Phase 1, where channels are not funded on-chain, thus
          * signing the "post fund setup" is an instant operation.
          */
-        outbox: [
-          { params: outboundJoinedChannelState },
-          { params: outboundFundedChannelState },
-        ],
+        outbox: [{ params: outboundJoinedChannelState }],
       } = joinResult
 
       this.logger.info(`Channel creation succeeded`, {
         sender,
         channelid: channelResult.channelId,
+      })
+
+      // todo: remove these hardcoded assumptions
+      const {
+        outbox: [{ params: outboundPostFund2ChannelState }],
+      } = await this.serverWallet.updateChannelFunding({
+        channelId: channelResult.channelId,
+        token: constants.AddressZero,
+        amount: '100',
       })
 
       return {
@@ -108,9 +113,8 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
             // eslint-disable-next-line
             ((outboundJoinedChannelState as WireMessage).data as PushMessage)
               .signedStates![0],
-
             // eslint-disable-next-line
-            ((outboundFundedChannelState as WireMessage).data as PushMessage)
+            ((outboundPostFund2ChannelState as WireMessage).data as PushMessage)
               .signedStates![0],
           ],
         },

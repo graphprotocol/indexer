@@ -62,7 +62,7 @@ describe('PaymentManager', () => {
   })
 })
 
-describe.only('AllocationClient', () => {
+describe('AllocationClient', () => {
   let allocationClient: AllocationPaymentClient
 
   beforeAll(() => {
@@ -136,7 +136,7 @@ describe.only('AllocationClient', () => {
     expect(nextState).toMatchObject({ turnNum: 5 })
   })
 
-  it.only('can accept a channel closure', async () => {
+  it('can accept a channel closure', async () => {
     await allocationClient.handleMessage(mockCreatedChannelMessage())
     await allocationClient.handleMessage(mockPostFundMessage())
     const outbound = await allocationClient.handleMessage(mockCloseChannelMessage())
