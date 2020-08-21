@@ -2082,6 +2082,110 @@
   dependencies:
     ajv "6.11.0"
 
+"@thi.ng/api@^6.12.2":
+  version "6.12.2"
+  resolved "https://registry.npmjs.org/@thi.ng/api/-/api-6.12.2.tgz#32d78bec781be5bd3001f631b210e04938b4bacf"
+  integrity sha512-6HRiLzJxkzpae6yeaS7/+uea5yaT/nL5epEd47ALk7aI5X2dyPsNlIU4nUJdxgcQlUeUjZBgW8zwXsR+YRn+6A==
+  dependencies:
+    tslib "^2.0.1"
+
+"@thi.ng/arrays@^0.6.15":
+  version "0.6.15"
+  resolved "https://registry.npmjs.org/@thi.ng/arrays/-/arrays-0.6.15.tgz#b5b07536fe8299089630db7e74678e3ed7ea9b13"
+  integrity sha512-G16vNKSq5OrC3O+jdr4Qf78ZbM9hZldpyyTVHBZWNMJ0UNLYn0DtAthdBsewHBxomOKmw63owzdmG0L0bCbsqQ==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/checks" "^2.7.6"
+    "@thi.ng/compare" "^1.3.14"
+    "@thi.ng/equiv" "^1.0.29"
+    "@thi.ng/errors" "^1.2.19"
+    "@thi.ng/random" "^1.4.17"
+
+"@thi.ng/checks@^2.7.6":
+  version "2.7.6"
+  resolved "https://registry.npmjs.org/@thi.ng/checks/-/checks-2.7.6.tgz#5ee8a7426a3edc5d2e401fcb60d5904a773c6aad"
+  integrity sha512-mW9FKy6PrizXSjU9daPv+O4pWuXSHlr9QJTauRfM6Awfx0Z/0T416Q5LMmErTFxrIJQAzDP9W+q3x4leeJ4kvw==
+  dependencies:
+    tslib "^2.0.1"
+
+"@thi.ng/compare@^1.3.14":
+  version "1.3.14"
+  resolved "https://registry.npmjs.org/@thi.ng/compare/-/compare-1.3.14.tgz#38892311b1acaf8bb5b18001ba79dfc6d3fe9e48"
+  integrity sha512-sJkiJXMqPwFKbNylIm3Kk/MUgL018hlITzgOcgGKeaPYGMKs9x3fqm6/ijFLMbmxY6+qnobYZS6crL7IJ0vCmg==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+
+"@thi.ng/compose@^1.4.15":
+  version "1.4.15"
+  resolved "https://registry.npmjs.org/@thi.ng/compose/-/compose-1.4.15.tgz#85e9141a253f9e39f9ac06501bd37781f6a79e2c"
+  integrity sha512-iQP9v2sFyTKhnB9XtMYbbqQR+03ciJm3yKmY0/Ghr0wJijzaBtr+0ckju5shDduunsTmzdT+NbxFEKLHODVE5g==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/errors" "^1.2.19"
+
+"@thi.ng/dcons@^2.2.29":
+  version "2.2.29"
+  resolved "https://registry.npmjs.org/@thi.ng/dcons/-/dcons-2.2.29.tgz#51e99e91f7521eb0dd7430311e6353ebf4bea473"
+  integrity sha512-uTmWBXEfv6yBbADtO+VDt5qsf7+/YauirIiPHhwvJsgMDRmNSeaMZUfz+HkssFsUx4ztQKDycEmSIZOhppzCeg==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/checks" "^2.7.6"
+    "@thi.ng/compare" "^1.3.14"
+    "@thi.ng/equiv" "^1.0.29"
+    "@thi.ng/errors" "^1.2.19"
+    "@thi.ng/random" "^1.4.17"
+    "@thi.ng/transducers" "^7.2.2"
+
+"@thi.ng/equiv@^1.0.29":
+  version "1.0.29"
+  resolved "https://registry.npmjs.org/@thi.ng/equiv/-/equiv-1.0.29.tgz#b46d9a4ab0347e776eb796f1486fb437069b1846"
+  integrity sha512-mlcXfJ5OsXrPznFpBfX8lwtZdnRYe1GcT9TjsfaNKSHt0qdenq4oT3oAqG+KBFjnVFHIpdPRSmWumrHt2dUmHw==
+
+"@thi.ng/errors@^1.2.19":
+  version "1.2.19"
+  resolved "https://registry.npmjs.org/@thi.ng/errors/-/errors-1.2.19.tgz#efc06edf056c275c88167d5e5c0b4eeb5b44817c"
+  integrity sha512-KkrAXljfJsR1dLnEPI5mj5LLsxHyg15HswkQRYTzZqLMFLxPVEtYK3F0DdNU+W79T+6pBl1C9QABVAfaczrRTw==
+  dependencies:
+    tslib "^2.0.1"
+
+"@thi.ng/iterators@^5.1.36":
+  version "5.1.36"
+  resolved "https://registry.npmjs.org/@thi.ng/iterators/-/iterators-5.1.36.tgz#a4e218722739230e6f16a8d5e4e4baa74552504b"
+  integrity sha512-WC6F82WNanK0PxECyLbtj64rcFcCLaG5CWNN+9c657K68+hTNOh/P3wrM2M+CjzH2JSF3Baf67oLBvX9dcj/Fg==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/dcons" "^2.2.29"
+    "@thi.ng/errors" "^1.2.19"
+
+"@thi.ng/math@^2.0.3":
+  version "2.0.3"
+  resolved "https://registry.npmjs.org/@thi.ng/math/-/math-2.0.3.tgz#753fb68b1527146d0fe0096831421130fc7ef311"
+  integrity sha512-QhT3mU021UCI/RzzVNU26G8/r6qLc46s2cnFpurf0YIBzmhsbvhTchFDFrQ9r9mJmmqQHczfWnJU/wURqmsxLw==
+  dependencies:
+    tslib "^2.0.1"
+
+"@thi.ng/random@^1.4.17":
+  version "1.4.17"
+  resolved "https://registry.npmjs.org/@thi.ng/random/-/random-1.4.17.tgz#abec6f09d027d3acf7e7647923906dd23a7c34e8"
+  integrity sha512-yK9UJgu230VCNuf+1K5upJsg6qtkxDZDQxHKHhl3oz8vb6ATStyL5yBSIE2FYoiN8c6udB6SsXwsQxmCPVWDIQ==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/checks" "^2.7.6"
+
+"@thi.ng/transducers@^7.2.2":
+  version "7.2.2"
+  resolved "https://registry.npmjs.org/@thi.ng/transducers/-/transducers-7.2.2.tgz#b84b2bd0bc6e2115e8bb97a57bfab210ee7d64a7"
+  integrity sha512-ytvdvoG+rUHT0+SzjRFoCpM4tWgp4IADlnN4gvz1TXebNOzTrPlmi+/6obJXTVZ219K7ZvVCgBlNKKbg/cqHYw==
+  dependencies:
+    "@thi.ng/api" "^6.12.2"
+    "@thi.ng/arrays" "^0.6.15"
+    "@thi.ng/checks" "^2.7.6"
+    "@thi.ng/compare" "^1.3.14"
+    "@thi.ng/compose" "^1.4.15"
+    "@thi.ng/errors" "^1.2.19"
+    "@thi.ng/math" "^2.0.3"
+    "@thi.ng/random" "^1.4.17"
+
 "@types/babel__core@^7.1.7":
   version "7.1.9"
   resolved "https://registry.npmjs.org/@types/babel__core/-/babel__core-7.1.9.tgz#77e59d438522a6fb898fa43dc3455c6e72f3963d"
@@ -2590,6 +2694,14 @@ agentkeepalive@^3.4.1:
   integrity sha512-e0L/HNe6qkQ7H19kTlRRqUibEAwDK5AFk6y3PtMsuut2VAH6+Q4xZml1tNDJD7kSAyqmbG/K08K5WEJYtUrSlQ==
   dependencies:
     humanize-ms "^1.2.1"
+
+aggregate-error@^3.0.0:
+  version "3.1.0"
+  resolved "https://registry.npmjs.org/aggregate-error/-/aggregate-error-3.1.0.tgz#92670ff50f5359bdb7a3e0d40d0ec30c5737687a"
+  integrity sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==
+  dependencies:
+    clean-stack "^2.0.0"
+    indent-string "^4.0.0"
 
 ajv@6.11.0:
   version "6.11.0"
@@ -3560,6 +3672,11 @@ class-utils@^0.3.5:
     define-property "^0.2.5"
     isobject "^3.0.0"
     static-extend "^0.1.1"
+
+clean-stack@^2.0.0:
+  version "2.2.0"
+  resolved "https://registry.npmjs.org/clean-stack/-/clean-stack-2.2.0.tgz#ee8472dbb129e727b31e8a10a427dee9dfe4008b"
+  integrity sha512-4diC9HaTE+KRAMWhDhrGOECgWZxoevMc5TlkObMqNSsVU62PYzXZ/SMTjzyGAFF1YusgxGcSWTEXBhp0CPwQ1A==
 
 cli-cursor@^2.1.0:
   version "2.1.0"
@@ -9099,6 +9216,13 @@ p-map@^2.0.0, p-map@^2.1.0:
   resolved "https://registry.npmjs.org/p-map/-/p-map-2.1.0.tgz#310928feef9c9ecc65b68b17693018a665cea175"
   integrity sha512-y3b8Kpd8OAN444hxfBbFfj1FY/RjtTd8tzYwhUqNYXx0fXx2iX4maP4Qr6qhIKbQXI02wTLAda4fYUbDagTUFw==
 
+p-map@^4.0.0:
+  version "4.0.0"
+  resolved "https://registry.npmjs.org/p-map/-/p-map-4.0.0.tgz#bb2f95a5eda2ec168ec9274e06a747c3e2904d2b"
+  integrity sha512-/bjOqmgETBYB5BoEeGVea8dmvHb2m9GLy1E9W43yeyfP6QQCZGFNa+XRceJEuDB6zqr+gKpIAmlLebMpykw/MQ==
+  dependencies:
+    aggregate-error "^3.0.0"
+
 p-pipe@^1.2.0:
   version "1.2.0"
   resolved "https://registry.npmjs.org/p-pipe/-/p-pipe-1.2.0.tgz#4b1a11399a11520a67790ee5a0c1d5881d6befe9"
@@ -11432,7 +11556,7 @@ tslib@^1.10.0, tslib@^1.11.1, tslib@^1.8.1, tslib@^1.9.0, tslib@^1.9.3:
   resolved "https://registry.npmjs.org/tslib/-/tslib-1.13.0.tgz#c881e13cc7015894ed914862d276436fa9a47043"
   integrity sha512-i/6DQjL8Xf3be4K/E6Wgpekn5Qasl1usyw++dAA35Ue5orEn65VIxOA+YvNNl9HV3qv70T7CNwjODHZrLwvd1Q==
 
-tslib@^2.0.0:
+tslib@^2.0.0, tslib@^2.0.1:
   version "2.0.1"
   resolved "https://registry.npmjs.org/tslib/-/tslib-2.0.1.tgz#410eb0d113e5b6356490eec749603725b021b43e"
   integrity sha512-SgIkNheinmEBgx1IUNirK0TUD4X9yjjBRTqqjggWCU3pUEqIk3/Uwl3yRixYKT6WjQuGiwDv4NomL3wqRCj+CQ==
