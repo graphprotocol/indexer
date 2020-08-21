@@ -1,7 +1,7 @@
 import { SubgraphDeploymentID, Attestation } from '@graphprotocol/common-ts'
 import base58 from 'bs58'
 import { utils, Wallet, constants } from 'ethers'
-import { Allocation, PaidQuery } from '../types'
+import { Allocation, PaidQuery, toAddress } from '../types'
 import { State, makeDestination, BN, signState } from '@statechannels/wallet-core'
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
 import { Message as WireMessage } from '@statechannels/client-api-schema'
@@ -18,7 +18,7 @@ export const mockSubgraphId = (): SubgraphDeploymentID =>
   )
 
 export const mockAllocation = (): Allocation => ({
-  id: 'abc',
+  id: toAddress(constants.AddressZero),
   publicKey: '-- unused --',
   subgraphDeploymentID: mockSubgraphId(),
   createdAtEpoch: 0,

@@ -54,6 +54,7 @@ describe('PaymentManager', () => {
   })
 
   afterEach(async () => {
+    await serverWalletKnex('funding').truncate()
     await serverWalletKnex('channels').truncate()
   })
 
@@ -64,7 +65,7 @@ describe('PaymentManager', () => {
   it('can create an allocation client', () => {
     const testAlloc = mockAllocation()
     paymentManager.createAllocationPaymentClients([testAlloc])
-    const client = paymentManager.getAllocationPaymentClient('abc')
+    const client = paymentManager.getAllocationPaymentClient(constants.AddressZero)
     expect(client).toBeDefined()
     expect(client!.allocation).toBe(testAlloc)
   })
@@ -75,7 +76,7 @@ describe('PaymentManager', () => {
     beforeAll(() => {
       const testAlloc = mockAllocation()
       paymentManager.createAllocationPaymentClients([testAlloc])
-      allocationClient = paymentManager.getAllocationPaymentClient('abc')!
+      allocationClient = paymentManager.getAllocationPaymentClient(constants.AddressZero)!
     })
 
     it('can call joinChannel and auto-sign funding state', async () => {
