@@ -41,7 +41,7 @@ export class PaymentManager implements PaymentManagerInterface {
     // eslint-disable-next-line
     return `0x${(message.data as any).signedStates[0].participants[1].destination.substr(
       26,
-    )}`.toLowerCase()
+    )}`
   }
 
   createAllocationPaymentClients(allocations: Allocation[]): void {

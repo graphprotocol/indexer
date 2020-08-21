@@ -14,6 +14,7 @@ import { PaymentManager } from '../payment-manager'
 import { NetworkMonitor } from '../network-monitor'
 
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
+import { toAddress } from '../types'
 
 export default {
   command: 'start',
@@ -136,7 +137,8 @@ export default {
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
-    const { privateKey, address } = wallet
+    const privateKey = wallet.privateKey
+    const address = toAddress(wallet.address)
     await SigningWallet.query()
       .insert(SigningWallet.fromJson({ privateKey, address }))
       .catch(err => {
@@ -145,7 +147,7 @@ export default {
       })
       .finally(() => {
         logger.info('Seeded state channels wallet with account from mnemonic provided', {
-          address: wallet.address,
+          address,
         })
       })
     // Create payment manager

@@ -6,7 +6,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import { Wallet } from 'ethers'
-import { Allocation } from './types'
+import { Allocation, normalizeAllocation, toAddress } from './types'
 
 export interface AllocationsUpdatedEvent {
   added: Allocation[]
@@ -47,7 +47,7 @@ export class NetworkMonitor {
       url: url.toString(),
     })
 
-    const indexerAddress = wallet.address.toLowerCase()
+    const indexerAddress = toAddress(wallet.address)
 
     // eslint-disable-next-line no-constant-condition
     while (true) {
@@ -69,7 +69,7 @@ export class NetworkMonitor {
                 }
               }
             `,
-            { id: indexerAddress },
+            { id: indexerAddress.toLowerCase() },
             {
               requestPolicy: 'network-only',
             },
@@ -89,12 +89,13 @@ export class NetworkMonitor {
         // Extract the allocations
         const allocations: Allocation[] = result.data.indexer.allocations.map(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ({ id, publicKey, subgraphDeployment, createdAtEpoch }: any) => ({
-            id,
-            publicKey,
-            subgraphDeploymentID: new SubgraphDeploymentID(subgraphDeployment.id),
-            createdAtEpoch,
-          }),
+          ({ id, publicKey, subgraphDeployment, createdAtEpoch }: any) =>
+            normalizeAllocation({
+              id,
+              publicKey,
+              subgraphDeploymentID: new SubgraphDeploymentID(subgraphDeployment.id),
+              createdAtEpoch,
+            }),
         )
 
         // Identify allocation changes
