@@ -137,7 +137,7 @@ export default {
 
     logger.info('Successfully connected to database')
 
-    logger.info('Initiating server-wallet database migrations')
+    logger.info('Migrate server-wallet database')
     await knex.migrate.latest({
       directory: path.resolve(
         require.resolve('@statechannels/server-wallet'),
