@@ -75,6 +75,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * the running stage. Two outbound messages (turnNum 0 and 3) to be sent.
      */
     if (channelResult.status === 'proposed' && outbox.length === 0) {
+      const joinResult = await this.serverWallet.joinChannel(channelResult)
+      if (joinResult.outbox.length !== 1) {
+        throw new Error('Expected only one outbox item after joining channel')
+      }
+      joinResult.outbox[0]
       const {
         /**
          * We expect two messages coming out of the wallet; the first
@@ -88,7 +93,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
           { params: outboundJoinedChannelState },
           { params: outboundFundedChannelState },
         ],
-      } = await this.serverWallet.joinChannel(channelResult)
+      } = joinResult
 
       this.logger.info(`Channel creation succeeded`, {
         sender,
