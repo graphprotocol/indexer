@@ -12,6 +12,7 @@ import {
 } from '@graphprotocol/common-ts'
 import fetch from 'node-fetch'
 import { IndexingStatus } from './types'
+import { BigNumber } from 'ethers'
 
 export class Indexer {
   statuses: ApolloClient<NormalizedCacheObject>
@@ -19,7 +20,7 @@ export class Indexer {
   indexerManagement: IndexerManagementClient
   logger: Logger
   indexNodeIDs: string[]
-  defaultAllocation: string
+  defaultAllocationAmount: BigNumber
 
   constructor(
     adminEndpoint: string,
@@ -27,7 +28,7 @@ export class Indexer {
     indexerManagement: IndexerManagementClient,
     logger: Logger,
     indexNodeIDs: string[],
-    defaultAllocation: string,
+    defaultAllocationAmount: BigNumber,
   ) {
     this.indexerManagement = indexerManagement
     this.statuses = new ApolloClient({
@@ -42,7 +43,7 @@ export class Indexer {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.rpc = jayson.Client.http(adminEndpoint as any)
     this.indexNodeIDs = indexNodeIDs
-    this.defaultAllocation = defaultAllocation
+    this.defaultAllocationAmount = defaultAllocationAmount
   }
 
   async connect(): Promise<void> {
@@ -95,6 +96,7 @@ export class Indexer {
               indexingRules(merged: $merged) {
                 deployment
                 allocationAmount
+                parallelAllocations
                 maxAllocationPercentage
                 minSignal
                 maxSignal
@@ -141,7 +143,8 @@ export class Indexer {
 
         const defaults = {
           deployment: INDEXING_RULE_GLOBAL,
-          allocationAmount: this.defaultAllocation,
+          allocationAmount: this.defaultAllocationAmount.toString(),
+          parallelAllocations: 2,
           decisionBasis: 'rules',
         }
 
@@ -152,6 +155,7 @@ export class Indexer {
                 setIndexingRule(rule: $rule) {
                   deployment
                   allocationAmount
+                  parallelAllocations
                   maxAllocationPercentage
                   minSignal
                   maxSignal

@@ -11,7 +11,7 @@ export interface AgentConfig {
   adminEndpoint: string
   queryEndpoint: string
   indexerManagement: IndexerManagementClient
-  defaultAllocation: string
+  defaultAllocationAmount: BigNumber
   publicIndexerUrl: string
   indexerGeoCoordinates: [string, string]
   ethereumProvider: string
@@ -20,7 +20,7 @@ export interface AgentConfig {
   indexNodeIDs: string[]
 }
 
-interface SubgraphDeployment {
+export interface SubgraphDeployment {
   id: SubgraphDeploymentID
   stakedTokens: BigNumber
   signalAmount: BigNumber
