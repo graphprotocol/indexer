@@ -824,15 +824,15 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@^0.1.4":
-  version "0.1.4"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.1.4.tgz#c2bad40c801b30f0916ce126b3b8677b81e7fa46"
-  integrity sha512-DKwb+gToZDh0g9Ehd6dtbv6zCE7yKvcgEKFYQYVEB5e/Xb/4uxjbsLFjTfuPCbBSF3jU9iYgUxAnsdilW/WDnA==
+"@graphprotocol/common-ts@^0.1.6":
+  version "0.1.6"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.1.6.tgz#4f013e5a6aaf17f08dcf6d77593f8ebc5f647be2"
+  integrity sha512-yEcC57BIDIWGGIYp0bzO/61mXORERp5DHP2IGqWqA8d2gWIwryATN4qRJj3jBuWtJbdKbXpxMNrXLNLRuhgMDg==
   dependencies:
     "@connext/client" "^7.3.2"
     "@connext/store" "^7.3.2"
     "@connext/types" "^7.3.2"
-    "@graphprotocol/contracts" "^0.4.7-testnet-phase1"
+    "@graphprotocol/contracts" "^0.4.10-testnet-phase1"
     "@urql/core" "^1.12.3"
     "@urql/exchange-execute" "^1.0.1"
     body-parser "^1.19.0"
@@ -849,10 +849,10 @@
     prom-client "^12.0.0"
     sequelize "^6.3.4"
 
-"@graphprotocol/contracts@^0.4.7-testnet-phase1":
-  version "0.4.7-testnet-phase1"
-  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.4.7-testnet-phase1.tgz#cd3e722c09d81634dbc3dbc483bbdd55ca90e234"
-  integrity sha512-/8QVOp4gdeDIxWe3giKjV/W5bZ9QUcl2LXJtItjYObXBck5whGUE7ynqi9N8u3lSR+WEIL32qE8emt6EaPWsbA==
+"@graphprotocol/contracts@^0.4.10-testnet-phase1":
+  version "0.4.10-testnet-phase1"
+  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.4.10-testnet-phase1.tgz#f42ced0ce0195aae7a49a0fa2c94a1c4e902bc47"
+  integrity sha512-I0xzBEF00rAbvak18QAT4fCMaGC19Uv+StZolpt6dxZQGyNjGpJa8mdyXOEFbJvgk5Qhn9mkMINkAkbGZtb1kw==
 
 "@istanbuljs/load-nyc-config@^1.0.0":
   version "1.1.0"
