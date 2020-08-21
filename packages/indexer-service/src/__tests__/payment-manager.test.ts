@@ -7,12 +7,13 @@ process.env.SERVER_DB_NAME = 'indexer-sw'
 
 import { Wallet, constants } from 'ethers'
 
+import { createLogger, createMetrics } from '@graphprotocol/common-ts'
 import {
-  createLogger,
-  createMetrics,
-  SubgraphDeploymentID,
-} from '@graphprotocol/common-ts'
-import { signState, SignedState, calculateChannelId } from '@statechannels/wallet-core'
+  SignedState,
+  makeDestination,
+  SimpleAllocation,
+  BN,
+} from '@statechannels/wallet-core'
 
 // This is a bit awkward, but is convenient to create reproducible tests
 import serverWalletKnex from '@statechannels/server-wallet/lib/src/db/connection'
