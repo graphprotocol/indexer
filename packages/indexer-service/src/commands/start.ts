@@ -141,7 +141,7 @@ export default {
     await knex.migrate.latest({
       directory: path.resolve(
         require.resolve('@statechannels/server-wallet'),
-        '../../../../src/db/migrations',
+        '..', '..', '..', '..', 'src', 'db', 'migrations',
       ),
     })
     logger.info('Successfully migrated server-wallet database')
