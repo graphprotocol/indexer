@@ -166,13 +166,17 @@ export class Indexer {
           )
           .toPromise()
 
+        if (defaultGlobalRule.error) {
+          throw defaultGlobalRule.error
+        }
+
         this.logger.info(`Created default "global" indexing rule`, {
           rule: defaultGlobalRule.data.setIndexingRule,
         })
       }
     } catch (error) {
       this.logger.error('Failed to ensure default "global" indexing rule', {
-        error: error.message,
+        error: error.message || error,
       })
       throw error
     }
