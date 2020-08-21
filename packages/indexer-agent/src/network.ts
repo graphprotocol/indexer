@@ -414,27 +414,11 @@ export class Network {
 
   async allocate(
     deployment: SubgraphDeploymentID,
-    allocation: string,
+    amount: BigNumber,
   ): Promise<void> {
-    const amount = parseGRT(allocation)
     const price = parseGRT('0.01')
 
     const logger = this.logger.child({ deployment: deployment.display })
-
-    logger.info(`Identify current allocations`)
-    const currentAllocations = await this.deploymentAllocations(deployment)
-    logger.info(`Current allocations`, { allocations: currentAllocations })
-
-    // For now: Cannot allocate (for now) if we have already allocated to this
-    // subgraph
-    if (currentAllocations.length > 0) {
-      logger.info(`Already allocated on subgraph deployment`, {
-        amountGRT: formatGRT(currentAllocations[0].allocatedTokens),
-        allocationId: currentAllocations[0].id,
-        epoch: currentAllocations[0].createdAtEpoch,
-      })
-      return
-    }
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     logger.info(`Allocate to subgraph deployment`, {
@@ -514,7 +498,7 @@ export class Network {
     })
   }
 
-  async settle(allocation: Allocation): Promise<void> {
+  async settle(allocation: Allocation): Promise<boolean> {
     const logger = this.logger.child({
       allocation: allocation.id,
       deployment: allocation.subgraphDeployment.id.display,
@@ -527,10 +511,12 @@ export class Network {
         logger.child({ action: 'settle' }),
       )
       logger.info(`Successfully settled allocation`)
+      return true
     } catch (error) {
       logger.warn(`Failed to settle allocation`, {
         error: error.message || error,
       })
+      return false
     }
   }
 

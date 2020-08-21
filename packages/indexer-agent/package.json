@@ -19,6 +19,7 @@
     "start:mykovan": "yarn prepare && node ./dist/index.js start --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"any display cargo fresh pioneer young sort garbage soccer smart country saddle\""
   },
   "dependencies": {
+    "@thi.ng/iterators": "^5.1.36",
     "@types/node": "^13.7.4",
     "apollo-cache-inmemory": "^1.6.3",
     "apollo-client": "^2.6.4",
@@ -31,6 +32,7 @@
     "jayson": "^3.3.0",
     "ngeohash": "^0.6.3",
     "p-filter": "^2.1.0",
+    "p-map": "^4.0.0",
     "p-queue": "^6.4.0",
     "yargs": "^15.1.0"
   },
