@@ -94,7 +94,7 @@ export class Indexer {
             query indexingRules($merged: Boolean!) {
               indexingRules(merged: $merged) {
                 deployment
-                allocation
+                allocationAmount
                 maxAllocationPercentage
                 minSignal
                 maxSignal
@@ -126,7 +126,7 @@ export class Indexer {
             query indexingRule($deployment: String!) {
               indexingRule(deployment: $deployment, merged: false) {
                 deployment
-                allocation
+                allocationAmount
                 decisionBasis
               }
             }
@@ -151,7 +151,7 @@ export class Indexer {
               mutation setIndexingRule($rule: IndexingRuleInput!) {
                 setIndexingRule(rule: $rule) {
                   deployment
-                  allocation
+                  allocationAmount
                   maxAllocationPercentage
                   minSignal
                   maxSignal

@@ -144,7 +144,7 @@ export class Network {
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     const globalRule = rules.find(
-      (rule) => rule.deployment === INDEXING_RULE_GLOBAL,
+      rule => rule.deployment === INDEXING_RULE_GLOBAL,
     )
 
     try {
@@ -176,11 +176,11 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .filter((deployment: any) => {
             const deploymentRule =
-              rules.find((rule) => rule.deployment === deployment.id) ||
+              rules.find(rule => rule.deployment === deployment.id) ||
               globalRule
 
             // The deployment is not eligible for deployment if it doesn't have an allocation amount
-            if (!deploymentRule?.allocation) {
+            if (!deploymentRule?.allocationAmount) {
               this.logger.debug(
                 `Could not find matching rule with non-null 'allocation':`,
                 {
@@ -394,7 +394,7 @@ export class Network {
         }),
         logger.child({ action: 'register' }),
       )
-      const event = receipt.events?.find((event) =>
+      const event = receipt.events?.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
             'ServiceRegistered',
@@ -487,7 +487,7 @@ export class Network {
       logger.child({ action: 'allocate' }),
     )
 
-    const event = receipt.events?.find((event) =>
+    const event = receipt.events?.find(event =>
       event.topics.includes(
         this.contracts.staking.interface.getEventTopic('AllocationCreated'),
       ),
@@ -523,7 +523,7 @@ export class Network {
     try {
       logger.info(`Settle allocation`)
       await Ethereum.executeTransaction(
-        this.contracts.staking.settle(allocation.id),
+        this.contracts.staking.settle(allocation.id, ethers.constants.HashZero),
         logger.child({ action: 'settle' }),
       )
       logger.info(`Successfully settled allocation`)
@@ -598,7 +598,7 @@ export class Network {
         ),
         this.logger.child({ action: 'approve' }),
       )
-      const approveEvent = approveReceipt.events?.find((event) =>
+      const approveEvent = approveReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.token.interface.getEventTopic('Approval'),
         ),
@@ -626,7 +626,7 @@ export class Network {
         this.contracts.staking.stake(missingStake, txOverrides),
         this.logger.child({ action: 'stake' }),
       )
-      const stakeEvent = stakeReceipt.events?.find((event) =>
+      const stakeEvent = stakeReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
         ),

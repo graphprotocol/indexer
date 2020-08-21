@@ -299,7 +299,7 @@ class Agent {
       for (const deployment of toAllocate) {
         const allocation =
           rules.find(rule => rule.deployment === deployment.bytes32)
-            ?.allocation || globalRule?.allocation
+            ?.allocationAmount || globalRule?.allocationAmount
 
         // It is safe to assume allocation is not null since a `global` rule is ensure to exist during `indexer-agent` startup
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
