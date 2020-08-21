@@ -15,7 +15,7 @@ export interface AllocationsUpdatedEvent {
 }
 
 const allocationInList = (allocations: Allocation[], needle: Allocation): boolean =>
-  allocations.find((allocation) => allocation.id === needle.id) !== undefined
+  allocations.find(allocation => allocation.id === needle.id) !== undefined
 
 export interface NetworkMonitorOptions {
   logger: Logger
@@ -100,12 +100,12 @@ export class NetworkMonitor {
 
         // Identify allocation changes
         const removed = this.allocations.filter(
-          (allocation) => !allocationInList(allocations, allocation),
+          allocation => !allocationInList(allocations, allocation),
         )
         const added = allocations.filter(
-          (newAllocation) => !allocationInList(this.allocations, newAllocation),
+          newAllocation => !allocationInList(this.allocations, newAllocation),
         )
-        const unchanged = this.allocations.filter((allocation) =>
+        const unchanged = this.allocations.filter(allocation =>
           allocationInList(allocations, allocation),
         )
 
@@ -127,7 +127,7 @@ export class NetworkMonitor {
       }
 
       // Wait 5s
-      await new Promise((r) => setTimeout(r, 5000))
+      await new Promise(r => setTimeout(r, 5000))
     }
   }
 }
