@@ -2,7 +2,7 @@ name: Indexer Service Image
 
 on:
   push:
-    branches: [master]
+    branches: [jannis/statechannels, master]
 
 jobs:
   build:
