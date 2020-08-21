@@ -141,7 +141,7 @@ export class Indexer {
 
         const defaults = {
           deployment: INDEXING_RULE_GLOBAL,
-          allocation: this.defaultAllocation,
+          allocationAmount: this.defaultAllocation,
           decisionBasis: 'rules',
         }
 
