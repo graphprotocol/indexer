@@ -1,6 +1,6 @@
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { Wallet } from 'ethers'
+import { Wallet, utils } from 'ethers'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -42,8 +42,17 @@ export interface QueryProcessor {
   executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
 }
 
+export type Address = string & { _isAddress: void }
+
+export const toAddress = (s: string) => utils.getAddress(s) as Address
+
+export const normalizeAllocation = (allocation: any): Allocation => {
+  allocation.id = toAddress(allocation.id)
+  return allocation
+}
+
 export interface Allocation {
-  id: string
+  id: Address
   publicKey: string
   subgraphDeploymentID: SubgraphDeploymentID
   createdAtEpoch: number

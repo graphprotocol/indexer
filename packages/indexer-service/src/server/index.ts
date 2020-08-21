@@ -178,6 +178,9 @@ export const createApp = async ({
         return res.status(200).send(response)
       } catch (error) {
         logger.error(`Failed to handle state channel message`, {
+          sender,
+          recipient,
+          data: JSON.stringify(data),
           error: error.message,
         })
         return res.status(500).send({ error: error.message })
