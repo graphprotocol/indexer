@@ -285,7 +285,7 @@ class Agent {
         // Identify all allocations that have reached the end of their lifetime
         let expiredAllocations = allocations.filter(
           allocation =>
-            allocation.createdAtEpoch + allocationLifetime >= currentEpoch,
+            allocation.createdAtEpoch + allocationLifetime <= currentEpoch,
         )
 
         // The network subgraph may be behind and reporting outdated allocation
