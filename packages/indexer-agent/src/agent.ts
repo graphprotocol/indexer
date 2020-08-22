@@ -393,6 +393,7 @@ class Agent {
         await pMap(
           repeat(amountPerAllocation, allocationsToCreate),
           async amount => await this.network.allocate(deployment, amount),
+          { concurrency: 1 },
         )
       },
       { concurrency: 1 },
