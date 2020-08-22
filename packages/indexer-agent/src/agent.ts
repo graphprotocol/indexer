@@ -302,16 +302,18 @@ class Agent {
           expiredAllocations,
           async allocation => {
             try {
-              this.logger.trace(
-                `Cross-checking allocation state with contracts`,
-                {
-                  allocation: allocation.id,
-                },
-              )
               const onChainAllocation = await this.network.contracts.staking.getAllocation(
                 allocation.id,
               )
-              return onChainAllocation.settledAtEpoch !== BigNumber.from('0')
+              const reallyExpired = !onChainAllocation.settledAtEpoch.eq('0')
+              this.logger.debug(
+                `Cross-checked allocation state with contracts`,
+                {
+                  allocation: allocation.id,
+                  reallyExpired,
+                },
+              )
+              return reallyExpired
             } catch (error) {
               this.logger.warn(
                 `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
