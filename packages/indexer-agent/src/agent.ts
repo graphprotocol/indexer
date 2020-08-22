@@ -161,7 +161,7 @@ class Agent {
           rules,
           epoch,
           maxAllocationEpochs,
-          Math.max(1, maxAllocationEpochs - 1),
+          Math.max(1, maxAllocationEpochs / 2),
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
@@ -353,7 +353,7 @@ class Agent {
         // allocations should be created
         if (maxCreatedAtEpoch + staggerEpochs > currentEpoch) {
           this.logger.debug(
-            `Subgraph deployment requires no new (staggered) allocaitons yet`,
+            `Subgraph deployment requires no new (staggered) allocations yet`,
             {
               deployment: deployment.display,
               maxCreatedAtEpoch,
