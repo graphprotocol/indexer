@@ -137,18 +137,19 @@ export default {
 
     logger.info('Successfully connected to database')
 
-    logger.info('Migrate server-wallet database')
-    await knex.migrate.latest({
-      loadExtensions: ['.js'],
-      directory: path.resolve(
-        require.resolve('@statechannels/server-wallet'),
-        '..',
-        '..',
-        'db',
-        'migrations',
-      ),
-    })
-    logger.info('Successfully migrated server-wallet database')
+    logger.warn('Temporarily disabled server-wallet migrations')
+    // logger.info('Migrate server-wallet database')
+    // await knex.migrate.latest({
+    //   loadExtensions: ['.js'],
+    //   directory: path.resolve(
+    //     require.resolve('@statechannels/server-wallet'),
+    //     '..',
+    //     '..',
+    //     'db',
+    //     'migrations',
+    //   ),
+    // })
+    // logger.info('Successfully migrated server-wallet database')
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
