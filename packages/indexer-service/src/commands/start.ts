@@ -14,7 +14,7 @@ import { QueryProcessor } from '../queries'
 import { PaymentManager } from '../payment-manager'
 import { NetworkMonitor } from '../network-monitor'
 
-import knex from '@statechannels/server-wallet/lib/src/db-admin/db-admin-connection'
+import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { toAddress } from '../types'
 
@@ -139,13 +139,11 @@ export default {
 
     logger.info('Migrate server-wallet database')
     await knex.migrate.latest({
+      loadExtensions: ['.js'],
       directory: path.resolve(
         require.resolve('@statechannels/server-wallet'),
         '..',
         '..',
-        '..',
-        '..',
-        'src',
         'db',
         'migrations',
       ),
