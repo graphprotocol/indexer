@@ -86,7 +86,7 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
-    const { subgraphDeploymentID, stateChannelMessage, allocationID, requestCID } = query
+    const { subgraphDeploymentID, allocationID, requestCID } = query
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,

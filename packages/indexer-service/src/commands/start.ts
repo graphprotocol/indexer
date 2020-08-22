@@ -141,7 +141,13 @@ export default {
     await knex.migrate.latest({
       directory: path.resolve(
         require.resolve('@statechannels/server-wallet'),
-        '..', '..', '..', '..', 'src', 'db', 'migrations',
+        '..',
+        '..',
+        '..',
+        '..',
+        'src',
+        'db',
+        'migrations',
       ),
     })
     logger.info('Successfully migrated server-wallet database')
@@ -152,7 +158,7 @@ export default {
     const address = toAddress(wallet.address)
     await SigningWallet.query()
       .insert(SigningWallet.fromJson({ privateKey, address }))
-      .catch(err => {
+      .catch(() => {
         // ignore duplicate entry error
         // handle constraint violation by warning that they already have a _different_ signing key
       })
