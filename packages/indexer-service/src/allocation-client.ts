@@ -4,7 +4,7 @@ import {
   GetStateResponse,
 } from '@statechannels/client-api-schema'
 import { Message as PushMessage } from '@statechannels/wallet-core'
-import { Logger, Attestation } from '@graphprotocol/common-ts'
+import { Logger } from '@graphprotocol/common-ts'
 
 import { Wallet } from 'ethers'
 
@@ -123,7 +123,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
   // eslint-disable-next-line
   async validatePayment(query: PaidQuery): Promise<string> {
-    const { subgraphDeploymentID, stateChannelMessage, requestCID } = query
+    const { stateChannelMessage } = query
 
     //
     // Decode as Message (client-api-schema?)
@@ -167,8 +167,9 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
 
   async provideAttestation(
     channelId: string,
-    query: PaidQuery,
-    attestation: Attestation,
+    // Unused:
+    // query: PaidQuery,
+    // attestation: Attestation,
   ): Promise<WireMessage> {
     const { appData, allocations } = await this.getChannelState(channelId)
 
@@ -186,7 +187,11 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
     return outboundMsg as WireMessage
   }
 
-  async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
+  async declineQuery(
+    channelId: string,
+    // Unused:
+    // query: PaidQuery
+  ): Promise<WireMessage> {
     const { appData, allocations } = await this.getChannelState(channelId)
 
     const {

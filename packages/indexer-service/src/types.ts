@@ -44,7 +44,7 @@ export interface QueryProcessor {
 
 export type Address = string & { _isAddress: void }
 
-export const toAddress = (s: string) => utils.getAddress(s) as Address
+export const toAddress = (s: string): Address => utils.getAddress(s) as Address
 
 export const normalizeAllocation = (allocation: any): Allocation => {
   allocation.id = toAddress(allocation.id)
