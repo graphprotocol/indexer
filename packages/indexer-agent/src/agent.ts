@@ -258,6 +258,7 @@ class Agent {
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
+        closeAtEpoch: allocation.createdAtEpoch + allocationLifetime,
       })),
     })
 
@@ -285,7 +286,14 @@ class Agent {
         // Identify all allocations that have reached the end of their lifetime
         let expiredAllocations = allocations.filter(
           allocation =>
-            allocation.createdAtEpoch + allocationLifetime <= currentEpoch,
+            currentEpoch >= allocation.createdAtEpoch + allocationLifetime,
+        )
+
+        this.logger.debug(
+          `Allocations that are expired according to the network subgraph:`,
+          {
+            allocations: expiredAllocations.map(allocation => allocation.id),
+          },
         )
 
         // The network subgraph may be behind and reporting outdated allocation
@@ -370,25 +378,33 @@ class Agent {
           rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL)
 
         if (rule === null || rule === undefined) {
-          this.logger.warn(
-            `Programmer error: No index rule found for deployment, which conflicts with it being considered worth indexing`,
+          this.logger.debug(
+            `No indexing rule found for deployment, ` +
+              `which conflicts with it being considered worth indexing ` +
+              `(unless this is the network subgraph)`,
             { deployment: deployment.display },
           )
           return
         }
 
         const parallelAllocations = Math.max(1, rule.parallelAllocations || 1)
-
         const allocationsToCreate = Math.max(
           0,
           parallelAllocations -
             (allocations.length - settledAllocations.length),
         )
-
         const amountPerAllocation = (rule.allocationAmount
           ? BigNumber.from(rule.allocationAmount)
           : this.indexer.defaultAllocationAmount
         ).div(parallelAllocations)
+
+        this.logger.info(`Create allocations for subgraph deployment`, {
+          deployment: deployment.display,
+          targetParallelAllocations: parallelAllocations,
+          targetAllocationAmount: rule.allocationAmount,
+          allocationsToCreate,
+          amountPerAllocation,
+        })
 
         await pMap(
           repeat(amountPerAllocation, allocationsToCreate),
