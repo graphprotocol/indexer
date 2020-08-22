@@ -184,7 +184,7 @@ class Agent {
     ): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
 
     activeDeployments = activeDeployments.filter(uniqueDeploymentsOnly)
-    targetDeployments = activeDeployments.filter(uniqueDeploymentsOnly)
+    targetDeployments = targetDeployments.filter(uniqueDeploymentsOnly)
 
     this.logger.info('Reconcile deployments', {
       active: activeDeployments.map(id => id.display),
@@ -280,7 +280,7 @@ class Agent {
     await pMap(
       deployments,
       async deployment => {
-        const allocations = allocationsByDeployment[deployment.bytes32]
+        const allocations = allocationsByDeployment[deployment.bytes32] || []
 
         // Identify all allocations that have reached the end of their lifetime
         let expiredAllocations = allocations.filter(
