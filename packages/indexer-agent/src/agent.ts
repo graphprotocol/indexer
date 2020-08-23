@@ -4,8 +4,9 @@ import {
   INDEXING_RULE_GLOBAL,
   SubgraphDeploymentID,
   parseGRT,
+  formatGRT,
 } from '@graphprotocol/common-ts'
-import { dedupeWith, groupBy, repeat } from '@thi.ng/iterators'
+import { groupBy, repeat } from '@thi.ng/iterators'
 import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
@@ -292,7 +293,16 @@ class Agent {
     await pMap(
       deployments,
       async deployment => {
-        const allocations = allocationsByDeployment[deployment.bytes32] || []
+        // NOTE: `groupBy` uses the `JSON.stringify` representation as the keys,
+        // so we need to convert here as well.
+        const allocations =
+          allocationsByDeployment[JSON.stringify(deployment.bytes32)] || []
+
+        this.logger.debug(`Active allocations for subgraph deployment`, {
+          deployment: deployment.display,
+          number: allocations.length,
+          allocations: allocations.map(allocation => allocation.id),
+        })
 
         // Identify all allocations that have reached the end of their lifetime
         let expiredAllocations = allocations.filter(
@@ -301,11 +311,15 @@ class Agent {
         )
 
         this.logger.debug(
-          `Allocations that are expired according to the network subgraph:`,
+          `Allocations that have expired according to the network subgraph`,
           {
+            deployment: deployment.display,
+            number: expiredAllocations.length,
             allocations: expiredAllocations.map(allocation => allocation.id),
           },
         )
+
+        const expiredAllocationsInSubgraph = expiredAllocations.length
 
         // The network subgraph may be behind and reporting outdated allocation
         // data; don't settle allocations that are already settled on chain
@@ -316,19 +330,12 @@ class Agent {
               const onChainAllocation = await this.network.contracts.staking.getAllocation(
                 allocation.id,
               )
-              const reallyExpired = !onChainAllocation.settledAtEpoch.eq('0')
-              this.logger.debug(
-                `Cross-checked allocation state with contracts`,
-                {
-                  allocation: allocation.id,
-                  reallyExpired,
-                },
-              )
-              return reallyExpired
+              return onChainAllocation.settledAtEpoch.eq('0')
             } catch (error) {
               this.logger.warn(
                 `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
                 {
+                  deployment: deployment.display,
                   allocation: allocation.id,
                   error: error.message,
                 },
@@ -337,6 +344,13 @@ class Agent {
             }
           },
         )
+
+        this.logger.info(`Cross-checked expired allocations with contracts`, {
+          deployment: deployment.display,
+          alreadySettled:
+            expiredAllocationsInSubgraph - expiredAllocations.length,
+          stillToSettle: expiredAllocations.length,
+        })
 
         this.logger.info(`Settle expired allocations`, {
           allocations: expiredAllocations.map(allocation => allocation.id),
@@ -406,17 +420,21 @@ class Agent {
           parallelAllocations -
             (allocations.length - settledAllocations.length),
         )
-        const amountPerAllocation = (rule.allocationAmount
+        const targetAllocationAmount = rule.allocationAmount
           ? BigNumber.from(rule.allocationAmount)
           : this.indexer.defaultAllocationAmount
-        ).div(parallelAllocations)
+        const amountPerAllocation = targetAllocationAmount.div(
+          parallelAllocations,
+        )
 
         this.logger.info(`Create allocations for subgraph deployment`, {
           deployment: deployment.display,
-          targetParallelAllocations: parallelAllocations,
-          targetAllocationAmount: rule.allocationAmount,
+          targetAllocations: parallelAllocations,
+          activeAllocationsAfterSettling:
+            allocations.length - settledAllocations.length,
           allocationsToCreate,
-          amountPerAllocation,
+          targetAllocationAmount: formatGRT(targetAllocationAmount),
+          amountPerAllocation: formatGRT(amountPerAllocation),
         })
 
         await pMap(
