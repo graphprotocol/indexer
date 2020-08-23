@@ -24,6 +24,16 @@ const deploymentInList = (
 ): boolean =>
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
+const uniqueDeploymentsOnly = (
+  value: SubgraphDeploymentID,
+  index: number,
+  array: SubgraphDeploymentID[],
+): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
+
+const uniqueDeployments = (
+  deployments: SubgraphDeploymentID[],
+): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
+
 const loop = async (f: () => Promise<boolean>, interval: number) => {
   // eslint-disable-next-line no-constant-condition
   while (true) {
@@ -183,14 +193,8 @@ class Agent {
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
   ): Promise<void> {
-    const uniqueDeploymentsOnly = (
-      value: SubgraphDeploymentID,
-      index: number,
-      array: SubgraphDeploymentID[],
-    ): boolean => array.findIndex(v => value.bytes32 === v.bytes32) === index
-
-    activeDeployments = activeDeployments.filter(uniqueDeploymentsOnly)
-    targetDeployments = targetDeployments.filter(uniqueDeploymentsOnly)
+    activeDeployments = uniqueDeployments(activeDeployments)
+    targetDeployments = uniqueDeployments(targetDeployments)
 
     this.logger.info('Reconcile deployments', {
       active: activeDeployments.map(id => id.display),
@@ -269,14 +273,15 @@ class Agent {
     })
 
     // Calculate the union of active deployments and target deployments
-    const deployments = [
-      ...dedupeWith((a, b) => a.bytes32 === b.bytes32, [
-        ...targetDeployments.map(deployment => deployment),
-        ...activeAllocations.map(
-          allocation => allocation.subgraphDeployment.id,
-        ),
-      ]),
-    ]
+    const deployments = uniqueDeployments([
+      ...targetDeployments,
+      ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
+    ])
+
+    this.logger.debug(`Deployments to reconcile allocations for`, {
+      number: deployments.length,
+      deployments: deployments.map(deployment => deployment.display),
+    })
 
     // Group allocations by deployment
     const allocationsByDeployment = groupBy(
