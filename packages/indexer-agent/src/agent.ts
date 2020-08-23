@@ -161,7 +161,13 @@ class Agent {
           rules,
           epoch,
           maxAllocationEpochs,
-          Math.max(1, maxAllocationEpochs / 2),
+
+          // The desired staggering (in epochs) between allocations is hard-coded
+          // right now; this will no longer matter when the gateway no longer calls
+          // "collect" on allocations when they are settled; there is a better way
+          // in the contracts to deal with parallel allocations than staggering their
+          // creation.
+          Math.floor(Math.max(1, maxAllocationEpochs / 2)),
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
