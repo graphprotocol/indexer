@@ -6,7 +6,12 @@ import { Stream } from 'stream'
 import { QueryProcessor } from '../types'
 import { utils } from 'ethers'
 import { createGraphQLServer } from './graphql'
-import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  Metrics,
+  SubgraphDeploymentID,
+  secureExpressApp,
+} from '@graphprotocol/common-ts'
 import { PaymentManager } from '../payment-manager'
 
 export interface ServerOptions {
@@ -37,6 +42,9 @@ export const createApp = async ({
   // Log requests to the logger stream
   app.use(morgan('tiny', { stream: loggerStream }))
   app.use(cors())
+
+  // Security
+  secureExpressApp(app)
 
   // Endpoint for health checks
   app.get('/', (_, res) => {
