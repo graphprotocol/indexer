@@ -254,7 +254,11 @@ export class Indexer {
     }
   }
 
-  async deploy(name: string, deployment: SubgraphDeploymentID): Promise<void> {
+  async deploy(
+    name: string,
+    deployment: SubgraphDeploymentID,
+    node_id: string,
+  ): Promise<void> {
     try {
       this.logger.info(`Deploy subgraph deployment`, {
         name,
@@ -263,6 +267,7 @@ export class Indexer {
       const response = await this.rpc.request('subgraph_deploy', {
         name,
         ipfs_hash: deployment.ipfsHash,
+        node_id: node_id,
       })
       if (response.error) {
         throw response.error
@@ -336,15 +341,15 @@ export class Indexer {
 
   async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      await this.create(name)
-      await this.deploy(name, deployment)
-
       // Pick a random index node to assign the deployment too; TODO: Improve
       // this to assign based on load (i.e. always pick the index node with the
       // least amount of deployments assigned)
       const targetNode = this.indexNodeIDs[
         Math.floor(Math.random() * this.indexNodeIDs.length)
       ]
+
+      await this.create(name)
+      await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
     } catch (error) {
       this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
