@@ -15,7 +15,7 @@ export interface ServerOptions {
   port?: number
   paymentManager: PaymentManager
   queryProcessor: QueryProcessor
-  freeQueryAuthToken: string
+  freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
 }
 
@@ -50,6 +50,11 @@ export const createApp = async ({
     await createGraphQLServer({ graphNodeStatusEndpoint }),
   )
 
+  let freeQueryAuthValue: string | undefined
+  if (freeQueryAuthToken) {
+    freeQueryAuthValue = `Bearer ${freeQueryAuthToken}`
+  }
+
   // Endpoint for subgraph queries
   app.post(
     '/subgraphs/id/:id',
@@ -78,8 +83,10 @@ export const createApp = async ({
 
       // Trusted indexer scenario: if the sender provides the free
       // query auth token, we do not require payment
-      const paymentRequired =
-        req.headers['authorization'] !== `Bearer ${freeQueryAuthToken}`
+      let paymentRequired = true
+      if (freeQueryAuthValue) {
+        paymentRequired = req.headers['authorization'] == freeQueryAuthValue
+      }
 
       if (paymentRequired) {
         // Regular scenario: a payment is required; fail if no
