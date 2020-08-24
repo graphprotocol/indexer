@@ -33,31 +33,6 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('postgres-host', {
-        description: 'Postgres host',
-        type: 'string',
-        required: true,
-      })
-      .option('postgres-port', {
-        description: 'Postgres port',
-        type: 'number',
-        default: 5432,
-      })
-      .option('postgres-username', {
-        description: 'Postgres username',
-        type: 'string',
-        required: true,
-      })
-      .option('postgres-password', {
-        description: 'Postres password',
-        type: 'string',
-        required: true,
-      })
-      .option('postgres-database', {
-        description: 'Postgres database name',
-        type: 'string',
-        required: true,
-      })
       .option('port', {
         description: 'Port to serve from',
         type: 'number',
@@ -117,25 +92,6 @@ export default {
       logger: logger.child({ component: 'MetricsServer' }),
       registry: metrics.registry,
     })
-
-    logger.info('Connect to database', {
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      database: argv.postgresDatabase,
-    })
-
-    const sequelize = await connectDatabase({
-      logging: undefined,
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      username: argv.postgresUsername,
-      password: argv.postgresPassword,
-      database: argv.postgresDatabase,
-    })
-
-    await sequelize.sync()
-
-    logger.info('Successfully connected to database')
 
     logger.info('Migrate server-wallet database')
     await knex.migrate.latest({
