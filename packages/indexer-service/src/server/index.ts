@@ -158,7 +158,6 @@ export const createApp = async ({
       const { sender, recipient, data } = req.body
 
       const allocationId = paymentManager.getAllocationIdFromMessage(req.body)
-
       const client = paymentManager.getAllocationPaymentClient(allocationId)
 
       if (!client) {
@@ -166,10 +165,10 @@ export const createApp = async ({
           allocationId,
         })
         return res
-          .status(500)
+          .status(404)
           .contentType('application/json')
           .send({
-            error: `Indexer at ${req.url} does not recognize allocation ${allocationId}`,
+            error: `Allocation not found: ${allocationId}`,
           })
       }
 
