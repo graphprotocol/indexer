@@ -447,13 +447,26 @@ class Agent {
       // creation epochs come first
       halfExpired.sort((a, b) => a.createdAtEpoch - b.createdAtEpoch)
 
-      // Settle the first half of the half-expired allocations
+      // Settle the first half of the half-expired allocations;
+      // Never settle more than half of the active allocations though!
       halfExpired = [
-        ...ti.take(Math.ceil((halfExpired.length * 1.0) / 2), halfExpired),
+        ...ti.take(
+          Math.min(
+            // Settle half of the half-expired allocations,
+            // leaving about 50% of the existing allocations active;
+            // could be less, hence the second value below
+            Math.ceil((halfExpired.length * 1.0) / 2),
+
+            // Guarantee that we're never settling more than 50% of the existing
+            // allocations
+            Math.floor(activeAllocations.length / 2),
+          ),
+          halfExpired,
+        ),
       ]
       if (halfExpired.length > 0) {
         logger.info(
-          `Settle half expired allocations to allow creating new ones early and avoid gaps`,
+          `Settle half-expired allocations to allow creating new ones early and avoid gaps`,
           {
             number: halfExpired.length,
             allocations: halfExpired.map(allocation => allocation.id),
