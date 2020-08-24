@@ -345,16 +345,18 @@ class Agent {
           },
         )
 
-        this.logger.info(`Cross-checked expired allocations with contracts`, {
-          deployment: deployment.display,
-          alreadySettled:
-            expiredAllocationsInSubgraph - expiredAllocations.length,
-          stillToSettle: expiredAllocations.length,
-        })
+        if (expiredAllocationsInSubgraph > 0) {
+          this.logger.info(`Cross-checked expired allocations with contracts`, {
+            deployment: deployment.display,
+            alreadySettled:
+              expiredAllocationsInSubgraph - expiredAllocations.length,
+            stillToSettle: expiredAllocations.length,
+          })
 
-        this.logger.info(`Settle expired allocations`, {
-          allocations: expiredAllocations.map(allocation => allocation.id),
-        })
+          this.logger.info(`Settle expired allocations`, {
+            allocations: expiredAllocations.map(allocation => allocation.id),
+          })
+        }
 
         // Settle expired allocations
         const settledAllocations = await pFilter(
