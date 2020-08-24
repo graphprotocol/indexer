@@ -6,7 +6,7 @@ import {
   parseGRT,
   formatGRT,
 } from '@graphprotocol/common-ts'
-import { groupBy, repeat } from '@thi.ng/iterators'
+import * as ti from '@thi.ng/iterators'
 import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
@@ -18,6 +18,11 @@ import pFilter from 'p-filter'
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
 }
+
+const allocationInList = (
+  list: Allocation[],
+  allocation: Allocation,
+): boolean => list.find(item => item.id === allocation.id) !== undefined
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -172,13 +177,6 @@ class Agent {
           rules,
           epoch,
           maxAllocationEpochs,
-
-          // The desired staggering (in epochs) between allocations is hard-coded
-          // right now; this will no longer matter when the gateway no longer calls
-          // "collect" on allocations when they are settled; there is a better way
-          // in the contracts to deal with parallel allocations than staggering their
-          // creation.
-          Math.floor(Math.max(1, maxAllocationEpochs / 2)),
         )
       } catch (error) {
         this.logger.warn(`Synchronization loop failed:`, {
@@ -249,27 +247,17 @@ class Agent {
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
     maxAllocationEpochs: number,
-    desiredStaggerEpochs: number,
   ): Promise<void> {
     const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
-
-    // Bounding
-    const staggerEpochs = Math.max(
-      0,
-      Math.min(desiredStaggerEpochs, allocationLifetime - 1),
-    )
 
     this.logger.info(`Reconcile allocations`, {
       currentEpoch,
       maxAllocationEpochs,
       allocationLifetime,
-      desiredStaggerEpochs,
-      effectiveStaggerEpochs: staggerEpochs,
       active: activeAllocations.map(allocation => ({
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
-        closeAtEpoch: allocation.createdAtEpoch + allocationLifetime,
       })),
     })
 
@@ -284,169 +272,234 @@ class Agent {
       deployments: deployments.map(deployment => deployment.display),
     })
 
-    // Group allocations by deployment
-    const allocationsByDeployment = groupBy(
-      allocation => allocation.subgraphDeployment.id.bytes32,
-      activeAllocations,
-    )
-
     await pMap(
       deployments,
       async deployment => {
-        // NOTE: `groupBy` uses the `JSON.stringify` representation as the keys,
-        // so we need to convert here as well.
-        const allocations =
-          allocationsByDeployment[JSON.stringify(deployment.bytes32)] || []
+        await this.reconcileDeploymentAllocations(
+          deployment,
 
-        this.logger.debug(`Active allocations for subgraph deployment`, {
-          deployment: deployment.display,
-          number: allocations.length,
-          allocations: allocations.map(allocation => allocation.id),
-        })
+          // Active allocations for the subgraph deployment
+          activeAllocations.filter(
+            allocation =>
+              allocation.subgraphDeployment.id.bytes32 === deployment.bytes32,
+          ),
 
-        // Identify all allocations that have reached the end of their lifetime
-        let expiredAllocations = allocations.filter(
-          allocation =>
-            currentEpoch >= allocation.createdAtEpoch + allocationLifetime,
-        )
+          // Whether the deployment is worth indexing
+          targetDeployments.find(
+            target => target.bytes32 === deployment.bytes32,
+          ) !== undefined,
 
-        this.logger.debug(
-          `Allocations that have expired according to the network subgraph`,
-          {
-            deployment: deployment.display,
-            number: expiredAllocations.length,
-            allocations: expiredAllocations.map(allocation => allocation.id),
-          },
-        )
-
-        const expiredAllocationsInSubgraph = expiredAllocations.length
-
-        // The network subgraph may be behind and reporting outdated allocation
-        // data; don't settle allocations that are already settled on chain
-        expiredAllocations = await pFilter(
-          expiredAllocations,
-          async allocation => {
-            try {
-              const onChainAllocation = await this.network.contracts.staking.getAllocation(
-                allocation.id,
-              )
-              return onChainAllocation.settledAtEpoch.eq('0')
-            } catch (error) {
-              this.logger.warn(
-                `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
-                {
-                  deployment: deployment.display,
-                  allocation: allocation.id,
-                  error: error.message,
-                },
-              )
-              return true
-            }
-          },
-        )
-
-        if (expiredAllocationsInSubgraph > 0) {
-          this.logger.info(`Cross-checked expired allocations with contracts`, {
-            deployment: deployment.display,
-            alreadySettled:
-              expiredAllocationsInSubgraph - expiredAllocations.length,
-            stillToSettle: expiredAllocations.length,
-          })
-
-          this.logger.info(`Settle expired allocations`, {
-            allocations: expiredAllocations.map(allocation => allocation.id),
-          })
-        }
-
-        // Settle expired allocations
-        const settledAllocations = await pFilter(
-          expiredAllocations,
-          async allocation => await this.network.settle(allocation),
-          {
-            concurrency: 1,
-          },
-        )
-
-        // Check if the deployment is worth indexing it all; if not, then
-        // we don't need to create any new allocations; we'll fade out our
-        // allocation capacity
-        if (!deploymentInList(targetDeployments, deployment)) {
-          this.logger.debug(
-            `Subgraph deployment is no longer worth indexing; fade out capacity by not creating new allocations`,
-            {
-              deployment: deployment.display,
-            },
-          )
-          return
-        }
-
-        const maxCreatedAtEpoch = allocations.reduce(
-          (max, allocation) => Math.max(max, allocation.createdAtEpoch, 0),
-          0,
-        )
-
-        // Check if we should create any new allocations; if the check
-        // below is true, then we still have some time until the staggered
-        // allocations should be created
-        if (maxCreatedAtEpoch + staggerEpochs > currentEpoch) {
-          this.logger.debug(
-            `Subgraph deployment requires no new (staggered) allocations yet`,
-            {
-              deployment: deployment.display,
-              maxCreatedAtEpoch,
-              staggerEpochs,
-              currentEpoch,
-            },
-          )
-          return
-        }
-
-        // Check if we have an indexingRule for the deployment
-        const rule =
+          // Indexing rule for the deployment (if any)
           rules.find(rule => rule.deployment === deployment.bytes32) ||
-          rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL)
+            rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL),
 
-        if (rule === null || rule === undefined) {
-          this.logger.debug(
-            `No indexing rule found for deployment, ` +
-              `which conflicts with it being considered worth indexing ` +
-              `(unless this is the network subgraph)`,
-            { deployment: deployment.display },
-          )
-          return
-        }
-
-        const parallelAllocations = Math.max(1, rule.parallelAllocations || 1)
-        const allocationsToCreate = Math.max(
-          0,
-          parallelAllocations -
-            (allocations.length - settledAllocations.length),
-        )
-        const targetAllocationAmount = rule.allocationAmount
-          ? BigNumber.from(rule.allocationAmount)
-          : this.indexer.defaultAllocationAmount
-        const amountPerAllocation = targetAllocationAmount.div(
-          parallelAllocations,
-        )
-
-        this.logger.info(`Create allocations for subgraph deployment`, {
-          deployment: deployment.display,
-          targetAllocations: parallelAllocations,
-          activeAllocationsAfterSettling:
-            allocations.length - settledAllocations.length,
-          allocationsToCreate,
-          targetAllocationAmount: formatGRT(targetAllocationAmount),
-          amountPerAllocation: formatGRT(amountPerAllocation),
-        })
-
-        await pMap(
-          repeat(amountPerAllocation, allocationsToCreate),
-          async amount => await this.network.allocate(deployment, amount),
-          { concurrency: 1 },
+          currentEpoch,
+          maxAllocationEpochs,
         )
       },
       { concurrency: 1 },
     )
+  }
+
+  async reconcileDeploymentAllocations(
+    deployment: SubgraphDeploymentID,
+    activeAllocations: Allocation[],
+    worthIndexing: boolean,
+    rule: IndexingRuleAttributes | undefined,
+    epoch: number,
+    maxAllocationEpochs: number,
+  ): Promise<void> {
+    const logger = this.logger.child({
+      deployment: deployment.display,
+      epoch,
+    })
+
+    const desiredTotalAllocationAmount = rule?.allocationAmount
+      ? BigNumber.from(rule.allocationAmount)
+      : this.indexer.defaultAllocationAmount
+    const desiredNumberOfAllocations = Math.max(
+      1,
+      rule?.parallelAllocations || 1,
+    )
+    const amountPerAllocation = desiredTotalAllocationAmount.div(
+      desiredNumberOfAllocations,
+    )
+
+    logger.info(`Reconcile deployment allocations`, {
+      desiredAllocationAmount: formatGRT(desiredTotalAllocationAmount),
+      activeAllocationAmount: formatGRT(
+        activeAllocations.reduce(
+          (sum, allocation) => sum.add(allocation.allocatedTokens),
+          BigNumber.from('0'),
+        ),
+      ),
+
+      desiredNumberOfAllocations,
+      activeNumberOfAllocations: activeAllocations.length,
+
+      activeAllocations: activeAllocations.map(allocation => ({
+        id: allocation.id,
+        createdAtEpoch: allocation.createdAtEpoch,
+        amount: formatGRT(allocation.allocatedTokens),
+      })),
+    })
+
+    // Return early if the deployment is not (or no longer) worth indexing
+    if (!worthIndexing) {
+      logger.info(
+        `Deployment is not (or no longer) worth indexing, settle all allocations`,
+        {
+          allocations: activeAllocations.map(allocation => allocation.id),
+        },
+      )
+
+      // Make sure to settle all active allocations on the way out
+      if (activeAllocations.length > 0) {
+        await pMap(
+          activeAllocations,
+          async allocation => await this.network.settle(allocation),
+          { concurrency: 1 },
+        )
+      }
+      return
+    }
+
+    // If there are no allocations at all yet, create as many as
+    // is desired and return early
+    if (activeAllocations.length === 0) {
+      logger.info(`No active allocations for deployment, creating some now`, {
+        desiredNumberOfAllocations,
+        amountPerAllocation: formatGRT(amountPerAllocation),
+      })
+
+      await pMap(
+        ti.repeat(amountPerAllocation, desiredNumberOfAllocations),
+        async amount => await this.network.allocate(deployment, amount),
+        { concurrency: 1 },
+      )
+
+      return
+    }
+
+    const lifetime = Math.max(1, maxAllocationEpochs - 1)
+
+    // Settle expired allocations
+    let expiredAllocations = activeAllocations.filter(
+      allocation => epoch >= allocation.createdAtEpoch + lifetime,
+    )
+    // The allocations come from the network subgraph; due to short indexing
+    // latencies, this data may be slightly outdated. Cross-check with the
+    // contracts to avoid settling allocations that are already settled on
+    // chain.
+    expiredAllocations = await pFilter(expiredAllocations, async allocation => {
+      try {
+        const onChainAllocation = await this.network.contracts.staking.getAllocation(
+          allocation.id,
+        )
+        return onChainAllocation.settledAtEpoch.eq('0')
+      } catch (error) {
+        this.logger.warn(
+          `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
+          {
+            deployment: deployment.display,
+            allocation: allocation.id,
+            error: error.message,
+          },
+        )
+        return true
+      }
+    })
+
+    if (expiredAllocations.length > 0) {
+      logger.info(`Settling expired allocations`, {
+        number: expiredAllocations.length,
+        expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+      })
+
+      activeAllocations = await pFilter(
+        activeAllocations,
+        async allocation => {
+          if (allocationInList(expiredAllocations, allocation)) {
+            const settled = await this.network.settle(allocation)
+            return !settled
+          } else {
+            return true
+          }
+        },
+        { concurrency: 1 },
+      )
+    }
+
+    const halftime = Math.ceil((lifetime * 1.0) / 2)
+
+    if (
+      !ti.some(
+        allocation => allocation.createdAtEpoch === epoch,
+        activeAllocations,
+      )
+    ) {
+      // Identify half-expired allocations
+      let halfExpired = activeAllocations.filter(
+        allocation => epoch >= allocation.createdAtEpoch + halftime,
+      )
+
+      // Sort half-expired allocations so that those with earlier
+      // creation epochs come first
+      halfExpired.sort((a, b) => a.createdAtEpoch - b.createdAtEpoch)
+
+      // Settle the first half of the half-expired allocations
+      halfExpired = [
+        ...ti.take(Math.ceil((halfExpired.length * 1.0) / 2), halfExpired),
+      ]
+      if (halfExpired.length > 0) {
+        logger.info(
+          `Settle half expired allocations to allow creating new ones early and avoid gaps`,
+          {
+            number: halfExpired.length,
+            allocations: halfExpired.map(allocation => allocation.id),
+          },
+        )
+
+        activeAllocations = await pFilter(
+          activeAllocations,
+          async allocation => {
+            if (allocationInList(halfExpired, allocation)) {
+              const settled = await this.network.settle(allocation)
+              return !settled
+            } else {
+              return true
+            }
+          },
+          { concurrency: 1 },
+        )
+      }
+    }
+
+    // We're now left with all still active allocations; however, these
+    // may be fewer than the desired parallel alloctions; create the
+    // ones we're still missing
+    const allocationsToCreate =
+      desiredNumberOfAllocations - activeAllocations.length
+    if (allocationsToCreate > 0) {
+      logger.info(
+        `Create allocations to maintain desired parallel allocations`,
+        {
+          desiredNumberOfAllocations,
+          activeAllocations: activeAllocations.length,
+          allocationsToCreate:
+            desiredNumberOfAllocations - activeAllocations.length,
+          desiredTotalAllocationAmount: formatGRT(desiredTotalAllocationAmount),
+          amountPerAllocation: formatGRT(amountPerAllocation),
+        },
+      )
+      await pMap(
+        ti.repeat(amountPerAllocation, allocationsToCreate),
+        async amount => {
+          await this.network.allocate(deployment, amount)
+        },
+        { concurrency: 1 },
+      )
+    }
   }
 }
 
