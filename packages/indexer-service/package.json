@@ -19,7 +19,6 @@
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
-    "@statechannels/devtools": "^0.3.0",
     "@statechannels/server-wallet": "^0.3.2",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
@@ -39,6 +38,7 @@
     "yargs": "^15.1.0"
   },
   "devDependencies": {
+    "@statechannels/devtools": "^0.3.0",
     "@types/body-parser": "^1.19.0",
     "@types/bs58": "^4.0.1",
     "@types/cors": "^2.8.6",
