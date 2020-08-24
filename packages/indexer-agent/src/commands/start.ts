@@ -2,6 +2,7 @@ import { Argv } from 'yargs'
 import {
   createLogger,
   SubgraphDeploymentID,
+  connectContracts,
   connectDatabase,
   defineIndexerManagementModels,
   createIndexerManagementServer,
@@ -10,6 +11,7 @@ import {
 } from '@graphprotocol/common-ts'
 
 import { startAgent } from '../agent'
+import { providers, Wallet } from 'ethers'
 
 export default {
   command: 'start',
@@ -132,9 +134,30 @@ export default {
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
+    // Create network contracts interface for use by the indexer management client/server
+    let providerUrl
+    try {
+      providerUrl = new URL(argv.ethereum)
+    } catch (e) {
+      throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
+    }
+
+    const ethereumProvider = new providers.JsonRpcProvider({
+      url: providerUrl.toString(),
+      user: providerUrl.username,
+      password: providerUrl.password,
+    })
+    const network = await ethereumProvider.getNetwork()
+    let wallet = Wallet.fromMnemonic(argv.mnemonic)
+    wallet = wallet.connect(argv.ethereum)
+    const contracts = await connectContracts(wallet, network.chainId)
+
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models,
+      address: wallet.address,
+      url: argv.publicIndexerUrl,
+      contracts,
     })
     await createIndexerManagementServer({
       logger,
