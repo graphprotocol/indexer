@@ -25,7 +25,7 @@
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "^0.1.10",
+    "@graphprotocol/common-ts": "^0.1.11",
     "@graphprotocol/contracts": "^0.5.0-testnet-phase1",
     "@types/node": "^13.7.4",
     "ethers": "^5.0.2"
