@@ -321,20 +321,18 @@ class Agent {
       epoch,
     })
 
-    const desiredTotalAllocationAmount = rule?.allocationAmount
+    const allocationAmount = rule?.allocationAmount
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
     const desiredNumberOfAllocations = Math.max(
       1,
       rule?.parallelAllocations || 1,
     )
-    const amountPerAllocation = desiredTotalAllocationAmount.div(
-      desiredNumberOfAllocations,
-    )
 
     logger.info(`Reconcile deployment allocations`, {
-      desiredAllocationAmount: formatGRT(desiredTotalAllocationAmount),
-      activeAllocationAmount: formatGRT(
+      allocationAmount: formatGRT(allocationAmount),
+
+      totalActiveAllocationAmount: formatGRT(
         activeAllocations.reduce(
           (sum, allocation) => sum.add(allocation.allocatedTokens),
           BigNumber.from('0'),
@@ -376,11 +374,11 @@ class Agent {
     if (activeAllocations.length === 0) {
       logger.info(`No active allocations for deployment, creating some now`, {
         desiredNumberOfAllocations,
-        amountPerAllocation: formatGRT(amountPerAllocation),
+        allocationAmount: formatGRT(allocationAmount),
       })
 
       await pMap(
-        ti.repeat(amountPerAllocation, desiredNumberOfAllocations),
+        ti.repeat(allocationAmount, desiredNumberOfAllocations),
         async amount => await this.network.allocate(deployment, amount),
         { concurrency: 1 },
       )
@@ -508,12 +506,11 @@ class Agent {
           activeAllocations: activeAllocations.length,
           allocationsToCreate:
             desiredNumberOfAllocations - activeAllocations.length,
-          desiredTotalAllocationAmount: formatGRT(desiredTotalAllocationAmount),
-          amountPerAllocation: formatGRT(amountPerAllocation),
+          allocationAmount: formatGRT(allocationAmount),
         },
       )
       await pMap(
-        ti.repeat(amountPerAllocation, allocationsToCreate),
+        ti.repeat(allocationAmount, allocationsToCreate),
         async amount => {
           await this.network.allocate(deployment, amount)
         },
