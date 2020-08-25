@@ -11,12 +11,7 @@
     "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "prepare": "yarn format && yarn lint && tsc",
-    "start": "yarn prepare && node ./dist/index.js start",
-    "start:ganache": "yarn prepare && node ./dist/index.js start --ethereum http://localhost:8545 --network ganache --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
-    "start:ganache:bootstrap": "yarn prepare && node ./dist/index.js start --test --ethereum http://localhost:8545 --network ganache --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
-    "start:kovan": "yarn prepare && node ./dist/index.js start --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url http://localhost:7600/ --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"myth like bonus scare over problem client lizard pioneer submit female collect\"",
-    "start:mykovan:bootstrap": "yarn prepare && node ./dist/index.js start --bootstrap --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"any display cargo fresh pioneer young sort garbage soccer smart country saddle\"",
-    "start:mykovan": "yarn prepare && node ./dist/index.js start --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"any display cargo fresh pioneer young sort garbage soccer smart country saddle\""
+    "start": "yarn prepare && node ./dist/index.js start"
   },
   "bin": {
     "graph-indexer-agent": "bin/graph-indexer-agent"
