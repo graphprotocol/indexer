@@ -18,7 +18,7 @@ import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
 
 import { PaymentManager } from '../payment-manager'
-import { AllocationPaymentClient } from '../types'
+import { AllocationPaymentClient, toAddress } from '../types'
 import { State, makeDestination, BN } from '@statechannels/wallet-core'
 
 const logger = createLogger({ name: 'server.test.ts' })
@@ -54,7 +54,7 @@ describe('PaymentManager', () => {
   )
 
   const TEST_ALLOCATION = {
-    id: 'abc',
+    id: toAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
     publicKey: '-- unused --',
     subgraphDeploymentID: TEST_SUBGRAPH_ID,
     createdAtEpoch: 0,
@@ -62,7 +62,9 @@ describe('PaymentManager', () => {
 
   it('can create an allocation client', () => {
     paymentManager.createAllocationPaymentClients([TEST_ALLOCATION])
-    const client = paymentManager.getAllocationPaymentClient('abc')
+    const client = paymentManager.getAllocationPaymentClient(
+      '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    )
     expect(client).toBeDefined()
     expect(client!.allocation).toBe(TEST_ALLOCATION)
   })
@@ -71,7 +73,9 @@ describe('PaymentManager', () => {
     let allocationClient: AllocationPaymentClient
 
     beforeAll(() => {
-      allocationClient = paymentManager.getAllocationPaymentClient('abc')!
+      allocationClient = paymentManager.getAllocationPaymentClient(
+        '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      )!
     })
 
     const MOCK_GATEWAY = {
@@ -171,7 +175,7 @@ describe('PaymentManager', () => {
       stateChannelMessage: MOCK_QUERY_REQUEST_STATE,
       subgraphDeploymentID: TEST_SUBGRAPH_ID,
       query: '',
-      allocationID: 'abc',
+      allocationID: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       requestCID: '',
     }
 
