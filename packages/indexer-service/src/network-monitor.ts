@@ -1,10 +1,7 @@
 import gql from 'graphql-tag'
 import { Evt } from 'evt'
-import {
-  Logger,
-  createNetworkSubgraphClient,
-  SubgraphDeploymentID,
-} from '@graphprotocol/common-ts'
+import { Client } from '@urql/core'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Wallet } from 'ethers'
 import { Allocation, normalizeAllocation, toAddress } from './types'
 
@@ -20,33 +17,28 @@ const allocationInList = (allocations: Allocation[], needle: Allocation): boolea
 export interface NetworkMonitorOptions {
   logger: Logger
   wallet: Wallet
-  graphNode: string
-  networkSubgraphDeployment: SubgraphDeploymentID
+  networkSubgraph: Client
 }
 
 export class NetworkMonitor {
   logger: Logger
   allocationsUpdated: Evt<AllocationsUpdatedEvent>
   allocations: Allocation[]
+  networkSubgraph: Client
 
   constructor(options: NetworkMonitorOptions) {
     this.logger = options.logger.child({ component: 'NetworkMonitor' })
     this.allocationsUpdated = Evt.create<AllocationsUpdatedEvent>()
     this.allocations = []
+    this.networkSubgraph = options.networkSubgraph
+
     this.periodicallySyncAllocations(options)
   }
 
   async periodicallySyncAllocations({
     logger,
     wallet,
-    networkSubgraphDeployment,
-    graphNode,
   }: NetworkMonitorOptions): Promise<never> {
-    const url = new URL(`/subgraphs/id/${networkSubgraphDeployment.ipfsHash}`, graphNode)
-    const client = await createNetworkSubgraphClient({
-      url: url.toString(),
-    })
-
     // Ensure the address is checksummed
     const indexerAddress = toAddress(wallet.address)
 
@@ -54,7 +46,7 @@ export class NetworkMonitor {
     while (true) {
       try {
         // Query graph-node for indexing subgraph versions
-        const result = await client
+        const result = await this.networkSubgraph
           .query(
             gql`
               query indexedSubgraphs($id: ID!) {
@@ -116,7 +108,7 @@ export class NetworkMonitor {
         // Emit the update
         if (removed.length > 0 || added.length > 0) {
           logger.info('Syncing allocations with the network', {
-            url,
+            url: this.networkSubgraph.url,
             indexerAddress,
             added,
             removed,

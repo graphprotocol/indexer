@@ -6,6 +6,7 @@ import {
   createMetrics,
   createMetricsServer,
   SubgraphDeploymentID,
+  createNetworkSubgraphClient,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -31,21 +32,25 @@ export default {
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
+        group: 'Ethereum',
       })
       .option('port', {
         description: 'Port to serve from',
         type: 'number',
         default: 7600,
+        group: 'Indexer Infrastructure',
       })
       .option('graph-node-query-endpoint', {
         description: 'Graph Node endpoint to forward queries to',
         type: 'string',
         required: true,
+        group: 'Indexer Infrastructure',
       })
       .option('graph-node-status-endpoint', {
         description: 'Graph Node endpoint for indexing statuses etc.',
         type: 'string',
         required: true,
+        group: 'Indexer Infrastructure',
       })
       .option('free-query-auth-token', {
         description: 'Auth token that clients can use to query for free',
@@ -54,7 +59,19 @@ export default {
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
         type: 'string',
-        required: true,
+        group: 'Network Subgraph',
+      })
+      .option('network-subgraph-endpoint', {
+        description: 'Endpoint to query the network subgraph from',
+        type: 'string',
+        group: 'Network Subgraph',
+      })
+      .check(argv => {
+        if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
+          return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
+        }
+
+        return true
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,12 +146,22 @@ export default {
       wallet,
     })
 
+    const networkSubgraph = await createNetworkSubgraphClient({
+      url: argv.networkSubgraphEndpoint
+        ? argv.networkSubgraphEndpoint
+        : new URL(
+            `/subgraphs/id/${
+              new SubgraphDeploymentID(argv.networkSubgraphDeployment).ipfsHash
+            }`,
+            argv.graphNodeQueryEndpoint,
+          ).toString(),
+    })
+
     // Create registered channel monitor
     const networkMonitor = new NetworkMonitor({
       logger: logger.child({ component: 'NetworkMonitor' }),
       wallet,
-      graphNode: argv.graphNodeQueryEndpoint,
-      networkSubgraphDeployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
+      networkSubgraph,
     })
 
     // Create a query processor for paid queries
