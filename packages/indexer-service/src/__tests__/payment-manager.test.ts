@@ -30,6 +30,7 @@ import {
   mockChannelId,
   mockAppData,
   mockPostFundMessage,
+  mockCreatedZeroChannelMessage,
 } from './payment-manager-mocks'
 import { toJS, StateType } from '@statechannels/graph'
 
@@ -76,8 +77,21 @@ describe('AllocationClient', () => {
     await seedAlicesSigningWallet(serverWalletKnex)
   })
 
-  it('can call joinChannel and auto-sign funding state', async () => {
+  it('can call joinChannel and auto-sign funding state with non-zero allocations channel', async () => {
     const outbound = await allocationClient.handleMessage(mockCreatedChannelMessage())
+
+    const {
+      data: {
+        signedStates: [outboundOne, outboundTwo],
+      },
+    } = outbound as { data: { signedStates: SignedState[] } }
+
+    expect(outboundOne).toMatchObject({ turnNum: 0 })
+    expect(outboundTwo).toMatchObject({ turnNum: 3 })
+  })
+
+  it('can call joinChannel and auto-sign funding state with zero allocations channel', async () => {
+    const outbound = await allocationClient.handleMessage(mockCreatedZeroChannelMessage())
 
     const {
       data: {

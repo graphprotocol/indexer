@@ -2,7 +2,13 @@ import { SubgraphDeploymentID, Attestation } from '@graphprotocol/common-ts'
 import base58 from 'bs58'
 import { utils, Wallet, constants } from 'ethers'
 import { Allocation, PaidQuery, toAddress } from '../types'
-import { State, makeDestination, BN, signState } from '@statechannels/wallet-core'
+import {
+  State,
+  makeDestination,
+  BN,
+  signState,
+  SimpleAllocation,
+} from '@statechannels/wallet-core'
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { getChannelId } from '@statechannels/nitro-protocol'
@@ -98,8 +104,22 @@ export const mockChannelId = getChannelId({
   chainId: sampleFirstState.chainId,
 })
 
+// A prefund1 state with where every allocation amount is zero
+const mockFirstStateZeroChannels = () => ({
+  ...sampleFirstState,
+  outcome: {
+    ...sampleFirstState.outcome,
+    allocationItems: (sampleFirstState.outcome as SimpleAllocation).allocationItems.map(
+      item => ({ ...item, amount: BN.from(0) }),
+    ),
+  },
+})
+
 export const mockCreatedChannelMessage = (): WireMessage =>
   mockGatewayMessage(mockFirstState())
+
+export const mockCreatedZeroChannelMessage = (): WireMessage =>
+  mockGatewayMessage(mockFirstStateZeroChannels())
 
 const mockPostFundState = (): State => ({
   ...mockFirstState(),

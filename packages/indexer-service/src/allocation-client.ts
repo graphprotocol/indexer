@@ -3,7 +3,7 @@ import {
   Message as WireMessage,
   GetStateResponse,
 } from '@statechannels/client-api-schema'
-import { Message as PushMessage } from '@statechannels/wallet-core'
+import { Message as PushMessage, BN } from '@statechannels/wallet-core'
 import { Logger, Attestation } from '@graphprotocol/common-ts'
 import {
   StateType,
@@ -12,7 +12,7 @@ import {
 } from '@statechannels/graph'
 import { ChannelResult } from '@statechannels/client-api-schema'
 
-import { Wallet, utils, constants } from 'ethers'
+import { Wallet, utils, constants, BigNumber } from 'ethers'
 
 import {
   AllocationPaymentClient as AllocationPaymentClientInterface,
@@ -75,35 +75,41 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
      * the running stage. Two outbound messages (turnNum 0 and 3) to be sent.
      */
     if (channelResult.status === 'proposed' && outbox.length === 0) {
-      const joinResult = await this.serverWallet.joinChannel(channelResult)
-      if (joinResult.outbox.length !== 1) {
-        throw new Error('Expected only one outbox item after joining channel')
+      const { outbox } = await this.serverWallet.joinChannel(channelResult)
+      if (outbox.length !== 1 && outbox.length !== 2) {
+        throw new Error('Expected one or two outbox items after joining channel')
       }
-      const {
-        /**
-         * We expect two messages coming out of the wallet; the first
-         * being a countersignature on turnNum 0 (meaning the channel has
-         * been joined) and the second being a new signed state with
-         * turnNum 3 — representing the "post fund setup". We expect _both_
-         * during Phase 1, where channels are not funded on-chain, thus
-         * signing the "post fund setup" is an instant operation.
-         */
-        outbox: [{ params: outboundJoinedChannelState }],
-      } = joinResult
+
+      // This is the countersignature on turn 0 state.
+      // Aka prefund2 state
+      const [{ params: outboundJoinedChannelState }] = outbox
 
       this.logger.info(`Channel creation succeeded`, {
         sender,
         channelid: channelResult.channelId,
       })
 
-      // todo: remove these hardcoded assumptions
-      const {
-        outbox: [{ params: outboundPostFund2ChannelState }],
-      } = await this.serverWallet.updateChannelFunding({
-        channelId: channelResult.channelId,
-        token: constants.AddressZero,
-        amount: '100',
-      })
+      // This assumes a single state channel allocation per channel
+      const totalInChannel = channelResult.allocations[0].allocationItems
+        .map(a => a.amount)
+        .reduce(BN.add, BN.from(0))
+      const zeroFundPostFund2State =
+        outbox.length === 2 && BN.eq(totalInChannel, 0) ? outbox[1].params : undefined
+
+      const fundedPostFund2State = zeroFundPostFund2State
+        ? undefined
+        : (
+            await this.serverWallet.updateChannelFunding({
+              channelId: channelResult.channelId,
+              token: channelResult.allocations[0].token,
+              amount: totalInChannel,
+            })
+          ).outbox[0].params
+
+      const postFund2State = zeroFundPostFund2State ?? fundedPostFund2State
+      if (!postFund2State) {
+        throw new Error('Unexpected undefined postFund2State')
+      }
 
       return {
         sender: (outboundJoinedChannelState as WireMessage).sender,
@@ -114,8 +120,7 @@ export class AllocationPaymentClient implements AllocationPaymentClientInterface
             ((outboundJoinedChannelState as WireMessage).data as PushMessage)
               .signedStates![0],
             // eslint-disable-next-line
-            ((outboundPostFund2ChannelState as WireMessage).data as PushMessage)
-              .signedStates![0],
+            ((postFund2State as WireMessage).data as PushMessage).signedStates![0],
           ],
         },
       }
