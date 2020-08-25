@@ -198,6 +198,7 @@ export default {
       logger,
       indexNodeIDs: argv.indexNodeIds,
       network,
+      networkSubgraph,
       indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
     })
