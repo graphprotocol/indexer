@@ -5,6 +5,7 @@ import {
 } from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 import { Network } from './network'
+import { Client } from '@urql/core'
 
 export interface AgentConfig {
   statusEndpoint: string
@@ -13,7 +14,7 @@ export interface AgentConfig {
   network: Network
   defaultAllocationAmount: BigNumber
   logger: Logger
-  networkSubgraphDeployment: SubgraphDeploymentID
+  networkSubgraph: Client | SubgraphDeploymentID
   indexNodeIDs: string[]
 }
 
