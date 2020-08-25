@@ -503,7 +503,7 @@ export class Network {
 
     logger.info(`Successfully allocated to subgraph deployment`, {
       amountGRT: formatGRT(eventInputs.tokens),
-      allocationId: eventInputs.channelID,
+      allocation: eventInputs.allocationID,
       epoch: eventInputs.epoch.toString(),
     })
   }
