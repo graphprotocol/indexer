@@ -22,15 +22,10 @@ export default {
   describe: 'Start the service',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .option('mnemonic', {
-        describe: 'Ethereum wallet mnemonic',
-        type: 'string',
-        required: true,
-      })
       .option('private-key', {
         description: 'Private key for the wallet',
         type: 'string',
-        conflicts: 'mnemonic',
+        required: true,
         group: 'Ethereum',
       })
       .option('ethereum', {
@@ -61,13 +56,6 @@ export default {
         description: 'Network subgraph deployment',
         type: 'string',
         required: true,
-      })
-      .check(argv => {
-        if (!argv['mnemonic'] && !argv['private-key']) {
-          return `One of --mnemonic and --private-key must be provided`
-        }
-
-        return true
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,13 +106,7 @@ export default {
     })
     logger.info('Successfully migrated server-wallet database')
 
-    let wallet: Wallet
-    if (argv.mnemonic) {
-      wallet = Wallet.fromMnemonic(argv.mnemonic)
-    } else {
-      wallet = new Wallet(argv.privateKey)
-    }
-
+    const wallet = new Wallet(argv.privateKey)
     const privateKey = wallet.privateKey
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
@@ -135,9 +117,12 @@ export default {
         // the user that they already have a _different_ signing key below:
       })
       .finally(() => {
-        logger.info('Seeded state channels wallet with account from mnemonic provided', {
-          address,
-        })
+        logger.info(
+          'Seeded state channels wallet with account from private key provided',
+          {
+            address,
+          },
+        )
       })
 
     // Create payment manager
