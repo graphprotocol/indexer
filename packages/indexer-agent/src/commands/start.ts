@@ -129,9 +129,11 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const models = await defineIndexerManagementModels(sequelize)
+    const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
+
+    logger.info('Connect to network')
     const networkSubgraph = new SubgraphDeploymentID(
       argv.networkSubgraphDeployment,
     )
@@ -144,6 +146,7 @@ export default {
       argv.mnemonic,
       networkSubgraph,
     )
+    logger.info('Successfully connected to network')
 
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
