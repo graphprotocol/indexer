@@ -27,12 +27,6 @@ export default {
         type: 'string',
         required: true,
       })
-      .option('private-key', {
-        description: 'Private key for the wallet',
-        type: 'string',
-        conflicts: 'mnemonic',
-        group: 'Ethereum',
-      })
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
         type: 'string',
@@ -61,13 +55,6 @@ export default {
         description: 'Network subgraph deployment',
         type: 'string',
         required: true,
-      })
-      .check(argv => {
-        if (!argv['mnemonic'] && !argv['private-key']) {
-          return `One of --mnemonic and --private-key must be provided`
-        }
-
-        return true
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,12 +105,7 @@ export default {
     })
     logger.info('Successfully migrated server-wallet database')
 
-    let wallet: Wallet
-    if (argv.mnemonic) {
-      wallet = Wallet.fromMnemonic(argv.mnemonic)
-    } else {
-      wallet = new Wallet(argv.privateKey)
-    }
+    const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
     const privateKey = wallet.privateKey
     // Ensure the address is checksummed
