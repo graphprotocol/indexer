@@ -517,7 +517,11 @@ export class Network {
     try {
       logger.info(`Settle allocation`)
       await Ethereum.executeTransaction(
-        this.contracts.staking.settle(allocation.id, ethers.constants.HashZero),
+        this.contracts.staking.settle(
+          allocation.id,
+          ethers.constants.HashZero,
+          txOverrides,
+        ),
         logger.child({ action: 'settle' }),
       )
       logger.info(`Successfully settled allocation`)
