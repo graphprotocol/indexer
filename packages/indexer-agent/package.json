@@ -18,6 +18,9 @@
     "start:mykovan:bootstrap": "yarn prepare && node ./dist/index.js start --bootstrap --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"any display cargo fresh pioneer young sort garbage soccer smart country saddle\"",
     "start:mykovan": "yarn prepare && node ./dist/index.js start --network kovan --graph-node-admin-endpoint http://localhost:8020/ --graph-node-query-endpoint http://localhost:8000/ --graph-node-status-endpoint http://localhost:8030/graphql --public-indexer-url https://best-indexer-ever.eth --indexer-geo-coordinates 37.630768 -119.032631 --mnemonic \"any display cargo fresh pioneer young sort garbage soccer smart country saddle\""
   },
+  "bin": {
+    "graph-indexer-agent": "bin/graph-indexer-agent"
+  },
   "dependencies": {
     "@thi.ng/iterators": "^5.1.36",
     "@types/node": "^13.7.4",
