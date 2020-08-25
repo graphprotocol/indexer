@@ -14,6 +14,7 @@ import { BigNumber } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
+import { Client } from '@urql/core'
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -54,22 +55,22 @@ class Agent {
   indexer: Indexer
   network: Network
   logger: Logger
-  networkSubgraphDeployment: SubgraphDeploymentID
+  networkSubgraph: Client | SubgraphDeploymentID
 
   constructor(
     logger: Logger,
     indexer: Indexer,
     network: Network,
-    networkSubgraphDeployment: SubgraphDeploymentID,
+    networkSubgraph: Client | SubgraphDeploymentID,
   ) {
     this.logger = logger
     this.indexer = indexer
     this.network = network
-    this.networkSubgraphDeployment = networkSubgraphDeployment
+    this.networkSubgraph = networkSubgraph
   }
 
   async start(): Promise<void> {
-    this.logger.info(`Connect to graph node(s)`)
+    this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
 
     this.logger.info(`Register indexer and stake on the network`)
@@ -81,51 +82,56 @@ class Agent {
     await this.indexer.ensureGlobalIndexingRule()
 
     // Make sure the network subgraph is being indexed
-    await this.indexer.ensure(
-      `${this.networkSubgraphDeployment.ipfsHash.slice(
-        0,
-        23,
-      )}/${this.networkSubgraphDeployment.ipfsHash.slice(23)}`,
-      this.networkSubgraphDeployment,
-    )
-
-    // Wait until the network subgraph is synced
-    await loop(async () => {
-      this.logger.info(`Waiting for network subgraph deployment to be synced`)
-
-      // Check the network subgraph status
-      const status = await this.indexer.indexingStatus(
-        this.networkSubgraphDeployment,
+    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
+      await this.indexer.ensure(
+        `${this.networkSubgraph.ipfsHash.slice(
+          0,
+          23,
+        )}/${this.networkSubgraph.ipfsHash.slice(23)}`,
+        this.networkSubgraph,
       )
+    }
 
-      // Throw if the subgraph has failed
-      if (status.health !== 'healthy') {
-        throw new Error(
-          `Failed to index network subgraph deployment '${this.networkSubgraphDeployment}': ${status.fatalError.message}`,
+    // If we are indexing the network subgraph ourselves, wait until it is synced
+    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
+      await loop(async () => {
+        this.logger.info(`Waiting for network subgraph deployment to be synced`)
+
+        // Check the network subgraph status
+        const status = await this.indexer.indexingStatus(
+          this.networkSubgraph as SubgraphDeploymentID,
         )
-      }
 
-      if (status.synced) {
-        // The deployment has synced, we're ready to go
-        return false
-      } else {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const latestBlock = status.chains[0]!.latestBlock.number
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const chainHeadBlock = status.chains[0]!.chainHeadBlock.number
-        const syncedPercent = (
-          (100 * (latestBlock * 1.0)) /
-          chainHeadBlock
-        ).toFixed(2)
-        this.logger.info(
-          `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
-        )
-        // The subgraph has not synced yet, keep waiting
-        return true
-      }
-    }, 5000)
+        // Throw if the subgraph has failed
+        if (status.health !== 'healthy') {
+          throw new Error(
+            `Failed to index network subgraph deployment '${this.networkSubgraph}': ${status.fatalError.message}`,
+          )
+        }
 
-    this.logger.info(`Network subgraph deployment is synced`)
+        if (status.synced) {
+          // The deployment has synced, we're ready to go
+          return false
+        } else {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const latestBlock = status.chains[0]!.latestBlock.number
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const chainHeadBlock = status.chains[0]!.chainHeadBlock.number
+          const syncedPercent = (
+            (100 * (latestBlock * 1.0)) /
+            chainHeadBlock
+          ).toFixed(2)
+          this.logger.info(
+            `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
+          )
+          // The subgraph has not synced yet, keep waiting
+          return true
+        }
+      }, 5000)
+
+      this.logger.info(`Network subgraph deployment is synced`)
+    }
+
     this.logger.info(`Periodically synchronizing subgraphs`)
 
     await loop(async () => {
@@ -157,11 +163,12 @@ class Agent {
             ? []
             : await this.network.subgraphDeploymentsWorthIndexing(rules)
 
-        // Ensure the network subgraph deployment is _always_ indexed and considered for allocations (depending on rules)
-        if (
-          !deploymentInList(targetDeployments, this.networkSubgraphDeployment)
-        ) {
-          targetDeployments.push(this.networkSubgraphDeployment)
+        if (this.networkSubgraph instanceof SubgraphDeploymentID) {
+          // Ensure the network subgraph deployment is _always_ indexed and
+          // considered for allocations (depending on rules)
+          if (!deploymentInList(targetDeployments, this.networkSubgraph)) {
+            targetDeployments.push(this.networkSubgraph)
+          }
         }
 
         // Identify active allocations
@@ -530,7 +537,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.logger,
     indexer,
     config.network,
-    config.networkSubgraphDeployment,
+    config.networkSubgraph,
   )
   await agent.start()
   return agent
