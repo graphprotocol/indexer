@@ -172,22 +172,22 @@ export const createApp = async ({
     async (req, res) => {
       const { sender, recipient, data } = req.body
 
-      const allocationId = paymentManager.getAllocationIdFromMessage(req.body)
-      const client = paymentManager.getAllocationPaymentClient(allocationId)
-
-      if (!client) {
-        logger.error(`Indexer does not recognize allocation`, {
-          allocationId,
-        })
-        return res
-          .status(404)
-          .contentType('application/json')
-          .send({
-            error: `Allocation not found: ${allocationId}`,
-          })
-      }
-
       try {
+        const allocationId = paymentManager.getAllocationIdFromMessage(req.body)
+        const client = paymentManager.getAllocationPaymentClient(allocationId)
+
+        if (!client) {
+          logger.error(`Indexer does not recognize allocation`, {
+            allocationId,
+          })
+          return res
+            .status(404)
+            .contentType('application/json')
+            .send({
+              error: `Allocation not found: ${allocationId}`,
+            })
+        }
+
         const response = await client.handleMessage({ sender, recipient, data })
         return res.status(200).send(response)
       } catch (error) {
