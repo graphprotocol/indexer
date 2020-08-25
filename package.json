@@ -14,6 +14,7 @@
     "lerna": "^3.20.2"
   },
   "resolutions": {
+    "ethers": "5.0.8",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {}

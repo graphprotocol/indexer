@@ -400,10 +400,12 @@ export class Network {
         }),
         logger.child({ action: 'register' }),
       )
-      const event = receipt.events?.find(
-        event =>
-          this.contracts.serviceRegistry.interface.parseLog(event).name ===
-          'ServiceRegistered',
+      const event = receipt.events?.find(event =>
+        event.topics.includes(
+          this.contracts.serviceRegistry.interface.getEventTopic(
+            'ServiceRegistered',
+          ),
+        ),
       )
       assert.ok(event)
 
@@ -480,10 +482,10 @@ export class Network {
       logger.child({ action: 'allocate' }),
     )
 
-    const event = receipt.events?.find(
-      event =>
-        this.contracts.staking.interface.parseLog(event).name ===
-        'AllocationCreated',
+    const event = receipt.events?.find(event =>
+      event.topics.includes(
+        this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+      ),
     )
 
     if (!event) {
@@ -494,7 +496,11 @@ export class Network {
       )
     }
 
-    const eventInputs = this.contracts.staking.interface.parseLog(event).values
+    const eventInputs = this.contracts.staking.interface.decodeEventLog(
+      'AllocationCreated',
+      event.data,
+      event.topics,
+    )
 
     logger.info(`Successfully allocated to subgraph deployment`, {
       amountGRT: formatGRT(eventInputs.tokens),
@@ -593,10 +599,10 @@ export class Network {
         ),
         this.logger.child({ action: 'approve' }),
       )
-      const approveEvent = approveReceipt.events?.find(
-        event =>
-          this.contracts.serviceRegistry.interface.parseLog(event).name ===
-          'Approval',
+      const approveEvent = approveReceipt.events?.find(event =>
+        event.topics.includes(
+          this.contracts.serviceRegistry.interface.getEventTopic('Approval'),
+        ),
       )
       if (!approveEvent) {
         throw new Error(
@@ -605,9 +611,11 @@ export class Network {
           )} GRT for staking: approval was never granted`,
         )
       }
-      const approveEventInputs = this.contracts.token.interface.parseLog(
-        approveEvent,
-      ).values
+      const approveEventInputs = this.contracts.token.interface.decodeEventLog(
+        'Approval',
+        approveEvent.data,
+        approveEvent.topics,
+      )
 
       this.logger.info(`Successfully approved missing stake`, {
         owner: approveEventInputs.owner,
@@ -619,10 +627,10 @@ export class Network {
         this.contracts.staking.stake(missingStake, txOverrides),
         this.logger.child({ action: 'stake' }),
       )
-      const stakeEvent = stakeReceipt.events?.find(
-        event =>
-          this.contracts.staking.interface.parseLog(event).name ===
-          'StakeDeposited',
+      const stakeEvent = stakeReceipt.events?.find(event =>
+        event.topics.includes(
+          this.contracts.staking.interface.getEventTopic('StakeDeposited'),
+        ),
       )
       if (!stakeEvent) {
         throw new Error(
@@ -631,9 +639,11 @@ export class Network {
           )} GRT: the deposit never came through`,
         )
       }
-      const stakeEventInputs = this.contracts.staking.interface.parseLog(
-        stakeEvent,
-      ).values
+      const stakeEventInputs = this.contracts.staking.interface.decodeEventLog(
+        'StakeDeposited',
+        stakeEvent.data,
+        stakeEvent.topics,
+      )
 
       this.logger.info(`Successfully staked`, {
         amountGRT: formatGRT(stakeEventInputs.tokens),
