@@ -27,13 +27,7 @@ export default {
       .option('mnemonic', {
         description: 'Mnemonic for the wallet',
         type: 'string',
-        conflicts: 'private-key',
-        group: 'Ethereum',
-      })
-      .option('private-key', {
-        description: 'Private key for the wallet',
-        type: 'string',
-        conflicts: 'mnemonic',
+        required: true,
         group: 'Ethereum',
       })
       .option('graph-node-query-endpoint', {
@@ -144,14 +138,6 @@ export default {
         ) {
           return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
-
-        if (
-          !argv['mnemonic'] &&
-          !argv['private-key']
-        ) {
-          return `One of --mnemonic and --private-key must be provided`
-        }
-
         return true
       })
   },
@@ -189,7 +175,6 @@ export default {
       argv.graphNodeQueryEndpoint,
       argv.indexerGeoCoordinates,
       argv.mnemonic,
-      argv.privateKey,
       networkSubgraph,
     )
     logger.info('Successfully connected to network')
