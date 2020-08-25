@@ -1,8 +1,8 @@
-import ApolloClient from 'apollo-client'
-import { HttpLink } from 'apollo-link-http'
-import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
 import gql from 'graphql-tag'
-import jayson, { Client } from 'jayson/promise'
+import jayson, { Client as RpcClient } from 'jayson/promise'
+import fetch from 'isomorphic-fetch'
+import { Client, createClient } from '@urql/core'
+import { BigNumber } from 'ethers'
 import {
   Logger,
   SubgraphDeploymentID,
@@ -10,13 +10,11 @@ import {
   IndexerManagementClient,
   INDEXING_RULE_GLOBAL,
 } from '@graphprotocol/common-ts'
-import fetch from 'node-fetch'
 import { IndexingStatus } from './types'
-import { BigNumber } from 'ethers'
 
 export class Indexer {
-  statuses: ApolloClient<NormalizedCacheObject>
-  rpc: Client
+  statuses: Client
+  rpc: RpcClient
   indexerManagement: IndexerManagementClient
   logger: Logger
   indexNodeIDs: string[]
@@ -31,14 +29,7 @@ export class Indexer {
     defaultAllocationAmount: BigNumber,
   ) {
     this.indexerManagement = indexerManagement
-    this.statuses = new ApolloClient({
-      link: new HttpLink({
-        uri: statusEndpoint,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fetch: fetch as any,
-      }),
-      cache: new InMemoryCache(),
-    })
+    this.statuses = createClient({ url: statusEndpoint, fetch })
     this.logger = logger
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.rpc = jayson.Client.http(adminEndpoint as any)
@@ -63,17 +54,20 @@ export class Indexer {
 
   async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
     try {
-      const result = await this.statuses.query({
-        query: gql`
-          query {
-            indexingStatuses {
-              subgraphDeployment: subgraph
-              node
+      const result = await this.statuses
+        .query(
+          gql`
+            {
+              indexingStatuses {
+                subgraphDeployment: subgraph
+                node
+              }
             }
-          }
-        `,
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          undefined,
+          { fetchPolicy: 'no-cache' },
+        )
+        .toPromise()
       return result.data.indexingStatuses
         .filter((status: { subgraphDeployment: string; node: string }) => {
           return status.node !== 'removed'
@@ -190,36 +184,38 @@ export class Indexer {
     deployment: SubgraphDeploymentID,
   ): Promise<IndexingStatus> {
     try {
-      const result = await this.statuses.query({
-        query: gql`
-          query indexingStatus($deployments: [String!]!) {
-            indexingStatuses(subgraphs: $deployments) {
-              subgraphDeployment: subgraph
-              synced
-              health
-              fatalError {
-                handler
-                message
-              }
-              chains {
-                network
-                ... on EthereumIndexingStatus {
-                  latestBlock {
-                    number
-                    hash
-                  }
-                  chainHeadBlock {
-                    number
-                    hash
+      const result = await this.statuses
+        .query(
+          gql`
+            query indexingStatus($deployments: [String!]!) {
+              indexingStatuses(subgraphs: $deployments) {
+                subgraphDeployment: subgraph
+                synced
+                health
+                fatalError {
+                  handler
+                  message
+                }
+                chains {
+                  network
+                  ... on EthereumIndexingStatus {
+                    latestBlock {
+                      number
+                      hash
+                    }
+                    chainHeadBlock {
+                      number
+                      hash
+                    }
                   }
                 }
               }
             }
-          }
-        `,
-        variables: { deployments: [deployment.ipfsHash] },
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          { deployments: [deployment.ipfsHash] },
+          { fetchPolicy: 'no-cache' },
+        )
+        .toPromise()
       return (
         result.data.indexingStatuses
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -19,11 +19,9 @@ import {
   ethers,
 } from 'ethers'
 import { strict as assert } from 'assert'
-import ApolloClient from 'apollo-client'
-import { HttpLink } from 'apollo-link-http'
-import { InMemoryCache, NormalizedCacheObject } from 'apollo-cache-inmemory'
+import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
-import fetch from 'node-fetch'
+import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
 import { Allocation } from './types'
 
@@ -50,7 +48,7 @@ const txOverrides = {
 }
 
 export class Network {
-  subgraph: ApolloClient<NormalizedCacheObject>
+  subgraph: Client
   contracts: NetworkContracts
   indexerAddress: string
   indexerUrl: string
@@ -66,7 +64,7 @@ export class Network {
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
     mnemonic: string,
-    subgraph: ApolloClient<NormalizedCacheObject>,
+    subgraph: Client,
     ethereumProvider: providers.JsonRpcProvider,
   ) {
     this.logger = logger
@@ -83,23 +81,23 @@ export class Network {
     parentLogger: Logger,
     ethereumProviderUrl: string,
     indexerUrl: string,
-    indexerGraphqlUrl: string,
+    indexerQueryEndpoint: string,
     geoCoordinates: [string, string],
     mnemonic: string,
-    networkSubgraphDeployment: SubgraphDeploymentID,
+    networkSubgraph: Client | SubgraphDeploymentID,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
 
-    const subgraph = new ApolloClient({
-      link: new HttpLink({
-        uri: new URL(
-          `/subgraphs/id/${networkSubgraphDeployment.ipfsHash}`,
-          indexerGraphqlUrl,
-        ).toString(),
-        fetch: fetch as never,
-      }),
-      cache: new InMemoryCache(),
-    })
+    const subgraph =
+      networkSubgraph instanceof Client
+        ? networkSubgraph
+        : createClient({
+            url: new URL(
+              `/subgraphs/id/${networkSubgraph.ipfsHash}`,
+              indexerQueryEndpoint,
+            ).toString(),
+            fetch,
+          })
 
     let providerUrl
     try {
@@ -149,28 +147,31 @@ export class Network {
 
     try {
       // TODO: Paginate here to not miss any deployments
-      const result = await this.subgraph.query({
-        query: gql`
-          query {
-            subgraphDeployments {
-              id
-              stakedTokens
-              signalAmount
-              signalledTokens
-              indexingRewardAmount
-              queryFeesAmount
-              indexerAllocations {
-                indexer {
-                  id
+      const result = await this.subgraph
+        .query(
+          gql`
+            query {
+              subgraphDeployments {
+                id
+                stakedTokens
+                signalAmount
+                signalledTokens
+                indexingRewardAmount
+                queryFeesAmount
+                indexerAllocations {
+                  indexer {
+                    id
+                  }
+                  allocatedTokens
+                  queryFeesCollected
                 }
-                allocatedTokens
-                queryFeesCollected
               }
             }
-          }
-        `,
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          undefined,
+          { fetchPolicy: 'no-cache' },
+        )
+        .toPromise()
       return (
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -267,26 +268,28 @@ export class Network {
 
   async activeAllocations(): Promise<Allocation[]> {
     try {
-      const result = await this.subgraph.query({
-        query: gql`
-          query allocations($indexer: String!) {
-            allocations(where: { indexer: $indexer, status: Active }) {
-              id
-              allocatedTokens
-              createdAtEpoch
-              subgraphDeployment {
+      const result = await this.subgraph
+        .query(
+          gql`
+            query allocations($indexer: String!) {
+              allocations(where: { indexer: $indexer, status: Active }) {
                 id
-                stakedTokens
-                signalAmount
+                allocatedTokens
+                createdAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
               }
             }
-          }
-        `,
-        variables: {
-          indexer: this.indexerAddress.toLocaleLowerCase(),
-        },
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          {
+            indexer: this.indexerAddress.toLocaleLowerCase(),
+          },
+          { fetchPolicy: 'no-cache' },
+        )
+        .toPromise()
       return result.data.allocations.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (allocation: any) => ({
@@ -310,33 +313,35 @@ export class Network {
     deployment: SubgraphDeploymentID,
   ): Promise<Allocation[]> {
     try {
-      const result = await this.subgraph.query({
-        query: gql`
-          query allocations($indexer: String!, $deployment: String!) {
-            allocations(
-              where: {
-                indexer: $indexer
-                subgraphDeployment: $deployment
-                status: Active
-              }
-            ) {
-              id
-              createdAtEpoch
-              allocatedTokens
-              subgraphDeployment {
+      const result = await this.subgraph
+        .query(
+          gql`
+            query allocations($indexer: String!, $deployment: String!) {
+              allocations(
+                where: {
+                  indexer: $indexer
+                  subgraphDeployment: $deployment
+                  status: Active
+                }
+              ) {
                 id
-                stakedTokens
-                signalAmount
+                createdAtEpoch
+                allocatedTokens
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
               }
             }
-          }
-        `,
-        variables: {
-          indexer: this.indexerAddress.toLocaleLowerCase(),
-          deployment: deployment.bytes32,
-        },
-        fetchPolicy: 'no-cache',
-      })
+          `,
+          {
+            indexer: this.indexerAddress.toLocaleLowerCase(),
+            deployment: deployment.bytes32,
+          },
+          { fetchPolicy: 'no-cache' },
+        )
+        .toPromise()
       return result.data.allocations.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (allocation: any) => ({
