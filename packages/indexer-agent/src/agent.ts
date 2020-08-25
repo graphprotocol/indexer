@@ -525,19 +525,11 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexNodeIDs,
     config.defaultAllocationAmount,
   )
-  const network = await Network.create(
-    config.logger,
-    config.ethereumProvider,
-    config.publicIndexerUrl,
-    config.queryEndpoint,
-    config.indexerGeoCoordinates,
-    config.mnemonic,
-    config.networkSubgraphDeployment,
-  )
+
   const agent = new Agent(
     config.logger,
     indexer,
-    network,
+    config.network,
     config.networkSubgraphDeployment,
   )
   await agent.start()

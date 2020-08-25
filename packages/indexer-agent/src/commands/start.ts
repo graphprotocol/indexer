@@ -2,7 +2,6 @@ import { Argv } from 'yargs'
 import {
   createLogger,
   SubgraphDeploymentID,
-  connectContracts,
   connectDatabase,
   defineIndexerManagementModels,
   createIndexerManagementServer,
@@ -11,7 +10,7 @@ import {
 } from '@graphprotocol/common-ts'
 
 import { startAgent } from '../agent'
-import { providers, Wallet } from 'ethers'
+import { Network } from '../network'
 
 export default {
   command: 'start',
@@ -133,31 +132,24 @@ export default {
     const models = await defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
-
-    // Create network contracts interface for use by the indexer management client/server
-    let providerUrl
-    try {
-      providerUrl = new URL(argv.ethereum)
-    } catch (e) {
-      throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
-    }
-
-    const ethereumProvider = new providers.JsonRpcProvider({
-      url: providerUrl.toString(),
-      user: providerUrl.username,
-      password: providerUrl.password,
-    })
-    const network = await ethereumProvider.getNetwork()
-    let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(argv.ethereum)
-    const contracts = await connectContracts(wallet, network.chainId)
+    const networkSubgraph = new SubgraphDeploymentID(
+      argv.networkSubgraphDeployment,
+    )
+    const network = await Network.create(
+      logger,
+      argv.ethereum,
+      argv.publicIndexerUrl,
+      argv.graphNodeQueryEndpoint,
+      argv.indexerGeoCoordinates,
+      argv.mnemonic,
+      networkSubgraph,
+    )
 
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models,
-      address: wallet.address,
-      url: argv.publicIndexerUrl,
-      contracts,
+      address: network.indexerAddress,
+      contracts: network.contracts,
     })
     await createIndexerManagementServer({
       logger,
@@ -167,18 +159,12 @@ export default {
     logger.info(`Launched indexer management API server`)
 
     await startAgent({
-      mnemonic: argv.mnemonic,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
-      queryEndpoint: argv.graphNodeQueryEndpoint,
-      publicIndexerUrl: argv.publicIndexerUrl,
-      indexerGeoCoordinates: argv.indexerGeoCoordinates,
-      ethereumProvider: argv.ethereum,
       logger,
-      networkSubgraphDeployment: new SubgraphDeploymentID(
-        argv.networkSubgraphDeployment,
-      ),
+      networkSubgraphDeployment: networkSubgraph,
       indexNodeIDs: argv.indexNodeIds,
+      network,
       indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
     })
