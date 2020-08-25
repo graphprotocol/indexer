@@ -50,5 +50,6 @@
     "@types/supertest": "^2.0.10",
     "nock": "^13.0.3",
     "supertest": "^4.0.2"
-  }
+  },
+  "gitHead": "ba59ac08538bdde14a2a062a622122948e1852de"
 }
