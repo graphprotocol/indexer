@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/explicit-module-boundary-types */
+
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Wallet, utils } from 'ethers'
@@ -46,7 +48,7 @@ export type Address = string & { _isAddress: void }
 
 export const toAddress = (s: string): Address => utils.getAddress(s) as Address
 
-// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const normalizeAllocation = (allocation: any): Allocation => {
   // Ensure the allocation ID (an address) is checksummed
   allocation.id = toAddress(allocation.id)
