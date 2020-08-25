@@ -145,10 +145,7 @@ export default {
           return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
 
-        if (
-          !argv['mnemonic'] &&
-          !argv['private-key']
-        ) {
+        if (!argv['mnemonic'] && !argv['private-key']) {
           return `One of --mnemonic and --private-key must be provided`
         }
 
