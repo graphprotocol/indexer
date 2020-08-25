@@ -1,8 +1,5 @@
-// TODO: (Liam) Provide instructions for setting up test to use local PostgreSQL
-//              This must run _before_ any server-wallet code gets imported
-// ❯ cd node_modules/@statechannels/server-wallet
-// ❯ SERVER_DB_NAME=indexer-sw NODE_ENV=development yarn db:migrate
-//
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
+
 process.env.SERVER_DB_NAME = 'indexer-sw'
 
 import * as base58 from 'bs58'
