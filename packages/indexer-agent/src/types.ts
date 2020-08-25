@@ -4,17 +4,14 @@ import {
   IndexerManagementClient,
 } from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
+import { Network } from './network'
 
 export interface AgentConfig {
-  mnemonic: string
   statusEndpoint: string
   adminEndpoint: string
-  queryEndpoint: string
   indexerManagement: IndexerManagementClient
+  network: Network
   defaultAllocationAmount: BigNumber
-  publicIndexerUrl: string
-  indexerGeoCoordinates: [string, string]
-  ethereumProvider: string
   logger: Logger
   networkSubgraphDeployment: SubgraphDeploymentID
   indexNodeIDs: string[]
