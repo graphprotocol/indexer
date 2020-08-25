@@ -6,7 +6,6 @@ import {
   createMetrics,
   createMetricsServer,
   SubgraphDeploymentID,
-  connectDatabase,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -109,18 +108,20 @@ export default {
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
 
     const privateKey = wallet.privateKey
+    // Ensure the address is checksummed
     const address = toAddress(wallet.address)
     await SigningWallet.query()
       .insert(SigningWallet.fromJson({ privateKey, address }))
       .catch(() => {
-        // ignore duplicate entry error
-        // handle constraint violation by warning that they already have a _different_ signing key
+        // Ignore duplicate entry error; handle constraint violation by warning
+        // the user that they already have a _different_ signing key below:
       })
       .finally(() => {
         logger.info('Seeded state channels wallet with account from mnemonic provided', {
           address,
         })
       })
+
     // Create payment manager
     const paymentManager = new PaymentManager({
       logger: logger.child({ component: 'PaymentManager' }),

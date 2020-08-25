@@ -47,6 +47,7 @@ export class NetworkMonitor {
       url: url.toString(),
     })
 
+    // Ensure the address is checksummed
     const indexerAddress = toAddress(wallet.address)
 
     // eslint-disable-next-line no-constant-condition

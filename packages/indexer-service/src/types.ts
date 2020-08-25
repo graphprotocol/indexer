@@ -46,7 +46,9 @@ export type Address = string & { _isAddress: void }
 
 export const toAddress = (s: string): Address => utils.getAddress(s) as Address
 
+// eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 export const normalizeAllocation = (allocation: any): Allocation => {
+  // Ensure the allocation ID (an address) is checksummed
   allocation.id = toAddress(allocation.id)
   return allocation
 }
