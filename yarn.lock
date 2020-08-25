@@ -712,6 +712,31 @@
     prom-client "^12.0.0"
     sequelize "^6.3.4"
 
+"@graphprotocol/common-ts@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.0.tgz#bd02419a894081570c84dded5283ae141a710000"
+  integrity sha512-ibK6gTMXY7o8/aSTnRVhg/ZB0Xs8RdcXY5GflOIBN7yV1mYB3vbLK04m5nvjDXLm2Wz1KklgTW1gXHxMWMWVfA==
+  dependencies:
+    "@graphprotocol/contracts" "0.5.0-testnet-phase1"
+    "@urql/core" "^1.12.3"
+    "@urql/exchange-execute" "^1.0.1"
+    body-parser "^1.19.0"
+    bs58 "^4.0.1"
+    cors "^2.8.5"
+    cross-fetch "^3.0.5"
+    ethers "^5.0.2"
+    express "^4.17.1"
+    graphql "^15.3.0"
+    graphql-tag "^2.11.0"
+    helmet "^4.1.0"
+    morgan "^1.10.0"
+    ngeohash "^0.6.3"
+    pg "^8.2.1"
+    pg-hstore "^2.3.3"
+    pino "^6.3.2"
+    prom-client "^12.0.0"
+    sequelize "^6.3.4"
+
 "@graphprotocol/contracts@0.5.0-testnet-phase1", "@graphprotocol/contracts@^0.5.0-testnet-phase1":
   version "0.5.0-testnet-phase1"
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
