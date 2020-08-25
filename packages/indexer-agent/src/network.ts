@@ -24,6 +24,7 @@ import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
 import { Allocation } from './types'
+import { HDNode } from 'ethers/lib/utils'
 
 class Ethereum {
   static async executeTransaction(
@@ -53,7 +54,8 @@ export class Network {
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
-  privateKey: string
+  mnemonic: string | null
+  privateKey: string | null
   logger: Logger
   ethereumProvider: providers.JsonRpcProvider
 
@@ -63,7 +65,8 @@ export class Network {
     indexerUrl: string,
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
-    privateKey: string,
+    mnemonic: string | null,
+    privateKey: string | null,
     subgraph: Client,
     ethereumProvider: providers.JsonRpcProvider,
   ) {
@@ -72,6 +75,7 @@ export class Network {
     this.indexerUrl = indexerUrl
     this.indexerGeoCoordinates = geoCoordinates
     this.contracts = contracts
+    this.mnemonic = mnemonic
     this.privateKey = privateKey
     this.subgraph = subgraph
     this.ethereumProvider = ethereumProvider
@@ -83,7 +87,8 @@ export class Network {
     indexerUrl: string,
     indexerQueryEndpoint: string,
     geoCoordinates: [string, string],
-    privateKey: string,
+    mnemonic: string | null,
+    privateKey: string | null,
     networkSubgraph: Client | SubgraphDeploymentID,
   ): Promise<Network> {
     const logger = parentLogger.child({ component: 'Network' })
@@ -118,8 +123,14 @@ export class Network {
       chainId: network.chainId,
       provider: ethereumProviderUrl,
     })
+    let wallet: Wallet
+    if (mnemonic) {
+      wallet = Wallet.fromMnemonic(mnemonic)
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      wallet = new Wallet(privateKey!)
+    }
 
-    let wallet = new Wallet(privateKey)
     wallet = wallet.connect(ethereumProvider)
     logger.info(`Successfully created wallet`, { address: wallet.address })
 
@@ -133,6 +144,7 @@ export class Network {
       indexerUrl,
       geoCoordinates,
       contracts,
+      mnemonic,
       privateKey,
       subgraph,
       ethereumProvider,
@@ -433,7 +445,14 @@ export class Network {
     })
 
     // Derive the deployment specific public key
-    const hdNode = utils.HDNode.fromExtendedKey(this.privateKey)
+    let hdNode: HDNode
+
+    if (this.mnemonic) {
+      hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      hdNode = utils.HDNode.fromExtendedKey(this.privateKey!)
+    }
     const path =
       'm/' +
       [
