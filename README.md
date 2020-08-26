@@ -13,20 +13,35 @@ used to maintain the following changelogs:
 - [indexer-service](packages/indexer-service/CHANGELOG.md)
 - [indexer-agent](packages/indexer-agent/CHANGELOG.md)
 
-## Install dependencies
+## Running from NPM packages
 
-Run the following at the root of this repository:
+The indexer service and agent can be installed as NPM packages, using
+
+```sh
+npm install -g @graphprotocol/indexer-service --registry https://testnet.thegraph.com/npm-registry/
+npm install -g @graphprotocol/indexer-agent --registry https://testnet.thegraph.com/npm-registry/
+```
+
+After that, they can be 
+
+## Running from source
+
+Run the following at the root of this repository to install dependencies and build the packages:
 
 ```sh
 yarn
 ```
 
-## Build
-
-The following command builds all packages in this repository:
+After this, the indexer service and agent can be run with:
 
 ```sh
-yarn prepare
+# Indexer service
+cd packages/indexer-service
+./bin/graph-indexer-service ...
+
+# Indexer agent
+cd packages/indexer-service
+./bin/graph-indexer-service ...
 ```
 
 ## Docker images
