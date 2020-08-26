@@ -1,4 +1,4 @@
-# Graph Protocol Indexer Components
+# Graph Protocol Indexer Components (Private)
 
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
 [![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-service)
