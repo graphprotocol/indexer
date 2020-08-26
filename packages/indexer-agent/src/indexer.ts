@@ -65,7 +65,7 @@ export class Indexer {
             }
           `,
           undefined,
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return result.data.indexingStatuses
@@ -102,9 +102,7 @@ export class Indexer {
             }
           `,
           { merged },
-          {
-            fetchPolicy: 'no-cache',
-          },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return result.data.indexingRules
@@ -128,7 +126,7 @@ export class Indexer {
             }
           `,
           { deployment: INDEXING_RULE_GLOBAL },
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -161,6 +159,7 @@ export class Indexer {
               }
             `,
             { rule: defaults },
+            { requestPolicy: 'network-only' },
           )
           .toPromise()
 
@@ -213,7 +212,7 @@ export class Indexer {
             }
           `,
           { deployments: [deployment.ipfsHash] },
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return (

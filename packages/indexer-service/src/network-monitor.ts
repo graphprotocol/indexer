@@ -63,9 +63,7 @@ export class NetworkMonitor {
               }
             `,
             { id: indexerAddress.toLowerCase() },
-            {
-              requestPolicy: 'network-only',
-            },
+            { requestPolicy: 'network-only' },
           )
           .toPromise()
 

@@ -169,7 +169,7 @@ export class Network {
             }
           `,
           undefined,
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return (
@@ -287,7 +287,7 @@ export class Network {
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
           },
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return result.data.allocations.map(
@@ -339,7 +339,7 @@ export class Network {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             deployment: deployment.bytes32,
           },
-          { fetchPolicy: 'no-cache' },
+          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return result.data.allocations.map(
