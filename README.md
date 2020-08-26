@@ -117,7 +117,6 @@ docker build \
 
    This starts the indexer agent and serves the so-called indexer management API
    on the host at port 18000.
-   ````
 
 # Copyright
 
