@@ -22,7 +22,15 @@ npm install -g @graphprotocol/indexer-service --registry https://testnet.thegrap
 npm install -g @graphprotocol/indexer-agent   --registry https://testnet.thegraph.com/npm-registry/
 ```
 
-After that, they can be 
+After that, they can be run with the following commands:
+
+```sh
+# Indexer service
+graph-indexer-service ...
+
+# Indexer agent
+graph-indexer-agent ...
+```
 
 ## Running from source
 
