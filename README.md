@@ -64,9 +64,7 @@ Creating a new release involves the following steps:
    When it asks for the version to release, select the same one that was used
    when updating the changelogs.
 
-## Deployment
-
-### Manual or local deployment
+## Docker images
 
 The easiest way to run the indexer service agent is by using Docker. Docker
 images can either be pulled via
@@ -93,6 +91,8 @@ docker build \
   -t indexer-agent:latest \
   .
 ```
+
+After this, the indexer agent and service can be run as follows:
 
 1. Indexer service:
 
