@@ -19,7 +19,7 @@ The indexer service and agent can be installed as NPM packages, using
 
 ```sh
 npm install -g @graphprotocol/indexer-service --registry https://testnet.thegraph.com/npm-registry/
-npm install -g @graphprotocol/indexer-agent --registry https://testnet.thegraph.com/npm-registry/
+npm install -g @graphprotocol/indexer-agent   --registry https://testnet.thegraph.com/npm-registry/
 ```
 
 After that, they can be 
