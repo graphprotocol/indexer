@@ -600,7 +600,7 @@ export class Network {
       )
       const approveEvent = approveReceipt.events?.find(event =>
         event.topics.includes(
-          this.contracts.serviceRegistry.interface.getEventTopic('Approval'),
+          this.contracts.token.interface.getEventTopic('Approval'),
         ),
       )
       if (!approveEvent) {
