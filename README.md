@@ -29,41 +29,6 @@ The following command builds all packages in this repository:
 yarn prepare
 ```
 
-## Releases
-
-Creating a new release involves the following steps:
-
-1. Update all changelogs:
-
-   ```sh
-   cd packages/indexer-service
-   chan added ...
-   chan fixed ...
-   chan changed ...
-   chan release <new-version>
-   cd ../..
-
-   cd packages/indexer-agent
-   ...
-   cd ../..
-   ```
-
-2. Commit these changelogs:
-
-   ```sh
-   git add packages/**/CHANGELOG.md
-   git commit -m "Update changelogs ahead of release"
-   ```
-
-3. Publish a new release:
-
-   ```sh
-   lerna publish
-   ```
-
-   When it asks for the version to release, select the same one that was used
-   when updating the changelogs.
-
 ## Docker images
 
 The easiest way to run the indexer service agent is by using Docker. Docker
@@ -117,6 +82,41 @@ After this, the indexer agent and service can be run as follows:
 
    This starts the indexer agent and serves the so-called indexer management API
    on the host at port 18000.
+   
+## Releasing
+
+Creating a new release involves the following steps:
+
+1. Update all changelogs:
+
+   ```sh
+   cd packages/indexer-service
+   chan added ...
+   chan fixed ...
+   chan changed ...
+   chan release <new-version>
+   cd ../..
+
+   cd packages/indexer-agent
+   ...
+   cd ../..
+   ```
+
+2. Commit these changelogs:
+
+   ```sh
+   git add packages/**/CHANGELOG.md
+   git commit -m "Update changelogs ahead of release"
+   ```
+
+3. Publish a new release:
+
+   ```sh
+   lerna publish
+   ```
+
+   When it asks for the version to release, select the same one that was used
+   when updating the changelogs.
 
 # Copyright
 
