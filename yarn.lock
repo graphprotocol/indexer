@@ -689,7 +689,7 @@
 
 "@graphprotocol/common-ts@^0.2.2":
   version "0.2.2"
-  resolved "https://registry.npmjs.org/@graphprotocol%2fcommon-ts/-/common-ts-0.2.2.tgz#7daeac38aa261b7ae0fa0c4d2603eb276b8ceba2"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.2.tgz#7daeac38aa261b7ae0fa0c4d2603eb276b8ceba2"
   integrity sha512-Ky3LbiW0iyWahXWOSeK2KCHZbBDhskq193LKyLG3fvl1N7K9Mlzgg79wa6LkfeAcstihDI/kXBu6EIN7s8hhHQ==
   dependencies:
     "@graphprotocol/contracts" "0.5.0-testnet-phase1"
