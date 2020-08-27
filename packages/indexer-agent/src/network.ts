@@ -386,7 +386,7 @@ export class Network {
         const service = await this.contracts.serviceRegistry.services(
           this.indexerAddress,
         )
-        if (service.url === this.indexerUrl) {
+        if (service.url === this.indexerUrl && service.geohash === geoHash) {
           logger.info(`Indexer already registered`)
           return
         }
