@@ -10,4 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Indexer agent fails to detect GRT approval
 
+### Changed
+- Update @graphprotocol/common-ts to 0.2.2
+
 [Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.2.1...HEAD
