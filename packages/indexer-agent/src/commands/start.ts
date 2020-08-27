@@ -184,6 +184,7 @@ export default {
       models,
       address: network.indexerAddress,
       contracts: network.contracts,
+      logger,
     })
     await createIndexerManagementServer({
       logger,
