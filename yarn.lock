@@ -687,10 +687,10 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@^0.2.0", "@graphprotocol/common-ts@^0.2.1":
-  version "0.2.1"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.1.tgz#df00a9c3ea5de5d53d29d58cbcdceecd4168256c"
-  integrity sha512-t0OHqgNxbtxJrP49fEz4W1WIg1+1HA8SwtDaxGLWnTxvzr+uILStKdjREO0YCRV9zQI/ZFCN4XXv/ZGDw7Yc9g==
+"@graphprotocol/common-ts@^0.2.2":
+  version "0.2.2"
+  resolved "https://testnet.thegraph.com/npm-registry/@graphprotocol%2fcommon-ts/-/common-ts-0.2.2.tgz#7daeac38aa261b7ae0fa0c4d2603eb276b8ceba2"
+  integrity sha512-Ky3LbiW0iyWahXWOSeK2KCHZbBDhskq193LKyLG3fvl1N7K9Mlzgg79wa6LkfeAcstihDI/kXBu6EIN7s8hhHQ==
   dependencies:
     "@graphprotocol/contracts" "0.5.0-testnet-phase1"
     "@urql/core" "^1.12.3"
