@@ -56,7 +56,7 @@ resource "google_container_node_pool" "default_pool" {
   node_count = var.sizes.default_pool
 
   node_config {
-    preemptible  = false
+    preemptible  = var.preemptible
     machine_type = var.machine_type
 
     metadata = {
@@ -80,7 +80,7 @@ resource "google_container_node_pool" "query_pool" {
   node_count = var.sizes.query_pool
 
   node_config {
-    preemptible  = false
+    preemptible  = var.preemptible
     machine_type = var.machine_type
 
     metadata = {
@@ -116,7 +116,7 @@ resource "google_container_node_pool" "index_pool" {
   node_count = var.sizes.index_pool
 
   node_config {
-    preemptible  = false
+    preemptible  = var.preemptible
     machine_type = var.machine_type
 
     metadata = {
