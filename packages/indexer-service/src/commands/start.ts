@@ -17,6 +17,7 @@ import { NetworkMonitor } from '../network-monitor'
 import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { toAddress } from '../types'
+import { ReceiptManager } from '../receipt-manager'
 
 export default {
   command: 'start',
@@ -140,11 +141,10 @@ export default {
       })
 
     // Create payment manager
-    const paymentManager = new PaymentManager({
-      logger: logger.child({ component: 'PaymentManager' }),
-      metrics,
-      wallet,
-    })
+    const receiptManager = new ReceiptManager(
+      logger.child({ component: 'PaymentManager' }),
+      privateKey,
+    )
 
     const networkSubgraph = await createNetworkSubgraphClient({
       url: argv.networkSubgraphEndpoint
@@ -169,22 +169,16 @@ export default {
       logger: logger.child({ component: 'QueryProcessor' }),
       graphNode: argv.graphNodeQueryEndpoint,
       metrics,
-      paymentManager,
+      receiptManager,
       chainId: network.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
-    })
-
-    // Add and remove subgraph state channels as indexing subgraphs change
-    networkMonitor.allocationsUpdated.attach(async update => {
-      await paymentManager.createAllocationPaymentClients(update.added)
-      await paymentManager.collectAllocationPayments(update.removed)
     })
 
     // Spin up a basic webserver
     await createServer({
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
-      paymentManager,
+      receiptManager,
       queryProcessor,
       metrics,
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,

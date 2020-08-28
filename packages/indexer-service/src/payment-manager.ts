@@ -28,12 +28,14 @@ export class PaymentManager implements PaymentManagerInterface {
   private logger: Logger
   private serverWallet: ServerWallet
   private allocationClients: Map<string, AllocationPaymentClient>
+  private allocations: Allocation[]
 
   constructor(options: PaymentManagerOptions) {
     this.wallet = options.wallet
     this.logger = options.logger
     this.allocationClients = new Map()
     this.serverWallet = new ServerWallet() // TODO: put unique pk in here?
+    this.allocations = []
   }
 
   getAllocationIdFromMessage(message: WireMessage): string {
