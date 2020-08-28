@@ -34,6 +34,10 @@ resource "google_container_cluster" "cluster" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
+  release_channel {
+    channel = var.release_channel
+  }
+
   network = "projects/${var.project}/global/networks/default"
 
   master_auth {

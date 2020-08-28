@@ -42,6 +42,12 @@ variable "secure_boot" {
   description = "Whether to enable secure boot for kubernetes nodes"
 }
 
+variable "release_channel" {
+  type = string
+  default = "UNSPECIFIED"
+  description = "The release channel of the Kubernetes cluster"
+}
+
 variable "database_tier" {
   type = string
   default = "db-custom-4-4096"
