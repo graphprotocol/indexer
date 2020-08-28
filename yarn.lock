@@ -1973,6 +1973,13 @@
   dependencies:
     "@sinonjs/commons" "^1.7.0"
 
+"@statechannels/client-api-schema@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@statechannels/client-api-schema/-/client-api-schema-0.2.0.tgz#d9aa77f236b733d53c2b58938e30bb760a1ef9e5"
+  integrity sha512-dtvIVNDiJUpXNHBhySnRu26fQJs7BhGSqcOr50Izc5TG4lXNwMpvOp6FyCu1muL8qrVVap1oxiEHG02vgu7Kiw==
+  dependencies:
+    ajv "6.11.0"
+
 "@statechannels/client-api-schema@^0.3.1":
   version "0.3.4"
   resolved "https://registry.npmjs.org/@statechannels/client-api-schema/-/client-api-schema-0.3.4.tgz#2a226b3b748d16ef4291a33359f0d061ddf75624"
@@ -2004,6 +2011,23 @@
     write-json-file "4.2.0"
     yargs "15.4.1"
 
+"@statechannels/graph@^0.0.6":
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/@statechannels/graph/-/graph-0.0.6.tgz#40424ad83e4dc2dd7d73de86c5daec5ec4fc6cb7"
+  integrity sha512-BjlbnNbZCPXqVCzKETRUVhHNt22uK/8256Xe0pHRGvMykW8ANnM9XORTi3Sr8xbORADSNM4zUgnqLq6grTkCkA==
+  dependencies:
+    "@openzeppelin/contracts" "3.0.1"
+    "@statechannels/client-api-schema" "^0.2.0"
+    "@statechannels/wallet-core" "^0.2.0"
+
+"@statechannels/nitro-protocol@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@statechannels/nitro-protocol/-/nitro-protocol-0.2.0.tgz#8966e7f8fcd537bc16fb9c4771c341fc6149041d"
+  integrity sha512-prqKa2vgjJZmJMjxPiUpuGEguDrNXLdCUKtIxEmOg9ghw3MzAhVB6Tll0ezWP14T2JD3XoMp8UYcqRE3dom7Yg==
+  dependencies:
+    "@openzeppelin/contracts" "3.0.1"
+    ethers "4.0.45"
+
 "@statechannels/nitro-protocol@^0.3.2", "@statechannels/nitro-protocol@^0.3.4":
   version "0.3.4"
   resolved "https://registry.npmjs.org/@statechannels/nitro-protocol/-/nitro-protocol-0.3.4.tgz#7ef0ef46c150d062880eb8860c4b124e00f5f2b6"
@@ -2029,6 +2053,16 @@
     pino "6.2.0"
     pure-evm "0.1.3"
 
+"@statechannels/wallet-core@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@statechannels/wallet-core/-/wallet-core-0.2.0.tgz#8cf82417b63ece54000aad76985ef7ca202c0209"
+  integrity sha512-W+RzgjkKaywKv2zmhO+v41BCQViHqpWJcVnl7wfZStK6pgy8ppjbPf/Vv/I1BmAEwKOhGItIve7kbJ+2ZPEQxA==
+  dependencies:
+    "@statechannels/nitro-protocol" "^0.2.0"
+    "@statechannels/wire-format" "^0.2.0"
+    ethers "5.0.7"
+    lodash "4.17.19"
+
 "@statechannels/wallet-core@^0.3.1":
   version "0.3.4"
   resolved "https://registry.npmjs.org/@statechannels/wallet-core/-/wallet-core-0.3.4.tgz#71dc6d8a60bb3067ea35948692ef689f75df462f"
@@ -2038,6 +2072,13 @@
     "@statechannels/wire-format" "^0.3.4"
     ethers "5.0.7"
     lodash "4.17.19"
+
+"@statechannels/wire-format@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.yarnpkg.com/@statechannels/wire-format/-/wire-format-0.2.0.tgz#42b6479237444365ae519e38fcc79d206328dd4e"
+  integrity sha512-XSWBXuB//AYiaVlxN+kd3/xxxQ44yIPV6okxsDn50eBHjrop/9vI/vPht8xRqezrTGkXh6hpEtoc72zN0Unecg==
+  dependencies:
+    ajv "6.11.0"
 
 "@statechannels/wire-format@^0.3.4":
   version "0.3.4"
@@ -5641,7 +5682,7 @@ etherlime@2.3.3:
     tcp-port-used "^1.0.1"
     yargs "11.0.0"
 
-ethers@4.0.0-beta.1, ethers@4.0.0-beta.3, ethers@4.0.48, ethers@5.0.7, ethers@5.0.8, ethers@^4.0.27, ethers@^4.0.32, ethers@^5.0.8, "ethers@git+https://github.com/LimeChain/ethers.js.git#master":
+ethers@4.0.0-beta.1, ethers@4.0.0-beta.3, ethers@4.0.45, ethers@4.0.48, ethers@5.0.7, ethers@5.0.8, ethers@^4.0.27, ethers@^4.0.32, ethers@^5.0.8, "ethers@git+https://github.com/LimeChain/ethers.js.git#master":
   version "5.0.8"
   resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.8.tgz#c13d0fdf5e66db8085e2036d3309ed2f8a17ed89"
   integrity sha512-of/rPgJ7E3yyBADUv5A7Gtkd7EB8ta/T9NS5CCG9tj9cifnXcI3KIdYQ7d8AS+9vm38pR1g6S5I+Q/mRnlQZlg==
