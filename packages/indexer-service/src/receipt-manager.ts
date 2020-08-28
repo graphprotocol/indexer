@@ -9,35 +9,14 @@ import {
   BN,
   SignedState,
   calculateChannelId,
+  ChannelConstants,
 } from '@statechannels/wallet-core'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger } from '@graphprotocol/common-ts'
 import {
   Attestation as SCAttestation,
   StateType,
   computeNextState,
 } from '@statechannels/graph'
-import { PaidQuery } from './types'
-import { utils } from 'ethers'
-import base58 from 'bs58'
-import { ChannelConstants } from '../../../../monorepo/node_modules/@statechannels/wallet-core/lib/src/types'
-
-// remove these mocks
-const mockSubgraphId = (): SubgraphDeploymentID =>
-  new SubgraphDeploymentID(
-    base58.encode([
-      0x12,
-      0x20,
-      ...utils.arrayify(utils.sha256(Buffer.from('network-subgraph-indexer-1'))),
-    ]),
-  )
-
-const mockQuery = (): PaidQuery => ({
-  stateChannelMessage: { recipient: '', sender: '', data: null },
-  subgraphDeploymentID: mockSubgraphId(),
-  query: '',
-  allocationID: 'abc',
-  requestCID: '',
-})
 
 interface iReceiptManager {
   inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
@@ -47,9 +26,7 @@ interface iReceiptManager {
   getExistingChannelId(message: WireMessage): Promise<string | undefined>
 }
 
-type RMResponse = Promise<WireMessage | SCError | undefined>
-
-type SCError = Error
+type RMResponse = Promise<WireMessage | undefined>
 
 export class ReceiptManager implements iReceiptManager {
   constructor(
@@ -162,19 +139,16 @@ export class ReceiptManager implements iReceiptManager {
     channelId: string,
     attestation: SCAttestation,
   ): Promise<RMResponse> {
-    const query = mockQuery()
-    return this.nextState(StateType.AttestationProvided, channelId, query, attestation)
+    return this.nextState(StateType.AttestationProvided, channelId, attestation)
   }
 
   async declineQuery(channelId: string): Promise<RMResponse> {
-    const query = mockQuery()
-    return this.nextState(StateType.QueryDeclined, channelId, query)
+    return this.nextState(StateType.QueryDeclined, channelId)
   }
 
   private async nextState(
     stateType: StateType,
     channelId: string,
-    query: PaidQuery,
     attestation: SCAttestation | null = null,
   ): Promise<WireMessage> {
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
@@ -186,7 +160,8 @@ export class ReceiptManager implements iReceiptManager {
 
     const nextState = computeNextState(appData, allocations, {
       toStateType: stateType,
-      query,
+      // todo: currently unused and should be removed
+      query: { requestCID: '' },
       attestation: inputAttestation,
     })
 
