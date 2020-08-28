@@ -25,7 +25,6 @@ import {
   mockCreatedZeroChannelMessage,
   mockQueryRequestMessage,
   mockChannelId,
-  mockAttestation,
   mockSCAttestation,
   mockAppData,
   mockPostFundMessage,
@@ -101,7 +100,7 @@ describe('ReceiptManager', () => {
     const appData = toJS(nextState.appData)
 
     expect(appData.constants).toEqual(mockAppData().constants)
-    expect(appData.variable.responseCID).toEqual(mockAttestation().responseCID)
+    expect(appData.variable.responseCID).toEqual(mockSCAttestation().responseCID)
     expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
     expect((nextState.outcome as SimpleAllocation).allocationItems).toEqual([
       { amount: BN.from(99), destination: makeDestination(constants.AddressZero) },
