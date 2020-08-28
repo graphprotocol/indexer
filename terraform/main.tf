@@ -62,6 +62,7 @@ resource "google_container_node_pool" "default_pool" {
   node_config {
     preemptible  = var.preemptible
     machine_type = var.machine_type
+    image_type   = var.image_type
 
     shielded_instance_config {
       enable_secure_boot = var.secure_boot
@@ -90,6 +91,7 @@ resource "google_container_node_pool" "query_pool" {
   node_config {
     preemptible  = var.preemptible
     machine_type = var.machine_type
+    image_type   = var.image_type
 
     shielded_instance_config {
       enable_secure_boot = var.secure_boot
@@ -130,6 +132,7 @@ resource "google_container_node_pool" "index_pool" {
   node_config {
     preemptible  = var.preemptible
     machine_type = var.machine_type
+    image_type   = var.image_type
 
     shielded_instance_config {
       enable_secure_boot = var.secure_boot
