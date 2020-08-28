@@ -37,6 +37,11 @@ variable "preemptible" {
   description = "Whether to use preemptible machines for kubernetes nodes"
 }
 
+variable "secure_boot" {
+  default = false
+  description = "Whether to enable secure boot for kubernetes nodes"
+}
+
 variable "database_tier" {
   type = string
   default = "db-custom-4-4096"
