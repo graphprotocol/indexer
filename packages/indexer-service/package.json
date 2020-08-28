@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
+    "@statechannels/graph": "^0.0.6",
     "@statechannels/server-wallet": "^0.3.2",
     "@urql/core": "^1.12.3",
     "apollo-link-http": "^1.5.17",
