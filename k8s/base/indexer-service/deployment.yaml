@@ -13,7 +13,7 @@ spec:
         app: indexer-service
       annotations:
         prometheus.io/scrape: "true"
-        prometheus.io/path: "/metrics"
+        prometheus.io/path: "/"
         prometheus.io/port: "7300"
     spec:
       # Temporary: Allow to pull private Docker images
