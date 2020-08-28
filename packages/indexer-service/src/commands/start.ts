@@ -11,7 +11,6 @@ import {
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { PaymentManager } from '../payment-manager'
 import { NetworkMonitor } from '../network-monitor'
 
 import knex from '@statechannels/server-wallet/lib/src/db/connection'
@@ -142,7 +141,7 @@ export default {
 
     // Create payment manager
     const receiptManager = new ReceiptManager(
-      logger.child({ component: 'PaymentManager' }),
+      logger.child({ component: 'ReceiptManager' }),
       privateKey,
     )
 
