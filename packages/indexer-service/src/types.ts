@@ -76,14 +76,6 @@ export interface AllocationPaymentClient {
   settle(): Promise<void>
 }
 
-export interface PaymentManager {
-  wallet: Wallet
-
-  createAllocationPaymentClients(allocations: Allocation[]): void
-  collectAllocationPayments(allocations: Allocation[]): Promise<void>
-  getAllocationPaymentClient(allocationId: string): AllocationPaymentClient | undefined
-}
-
 export class QueryError extends Error {
   status: number
 

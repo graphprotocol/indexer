@@ -5,9 +5,9 @@
 //
 process.env.SERVER_DB_NAME = 'indexer-sw'
 
-import { Wallet, constants } from 'ethers'
+import { constants } from 'ethers'
 
-import { createLogger, createMetrics } from '@graphprotocol/common-ts'
+import { createLogger } from '@graphprotocol/common-ts'
 import {
   SignedState,
   makeDestination,
@@ -20,11 +20,9 @@ import serverWalletKnex from '@statechannels/server-wallet/lib/src/db/connection
 import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db/seeds/1_signing_wallet_seeds'
 
 import { ReceiptManager } from '../receipt-manager'
-import { AllocationPaymentClient } from '../types'
 import {
   mockCreatedChannelMessage,
   mockCreatedZeroChannelMessage,
-  mockQuery,
   mockQueryRequestMessage,
   mockChannelId,
   mockAttestation,
@@ -42,7 +40,7 @@ let receiptManager: ReceiptManager
 beforeEach(async () => {
   logger.info(`Truncating ${process.env.SERVER_DB_NAME}; Seeding new SigningWallet`)
   await seedAlicesSigningWallet(serverWalletKnex)
-  receiptManager = new ReceiptManager(logger)
+  receiptManager = new ReceiptManager(logger, '')
 })
 
 afterAll(async () => {
@@ -114,7 +112,7 @@ describe('ReceiptManager', () => {
   it('can deny a query', async () => {
     await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
-    const outbound = await receiptManager.declineQuery(mockChannelId, mockQuery())
+    const outbound = await receiptManager.declineQuery(mockChannelId)
 
     const {
       data: {
