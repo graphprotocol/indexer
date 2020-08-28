@@ -12,7 +12,12 @@ import {
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { getChannelId } from '@statechannels/nitro-protocol'
-import { AppData, StateType, fromJS } from '@statechannels/graph'
+import {
+  AppData,
+  StateType,
+  fromJS,
+  Attestation as SCAttestation,
+} from '@statechannels/graph'
 
 export const mockSubgraphId = (): SubgraphDeploymentID =>
   new SubgraphDeploymentID(
@@ -37,6 +42,11 @@ export const mockAttestation = (): Attestation => ({
   r: constants.HashZero,
   s: constants.HashZero,
   v: 0,
+})
+
+export const mockSCAttestation = (): SCAttestation => ({
+  responseCID: constants.HashZero,
+  signature: utils.joinSignature({ r: constants.HashZero, s: constants.HashZero, v: 0 }),
 })
 
 const sampleAttestation = mockAttestation()
