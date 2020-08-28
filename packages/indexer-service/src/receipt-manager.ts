@@ -117,6 +117,25 @@ export class ReceiptManager implements iReceiptManager {
         },
       }
     }
+    /**
+     * This is an expected response from the counterparty upon seeing 0 and 3,
+     * they will countersign 3 and send it back. Now, we don't need to reply.
+     */
+    if (channelResult.status === 'running' && outbox.length === 0) {
+      return
+    }
+
+    if (channelResult.status === 'closed' && outbox.length === 1) {
+      this.logger.info('Closed channel', {
+        channelId: channelResult.channelId,
+      })
+      const [{ params: outboundClosedChannelState }] = outbox
+      return outboundClosedChannelState as WireMessage
+    }
+
+    throw new Error(
+      'Received a message which was neither a new channel request, nor a closure request',
+    )
   }
 
   async provideAttestation(

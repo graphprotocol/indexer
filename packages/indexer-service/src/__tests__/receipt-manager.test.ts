@@ -26,7 +26,13 @@ import {
   mockCreatedZeroChannelMessage,
   mockQuery,
   mockQueryRequestMessage,
-} from './receipt-manager.mocks'
+  mockChannelId,
+  mockAttestation,
+  mockSCAttestation,
+  mockAppData,
+  mockPostFundMessage,
+  mockCloseChannelMessage,
+} from '../__mocks__/receipt-manager.mocks'
 import { toJS, StateType } from '@statechannels/graph'
 
 const logger = createLogger({ name: 'receipt-manager.test.ts' })
@@ -79,5 +85,63 @@ describe('ReceiptManager', () => {
     await expect(
       receiptManager.inputStateChannelMessage(mockQueryRequestMessage()),
     ).resolves.not.toThrow()
+  })
+
+  it('can provide attestation response', async () => {
+    await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
+    await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
+
+    const attestationMessage = await receiptManager.provideAttestation(
+      mockChannelId,
+      mockSCAttestation(),
+    )
+    const {
+      data: {
+        signedStates: [nextState],
+      },
+    } = attestationMessage as { data: { signedStates: SignedState[] } }
+    const appData = toJS(nextState.appData)
+
+    expect(appData.constants).toEqual(mockAppData().constants)
+    expect(appData.variable.responseCID).toEqual(mockAttestation().responseCID)
+    expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
+    expect((nextState.outcome as SimpleAllocation).allocationItems).toEqual([
+      { amount: BN.from(99), destination: makeDestination(constants.AddressZero) },
+      { amount: BN.from(1), destination: makeDestination(constants.AddressZero) },
+    ])
+  })
+
+  it('can deny a query', async () => {
+    await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
+    await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
+    const outbound = await receiptManager.declineQuery(mockChannelId, mockQuery())
+
+    const {
+      data: {
+        signedStates: [nextState],
+      },
+    } = outbound as { data: { signedStates: SignedState[] } }
+
+    const appData = toJS(nextState.appData)
+    expect(appData.constants).toEqual(mockAppData().constants)
+    expect(appData.variable.stateType).toEqual(StateType.QueryDeclined)
+
+    expect(nextState).toMatchObject({ turnNum: 5 })
+  })
+
+  it('can accept a channel closure', async () => {
+    await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
+    await receiptManager.inputStateChannelMessage(mockPostFundMessage())
+    const outbound = await receiptManager.inputStateChannelMessage(
+      mockCloseChannelMessage(),
+    )
+
+    const {
+      data: {
+        signedStates: [outboundState],
+      },
+    } = outbound as { data: { signedStates: SignedState[] } }
+
+    expect(outboundState).toMatchObject({ turnNum: 4, isFinal: true })
   })
 })
