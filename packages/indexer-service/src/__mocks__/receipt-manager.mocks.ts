@@ -1,7 +1,4 @@
-import { SubgraphDeploymentID, Attestation } from '@graphprotocol/common-ts'
-import * as base58 from 'bs58'
 import { utils, Wallet, constants } from 'ethers'
-import { Allocation, PaidQuery, toAddress } from '../types'
 import {
   State,
   makeDestination,
@@ -19,37 +16,12 @@ import {
   Attestation as SCAttestation,
 } from '@statechannels/graph'
 
-export const mockSubgraphId = (): SubgraphDeploymentID =>
-  new SubgraphDeploymentID(
-    base58.encode([
-      0x12,
-      0x20,
-      ...utils.arrayify(utils.sha256(Buffer.from('network-subgraph-indexer-1'))),
-    ]),
-  )
-
-export const mockAllocation = (): Allocation => ({
-  id: toAddress(constants.AddressZero),
-  publicKey: '-- unused --',
-  subgraphDeploymentID: mockSubgraphId(),
-  createdAtEpoch: 0,
-})
-
-export const mockAttestation = (): Attestation => ({
-  requestCID: constants.HashZero,
-  responseCID: constants.HashZero,
-  subgraphDeploymentID: constants.HashZero,
-  r: constants.HashZero,
-  s: constants.HashZero,
-  v: 0,
-})
-
 export const mockSCAttestation = (): SCAttestation => ({
   responseCID: constants.HashZero,
   signature: utils.joinSignature({ r: constants.HashZero, s: constants.HashZero, v: 0 }),
 })
 
-const sampleAttestation = mockAttestation()
+const sampleAttestation = mockSCAttestation()
 export const mockAppData = (): AppData => ({
   constants: {
     chainId: 0,
@@ -59,6 +31,7 @@ export const mockAppData = (): AppData => ({
   },
   variable: {
     ...sampleAttestation,
+    requestCID: constants.HashZero,
     stateType: StateType.QueryRequested,
     paymentAmount: 1,
     signature: '0x',
@@ -146,14 +119,6 @@ const mockRunningState = (): State => ({
 
 export const mockQueryRequestMessage = (): WireMessage =>
   mockGatewayMessage(mockRunningState())
-
-export const mockQuery = (): PaidQuery => ({
-  stateChannelMessage: mockQueryRequestMessage(),
-  subgraphDeploymentID: mockSubgraphId(),
-  query: '',
-  allocationID: 'abc',
-  requestCID: '',
-})
 
 const mockClosingState = (): State => ({
   ...mockFirstState(),
