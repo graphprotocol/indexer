@@ -32,6 +32,12 @@ variable "machine_type" {
   description = "The type of machine to use for kubernetes nodes"
 }
 
+variable "image_type" {
+  type = string
+  default = "COS"
+  description = "The image type to use for kubernetes nodes"
+}
+
 variable "database_tier" {
   type = string
   default = "db-custom-4-4096"
