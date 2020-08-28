@@ -4,7 +4,12 @@ import {
   ChannelResult,
 } from '@statechannels/client-api-schema'
 import { Wallet } from '@statechannels/server-wallet'
-import { Message as PushMessage, BN } from '@statechannels/wallet-core'
+import {
+  Message as PushMessage,
+  BN,
+  SignedState,
+  calculateChannelId,
+} from '@statechannels/wallet-core'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   Attestation as SCAttestation,
@@ -14,6 +19,7 @@ import {
 import { PaidQuery } from './types'
 import { utils } from 'ethers'
 import base58 from 'bs58'
+import { ChannelConstants } from '../../../../monorepo/node_modules/@statechannels/wallet-core/lib/src/types'
 
 // remove these mocks
 const mockSubgraphId = (): SubgraphDeploymentID =>
@@ -36,8 +42,9 @@ const mockQuery = (): PaidQuery => ({
 interface iReceiptManager {
   inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
 
-  // provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
-  // declineQuery(channelId: string): Promise<RMResponse>
+  provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
+  declineQuery(channelId: string): Promise<RMResponse>
+  getExistingChannelId(message: WireMessage): Promise<string | undefined>
 }
 
 type RMResponse = Promise<WireMessage | SCError | undefined>
@@ -47,9 +54,22 @@ type SCError = Error
 export class ReceiptManager implements iReceiptManager {
   constructor(
     private logger: Logger,
+    public privateKey: string,
     private wallet = new Wallet(),
     private cachedState: Record<string, GetStateResponse['result']> = {},
   ) {}
+
+  public async getExistingChannelId(message: WireMessage): Promise<string | undefined> {
+    const firstState = (message.data as SignedState[])[0]
+    const channelConstants: ChannelConstants = {
+      ...firstState,
+    }
+
+    const channelId = calculateChannelId(channelConstants)
+    return (await this.getChannelResult(calculateChannelId(channelConstants)))
+      ? channelId
+      : undefined
+  }
 
   async inputStateChannelMessage(message: WireMessage): Promise<RMResponse> {
     const {
@@ -141,12 +161,13 @@ export class ReceiptManager implements iReceiptManager {
   async provideAttestation(
     channelId: string,
     attestation: SCAttestation,
-  ): Promise<WireMessage> {
+  ): Promise<RMResponse> {
     const query = mockQuery()
     return this.nextState(StateType.AttestationProvided, channelId, query, attestation)
   }
 
-  async declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage> {
+  async declineQuery(channelId: string): Promise<RMResponse> {
+    const query = mockQuery()
     return this.nextState(StateType.QueryDeclined, channelId, query)
   }
 
@@ -183,17 +204,17 @@ export class ReceiptManager implements iReceiptManager {
     return outboundMsg as WireMessage
   }
 
+  private async getChannelResult(channelId: string): Promise<ChannelResult> {
+    const channelResult = await this.getChannelState(channelId)
+    if (!channelResult) throw new Error(`No channel result for channelId ${channelId}.`)
+    return channelResult
+  }
+
   private async getChannelState(channelId: string): Promise<GetStateResponse['result']> {
     if (!this.cachedState[channelId]) {
       const { channelResult } = await this.wallet.getState({ channelId })
       this.cachedState[channelId] = channelResult
     }
     return this.cachedState[channelId]
-  }
-
-  private async getChannelResult(channelId: string): Promise<ChannelResult> {
-    const channelResult = await this.getChannelState(channelId)
-    if (!channelResult) throw new Error(`No channel result for channelId ${channelId}.`)
-    return channelResult
   }
 }

@@ -12,13 +12,13 @@ import {
   SubgraphDeploymentID,
   secureExpressApp,
 } from '@graphprotocol/common-ts'
-import { PaymentManager } from '../payment-manager'
+import { ReceiptManager } from '../receipt-manager'
 
 export interface ServerOptions {
   logger: Logger
   metrics?: Metrics
   port?: number
-  paymentManager: PaymentManager
+  receiptManager: ReceiptManager
   queryProcessor: QueryProcessor
   freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
@@ -26,7 +26,7 @@ export interface ServerOptions {
 
 export const createApp = async ({
   logger,
-  paymentManager,
+  receiptManager,
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
@@ -173,22 +173,25 @@ export const createApp = async ({
       const { sender, recipient, data } = req.body
 
       try {
-        const allocationId = paymentManager.getAllocationIdFromMessage(req.body)
-        const client = paymentManager.getAllocationPaymentClient(allocationId)
+        const channelId = receiptManager.getExistingChannelId(req.body)
 
-        if (!client) {
-          logger.error(`Indexer does not recognize allocation`, {
-            allocationId,
+        if (!channelId) {
+          logger.error(`Indexer does not recognize channel`, {
+            channelId,
           })
           return res
             .status(404)
             .contentType('application/json')
             .send({
-              error: `Allocation not found: ${allocationId}`,
+              error: `Channel not found: ${channelId}`,
             })
         }
 
-        const response = await client.handleMessage({ sender, recipient, data })
+        const response = await receiptManager.inputStateChannelMessage({
+          sender,
+          recipient,
+          data,
+        })
         return res.status(200).send(response)
       } catch (error) {
         logger.error(`Failed to handle state channel message`, {
@@ -207,14 +210,14 @@ export const createApp = async ({
 export const createServer = async ({
   logger,
   port,
-  paymentManager,
+  receiptManager,
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
-    paymentManager,
+    receiptManager,
     queryProcessor,
     freeQueryAuthToken,
     graphNodeStatusEndpoint,

@@ -7,15 +7,15 @@ import {
   PaidQuery,
   PaidQueryResponse,
   UnpaidQueryResponse,
-  PaymentManager,
   FreeQuery,
   QueryError,
 } from './types'
+import { ReceiptManager } from './receipt-manager'
 
 export interface PaidQueryProcessorOptions {
   logger: Logger
   metrics: Metrics
-  paymentManager: PaymentManager
+  receiptManager: ReceiptManager
   graphNode: string
   chainId: number
   disputeManagerAddress: string
@@ -24,7 +24,7 @@ export interface PaidQueryProcessorOptions {
 export class QueryProcessor implements QueryProcessorInterface {
   logger: Logger
   metrics: Metrics
-  paymentManager: PaymentManager
+  receiptManager: ReceiptManager
   graphNode: AxiosInstance
   chainId: number
   disputeManagerAddress: string
@@ -32,14 +32,14 @@ export class QueryProcessor implements QueryProcessorInterface {
   constructor({
     logger,
     metrics,
-    paymentManager,
+    receiptManager,
     graphNode,
     chainId,
     disputeManagerAddress,
   }: PaidQueryProcessorOptions) {
     this.logger = logger
     this.metrics = metrics
-    this.paymentManager = paymentManager
+    this.receiptManager = receiptManager
     this.graphNode = axios.create({
       baseURL: graphNode,
 
@@ -86,7 +86,7 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse> {
-    const { subgraphDeploymentID, allocationID, requestCID } = query
+    const { subgraphDeploymentID, allocationID, requestCID, stateChannelMessage } = query
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
@@ -95,13 +95,11 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    const allocationClient = this.paymentManager.getAllocationPaymentClient(allocationID)
-
-    if (allocationClient === undefined)
-      throw new QueryError(`Unknown allocationID: ${allocationID}`, 404)
+    const channelId = await this.receiptManager.getExistingChannelId(stateChannelMessage)
+    if (!channelId) throw new QueryError(`Unknown allocationID: ${allocationID}`, 404)
 
     // This may throw an error with a signed envelopedResponse (DeclineQuery)
-    const channelId = await allocationClient.validatePayment(query)
+    await this.receiptManager.inputStateChannelMessage(stateChannelMessage)
 
     let response: AxiosResponse<string>
     try {
@@ -110,7 +108,7 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.query,
       )
     } catch (error) {
-      error.envelopedResponse = await allocationClient.declineQuery(channelId, query)
+      error.envelopedResponse = await this.receiptManager.declineQuery(channelId)
       throw error
     }
 
@@ -125,16 +123,19 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
 
     const attestation = await createAttestation(
-      allocationClient.wallet.privateKey,
+      this.receiptManager.privateKey,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
     )
 
-    const envelopedAttestation = await allocationClient.provideAttestation(
+    const scAttestation = {
+      responseCID: attestation.responseCID,
+      signature: utils.joinSignature(attestation),
+    }
+    const envelopedAttestation = await this.receiptManager.provideAttestation(
       channelId,
-      query,
-      attestation,
+      scAttestation,
     )
 
     return {
