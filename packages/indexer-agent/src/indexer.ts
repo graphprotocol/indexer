@@ -31,8 +31,14 @@ export class Indexer {
     this.indexerManagement = indexerManagement
     this.statuses = createClient({ url: statusEndpoint, fetch })
     this.logger = logger
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.rpc = jayson.Client.http(adminEndpoint as any)
+
+    if (adminEndpoint.startsWith('https')) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.rpc = jayson.Client.https(adminEndpoint as any)
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.rpc = jayson.Client.http(adminEndpoint as any)
+    }
     this.indexNodeIDs = indexNodeIDs
     this.defaultAllocationAmount = defaultAllocationAmount
   }
