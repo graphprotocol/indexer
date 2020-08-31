@@ -3,6 +3,7 @@
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Wallet, utils } from 'ethers'
+import { PayerMessage } from './receipt-manager'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -28,7 +29,7 @@ export interface UnpaidQueryResponse {
 export interface PaidQuery {
   allocationID: string
   subgraphDeploymentID: SubgraphDeploymentID
-  stateChannelMessage: WireMessage
+  stateChannelMessage: PayerMessage
   query: string
   requestCID: string
 }

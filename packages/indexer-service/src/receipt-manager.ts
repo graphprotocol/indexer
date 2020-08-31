@@ -5,7 +5,7 @@ import {
 } from '@statechannels/client-api-schema'
 import { Wallet } from '@statechannels/server-wallet'
 import {
-  Message as PushMessage,
+  Message as WalletMessage,
   BN,
   SignedState,
   calculateChannelId,
@@ -18,7 +18,7 @@ import {
   computeNextState,
 } from '@statechannels/graph'
 
-interface iReceiptManager {
+interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
 
   provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
@@ -27,8 +27,9 @@ interface iReceiptManager {
 }
 
 type RMResponse = Promise<WireMessage | undefined>
+export type PayerMessage = WireMessage & { data: WalletMessage }
 
-export class ReceiptManager implements iReceiptManager {
+export class ReceiptManager implements ReceiptManagerInterface {
   constructor(
     private logger: Logger,
     public privateKey: string,
@@ -48,11 +49,11 @@ export class ReceiptManager implements iReceiptManager {
       : undefined
   }
 
-  async inputStateChannelMessage(message: WireMessage): Promise<RMResponse> {
+  async inputStateChannelMessage(message: PayerMessage): Promise<RMResponse> {
     const {
       channelResults: [channelResult],
       outbox,
-    } = await this.wallet.pushMessage(message.data as PushMessage)
+    } = await this.wallet.pushMessage(message.data)
 
     if (!channelResult) throw Error('Received a new state that did nothing')
 
@@ -106,10 +107,10 @@ export class ReceiptManager implements iReceiptManager {
         data: {
           signedStates: [
             // eslint-disable-next-line
-            ((outboundJoinedChannelState as WireMessage).data as PushMessage)
+            ((outboundJoinedChannelState as WireMessage).data as WalletMessage)
               .signedStates![0],
             // eslint-disable-next-line
-            ((postFund2State as WireMessage).data as PushMessage).signedStates![0],
+            ((postFund2State as WireMessage).data as WalletMessage).signedStates![0],
           ],
         },
       }
