@@ -360,8 +360,12 @@ class Agent {
 
       // Make sure to settle all active allocations on the way out
       if (activeAllocations.length > 0) {
+        // We can only settle allocations that are at least one epoch old;
+        // try the others again later
         await pMap(
-          activeAllocations,
+          activeAllocations.filter(
+            allocation => allocation.createdAtEpoch < epoch,
+          ),
           async allocation => await this.network.settle(allocation),
           { concurrency: 1 },
         )
