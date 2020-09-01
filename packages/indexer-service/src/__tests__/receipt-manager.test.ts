@@ -56,13 +56,13 @@ describe('ReceiptManager', () => {
       data: {
         signedStates: [outboundOne],
       },
-    } = outbound[0] as { data: { signedStates: SignedState[] } }
+    } = outbound![0] as { data: { signedStates: SignedState[] } }
 
     const {
       data: {
         signedStates: [outboundTwo],
       },
-    } = outbound[1] as { data: { signedStates: SignedState[] } }
+    } = outbound![1] as { data: { signedStates: SignedState[] } }
 
     expect(outboundOne).toMatchObject({ turnNum: 0 })
     expect(outboundTwo).toMatchObject({ turnNum: 3 })
@@ -77,13 +77,13 @@ describe('ReceiptManager', () => {
       data: {
         signedStates: [outboundOne],
       },
-    } = outbound[0] as { data: { signedStates: SignedState[] } }
+    } = outbound![0] as { data: { signedStates: SignedState[] } }
 
     const {
       data: {
         signedStates: [outboundTwo],
       },
-    } = outbound[1] as { data: { signedStates: SignedState[] } }
+    } = outbound![1] as { data: { signedStates: SignedState[] } }
 
     expect(outboundOne).toMatchObject({ turnNum: 0 })
     expect(outboundTwo).toMatchObject({ turnNum: 3 })
@@ -108,7 +108,7 @@ describe('ReceiptManager', () => {
       data: {
         signedStates: [nextState],
       },
-    } = attestationMessage[0] as { data: { signedStates: SignedState[] } }
+    } = attestationMessage![0] as { data: { signedStates: SignedState[] } }
     const appData = toJS(nextState.appData)
 
     expect(appData.constants).toEqual(mockAppData().constants)
@@ -129,7 +129,7 @@ describe('ReceiptManager', () => {
       data: {
         signedStates: [nextState],
       },
-    } = outbound[0] as { data: { signedStates: SignedState[] } }
+    } = outbound![0] as { data: { signedStates: SignedState[] } }
 
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
@@ -149,7 +149,7 @@ describe('ReceiptManager', () => {
       data: {
         signedStates: [outboundState],
       },
-    } = outbound[0] as { data: { signedStates: SignedState[] } }
+    } = outbound![0] as { data: { signedStates: SignedState[] } }
 
     expect(outboundState).toMatchObject({ turnNum: 4, isFinal: true })
   })
