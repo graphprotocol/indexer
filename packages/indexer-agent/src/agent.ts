@@ -192,7 +192,7 @@ class Agent {
       }
 
       return true
-    }, 5000)
+    }, 10000)
   }
 
   async reconcileDeployments(
