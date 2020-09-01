@@ -306,10 +306,14 @@ export class Network {
           id: allocation.id,
           subgraphDeployment: {
             id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
-            stakedTokens: parseGRT(allocation.subgraphDeployment.stakedTokens),
-            signalAmount: parseGRT(allocation.subgraphDeployment.signalAmount),
+            stakedTokens: BigNumber.from(
+              allocation.subgraphDeployment.stakedTokens,
+            ),
+            signalAmount: BigNumber.from(
+              allocation.subgraphDeployment.signalAmount,
+            ),
           },
-          allocatedTokens: parseGRT(allocation.allocatedTokens),
+          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
           createdAtEpoch: allocation.createdAtEpoch,
         }),
       )
@@ -357,11 +361,15 @@ export class Network {
         (allocation: any) => ({
           id: allocation.id,
           createdAtEpoch: allocation.createdAtEpoch,
-          allocatedTokens: parseGRT(allocation.allocatedTokens),
+          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
           subgraphDeployment: {
             id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
-            stakedTokens: parseGRT(allocation.subgraphDeployment.stakedTokens),
-            signalAmount: parseGRT(allocation.subgraphDeployment.signalAmount),
+            stakedTokens: BigNumber.from(
+              allocation.subgraphDeployment.stakedTokens,
+            ),
+            signalAmount: BigNumber.from(
+              allocation.subgraphDeployment.signalAmount,
+            ),
           },
         }),
       )
