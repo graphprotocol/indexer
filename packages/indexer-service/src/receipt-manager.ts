@@ -17,7 +17,7 @@ import {
   StateType,
   computeNextState,
 } from '@statechannels/graph'
-
+import _ from 'lodash'
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
 
@@ -26,22 +26,22 @@ interface ReceiptManagerInterface {
   getExistingChannelId(message: WireMessage): Promise<string | undefined>
 }
 
-type RMResponse = Promise<WireMessage | undefined>
+type RMResponse = Promise<WireMessage[] | undefined>
 export type PayerMessage = WireMessage & { data: WalletMessage }
 
-function mergeMessages(message1: Outgoing, message2: Outgoing): WireMessage {
-  return {
-    sender: (message1.params as WireMessage).sender,
-    recipient: (message1.params as WireMessage).recipient,
-    data: {
-      signedStates: [
-        // eslint-disable-next-line
-        ((message1.params as WireMessage).data as WalletMessage).signedStates![0],
-        // eslint-disable-next-line
-        ((message2.params as WireMessage).data as WalletMessage).signedStates![0],
-      ],
-    },
+function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): WireMessage[] {
+  if (outgoing1.method !== 'MessageQueued' || outgoing2.method !== 'MessageQueued') {
+    throw new Error('Expected MessageQueued notifications')
   }
+
+  const message1 = outgoing1.params as WireMessage
+  const message2 = outgoing1.params as WireMessage
+
+  if (message1.recipient !== message2.recipient || message1.sender !== message2.sender) {
+    throw new Error('Receipient and sender of messages must match')
+  }
+
+  return [message1, message2]
 }
 
 export class ReceiptManager implements ReceiptManagerInterface {
@@ -103,8 +103,8 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
       // This is the countersignature on turn 0 state.
       // Aka prefund2 state
-      const [prefund2Message] = outbox
-      const postFund2Message = BN.eq(totalInChannel, 0)
+      const [prefund2Outgoing] = outbox
+      const postFund2Outgoing = BN.eq(totalInChannel, 0)
         ? outbox[1]
         : (
             await this.wallet.updateChannelFunding({
@@ -114,7 +114,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
             })
           ).outbox[0]
 
-      return mergeMessages(prefund2Message, postFund2Message)
+      return mergeOutgoing(prefund2Outgoing, postFund2Outgoing)
     }
     /**
      * This is an expected response from the counterparty upon seeing 0 and 3,
@@ -129,7 +129,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
         channelId: channelResult.channelId,
       })
       const [{ params: outboundClosedChannelState }] = outbox
-      return outboundClosedChannelState as WireMessage
+      return [outboundClosedChannelState as WireMessage]
     }
 
     throw new Error(
@@ -152,7 +152,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     stateType: StateType,
     channelId: string,
     attestation: SCAttestation | null = null,
-  ): Promise<WireMessage> {
+  ): Promise<WireMessage[]> {
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
 
     const inputAttestation: SCAttestation = attestation ?? {
@@ -178,7 +178,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
     this.cachedState[channelId] = channelResult
 
-    return outboundMsg as WireMessage
+    return [outboundMsg as WireMessage]
   }
 
   private async getChannelResult(channelId: string): Promise<ChannelResult> {
