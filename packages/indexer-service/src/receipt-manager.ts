@@ -26,19 +26,25 @@ interface ReceiptManagerInterface {
   getExistingChannelId(message: WireMessage): Promise<string | undefined>
 }
 
+class RMError extends Error {
+  constructor(errorMessage: string) {
+    super(`ReceiptManager: ${errorMessage}`)
+  }
+}
+
 type RMResponse = Promise<WireMessage[] | undefined>
 export type PayerMessage = WireMessage & { data: WalletMessage }
 
 function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): WireMessage[] {
   if (outgoing1.method !== 'MessageQueued' || outgoing2.method !== 'MessageQueued') {
-    throw new Error('Expected MessageQueued notifications')
+    throw new RMError('Expected MessageQueued notifications')
   }
 
   const message1 = outgoing1.params as WireMessage
   const message2 = outgoing2.params as WireMessage
 
   if (message1.recipient !== message2.recipient || message1.sender !== message2.sender) {
-    throw new Error('Receipient and sender of messages must match')
+    throw new RMError('Receipient and sender of messages must match')
   }
 
   return [message1, message2]
@@ -67,22 +73,27 @@ export class ReceiptManager implements ReceiptManagerInterface {
   async inputStateChannelMessage(message: PayerMessage): Promise<RMResponse> {
     const {
       channelResults: [channelResult],
-      outbox,
+      outbox: pushMessageOutbox,
     } = await this.wallet.pushMessage(message.data)
 
-    if (!channelResult) throw Error('Received a new state that did nothing')
+    if (!channelResult)
+      throw new RMError(
+        'Eeceived new state, but the wallet did not create a follow up state',
+      )
 
     this.cachedState[channelResult.channelId] = channelResult
 
     /**
      * Initial request to create a channelResult is received. In this case, join
-     * the channel and — we assume it is unfunded here — auto-advance to
-     * the running stage. Two outbound messages (turnNum 0 and 3) to be sent.
+     * the channel.
      */
-    if (channelResult.status === 'proposed' && outbox.length === 0) {
+    if (channelResult.status === 'proposed') {
+      if (pushMessageOutbox.length !== 0) {
+        throw new RMError('expected outbox to not contain messages')
+      }
       const { outbox } = await this.wallet.joinChannel(channelResult)
       if (outbox.length !== 1 && outbox.length !== 2) {
-        throw new Error('Expected one or two outbox items after joining channel')
+        throw new RMError('Expected one or two outbox items after joining channel')
       }
 
       // This assumes a single state channel allocation per channel
@@ -91,7 +102,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
         .reduce(BN.add, BN.from(0))
 
       if (BN.eq(totalInChannel, 0) && outbox.length !== 2) {
-        throw new Error(
+        throw new RMError(
           'Expected two outbox items after joining a channel with zero allocations',
         )
       }
@@ -120,19 +131,19 @@ export class ReceiptManager implements ReceiptManagerInterface {
      * This is an expected response from the counterparty upon seeing 0 and 3,
      * they will countersign 3 and send it back. Now, we don't need to reply.
      */
-    if (channelResult.status === 'running' && outbox.length === 0) {
+    if (channelResult.status === 'running' && pushMessageOutbox.length === 0) {
       return
     }
 
-    if (channelResult.status === 'closed' && outbox.length === 1) {
+    if (channelResult.status === 'closed' && pushMessageOutbox.length === 1) {
       this.logger.info('Closed channel', {
         channelId: channelResult.channelId,
       })
-      const [{ params: outboundClosedChannelState }] = outbox
+      const [{ params: outboundClosedChannelState }] = pushMessageOutbox
       return [outboundClosedChannelState as WireMessage]
     }
 
-    throw new Error(
+    throw new RMError(
       'Received a message which was neither a new channel request, nor a closure request',
     )
   }
@@ -183,7 +194,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
   private async getChannelResult(channelId: string): Promise<ChannelResult> {
     const channelResult = await this.getChannelState(channelId)
-    if (!channelResult) throw new Error(`No channel result for channelId ${channelId}.`)
+    if (!channelResult) throw new RMError(`No channel result for channelId ${channelId}.`)
     return channelResult
   }
 
