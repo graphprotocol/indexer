@@ -74,6 +74,11 @@ export class Indexer {
           { requestPolicy: 'network-only' },
         )
         .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
       return result.data.indexingStatuses
         .filter((status: { subgraphDeployment: string; node: string }) => {
           return status.node !== 'removed'
@@ -111,6 +116,11 @@ export class Indexer {
           { requestPolicy: 'network-only' },
         )
         .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
       return result.data.indexingRules
     } catch (error) {
       this.logger.error(`Failed to query indexer management server`)
