@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2020-09-01
+### Changed
+- Update @graphprotocol/common-ts to 0.2.4
+
 ## [0.2.3] - 2020-08-27
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.3
@@ -14,5 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/graphprotocol/indexer/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/graphprotocol/indexer/compare/v0.2.1...v0.2.3

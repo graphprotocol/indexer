@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2020-09-01
+### Added
+- Support `--graph-node-admin-endpoint` over HTTPS
+- Terraform: Allow to configure preemptible worker nodes
+
+### Fixed
+- Settle allocations only after at least one epoch has passed
+
+### Changed
+- Reconcile deployments and allocations every ~10+ seconds
+- Show and use correct token/allocation amounts everywhere
+- Update @graphprotocol/common-ts to 0.2.4
+
 ## [0.2.3] - 2020-08-27
 ### Fixed
 - Re-register indexer when geohash differs
@@ -20,5 +33,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.2.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.2.4...HEAD
+[0.2.4]: https://github.com/graphprotocol/indexer/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/graphprotocol/indexer/compare/v0.2.1...v0.2.3
