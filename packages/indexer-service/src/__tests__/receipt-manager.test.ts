@@ -15,11 +15,13 @@ import {
   BN,
 } from '@statechannels/wallet-core'
 
+import { Message as WireMessage } from '@statechannels/client-api-schema'
+
 // This is a bit awkward, but is convenient to create reproducible tests
 import serverWalletKnex from '@statechannels/server-wallet/lib/src/db/connection'
 import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db/seeds/1_signing_wallet_seeds'
 
-import { ReceiptManager } from '../receipt-manager'
+import { ReceiptManager, PayerMessage } from '../receipt-manager'
 import {
   mockCreatedChannelMessage,
   mockCreatedZeroChannelMessage,
@@ -35,6 +37,16 @@ import { toJS, StateType } from '@statechannels/graph'
 const logger = createLogger({ name: 'receipt-manager.test.ts' })
 
 let receiptManager: ReceiptManager
+
+function stateFromMessage(message: WireMessage[], index = 0): SignedState {
+  const {
+    data: {
+      signedStates: [signedState],
+    },
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  } = message![index] as PayerMessage
+  return signedState
+}
 
 beforeEach(async () => {
   logger.info(`Truncating ${process.env.SERVER_DB_NAME}; Seeding new SigningWallet`)
@@ -52,20 +64,10 @@ describe('ReceiptManager', () => {
       mockCreatedChannelMessage(),
     )
 
-    const {
-      data: {
-        signedStates: [outboundOne],
-      },
-    } = outbound![0] as { data: { signedStates: SignedState[] } }
-
-    const {
-      data: {
-        signedStates: [outboundTwo],
-      },
-    } = outbound![1] as { data: { signedStates: SignedState[] } }
-
-    expect(outboundOne).toMatchObject({ turnNum: 0 })
-    expect(outboundTwo).toMatchObject({ turnNum: 3 })
+    const state1 = stateFromMessage(outbound)
+    const state2 = stateFromMessage(outbound, 1)
+    expect(state1).toMatchObject({ turnNum: 0 })
+    expect(state2).toMatchObject({ turnNum: 3 })
   })
 
   it('can call joinChannel and auto-sign funding state with zero allocations channel', async () => {
@@ -73,20 +75,10 @@ describe('ReceiptManager', () => {
       mockCreatedZeroChannelMessage(),
     )
 
-    const {
-      data: {
-        signedStates: [outboundOne],
-      },
-    } = outbound![0] as { data: { signedStates: SignedState[] } }
-
-    const {
-      data: {
-        signedStates: [outboundTwo],
-      },
-    } = outbound![1] as { data: { signedStates: SignedState[] } }
-
-    expect(outboundOne).toMatchObject({ turnNum: 0 })
-    expect(outboundTwo).toMatchObject({ turnNum: 3 })
+    const state1 = stateFromMessage(outbound)
+    const state2 = stateFromMessage(outbound, 1)
+    expect(state1).toMatchObject({ turnNum: 0 })
+    expect(state2).toMatchObject({ turnNum: 3 })
   })
 
   it('can validate a payment', async () => {
@@ -104,13 +96,9 @@ describe('ReceiptManager', () => {
       mockChannelId,
       mockSCAttestation(),
     )
-    const {
-      data: {
-        signedStates: [nextState],
-      },
-    } = attestationMessage![0] as { data: { signedStates: SignedState[] } }
-    const appData = toJS(nextState.appData)
 
+    const nextState = stateFromMessage(attestationMessage)
+    const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.responseCID).toEqual(mockSCAttestation().responseCID)
     expect(appData.variable.stateType).toEqual(StateType.AttestationProvided)
@@ -125,16 +113,10 @@ describe('ReceiptManager', () => {
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
     const outbound = await receiptManager.declineQuery(mockChannelId)
 
-    const {
-      data: {
-        signedStates: [nextState],
-      },
-    } = outbound![0] as { data: { signedStates: SignedState[] } }
-
+    const nextState = stateFromMessage(outbound)
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.stateType).toEqual(StateType.QueryDeclined)
-
     expect(nextState).toMatchObject({ turnNum: 5 })
   })
 
@@ -145,12 +127,7 @@ describe('ReceiptManager', () => {
       mockCloseChannelMessage(),
     )
 
-    const {
-      data: {
-        signedStates: [outboundState],
-      },
-    } = outbound![0] as { data: { signedStates: SignedState[] } }
-
-    expect(outboundState).toMatchObject({ turnNum: 4, isFinal: true })
+    const nextState = stateFromMessage(outbound)
+    expect(nextState).toMatchObject({ turnNum: 4, isFinal: true })
   })
 })
