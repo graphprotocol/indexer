@@ -148,7 +148,7 @@ class Agent {
         const activeDeployments = await this.indexer.subgraphDeployments()
 
         // Fetch all indexing rules
-        const rules = await this.indexer.indexerRules(true)
+        const rules = await this.indexer.indexingRules(true)
 
         if (rules.length === 0) {
           this.logger.warn(

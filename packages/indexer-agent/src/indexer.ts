@@ -92,7 +92,7 @@ export class Indexer {
     }
   }
 
-  async indexerRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
+  async indexingRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
     try {
       const result = await this.indexerManagement
         .query(
