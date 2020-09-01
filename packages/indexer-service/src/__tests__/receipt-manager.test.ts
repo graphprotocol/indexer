@@ -93,7 +93,7 @@ describe('ReceiptManager', () => {
       mockSCAttestation(),
     )
 
-    const nextState = stateFromMessage(attestationMessage)
+    const nextState = stateFromMessage([attestationMessage])
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.responseCID).toEqual(mockSCAttestation().responseCID)
@@ -109,7 +109,7 @@ describe('ReceiptManager', () => {
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
     const outbound = await receiptManager.declineQuery(mockChannelId)
 
-    const nextState = stateFromMessage(outbound)
+    const nextState = stateFromMessage([outbound])
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.stateType).toEqual(StateType.QueryDeclined)
