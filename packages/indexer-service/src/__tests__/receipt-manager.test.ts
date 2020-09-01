@@ -38,14 +38,10 @@ const logger = createLogger({ name: 'receipt-manager.test.ts' })
 
 let receiptManager: ReceiptManager
 
-function stateFromMessage(message: WireMessage[], index = 0): SignedState {
-  const {
-    data: {
-      signedStates: [signedState],
-    },
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  } = message![index] as PayerMessage
-  return signedState
+function stateFromMessage(messages: WireMessage[] | undefined, index = 0): SignedState {
+  expect(messages).toBeDefined()
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return (messages![index] as PayerMessage).data.signedStates![0]
 }
 
 beforeEach(async () => {

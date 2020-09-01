@@ -17,7 +17,7 @@ import {
   StateType,
   computeNextState,
 } from '@statechannels/graph'
-import _ from 'lodash'
+
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
 
@@ -128,14 +128,22 @@ export class ReceiptManager implements ReceiptManagerInterface {
       return mergeOutgoing(prefund2Outgoing, postFund2Outgoing)
     }
     /**
-     * This is an expected response from the counterparty upon seeing 0 and 3,
-     * they will countersign 3 and send it back. Now, we don't need to reply.
+     * This is one of two scenarios:
+     *  - The counterparty sent a postFund state.
+     *  - The counterparty sent a query state.
+     * In both case, we do not expect the wallet to create a new state as a response.
      */
-    if (channelResult.status === 'running' && pushMessageOutbox.length === 0) {
+    if (channelResult.status === 'running') {
+      if (pushMessageOutbox.length !== 0) {
+        throw new RMError('Unexpected outbox items when wallet is in the running stage')
+      }
       return
     }
 
-    if (channelResult.status === 'closed' && pushMessageOutbox.length === 1) {
+    if (channelResult.status === 'closed') {
+      if (pushMessageOutbox.length !== 1) {
+        throw new RMError('Expected the wallet to counter sign the closing state')
+      }
       this.logger.info('Closed channel', {
         channelId: channelResult.channelId,
       })
@@ -143,9 +151,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
       return [outboundClosedChannelState as WireMessage]
     }
 
-    throw new RMError(
-      'Received a message which was neither a new channel request, nor a closure request',
-    )
+    throw new RMError('Unexpectedly reached the end of inputStateChannelMessage')
   }
 
   async provideAttestation(
