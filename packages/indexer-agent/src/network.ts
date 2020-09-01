@@ -172,6 +172,11 @@ export class Network {
           { requestPolicy: 'network-only' },
         )
         .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
       return (
         result.data.subgraphDeployments
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -290,6 +295,11 @@ export class Network {
           { requestPolicy: 'network-only' },
         )
         .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
       return result.data.allocations.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (allocation: any) => ({
