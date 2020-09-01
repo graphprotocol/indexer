@@ -3,7 +3,7 @@ import {
   GetStateResponse,
   ChannelResult,
 } from '@statechannels/client-api-schema'
-import { Wallet } from '@statechannels/server-wallet'
+import { Wallet, Outgoing } from '@statechannels/server-wallet'
 import {
   Message as WalletMessage,
   BN,
@@ -29,6 +29,21 @@ interface ReceiptManagerInterface {
 type RMResponse = Promise<WireMessage | undefined>
 export type PayerMessage = WireMessage & { data: WalletMessage }
 
+function mergeMessages(message1: Outgoing, message2: Outgoing): WireMessage {
+  return {
+    sender: (message1.params as WireMessage).sender,
+    recipient: (message1.params as WireMessage).recipient,
+    data: {
+      signedStates: [
+        // eslint-disable-next-line
+        ((message1.params as WireMessage).data as WalletMessage).signedStates![0],
+        // eslint-disable-next-line
+        ((message2.params as WireMessage).data as WalletMessage).signedStates![0],
+      ],
+    },
+  }
+}
+
 export class ReceiptManager implements ReceiptManagerInterface {
   constructor(
     private logger: Logger,
@@ -37,7 +52,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     private cachedState: Record<string, GetStateResponse['result']> = {},
   ) {}
 
-  public async getExistingChannelId(message: WireMessage): Promise<string | undefined> {
+  async getExistingChannelId(message: WireMessage): Promise<string | undefined> {
     const firstState = (message.data as SignedState[])[0]
     const channelConstants: ChannelConstants = {
       ...firstState,
@@ -70,50 +85,36 @@ export class ReceiptManager implements ReceiptManagerInterface {
         throw new Error('Expected one or two outbox items after joining channel')
       }
 
-      // This is the countersignature on turn 0 state.
-      // Aka prefund2 state
-      const [{ params: outboundJoinedChannelState }] = outbox
+      // This assumes a single state channel allocation per channel
+      const totalInChannel = channelResult.allocations[0].allocationItems
+        .map(a => a.amount)
+        .reduce(BN.add, BN.from(0))
+
+      if (BN.eq(totalInChannel, 0) && outbox.length !== 2) {
+        throw new Error(
+          'Expected two outbox items after joining a channel with zero allocations',
+        )
+      }
 
       this.logger.info(`Channel creation succeeded`, {
         sender: message.sender,
         channelid: channelResult.channelId,
       })
 
-      // This assumes a single state channel allocation per channel
-      const totalInChannel = channelResult.allocations[0].allocationItems
-        .map(a => a.amount)
-        .reduce(BN.add, BN.from(0))
-      const zeroFundPostFund2State =
-        outbox.length === 2 && BN.eq(totalInChannel, 0) ? outbox[1].params : undefined
-
-      const fundedPostFund2State = zeroFundPostFund2State
-        ? undefined
+      // This is the countersignature on turn 0 state.
+      // Aka prefund2 state
+      const [prefund2Message] = outbox
+      const postFund2Message = BN.eq(totalInChannel, 0)
+        ? outbox[1]
         : (
             await this.wallet.updateChannelFunding({
               channelId: channelResult.channelId,
               token: channelResult.allocations[0].token,
               amount: totalInChannel,
             })
-          ).outbox[0].params
+          ).outbox[0]
 
-      const postFund2State = zeroFundPostFund2State ?? fundedPostFund2State
-      if (!postFund2State) {
-        throw new Error('Unexpected undefined postFund2State')
-      }
-
-      return {
-        sender: (outboundJoinedChannelState as WireMessage).sender,
-        recipient: (outboundJoinedChannelState as WireMessage).recipient,
-        data: {
-          signedStates: [
-            // eslint-disable-next-line
-            ((outboundJoinedChannelState as WireMessage).data as WalletMessage)
-              .signedStates![0],
-            // eslint-disable-next-line
-            ((postFund2State as WireMessage).data as WalletMessage).signedStates![0],
-          ],
-        },
-      }
+      return mergeMessages(prefund2Message, postFund2Message)
     }
     /**
      * This is an expected response from the counterparty upon seeing 0 and 3,

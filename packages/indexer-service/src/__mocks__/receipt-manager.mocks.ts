@@ -7,7 +7,6 @@ import {
   SimpleAllocation,
 } from '@statechannels/wallet-core'
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
-import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { getChannelId } from '@statechannels/nitro-protocol'
 import {
   AppData,
@@ -15,6 +14,7 @@ import {
   fromJS,
   Attestation as SCAttestation,
 } from '@statechannels/graph'
+import { PayerMessage } from '../receipt-manager'
 
 export const mockSCAttestation = (): SCAttestation => ({
   responseCID: constants.HashZero,
@@ -98,10 +98,10 @@ const mockFirstStateZeroChannels = () => ({
   },
 })
 
-export const mockCreatedChannelMessage = (): WireMessage =>
+export const mockCreatedChannelMessage = (): PayerMessage =>
   mockGatewayMessage(mockFirstState())
 
-export const mockCreatedZeroChannelMessage = (): WireMessage =>
+export const mockCreatedZeroChannelMessage = (): PayerMessage =>
   mockGatewayMessage(mockFirstStateZeroChannels())
 
 const mockPostFundState = (): State => ({
@@ -109,7 +109,7 @@ const mockPostFundState = (): State => ({
   turnNum: 2,
 })
 
-export const mockPostFundMessage = (): WireMessage =>
+export const mockPostFundMessage = (): PayerMessage =>
   mockGatewayMessage(mockPostFundState())
 
 const mockRunningState = (): State => ({
@@ -117,7 +117,7 @@ const mockRunningState = (): State => ({
   turnNum: 4,
 })
 
-export const mockQueryRequestMessage = (): WireMessage =>
+export const mockQueryRequestMessage = (): PayerMessage =>
   mockGatewayMessage(mockRunningState())
 
 const mockClosingState = (): State => ({
@@ -126,10 +126,10 @@ const mockClosingState = (): State => ({
   isFinal: true,
 })
 
-export const mockCloseChannelMessage = (): WireMessage =>
+export const mockCloseChannelMessage = (): PayerMessage =>
   mockGatewayMessage(mockClosingState())
 
-const mockGatewayMessage = (state: State): WireMessage => ({
+const mockGatewayMessage = (state: State): PayerMessage => ({
   sender: 'gateway',
   recipient: 'me',
   data: {

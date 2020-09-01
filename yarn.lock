@@ -2036,9 +2036,9 @@
     "@openzeppelin/contracts" "3.0.1"
     ethers "4.0.48"
 
-"@statechannels/server-wallet@^0.3.2":
+"@statechannels/server-wallet@^0.3.4":
   version "0.3.4"
-  resolved "https://registry.npmjs.org/@statechannels/server-wallet/-/server-wallet-0.3.4.tgz#319ba10dfa16df604f9165e02dae611ccf9e5c6a"
+  resolved "https://registry.yarnpkg.com/@statechannels/server-wallet/-/server-wallet-0.3.4.tgz#319ba10dfa16df604f9165e02dae611ccf9e5c6a"
   integrity sha512-E7/dXUTNkQIaP1A8i8ldGh70iHdLM1Hj/a7CIdHWWf6xLXTfG/GCmP2DD2xE61yvMRxz9l7axX7l7f2gJFckow==
   dependencies:
     "@bitauth/libauth" "1.17.1"
