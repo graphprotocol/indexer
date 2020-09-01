@@ -20,10 +20,9 @@ import {
 
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
-
+  getChannelIdIfExists(message: WireMessage): Promise<string | undefined>
   provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
   declineQuery(channelId: string): Promise<RMResponse>
-  getExistingChannelId(message: WireMessage): Promise<string | undefined>
 }
 
 class RMError extends Error {
@@ -58,7 +57,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     private cachedState: Record<string, GetStateResponse['result']> = {},
   ) {}
 
-  async getExistingChannelId(message: WireMessage): Promise<string | undefined> {
+  async getChannelIdIfExists(message: WireMessage): Promise<string | undefined> {
     const firstState = (message.data as SignedState[])[0]
     const channelConstants: ChannelConstants = {
       ...firstState,
