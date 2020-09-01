@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-service",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Indexer service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
