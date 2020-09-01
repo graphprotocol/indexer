@@ -19,7 +19,7 @@ import {
 } from '@statechannels/graph'
 
 interface ReceiptManagerInterface {
-  inputStateChannelMessage(message: WireMessage): Promise<RMResponse>
+  inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
 
   provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
   declineQuery(channelId: string): Promise<RMResponse>
@@ -32,7 +32,7 @@ class RMError extends Error {
   }
 }
 
-type RMResponse = Promise<WireMessage[] | undefined>
+type RMResponse = Promise<WireMessage>
 export type PayerMessage = WireMessage & { data: WalletMessage }
 
 function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): WireMessage[] {
@@ -70,7 +70,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
       : undefined
   }
 
-  async inputStateChannelMessage(message: PayerMessage): Promise<RMResponse> {
+  async inputStateChannelMessage(message: PayerMessage): Promise<WireMessage[]> {
     const {
       channelResults: [channelResult],
       outbox: pushMessageOutbox,
@@ -137,7 +137,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
       if (pushMessageOutbox.length !== 0) {
         throw new RMError('Unexpected outbox items when wallet is in the running stage')
       }
-      return
+      return []
     }
 
     if (channelResult.status === 'closed') {
@@ -169,7 +169,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     stateType: StateType,
     channelId: string,
     attestation: SCAttestation | null = null,
-  ): Promise<WireMessage[]> {
+  ): Promise<WireMessage> {
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
 
     const inputAttestation: SCAttestation = attestation ?? {
@@ -195,7 +195,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
     this.cachedState[channelId] = channelResult
 
-    return [outboundMsg as WireMessage]
+    return outboundMsg as WireMessage
   }
 
   private async getChannelResult(channelId: string): Promise<ChannelResult> {
