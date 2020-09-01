@@ -35,7 +35,7 @@ function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): WireMessage[] 
   }
 
   const message1 = outgoing1.params as WireMessage
-  const message2 = outgoing1.params as WireMessage
+  const message2 = outgoing2.params as WireMessage
 
   if (message1.recipient !== message2.recipient || message1.sender !== message2.sender) {
     throw new Error('Receipient and sender of messages must match')
