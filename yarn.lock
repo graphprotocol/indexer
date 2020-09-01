@@ -689,8 +689,8 @@
 
 "@graphprotocol/common-ts@^0.2.4":
   version "0.2.4"
-  resolved "https://testnet.thegraph.com/npm-registry/@graphprotocol%2fcommon-ts/-/common-ts-0.2.4.tgz#f077133f23238f8c9f271e41e9642e72569d97ad"
-  integrity sha512-mGh35hgm2jLF6MVMok56rgOep46HMqI/L6Y45wNJ5JpyPu9Un4UbQM/N3krfzmCX06bvt9E4DPO0nmovCrFjdg==
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.4.tgz#5824ecebff2e7979f6b3bb7b12aa790f0294a3dd"
+  integrity sha512-veT4/FO+tlW/DP6sgZgCpfyW4CzjN39G/6zWp9ajIlPJ0dBVe/wchn984aCOIs/+xSaDxFjvOJsm/NHf2tZnCg==
   dependencies:
     "@graphprotocol/contracts" "0.5.0-testnet-phase1"
     "@urql/core" "^1.12.3"
