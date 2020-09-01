@@ -173,7 +173,7 @@ export const createApp = async ({
       const { sender, recipient, data } = req.body
 
       try {
-        const channelId = receiptManager.getExistingChannelId(req.body)
+        const channelId = receiptManager.getChannelIdIfExists(req.body)
 
         if (!channelId) {
           logger.error(`Indexer does not recognize channel`, {

@@ -95,7 +95,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Check if we have a state channel for this subgraph;
     // this is synonymous with us indexing the subgraph
-    const channelId = await this.receiptManager.getExistingChannelId(stateChannelMessage)
+    const channelId = await this.receiptManager.getChannelIdIfExists(stateChannelMessage)
     if (!channelId) throw new QueryError(`Unknown allocationID: ${allocationID}`, 404)
 
     // This may throw an error with a signed envelopedResponse (DeclineQuery)
