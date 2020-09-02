@@ -120,15 +120,6 @@ export const defineIndexerManagementModels = (
               return
             }
 
-            // "Qm..." is ok
-            if (
-              bs58.decodeUnsafe(value) !== undefined &&
-              value.startsWith('Qm') &&
-              value.length === 46
-            ) {
-              return
-            }
-
             // "0x..." is ok
             if (utils.isHexString(value, 32)) {
               return
