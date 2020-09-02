@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
+    "@graphprotocol/receipt-manager": "^0.0.0",
     "@statechannels/graph": "^0.0.6",
     "@statechannels/server-wallet": "^0.3.4",
     "@urql/core": "^1.12.3",

@@ -10,7 +10,7 @@ import {
   FreeQuery,
   QueryError,
 } from './types'
-import { ReceiptManager } from './receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipt-manager'
 
 export interface PaidQueryProcessorOptions {
   logger: Logger

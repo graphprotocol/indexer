@@ -12,7 +12,7 @@ import {
   SubgraphDeploymentID,
   secureExpressApp,
 } from '@graphprotocol/common-ts'
-import { ReceiptManager } from '../receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipt-manager'
 
 export interface ServerOptions {
   logger: Logger
