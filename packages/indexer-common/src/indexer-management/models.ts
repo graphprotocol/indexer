@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
+import bs58 from 'bs58'
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
+import { utils } from 'ethers'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -107,34 +109,88 @@ export const defineIndexerManagementModels = (
         type: DataTypes.STRING,
         allowNull: true,
         primaryKey: true,
+        validate: {
+          isDeploymentID: (value: any) => {
+            if (typeof value !== 'string') {
+              throw new Error('Deployment ID must be a string')
+            }
+
+            // "global" is ok
+            if (value === 'global') {
+              return
+            }
+
+            // "Qm..." is ok
+            if (
+              bs58.decodeUnsafe(value) !== undefined &&
+              value.startsWith('Qm') &&
+              value.length === 46
+            ) {
+              return
+            }
+
+            // "0x..." is ok
+            if (utils.isHexString(value, 32)) {
+              return
+            }
+
+            throw new Error(
+              `Deployment ID must be "global" or a valid subgraph deployment ID`,
+            )
+          },
+        },
       },
       allocationAmount: {
         type: DataTypes.DECIMAL,
         allowNull: true,
+        validate: {
+          min: 0.0,
+        },
       },
       parallelAllocations: {
         type: DataTypes.INTEGER,
         allowNull: true,
+        validate: {
+          min: 0,
+          max: 20,
+        },
       },
       maxAllocationPercentage: {
         type: DataTypes.FLOAT,
         allowNull: true,
+        validate: {
+          isFloat: true,
+          min: 0.0,
+          max: 1.0,
+        },
       },
       minSignal: {
         type: DataTypes.DECIMAL,
         allowNull: true,
+        validate: {
+          min: 0.0,
+        },
       },
       minStake: {
         type: DataTypes.DECIMAL,
         allowNull: true,
+        validate: {
+          min: 0.0,
+        },
       },
       maxSignal: {
         type: DataTypes.DECIMAL,
         allowNull: true,
+        validate: {
+          min: 0.0,
+        },
       },
       minAverageQueryFees: {
         type: DataTypes.DECIMAL,
         allowNull: true,
+        validate: {
+          min: 0.0,
+        },
       },
       custom: {
         type: DataTypes.STRING,
