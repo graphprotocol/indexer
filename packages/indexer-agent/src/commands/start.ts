@@ -140,6 +140,12 @@ export default {
         ) {
           return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
+        if (argv['indexer-geo-coordinates']) {
+          const [geo1, geo2] = argv['indexer-geo-coordinates']
+          if (!+geo1 || !+geo2) {
+            return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
+          }
+        }
         return true
       })
   },
