@@ -2,9 +2,10 @@
   "name": "root",
   "private": true,
   "workspaces": [
-    "packages/indexer-service",
+    "packages/receipt-manager",
+    "packages/indexer-common",
     "packages/indexer-agent",
-    "packages/receipt-manager"
+    "packages/indexer-service"
   ],
   "scripts": {
     "bootstrap": "lerna bootstrap",
