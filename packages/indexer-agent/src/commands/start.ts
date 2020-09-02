@@ -4,11 +4,13 @@ import {
   createLogger,
   SubgraphDeploymentID,
   connectDatabase,
+  parseGRT,
+} from '@graphprotocol/common-ts'
+import {
   defineIndexerManagementModels,
   createIndexerManagementServer,
   createIndexerManagementClient,
-  parseGRT,
-} from '@graphprotocol/common-ts'
+} from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
