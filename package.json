@@ -3,7 +3,8 @@
   "private": true,
   "workspaces": [
     "packages/indexer-service",
-    "packages/indexer-agent"
+    "packages/indexer-agent",
+    "packages/receipt-manager"
   ],
   "scripts": {
     "bootstrap": "lerna bootstrap",
