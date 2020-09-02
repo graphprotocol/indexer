@@ -16,7 +16,7 @@ import { NetworkMonitor } from '../network-monitor'
 import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { toAddress } from '../types'
-import { ReceiptManager } from '../receipt-manager'
+import { ReceiptManager } from '@graphprotocol//receipt-manager'
 
 export default {
   command: 'start',

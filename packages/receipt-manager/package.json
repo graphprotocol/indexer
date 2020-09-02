@@ -1,0 +1,17 @@
+{
+  "name": "@graphprotocol/receipt-manager",
+  "version": "0.0.0",
+  "description": "State Channel Receipt Manager",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": "https://github.com/graphprotocol/indexer",
+  "author": "Graph Protocol",
+  "private": false,
+  "scripts": {
+    "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
+    "lint": "eslint . --ext .ts,.tsx",
+    "prepare": "yarn format && yarn lint && tsc",
+    "test": "jest --passWithNoTests --detectOpenHandles --verbose --runInBand",
+    "test:watch": "yarn test --wath"
+  }
+}
