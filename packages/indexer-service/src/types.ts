@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
-import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { Wallet, utils } from 'ethers'
+import { utils } from 'ethers'
 import { PayerMessage } from '@graphprotocol/receipt-manager'
 
 export interface QueryResult {
@@ -61,20 +60,6 @@ export interface Allocation {
   publicKey: string
   subgraphDeploymentID: SubgraphDeploymentID
   createdAtEpoch: number
-}
-
-export interface AllocationPaymentClient {
-  allocation: Allocation
-  wallet: Wallet
-  handleMessage(message: WireMessage): Promise<WireMessage | undefined>
-  validatePayment(query: PaidQuery): Promise<string>
-  provideAttestation(
-    channelId: string,
-    query: PaidQuery,
-    attestation: Attestation,
-  ): Promise<WireMessage>
-  declineQuery(channelId: string, query: PaidQuery): Promise<WireMessage>
-  settle(): Promise<void>
 }
 
 export class QueryError extends Error {
