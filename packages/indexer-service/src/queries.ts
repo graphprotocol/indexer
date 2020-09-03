@@ -108,7 +108,7 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.query,
       )
     } catch (error) {
-      error.envelopedResponse = await this.receiptManager.declineQuery(channelId)
+      error.envelopedResponse = await this.receiptManager.declineQuery(requestCID)
       throw error
     }
 
@@ -134,7 +134,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       signature: utils.joinSignature(attestation),
     }
     const envelopedAttestation = await this.receiptManager.provideAttestation(
-      channelId,
+      requestCID,
       scAttestation,
     )
 
