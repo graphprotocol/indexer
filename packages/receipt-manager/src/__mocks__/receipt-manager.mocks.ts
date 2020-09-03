@@ -79,13 +79,6 @@ const mockFirstState = (): State => ({
 })
 
 const sampleFirstState = mockFirstState()
-export const mockChannelId = getChannelId({
-  channelNonce: sampleFirstState.channelNonce,
-  participants: sampleFirstState.participants.map(
-    participant => participant.signingAddress,
-  ),
-  chainId: sampleFirstState.chainId,
-})
 
 // A prefund1 state with where every allocation amount is zero
 const mockFirstStateZeroChannels = () => ({

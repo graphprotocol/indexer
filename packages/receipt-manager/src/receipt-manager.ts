@@ -4,13 +4,7 @@ import {
   ChannelResult,
 } from '@statechannels/client-api-schema'
 import { Wallet, Outgoing } from '@statechannels/server-wallet'
-import {
-  Message as WalletMessage,
-  BN,
-  SignedState,
-  calculateChannelId,
-  ChannelConstants,
-} from '@statechannels/wallet-core'
+import { Message as WalletMessage, BN } from '@statechannels/wallet-core'
 import { Logger } from '@graphprotocol/common-ts'
 import {
   Attestation as SCAttestation,
@@ -22,7 +16,6 @@ import _ from 'lodash'
 
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
-  getChannelIdIfExists(message: WireMessage): Promise<string | undefined>
   provideAttestation(requestCID: string, attestation: SCAttestation): Promise<RMResponse>
   declineQuery(requestCID: string): Promise<RMResponse>
 }
@@ -59,18 +52,6 @@ export class ReceiptManager implements ReceiptManagerInterface {
     private cachedState: Record<string, GetStateResponse['result']> = {},
     private requestToChannelId: Record<string, string> = {},
   ) {}
-
-  async getChannelIdIfExists(message: WireMessage): Promise<string | undefined> {
-    const firstState = (message.data as SignedState[])[0]
-    const channelConstants: ChannelConstants = {
-      ...firstState,
-    }
-
-    const channelId = calculateChannelId(channelConstants)
-    return (await this.getChannelResult(calculateChannelId(channelConstants)))
-      ? channelId
-      : undefined
-  }
 
   async inputStateChannelMessage(message: PayerMessage): Promise<WireMessage[]> {
     const {
@@ -164,28 +145,21 @@ export class ReceiptManager implements ReceiptManagerInterface {
     requestCID: string,
     attestation: SCAttestation,
   ): Promise<RMResponse> {
-    const channelId = this.requestToChannelId[requestCID]
-    const responseMessage = await this.nextState(
-      StateType.AttestationProvided,
-      channelId,
-      attestation,
-    )
-    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
-    return responseMessage
+    return await this.nextState(StateType.AttestationProvided, requestCID, attestation)
   }
 
   async declineQuery(requestCID: string): Promise<RMResponse> {
-    const channelId = this.requestToChannelId[requestCID]
-    const responseMessage = this.nextState(StateType.QueryDeclined, channelId)
-    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
-    return responseMessage
+    return this.nextState(StateType.QueryDeclined, requestCID)
   }
 
   private async nextState(
     stateType: StateType,
-    channelId: string,
+    requestCID: string,
     attestation: SCAttestation | null = null,
   ): Promise<WireMessage> {
+    const channelId = this.requestToChannelId[requestCID]
+    if (!channelId) throw `No channel for requestCID ${requestCID}`
+
     const { appData: appData, allocations } = await this.getChannelResult(channelId)
 
     const inputAttestation: SCAttestation = attestation ?? {
@@ -210,6 +184,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     })
 
     this.cachedState[channelId] = channelResult
+    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
 
     return outboundMsg as WireMessage
   }
