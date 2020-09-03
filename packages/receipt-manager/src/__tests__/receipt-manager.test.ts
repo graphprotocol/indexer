@@ -1,9 +1,14 @@
+/** To run the unit tests:
+ *  1. Install and run postgres.
+ *  2. Run 'createdb receipt-manager'
+ */
+
 // TODO: (Liam) Provide instructions for setting up test to use local PostgreSQL
 //              This must run _before_ any server-wallet code gets imported
 // ❯ cd node_modules/@statechannels/server-wallet
 // ❯ SERVER_DB_NAME=indexer-sw NODE_ENV=development yarn db:migrate
 //
-process.env.SERVER_DB_NAME = 'indexer-sw'
+process.env.SERVER_DB_NAME = 'receipt-manager'
 
 import { constants } from 'ethers'
 
@@ -17,9 +22,8 @@ import {
 
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 
-// This is a bit awkward, but is convenient to create reproducible tests
-import serverWalletKnex from '@statechannels/server-wallet/lib/src/db/connection'
 import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db/seeds/1_signing_wallet_seeds'
+import { WalletKnex } from '@statechannels/server-wallet'
 
 import { ReceiptManager, PayerMessage } from '../receipt-manager'
 import {
@@ -44,14 +48,19 @@ function stateFromMessage(messages: WireMessage[] | undefined, index = 0): Signe
   return (messages![index] as PayerMessage).data.signedStates![0]
 }
 
+beforeAll(async () => {
+  await WalletKnex.migrate.rollback()
+  await WalletKnex.migrate.latest()
+})
+
 beforeEach(async () => {
   logger.info(`Truncating ${process.env.SERVER_DB_NAME}; Seeding new SigningWallet`)
-  await seedAlicesSigningWallet(serverWalletKnex)
+  await seedAlicesSigningWallet(WalletKnex)
   receiptManager = new ReceiptManager(logger, '')
 })
 
 afterAll(async () => {
-  await serverWalletKnex.destroy()
+  await WalletKnex.destroy()
 })
 
 describe('ReceiptManager', () => {
