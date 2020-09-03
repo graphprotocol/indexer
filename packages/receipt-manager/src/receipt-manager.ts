@@ -16,13 +16,15 @@ import {
   Attestation as SCAttestation,
   StateType,
   computeNextState,
+  toJS,
 } from '@statechannels/graph'
+import _ from 'lodash'
 
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
   getChannelIdIfExists(message: WireMessage): Promise<string | undefined>
-  provideAttestation(channelId: string, attestation: SCAttestation): Promise<RMResponse>
-  declineQuery(channelId: string): Promise<RMResponse>
+  provideAttestation(requestCID: string, attestation: SCAttestation): Promise<RMResponse>
+  declineQuery(requestCID: string): Promise<RMResponse>
 }
 
 class RMError extends Error {
@@ -55,6 +57,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
     public privateKey: string,
     private wallet = new Wallet(),
     private cachedState: Record<string, GetStateResponse['result']> = {},
+    private requestToChannelId: Record<string, string> = {},
   ) {}
 
   async getChannelIdIfExists(message: WireMessage): Promise<string | undefined> {
@@ -136,6 +139,10 @@ export class ReceiptManager implements ReceiptManagerInterface {
       if (pushMessageOutbox.length !== 0) {
         throw new RMError('Unexpected outbox items when wallet is in the running stage')
       }
+      this.requestToChannelId = {
+        ...this.requestToChannelId,
+        [toJS(channelResult.appData).variable.requestCID]: channelResult.channelId,
+      }
       return []
     }
 
@@ -154,14 +161,24 @@ export class ReceiptManager implements ReceiptManagerInterface {
   }
 
   async provideAttestation(
-    channelId: string,
+    requestCID: string,
     attestation: SCAttestation,
   ): Promise<RMResponse> {
-    return this.nextState(StateType.AttestationProvided, channelId, attestation)
+    const channelId = this.requestToChannelId[requestCID]
+    const responseMessage = await this.nextState(
+      StateType.AttestationProvided,
+      channelId,
+      attestation,
+    )
+    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
+    return responseMessage
   }
 
-  async declineQuery(channelId: string): Promise<RMResponse> {
-    return this.nextState(StateType.QueryDeclined, channelId)
+  async declineQuery(requestCID: string): Promise<RMResponse> {
+    const channelId = this.requestToChannelId[requestCID]
+    const responseMessage = this.nextState(StateType.QueryDeclined, channelId)
+    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
+    return responseMessage
   }
 
   private async nextState(

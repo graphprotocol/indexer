@@ -2,12 +2,6 @@
  *  1. Install and run postgres.
  *  2. Run 'createdb receipt-manager'
  */
-
-// TODO: (Liam) Provide instructions for setting up test to use local PostgreSQL
-//              This must run _before_ any server-wallet code gets imported
-// ❯ cd node_modules/@statechannels/server-wallet
-// ❯ SERVER_DB_NAME=indexer-sw NODE_ENV=development yarn db:migrate
-//
 process.env.SERVER_DB_NAME = 'receipt-manager'
 
 import { constants } from 'ethers'
@@ -98,7 +92,7 @@ describe('ReceiptManager', () => {
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
 
     const attestationMessage = await receiptManager.provideAttestation(
-      mockChannelId,
+      constants.HashZero,
       mockSCAttestation(),
     )
 
@@ -116,7 +110,7 @@ describe('ReceiptManager', () => {
   it('can deny a query', async () => {
     await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
-    const outbound = await receiptManager.declineQuery(mockChannelId)
+    const outbound = await receiptManager.declineQuery(constants.HashZero)
 
     const nextState = stateFromMessage([outbound])
     const appData = toJS(nextState.appData)
