@@ -77,7 +77,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
     if (!channelResult)
       throw new RMError(
-        'Eeceived new state, but the wallet did not create a follow up state',
+        'Received new state, but the wallet did not create a follow up state',
       )
 
     this.cachedState[channelResult.channelId] = channelResult
