@@ -17,6 +17,7 @@ import {
 import { Message as WireMessage } from '@statechannels/client-api-schema'
 
 import { seedAlicesSigningWallet } from '@statechannels/server-wallet/lib/src/db/seeds/1_signing_wallet_seeds'
+import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { WalletKnex } from '@statechannels/server-wallet'
 
 import { ReceiptManager, PayerMessage } from '../receipt-manager'
@@ -54,6 +55,7 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await WalletKnex.destroy()
+  await knex.destroy()
 })
 
 describe('ReceiptManager', () => {
