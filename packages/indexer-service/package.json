@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .ts,.tsx",
     "prepare": "yarn format && yarn lint && tsc",
     "start": "yarn prepare && node ./dist/index.js start",
-    "test": "jest --passWithNoTests --detectOpenHandles --verbose --runInBand",
+    "test": "jest --passWithNoTests --detectOpenHandles --verbose",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose"
   },
   "bin": {
