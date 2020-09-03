@@ -24,7 +24,6 @@ import {
   mockCreatedChannelMessage,
   mockCreatedZeroChannelMessage,
   mockQueryRequestMessage,
-  mockChannelId,
   mockSCAttestation,
   mockAppData,
   mockPostFundMessage,
