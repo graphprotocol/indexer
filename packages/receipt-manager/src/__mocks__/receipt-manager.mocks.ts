@@ -13,7 +13,7 @@ import {
   StateType,
   fromJS,
   Attestation as SCAttestation,
-} from '@statechannels/graph'
+} from '@graphprotocol/statechannels'
 import { PayerMessage } from '../receipt-manager'
 
 export const mockSCAttestation = (): SCAttestation => ({

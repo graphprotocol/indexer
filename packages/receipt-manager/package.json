@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
-    "@statechannels/graph": "^0.0.6",
+    "@graphprotocol/statechannels": "^0.0.0",
     "@statechannels/server-wallet": "^0.3.4"
   },
   "devDependencies": {
