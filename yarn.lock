@@ -733,6 +733,16 @@
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
   integrity sha512-Geph8Q71q9R1JQ4q6Ph7tF87yLnwDwDiIjw7he/KfRqwtcrseCmTJ0vFgRAhqD9mWszljj5BUt8qiDommUCkPQ==
 
+"@graphprotocol/statechannels@^0.0.0":
+  version "0.0.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/statechannels/-/statechannels-0.0.0.tgz#46d9acba552a88e0ae837ca3566e228907ddcd93"
+  integrity sha512-t3VG9/fWqf2EH9TkdeyvKjT6gc85Ib8UKVmT62dQ8Q7s5I82SwcscR22uFEAmtkN274VLMSdoDj3O2gi7sDKZw==
+  dependencies:
+    "@openzeppelin/contracts" "3.0.1"
+    "@statechannels/client-api-schema" "^0.2.0"
+    "@statechannels/wallet-core" "^0.2.0"
+    lodash "4.17.20"
+
 "@hapi/bourne@^2.0.0":
   version "2.0.0"
   resolved "https://registry.npmjs.org/@hapi/bourne/-/bourne-2.0.0.tgz#5bb2193eb685c0007540ca61d166d4e1edaf918d"
@@ -2026,15 +2036,6 @@
     tree-kill "1.2.1"
     write-json-file "4.2.0"
     yargs "15.4.1"
-
-"@statechannels/graph@^0.0.6":
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/@statechannels/graph/-/graph-0.0.6.tgz#40424ad83e4dc2dd7d73de86c5daec5ec4fc6cb7"
-  integrity sha512-BjlbnNbZCPXqVCzKETRUVhHNt22uK/8256Xe0pHRGvMykW8ANnM9XORTi3Sr8xbORADSNM4zUgnqLq6grTkCkA==
-  dependencies:
-    "@openzeppelin/contracts" "3.0.1"
-    "@statechannels/client-api-schema" "^0.2.0"
-    "@statechannels/wallet-core" "^0.2.0"
 
 "@statechannels/nitro-protocol@^0.2.0":
   version "0.2.0"
@@ -9255,7 +9256,7 @@ lodash@4.17.19:
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.19.tgz#e48ddedbe30b3321783c5b4301fbd353bc1e4a4b"
   integrity sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ==
 
-lodash@^4.1.0, lodash@^4.15.0, lodash@^4.17.11, lodash@^4.17.12, lodash@^4.17.13, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.19, lodash@^4.17.20, lodash@^4.17.4, lodash@^4.2.1:
+lodash@4.17.20, lodash@^4.1.0, lodash@^4.15.0, lodash@^4.17.11, lodash@^4.17.12, lodash@^4.17.13, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.19, lodash@^4.17.20, lodash@^4.17.4, lodash@^4.2.1:
   version "4.17.20"
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.20.tgz#b44a9b6297bcb698f1c51a3545a2b3b368d59c52"
   integrity sha512-PlhdFcillOINfeV7Ni6oF1TAEayyZBoZ8bcshTHqOYJYlrqzRK5hagpagky5o4HfCzzd1TRkXPMFq6cKk9rGmA==

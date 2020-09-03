@@ -29,7 +29,7 @@ import {
   mockPostFundMessage,
   mockCloseChannelMessage,
 } from '../__mocks__/receipt-manager.mocks'
-import { toJS, StateType } from '@statechannels/graph'
+import { toJS, StateType } from '@graphprotocol/statechannels'
 
 const logger = createLogger({ name: 'receipt-manager.test.ts' })
 

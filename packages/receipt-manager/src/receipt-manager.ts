@@ -11,7 +11,7 @@ import {
   StateType,
   computeNextState,
   toJS,
-} from '@statechannels/graph'
+} from '@graphprotocol/statechannels'
 import _ from 'lodash'
 
 interface ReceiptManagerInterface {
