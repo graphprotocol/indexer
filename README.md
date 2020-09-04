@@ -12,14 +12,18 @@ used to maintain the following changelogs:
 
 - [indexer-service](packages/indexer-service/CHANGELOG.md)
 - [indexer-agent](packages/indexer-agent/CHANGELOG.md)
+- [indexer-cli](packages/indexer-cli/CHANGELOG.md)
+- [indexer-common](packages/indexer-common/CHANGELOG.md)
+- [receipt-manager](packages/receipt-manager/CHANGELOG.md)
 
 ## Running from NPM packages
 
-The indexer service and agent can be installed as NPM packages, using
+The indexer service, agent and CLI can be installed as NPM packages, using
 
 ```sh
 npm install -g @graphprotocol/indexer-service --registry https://testnet.thegraph.com/npm-registry/
 npm install -g @graphprotocol/indexer-agent   --registry https://testnet.thegraph.com/npm-registry/
+npm install -g @graphprotocol/indexer-cli     --registry https://testnet.thegraph.com/npm-registry/
 ```
 
 After that, they can be run with the following commands:
@@ -30,6 +34,9 @@ graph-indexer-service start ...
 
 # Indexer agent
 graph-indexer-agent start ...
+
+# Indexer CLI
+graph indexer ...
 ```
 
 ### Usage
@@ -113,7 +120,6 @@ Options:
   --help     Show help                                                 [boolean]
 ```
 
-
 ## Running from source
 
 Run the following at the root of this repository to install dependencies and build the packages:
@@ -187,7 +193,9 @@ After this, the indexer agent and service can be run as follows:
 
    This starts the indexer agent and serves the so-called indexer management API
    on the host at port 18000.
-   
+
+   ````
+
 ## Releasing
 
 Creating a new release involves the following steps:
@@ -195,16 +203,28 @@ Creating a new release involves the following steps:
 1. Update all changelogs:
 
    ```sh
-   cd packages/indexer-service
+   pushd packages/indexer-service
    chan added ...
    chan fixed ...
    chan changed ...
    chan release <new-version>
-   cd ../..
+   popd
 
-   cd packages/indexer-agent
+   pushd packages/indexer-agent
    ...
-   cd ../..
+   popd
+
+   pushd packages/indexer-cli
+   ...
+   popd
+
+   pushd packages/indexer-common
+   ...
+   popd
+
+   pushd packages/receipt-manager
+   ...
+   popd
    ```
 
 2. Commit these changelogs:
