@@ -19,7 +19,7 @@
     "graph-indexer-service": "./bin/graph-indexer-service"
   },
   "resolutions": {
-    "ethers": "5.0.8",
+    "ethers": "5.0.9",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
@@ -32,7 +32,7 @@
     "bs58": "^4.0.1",
     "cors": "^2.8.5",
     "cross-fetch": "^3.0.4",
-    "ethers": "^5.0.8",
+    "ethers": "^5.0.9",
     "evt": "^1.7.13",
     "express": "^4.17.1",
     "express-graphql": "^0.9.0",

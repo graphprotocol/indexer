@@ -19,7 +19,7 @@
     "@urql/exchange-execute": "^1.0.1",
     "body-parser": "^1.19.0",
     "cors": "^2.8.5",
-    "ethers": "^5.0.8",
+    "ethers": "^5.0.9",
     "express": "^4.17.1",
     "graphql": "^15.3.0",
     "graphql-tag": "^2.11.0",
