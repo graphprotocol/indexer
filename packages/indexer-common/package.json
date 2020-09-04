@@ -9,7 +9,7 @@
   "scripts": {
     "format": "./node_modules/.bin/prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "./node_modules/.bin/eslint . --ext .ts,.tsx",
-    "prepublish": "yarn format && yarn lint && ./node_modules/.bin/tsc",
+    "prepare": "yarn format && yarn lint && ./node_modules/.bin/tsc",
     "test": "jest --passWithNoTests --verbose",
     "test:watch": "jest --watch --passWithNoTests --verbose"
   },
