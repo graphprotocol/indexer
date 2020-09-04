@@ -1,8 +1,4 @@
-import {
-  Message as WireMessage,
-  GetStateResponse,
-  ChannelResult,
-} from '@statechannels/client-api-schema'
+import { Message as WireMessage } from '@statechannels/client-api-schema'
 import { Wallet, Outgoing } from '@statechannels/server-wallet'
 import { Message as WalletMessage, BN } from '@statechannels/wallet-core'
 import { Logger } from '@graphprotocol/common-ts'
@@ -10,14 +6,15 @@ import {
   Attestation as SCAttestation,
   StateType,
   computeNextState,
-  toJS,
 } from '@graphprotocol/statechannels'
-import _ from 'lodash'
 
 interface ReceiptManagerInterface {
   inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
-  provideAttestation(requestCID: string, attestation: SCAttestation): Promise<RMResponse>
-  declineQuery(requestCID: string): Promise<RMResponse>
+  provideAttestation(
+    message: PayerMessage,
+    attestation: SCAttestation,
+  ): Promise<RMResponse>
+  declineQuery(message: PayerMessage): Promise<RMResponse>
 }
 
 class RMError extends Error {
@@ -49,8 +46,6 @@ export class ReceiptManager implements ReceiptManagerInterface {
     private logger: Logger,
     public privateKey: string,
     private wallet = new Wallet(),
-    private cachedState: Record<string, GetStateResponse['result']> = {},
-    private requestToChannelId: Record<string, string> = {},
   ) {}
 
   async inputStateChannelMessage(message: PayerMessage): Promise<WireMessage[]> {
@@ -63,8 +58,6 @@ export class ReceiptManager implements ReceiptManagerInterface {
       throw new RMError(
         'Received new state, but the wallet did not create a follow up state',
       )
-
-    this.cachedState[channelResult.channelId] = channelResult
 
     /**
      * Initial request to create a channelResult is received. In this case, join
@@ -120,10 +113,6 @@ export class ReceiptManager implements ReceiptManagerInterface {
       if (pushMessageOutbox.length !== 0) {
         throw new RMError('Unexpected outbox items when wallet is in the running stage')
       }
-      this.requestToChannelId = {
-        ...this.requestToChannelId,
-        [toJS(channelResult.appData).variable.requestCID]: channelResult.channelId,
-      }
       return []
     }
 
@@ -142,25 +131,30 @@ export class ReceiptManager implements ReceiptManagerInterface {
   }
 
   async provideAttestation(
-    requestCID: string,
+    message: PayerMessage,
     attestation: SCAttestation,
   ): Promise<RMResponse> {
-    return await this.nextState(StateType.AttestationProvided, requestCID, attestation)
+    return await this.nextState(StateType.AttestationProvided, message, attestation)
   }
 
-  async declineQuery(requestCID: string): Promise<RMResponse> {
-    return this.nextState(StateType.QueryDeclined, requestCID)
+  async declineQuery(message: PayerMessage): Promise<RMResponse> {
+    return this.nextState(StateType.QueryDeclined, message)
   }
 
   private async nextState(
     stateType: StateType,
-    requestCID: string,
+    message: PayerMessage,
     attestation: SCAttestation | null = null,
   ): Promise<WireMessage> {
-    const channelId = this.requestToChannelId[requestCID]
-    if (!channelId) throw `No channel for requestCID ${requestCID}`
+    const {
+      channelResults: [channelResult],
+      outbox: pushMessageOutbox,
+    } = await this.wallet.pushMessage(message.data)
+    if (pushMessageOutbox.length) {
+      throw new RMError('Did not expect any outbox items')
+    }
 
-    const { appData: appData, allocations } = await this.getChannelResult(channelId)
+    const { appData: appData, allocations } = channelResult
 
     const inputAttestation: SCAttestation = attestation ?? {
       responseCID: '',
@@ -175,31 +169,13 @@ export class ReceiptManager implements ReceiptManagerInterface {
     })
 
     const {
-      channelResult,
       outbox: [{ params: outboundMsg }],
     } = await this.wallet.updateChannel({
-      channelId,
+      channelId: channelResult.channelId,
       appData: nextState.appData,
       allocations: nextState.allocation,
     })
 
-    this.cachedState[channelId] = channelResult
-    this.requestToChannelId = _.omit(this.getChannelResult, requestCID)
-
     return outboundMsg as WireMessage
-  }
-
-  private async getChannelResult(channelId: string): Promise<ChannelResult> {
-    const channelResult = await this.getChannelState(channelId)
-    if (!channelResult) throw new RMError(`No channel result for channelId ${channelId}.`)
-    return channelResult
-  }
-
-  private async getChannelState(channelId: string): Promise<GetStateResponse['result']> {
-    if (!this.cachedState[channelId]) {
-      const { channelResult } = await this.wallet.getState({ channelId })
-      this.cachedState[channelId] = channelResult
-    }
-    return this.cachedState[channelId]
   }
 }

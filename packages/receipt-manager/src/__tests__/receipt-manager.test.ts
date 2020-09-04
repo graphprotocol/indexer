@@ -93,7 +93,7 @@ describe('ReceiptManager', () => {
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
 
     const attestationMessage = await receiptManager.provideAttestation(
-      constants.HashZero,
+      mockQueryRequestMessage(),
       mockSCAttestation(),
     )
 
@@ -111,7 +111,7 @@ describe('ReceiptManager', () => {
   it('can deny a query', async () => {
     await receiptManager.inputStateChannelMessage(mockCreatedChannelMessage())
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
-    const outbound = await receiptManager.declineQuery(constants.HashZero)
+    const outbound = await receiptManager.declineQuery(mockQueryRequestMessage())
 
     const nextState = stateFromMessage([outbound])
     const appData = toJS(nextState.appData)
