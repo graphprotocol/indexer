@@ -17,7 +17,8 @@
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
     "@graphprotocol/statechannels": "^0.0.1",
-    "@statechannels/server-wallet": "^0.3.5"
+    "@statechannels/server-wallet": "^0.3.5",
+    "lodash": "^4.17.20"
   },
   "devDependencies": {
     "@statechannels/devtools": "^0.3.5",
@@ -26,7 +27,6 @@
     "@typescript-eslint/parser": "^3.10.1",
     "eslint": "^7.7.0",
     "jest": "^26.4.2",
-    "lodash": "^4.17.20",
     "prettier": "^2.1.0",
     "ts-jest": "^26.2.0",
     "typescript": "^4.0.2"
