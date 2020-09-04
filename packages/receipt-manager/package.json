@@ -16,10 +16,11 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
-    "@graphprotocol/statechannels": "^0.0.0",
-    "@statechannels/server-wallet": "^0.3.4"
+    "@graphprotocol/statechannels": "^0.0.1",
+    "@statechannels/server-wallet": "^0.3.5"
   },
   "devDependencies": {
+    "@statechannels/devtools": "^0.3.5",
     "ethers": "^5.0.8",
     "@typescript-eslint/eslint-plugin": "^3.10.1",
     "@typescript-eslint/parser": "^3.10.1",
