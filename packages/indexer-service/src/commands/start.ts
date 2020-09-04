@@ -5,13 +5,10 @@ import {
   connectContracts,
   createMetrics,
   createMetricsServer,
-  SubgraphDeploymentID,
-  createNetworkSubgraphClient,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { NetworkMonitor } from '../network-monitor'
 
 import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
@@ -55,23 +52,6 @@ export default {
       .option('free-query-auth-token', {
         description: 'Auth token that clients can use to query for free',
         type: 'array',
-      })
-      .option('network-subgraph-deployment', {
-        description: 'Network subgraph deployment',
-        type: 'string',
-        group: 'Network Subgraph',
-      })
-      .option('network-subgraph-endpoint', {
-        description: 'Endpoint to query the network subgraph from',
-        type: 'string',
-        group: 'Network Subgraph',
-      })
-      .check(argv => {
-        if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
-          return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
-        }
-
-        return true
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -144,24 +124,6 @@ export default {
       logger.child({ component: 'ReceiptManager' }),
       privateKey,
     )
-
-    const networkSubgraph = await createNetworkSubgraphClient({
-      url: argv.networkSubgraphEndpoint
-        ? argv.networkSubgraphEndpoint
-        : new URL(
-            `/subgraphs/id/${
-              new SubgraphDeploymentID(argv.networkSubgraphDeployment).ipfsHash
-            }`,
-            argv.graphNodeQueryEndpoint,
-          ).toString(),
-    })
-
-    // Create registered channel monitor
-    const networkMonitor = new NetworkMonitor({
-      logger: logger.child({ component: 'NetworkMonitor' }),
-      wallet,
-      networkSubgraph,
-    })
 
     // Create a query processor for paid queries
     const queryProcessor = new QueryProcessor({
