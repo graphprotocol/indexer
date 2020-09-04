@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "target": "es2015",
+    "module": "commonjs",
+    "composite": false,
+    "declaration": false,
+    "sourceMap": false,
+    "esModuleInterop": true,
+    "strict": true,
+    "lib": ["esnext", "es2015", "es6", "esnext.asynciterable", "dom"]
+  },
+  "include": [
+    "src/*.ts",
+    "src/commands/*.ts",
+    "src/commands/**/*.ts",
+    "src/commands/**/**/*.ts"
+  ],
+  "exclude": ["src/commands/__tests__/*.ts"],
+  "references": []
+}

@@ -4,6 +4,7 @@
   "workspaces": [
     "packages/receipt-manager",
     "packages/indexer-common",
+    "packages/indexer-cli",
     "packages/indexer-agent",
     "packages/indexer-service"
   ],
