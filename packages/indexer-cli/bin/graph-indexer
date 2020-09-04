@@ -1,0 +1,4 @@
+#!/usr/bin/env node
+
+// run the CLI with the current process arguments
+require('../dist/cli').run(process.argv)
