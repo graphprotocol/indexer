@@ -36,10 +36,10 @@ const logger = createLogger({ name: 'receipt-manager.test.ts' })
 
 let receiptManager: ReceiptManager
 
-function stateFromMessage(messages: WireMessage[] | undefined, index = 0): SignedState {
-  expect(messages).toBeDefined()
+function stateFromMessage(message: WireMessage | undefined, index = 0): SignedState {
+  expect(message).toBeDefined()
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return (messages![index] as PayerMessage).data.signedStates![0]
+  return (message as PayerMessage).data.signedStates![index]
 }
 
 beforeAll(async () => {
@@ -97,7 +97,7 @@ describe('ReceiptManager', () => {
       mockSCAttestation(),
     )
 
-    const nextState = stateFromMessage([attestationMessage])
+    const nextState = stateFromMessage(attestationMessage)
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.responseCID).toEqual(mockSCAttestation().responseCID)
@@ -113,7 +113,7 @@ describe('ReceiptManager', () => {
     await receiptManager.inputStateChannelMessage(mockQueryRequestMessage())
     const outbound = await receiptManager.declineQuery(mockQueryRequestMessage())
 
-    const nextState = stateFromMessage([outbound])
+    const nextState = stateFromMessage(outbound)
     const appData = toJS(nextState.appData)
     expect(appData.constants).toEqual(mockAppData().constants)
     expect(appData.variable.stateType).toEqual(StateType.QueryDeclined)

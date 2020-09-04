@@ -7,9 +7,10 @@ import {
   StateType,
   computeNextState,
 } from '@graphprotocol/statechannels'
+import _ from 'lodash'
 
 interface ReceiptManagerInterface {
-  inputStateChannelMessage(message: WireMessage): Promise<WireMessage[]>
+  inputStateChannelMessage(message: WireMessage): Promise<WireMessage | undefined>
   provideAttestation(
     message: PayerMessage,
     attestation: SCAttestation,
@@ -26,21 +27,26 @@ class RMError extends Error {
 type RMResponse = Promise<WireMessage>
 export type PayerMessage = WireMessage & { data: WalletMessage }
 
-function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): WireMessage[] {
+function mergeOutgoing(outgoing1: Outgoing, outgoing2: Outgoing): PayerMessage {
   if (outgoing1.method !== 'MessageQueued' || outgoing2.method !== 'MessageQueued') {
     throw new RMError('Expected MessageQueued notifications')
   }
 
-  const message1 = outgoing1.params as WireMessage
-  const message2 = outgoing2.params as WireMessage
+  const message1 = outgoing1.params as PayerMessage
+  const message2 = outgoing2.params as PayerMessage
 
   if (message1.recipient !== message2.recipient || message1.sender !== message2.sender) {
     throw new RMError('Receipient and sender of messages must match')
   }
 
-  return [message1, message2]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function customizer(objValue: any, srcValue: any) {
+    if (_.isArray(objValue)) {
+      return objValue.concat(srcValue)
+    }
+  }
+  return _.mergeWith(message1, message2, customizer)
 }
-
 export class ReceiptManager implements ReceiptManagerInterface {
   constructor(
     private logger: Logger,
@@ -48,7 +54,9 @@ export class ReceiptManager implements ReceiptManagerInterface {
     private wallet = new Wallet(),
   ) {}
 
-  async inputStateChannelMessage(message: PayerMessage): Promise<WireMessage[]> {
+  async inputStateChannelMessage(
+    message: PayerMessage,
+  ): Promise<WireMessage | undefined> {
     const {
       channelResults: [channelResult],
       outbox: pushMessageOutbox,
@@ -113,7 +121,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
       if (pushMessageOutbox.length !== 0) {
         throw new RMError('Unexpected outbox items when wallet is in the running stage')
       }
-      return []
+      return
     }
 
     if (channelResult.status === 'closed') {
@@ -124,7 +132,7 @@ export class ReceiptManager implements ReceiptManagerInterface {
         channelId: channelResult.channelId,
       })
       const [{ params: outboundClosedChannelState }] = pushMessageOutbox
-      return [outboundClosedChannelState as WireMessage]
+      return outboundClosedChannelState as WireMessage
     }
 
     throw new RMError('Unexpectedly reached the end of inputStateChannelMessage')
