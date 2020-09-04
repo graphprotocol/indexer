@@ -92,7 +92,13 @@ export class QueryProcessor implements QueryProcessorInterface {
       allocationID: allocationID,
     })
 
-    // This may throw an error with a signed envelopedResponse (DeclineQuery)
+    /**
+     * This call is only needed if the indexer service wants to validate that the stateChannelMessage
+     *  contains a valid payment before executing the query.
+     * It is safe to call provideAttestation or declineQuery without first calling inputStateChannelMessage.
+     * The downside of removing this call is that the indexer service would execute the query and potentially
+     *  discover that there is no valid payment state.
+     */
     await this.receiptManager.inputStateChannelMessage(stateChannelMessage)
 
     let response: AxiosResponse<string>
@@ -102,7 +108,9 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.query,
       )
     } catch (error) {
-      error.envelopedResponse = await this.receiptManager.declineQuery(requestCID)
+      error.envelopedResponse = await this.receiptManager.declineQuery(
+        stateChannelMessage,
+      )
       throw error
     }
 
@@ -128,7 +136,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       signature: utils.joinSignature(attestation),
     }
     const envelopedAttestation = await this.receiptManager.provideAttestation(
-      requestCID,
+      stateChannelMessage,
       scAttestation,
     )
 
