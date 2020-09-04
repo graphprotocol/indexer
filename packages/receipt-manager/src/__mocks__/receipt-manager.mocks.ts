@@ -7,7 +7,6 @@ import {
   SimpleAllocation,
 } from '@statechannels/wallet-core'
 import { alice as me } from '@statechannels/server-wallet/lib/src/wallet/__test__/fixtures/signing-wallets'
-import { getChannelId } from '@statechannels/nitro-protocol'
 import {
   AppData,
   StateType,
