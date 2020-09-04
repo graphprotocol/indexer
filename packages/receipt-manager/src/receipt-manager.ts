@@ -1,5 +1,5 @@
 import { Message as WireMessage } from '@statechannels/client-api-schema'
-import { Wallet, Outgoing } from '@statechannels/server-wallet'
+import { Wallet, Outgoing, WalletKnex } from '@statechannels/server-wallet'
 import { Message as WalletMessage, BN } from '@statechannels/wallet-core'
 import { Logger } from '@graphprotocol/common-ts'
 import {
@@ -10,6 +10,7 @@ import {
 import _ from 'lodash'
 
 interface ReceiptManagerInterface {
+  migrateWalletDB(): Promise<void>
   inputStateChannelMessage(message: WireMessage): Promise<WireMessage | undefined>
   provideAttestation(
     message: PayerMessage,
@@ -53,6 +54,12 @@ export class ReceiptManager implements ReceiptManagerInterface {
     public privateKey: string,
     private wallet = new Wallet(),
   ) {}
+
+  async migrateWalletDB(): Promise<void> {
+    this.logger.info('Migrate server-wallet database')
+    await WalletKnex.migrate.latest()
+    this.logger.info('Successfully migrated server-wallet database')
+  }
 
   async inputStateChannelMessage(
     message: PayerMessage,

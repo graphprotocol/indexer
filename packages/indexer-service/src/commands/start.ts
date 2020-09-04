@@ -1,4 +1,3 @@
-import path from 'path'
 import { Argv } from 'yargs'
 import {
   createLogger,
@@ -10,7 +9,6 @@ import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 
-import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { toAddress } from '../types'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
@@ -89,21 +87,15 @@ export default {
       registry: metrics.registry,
     })
 
-    logger.info('Migrate server-wallet database')
-    await knex.migrate.latest({
-      loadExtensions: ['.js'],
-      directory: path.resolve(
-        require.resolve('@statechannels/server-wallet'),
-        '..',
-        'db',
-        'migrations',
-      ),
-    })
-    logger.info('Successfully migrated server-wallet database')
-
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
-
     const privateKey = wallet.privateKey
+    // Create payment manager
+    const receiptManager = new ReceiptManager(
+      logger.child({ component: 'ReceiptManager' }),
+      privateKey,
+    )
+    await receiptManager.migrateWalletDB()
+
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
     await SigningWallet.query()
@@ -117,12 +109,6 @@ export default {
           address,
         })
       })
-
-    // Create payment manager
-    const receiptManager = new ReceiptManager(
-      logger.child({ component: 'ReceiptManager' }),
-      privateKey,
-    )
 
     // Create a query processor for paid queries
     const queryProcessor = new QueryProcessor({
