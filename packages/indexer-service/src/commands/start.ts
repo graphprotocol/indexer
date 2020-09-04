@@ -95,7 +95,6 @@ export default {
       directory: path.resolve(
         require.resolve('@statechannels/server-wallet'),
         '..',
-        '..',
         'db',
         'migrations',
       ),
