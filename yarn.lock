@@ -802,10 +802,10 @@
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
   integrity sha512-Geph8Q71q9R1JQ4q6Ph7tF87yLnwDwDiIjw7he/KfRqwtcrseCmTJ0vFgRAhqD9mWszljj5BUt8qiDommUCkPQ==
 
-"@graphprotocol/statechannels@^0.0.1":
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/statechannels/-/statechannels-0.0.1.tgz#0f0b5bb1a78aeae5fb29eeb01484480a615b0b8d"
-  integrity sha512-ct/C0cL/4HwV42IEp1fTBj33rRy/YbVrsMuaynnmRhmRY7KPeU0yaJaqWvO801+PtCJAcIvpDa2b9/BPWmyaxg==
+"@graphprotocol/statechannels@^0.0.2":
+  version "0.0.2"
+  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.0.2.tgz#44908fdb3637eb72ee37d071d7bde15aebb1520f"
+  integrity sha512-UirXaF251r2vGRMeOUpBA35rhKaPXLLtjlg8Kp1DCMhck8tnvNB2ezv6gm0w1kqTrjj5YvLWR5KDoqCWuP72kw==
   dependencies:
     "@openzeppelin/contracts" "3.0.1"
     "@statechannels/client-api-schema" "0.3.5"
