@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-import bs58 from 'bs58'
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
 
@@ -110,6 +109,7 @@ export const defineIndexerManagementModels = (
         allowNull: true,
         primaryKey: true,
         validate: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isDeploymentID: (value: any) => {
             if (typeof value !== 'string') {
               throw new Error('Deployment ID must be a string')

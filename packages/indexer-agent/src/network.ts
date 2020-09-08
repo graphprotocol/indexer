@@ -5,10 +5,12 @@ import {
   SubgraphDeploymentID,
   formatGRT,
   parseGRT,
+} from '@graphprotocol/common-ts'
+import {
   IndexingRuleAttributes,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
-} from '@graphprotocol/common-ts'
+} from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
   ContractReceipt,

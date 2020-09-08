@@ -4,13 +4,13 @@ import {
   connectContracts,
   createMetrics,
   createMetricsServer,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
-import { toAddress } from '../types'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
 
 export default {

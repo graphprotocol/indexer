@@ -299,7 +299,22 @@
     minimatch "^3.0.4"
     strip-json-comments "^3.1.1"
 
-"@ethersproject/abi@^5.0.0", "@ethersproject/abi@^5.0.3":
+"@ethersproject/abi@^5.0.0":
+  version "5.0.4"
+  resolved "https://registry.npmjs.org/@ethersproject/abi/-/abi-5.0.4.tgz#92d603307ad343f9465d5e0f546df3cf72709862"
+  integrity sha512-T8woaIQHCJMZDAQim1vSp8ycsP2h1/TlnBHzQqR9atKknoqLiT26Wxr9AkhW1aufexkWrZTHbf2837469uS6Eg==
+  dependencies:
+    "@ethersproject/address" "^5.0.3"
+    "@ethersproject/bignumber" "^5.0.6"
+    "@ethersproject/bytes" "^5.0.4"
+    "@ethersproject/constants" "^5.0.3"
+    "@ethersproject/hash" "^5.0.3"
+    "@ethersproject/keccak256" "^5.0.3"
+    "@ethersproject/logger" "^5.0.5"
+    "@ethersproject/properties" "^5.0.3"
+    "@ethersproject/strings" "^5.0.3"
+
+"@ethersproject/abi@^5.0.3":
   version "5.0.3"
   resolved "https://registry.npmjs.org/@ethersproject/abi/-/abi-5.0.3.tgz#27280ff9d44b94b5ac83064db81deb8d1b87dab1"
   integrity sha512-fSSs4sgaf5R1955QSpYXW2YkrYBgyOSyENyyMEyJwxTsKJKQPaReTQXafyeRc8ZLi3/2uzeqakH09r0S1hlFng==
@@ -486,13 +501,14 @@
     "@ethersproject/logger" "^5.0.5"
 
 "@ethersproject/providers@^5.0.0":
-  version "5.0.6"
-  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.0.6.tgz#caad9a9181e4792549850af18cbbe390e42c86a7"
-  integrity sha512-hY1mFtZvbzqckPxwyR989ujr+cEzsQQdx+DDkNI6E5wF8GiTETAUMl3SmxPzcPebSD++ZI4vKtYdcabsJF0yaA==
+  version "5.0.7"
+  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.0.7.tgz#8dfb9eacb36d3c05c08831f71ad43fb46d2aaec6"
+  integrity sha512-lT+w/w2PKX9oyddX0DTBYl2CVHJTJONZP5HLJ3MzVvSA5dTOdiJ9Sx5rpqR7Tw+mxVA9xPjanoNCaPPIT7cykQ==
   dependencies:
     "@ethersproject/abstract-provider" "^5.0.3"
     "@ethersproject/abstract-signer" "^5.0.3"
     "@ethersproject/address" "^5.0.3"
+    "@ethersproject/basex" "^5.0.3"
     "@ethersproject/bignumber" "^5.0.6"
     "@ethersproject/bytes" "^5.0.4"
     "@ethersproject/constants" "^5.0.3"
@@ -502,9 +518,11 @@
     "@ethersproject/properties" "^5.0.3"
     "@ethersproject/random" "^5.0.3"
     "@ethersproject/rlp" "^5.0.3"
+    "@ethersproject/sha2" "^5.0.3"
     "@ethersproject/strings" "^5.0.3"
     "@ethersproject/transactions" "^5.0.3"
     "@ethersproject/web" "^5.0.4"
+    bech32 "1.1.4"
     ws "7.2.3"
 
 "@ethersproject/random@^5.0.0", "@ethersproject/random@^5.0.3":
@@ -562,7 +580,22 @@
     "@ethersproject/constants" "^5.0.3"
     "@ethersproject/logger" "^5.0.5"
 
-"@ethersproject/transactions@^5.0.0", "@ethersproject/transactions@^5.0.3":
+"@ethersproject/transactions@^5.0.0":
+  version "5.0.4"
+  resolved "https://registry.npmjs.org/@ethersproject/transactions/-/transactions-5.0.4.tgz#76d7afdb0667efde22b054de3a8dc5b440eb6cd2"
+  integrity sha512-QvS5CzxmL46D9Y3OlddurYgEIi5mb0eAgrKm5pM074Uz/1qxCYr+Ah12I4hpaciZtCq4Fe12YWZqUFb1vGcH6Q==
+  dependencies:
+    "@ethersproject/address" "^5.0.3"
+    "@ethersproject/bignumber" "^5.0.6"
+    "@ethersproject/bytes" "^5.0.4"
+    "@ethersproject/constants" "^5.0.3"
+    "@ethersproject/keccak256" "^5.0.3"
+    "@ethersproject/logger" "^5.0.5"
+    "@ethersproject/properties" "^5.0.3"
+    "@ethersproject/rlp" "^5.0.3"
+    "@ethersproject/signing-key" "^5.0.4"
+
+"@ethersproject/transactions@^5.0.3":
   version "5.0.3"
   resolved "https://registry.npmjs.org/@ethersproject/transactions/-/transactions-5.0.3.tgz#7cd82fa6d63043fb5cd561a8ed72df046a968430"
   integrity sha512-cqsAAFUQV6iWqfgLL7KCPNfd3pXJPDdYtE6QuBEAIpc7cgbJ7TIDCF/dN+1otfERHJIbjGSNrhh4axKRnSFswg==
@@ -607,7 +640,18 @@
     "@ethersproject/transactions" "^5.0.3"
     "@ethersproject/wordlists" "^5.0.3"
 
-"@ethersproject/web@^5.0.0", "@ethersproject/web@^5.0.4":
+"@ethersproject/web@^5.0.0":
+  version "5.0.5"
+  resolved "https://registry.npmjs.org/@ethersproject/web/-/web-5.0.5.tgz#dd0531bf2fbf44c37ce8b547e40c183cf88c3e09"
+  integrity sha512-3lffVNOKv/ypW42eY0xhc+UXF+lFUgP1QfIZhWDTJ4xSY6tuNayXKXYq+AqjLXwxwIHzD0TOpe4j46IXJx2NXA==
+  dependencies:
+    "@ethersproject/base64" "^5.0.3"
+    "@ethersproject/bytes" "^5.0.4"
+    "@ethersproject/logger" "^5.0.5"
+    "@ethersproject/properties" "^5.0.3"
+    "@ethersproject/strings" "^5.0.3"
+
+"@ethersproject/web@^5.0.4":
   version "5.0.4"
   resolved "https://registry.npmjs.org/@ethersproject/web/-/web-5.0.4.tgz#75ff66ae8196934aa2a4a62448163fa6be971b2f"
   integrity sha512-1ZSbFGJo61huhDW5M8hqjP8zoCK6zZlu3jYAJrFKVNgBjEm1UYMY5fsoogYHWkLgCgBIf+M6yKzYdtAs4tol4Q==
@@ -703,10 +747,35 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@0.2.4", "@graphprotocol/common-ts@^0.2.4":
+"@graphprotocol/common-ts@^0.2.4":
   version "0.2.4"
   resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.4.tgz#5824ecebff2e7979f6b3bb7b12aa790f0294a3dd"
   integrity sha512-veT4/FO+tlW/DP6sgZgCpfyW4CzjN39G/6zWp9ajIlPJ0dBVe/wchn984aCOIs/+xSaDxFjvOJsm/NHf2tZnCg==
+  dependencies:
+    "@graphprotocol/contracts" "0.5.0-testnet-phase1"
+    "@urql/core" "^1.12.3"
+    "@urql/exchange-execute" "^1.0.1"
+    body-parser "^1.19.0"
+    bs58 "^4.0.1"
+    cors "^2.8.5"
+    cross-fetch "^3.0.5"
+    ethers "^5.0.8"
+    express "^4.17.1"
+    graphql "^15.3.0"
+    graphql-tag "^2.11.0"
+    helmet "^4.1.0"
+    morgan "^1.10.0"
+    ngeohash "^0.6.3"
+    pg "^8.2.1"
+    pg-hstore "^2.3.3"
+    pino "^6.3.2"
+    prom-client "^12.0.0"
+    sequelize "^6.3.4"
+
+"@graphprotocol/common-ts@^0.2.5":
+  version "0.2.5"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.5.tgz#e9d88903d4c9fa322217838a22fa3b531e08ef4b"
+  integrity sha512-aLqqSO41ZR5l2rbRFoemPd2WAxcktTrHz/3/ruoImnJccAB96AuPvcuh4OlHxcqg9MSd+/2iuBdGfVfBgukQQQ==
   dependencies:
     "@graphprotocol/contracts" "0.5.0-testnet-phase1"
     "@urql/core" "^1.12.3"
@@ -3469,6 +3538,11 @@ bcrypt-pbkdf@^1.0.0:
   integrity sha1-pDAdOJtqQ/m2f/PKEaP2Y342Dp4=
   dependencies:
     tweetnacl "^0.14.3"
+
+bech32@1.1.4:
+  version "1.1.4"
+  resolved "https://registry.npmjs.org/bech32/-/bech32-1.1.4.tgz#e38c9f37bf179b8eb16ae3a772b40c356d4832e9"
+  integrity sha512-s0IrSOzLlbvX7yp4WBfPITzpAU8sqQcpsmwXDiKwrG4r491vwCO/XpejasRNl0piBMe/DvP4Tz0mIS/X1DPJBQ==
 
 before-after-hook@^2.0.0:
   version "2.1.0"

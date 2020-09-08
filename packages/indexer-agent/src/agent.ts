@@ -1,11 +1,13 @@
 import {
   Logger,
-  IndexingRuleAttributes,
-  INDEXING_RULE_GLOBAL,
   SubgraphDeploymentID,
   parseGRT,
   formatGRT,
 } from '@graphprotocol/common-ts'
+import {
+  IndexingRuleAttributes,
+  INDEXING_RULE_GLOBAL,
+} from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, Allocation } from './types'
 import { Indexer } from './indexer'

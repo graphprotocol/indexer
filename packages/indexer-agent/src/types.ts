@@ -1,8 +1,5 @@
-import {
-  Logger,
-  SubgraphDeploymentID,
-  IndexerManagementClient,
-} from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import { BigNumber } from 'ethers'
 import { Network } from './network'
 import { Client } from '@urql/core'
