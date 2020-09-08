@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
-import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { utils } from 'ethers'
+import {
+  Attestation,
+  Receipt,
+  SubgraphDeploymentID,
+  Address,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import { PayerMessage } from '@graphprotocol/receipt-manager'
 
 export interface QueryResult {
@@ -43,10 +48,6 @@ export interface QueryProcessor {
   executeFreeQuery(query: FreeQuery): Promise<UnpaidQueryResponse>
   executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
 }
-
-export type Address = string & { _isAddress: void }
-
-export const toAddress = (s: string): Address => utils.getAddress(s) as Address
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const normalizeAllocation = (allocation: any): Allocation => {

@@ -3,13 +3,12 @@ import jayson, { Client as RpcClient } from 'jayson/promise'
 import fetch from 'isomorphic-fetch'
 import { Client, createClient } from '@urql/core'
 import { BigNumber } from 'ethers'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
-  Logger,
-  SubgraphDeploymentID,
   IndexingRuleAttributes,
   IndexerManagementClient,
   INDEXING_RULE_GLOBAL,
-} from '@graphprotocol/common-ts'
+} from '@graphprotocol/indexer-common'
 import { IndexingStatus } from './types'
 
 export class Indexer {
