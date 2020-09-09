@@ -1,13 +1,16 @@
 {
   "name": "root",
   "private": true,
-  "workspaces": [
-    "packages/receipt-manager",
-    "packages/indexer-common",
-    "packages/indexer-cli",
-    "packages/indexer-agent",
-    "packages/indexer-service"
-  ],
+  "workspaces": {
+    "packages": [
+      "packages/receipt-manager",
+      "packages/indexer-common",
+      "packages/indexer-cli",
+      "packages/indexer-agent",
+      "packages/indexer-service"
+    ],
+    "nohoist": ["@graphprotocol/receipt-manager/**/ethers"]
+  },
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
@@ -15,10 +18,21 @@
     "test": "lerna --concurrency 1 run test --stream"
   },
   "devDependencies": {
-    "lerna": "^3.20.2"
+    "@types/eslint": "^7.2.0",
+    "@types/jest": "^25.2.1",
+    "@types/node": "^13.11.0",
+    "@types/prettier": "^1.19.1",
+    "@typescript-eslint/eslint-plugin": "^3.5.0",
+    "@typescript-eslint/parser": "^3.5.0",
+    "ethers": "^5.0.9",
+    "eslint": "^7.3.1",
+    "jest": "^25.1.0",
+    "lerna": "^3.20.2",
+    "prettier": "^1.19.1",
+    "ts-jest": "^25.3.1",
+    "typescript": "^3.8.3"
   },
   "resolutions": {
-    "ethers": "5.0.8",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {}

@@ -44,6 +44,8 @@ describe('Server', () => {
   })
 
   it('is ready to roll', async () => {
-    await supertest(app).get('/').expect(200)
+    await supertest(app)
+      .get('/')
+      .expect(200)
   })
 })
