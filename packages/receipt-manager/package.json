@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/receipt-manager",
-  "version": "0.0.0",
+  "version": "0.2.6",
   "description": "State Channel Receipt Manager",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
