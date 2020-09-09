@@ -3,6 +3,10 @@
 set -e
 set -x
 
+# Install dependencies fresh and rebuild packages
+rm -rf node_modules packages/*/node_modules
+yarn
+
 # Publish to NPM
 lerna publish
 
