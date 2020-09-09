@@ -1,5 +1,7 @@
+import * as path from 'path'
+import knex from '@statechannels/server-wallet/lib/src/db/connection'
 import { Message as WireMessage } from '@statechannels/client-api-schema'
-import { Wallet, Outgoing, WalletKnex } from '@statechannels/server-wallet'
+import { Wallet, Outgoing } from '@statechannels/server-wallet'
 import { Message as WalletMessage, BN } from '@statechannels/wallet-core'
 import { Logger } from '@graphprotocol/common-ts'
 import {
@@ -57,7 +59,15 @@ export class ReceiptManager implements ReceiptManagerInterface {
 
   async migrateWalletDB(): Promise<void> {
     this.logger.info('Migrate server-wallet database')
-    await WalletKnex.migrate.latest()
+    await knex.migrate.latest({
+      loadExtensions: ['.js'],
+      directory: path.resolve(
+        require.resolve('@statechannels/server-wallet'),
+        '..',
+        'db',
+        'migrations',
+      ),
+    })
     this.logger.info('Successfully migrated server-wallet database')
   }
 

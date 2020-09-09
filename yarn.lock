@@ -390,7 +390,7 @@
 
 "@ethersproject/contracts@^5.0.3":
   version "5.0.3"
-  resolved "https://testnet.thegraph.com/npm-registry/@ethersproject%2fcontracts/-/contracts-5.0.3.tgz#9e9a395b6c9ddf1f456d9443e96c0c8d7660f79f"
+  resolved "https://registry.npmjs.org/@ethersproject/contracts/-/contracts-5.0.3.tgz#9e9a395b6c9ddf1f456d9443e96c0c8d7660f79f"
   integrity sha512-60H7UJx6qsp3JP5q3jFjzVNGUygRfz+XzfRwx/VeCKjHBUpFxPEIO2S30SMjYKPqw6JsgxbOjxFFZgOfQiNesw==
   dependencies:
     "@ethersproject/abi" "^5.0.3"
@@ -487,7 +487,7 @@
 
 "@ethersproject/providers@^5.0.6":
   version "5.0.7"
-  resolved "https://testnet.thegraph.com/npm-registry/@ethersproject%2fproviders/-/providers-5.0.7.tgz#8dfb9eacb36d3c05c08831f71ad43fb46d2aaec6"
+  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.0.7.tgz#8dfb9eacb36d3c05c08831f71ad43fb46d2aaec6"
   integrity sha512-lT+w/w2PKX9oyddX0DTBYl2CVHJTJONZP5HLJ3MzVvSA5dTOdiJ9Sx5rpqR7Tw+mxVA9xPjanoNCaPPIT7cykQ==
   dependencies:
     "@ethersproject/abstract-provider" "^5.0.3"
@@ -547,7 +547,7 @@
 
 "@ethersproject/solidity@^5.0.3":
   version "5.0.3"
-  resolved "https://testnet.thegraph.com/npm-registry/@ethersproject%2fsolidity/-/solidity-5.0.3.tgz#178197cb2f19d2986dadd515928c5dba3cb27e55"
+  resolved "https://registry.npmjs.org/@ethersproject/solidity/-/solidity-5.0.3.tgz#178197cb2f19d2986dadd515928c5dba3cb27e55"
   integrity sha512-a6ni4OIj1e+JrvDiuLVqygYmAh53Ljk5iErkjzPgFBY8dz9xQfDxhpASjOZY0lzCf+N125yeK9N7Vm3HI7OLzQ==
   dependencies:
     "@ethersproject/bignumber" "^5.0.6"
@@ -582,7 +582,7 @@
 
 "@ethersproject/units@^5.0.3":
   version "5.0.3"
-  resolved "https://testnet.thegraph.com/npm-registry/@ethersproject%2funits/-/units-5.0.3.tgz#3b6d7a027f53b25e1752d353f3c5cedb4e4a0dc7"
+  resolved "https://registry.npmjs.org/@ethersproject/units/-/units-5.0.3.tgz#3b6d7a027f53b25e1752d353f3c5cedb4e4a0dc7"
   integrity sha512-PyQ066mFczUy0CSJJrc/VK+1ATh1bsI8EkzAVT7GQ0IPJlNDcXnGNtlH5EQGHzuXA3GDQNV23poB0Cy/WDb2zg==
   dependencies:
     "@ethersproject/bignumber" "^5.0.6"
@@ -591,7 +591,7 @@
 
 "@ethersproject/wallet@^5.0.3":
   version "5.0.3"
-  resolved "https://testnet.thegraph.com/npm-registry/@ethersproject%2fwallet/-/wallet-5.0.3.tgz#45016e0fd3a79dcbb2be867a5181bdd055fbb3ac"
+  resolved "https://registry.npmjs.org/@ethersproject/wallet/-/wallet-5.0.3.tgz#45016e0fd3a79dcbb2be867a5181bdd055fbb3ac"
   integrity sha512-Nouwfh1HlpxaeRRi4+UDVsfrd9fitBHUvw35bTMSwJLFsZTb9xPd0LGWdX4llwVlAP/CXb6qDc0zwYy6uLp7Lw==
   dependencies:
     "@ethersproject/abstract-provider" "^5.0.3"
@@ -5831,44 +5831,8 @@ etherlime@2.3.3:
 
 ethers@4.0.0-beta.1, ethers@4.0.0-beta.3, ethers@4.0.48, ethers@5.0.7, ethers@5.0.9, ethers@^4.0.27, ethers@^4.0.32, ethers@^5.0.8, ethers@^5.0.9, "ethers@git+https://github.com/LimeChain/ethers.js.git#master":
   version "5.0.9"
-  resolved "https://testnet.thegraph.com/npm-registry/ethers/-/ethers-5.0.9.tgz#ce77cc0fc5b83c57c607e4fd79edcd9bc46dc511"
+  resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.9.tgz#ce77cc0fc5b83c57c607e4fd79edcd9bc46dc511"
   integrity sha512-jv2ULxAKRlJv0zrhpUvYcwwITFghoJOEhOqSJhLBT3TnZyF/lmAS3tC8nejIlwxzOJw7LCyde8U+BwTzZdFDrQ==
-  dependencies:
-    "@ethersproject/abi" "^5.0.3"
-    "@ethersproject/abstract-provider" "^5.0.3"
-    "@ethersproject/abstract-signer" "^5.0.3"
-    "@ethersproject/address" "^5.0.3"
-    "@ethersproject/base64" "^5.0.3"
-    "@ethersproject/basex" "^5.0.3"
-    "@ethersproject/bignumber" "^5.0.6"
-    "@ethersproject/bytes" "^5.0.4"
-    "@ethersproject/constants" "^5.0.3"
-    "@ethersproject/contracts" "^5.0.3"
-    "@ethersproject/hash" "^5.0.3"
-    "@ethersproject/hdnode" "^5.0.3"
-    "@ethersproject/json-wallets" "^5.0.5"
-    "@ethersproject/keccak256" "^5.0.3"
-    "@ethersproject/logger" "^5.0.5"
-    "@ethersproject/networks" "^5.0.3"
-    "@ethersproject/pbkdf2" "^5.0.3"
-    "@ethersproject/properties" "^5.0.3"
-    "@ethersproject/providers" "^5.0.6"
-    "@ethersproject/random" "^5.0.3"
-    "@ethersproject/rlp" "^5.0.3"
-    "@ethersproject/sha2" "^5.0.3"
-    "@ethersproject/signing-key" "^5.0.4"
-    "@ethersproject/solidity" "^5.0.3"
-    "@ethersproject/strings" "^5.0.3"
-    "@ethersproject/transactions" "^5.0.3"
-    "@ethersproject/units" "^5.0.3"
-    "@ethersproject/wallet" "^5.0.3"
-    "@ethersproject/web" "^5.0.4"
-    "@ethersproject/wordlists" "^5.0.3"
-
-ethers@^5.0.12:
-  version "5.0.12"
-  resolved "https://testnet.thegraph.com/npm-registry/ethers/-/ethers-5.0.12.tgz#8986cf53a425d1a00af6bda886e9098b0448d1fb"
-  integrity sha512-mgF1ZLd1y5r+hS1IPATKwKx5k/PCSqz4PEQjMR+er+Hhu6IefVVcoYATUMjmK4FG+3PAkorRMA9rJ4Y/fdW0UA==
   dependencies:
     "@ethersproject/abi" "^5.0.3"
     "@ethersproject/abstract-provider" "^5.0.3"
