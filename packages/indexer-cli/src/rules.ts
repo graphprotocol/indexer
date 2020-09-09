@@ -1,11 +1,9 @@
+import { SubgraphDeploymentID, parseGRT, formatGRT } from '@graphprotocol/common-ts'
 import {
   IndexerManagementClient,
   IndexingRuleAttributes,
-  SubgraphDeploymentID,
-  parseGRT,
-  formatGRT,
   IndexingDecisionBasis,
-} from '@graphprotocol/common-ts'
+} from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'

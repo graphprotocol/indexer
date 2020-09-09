@@ -10,7 +10,7 @@ import {
   parseDeploymentID,
   printIndexingRules,
 } from '../../../rules'
-import { IndexingRuleAttributes } from '@graphprotocol/common-ts'
+import { IndexingRuleAttributes } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules get')} [options] all             [<key1> ...]

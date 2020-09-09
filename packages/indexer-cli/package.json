@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.4",
+    "@graphprotocol/indexer-common": "^0.2.5",
     "@iarna/toml": "^2.2.5",
     "@thi.ng/iterators": "^5.1.34",
     "@urql/core": "^1.12.3",

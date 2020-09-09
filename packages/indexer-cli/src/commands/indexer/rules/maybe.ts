@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, validateDeploymentID } from '../../../command-helpers'
-import { IndexingDecisionBasis } from '@graphprotocol/common-ts'
+import { IndexingDecisionBasis } from '@graphprotocol/indexer-common'
 import { setIndexingRule, printIndexingRules, parseDeploymentID } from '../../../rules'
 
 const HELP = `
