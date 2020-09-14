@@ -536,6 +536,22 @@ export class Network {
     })
     try {
       logger.info(`Settle allocation`)
+
+      // Double-check whether the allocation is still active on chain, to
+      // avoid unnecessary transations.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const state = await this.contracts.staking.getAllocationState(
+        allocation.id,
+      )
+      if (state !== 1) {
+        logger.info(`Allocation already settled on chain`)
+        return true
+      }
+
       await Ethereum.executeTransaction(
         this.contracts.staking.settle(
           allocation.id,
