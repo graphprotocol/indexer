@@ -3,13 +3,14 @@
   "private": true,
   "workspaces": {
     "packages": [
-      "packages/receipt-manager",
       "packages/indexer-common",
       "packages/indexer-cli",
       "packages/indexer-agent",
       "packages/indexer-service"
     ],
-    "nohoist": ["@graphprotocol/receipt-manager/**/ethers"]
+    "nohoist": [
+      "@graphprotocol/receipt-manager/**/ethers"
+    ]
   },
   "scripts": {
     "bootstrap": "lerna bootstrap",

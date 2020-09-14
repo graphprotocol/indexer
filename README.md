@@ -14,7 +14,6 @@ used to maintain the following changelogs:
 - [indexer-agent](packages/indexer-agent/CHANGELOG.md)
 - [indexer-cli](packages/indexer-cli/CHANGELOG.md)
 - [indexer-common](packages/indexer-common/CHANGELOG.md)
-- [receipt-manager](packages/receipt-manager/CHANGELOG.md)
 
 ## Running from NPM packages
 
@@ -222,9 +221,6 @@ Creating a new release involves the following steps:
    ...
    popd
 
-   pushd packages/receipt-manager
-   ...
-   popd
    ```
 
 2. Commit these changelogs:
