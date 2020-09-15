@@ -100,6 +100,9 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   custom: nullPassThrough(JSON.stringify),
 }
 
+/**
+ * Parses a user-provided indexing rule into a normalized form.
+ */
 export const parseIndexingRule = (
   rule: Partial<IndexingRuleAttributes>,
 ): Partial<IndexingRuleAttributes> => {
@@ -112,6 +115,9 @@ export const parseIndexingRule = (
   return obj as Partial<IndexingRuleAttributes>
 }
 
+/**
+ * Formats an indexing rule for display in the console.
+ */
 export const formatIndexingRule = (
   rule: Partial<IndexingRuleAttributes>,
 ): Partial<IndexingRuleAttributes> => {
@@ -124,6 +130,10 @@ export const formatIndexingRule = (
   return obj as Partial<IndexingRuleAttributes>
 }
 
+/**
+ * Parses an indexing rule returned from the indexer management GraphQL
+ * API into normalized form.
+ */
 export const indexingRuleFromGraphQL = (
   rule: Partial<IndexingRuleAttributes>,
 ): Partial<IndexingRuleAttributes> => {
@@ -136,6 +146,10 @@ export const indexingRuleFromGraphQL = (
   return obj as Partial<IndexingRuleAttributes>
 }
 
+/**
+ * Converts a normalized indexing rule to a representation
+ * compatible with the indexer management GraphQL API.
+ */
 export const indexingRuleToGraphQL = (
   rule: Partial<IndexingRuleAttributes>,
 ): Partial<IndexingRuleAttributes> => {

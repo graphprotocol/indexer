@@ -5,7 +5,12 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, validateDeploymentID } from '../../../command-helpers'
 import { IndexingDecisionBasis } from '@graphprotocol/indexer-common'
-import { setIndexingRule, printIndexingRules, parseDeploymentID } from '../../../rules'
+import {
+  setIndexingRule,
+  printIndexingRules,
+  parseDeploymentID,
+  parseIndexingRule,
+} from '../../../rules'
 
 const HELP = `
 ${chalk.bold('graph indexer rules start')}  [options] global
@@ -51,10 +56,10 @@ module.exports = {
       return
     }
 
-    const inputRule = {
+    const inputRule = parseIndexingRule({
       deployment,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
-    }
+    })
 
     // Update the indexing rule according to the key/value pairs
     try {
