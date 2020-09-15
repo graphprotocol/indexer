@@ -5,7 +5,12 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, validateDeploymentID } from '../../../command-helpers'
-import { setIndexingRule, printIndexingRules, parseDeploymentID } from '../../../rules'
+import {
+  setIndexingRule,
+  printIndexingRules,
+  parseDeploymentID,
+  parseIndexingRule,
+} from '../../../rules'
 
 const HELP = `
 ${chalk.bold('graph indexer rules clear')} [options] global          <key1> ...
@@ -58,7 +63,7 @@ module.exports = {
     }
 
     // Turn the array into an object, add a `deployment` key
-    const inputRule = {
+    const inputRule = parseIndexingRule({
       ...Object.fromEntries(
         partition(
           2,
@@ -68,7 +73,7 @@ module.exports = {
         ),
       ),
       deployment,
-    }
+    })
 
     // Update the indexing rule according to the key/value pairs
     try {
