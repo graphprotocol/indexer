@@ -13,10 +13,10 @@ import {
 } from '../../../rules'
 
 const HELP = `
-${chalk.bold('graph indexer rules clear')} [options] global          <key1> ...
-${chalk.bold('graph indexer rules clear')} [options] <deployment-id> <key1> ...
-${chalk.bold('graph indexer rules reset')} [options] global          <key1> ...
-${chalk.bold('graph indexer rules reset')} [options] <deployment-id> <key1> ...
+${chalk.bold('graph indexer rules clear')} [options] global          [<key1> ...]
+${chalk.bold('graph indexer rules clear')} [options] <deployment-id> [<key1> ...]
+${chalk.bold('graph indexer rules reset')} [options] global          [<key1> ...]
+${chalk.bold('graph indexer rules reset')} [options] <deployment-id> [<key1> ...]
 
 ${chalk.dim('Options:')}
 
@@ -46,10 +46,19 @@ module.exports = {
       return
     }
 
+    // Clear all keys if none are provided
     if (keys.length === 0) {
-      print.error(`No keys provided for clearing`)
-      process.exitCode = 1
-      return
+      keys.push(
+        'allocationAmount',
+        'parallelAllocations',
+        'minSignal',
+        'maxSignal',
+        'minStake',
+        'maxAllocationPercentage',
+        'minAverageQueryFees',
+        'decisionBasis',
+        'custom',
+      )
     }
 
     const config = loadValidatedConfig()
