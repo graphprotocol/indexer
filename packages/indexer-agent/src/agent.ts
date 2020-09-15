@@ -3,6 +3,7 @@ import {
   SubgraphDeploymentID,
   parseGRT,
   formatGRT,
+  timer,
 } from '@graphprotocol/common-ts'
 import {
   IndexingRuleAttributes,
@@ -53,6 +54,15 @@ const loop = async (f: () => Promise<boolean>, interval: number) => {
   }
 }
 
+interface AgentInputs {
+  currentEpoch: number
+  maxAllocationEpochs: number
+  activeDeployments: SubgraphDeploymentID[]
+  targetDeployments: SubgraphDeploymentID[]
+  indexingRules: IndexingRuleAttributes[]
+  activeAllocations: Allocation[]
+}
+
 class Agent {
   indexer: Indexer
   network: Network
@@ -80,7 +90,7 @@ class Agent {
     await this.network.ensureMinimumStake(parseGRT('1000'))
     this.logger.info(`Indexer active and registered on network`)
 
-    // Ensure there is a 'global' indexer rule
+    // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
 
     // Make sure the network subgraph is being indexed
@@ -134,67 +144,100 @@ class Agent {
       this.logger.info(`Network subgraph deployment is synced`)
     }
 
-    this.logger.info(`Periodically synchronizing subgraphs`)
-
-    await loop(async () => {
-      try {
-        this.logger.info('Synchronizing subgraphs')
-
-        // Identify the current epoch
-        const epoch = (
-          await this.network.contracts.epochManager.currentEpoch()
-        ).toNumber()
-        const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
-
-        // Identify subgraph deployments indexed locally
-        const activeDeployments = await this.indexer.subgraphDeployments()
-
-        // Fetch all indexing rules
-        const rules = await this.indexer.indexingRules(true)
-
-        if (rules.length === 0) {
-          this.logger.warn(
-            'No indexing rules defined yet. Use the `graph indexer` CLI to add rules',
-          )
+    // Synchronize with the network roughly every 10s
+    this.logger.info(`Synchronize with the network every 10s`)
+    const initialState = await this.synchronize()
+    timer(10000)
+      // Obtain the latest local and network state
+      .reduce(async state => {
+        try {
+          return await this.synchronize()
+        } catch (error) {
+          this.logger.warn(`Failed to synchronize with network`, {
+            error: error.message || error,
+          })
+          return state
         }
-
-        // Identify subgraph deployments on the network that are worth picking up;
-        // these may overlap with the ones we're already indexing
-        const targetDeployments =
-          rules.length === 0
-            ? []
-            : await this.network.subgraphDeploymentsWorthIndexing(rules)
-
-        if (this.networkSubgraph instanceof SubgraphDeploymentID) {
-          // Ensure the network subgraph deployment is _always_ indexed and
-          // considered for allocations (depending on rules)
-          if (!deploymentInList(targetDeployments, this.networkSubgraph)) {
-            targetDeployments.push(this.networkSubgraph)
-          }
-        }
-
-        // Identify active allocations
-        const activeAllocations = await this.network.activeAllocations()
-
-        // Reconcile deployments
-        await this.reconcileDeployments(activeDeployments, targetDeployments)
-
-        // Reconcile allocations
-        await this.reconcileAllocations(
-          activeAllocations,
-          targetDeployments,
-          rules,
-          epoch,
+      }, initialState)
+      // Reconcile local deployments and allocations whenever the local
+      // deployments or on-chain data change
+      .pipe(
+        async ({
+          currentEpoch,
           maxAllocationEpochs,
-        )
-      } catch (error) {
-        this.logger.warn(`Synchronization loop failed:`, {
-          error: error.message,
-        })
-      }
+          activeDeployments,
+          targetDeployments,
+          indexingRules,
+          activeAllocations,
+        }) => {
+          try {
+            await this.reconcileDeployments(
+              activeDeployments,
+              targetDeployments,
+            )
 
-      return true
-    }, 10000)
+            // Reconcile allocations
+            await this.reconcileAllocations(
+              activeAllocations,
+              targetDeployments,
+              indexingRules,
+              currentEpoch,
+              maxAllocationEpochs,
+            )
+          } catch (error) {
+            this.logger.warn(`Failed to reconcile indexer and network:`, {
+              error: error.message || error,
+            })
+          }
+        },
+      )
+  }
+
+  async synchronize(): Promise<AgentInputs> {
+    // Identify the current epoch
+    const currentEpoch = (
+      await this.network.contracts.epochManager.currentEpoch()
+    ).toNumber()
+    const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
+
+    // Identify subgraph deployments indexed locally
+    const activeDeployments = await this.indexer.subgraphDeployments()
+
+    // Fetch all indexing rules
+    const indexingRules = await this.indexer.indexingRules(true)
+
+    if (indexingRules.length === 0) {
+      this.logger.warn(
+        'No indexing rules defined yet. Use the `graph indexer` CLI to add rules',
+      )
+    }
+
+    // Identify subgraph deployments on the network that are worth picking up;
+    // these may overlap with the ones we're already indexing
+    const targetDeployments =
+      indexingRules.length === 0
+        ? []
+        : await this.network.subgraphDeploymentsWorthIndexing(indexingRules)
+
+    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
+      // Ensure the network subgraph deployment is _always_ indexed and
+      // considered for allocations (depending on rules)
+      if (!deploymentInList(targetDeployments, this.networkSubgraph)) {
+        targetDeployments.push(this.networkSubgraph)
+      }
+    }
+
+    // Identify active allocations
+    const activeAllocations = await this.network.activeAllocations()
+
+    return {
+      currentEpoch,
+      maxAllocationEpochs,
+      activeDeployments,
+      indexingRules,
+      targetDeployments,
+      activeAllocations,
+    }
   }
 
   async reconcileDeployments(
