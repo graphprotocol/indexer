@@ -59,9 +59,15 @@ export default {
       })
       .options('indexer-geo-coordinates', {
         description: `Coordinates describing the Indexer's location using latitude and longitude`,
-        type: 'array',
+        type: 'string',
+        array: true,
         default: ['31.780715', '-41.179504'],
         group: 'Indexer Infrastructure',
+        coerce: arg =>
+          arg.reduce(
+            (acc: string[], value: string) => [...acc, ...value.split(' ')],
+            [],
+          ),
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
