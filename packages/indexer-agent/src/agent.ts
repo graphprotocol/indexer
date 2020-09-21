@@ -146,11 +146,17 @@ class Agent {
 
     // Synchronize with the network roughly every 10s
     this.logger.info(`Synchronize with the network every 10s`)
+
+    // Obtain the state of of the indexer and network at the current time
     const initialState = await this.synchronize()
+
+    // Have a timer fire every 10s
     timer(10000)
-      // Obtain the latest local and network state
+      // Whenever the timer fires, obtain the latest local and network state;
+      // if this fails, stick to the previous state
       .reduce(async state => {
         try {
+          // Obtain the latest indexer and network state
           return await this.synchronize()
         } catch (error) {
           this.logger.warn(`Failed to synchronize with network`, {
@@ -160,7 +166,12 @@ class Agent {
         }
       }, initialState)
       // Reconcile local deployments and allocations whenever the local
-      // deployments or on-chain data change
+      // deployments or on-chain data change;
+      //
+      // Note the pipe callback will be called _only_ if any of the state fields
+      // change, otherwise the indexer agent will do nothing (this is the beauty
+      // of eventuals, and what makes this different from a loop or regular
+      // `setInterval`).
       .pipe(
         async ({
           currentEpoch,
