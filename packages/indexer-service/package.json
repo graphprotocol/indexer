@@ -24,8 +24,8 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.9",
-    "@graphprotocol/receipt-manager": "^0.2.9",
-    "@statechannels/server-wallet": "^0.3.6-beta-2",
+    "@graphprotocol/receipt-manager": "0.2.10",
+    "@statechannels/server-wallet": "0.3.6-beta-3",
     "@urql/core": "^1.12.3",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
