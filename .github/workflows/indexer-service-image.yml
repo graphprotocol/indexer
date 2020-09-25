@@ -2,7 +2,7 @@ name: Indexer Service Image
 
 on:
   push:
-    branches: [jannis/statechannels, master]
+    branches: [sc-staging]
 
 jobs:
   build:
@@ -16,7 +16,7 @@ jobs:
           username: jannispohlmann
           password: ${{secrets.dockerhub_token}}
           repository: graphprotocol/indexer-service
-          tags: latest
+          tags: sc-staging
           tag_with_sha: true
           dockerfile: Dockerfile.indexer-service
           build_args: NPM_TOKEN=${{secrets.npm_token}}
