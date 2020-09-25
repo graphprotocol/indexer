@@ -88,15 +88,11 @@ export class IndexingRule
   }
 }
 
-export const models = {
-  ['IndexingRule']: IndexingRule,
+export interface IndexingRuleModels {
+  IndexingRule: typeof IndexingRule
 }
 
-export type IndexerManagementModels = typeof models
-
-export const defineIndexerManagementModels = (
-  sequelize: Sequelize,
-): IndexerManagementModels => {
+export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleModels => {
   IndexingRule.init(
     {
       id: {
@@ -199,5 +195,7 @@ export const defineIndexerManagementModels = (
     },
   )
 
-  return models
+  return {
+    ['IndexingRule']: IndexingRule,
+  }
 }

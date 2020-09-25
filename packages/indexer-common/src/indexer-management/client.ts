@@ -5,8 +5,10 @@ import { createClient, Client } from '@urql/core'
 import { Logger, NetworkContracts } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels } from './models'
+
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
+import costModelResolvers from './resolvers/cost-models'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -80,16 +82,31 @@ const SCHEMA_SDL = gql`
     channels: IndexerEndpoint!
   }
 
+  type CostModel {
+    model: String
+    variables: String
+  }
+
+  input CostModelInput {
+    model: String
+    variables: String
+  }
+
   type Query {
     indexingRule(deployment: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
     indexerRegistration: IndexerRegistration!
     indexerEndpoints: IndexerEndpoints!
+
+    costModels: [CostModel!]!
+    costModel(deployment: String!): CostModel
   }
 
   type Mutation {
     setIndexingRule(rule: IndexingRuleInput!): IndexingRule!
     deleteIndexingRule(deployment: String!): Boolean!
+
+    setCostModel(deployment: String!, costModel: CostModelInput!): CostModel!
   }
 `
 
@@ -112,6 +129,7 @@ export const createIndexerManagementClient = async ({
   const resolvers = {
     ...indexingRuleResolvers,
     ...statusResolvers,
+    ...costModelResolvers,
   }
 
   const exchange = executeExchange({
