@@ -8,13 +8,13 @@ import {
   FilterRootFields,
 } from 'graphql-tools'
 
-export interface GraphQLServerOptions {
+export interface StatusServerOptions {
   graphNodeStatusEndpoint: string
 }
 
-export const createGraphQLServer = async ({
+export const createStatusServer = async ({
   graphNodeStatusEndpoint,
-}: GraphQLServerOptions): Promise<graphqlHTTP.Middleware> => {
+}: StatusServerOptions): Promise<graphqlHTTP.Middleware> => {
   const nodeLink = new HttpLink({ uri: graphNodeStatusEndpoint, fetch })
   const nodeSchema = await introspectSchema(nodeLink)
   const schema = transformSchema(nodeSchema, [
