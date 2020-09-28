@@ -83,11 +83,13 @@ const SCHEMA_SDL = gql`
   }
 
   type CostModel {
+    deployment: String!
     model: String
     variables: String
   }
 
   input CostModelInput {
+    deployment: String!
     model: String
     variables: String
   }
@@ -106,7 +108,7 @@ const SCHEMA_SDL = gql`
     setIndexingRule(rule: IndexingRuleInput!): IndexingRule!
     deleteIndexingRule(deployment: String!): Boolean!
 
-    setCostModel(deployment: String!, costModel: CostModelInput!): CostModel!
+    setCostModel(costModel: CostModelInput!): CostModel!
   }
 `
 

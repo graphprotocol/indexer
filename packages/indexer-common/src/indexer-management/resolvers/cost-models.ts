@@ -27,13 +27,13 @@ export default {
   },
 
   setCostModel: async (
-    {
-      deployment,
-      costModel,
-    }: { deployment: string; costModel: CostModelCreationAttributes },
+    { costModel }: { deployment: string; costModel: CostModelCreationAttributes },
     { models }: IndexerManagementResolverContext,
   ): Promise<object> => {
-    const [model] = await models.CostModel.findOrBuild({ where: { deployment } })
+    const [model] = await models.CostModel.findOrBuild({
+      where: { deployment: costModel.deployment },
+    })
+    model.deployment = costModel.deployment || model.deployment
     model.model = costModel.model || model.model
     model.variables = costModel.variables || model.variables
     return (await model.save()).toGraphQL()
