@@ -5,6 +5,7 @@ import {
   createMetrics,
   createMetricsServer,
   toAddress,
+  connectDatabase,
 } from '@graphprotocol/common-ts'
 import { Wallet, providers } from 'ethers'
 import { createServer } from '../server'
@@ -12,6 +13,10 @@ import { QueryProcessor } from '../queries'
 
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import {
+  createIndexerManagementClient,
+  defineIndexerManagementModels,
+} from '@graphprotocol/indexer-common'
 
 export default {
   command: 'start',
@@ -51,12 +56,61 @@ export default {
         description: 'Auth token that clients can use to query for free',
         type: 'array',
       })
+      .option('postgres-host', {
+        description: 'Postgres host',
+        type: 'string',
+        required: true,
+        group: 'Postgres',
+      })
+      .option('postgres-port', {
+        description: 'Postgres port',
+        type: 'number',
+        default: 5432,
+        group: 'Postgres',
+      })
+      .option('postgres-username', {
+        description: 'Postgres username',
+        type: 'string',
+        required: false,
+        default: 'postgres',
+        group: 'Postgres',
+      })
+      .option('postgres-password', {
+        description: 'Postgres password',
+        type: 'string',
+        default: '',
+        required: false,
+        group: 'Postgres',
+      })
+      .option('postgres-database', {
+        description: 'Postgres database name',
+        type: 'string',
+        required: true,
+        group: 'Postgres',
+      })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
     const logger = createLogger({ name: 'IndexerService' })
 
     logger.info('Starting up...')
+
+    logger.info('Connect to database', {
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      database: argv.postgresDatabase,
+    })
+    const sequelize = await connectDatabase({
+      logging: undefined,
+      host: argv.postgresHost,
+      port: argv.postgresPort,
+      username: argv.postgresUsername,
+      password: argv.postgresPassword,
+      database: argv.postgresDatabase,
+    })
+    const models = defineIndexerManagementModels(sequelize)
+    await sequelize.sync()
+    logger.info('Successfully connected to database')
 
     logger.info('Connecting to Ethereum', { provider: argv.ethereum })
     let ethereum
@@ -120,6 +174,13 @@ export default {
       disputeManagerAddress: contracts.disputeManager.address,
     })
 
+    const indexerManagementClient = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+    })
+
     // Spin up a basic webserver
     await createServer({
       logger: logger.child({ component: 'Server' }),
@@ -129,6 +190,7 @@ export default {
       metrics,
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
       freeQueryAuthToken: argv.freeQueryAuthToken,
+      indexerManagementClient,
     })
   },
 }

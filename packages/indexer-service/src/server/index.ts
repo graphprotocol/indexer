@@ -5,14 +5,16 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { QueryProcessor } from '../types'
 import { utils } from 'ethers'
-import { createGraphQLServer } from './graphql'
+import { createStatusServer } from './status'
 import {
   Logger,
   Metrics,
   SubgraphDeploymentID,
   secureExpressApp,
 } from '@graphprotocol/common-ts'
+import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { createCostServer } from './cost'
 
 export interface ServerOptions {
   logger: Logger
@@ -22,6 +24,7 @@ export interface ServerOptions {
   queryProcessor: QueryProcessor
   freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
+  indexerManagementClient: IndexerManagementClient
 }
 
 export const createApp = async ({
@@ -30,6 +33,7 @@ export const createApp = async ({
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
+  indexerManagementClient,
 }: ServerOptions): Promise<express.Express> => {
   const loggerStream = new Stream.Writable()
   loggerStream._write = (chunk, _, next) => {
@@ -51,12 +55,15 @@ export const createApp = async ({
     res.status(200).send('Ready to roll!')
   })
 
-  // Endpoint for the public status GraphQL API
+  // Endpoint for the public status API
   app.use(
     '/status',
     bodyParser.json(),
-    await createGraphQLServer({ graphNodeStatusEndpoint }),
+    await createStatusServer({ graphNodeStatusEndpoint }),
   )
+
+  // Endpoint for the public cost API
+  app.use('/cost', bodyParser.json(), await createCostServer({ indexerManagementClient }))
 
   let freeQueryAuthValue: string | undefined
   if (freeQueryAuthToken) {
@@ -200,6 +207,7 @@ export const createServer = async ({
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
+  indexerManagementClient,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -207,6 +215,7 @@ export const createServer = async ({
     queryProcessor,
     freeQueryAuthToken,
     graphNodeStatusEndpoint,
+    indexerManagementClient,
   })
 
   app.listen(port, () => {
