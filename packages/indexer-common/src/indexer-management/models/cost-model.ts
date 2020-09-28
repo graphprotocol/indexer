@@ -63,11 +63,11 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
         },
       },
       model: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       variables: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true,
       },
     },
