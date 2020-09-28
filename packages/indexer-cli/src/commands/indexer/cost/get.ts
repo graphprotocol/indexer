@@ -4,35 +4,27 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, validateDeploymentID } from '../../../command-helpers'
-import {
-  indexingRule,
-  indexingRules,
-  parseDeploymentID,
-  printIndexingRules,
-} from '../../../rules'
-import { IndexingRuleAttributes } from '@graphprotocol/indexer-common'
+import { costModel, costModels, parseDeploymentID, printCostModels } from '../../../cost'
 
 const HELP = `
-${chalk.bold('graph indexer rules get')} [options] all             [<key1> ...]
-${chalk.bold('graph indexer rules get')} [options] global          [<key1> ...]
-${chalk.bold('graph indexer rules get')} [options] <deployment-id> [<key1> ...]
+${chalk.bold('graph indexer cost get')} [options] all
+${chalk.bold('graph indexer cost get')} [options] <deployment-id>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-      --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'Get one or more indexing rules',
+  description: 'Get one or more cost models',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
     const { h, help, merged, o, output } = parameters.options
-    const [rawDeployment, ...keys] = fixParameters(parameters, { h, help, merged }) || []
+    const [rawDeployment] = fixParameters(parameters, { h, help, merged }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -47,7 +39,7 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(rawDeployment, { all: true, global: true })
+      validateDeploymentID(rawDeployment, { all: true, global: false })
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
@@ -60,18 +52,12 @@ module.exports = {
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      const ruleOrRules =
+      const costModelOrModels =
         deployment === 'all'
-          ? await indexingRules(client, !!merged)
-          : await indexingRule(client, deployment, !!merged)
+          ? await costModels(client)
+          : await costModel(client, deployment)
 
-      printIndexingRules(
-        print,
-        outputFormat,
-        deployment,
-        ruleOrRules,
-        keys as (keyof IndexingRuleAttributes)[],
-      )
+      printCostModels(print, outputFormat, deployment, costModelOrModels)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
