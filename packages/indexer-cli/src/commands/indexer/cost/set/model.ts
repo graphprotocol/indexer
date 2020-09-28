@@ -1,5 +1,6 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
+import fs from 'fs'
 
 import { loadValidatedConfig } from '../../../../config'
 import { createIndexerManagementClient } from '../../../../client'
@@ -12,7 +13,7 @@ import {
 } from '../../../../cost'
 
 const HELP = `
-${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <model>
+${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <file>
 
 ${chalk.dim('Options:')}
 
@@ -28,7 +29,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, merged, o, output } = parameters.options
-    const [deployment, model] = fixParameters(parameters, { h, help, merged }) || []
+    const [deployment, filename] = fixParameters(parameters, { h, help, merged }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -50,14 +51,21 @@ module.exports = {
       return
     }
 
+    let model = null
+    try {
+      model = fs.readFileSync(filename, 'utf8').trim()
+    } catch (error) {
+      print.error(`Failed to load cost model from "${filename}": ${error.message}`)
+      process.exitCode = 1
+      return
+    }
+
     const config = loadValidatedConfig()
     let costModel = parseCostModel({
       deployment,
       model,
       variables: null,
     })
-
-    console.log(costModel)
 
     try {
       const client = await createIndexerManagementClient({ url: config.api })
