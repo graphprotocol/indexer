@@ -77,7 +77,7 @@ module.exports = {
     try {
       const client = await createIndexerManagementClient({ url: config.api })
       costModel = await setCostModel(client, costModel)
-      printCostModels(print, outputFormat, parseDeploymentID(deployment), costModel)
+      printCostModels(print, outputFormat, parseDeploymentID(deployment), costModel, [])
     } catch (error) {
       print.error(error.toString())
     }

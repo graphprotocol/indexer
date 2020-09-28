@@ -5,8 +5,8 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../config'
 import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
-import { pickFields, printIndexingRules, indexingRuleFromGraphQL } from '../../rules'
-import { formatData } from '../../command-helpers'
+import { printIndexingRules, indexingRuleFromGraphQL } from '../../rules'
+import { formatData, pickFields } from '../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}

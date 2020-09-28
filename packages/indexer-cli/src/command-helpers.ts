@@ -124,3 +124,25 @@ export const validateDeploymentID = (
 
   throw new Error(`Invalid subgraph deployment ID "${s}"`)
 }
+
+export function pickFields(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  rule: { [key: string]: any },
+  keys: string[],
+  drop: string[] = ['__typename'],
+  // eslint-disable-next-line @typescript-eslint/ban-types
+): object {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let obj = {} as any
+  if (keys.length === 0) {
+    obj = { ...rule }
+  } else {
+    for (const key of keys) {
+      obj[key] = rule[key]
+    }
+  }
+  for (const key of drop) {
+    delete obj[key]
+  }
+  return obj
+}
