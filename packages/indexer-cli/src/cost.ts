@@ -7,6 +7,7 @@ import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
+import { pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all'
 
@@ -161,17 +162,20 @@ export const printCostModels = (
   outputFormat: 'table' | 'json' | 'yaml',
   deployment: SubgraphDeploymentIDIsh | null,
   costModelOrModels: Partial<CostModelAttributes> | Partial<CostModelAttributes>[] | null,
+  fields: string[],
 ): void => {
   if (Array.isArray(costModelOrModels)) {
-    const costModels = costModelOrModels.map(cost => formatCostModel(cost))
+    const costModels = costModelOrModels.map(cost =>
+      formatCostModel(pickFields(cost, fields)),
+    )
     print.info(displayCostModels(outputFormat, costModels))
   } else if (costModelOrModels) {
-    const cost = formatCostModel(costModelOrModels)
+    const cost = formatCostModel(pickFields(costModelOrModels, fields))
     print.info(displayCostModel(outputFormat, cost))
   } else if (deployment) {
-    print.error(`No cost found for "${deployment}"`)
+    print.error(`No cost model/variables found for "${deployment}"`)
   } else {
-    print.error(`No cost models found`)
+    print.error(`No cost models/variables found`)
   }
 }
 
@@ -214,7 +218,7 @@ export const costModel = async (
           }
         }
       `,
-      { deployment },
+      { deployment: deployment.toString() },
     )
     .toPromise()
 
@@ -222,7 +226,11 @@ export const costModel = async (
     throw result.error
   }
 
-  return costModelFromGraphQL(result.data.costModel)
+  if (result.data.costModel) {
+    return costModelFromGraphQL(result.data.costModel)
+  } else {
+    return null
+  }
 }
 
 export const setCostModel = async (

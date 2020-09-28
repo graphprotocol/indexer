@@ -9,6 +9,7 @@ import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber } from 'ethers'
+import { pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
 
@@ -160,28 +161,6 @@ export const indexingRuleToGraphQL = (
     obj[key] = (INDEXING_RULE_CONVERTERS_TO_GRAPHQL as any)[key](value)
   }
   return obj as Partial<IndexingRuleAttributes>
-}
-
-export function pickFields(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  rule: { [key: string]: any },
-  keys: string[],
-  drop: string[] = ['__typename'],
-  // eslint-disable-next-line @typescript-eslint/ban-types
-): object {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let obj = {} as any
-  if (keys.length === 0) {
-    obj = { ...rule }
-  } else {
-    for (const key of keys) {
-      obj[key] = rule[key]
-    }
-  }
-  for (const key of drop) {
-    delete obj[key]
-  }
-  return obj
 }
 
 export const displayIndexingRules = (

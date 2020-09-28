@@ -10,6 +10,12 @@ const HELP = `
 ${chalk.bold('graph indexer cost get')} [options] all
 ${chalk.bold('graph indexer cost get')} [options] <deployment-id>
 
+${chalk.bold('graph indexer cost get')} [options] model all
+${chalk.bold('graph indexer cost get')} [options] model <deployment-id>
+
+${chalk.bold('graph indexer cost get')} [options] variables all
+${chalk.bold('graph indexer cost get')} [options] variables <deployment-id>
+
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
@@ -19,12 +25,12 @@ ${chalk.dim('Options:')}
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'Get one or more cost models',
+  description: 'Get cost models and/or variables for one or all subgraphs',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
     const { h, help, merged, o, output } = parameters.options
-    const [rawDeployment] = fixParameters(parameters, { h, help, merged }) || []
+    const [first, second] = fixParameters(parameters, { h, help, merged }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -37,6 +43,11 @@ module.exports = {
       process.exitCode = 1
       return
     }
+
+    const fields = ['model', 'variables'].includes(first)
+      ? ['deployment', first]
+      : ['deployment', 'model', 'variables']
+    const rawDeployment = ['model', 'variables'].includes(first) ? second : first
 
     try {
       validateDeploymentID(rawDeployment, { all: true, global: false })
@@ -57,7 +68,7 @@ module.exports = {
           ? await costModels(client)
           : await costModel(client, deployment)
 
-      printCostModels(print, outputFormat, deployment, costModelOrModels)
+      printCostModels(print, outputFormat, deployment, costModelOrModels, fields)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
