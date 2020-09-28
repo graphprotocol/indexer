@@ -10,7 +10,5 @@ export type IndexerManagementModels = IndexingRuleModels & CostModelModels
 
 export const defineIndexerManagementModels = (
   sequelize: Sequelize,
-): IndexerManagementModels => ({
-  ...defineCostModelModels(sequelize),
-  ...defineIndexingRuleModels(sequelize),
-})
+): IndexerManagementModels =>
+  Object.assign({}, defineCostModelModels(sequelize), defineIndexingRuleModels(sequelize))

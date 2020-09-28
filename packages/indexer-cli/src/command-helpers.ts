@@ -36,8 +36,8 @@ export const fixParameters = (
   booleanOptions: { [key: string]: any },
 ): string[] | undefined => {
   const unexpectedStringOptions = Object.keys(booleanOptions)
-    .filter((key) => typeof booleanOptions[key] === 'string')
-    .map((key) => ({ key, value: booleanOptions[key] }))
+    .filter(key => typeof booleanOptions[key] === 'string')
+    .map(key => ({ key, value: booleanOptions[key] }))
 
   const optionNames = unexpectedStringOptions
     .map(({ key }) => `--` + key.replace(/([A-Z])/, '-$1').toLowerCase())
@@ -68,7 +68,7 @@ export const formatData = (
     : Array.isArray(data)
     ? data.length === 0
       ? 'No data'
-      : table([Object.keys(data[0]), ...data.map((row) => Object.values(row))], {
+      : table([Object.keys(data[0]), ...data.map(row => Object.values(row))], {
           border: getBorderCharacters('norc'),
         }).trim()
     : table([Object.keys(data), Object.values(data)], {
@@ -77,19 +77,19 @@ export const formatData = (
 
 export const validateDeploymentID = (
   s: string | undefined,
-  { all }: { all: boolean },
+  { all, global }: { all?: boolean; global?: boolean },
 ): void => {
   // Case 1: undefined
   if (s === undefined) {
     throw new Error(
-      `No deployment ID provided. Must be a valid deployment ID or "global"${
-        all ? ' or "all"' : ''
-      }`,
+      `No deployment ID provided. Must be a valid deployment ID${
+        global ? ' or "global"' : ''
+      }${all ? ' or "all"' : ''}`,
     )
   }
 
   // Case 2: 'global'
-  if (s === 'global') {
+  if (global && s === 'global') {
     return
   }
 

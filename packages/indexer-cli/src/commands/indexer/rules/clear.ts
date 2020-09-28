@@ -64,7 +64,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      validateDeploymentID(deployment, { all: false })
+      validateDeploymentID(deployment, { all: false, global: true })
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
@@ -78,7 +78,7 @@ module.exports = {
           2,
           2,
           // indexing decisions cannot be null
-          keys.map((key) => [key, key === 'decisionBasis' ? 'rules' : null]).flat(),
+          keys.map(key => [key, key === 'decisionBasis' ? 'rules' : null]).flat(),
         ),
       ),
       deployment,

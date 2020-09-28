@@ -45,7 +45,7 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(deployment, { all: false })
+      validateDeploymentID(deployment, { all: false, global: true })
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
@@ -58,7 +58,7 @@ module.exports = {
 
     // 1. Convert all `null` strings to real nulls, and other values
     //    to regular JS strings (which for some reason they are not...)
-    const kvs = keyValues.map((param) => (param === 'null' ? null : param.toString()))
+    const kvs = keyValues.map(param => (param === 'null' ? null : param.toString()))
 
     // 2. Check that all key/value pairs are complete and
     // there's no value missing at the end
