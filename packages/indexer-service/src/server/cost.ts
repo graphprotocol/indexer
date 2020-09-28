@@ -32,7 +32,7 @@ export const createCostServer = async ({
       }
 
       type Query {
-        costModels(deployments: [String!]): [CostModel!]!
+        costModels(deployments: [String!]!): [CostModel!]!
         costModel(deployment: String!): CostModel
       }
     `,
