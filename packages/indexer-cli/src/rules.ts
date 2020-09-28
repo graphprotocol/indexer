@@ -35,7 +35,7 @@ function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => any> = {
-  id: (x) => x,
+  id: x => x,
   deployment: parseDeploymentID,
   allocationAmount: nullPassThrough(parseGRT),
   parallelAllocations: nullPassThrough(parseInt),
@@ -52,7 +52,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   keyof IndexingRuleAttributes,
   (x: never) => string | null
 > = {
-  id: nullPassThrough((x) => x),
+  id: nullPassThrough(x => x),
   deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
   allocationAmount: nullPassThrough(formatGRT),
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
@@ -61,7 +61,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   minStake: nullPassThrough(formatGRT),
   maxAllocationPercentage: nullPassThrough((x: number) => x.toPrecision(2)),
   minAverageQueryFees: nullPassThrough(formatGRT),
-  decisionBasis: (x) => x,
+  decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
 }
 
@@ -70,7 +70,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (x: never) => any
 > = {
-  id: (x) => x,
+  id: x => x,
   deployment: parseDeploymentID,
   allocationAmount: nullPassThrough((x: string) => BigNumber.from(x)),
   parallelAllocations: nullPassThrough((x: string) => parseInt(x)),
@@ -79,7 +79,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   minStake: nullPassThrough((x: string) => BigNumber.from(x)),
   maxAllocationPercentage: nullPassThrough((x: string) => parseFloat(x)),
   minAverageQueryFees: nullPassThrough((x: string) => BigNumber.from(x)),
-  decisionBasis: (x) => x,
+  decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
 }
 
@@ -88,7 +88,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (x: never) => any
 > = {
-  id: (x) => x,
+  id: x => x,
   deployment: (x: SubgraphDeploymentIDIsh) => x.toString(),
   allocationAmount: nullPassThrough((x: BigNumber) => x.toString()),
   parallelAllocations: nullPassThrough((x: number) => x),
@@ -97,7 +97,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   minStake: nullPassThrough((x: BigNumber) => x.toString()),
   maxAllocationPercentage: nullPassThrough((x: number) => x),
   minAverageQueryFees: nullPassThrough((x: BigNumber) => x.toString()),
-  decisionBasis: (x) => x,
+  decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
 }
 
@@ -173,7 +173,7 @@ export const displayIndexingRules = (
     ? yaml.stringify(rules).trim()
     : rules.length === 0
     ? 'No data'
-    : table([Object.keys(rules[0]), ...rules.map((rule) => Object.values(rule))], {
+    : table([Object.keys(rules[0]), ...rules.map(rule => Object.values(rule))], {
         border: getBorderCharacters('norc'),
       }).trim()
 
@@ -198,7 +198,7 @@ export const printIndexingRules = (
 ): void => {
   if (Array.isArray(ruleOrRules)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rules = ruleOrRules.map((rule) => formatIndexingRule(pickFields(rule, keys)))
+    const rules = ruleOrRules.map(rule => formatIndexingRule(pickFields(rule, keys)))
     print.info(displayIndexingRules(outputFormat, rules))
   } else if (ruleOrRules) {
     const rule = formatIndexingRule(pickFields(ruleOrRules, keys))
@@ -266,7 +266,7 @@ export const indexingRule = async (
           }
         }
       `,
-      { deployment, merged },
+      { deployment: deployment.toString(), merged },
     )
     .toPromise()
 
@@ -274,7 +274,11 @@ export const indexingRule = async (
     throw result.error
   }
 
-  return indexingRuleFromGraphQL(result.data.indexingRule)
+  if (result.data.indexingRule) {
+    return indexingRuleFromGraphQL(result.data.indexingRule)
+  } else {
+    return null
+  }
 }
 
 export const setIndexingRule = async (
