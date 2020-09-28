@@ -37,7 +37,7 @@ const COST_MODEL_FORMATTERS: Record<
   id: x => x,
   deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
   model: x => x,
-  variables: nullPassThrough(JSON.stringify),
+  variables: nullPassThrough(s => JSON.stringify(s, null, 2)),
 }
 
 const COST_MODEL_CONVERTERS_FROM_GRAPHQL: Record<
