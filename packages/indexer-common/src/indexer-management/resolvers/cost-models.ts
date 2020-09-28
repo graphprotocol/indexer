@@ -17,10 +17,11 @@ export default {
 
   costModels: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _: any,
+    { deployments }: { deployments: string[] | null | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     const costModels = await models.CostModel.findAll({
+      where: deployments ? { deployment: deployments } : undefined,
       order: [['deployment', 'ASC']],
     })
     return costModels.map((model) => model.toGraphQL())

@@ -100,7 +100,7 @@ const SCHEMA_SDL = gql`
     indexerRegistration: IndexerRegistration!
     indexerEndpoints: IndexerEndpoints!
 
-    costModels: [CostModel!]!
+    costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
   }
 
