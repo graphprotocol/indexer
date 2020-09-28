@@ -17,8 +17,9 @@ import { defineIndexerManagementModels, IndexerManagementModels } from '../model
 declare const __DATABASE__: any
 
 const SET_COST_MODEL_MUTATION = gql`
-  mutation setCostModel($deployment: String!, $costModel: CostModelInput!) {
-    setCostModel(deployment: $deployment, costModel: $costModel) {
+  mutation setCostModel($costModel: CostModelInput!) {
+    setCostModel(costModel: $costModel) {
+      deployment
       model
       variables
     }
@@ -28,6 +29,7 @@ const SET_COST_MODEL_MUTATION = gql`
 const GET_COST_MODEL_QUERY = gql`
   query costModel($deployment: String!) {
     costModel(deployment: $deployment) {
+      deployment
       model
       variables
     }
@@ -37,6 +39,7 @@ const GET_COST_MODEL_QUERY = gql`
 const GET_COST_MODELS_QUERY = gql`
   {
     costModels {
+      deployment
       model
       variables
     }
@@ -66,6 +69,7 @@ describe('Cost models', () => {
 
   test('Set and get cost model (model and variables)', async () => {
     const input = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: '{ votes } => 10 * $n',
       variables: JSON.stringify({ n: 100 }),
     }
@@ -82,8 +86,6 @@ describe('Cost models', () => {
     expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
-          deployment:
-            '0x0000000000000000000000000000000000000000000000000000000000000000',
           costModel: input,
         })
         .toPromise(),
@@ -92,10 +94,15 @@ describe('Cost models', () => {
 
   test('Set and get cost model (model only)', async () => {
     const input = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: '{ votes } => 10 * $n',
     }
 
-    const expected = { model: input.model, variables: null }
+    const expected = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: input.model,
+      variables: null,
+    }
 
     const client = await createIndexerManagementClient({
       models,
@@ -107,8 +114,6 @@ describe('Cost models', () => {
     expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
-          deployment:
-            '0x0000000000000000000000000000000000000000000000000000000000000000',
           costModel: input,
         })
         .toPromise(),
@@ -117,10 +122,15 @@ describe('Cost models', () => {
 
   test('Set and get cost model (variables only)', async () => {
     const input = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       variables: JSON.stringify({ foo: 'bar', baz: 5 }),
     }
 
-    const expected = { model: null, variables: input.variables }
+    const expected = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: null,
+      variables: input.variables,
+    }
 
     const client = await createIndexerManagementClient({
       models,
@@ -132,8 +142,6 @@ describe('Cost models', () => {
     expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
-          deployment:
-            '0x0000000000000000000000000000000000000000000000000000000000000000',
           costModel: input,
         })
         .toPromise(),
@@ -141,39 +149,49 @@ describe('Cost models', () => {
   })
 
   test('Update existing cost model', async () => {
+    const deployment =
+      '0x0000000000000000000000000000000000000000000000000000000000000000'
     const updates = [
       {
         input: {
+          deployment,
           model: '{ votes} => 10 * $n',
         },
         expected: {
+          deployment,
           model: '{ votes} => 10 * $n',
           variables: null,
         },
       },
       {
         input: {
+          deployment,
           model: '{ votes} => 20 * $n',
         },
         expected: {
+          deployment,
           model: '{ votes} => 20 * $n',
           variables: null,
         },
       },
       {
         input: {
+          deployment,
           variables: JSON.stringify({ n: 1 }),
         },
         expected: {
+          deployment,
           model: '{ votes} => 20 * $n',
           variables: JSON.stringify({ n: 1 }),
         },
       },
       {
         input: {
+          deployment,
           variables: JSON.stringify({ n: 2 }),
         },
         expected: {
+          deployment,
           model: '{ votes} => 20 * $n',
           variables: JSON.stringify({ n: 2 }),
         },
@@ -190,8 +208,6 @@ describe('Cost models', () => {
       await expect(
         client
           .mutation(SET_COST_MODEL_MUTATION, {
-            deployment:
-              '0x0000000000000000000000000000000000000000000000000000000000000000',
             costModel: update.input,
           })
           .toPromise(),
@@ -221,17 +237,13 @@ describe('Cost models', () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        costModel: {
-          model: '{ votes } => 10 * $n',
-          variables: JSON.stringify({ n: 100 }),
-        },
+        model: '{ votes } => 10 * $n',
+        variables: JSON.stringify({ n: 100 }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        costModel: {
-          model: '{ proposals } => 30 * $n',
-          variables: JSON.stringify({ n: 10 }),
-        },
+        model: '{ proposals } => 30 * $n',
+        variables: JSON.stringify({ n: 10 }),
       },
     ]
 
@@ -243,13 +255,13 @@ describe('Cost models', () => {
     })
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, input).toPromise()
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
     }
 
     for (const input of inputs) {
       await expect(
         client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
-      ).resolves.toHaveProperty('data.costModel', input.costModel)
+      ).resolves.toHaveProperty('data.costModel', input)
     }
   })
 
@@ -257,17 +269,13 @@ describe('Cost models', () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        costModel: {
-          model: '{ votes } => 10 * $n',
-          variables: JSON.stringify({ n: 100 }),
-        },
+        model: '{ votes } => 10 * $n',
+        variables: JSON.stringify({ n: 100 }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        costModel: {
-          model: '{ proposals } => 30 * $n',
-          variables: JSON.stringify({ n: 10 }),
-        },
+        model: '{ proposals } => 30 * $n',
+        variables: JSON.stringify({ n: 10 }),
       },
     ]
 
@@ -279,12 +287,12 @@ describe('Cost models', () => {
     })
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, input).toPromise()
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
     }
 
     expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
       'data.costModels',
-      inputs.map((input) => input.costModel),
+      inputs,
     )
   })
 })
