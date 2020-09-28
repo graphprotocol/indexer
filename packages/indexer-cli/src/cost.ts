@@ -83,12 +83,17 @@ export const parseCostModel = (
  */
 export const formatCostModel = (
   cost: Partial<CostModelAttributes>,
+  { variablesAsString }: { variablesAsString: boolean },
 ): Partial<CostModelAttributes> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj = {} as any
   for (const [key, value] of Object.entries(cost)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    obj[key] = (COST_MODEL_FORMATTERS as any)[key](value)
+    if (key === 'variables' && !variablesAsString) {
+      obj[key] = value
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      obj[key] = (COST_MODEL_FORMATTERS as any)[key](value)
+    }
   }
   return obj as Partial<CostModelAttributes>
 }
@@ -166,11 +171,15 @@ export const printCostModels = (
 ): void => {
   if (Array.isArray(costModelOrModels)) {
     const costModels = costModelOrModels.map(cost =>
-      formatCostModel(pickFields(cost, fields)),
+      formatCostModel(pickFields(cost, fields), {
+        variablesAsString: outputFormat === 'table',
+      }),
     )
     print.info(displayCostModels(outputFormat, costModels))
   } else if (costModelOrModels) {
-    const cost = formatCostModel(pickFields(costModelOrModels, fields))
+    const cost = formatCostModel(pickFields(costModelOrModels, fields), {
+      variablesAsString: outputFormat === 'table',
+    })
     print.info(displayCostModel(outputFormat, cost))
   } else if (deployment) {
     print.error(`No cost model/variables found for "${deployment}"`)
