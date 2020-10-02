@@ -141,7 +141,7 @@ export const createIndexerManagementClient = async ({
       models,
       address,
       contracts,
-      logger: logger?.child({ component: 'IndexerManagementClient' }),
+      logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
     },
   })
 

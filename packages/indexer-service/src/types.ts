@@ -7,7 +7,6 @@ import {
   Address,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { PayerMessage } from '@graphprotocol/receipt-manager'
 
 export interface QueryResult {
   graphQLResponse: string
@@ -33,7 +32,7 @@ export interface UnpaidQueryResponse {
 export interface PaidQuery {
   allocationID: string
   subgraphDeploymentID: SubgraphDeploymentID
-  stateChannelMessage: PayerMessage
+  stateChannelMessage: unknown
   query: string
   requestCID: string
 }

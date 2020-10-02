@@ -143,7 +143,8 @@ export default {
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
     const privateKey = wallet.privateKey
-    // Create payment manager
+
+    // Create receipt manager
     const receiptManager = new ReceiptManager(
       logger.child({ component: 'ReceiptManager' }),
       privateKey,
