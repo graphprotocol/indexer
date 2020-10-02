@@ -177,20 +177,13 @@ export const createApp = async ({
     bodyParser.json(),
 
     async (req, res) => {
-      const { sender, recipient, data } = req.body
-
       try {
-        const response = await receiptManager.inputStateChannelMessage({
-          sender,
-          recipient,
-          data,
-        })
+        const response = await receiptManager.inputStateChannelMessage(req.body)
         return res.status(200).send(response)
       } catch (error) {
         logger.error(`Failed to handle state channel message`, {
-          sender,
-          recipient,
-          data: JSON.stringify(data),
+          body: req.body,
+          headers: req.headers,
           error: error.message,
         })
         return res.status(500).send({ error: error.message })
