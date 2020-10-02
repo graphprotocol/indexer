@@ -737,21 +737,21 @@
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
   integrity sha512-Geph8Q71q9R1JQ4q6Ph7tF87yLnwDwDiIjw7he/KfRqwtcrseCmTJ0vFgRAhqD9mWszljj5BUt8qiDommUCkPQ==
 
-"@graphprotocol/receipt-manager@0.0.2-next.1e202d8.21":
-  version "0.0.2-next.1e202d8.21"
-  resolved "https://registry.npmjs.org/@graphprotocol/receipt-manager/-/receipt-manager-0.0.2-next.1e202d8.21.tgz#6a766d509aacfcc13e732115de5349c4cf60d389"
-  integrity sha512-gJjpARlzq3zr9xFRYzSfAZGq8j8zbwik8Ha/XDPAgFTl8yKBsC5+yoVbsfl4zm0hdU0ESZUKMJcRx5itr1Av0A==
+"@graphprotocol/receipt-manager@0.3.1":
+  version "0.3.1"
+  resolved "https://registry.npmjs.org/@graphprotocol/receipt-manager/-/receipt-manager-0.3.1.tgz#70f7faba1b74930cd291f699d56a8a47089524b5"
+  integrity sha512-5TcDJqC75cVwxAup05uzE1RsL/DB2lJ0uVijgnk0rzTrTAHfO49VZ7Zqo0O3pe9x929hYqWh7u3HiksbKLrcTA==
   dependencies:
     "@graphprotocol/common-ts" "0.2.11"
-    "@graphprotocol/statechannels" "^0.0.5-next.1e202d8.21+1e202d8"
+    "@graphprotocol/statechannels" "0.0.8"
     "@statechannels/server-wallet" "0.3.8-alpha.1"
     ethers "^5.0.9"
     lodash "^4.17.20"
 
-"@graphprotocol/statechannels@^0.0.5-next.1e202d8.21+1e202d8":
-  version "0.0.5-next.d5b81f0.20"
-  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.0.5-next.d5b81f0.20.tgz#10852c100fed79ad3cb6631405d4f4d7591634c1"
-  integrity sha512-p3tdX7Q3q9FN18Qg+Ora+ljWN1LYUS5vSXOoha8iJtgKSeiOnUFD2qSA5eVhqstr01Be1fURvXcTvjgh+qlbpg==
+"@graphprotocol/statechannels@0.0.8":
+  version "0.0.8"
+  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.0.8.tgz#c1a8d13ca05561b1b368635572305ffda250f1af"
+  integrity sha512-O2usk63dbRQr141tLx3eQ8mdtwpdhfomYN7bwml2vDjQculh+JJgth7DmBJAy4xiqOhu1FH8VolCWqhgZo3taQ==
   dependencies:
     "@openzeppelin/contracts" "3.0.1"
     "@statechannels/client-api-schema" "0.3.8-alpha.0"
@@ -4669,46 +4669,10 @@ etag@~1.8.1:
   resolved "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz#41ae2eeb65efa62268aebfea83ac7d79299b0887"
   integrity sha1-Qa4u62XvpiJorr/qg6x9eSmbCIc=
 
-ethers@5.0.12:
+ethers@5.0.12, ethers@^5.0.8, ethers@^5.0.9:
   version "5.0.12"
   resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.12.tgz#8986cf53a425d1a00af6bda886e9098b0448d1fb"
   integrity sha512-mgF1ZLd1y5r+hS1IPATKwKx5k/PCSqz4PEQjMR+er+Hhu6IefVVcoYATUMjmK4FG+3PAkorRMA9rJ4Y/fdW0UA==
-  dependencies:
-    "@ethersproject/abi" "^5.0.3"
-    "@ethersproject/abstract-provider" "^5.0.3"
-    "@ethersproject/abstract-signer" "^5.0.3"
-    "@ethersproject/address" "^5.0.3"
-    "@ethersproject/base64" "^5.0.3"
-    "@ethersproject/basex" "^5.0.3"
-    "@ethersproject/bignumber" "^5.0.6"
-    "@ethersproject/bytes" "^5.0.4"
-    "@ethersproject/constants" "^5.0.3"
-    "@ethersproject/contracts" "^5.0.3"
-    "@ethersproject/hash" "^5.0.3"
-    "@ethersproject/hdnode" "^5.0.3"
-    "@ethersproject/json-wallets" "^5.0.5"
-    "@ethersproject/keccak256" "^5.0.3"
-    "@ethersproject/logger" "^5.0.5"
-    "@ethersproject/networks" "^5.0.3"
-    "@ethersproject/pbkdf2" "^5.0.3"
-    "@ethersproject/properties" "^5.0.3"
-    "@ethersproject/providers" "^5.0.6"
-    "@ethersproject/random" "^5.0.3"
-    "@ethersproject/rlp" "^5.0.3"
-    "@ethersproject/sha2" "^5.0.3"
-    "@ethersproject/signing-key" "^5.0.4"
-    "@ethersproject/solidity" "^5.0.3"
-    "@ethersproject/strings" "^5.0.3"
-    "@ethersproject/transactions" "^5.0.3"
-    "@ethersproject/units" "^5.0.3"
-    "@ethersproject/wallet" "^5.0.3"
-    "@ethersproject/web" "^5.0.4"
-    "@ethersproject/wordlists" "^5.0.3"
-
-ethers@^5.0.8, ethers@^5.0.9:
-  version "5.0.9"
-  resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.9.tgz#ce77cc0fc5b83c57c607e4fd79edcd9bc46dc511"
-  integrity sha512-jv2ULxAKRlJv0zrhpUvYcwwITFghoJOEhOqSJhLBT3TnZyF/lmAS3tC8nejIlwxzOJw7LCyde8U+BwTzZdFDrQ==
   dependencies:
     "@ethersproject/abi" "^5.0.3"
     "@ethersproject/abstract-provider" "^5.0.3"
