@@ -91,7 +91,7 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const logger = createLogger({ name: 'IndexerService' })
+    const logger = createLogger({ name: 'IndexerService', async: true })
 
     logger.info('Starting up...')
 

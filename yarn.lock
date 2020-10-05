@@ -706,7 +706,7 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@0.2.11", "@graphprotocol/common-ts@^0.2.11":
+"@graphprotocol/common-ts@0.2.11":
   version "0.2.11"
   resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.11.tgz#212d04e9f832244d4a124b1bc2317d4ee681a0c1"
   integrity sha512-lHyBHiJdTUbUDayk8QnrtB9vhQNZIxP0Dnuyly/lS3hlqPOlIR/rjbGwH3FHrfaAtyI4SgnpPXbSUfIfhe0VRg==
@@ -719,6 +719,32 @@
     cors "^2.8.5"
     cross-fetch "^3.0.5"
     ethers "^5.0.8"
+    express "^4.17.1"
+    graphql "^15.3.0"
+    graphql-tag "^2.11.0"
+    helmet "^4.1.0"
+    lodash.isequal "^4.5.0"
+    morgan "^1.10.0"
+    ngeohash "^0.6.3"
+    pg "^8.2.1"
+    pg-hstore "^2.3.3"
+    pino "^6.3.2"
+    prom-client "^12.0.0"
+    sequelize "^6.3.4"
+
+"@graphprotocol/common-ts@^0.2.12":
+  version "0.2.12"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.12.tgz#a4a2e7b568862e7681493c35202fc1b56cf04889"
+  integrity sha512-V+cAXp6VOlTbcPWuDyrMpjJk9PUuprNbMIk1FF8Whi+Wg2IQCNRiZddzEsjz9gQjZJIquXRkw8RRMcuWcVdt9A==
+  dependencies:
+    "@graphprotocol/contracts" "0.5.0-testnet-phase1"
+    "@urql/core" "^1.12.3"
+    "@urql/exchange-execute" "^1.0.1"
+    body-parser "^1.19.0"
+    bs58 "^4.0.1"
+    cors "^2.8.5"
+    cross-fetch "^3.0.5"
+    ethers "^5.0.15"
     express "^4.17.1"
     graphql "^15.3.0"
     graphql-tag "^2.11.0"
@@ -4669,7 +4695,7 @@ etag@~1.8.1:
   resolved "https://registry.npmjs.org/etag/-/etag-1.8.1.tgz#41ae2eeb65efa62268aebfea83ac7d79299b0887"
   integrity sha1-Qa4u62XvpiJorr/qg6x9eSmbCIc=
 
-ethers@5.0.12, ethers@^5.0.8, ethers@^5.0.9:
+ethers@5.0.12, ethers@^5.0.15, ethers@^5.0.8, ethers@^5.0.9:
   version "5.0.12"
   resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.12.tgz#8986cf53a425d1a00af6bda886e9098b0448d1fb"
   integrity sha512-mgF1ZLd1y5r+hS1IPATKwKx5k/PCSqz4PEQjMR+er+Hhu6IefVVcoYATUMjmK4FG+3PAkorRMA9rJ4Y/fdW0UA==

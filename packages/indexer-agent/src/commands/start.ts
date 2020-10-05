@@ -159,7 +159,7 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
-    const logger = createLogger({ name: 'IndexerAgent' })
+    const logger = createLogger({ name: 'IndexerAgent', async: true })
 
     logger.info('Connect to database', {
       host: argv.postgresHost,

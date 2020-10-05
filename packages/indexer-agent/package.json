@@ -17,7 +17,7 @@
     "graph-indexer-agent": "bin/graph-indexer-agent"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "^0.2.11",
+    "@graphprotocol/common-ts": "^0.2.12",
     "@graphprotocol/contracts": "^0.5.0-testnet-phase1",
     "@graphprotocol/indexer-common": "^0.2.6",
     "@thi.ng/iterators": "^5.1.36",

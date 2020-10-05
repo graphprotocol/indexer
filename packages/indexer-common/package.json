@@ -14,7 +14,7 @@
     "test:watch": "jest --runInBand --watch --passWithNoTests --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "^0.2.11",
+    "@graphprotocol/common-ts": "^0.2.12",
     "@urql/core": "^1.12.3",
     "@urql/exchange-execute": "^1.0.1",
     "body-parser": "^1.19.0",
