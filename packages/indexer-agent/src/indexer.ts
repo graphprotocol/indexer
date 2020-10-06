@@ -18,6 +18,7 @@ export class Indexer {
   logger: Logger
   indexNodeIDs: string[]
   defaultAllocationAmount: BigNumber
+  indexerAddress: string
 
   constructor(
     adminEndpoint: string,
@@ -26,10 +27,12 @@ export class Indexer {
     logger: Logger,
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
+    indexerAddress: string,
   ) {
     this.indexerManagement = indexerManagement
     this.statuses = createClient({ url: statusEndpoint, fetch })
     this.logger = logger
+    this.indexerAddress = indexerAddress
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -70,6 +73,52 @@ export class Indexer {
             }
           `,
           undefined,
+          { requestPolicy: 'network-only' },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return result.data.indexingStatuses
+        .filter((status: { subgraphDeployment: string; node: string }) => {
+          return status.node !== 'removed'
+        })
+        .map((status: { subgraphDeployment: string; node: string }) => {
+          return new SubgraphDeploymentID(status.subgraphDeployment)
+        })
+    } catch (error) {
+      this.logger.error(`Failed to query indexing status API`)
+      throw error
+    }
+  }
+
+  async proofOfIndexing(
+    deployment: SubgraphDeploymentID,
+    block: string,
+  ): Promise<string> {
+    try {
+      const result = await this.statuses
+        .query(
+          gql`
+            query proofOfIndexing(
+              $subgraph: String!
+              $blockHash: String!
+              $indexer: String!
+            ) {
+              proofOfIndexing(
+                subgraph: $subgraph
+                blockHash: $blockHash
+                indexer: $indexer
+              )
+            }
+          `,
+          {
+            subgraph: deployment.bytes32,
+            blockHash: block,
+            indexer: this.indexerAddress,
+          },
           { requestPolicy: 'network-only' },
         )
         .toPromise()

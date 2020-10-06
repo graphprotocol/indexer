@@ -388,6 +388,12 @@ class Agent {
       epoch,
     })
 
+    const status = await this.indexer.indexingStatus(deployment)
+    const poi = await this.indexer.proofOfIndexing(
+      deployment,
+      status.chains[0].chainHeadBlock.hash,
+    )
+
     const allocationAmount = rule?.allocationAmount
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
@@ -419,21 +425,21 @@ class Agent {
     // Return early if the deployment is not (or no longer) worth indexing
     if (!worthIndexing) {
       logger.info(
-        `Deployment is not (or no longer) worth indexing, settle all allocations`,
+        `Deployment is not (or no longer) worth indexing, close all allocations`,
         {
           allocations: activeAllocations.map(allocation => allocation.id),
         },
       )
 
-      // Make sure to settle all active allocations on the way out
+      // Make sure to close all active allocations on the way out
       if (activeAllocations.length > 0) {
-        // We can only settle allocations that are at least one epoch old;
+        // We can only close allocations that are at least one epoch old;
         // try the others again later
         await pMap(
           activeAllocations.filter(
             allocation => allocation.createdAtEpoch < epoch,
           ),
-          async allocation => await this.network.settle(allocation),
+          async allocation => await this.network.close(allocation, poi),
           { concurrency: 1 },
         )
       }
@@ -459,23 +465,23 @@ class Agent {
 
     const lifetime = Math.max(1, maxAllocationEpochs - 1)
 
-    // Settle expired allocations
+    // Close expired allocations
     let expiredAllocations = activeAllocations.filter(
       allocation => epoch >= allocation.createdAtEpoch + lifetime,
     )
     // The allocations come from the network subgraph; due to short indexing
     // latencies, this data may be slightly outdated. Cross-check with the
-    // contracts to avoid settling allocations that are already settled on
+    // contracts to avoid closing allocations that are already closed on
     // chain.
     expiredAllocations = await pFilter(expiredAllocations, async allocation => {
       try {
         const onChainAllocation = await this.network.contracts.staking.getAllocation(
           allocation.id,
         )
-        return onChainAllocation.settledAtEpoch.eq('0')
+        return onChainAllocation.closedAtEpoch.eq('0')
       } catch (error) {
         this.logger.warn(
-          `Failed to cross-check allocation state with contracts; assuming it needs to be settled`,
+          `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
           {
             deployment: deployment.display,
             allocation: allocation.id,
@@ -496,8 +502,8 @@ class Agent {
         activeAllocations,
         async allocation => {
           if (allocationInList(expiredAllocations, allocation)) {
-            const settled = await this.network.settle(allocation)
-            return !settled
+            const closed = await this.network.close(allocation, poi)
+            return !closed
           } else {
             return true
           }
@@ -523,12 +529,12 @@ class Agent {
       // creation epochs come first
       halfExpired.sort((a, b) => a.createdAtEpoch - b.createdAtEpoch)
 
-      // Settle the first half of the half-expired allocations;
-      // Never settle more than half of the active allocations though!
+      // Close the first half of the half-expired allocations;
+      // Never close more than half of the active allocations though!
       halfExpired = [
         ...ti.take(
           Math.min(
-            // Settle half of the half-expired allocations,
+            // Close half of the half-expired allocations,
             // leaving about 50% of the existing allocations active;
             // could be less, hence the second value below
             Math.ceil((halfExpired.length * 1.0) / 2),
@@ -542,7 +548,7 @@ class Agent {
       ]
       if (halfExpired.length > 0) {
         logger.info(
-          `Settle half-expired allocations to allow creating new ones early and avoid gaps`,
+          `Close half-expired allocations to allow creating new ones early and avoid gaps`,
           {
             number: halfExpired.length,
             allocations: halfExpired.map(allocation => allocation.id),
@@ -553,8 +559,8 @@ class Agent {
           activeAllocations,
           async allocation => {
             if (allocationInList(halfExpired, allocation)) {
-              const settled = await this.network.settle(allocation)
-              return !settled
+              const closed = await this.network.close(allocation, poi)
+              return !closed
             } else {
               return true
             }
@@ -565,7 +571,7 @@ class Agent {
     }
 
     // We're now left with all still active allocations; however, these
-    // may be fewer than the desired parallel alloctions; create the
+    // may be fewer than the desired parallel allocations; create the
     // ones we're still missing
     const allocationsToCreate =
       desiredNumberOfAllocations - activeAllocations.length
@@ -599,6 +605,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.logger,
     config.indexNodeIDs,
     config.defaultAllocationAmount,
+    config.network.indexerAddress,
   )
 
   const agent = new Agent(
