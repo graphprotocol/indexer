@@ -174,7 +174,7 @@ export const createApp = async ({
     '/channel-messages-inbox',
 
     // Accept JSON and parse it
-    bodyParser.json(),
+    bodyParser.json({limit: '5mb'}),
 
     async (req, res) => {
       try {
