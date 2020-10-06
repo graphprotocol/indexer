@@ -10,7 +10,7 @@ import {
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
-import { AgentConfig, Allocation } from './types'
+import { AgentConfig, Allocation, AllocationStatus } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 import { BigNumber } from 'ethers'
@@ -62,6 +62,7 @@ interface AgentInputs {
   targetDeployments: SubgraphDeploymentID[]
   indexingRules: IndexingRuleAttributes[]
   activeAllocations: Allocation[]
+  finalizedAllocations: Allocation[]
 }
 
 class Agent {
@@ -182,6 +183,7 @@ class Agent {
           targetDeployments,
           indexingRules,
           activeAllocations,
+          finalizedAllocations,
         }) => {
           if (paused) {
             return this.logger.info(
@@ -203,6 +205,9 @@ class Agent {
               currentEpoch,
               maxAllocationEpochs,
             )
+
+            // Claim rebate pool rewards from finalized allocations
+            await this.claimRebateRewardsForEpoch(finalizedAllocations)
           } catch (error) {
             this.logger.warn(`Failed to reconcile indexer and network:`, {
               error: error.message || error,
@@ -249,7 +254,14 @@ class Agent {
     }
 
     // Identify active allocations
-    const activeAllocations = await this.network.activeAllocations()
+    const activeAllocations = await this.network.allocations(
+      AllocationStatus.Active,
+    )
+
+    // Identify finalized allocations
+    const finalizedAllocations = await this.network.allocations(
+      AllocationStatus.Finalized,
+    )
 
     return {
       paused,
@@ -259,7 +271,25 @@ class Agent {
       indexingRules,
       targetDeployments,
       activeAllocations,
+      finalizedAllocations,
     }
+  }
+
+  async claimRebateRewardsForEpoch(allocations: Allocation[]): Promise<void> {
+    this.logger.info(`Claim allocation rewards`, {
+      active: allocations.map(allocation => ({
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id.display,
+        createdAtEpoch: allocation.createdAtEpoch,
+      })),
+    })
+    await pMap(
+      allocations,
+      async allocation => {
+        await this.network.claim(allocation)
+      },
+      { concurrency: 1 },
+    )
   }
 
   async reconcileDeployments(

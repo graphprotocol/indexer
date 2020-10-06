@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "^0.2.12",
-    "@graphprotocol/contracts": "^0.7.0-testnet-phase2",
     "@graphprotocol/indexer-common": "^0.2.6",
     "@thi.ng/iterators": "^5.1.36",
     "axios": "^0.19.2",
