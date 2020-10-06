@@ -503,7 +503,6 @@ export class Network {
         deployment.bytes32,
         amount,
         uncompressedPublicKey,
-        ethers.constants.AddressZero,
         utils.hexlify(0),
         txOverrides,
       ),
