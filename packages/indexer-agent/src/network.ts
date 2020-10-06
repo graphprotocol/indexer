@@ -597,7 +597,7 @@ export class Network {
       logger.info(`Settle allocation`)
 
       // Double-check whether the allocation is still active on chain, to
-      // avoid unnecessary transations.
+      // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }

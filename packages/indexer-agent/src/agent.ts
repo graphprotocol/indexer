@@ -1,13 +1,13 @@
 import {
-  Logger,
-  SubgraphDeploymentID,
-  parseGRT,
   formatGRT,
+  Logger,
+  parseGRT,
+  SubgraphDeploymentID,
   timer,
 } from '@graphprotocol/common-ts'
 import {
-  IndexingRuleAttributes,
   INDEXING_RULE_GLOBAL,
+  IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, Allocation } from './types'
@@ -221,7 +221,7 @@ class Agent {
     ).toNumber()
     const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
 
-    // Identify subgraph deployments indexed locally
+    // Identify subgraph deployments indexing locally
     const activeDeployments = await this.indexer.subgraphDeployments()
 
     // Fetch all indexing rules
