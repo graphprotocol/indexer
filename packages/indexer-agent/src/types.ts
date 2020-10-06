@@ -28,12 +28,12 @@ export interface Allocation {
   createdAtEpoch: number
 }
 
-export enum AllocationStatus {
-  Null = 'NULL',
-  Active = 'ACTIVE',
-  Closed = 'CLOSED',
-  Finalized = 'FINALIZED',
-  Claimed = 'CLAIMED',
+export enum Status {
+  Null,
+  Active,
+  Closed,
+  Finalized,
+  Claimed,
 }
 
 export interface EthereumBlock {
