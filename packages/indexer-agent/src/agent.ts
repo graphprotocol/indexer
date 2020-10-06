@@ -635,7 +635,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.logger,
     config.indexNodeIDs,
     config.defaultAllocationAmount,
-    config.network.indexerAddress,
   )
 
   const agent = new Agent(
