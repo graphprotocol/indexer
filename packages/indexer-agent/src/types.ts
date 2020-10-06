@@ -28,6 +28,14 @@ export interface Allocation {
   createdAtEpoch: number
 }
 
+export enum AllocationStatus {
+  Null = 'NULL',
+  Active = 'ACTIVE',
+  Closed = 'CLOSED',
+  Finalized = 'FINALIZED',
+  Claimed = 'CLAIMED',
+}
+
 export interface EthereumBlock {
   number: number
   hash: string

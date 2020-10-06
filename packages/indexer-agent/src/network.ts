@@ -27,7 +27,7 @@ import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
-import { Allocation } from './types'
+import { Allocation, AllocationStatus } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -322,13 +322,13 @@ export class Network {
     }
   }
 
-  async activeAllocations(): Promise<Allocation[]> {
+  async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       const result = await this.subgraph
         .query(
           gql`
             query allocations($indexer: String!) {
-              allocations(where: { indexer: $indexer, status: Active }) {
+              allocations(where: { indexer: $indexer, status: $status }) {
                 id
                 allocatedTokens
                 createdAtEpoch
@@ -342,6 +342,7 @@ export class Network {
           `,
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
+            status,
           },
           { requestPolicy: 'network-only' },
         )
@@ -369,63 +370,7 @@ export class Network {
         }),
       )
     } catch (error) {
-      this.logger.error(`Failed to query active indexer allocations`)
-      throw error
-    }
-  }
-
-  async deploymentAllocations(
-    deployment: SubgraphDeploymentID,
-  ): Promise<Allocation[]> {
-    try {
-      const result = await this.subgraph
-        .query(
-          gql`
-            query allocations($indexer: String!, $deployment: String!) {
-              allocations(
-                where: {
-                  indexer: $indexer
-                  subgraphDeployment: $deployment
-                  status: Active
-                }
-              ) {
-                id
-                createdAtEpoch
-                allocatedTokens
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalAmount
-                }
-              }
-            }
-          `,
-          {
-            indexer: this.indexerAddress.toLocaleLowerCase(),
-            deployment: deployment.bytes32,
-          },
-          { requestPolicy: 'network-only' },
-        )
-        .toPromise()
-      return result.data.allocations.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (allocation: any) => ({
-          id: allocation.id,
-          createdAtEpoch: allocation.createdAtEpoch,
-          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
-          subgraphDeployment: {
-            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
-            stakedTokens: BigNumber.from(
-              allocation.subgraphDeployment.stakedTokens,
-            ),
-            signalAmount: BigNumber.from(
-              allocation.subgraphDeployment.signalAmount,
-            ),
-          },
-        }),
-      )
-    } catch (error) {
-      this.logger.error(`Failed to query active indexer allocations`)
+      this.logger.error(`Failed to query indexer allocations `)
       throw error
     }
   }
@@ -623,6 +568,45 @@ export class Network {
       return true
     } catch (error) {
       logger.warn(`Failed to close allocation`, {
+        error: error.message || error,
+      })
+      return false
+    }
+  }
+
+  async claim(allocation: Allocation): Promise<boolean> {
+    const logger = this.logger.child({
+      allocation: allocation.id,
+      deployment: allocation.subgraphDeployment.id.display,
+      createdAtEpoch: allocation.createdAtEpoch,
+    })
+    try {
+      logger.info(`Claim tokens from the rebate pool for allocation`)
+
+      // Double-check whether the allocation is finalized to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const state = await this.contracts.staking.getAllocationState(
+        allocation.id,
+      )
+      if (state == 4) {
+        logger.info(`Allocation rebate rewards already claimed`)
+        return true
+      }
+
+      // Claim the earned value from the rebate pool, returning it to the indexers stake
+      await Ethereum.executeTransaction(
+        this.contracts.staking.claim(allocation.id, true, txOverrides),
+        logger.child({ action: 'claim' }),
+      )
+      logger.info(`Successfully claimed allocation`)
+      return true
+    } catch (error) {
+      logger.warn(`Failed to claim allocation`, {
         error: error.message || error,
       })
       return false
