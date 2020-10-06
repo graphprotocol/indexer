@@ -549,7 +549,7 @@ export class Network {
         amount,
         uncompressedPublicKey,
         ethers.constants.AddressZero,
-        price,
+        utils.hexlify(0),
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),
@@ -587,14 +587,14 @@ export class Network {
     })
   }
 
-  async settle(allocation: Allocation): Promise<boolean> {
+  async close(allocation: Allocation, poi: string): Promise<boolean> {
     const logger = this.logger.child({
       allocation: allocation.id,
       deployment: allocation.subgraphDeployment.id.display,
       createdAtEpoch: allocation.createdAtEpoch,
     })
     try {
-      logger.info(`Settle allocation`)
+      logger.info(`Close allocation`)
 
       // Double-check whether the allocation is still active on chain, to
       // avoid unnecessary transactions.
@@ -607,26 +607,22 @@ export class Network {
         allocation.id,
       )
       if (state !== 1) {
-        logger.info(`Allocation already settled on chain`)
+        logger.info(`Allocation is not active onchain`)
         return true
       }
 
       const receipt = await Ethereum.executeTransaction(
-        this.contracts.staking.settle(
-          allocation.id,
-          ethers.constants.HashZero,
-          txOverrides,
-        ),
-        logger.child({ action: 'settle' }),
+        this.contracts.staking.closeAllocation(allocation.id, poi, txOverrides),
+        logger.child({ action: 'close' }),
         this.paused,
       )
       if (receipt === 'paused') {
         return false
       }
-      logger.info(`Successfully settled allocation`)
+      logger.info(`Successfully closed allocation`)
       return true
     } catch (error) {
-      logger.warn(`Failed to settle allocation`, {
+      logger.warn(`Failed to close allocation`, {
         error: error.message || error,
       })
       return false
