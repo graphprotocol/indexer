@@ -175,7 +175,17 @@ export class Network {
 
     logger.info(`Connecting to contracts`)
     const contracts = await connectContracts(wallet, network.chainId)
-    logger.info(`Successfully connected to contracts`)
+
+    logger.info(`Successfully connected to contracts`, {
+      curation: contracts.curation.address,
+      disputeManager: contracts.disputeManager.address,
+      epochManager: contracts.epochManager.address,
+      gns: contracts.gns.address,
+      rewardsManager: contracts.rewardsManager.address,
+      serviceRegistry: contracts.serviceRegistry.address,
+      staking: contracts.staking.address,
+      token: contracts.token.address,
+    })
 
     return new Network(
       logger,
