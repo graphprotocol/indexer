@@ -18,7 +18,6 @@ export class Indexer {
   logger: Logger
   indexNodeIDs: string[]
   defaultAllocationAmount: BigNumber
-  indexerAddress: string
 
   constructor(
     adminEndpoint: string,
@@ -27,12 +26,10 @@ export class Indexer {
     logger: Logger,
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
-    indexerAddress: string,
   ) {
     this.indexerManagement = indexerManagement
     this.statuses = createClient({ url: statusEndpoint, fetch })
     this.logger = logger
-    this.indexerAddress = indexerAddress
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,19 +102,16 @@ export class Indexer {
             query proofOfIndexing(
               $subgraph: String!
               $blockHash: String!
-              $indexer: String!
             ) {
               proofOfIndexing(
                 subgraph: $subgraph
                 blockHash: $blockHash
-                indexer: $indexer
               )
             }
           `,
           {
-            subgraph: deployment.bytes32,
+            subgraph: deployment.ipfsHash,
             blockHash: block,
-            indexer: this.indexerAddress,
           },
           { requestPolicy: 'network-only' },
         )
