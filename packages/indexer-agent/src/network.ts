@@ -27,7 +27,7 @@ import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
-import { Allocation, AllocationStatus } from './types'
+import { Allocation, Status } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -322,12 +322,12 @@ export class Network {
     }
   }
 
-  async allocations(status: AllocationStatus): Promise<Allocation[]> {
+  async allocations(status: Status): Promise<Allocation[]> {
     try {
       const result = await this.subgraph
         .query(
           gql`
-            query allocations($indexer: String!) {
+            query allocations($indexer: String!, $status: AllocationStatus!) {
               allocations(where: { indexer: $indexer, status: $status }) {
                 id
                 allocatedTokens
@@ -342,7 +342,7 @@ export class Network {
           `,
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
-            status,
+            status: Status[status],
           },
           { requestPolicy: 'network-only' },
         )

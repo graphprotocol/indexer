@@ -10,7 +10,7 @@ import {
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
-import { AgentConfig, Allocation, AllocationStatus } from './types'
+import { AgentConfig, Allocation, Status } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 import { BigNumber } from 'ethers'
@@ -254,13 +254,11 @@ class Agent {
     }
 
     // Identify active allocations
-    const activeAllocations = await this.network.allocations(
-      AllocationStatus.Active,
-    )
+    const activeAllocations = await this.network.allocations(Status.Active)
 
     // Identify finalized allocations
     const finalizedAllocations = await this.network.allocations(
-      AllocationStatus.Finalized,
+      Status.Finalized,
     )
 
     return {

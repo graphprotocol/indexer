@@ -99,14 +99,8 @@ export class Indexer {
       const result = await this.statuses
         .query(
           gql`
-            query proofOfIndexing(
-              $subgraph: String!
-              $blockHash: String!
-            ) {
-              proofOfIndexing(
-                subgraph: $subgraph
-                blockHash: $blockHash
-              )
+            query proofOfIndexing($subgraph: String!, $blockHash: String!) {
+              proofOfIndexing(subgraph: $subgraph, blockHash: $blockHash)
             }
           `,
           {
