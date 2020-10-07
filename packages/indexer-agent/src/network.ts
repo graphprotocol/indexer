@@ -531,6 +531,7 @@ export class Network {
     const derivedKeyPair = hdNode.derivePath(path)
     const publicKey = derivedKeyPair.publicKey
     const uncompressedPublicKey = utils.computePublicKey(publicKey)
+    const allocationId = utils.computeAddress(uncompressedPublicKey)
 
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
@@ -550,19 +551,20 @@ export class Network {
     }
 
     logger.info(`Allocate`, {
+      indexer: this.indexerAddress,
       amount: formatGRT(amount),
-      uncompressedPublicKey,
-      create2Address: ethers.constants.AddressZero,
+      allocationId,
       price,
       txOverrides,
     })
 
     const receipt = await Ethereum.executeTransaction(
-      this.contracts.staking.allocate(
+      this.contracts.staking.allocateFrom(
+        this.indexerAddress,
         deployment.bytes32,
         amount,
-        uncompressedPublicKey,
-        utils.hexlify(0),
+        allocationId,
+        utils.hexlify(Array(32).fill(0)),
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),
@@ -620,7 +622,7 @@ export class Network {
         allocation.id,
       )
       if (state !== 1) {
-        logger.info(`Allocation is not active onchain`)
+        logger.info(`Allocation is not active`)
         return true
       }
 
