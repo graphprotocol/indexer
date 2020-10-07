@@ -33,16 +33,22 @@ class Ethereum {
   static async executeTransaction(
     transaction: Promise<ContractTransaction>,
     logger: Logger,
-  ): Promise<ContractReceipt> {
-    const tx = await transaction
-    logger.info(`Transaction pending`, { tx: tx.hash })
-    const receipt = await tx.wait(1)
-    logger.info(`Transaction successfully included in block`, {
-      tx: tx.hash,
-      blockNumber: receipt.blockNumber,
-      blockHash: receipt.blockHash,
-    })
-    return receipt
+    paused: Eventual<boolean>,
+  ): Promise<ContractReceipt | 'paused'> {
+    if (await paused.value()) {
+      logger.info(`Network is paused, skipping this action`)
+      return 'paused'
+    } else {
+      const tx = await transaction
+      logger.info(`Transaction pending`, { tx: tx.hash })
+      const receipt = await tx.wait(1)
+      logger.info(`Transaction successfully included in block`, {
+        tx: tx.hash,
+        blockNumber: receipt.blockNumber,
+        blockHash: receipt.blockHash,
+      })
+      return receipt
+    }
   }
 }
 
@@ -120,15 +126,6 @@ export class Network {
         this.logger.info(paused ? `Network paused` : `Network resumed`)
         return paused
       })
-  }
-
-  async handlePaused(logger: Logger): Promise<boolean> {
-    if (await this.paused.value()) {
-      logger.info(`Network is paused, all transactions are disabled`)
-      return true
-    } else {
-      return false
-    }
   }
 
   static async create(
@@ -464,17 +461,17 @@ export class Network {
         }
       }
 
-      if (await this.handlePaused(logger)) {
-        return
-      }
-
       const receipt = await Ethereum.executeTransaction(
         this.contracts.serviceRegistry.register(this.indexerUrl, geoHash, {
           gasLimit: 1000000,
           gasPrice: utils.parseUnits('10', 'gwei'),
         }),
         logger.child({ action: 'register' }),
+        this.paused,
       )
+      if (receipt === 'paused') {
+        return
+      }
       const event = receipt.events?.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
@@ -545,10 +542,6 @@ export class Network {
       txOverrides,
     })
 
-    if (await this.handlePaused(logger)) {
-      return
-    }
-
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         deployment.bytes32,
@@ -559,7 +552,12 @@ export class Network {
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),
+      this.paused,
     )
+
+    if (receipt === 'paused') {
+      return
+    }
 
     const event = receipt.events?.find(event =>
       event.topics.includes(
@@ -612,18 +610,18 @@ export class Network {
         return true
       }
 
-      if (await this.handlePaused(logger)) {
-        return false
-      }
-
-      await Ethereum.executeTransaction(
+      const receipt = await Ethereum.executeTransaction(
         this.contracts.staking.settle(
           allocation.id,
           ethers.constants.HashZero,
           txOverrides,
         ),
         logger.child({ action: 'settle' }),
+        this.paused,
       )
+      if (receipt === 'paused') {
+        return false
+      }
       logger.info(`Successfully settled allocation`)
       return true
     } catch (error) {
@@ -687,10 +685,6 @@ export class Network {
         amount: formatGRT(missingStake),
       })
 
-      if (await this.handlePaused(this.logger)) {
-        return
-      }
-
       // If not, make sure to stake the remaining amount
 
       // First, approve the missing amount for staking
@@ -701,7 +695,13 @@ export class Network {
           txOverrides,
         ),
         this.logger.child({ action: 'approve' }),
+        this.paused,
       )
+
+      if (approveReceipt === 'paused') {
+        return
+      }
+
       const approveEvent = approveReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.token.interface.getEventTopic('Approval'),
@@ -725,15 +725,17 @@ export class Network {
         spender: approveEventInputs.spender,
       })
 
-      if (await this.handlePaused(this.logger)) {
-        return
-      }
-
       // Then, stake the missing amount
       const stakeReceipt = await Ethereum.executeTransaction(
         this.contracts.staking.stake(missingStake, txOverrides),
         this.logger.child({ action: 'stake' }),
+        this.paused,
       )
+
+      if (stakeReceipt === 'paused') {
+        return
+      }
+
       const stakeEvent = stakeReceipt.events?.find(event =>
         event.topics.includes(
           this.contracts.staking.interface.getEventTopic('StakeDeposited'),
