@@ -225,6 +225,7 @@ class Agent {
       await this.network.contracts.epochManager.currentEpoch()
     ).toNumber()
     const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
+    const channelDisputeEpochs = await this.network.contracts.staking.channelDisputeEpochs()
 
     // Identify subgraph deployments indexing locally
     const activeDeployments = await this.indexer.subgraphDeployments()
@@ -256,9 +257,9 @@ class Agent {
     // Identify active allocations
     const activeAllocations = await this.network.allocations(Status.Active)
 
-    // Identify finalized allocations
-    const finalizedAllocations = await this.network.allocations(
-      Status.Finalized,
+    // Identify finalized allocations (available to claim rewards from)
+    const finalizedAllocations = await this.network.finalizedAllocations(
+      currentEpoch - channelDisputeEpochs,
     )
 
     return {

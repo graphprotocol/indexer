@@ -385,6 +385,65 @@ export class Network {
     }
   }
 
+  async finalizedAllocations(disputableEpoch: number): Promise<Allocation[]> {
+    try {
+      const result = await this.subgraph
+        .query(
+          gql`
+            query allocations($indexer: String!, $disputableEpoch: Int) {
+              allocations(
+                where: {
+                  indexer: $indexer
+                  status: Closed
+                  poolSettledIn_lt: $disputableEpoch
+                }
+              ) {
+                id
+                allocatedTokens
+                createdAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
+              }
+            }
+          `,
+          {
+            indexer: this.indexerAddress.toLocaleLowerCase(),
+            disputableEpoch,
+          },
+          { requestPolicy: 'network-only' },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return result.data.allocations.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (allocation: any) => ({
+          id: allocation.id,
+          subgraphDeployment: {
+            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
+            stakedTokens: BigNumber.from(
+              allocation.subgraphDeployment.stakedTokens,
+            ),
+            signalAmount: BigNumber.from(
+              allocation.subgraphDeployment.signalAmount,
+            ),
+          },
+          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
+          createdAtEpoch: allocation.createdAtEpoch,
+        }),
+      )
+    } catch (error) {
+      this.logger.error(`Failed to query indexer allocations `)
+      throw error
+    }
+  }
+
   async register(): Promise<void> {
     const geoHash = geohash.encode(
       +this.indexerGeoCoordinates[0],
