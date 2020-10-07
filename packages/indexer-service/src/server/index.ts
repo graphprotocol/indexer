@@ -18,7 +18,7 @@ import { createCostServer } from './cost'
 
 export interface ServerOptions {
   logger: Logger
-  metrics?: Metrics
+  metrics: Metrics
   port?: number
   receiptManager: ReceiptManager
   queryProcessor: QueryProcessor
@@ -34,7 +34,62 @@ export const createApp = async ({
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
   indexerManagementClient,
+  metrics,
 }: ServerOptions): Promise<express.Express> => {
+  // Install metrics for incoming queries
+  const serverMetrics = {
+    queries: new metrics.client.Counter({
+      name: 'indexer_service_queries_total',
+      help: 'Incoming queries',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    successfulQueries: new metrics.client.Counter({
+      name: 'indexer_service_queries_ok',
+      help: 'Successfully executed queries',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    failedQueries: new metrics.client.Counter({
+      name: 'indexer_service_queries_failed',
+      help: 'Queries that failed to execute',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    queriesWithInvalidPaymentHeader: new metrics.client.Counter({
+      name: 'indexer_service_queries_with_invalid_payment_header',
+      help:
+        'Queries that failed executing because they came with an invalid payment header',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    queriesWithInvalidPaymentValue: new metrics.client.Counter({
+      name: 'indexer_service_queries_with_invalid_payment_value',
+      help:
+        'Queries that failed executing because they came with an invalid payment value',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    queriesWithoutPayment: new metrics.client.Counter({
+      name: 'indexer_service_queries_without_payment',
+      help: 'Queries that failed executing because they came without a payment',
+      registers: [metrics.registry],
+      labelNames: ['deployment'],
+    }),
+
+    queryDuration: new metrics.client.Histogram({
+      name: 'indexer_service_query_duration',
+      help: 'Duration of processing a query from start to end',
+      labelNames: ['name', 'deployment'],
+      registers: [metrics.registry],
+    }),
+  }
+
   const loggerStream = new Stream.Writable()
   loggerStream._write = (chunk, _, next) => {
     logger.debug(chunk.toString().trim())
@@ -83,88 +138,118 @@ export const createApp = async ({
 
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
-      // Extract the payment
-      const envelopedPayment = req.headers['x-graph-payment']
-      if (envelopedPayment !== undefined && typeof envelopedPayment !== 'string') {
-        logger.info(`Query has invalid enveloped payment`, {
-          deployment: subgraphDeploymentID.display,
-          envelopedPayment,
-        })
-        return res
-          .status(402)
-          .contentType('application/json')
-          .send({ error: 'Invalid X-Graph-Payment provided' })
-      }
+      const stopQueryTimer = serverMetrics.queryDuration.startTimer({
+        deployment: subgraphDeploymentID.bytes32,
+      })
+      serverMetrics.queries.inc({ deployment: subgraphDeploymentID.bytes32 })
 
-      // Trusted indexer scenario: if the sender provides the free
-      // query auth token, we do not require payment
-      let paymentRequired = true
-      if (freeQueryAuthValue) {
-        paymentRequired = req.headers['authorization'] == freeQueryAuthValue
-      }
-
-      if (paymentRequired) {
-        // Regular scenario: a payment is required; fail if no
-        // state channel is specified
-        if (envelopedPayment === undefined) {
-          logger.info(`Query is missing signed state`, {
+      try {
+        // Extract the payment
+        const envelopedPayment = req.headers['x-graph-payment']
+        if (envelopedPayment !== undefined && typeof envelopedPayment !== 'string') {
+          logger.info(`Query has invalid enveloped payment`, {
             deployment: subgraphDeploymentID.display,
+            envelopedPayment,
+          })
+          serverMetrics.queriesWithInvalidPaymentHeader.inc({
+            deployment: subgraphDeploymentID.bytes32,
           })
           return res
             .status(402)
             .contentType('application/json')
-            .send({ error: 'No X-Graph-Payment provided' })
+            .send({ error: 'Invalid X-Graph-Payment header provided' })
         }
 
-        logger.info(`Received paid query`, {
-          deployment: subgraphDeploymentID.display,
-        })
+        // Trusted indexer scenario: if the sender provides the free
+        // query auth token, we do not require payment
+        let paymentRequired = true
+        if (freeQueryAuthValue) {
+          paymentRequired = req.headers['authorization'] == freeQueryAuthValue
+        }
 
-        try {
-          const { message: stateChannelMessage, allocationID } = JSON.parse(
-            envelopedPayment,
-          )
+        if (paymentRequired) {
+          // Regular scenario: a payment is required; fail if no
+          // state channel is specified
+          if (envelopedPayment === undefined) {
+            logger.info(`Query is missing signed state`, {
+              deployment: subgraphDeploymentID.display,
+            })
+            serverMetrics.queriesWithoutPayment.inc({
+              deployment: subgraphDeploymentID.bytes32,
+            })
+            return res
+              .status(402)
+              .contentType('application/json')
+              .send({ error: 'No X-Graph-Payment provided' })
+          }
 
-          const response = await queryProcessor.executePaidQuery({
-            allocationID,
-            subgraphDeploymentID,
-            stateChannelMessage,
-            query,
-            requestCID: utils.keccak256(new TextEncoder().encode(query)),
+          logger.info(`Received paid query`, {
+            deployment: subgraphDeploymentID.display,
           })
 
-          res
-            .status(response.status || 200)
-            .header('x-graph-payment', response.envelopedAttestation)
-            .contentType('application/json')
-            .send(response.result)
-        } catch (error) {
-          logger.error(`Failed to handle paid query`, { error: error.message })
-          res
-            .status(error.status || 500)
-            .contentType('application/json')
-            .send({ error: `${error.message}` })
-        }
-      } else {
-        logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
+          let stateChannelMessage
+          let allocationID
+          try {
+            const parsed = JSON.parse(envelopedPayment)
+            stateChannelMessage = parsed.message
+            allocationID = parsed.allocationID
+          } catch (error) {
+            serverMetrics.queriesWithInvalidPaymentValue.inc({
+              deployment: subgraphDeploymentID.bytes32,
+            })
+            return res
+              .status(400)
+              .contentType('application/json')
+              .send({ error: 'Invalid X-Graph-Payment value provided' })
+          }
 
-        try {
-          const response = await queryProcessor.executeFreeQuery({
-            subgraphDeploymentID,
-            query,
-            requestCID: utils.keccak256(new TextEncoder().encode(query)),
-          })
-          res
-            .status(response.status || 200)
-            .contentType('application/json')
-            .send(response.result)
-        } catch (error) {
-          logger.error(`Failed to handle free query`, { error: error.message })
-          res
-            .status(error.status || 500)
-            .contentType('application/json')
-            .send({ error: `${error.message}` })
+          try {
+            const response = await queryProcessor.executePaidQuery({
+              allocationID,
+              subgraphDeploymentID,
+              stateChannelMessage,
+              query,
+              requestCID: utils.keccak256(new TextEncoder().encode(query)),
+            })
+            serverMetrics.successfulQueries.inc({
+              deployment: subgraphDeploymentID.bytes32,
+            })
+            res
+              .status(response.status || 200)
+              .header('x-graph-payment', response.envelopedAttestation)
+              .contentType('application/json')
+              .send(response.result)
+          } catch (error) {
+            logger.error(`Failed to handle paid query`, { error: error.message })
+            serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.bytes32 })
+            res
+              .status(error.status || 500)
+              .contentType('application/json')
+              .send({ error: `${error.message}` })
+          }
+        } else {
+          logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
+
+          try {
+            const response = await queryProcessor.executeFreeQuery({
+              subgraphDeploymentID,
+              query,
+              requestCID: utils.keccak256(new TextEncoder().encode(query)),
+            })
+            res
+              .status(response.status || 200)
+              .contentType('application/json')
+              .send(response.result)
+          } catch (error) {
+            logger.error(`Failed to handle free query`, { error: error.message })
+            res
+              .status(error.status || 500)
+              .contentType('application/json')
+              .send({ error: `${error.message}` })
+          }
         }
+      } finally {
+        stopQueryTimer()
       }
     },
   )
@@ -174,7 +259,7 @@ export const createApp = async ({
     '/channel-messages-inbox',
 
     // Accept JSON and parse it
-    bodyParser.json({limit: '5mb'}),
+    bodyParser.json({ limit: '5mb' }),
 
     async (req, res) => {
       try {
@@ -201,6 +286,7 @@ export const createServer = async ({
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
   indexerManagementClient,
+  metrics,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -209,6 +295,7 @@ export const createServer = async ({
     freeQueryAuthToken,
     graphNodeStatusEndpoint,
     indexerManagementClient,
+    metrics,
   })
 
   app.listen(port, () => {
