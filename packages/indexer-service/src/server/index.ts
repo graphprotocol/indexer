@@ -146,7 +146,11 @@ export const createApp = async ({
   )
 
   // Endpoint for the public cost API
-  app.use('/cost', bodyParser.json(), await createCostServer({ indexerManagementClient }))
+  app.use(
+    '/cost',
+    bodyParser.json(),
+    await createCostServer({ indexerManagementClient, metrics }),
+  )
 
   let freeQueryAuthValue: string | undefined
   if (freeQueryAuthToken) {
