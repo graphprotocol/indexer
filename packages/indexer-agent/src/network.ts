@@ -386,18 +386,14 @@ export class Network {
   }
 
   async finalizedAllocations(disputableEpoch: number): Promise<Allocation[]> {
+    // TODO: disputableEpoch will be used to filter for 'finalizedAllocations' using
+    // the to be added closedAtEpoch field.  Until then `disputableEpoch` is unused
     try {
       const result = await this.subgraph
         .query(
           gql`
-            query allocations($indexer: String!, $disputableEpoch: Int) {
-              allocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  poolSettledIn_lt: $disputableEpoch
-                }
-              ) {
+            query allocations($indexer: String!) {
+              allocations(where: { indexer: $indexer, status: Settled }) {
                 id
                 allocatedTokens
                 createdAtEpoch
@@ -411,7 +407,6 @@ export class Network {
           `,
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
-            disputableEpoch,
           },
           { requestPolicy: 'network-only' },
         )
