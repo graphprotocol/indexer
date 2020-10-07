@@ -420,7 +420,7 @@ class Agent {
     const status = await this.indexer.indexingStatus(deployment)
     const poi = await this.indexer.proofOfIndexing(
       deployment,
-      status.chains[0].chainHeadBlock.hash,
+      status.chains[0].latestBlock.hash,
     )
 
     const allocationAmount = rule?.allocationAmount
@@ -634,6 +634,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.logger,
     config.indexNodeIDs,
     config.defaultAllocationAmount,
+    config.network.indexerAddress,
   )
 
   const agent = new Agent(
