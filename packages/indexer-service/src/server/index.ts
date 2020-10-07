@@ -88,6 +88,34 @@ export const createApp = async ({
       labelNames: ['name', 'deployment'],
       registers: [metrics.registry],
     }),
+
+    channelMessages: new metrics.client.Counter({
+      name: 'indexer_service_channel_messages_total',
+      help: 'Incoming channel messages',
+      registers: [metrics.registry],
+      labelNames: [],
+    }),
+
+    successfulChannelMessages: new metrics.client.Counter({
+      name: 'indexer_Service_channel_messages_ok',
+      help: 'Successfully handled channel messages',
+      registers: [metrics.registry],
+      labelNames: [],
+    }),
+
+    failedChannelMessages: new metrics.client.Counter({
+      name: 'indexer_service_channel_messages_failed',
+      help: 'Failed channel messages',
+      registers: [metrics.registry],
+      labelNames: [],
+    }),
+
+    channelMessageDuration: new metrics.client.Histogram({
+      name: 'indexer_service_channel_message_duration',
+      help: 'Duration of processing channel messages',
+      registers: [metrics.registry],
+      labelNames: [],
+    }),
   }
 
   const loggerStream = new Stream.Writable()
@@ -262,16 +290,22 @@ export const createApp = async ({
     bodyParser.json({ limit: '5mb' }),
 
     async (req, res) => {
+      const stopTimer = serverMetrics.channelMessageDuration.startTimer()
+      serverMetrics.channelMessages.inc()
       try {
         const response = await receiptManager.inputStateChannelMessage(req.body)
+        serverMetrics.successfulChannelMessages.inc()
         return res.status(200).send(response)
       } catch (error) {
+        serverMetrics.failedChannelMessages.inc()
         logger.error(`Failed to handle state channel message`, {
           body: req.body,
           headers: req.headers,
           error: error.message,
         })
         return res.status(500).send({ error: error.message })
+      } finally {
+        stopTimer()
       }
     },
   )
