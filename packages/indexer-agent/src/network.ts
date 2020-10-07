@@ -462,10 +462,11 @@ export class Network {
       }
 
       const receipt = await Ethereum.executeTransaction(
-        this.contracts.serviceRegistry.register(this.indexerUrl, geoHash, {
-          gasLimit: 1000000,
-          gasPrice: utils.parseUnits('10', 'gwei'),
-        }),
+        this.contracts.serviceRegistry.register(
+          this.indexerUrl,
+          geoHash,
+          txOverrides,
+        ),
         logger.child({ action: 'register' }),
         this.paused,
       )
