@@ -55,6 +55,7 @@ const loop = async (f: () => Promise<boolean>, interval: number) => {
 }
 
 interface AgentInputs {
+  paused: boolean
   currentEpoch: number
   maxAllocationEpochs: number
   activeDeployments: SubgraphDeploymentID[]
@@ -174,6 +175,7 @@ class Agent {
       // `setInterval`).
       .pipe(
         async ({
+          paused,
           currentEpoch,
           maxAllocationEpochs,
           activeDeployments,
@@ -181,6 +183,12 @@ class Agent {
           indexingRules,
           activeAllocations,
         }) => {
+          if (paused) {
+            return this.logger.info(
+              `The network is currently paused, not doing anything util it resumes`,
+            )
+          }
+
           try {
             await this.reconcileDeployments(
               activeDeployments,
@@ -205,6 +213,8 @@ class Agent {
   }
 
   async synchronize(): Promise<AgentInputs> {
+    const paused = await this.network.paused.value()
+
     // Identify the current epoch
     const currentEpoch = (
       await this.network.contracts.epochManager.currentEpoch()
@@ -242,6 +252,7 @@ class Agent {
     const activeAllocations = await this.network.activeAllocations()
 
     return {
+      paused,
       currentEpoch,
       maxAllocationEpochs,
       activeDeployments,

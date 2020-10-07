@@ -5,6 +5,8 @@ import {
   SubgraphDeploymentID,
   formatGRT,
   parseGRT,
+  timer,
+  Eventual,
 } from '@graphprotocol/common-ts'
 import {
   IndexingRuleAttributes,
@@ -58,6 +60,7 @@ export class Network {
   mnemonic: string
   logger: Logger
   ethereumProvider: providers.JsonRpcProvider
+  paused: Eventual<boolean>
 
   private constructor(
     logger: Logger,
@@ -77,6 +80,55 @@ export class Network {
     this.mnemonic = mnemonic
     this.subgraph = subgraph
     this.ethereumProvider = ethereumProvider
+    this.paused = this.monitorNetworkPauses()
+  }
+
+  monitorNetworkPauses(): Eventual<boolean> {
+    return timer(10000)
+      .reduce(async currentlyPaused => {
+        try {
+          const result = await this.subgraph
+            .query(
+              gql`
+                {
+                  graphNetworks {
+                    isPaused
+                  }
+                }
+              `,
+            )
+            .toPromise()
+
+          if (result.error) {
+            throw result.error
+          }
+
+          if (!result.data || result.data.length === 0) {
+            throw new Error(`No data returned by network subgraph`)
+          }
+
+          return result.data.graphNetworks[0].isPaused
+        } catch (error) {
+          this.logger.warn(
+            `Failed to check for network pause, assuming it has not changed`,
+            { error: error.message || error, paused: currentlyPaused },
+          )
+          return currentlyPaused
+        }
+      }, false)
+      .map(paused => {
+        this.logger.info(paused ? `Network paused` : `Network resumed`)
+        return paused
+      })
+  }
+
+  async handlePaused(logger: Logger): Promise<boolean> {
+    if (await this.paused.value()) {
+      logger.info(`Network is paused, all transactions are disabled`)
+      return true
+    } else {
+      return false
+    }
   }
 
   static async create(
@@ -412,6 +464,10 @@ export class Network {
         }
       }
 
+      if (await this.handlePaused(logger)) {
+        return
+      }
+
       const receipt = await Ethereum.executeTransaction(
         this.contracts.serviceRegistry.register(this.indexerUrl, geoHash, {
           gasLimit: 1000000,
@@ -489,6 +545,10 @@ export class Network {
       txOverrides,
     })
 
+    if (await this.handlePaused(logger)) {
+      return
+    }
+
     const receipt = await Ethereum.executeTransaction(
       this.contracts.staking.allocate(
         deployment.bytes32,
@@ -550,6 +610,10 @@ export class Network {
       if (state !== 1) {
         logger.info(`Allocation already settled on chain`)
         return true
+      }
+
+      if (await this.handlePaused(logger)) {
+        return false
       }
 
       await Ethereum.executeTransaction(
@@ -623,6 +687,10 @@ export class Network {
         amount: formatGRT(missingStake),
       })
 
+      if (await this.handlePaused(this.logger)) {
+        return
+      }
+
       // If not, make sure to stake the remaining amount
 
       // First, approve the missing amount for staking
@@ -656,6 +724,10 @@ export class Network {
         owner: approveEventInputs.owner,
         spender: approveEventInputs.spender,
       })
+
+      if (await this.handlePaused(this.logger)) {
+        return
+      }
 
       // Then, stake the missing amount
       const stakeReceipt = await Ethereum.executeTransaction(
