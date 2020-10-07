@@ -207,7 +207,7 @@ class Agent {
             )
 
             // Claim rebate pool rewards from finalized allocations
-            await this.claimRebateRewardsForEpoch(finalizedAllocations)
+            await this.claimRebateRewards(finalizedAllocations)
           } catch (error) {
             this.logger.warn(`Failed to reconcile indexer and network:`, {
               error: error.message || error,
@@ -274,9 +274,9 @@ class Agent {
     }
   }
 
-  async claimRebateRewardsForEpoch(allocations: Allocation[]): Promise<void> {
-    this.logger.info(`Claim allocation rewards`, {
-      active: allocations.map(allocation => ({
+  async claimRebateRewards(allocations: Allocation[]): Promise<void> {
+    this.logger.info(`Claim rebate rewards`, {
+      claimable: allocations.map(allocation => ({
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,

@@ -653,7 +653,7 @@ export class Network {
     try {
       logger.info(`Claim tokens from the rebate pool for allocation`)
 
-      // Double-check whether the allocation is finalized to
+      // Double-check whether the allocation is claimed to
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
@@ -663,8 +663,12 @@ export class Network {
       const state = await this.contracts.staking.getAllocationState(
         allocation.id,
       )
-      if (state == 4) {
+      if (state === 4) {
         logger.info(`Allocation rebate rewards already claimed`)
+        return true
+      }
+      if (state === 1) {
+        logger.info(`Allocation still active`)
         return true
       }
 
@@ -672,6 +676,7 @@ export class Network {
       await Ethereum.executeTransaction(
         this.contracts.staking.claim(allocation.id, true, txOverrides),
         logger.child({ action: 'claim' }),
+        this.paused
       )
       logger.info(`Successfully claimed allocation`)
       return true
