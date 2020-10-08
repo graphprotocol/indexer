@@ -26,6 +26,8 @@ export interface Allocation {
   subgraphDeployment: SubgraphDeployment
   allocatedTokens: BigNumber
   createdAtEpoch: number
+  createdAtBlockHash: string
+  closedAtEpoch: number
 }
 
 export enum Status {

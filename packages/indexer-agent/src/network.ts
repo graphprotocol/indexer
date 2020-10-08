@@ -341,6 +341,8 @@ export class Network {
                 id
                 allocatedTokens
                 createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
                 subgraphDeployment {
                   id
                   stakedTokens
@@ -376,6 +378,8 @@ export class Network {
           },
           allocatedTokens: BigNumber.from(allocation.allocatedTokens),
           createdAtEpoch: allocation.createdAtEpoch,
+          createdAtBlockHash: allocation.createdAtBlockHash,
+          closedAtEpoch: allocation.closedAtEpoch,
         }),
       )
     } catch (error) {
@@ -601,6 +605,8 @@ export class Network {
       allocation: allocation.id,
       deployment: allocation.subgraphDeployment.id.display,
       createdAtEpoch: allocation.createdAtEpoch,
+      poi: poi,
+      createdAtBlockHash: allocation.createdAtBlockHash,
     })
     try {
       logger.info(`Close allocation`)
