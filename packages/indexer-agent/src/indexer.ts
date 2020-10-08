@@ -97,7 +97,7 @@ export class Indexer {
   async proofOfIndexing(
     deployment: SubgraphDeploymentID,
     block: string,
-  ): Promise<string> {
+  ): Promise<string | undefined> {
     try {
       const result = await this.statuses
         .query(
@@ -127,15 +127,13 @@ export class Indexer {
         throw result.error
       }
 
-      return result.data.indexingStatuses
-        .filter((status: { subgraphDeployment: string; node: string }) => {
-          return status.node !== 'removed'
-        })
-        .map((status: { subgraphDeployment: string; node: string }) => {
-          return new SubgraphDeploymentID(status.subgraphDeployment)
-        })
+      return result.data.proofOfIndexing
     } catch (error) {
-      this.logger.error(`Failed to query indexing status API`)
+      this.logger.error(`Failed to query proof of indexing`, {
+        subgraph: deployment.ipfsHash,
+        blockHash: block,
+        indexer: this.indexerAddress,
+      })
       throw error
     }
   }

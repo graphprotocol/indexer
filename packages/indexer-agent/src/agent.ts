@@ -463,14 +463,11 @@ class Agent {
             allocation => allocation.createdAtEpoch < epoch,
           ),
           async allocation => {
-            // TODO: Generate a POI for the block the allocation was created at
-            // Will use once the .createdAtBlockHash field is added to the Allocation entity
-            // const poi = await this.indexer.proofOfIndexing(
-            //   deployment,
-            //   allocation.createdAtBlockHash
-            // )
-            // For now we will always use a zeroed out POI for testing
-            const poi = utils.hexlify(Array(32).fill(0))
+            const poi =
+              (await this.indexer.proofOfIndexing(
+                deployment,
+                allocation.createdAtBlockHash,
+              )) || utils.hexlify(Array(32).fill(0))
             await this.network.close(allocation, poi)
           },
           { concurrency: 1 },
@@ -535,14 +532,11 @@ class Agent {
         activeAllocations,
         async allocation => {
           if (allocationInList(expiredAllocations, allocation)) {
-            // TODO: Generate a POI for the block the allocation was created at
-            // Will use once the .createdAtBlockHash field is added to the Allocation entity
-            // const poi = await this.indexer.proofOfIndexing(
-            //   deployment,
-            //   allocation.createdAtBlockHash
-            // )
-            // For now we will always use a zeroed out POI for testing
-            const poi = utils.hexlify(Array(32).fill(0))
+            const poi =
+              (await this.indexer.proofOfIndexing(
+                deployment,
+                allocation.createdAtBlockHash,
+              )) || utils.hexlify(Array(32).fill(0))
             const closed = await this.network.close(allocation, poi)
             return !closed
           } else {
@@ -600,14 +594,11 @@ class Agent {
           activeAllocations,
           async allocation => {
             if (allocationInList(halfExpired, allocation)) {
-              // TODO: Generate a POI for the block the allocation was created at
-              // Will use once the .createdAtBlockHash field is added to the Allocation entity
-              // const poi = await this.indexer.proofOfIndexing(
-              //   deployment,
-              //   allocation.createdAtBlockHash
-              // )
-              // For now we will always use a zeroed out POI for testing
-              const poi = utils.hexlify(Array(32).fill(0))
+              const poi =
+                (await this.indexer.proofOfIndexing(
+                  deployment,
+                  allocation.createdAtBlockHash,
+                )) || utils.hexlify(Array(32).fill(0))
               const closed = await this.network.close(allocation, poi)
               return !closed
             } else {
