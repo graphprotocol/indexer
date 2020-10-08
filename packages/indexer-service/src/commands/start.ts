@@ -1,4 +1,8 @@
+import fetch from 'isomorphic-fetch'
 import { Argv } from 'yargs'
+import { createClient } from '@urql/core'
+import { Wallet, providers } from 'ethers'
+
 import {
   createLogger,
   connectContracts,
@@ -7,16 +11,16 @@ import {
   toAddress,
   connectDatabase,
 } from '@graphprotocol/common-ts'
-import { Wallet, providers } from 'ethers'
-import { createServer } from '../server'
-import { QueryProcessor } from '../queries'
-
 import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
 } from '@graphprotocol/indexer-common'
+
+import { createServer } from '../server'
+import { QueryProcessor } from '../queries'
+import { ensureAttestationSigners, monitorActiveAllocations } from '../allocations'
 
 export default {
   command: 'start',
@@ -88,10 +92,16 @@ export default {
         required: true,
         group: 'Postgres',
       })
+      .option('network-subgraph-endpoint', {
+        description: 'Endpoint to query the network subgraph from',
+        type: 'string',
+        group: 'Network Subgraph',
+        required: true,
+      })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const logger = createLogger({ name: 'IndexerService', async: true })
+    const logger = createLogger({ name: 'IndexerService', async: false })
 
     logger.info('Starting up...')
 
@@ -111,6 +121,10 @@ export default {
     const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
+
+    logger.info(`Connect to network`)
+    const networkSubgraph = createClient({ url: argv.networkSubgraphEndpoint, fetch })
+    logger.info(`Successfully connected to network`)
 
     logger.info('Connecting to Ethereum', { provider: argv.ethereum })
     let ethereum
@@ -142,19 +156,18 @@ export default {
     })
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
-    const privateKey = wallet.privateKey
 
     // Create receipt manager
     const receiptManager = new ReceiptManager(
       logger.child({ component: 'ReceiptManager' }),
-      privateKey,
+      wallet.privateKey,
     )
     await receiptManager.migrateWalletDB()
 
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
     await SigningWallet.query()
-      .insert(SigningWallet.fromJson({ privateKey, address }))
+      .insert(SigningWallet.fromJson({ privateKey: wallet.privateKey, address }))
       .catch(() => {
         // Ignore duplicate entry error; handle constraint violation by warning
         // the user that they already have a _different_ signing key below:
@@ -165,6 +178,17 @@ export default {
         })
       })
 
+    // Monitor active indexer allocations
+    const allocations = monitorActiveAllocations({
+      indexer: address,
+      logger,
+      networkSubgraph,
+      interval: 10000,
+    })
+
+    // Ensure there is an attestation signer for every allocation
+    const signers = ensureAttestationSigners({ logger, allocations, wallet })
+
     // Create a query processor for paid queries
     const queryProcessor = new QueryProcessor({
       logger: logger.child({ component: 'QueryProcessor' }),
@@ -173,6 +197,7 @@ export default {
       receiptManager,
       chainId: network.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
+      signers,
     })
 
     const indexerManagementClient = await createIndexerManagementClient({

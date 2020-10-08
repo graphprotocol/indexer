@@ -27,6 +27,7 @@
     "@graphprotocol/indexer-common": "^0.2.6",
     "@graphprotocol/receipt-manager": "0.3.2",
     "@statechannels/server-wallet": "0.3.10",
+    "@thi.ng/cache": "^1.0.59",
     "@urql/core": "^1.12.3",
     "apollo-link-http": "^1.5.17",
     "axios": "^0.19.2",
@@ -42,6 +43,7 @@
     "graphql-tag": "^2.11.0",
     "graphql-tools": "^5.0.0",
     "morgan": "^1.9.1",
+    "p-map": "^4.0.0",
     "p-queue": "^6.4.0",
     "yargs": "^15.1.0"
   },

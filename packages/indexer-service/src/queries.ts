@@ -1,7 +1,14 @@
-import { Logger, Metrics, createAttestation, Receipt } from '@graphprotocol/common-ts'
 import { utils } from 'ethers'
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
+import {
+  Logger,
+  Metrics,
+  createAttestation,
+  Receipt,
+  Eventual,
+} from '@graphprotocol/common-ts'
+import { ReceiptManager } from '@graphprotocol/receipt-manager'
 import {
   QueryProcessor as QueryProcessorInterface,
   PaidQuery,
@@ -9,7 +16,7 @@ import {
   UnpaidQueryResponse,
   FreeQuery,
 } from './types'
-import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { AttestationSignerMap } from './allocations'
 
 export interface PaidQueryProcessorOptions {
   logger: Logger
@@ -18,6 +25,7 @@ export interface PaidQueryProcessorOptions {
   graphNode: string
   chainId: number
   disputeManagerAddress: string
+  signers: Eventual<AttestationSignerMap>
 }
 
 export class QueryProcessor implements QueryProcessorInterface {
@@ -27,6 +35,7 @@ export class QueryProcessor implements QueryProcessorInterface {
   graphNode: AxiosInstance
   chainId: number
   disputeManagerAddress: string
+  signers: Eventual<AttestationSignerMap>
 
   constructor({
     logger,
@@ -35,10 +44,12 @@ export class QueryProcessor implements QueryProcessorInterface {
     graphNode,
     chainId,
     disputeManagerAddress,
+    signers,
   }: PaidQueryProcessorOptions) {
     this.logger = logger
     this.metrics = metrics
     this.receiptManager = receiptManager
+    this.signers = signers
     this.graphNode = axios.create({
       baseURL: graphNode,
 
@@ -92,6 +103,14 @@ export class QueryProcessor implements QueryProcessorInterface {
       allocationID: allocationID,
     })
 
+    // Look up or derive a signer for the attestation for this query
+    const signer = (await this.signers.value()).get(allocationID)
+
+    // Fail query outright if we have no signer for this attestation
+    if (signer === undefined) {
+      throw new Error(`Unable to sign the query response attestation`)
+    }
+
     /**
      * This call is only needed if the indexer service wants to validate that the stateChannelMessage
      *  contains a valid payment before executing the query.
@@ -125,7 +144,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
 
     const attestation = await createAttestation(
-      this.receiptManager.privateKey,
+      signer,
       this.chainId,
       this.disputeManagerAddress,
       receipt,
