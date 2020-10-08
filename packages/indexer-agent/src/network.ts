@@ -388,18 +388,24 @@ export class Network {
     }
   }
 
-  async finalizedAllocations(disputableEpoch: number): Promise<Allocation[]> {
-    // TODO: disputableEpoch will be used to filter for 'finalizedAllocations' using
-    // the to be added closedAtEpoch field.  Until then `disputableEpoch` is unused
+  async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
     try {
       const result = await this.subgraph
         .query(
           gql`
-            query allocations($indexer: String!) {
-              allocations(where: { indexer: $indexer, status: Settled }) {
+            query allocations($indexer: String!, $disputableEpoch: Int!) {
+              allocations(
+                where: {
+                  indexer: $indexer
+                  closedAtEpoch_lte: $disputableEpoch
+                  status: Closed
+                }
+              ) {
                 id
                 allocatedTokens
                 createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
                 subgraphDeployment {
                   id
                   stakedTokens
@@ -410,6 +416,7 @@ export class Network {
           `,
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
+            disputableEpoch,
           },
           { requestPolicy: 'network-only' },
         )
@@ -434,6 +441,8 @@ export class Network {
           },
           allocatedTokens: BigNumber.from(allocation.allocatedTokens),
           createdAtEpoch: allocation.createdAtEpoch,
+          createdAtBlockHash: allocation.createdAtBlockHash,
+          closedAtEpoch: allocation.closedAtEpoch,
         }),
       )
     } catch (error) {
@@ -649,6 +658,8 @@ export class Network {
       allocation: allocation.id,
       deployment: allocation.subgraphDeployment.id.display,
       createdAtEpoch: allocation.createdAtEpoch,
+      closedAtEpoch: allocation.closedAtEpoch,
+      createdAtBlockHash: allocation.createdAtBlockHash,
     })
     try {
       logger.info(`Claim tokens from the rebate pool for allocation`)
