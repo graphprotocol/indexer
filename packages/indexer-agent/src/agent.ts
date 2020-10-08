@@ -6,11 +6,13 @@ import {
   timer,
 } from '@graphprotocol/common-ts'
 import {
+  Allocation,
+  AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
-import { AgentConfig, Allocation, Status } from './types'
+import { AgentConfig } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 import { BigNumber, utils } from 'ethers'
@@ -255,7 +257,7 @@ class Agent {
     }
 
     // Identify active allocations
-    const activeAllocations = await this.network.allocations(Status.Active)
+    const activeAllocations = await this.network.allocations(AllocationStatus.Active)
 
     // Identify finalized allocations (available to claim rewards from)
     const claimableAllocations = await this.network.claimableAllocations(
@@ -486,7 +488,8 @@ class Agent {
 
       await pMap(
         ti.repeat(allocationAmount, desiredNumberOfAllocations),
-        async amount => await this.network.allocate(deployment, amount),
+        async amount =>
+          await this.network.allocate(deployment, amount, activeAllocations),
         { concurrency: 1 },
       )
 
@@ -629,7 +632,7 @@ class Agent {
       await pMap(
         ti.repeat(allocationAmount, allocationsToCreate),
         async amount => {
-          await this.network.allocate(deployment, amount)
+          await this.network.allocate(deployment, amount, activeAllocations)
         },
         { concurrency: 1 },
       )
