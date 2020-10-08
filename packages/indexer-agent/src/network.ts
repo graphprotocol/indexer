@@ -20,7 +20,6 @@ import {
   providers,
   Wallet,
   utils,
-  ethers,
 } from 'ethers'
 import { strict as assert } from 'assert'
 import { Client, createClient } from '@urql/core'
@@ -671,7 +670,7 @@ export class Network {
       await Ethereum.executeTransaction(
         this.contracts.staking.claim(allocation.id, true, txOverrides),
         logger.child({ action: 'claim' }),
-        this.paused
+        this.paused,
       )
       logger.info(`Successfully claimed allocation`)
       return true
