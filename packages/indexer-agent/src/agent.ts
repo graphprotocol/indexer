@@ -62,7 +62,7 @@ interface AgentInputs {
   targetDeployments: SubgraphDeploymentID[]
   indexingRules: IndexingRuleAttributes[]
   activeAllocations: Allocation[]
-  finalizedAllocations: Allocation[]
+  claimableAllocations: Allocation[]
 }
 
 class Agent {
@@ -183,7 +183,7 @@ class Agent {
           targetDeployments,
           indexingRules,
           activeAllocations,
-          finalizedAllocations,
+          claimableAllocations,
         }) => {
           if (paused) {
             return this.logger.info(
@@ -207,7 +207,7 @@ class Agent {
             )
 
             // Claim rebate pool rewards from finalized allocations
-            await this.claimRebateRewards(finalizedAllocations)
+            await this.claimRebateRewards(claimableAllocations)
           } catch (error) {
             this.logger.warn(`Failed to reconcile indexer and network:`, {
               error: error.message || error,
@@ -258,7 +258,7 @@ class Agent {
     const activeAllocations = await this.network.allocations(Status.Active)
 
     // Identify finalized allocations (available to claim rewards from)
-    const finalizedAllocations = await this.network.finalizedAllocations(
+    const claimableAllocations = await this.network.claimableAllocations(
       currentEpoch - channelDisputeEpochs,
     )
 
@@ -270,7 +270,7 @@ class Agent {
       indexingRules,
       targetDeployments,
       activeAllocations,
-      finalizedAllocations,
+      claimableAllocations,
     }
   }
 
