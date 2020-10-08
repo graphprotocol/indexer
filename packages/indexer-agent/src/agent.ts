@@ -13,7 +13,7 @@ import * as ti from '@thi.ng/iterators'
 import { AgentConfig, Allocation, Status } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
-import { BigNumber } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
@@ -417,12 +417,6 @@ class Agent {
       epoch,
     })
 
-    const status = await this.indexer.indexingStatus(deployment)
-    const poi = await this.indexer.proofOfIndexing(
-      deployment,
-      status.chains[0].latestBlock.hash,
-    )
-
     const allocationAmount = rule?.allocationAmount
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
@@ -454,7 +448,7 @@ class Agent {
     // Return early if the deployment is not (or no longer) worth indexing
     if (!worthIndexing) {
       logger.info(
-        `Deployment is not (or no longer) worth indexing, close all allocations`,
+        `Deployment is not (or no longer) worth indexing, close all active allocations that are at least one epoch old`,
         {
           allocations: activeAllocations.map(allocation => allocation.id),
         },
@@ -468,7 +462,17 @@ class Agent {
           activeAllocations.filter(
             allocation => allocation.createdAtEpoch < epoch,
           ),
-          async allocation => await this.network.close(allocation, poi),
+          async allocation => {
+            // TODO: Generate a POI for the block the allocation was created at
+            // Will use once the .createdAtBlockHash field is added to the Allocation entity
+            // const poi = await this.indexer.proofOfIndexing(
+            //   deployment,
+            //   allocation.createdAtBlockHash
+            // )
+            // For now we will always use a zeroed out POI for testing
+            const poi = utils.hexlify(Array(32).fill(0))
+            await this.network.close(allocation, poi)
+          },
           { concurrency: 1 },
         )
       }
@@ -531,6 +535,14 @@ class Agent {
         activeAllocations,
         async allocation => {
           if (allocationInList(expiredAllocations, allocation)) {
+            // TODO: Generate a POI for the block the allocation was created at
+            // Will use once the .createdAtBlockHash field is added to the Allocation entity
+            // const poi = await this.indexer.proofOfIndexing(
+            //   deployment,
+            //   allocation.createdAtBlockHash
+            // )
+            // For now we will always use a zeroed out POI for testing
+            const poi = utils.hexlify(Array(32).fill(0))
             const closed = await this.network.close(allocation, poi)
             return !closed
           } else {
@@ -588,6 +600,14 @@ class Agent {
           activeAllocations,
           async allocation => {
             if (allocationInList(halfExpired, allocation)) {
+              // TODO: Generate a POI for the block the allocation was created at
+              // Will use once the .createdAtBlockHash field is added to the Allocation entity
+              // const poi = await this.indexer.proofOfIndexing(
+              //   deployment,
+              //   allocation.createdAtBlockHash
+              // )
+              // For now we will always use a zeroed out POI for testing
+              const poi = utils.hexlify(Array(32).fill(0))
               const closed = await this.network.close(allocation, poi)
               return !closed
             } else {
