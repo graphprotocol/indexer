@@ -9,9 +9,13 @@ import {
   Eventual,
 } from '@graphprotocol/common-ts'
 import {
+  Allocation,
+  AllocationStatus,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
+  parseGraphQLAllocation,
+  uniqueAllocationID
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -26,7 +30,7 @@ import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
-import { Allocation, Status } from './types'
+import { Status } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -331,7 +335,7 @@ export class Network {
     }
   }
 
-  async allocations(status: Status): Promise<Allocation[]> {
+  async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       const result = await this.subgraph
         .query(
@@ -339,6 +343,7 @@ export class Network {
             query allocations($indexer: String!, $status: AllocationStatus!) {
               allocations(where: { indexer: $indexer, status: $status }) {
                 id
+                publicKey
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
@@ -353,7 +358,7 @@ export class Network {
           `,
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
-            status: Status[status],
+            status: AllocationStatus[status],
           },
           { requestPolicy: 'network-only' },
         )
@@ -363,25 +368,7 @@ export class Network {
         throw result.error
       }
 
-      return result.data.allocations.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (allocation: any) => ({
-          id: allocation.id,
-          subgraphDeployment: {
-            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
-            stakedTokens: BigNumber.from(
-              allocation.subgraphDeployment.stakedTokens,
-            ),
-            signalAmount: BigNumber.from(
-              allocation.subgraphDeployment.signalAmount,
-            ),
-          },
-          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
-          createdAtEpoch: allocation.createdAtEpoch,
-          createdAtBlockHash: allocation.createdAtBlockHash,
-          closedAtEpoch: allocation.closedAtEpoch,
-        }),
-      )
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       this.logger.error(`Failed to query indexer allocations `)
       throw error
@@ -515,6 +502,7 @@ export class Network {
   async allocate(
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    activeAllocations: Allocation[],
   ): Promise<void> {
     const price = parseGRT('0.01')
 
@@ -525,20 +513,6 @@ export class Network {
       amountGRT: formatGRT(amount),
       epoch: currentEpoch.toString(),
     })
-
-    // Derive the deployment specific public key
-    const hdNode = utils.HDNode.fromMnemonic(this.mnemonic)
-    const path =
-      'm/' +
-      [
-        currentEpoch,
-        ...Buffer.from(deployment.ipfsHash),
-        ...utils.randomBytes(32),
-      ].join('/')
-    const derivedKeyPair = hdNode.derivePath(path)
-    const publicKey = derivedKeyPair.publicKey
-    const uncompressedPublicKey = utils.computePublicKey(publicKey)
-    const allocationId = utils.computeAddress(uncompressedPublicKey)
 
     // Identify how many GRT the indexer has staked
     const stakes = await this.contracts.staking.stakes(this.indexerAddress)
@@ -557,10 +531,18 @@ export class Network {
       )
     }
 
+    // Obtain a unique allocation ID
+    const { publicKey } = uniqueAllocationID(
+      this.mnemonic,
+      currentEpoch.toNumber(),
+      deployment,
+      activeAllocations.map(allocation => allocation.id),
+    )
+
     logger.info(`Allocate`, {
       indexer: this.indexerAddress,
       amount: formatGRT(amount),
-      allocationId,
+      publicKey,
       price,
       txOverrides,
     })
@@ -570,7 +552,7 @@ export class Network {
         this.indexerAddress,
         deployment.bytes32,
         amount,
-        allocationId,
+        publicKey,
         utils.hexlify(Array(32).fill(0)),
         txOverrides,
       ),

@@ -15,7 +15,17 @@ export interface Allocation {
   publicKey: string
   subgraphDeployment: SubgraphDeployment
   createdAtEpoch: number
+  createdAtBlockHash: string
+  closedAtEpoch: number
   allocatedTokens: BigNumber
+}
+
+export enum AllocationStatus {
+  Null,
+  Active,
+  Closed,
+  Finalized,
+  Claimed,
 }
 
 export const parseGraphQLAllocation = (allocation: any): Allocation => ({
@@ -27,6 +37,8 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
     signalAmount: BigNumber.from(allocation.subgraphDeployment.signalAmount),
   },
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),
+  createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
+  closedAtEpoch: allocation.closedAtEpoch,
   publicKey: allocation.publicKey,
 })

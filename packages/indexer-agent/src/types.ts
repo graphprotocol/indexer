@@ -21,23 +21,6 @@ export interface SubgraphDeployment {
   signalAmount: BigNumber
 }
 
-export interface Allocation {
-  id: string
-  subgraphDeployment: SubgraphDeployment
-  allocatedTokens: BigNumber
-  createdAtEpoch: number
-  createdAtBlockHash: string
-  closedAtEpoch: number
-}
-
-export enum Status {
-  Null,
-  Active,
-  Closed,
-  Finalized,
-  Claimed,
-}
-
 export interface EthereumBlock {
   number: number
   hash: string
