@@ -257,7 +257,9 @@ class Agent {
     }
 
     // Identify active allocations
-    const activeAllocations = await this.network.allocations(AllocationStatus.Active)
+    const activeAllocations = await this.network.allocations(
+      AllocationStatus.Active,
+    )
 
     // Identify finalized allocations (available to claim rewards from)
     const claimableAllocations = await this.network.claimableAllocations(

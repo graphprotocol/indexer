@@ -15,7 +15,7 @@ import {
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
   parseGraphQLAllocation,
-  uniqueAllocationID
+  uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -30,7 +30,6 @@ import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
-import { Status } from './types'
 
 class Ethereum {
   static async executeTransaction(
@@ -343,7 +342,6 @@ export class Network {
             query allocations($indexer: String!, $status: AllocationStatus!) {
               allocations(where: { indexer: $indexer, status: $status }) {
                 id
-                publicKey
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
@@ -532,7 +530,7 @@ export class Network {
     }
 
     // Obtain a unique allocation ID
-    const { publicKey } = uniqueAllocationID(
+    const { id, publicKey } = uniqueAllocationID(
       this.mnemonic,
       currentEpoch.toNumber(),
       deployment,
@@ -543,6 +541,7 @@ export class Network {
       indexer: this.indexerAddress,
       amount: formatGRT(amount),
       publicKey,
+      allocationId: id,
       price,
       txOverrides,
     })
@@ -552,7 +551,7 @@ export class Network {
         this.indexerAddress,
         deployment.bytes32,
         amount,
-        publicKey,
+        id,
         utils.hexlify(Array(32).fill(0)),
         txOverrides,
       ),

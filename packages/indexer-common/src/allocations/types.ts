@@ -12,7 +12,6 @@ export interface SubgraphDeployment {
 
 export interface Allocation {
   id: Address
-  publicKey: string
   subgraphDeployment: SubgraphDeployment
   createdAtEpoch: number
   createdAtBlockHash: string
@@ -40,5 +39,4 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
   closedAtEpoch: allocation.closedAtEpoch,
-  publicKey: allocation.publicKey,
 })
