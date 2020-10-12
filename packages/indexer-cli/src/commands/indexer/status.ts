@@ -99,7 +99,7 @@ module.exports = {
                 minStake
                 minAverageQueryFees
                 custom
-                indexingDecision
+                decisionBasis
               }
             }
           `,
