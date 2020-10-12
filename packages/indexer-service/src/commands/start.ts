@@ -27,16 +27,21 @@ export default {
   describe: 'Start the service',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .option('mnemonic', {
-        describe: 'Ethereum wallet mnemonic',
-        type: 'string',
-        required: true,
-      })
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
         group: 'Ethereum',
+      })
+      .option('mnemonic', {
+        describe: 'Mnemonic for the operator wallet',
+        type: 'string',
+        required: true,
+      })
+      .option('indexer-address', {
+        describe: 'Ethereum address of the indexer',
+        type: 'string',
+        required: true,
       })
       .option('port', {
         description: 'Port to serve from',
@@ -101,9 +106,14 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const logger = createLogger({ name: 'IndexerService', async: false })
+    let logger = createLogger({ name: 'IndexerService', async: false })
 
     logger.info('Starting up...')
+
+    const wallet = Wallet.fromMnemonic(argv.mnemonic)
+    const indexerAddress = toAddress(argv.indexerAddress)
+
+    logger = logger.child({ indexer: indexerAddress, operator: wallet.address })
 
     logger.info('Connect to database', {
       host: argv.postgresHost,
@@ -155,8 +165,6 @@ export default {
       registry: metrics.registry,
     })
 
-    const wallet = Wallet.fromMnemonic(argv.mnemonic)
-
     // Create receipt manager
     const receiptManager = new ReceiptManager(
       logger.child({ component: 'ReceiptManager' }),
@@ -173,14 +181,17 @@ export default {
         // the user that they already have a _different_ signing key below:
       })
       .finally(() => {
-        logger.info('Seeded state channels wallet with account from mnemonic provided', {
-          address,
-        })
+        logger.info('Seeded state channels wallet with operator key')
       })
+
+    logger = logger.child({
+      indexer: indexerAddress.toString(),
+      operator: address.toString(),
+    })
 
     // Monitor active indexer allocations
     const allocations = monitorActiveAllocations({
-      indexer: address,
+      indexer: indexerAddress,
       logger,
       networkSubgraph,
       interval: 10000,
