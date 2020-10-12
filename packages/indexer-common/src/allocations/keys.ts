@@ -55,15 +55,12 @@ export const uniqueAllocationID = (
   epoch: number,
   deployment: SubgraphDeploymentID,
   existingIDs: Address[],
-): { id: Address; publicKey: string } => {
+): Address => {
   for (let i = 0; i < 100; i++) {
     const hdNode = utils.HDNode.fromMnemonic(indexerMnemonic)
     const keyPair = deriveKeyPair(hdNode, epoch, deployment, i)
-
     if (!existingIDs.includes(keyPair.address)) {
-      const compressedPublicKey = keyPair.publicKey
-      const publicKey = utils.computePublicKey(compressedPublicKey)
-      return { id: keyPair.address, publicKey }
+      return keyPair.address
     }
   }
 
