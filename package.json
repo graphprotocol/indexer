@@ -9,14 +9,17 @@
       "packages/indexer-service"
     ],
     "nohoist": [
-      "@graphprotocol/receipt-manager/**/ethers"
+      "@graphprotocol/receipt-manager/**/ethers",
+      "@graphprotocol/receipt-manager/**/@graphprotocol/common-ts",
+      "@graphprotocol/receipt-manager/**/@graphprotocol/contracts"
     ]
   },
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
     "release": "./scripts/release.sh",
-    "test": "lerna --concurrency 1 run test --stream"
+    "test": "lerna --concurrency 1 run test --stream",
+    "update-common-ts": "./scripts/update-common-ts.sh"
   },
   "devDependencies": {
     "@types/eslint": "^7.2.0",
