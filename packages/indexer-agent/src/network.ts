@@ -530,7 +530,7 @@ export class Network {
     }
 
     // Obtain a unique allocation ID
-    const { id, publicKey } = uniqueAllocationID(
+    const id = uniqueAllocationID(
       this.mnemonic,
       currentEpoch.toNumber(),
       deployment,
@@ -540,7 +540,6 @@ export class Network {
     logger.info(`Allocate`, {
       indexer: this.indexerAddress,
       amount: formatGRT(amount),
-      publicKey,
       allocationId: id,
       price,
       txOverrides,
