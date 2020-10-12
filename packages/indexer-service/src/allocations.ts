@@ -44,9 +44,10 @@ export const monitorActiveAllocations = ({
                   first: 1000
                 ) {
                   id
-                  publicKey
                   allocatedTokens
+                  createdAtBlockHash
                   createdAtEpoch
+                  closedAtEpoch
                   subgraphDeployment {
                     id
                     stakedTokens
