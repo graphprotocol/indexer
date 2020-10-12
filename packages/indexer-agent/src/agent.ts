@@ -1,7 +1,6 @@
 import {
   formatGRT,
   Logger,
-  parseGRT,
   SubgraphDeploymentID,
   timer,
 } from '@graphprotocol/common-ts'
@@ -89,10 +88,7 @@ class Agent {
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
 
-    this.logger.info(`Register indexer and stake on the network`)
     await this.network.register()
-    await this.network.ensureMinimumStake(parseGRT('1000'))
-    this.logger.info(`Indexer active and registered on network`)
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
