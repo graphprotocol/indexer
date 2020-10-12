@@ -8,6 +8,7 @@ import {
   timer,
   Eventual,
   Address,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -52,7 +53,7 @@ export class Network {
   private constructor(
     logger: Logger,
     wallet: Wallet,
-    indexerAddress: string,
+    indexerAddress: Address,
     indexerUrl: string,
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
@@ -105,7 +106,7 @@ export class Network {
         }
       }, false)
       .map(paused => {
-        this.logger.info(paused ? `Network paused` : `Network resumed`)
+        this.logger.info(paused ? `Network paused` : `Network active`)
         return paused
       })
   }
@@ -114,9 +115,12 @@ export class Network {
     return timer(10000)
       .reduce(async isOperator => {
         try {
-          return await this.contracts.staking.isOperator(
-            this.wallet.address,
-            this.indexerAddress,
+          return (
+            toAddress(this.wallet.address) === this.indexerAddress ||
+            (await this.contracts.staking.isOperator(
+              this.wallet.address,
+              this.indexerAddress,
+            ))
           )
         } catch (error) {
           this.logger.warn(
@@ -125,7 +129,7 @@ export class Network {
           )
           return isOperator
         }
-      }, false)
+      }, true)
       .map(isOperator => {
         this.logger.info(
           isOperator
@@ -501,8 +505,16 @@ export class Network {
           this.indexerAddress,
         )
         if (service.url === this.indexerUrl && service.geohash === geoHash) {
-          logger.info(`Indexer already registered`)
-          return
+          if (await this.isOperator.value()) {
+            logger.info(
+              `Indexer already registered, operator status already granted`,
+            )
+            return
+          } else {
+            logger.info(
+              `Indexer already registered, operator status not yet granted`,
+            )
+          }
         }
       }
 
