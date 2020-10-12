@@ -468,7 +468,8 @@ export class Network {
       }
 
       const receipt = await Ethereum.executeTransaction(
-        this.contracts.serviceRegistry.register(
+        this.contracts.serviceRegistry.registerFor(
+          this.indexerAddress,
           this.indexerUrl,
           geoHash,
           txOverrides,
