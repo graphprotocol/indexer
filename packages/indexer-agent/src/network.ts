@@ -7,6 +7,7 @@ import {
   parseGRT,
   timer,
   Eventual,
+  Address,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -31,29 +32,6 @@ import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
 
-class Ethereum {
-  static async executeTransaction(
-    transaction: Promise<ContractTransaction>,
-    logger: Logger,
-    paused: Eventual<boolean>,
-  ): Promise<ContractReceipt | 'paused'> {
-    if (await paused.value()) {
-      logger.info(`Network is paused, skipping this action`)
-      return 'paused'
-    } else {
-      const tx = await transaction
-      logger.info(`Transaction pending`, { tx: tx.hash })
-      const receipt = await tx.wait(1)
-      logger.info(`Transaction successfully included in block`, {
-        tx: tx.hash,
-        blockNumber: receipt.blockNumber,
-        blockHash: receipt.blockHash,
-      })
-      return receipt
-    }
-  }
-}
-
 const txOverrides = {
   gasLimit: 1000000,
   gasPrice: utils.parseUnits('25', 'gwei'),
@@ -65,30 +43,32 @@ export class Network {
   indexerAddress: string
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
-  mnemonic: string
+  wallet: Wallet
   logger: Logger
   ethereumProvider: providers.JsonRpcProvider
   paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
 
   private constructor(
     logger: Logger,
+    wallet: Wallet,
     indexerAddress: string,
     indexerUrl: string,
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
-    mnemonic: string,
     subgraph: Client,
     ethereumProvider: providers.JsonRpcProvider,
   ) {
     this.logger = logger
+    this.wallet = wallet
     this.indexerAddress = indexerAddress
     this.indexerUrl = indexerUrl
     this.indexerGeoCoordinates = geoCoordinates
     this.contracts = contracts
-    this.mnemonic = mnemonic
     this.subgraph = subgraph
     this.ethereumProvider = ethereumProvider
     this.paused = this.monitorNetworkPauses()
+    this.isOperator = this.monitorIsOperator()
   }
 
   monitorNetworkPauses(): Eventual<boolean> {
@@ -130,17 +110,69 @@ export class Network {
       })
   }
 
+  monitorIsOperator(): Eventual<boolean> {
+    return timer(10000)
+      .reduce(async isOperator => {
+        try {
+          return await this.contracts.staking.isOperator(
+            this.wallet.address,
+            this.indexerAddress,
+          )
+        } catch (error) {
+          this.logger.warn(
+            `Failed to check operator status for indexer, assuming it has not changed`,
+            { error: error.message || error, isOperator },
+          )
+          return isOperator
+        }
+      }, false)
+      .map(isOperator => {
+        this.logger.info(
+          isOperator
+            ? `Have operator status for indexer`
+            : `No operator status for indexer`,
+        )
+        return isOperator
+      })
+  }
+
+  async executeTransaction(
+    transaction: Promise<ContractTransaction>,
+    logger: Logger,
+  ): Promise<ContractReceipt | 'paused' | 'unauthorized'> {
+    if (await this.paused.value()) {
+      logger.info(`Network is paused, skipping this action`)
+      return 'paused'
+    }
+
+    if (!(await this.isOperator.value())) {
+      logger.info(
+        `Not authorized as an operator for indexer, skipping this action`,
+      )
+      return 'unauthorized'
+    }
+
+    const tx = await transaction
+    logger.info(`Transaction pending`, { tx: tx.hash })
+    const receipt = await tx.wait(1)
+    logger.info(`Transaction successfully included in block`, {
+      tx: tx.hash,
+      blockNumber: receipt.blockNumber,
+      blockHash: receipt.blockHash,
+    })
+    return receipt
+  }
+
   static async create(
     parentLogger: Logger,
     ethereumProviderUrl: string,
+    mnemonic: string,
+    indexerAddress: Address,
     indexerUrl: string,
     indexerQueryEndpoint: string,
     geoCoordinates: [string, string],
-    mnemonic: string,
     networkSubgraph: Client | SubgraphDeploymentID,
   ): Promise<Network> {
-    const logger = parentLogger.child({ component: 'Network' })
-
     const subgraph =
       networkSubgraph instanceof Client
         ? networkSubgraph
@@ -166,6 +198,11 @@ export class Network {
     })
     const network = await ethereumProvider.getNetwork()
 
+    let logger = parentLogger.child({
+      component: 'Network',
+      indexer: indexerAddress.toString(),
+    })
+
     logger.info(`Create wallet`, {
       network: network.name,
       chainId: network.chainId,
@@ -174,6 +211,8 @@ export class Network {
     let wallet = Wallet.fromMnemonic(mnemonic)
     wallet = wallet.connect(ethereumProvider)
     logger.info(`Successfully created wallet`, { address: wallet.address })
+
+    logger = logger.child({ operator: wallet.address })
 
     logger.info(`Connecting to contracts`)
     const contracts = await connectContracts(wallet, network.chainId)
@@ -191,11 +230,11 @@ export class Network {
 
     return new Network(
       logger,
-      wallet.address,
+      wallet,
+      indexerAddress,
       indexerUrl,
       geoCoordinates,
       contracts,
-      mnemonic,
       subgraph,
       ethereumProvider,
     )
@@ -467,7 +506,7 @@ export class Network {
         }
       }
 
-      const receipt = await Ethereum.executeTransaction(
+      const receipt = await this.executeTransaction(
         this.contracts.serviceRegistry.registerFor(
           this.indexerAddress,
           this.indexerUrl,
@@ -475,9 +514,8 @@ export class Network {
           txOverrides,
         ),
         logger.child({ action: 'register' }),
-        this.paused,
       )
-      if (receipt === 'paused') {
+      if (receipt === 'paused' || receipt === 'unauthorized') {
         return
       }
       const event = receipt.events?.find(event =>
@@ -514,10 +552,9 @@ export class Network {
     })
 
     // Identify how many GRT the indexer has staked
-    const stakes = await this.contracts.staking.stakes(this.indexerAddress)
-    const freeStake = stakes.tokensStaked
-      .sub(stakes.tokensAllocated)
-      .sub(stakes.tokensLocked)
+    const freeStake = await this.contracts.staking.getIndexerCapacity(
+      this.indexerAddress,
+    )
 
     // If there isn't enough left for allocating, abort
     if (freeStake.lt(amount)) {
@@ -532,7 +569,7 @@ export class Network {
 
     // Obtain a unique allocation ID
     const id = uniqueAllocationID(
-      this.mnemonic,
+      this.wallet.mnemonic.phrase,
       currentEpoch.toNumber(),
       deployment,
       activeAllocations.map(allocation => allocation.id),
@@ -546,7 +583,7 @@ export class Network {
       txOverrides,
     })
 
-    const receipt = await Ethereum.executeTransaction(
+    const receipt = await this.executeTransaction(
       this.contracts.staking.allocateFrom(
         this.indexerAddress,
         deployment.bytes32,
@@ -556,10 +593,9 @@ export class Network {
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),
-      this.paused,
     )
 
-    if (receipt === 'paused') {
+    if (receipt === 'paused' || receipt === 'unauthorized') {
       return
     }
 
@@ -616,10 +652,9 @@ export class Network {
         return true
       }
 
-      const receipt = await Ethereum.executeTransaction(
+      const receipt = await this.executeTransaction(
         this.contracts.staking.closeAllocation(allocation.id, poi, txOverrides),
         logger.child({ action: 'close' }),
-        this.paused,
       )
       if (receipt === 'paused') {
         return false
@@ -665,10 +700,9 @@ export class Network {
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
-      await Ethereum.executeTransaction(
+      await this.executeTransaction(
         this.contracts.staking.claim(allocation.id, true, txOverrides),
         logger.child({ action: 'claim' }),
-        this.paused,
       )
       logger.info(`Successfully claimed allocation`)
       return true

@@ -27,7 +27,13 @@ export default {
         group: 'Ethereum',
       })
       .option('mnemonic', {
-        description: 'Mnemonic for the wallet',
+        description: 'Mnemonic for the operator wallet',
+        type: 'string',
+        required: true,
+        group: 'Ethereum',
+      })
+      .option('indexer-address', {
+        description: 'Ethereum address of the indexer',
         type: 'string',
         required: true,
         group: 'Ethereum',
@@ -185,10 +191,11 @@ export default {
     const network = await Network.create(
       logger,
       argv.ethereum,
+      argv.mnemonic,
+      argv.indexerAddress,
       argv.publicIndexerUrl,
       argv.graphNodeQueryEndpoint,
       argv.indexerGeoCoordinates,
-      argv.mnemonic,
       networkSubgraph,
     )
     logger.info('Successfully connected to network')
