@@ -37,11 +37,13 @@ export default {
         describe: 'Mnemonic for the operator wallet',
         type: 'string',
         required: true,
+        group: 'Ethereum',
       })
       .option('indexer-address', {
         describe: 'Ethereum address of the indexer',
         type: 'string',
         required: true,
+        group: 'Ethereum',
       })
       .option('port', {
         description: 'Port to serve from',
@@ -100,8 +102,8 @@ export default {
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
         type: 'string',
-        group: 'Network Subgraph',
         required: true,
+        group: 'Network Subgraph',
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
