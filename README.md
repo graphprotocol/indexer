@@ -48,8 +48,9 @@ $ graph-indexer-service start --help
 Start the service
 
 Ethereum
-  --ethereum  Ethereum node or provider URL                  [string] [required]
-  --mnemonic  Ethereum wallet mnemonic                       [string] [required]
+  --ethereum         Ethereum node or provider URL           [string] [required]
+  --mnemonic         Mnemonic for the operator wallet        [string] [required]
+  --indexer-address  Ethereum address of the indexer         [string] [required]
 
 Indexer Infrastructure
   --port                        Port to serve from      [number] [default: 7600]
@@ -58,10 +59,16 @@ Indexer Infrastructure
   --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
                                                              [string] [required]
 
+Postgres
+  --postgres-host      Postgres host                         [string] [required]
+  --postgres-port      Postgres port                    [number] [default: 5432]
+  --postgres-username  Postgres username          [string] [default: "postgres"]
+  --postgres-password  Postgres password                  [string] [default: ""]
+  --postgres-database  Postgres database name                [string] [required]
+
 Network Subgraph
-  --network-subgraph-deployment  Network subgraph deployment            [string]
-  --network-subgraph-endpoint    Endpoint to query the network subgraph from
-                                                                        [string]
+  --network-subgraph-endpoint  Endpoint to query the network subgraph from
+                                                             [string] [required]
 
 Options:
   --version                Show version number                         [boolean]
@@ -78,8 +85,9 @@ $ graph-indexer-agent start --help
 Start the agent
 
 Ethereum
-  --ethereum  Ethereum node or provider URL                  [string] [required]
-  --mnemonic  Mnemonic for the wallet                        [string] [required]
+  --ethereum         Ethereum node or provider URL           [string] [required]
+  --mnemonic         Mnemonic for the operator wallet        [string] [required]
+  --indexer-address  Ethereum address of the indexer         [string] [required]
 
 Indexer Infrastructure
   --graph-node-query-endpoint   Graph Node endpoint for querying subgraphs
@@ -121,7 +129,8 @@ Options:
 
 ## Running from source
 
-Run the following at the root of this repository to install dependencies and build the packages:
+Run the following at the root of this repository to install dependencies and
+build the packages:
 
 ```sh
 yarn
@@ -172,10 +181,7 @@ After this, the indexer agent and service can be run as follows:
 1. Indexer service:
 
    ```sh
-   docker run \
-     -p 7600:7600 \
-     -it indexer-service:latest \
-     ...
+   docker run -p 7600:7600 -it indexer-service:latest ...
    ```
 
    After this, the indexer service should be up and running at
@@ -184,10 +190,7 @@ After this, the indexer agent and service can be run as follows:
 2. Indexer Agent
 
    ````sh
-   docker run \
-     -p 18000:8000 \
-     -it indexer-agent:latest \
-     ...
+   docker run -p 18000:8000 -it indexer-agent:latest ...
    ```
 
    This starts the indexer agent and serves the so-called indexer management API
