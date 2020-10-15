@@ -736,12 +736,12 @@
     prom-client "^12.0.0"
     sequelize "^6.3.4"
 
-"@graphprotocol/common-ts@^0.3.2":
-  version "0.3.2"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.3.2.tgz#550b545a377e7dd62e68a611b0bf0642def572c3"
-  integrity sha512-QHwI/NXQeIESKQlE1K0L41AKC3XML+iFX8TNLmkTj98zU0y2lJqbUtmPD+1tGmsfLOrbN/GVmd9nWElPqo+1Vw==
+"@graphprotocol/common-ts@0.3.3":
+  version "0.3.3"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.3.3.tgz#4bf218b43c1783f73ca452e3cb15bb599a2fa600"
+  integrity sha512-qnh+uenuemFv/1Dlhk7KTwo37+2yX/brXW9j0VEaEtb8+Cjjm86eunZG426SkjKO+3/N1sDGMGJBhHsugED/IQ==
   dependencies:
-    "@graphprotocol/contracts" "0.7.5-testnet-phase2"
+    "@graphprotocol/contracts" "0.7.7-testnet-phase2"
     "@urql/core" "^1.12.3"
     "@urql/exchange-execute" "^1.0.1"
     body-parser "^1.19.0"
@@ -767,10 +767,10 @@
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
   integrity sha512-Geph8Q71q9R1JQ4q6Ph7tF87yLnwDwDiIjw7he/KfRqwtcrseCmTJ0vFgRAhqD9mWszljj5BUt8qiDommUCkPQ==
 
-"@graphprotocol/contracts@0.7.5-testnet-phase2":
-  version "0.7.5-testnet-phase2"
-  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.7.5-testnet-phase2.tgz#a5aa42483979ec59b1a4b6993684b89db72b3f12"
-  integrity sha512-3W/j3OXnMrg/7qVx1z5gNmzKCxmYURfiHhQ/v61CaTkOJaQfh7hJiTzNANKN2KHRC/dJasScQ1sOGFtZL5wl+w==
+"@graphprotocol/contracts@0.7.7-testnet-phase2":
+  version "0.7.7-testnet-phase2"
+  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.7.7-testnet-phase2.tgz#629be9c6b8eb2adf539be11fa35fe56a467e3cd6"
+  integrity sha512-79l1Mj9cfwfAjPnDxeDZTKpwQdUjn6D2O03mz4lLifkn5hclY9fKVmugvhrNREiNCQy68koelP3bcYgc4H8ojg==
   dependencies:
     "@ethersproject/contracts" "^5.0.3"
     ethers "^5.0.9"
