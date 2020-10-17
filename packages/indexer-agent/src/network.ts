@@ -557,6 +557,16 @@ export class Network {
 
     const logger = this.logger.child({ deployment: deployment.display })
 
+    if (amount.lt('0')) {
+      logger.warn(
+        'Cannot allocate a negative amount of GRT, skipping this allocation',
+        {
+          amount: amount.toString(),
+        },
+      )
+      return
+    }
+
     if (amount.eq('0')) {
       logger.warn('Cannot allocate zero GRT, skipping this allocation', {
         amount: amount.toString(),
