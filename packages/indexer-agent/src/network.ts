@@ -557,6 +557,13 @@ export class Network {
 
     const logger = this.logger.child({ deployment: deployment.display })
 
+    if (amount.eq('0')) {
+      logger.warn('Cannot allocate zero GRT, skipping this allocation', {
+        amount: amount.toString(),
+      })
+      return
+    }
+
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     logger.info(`Allocate to subgraph deployment`, {
       amountGRT: formatGRT(amount),
