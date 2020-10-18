@@ -7,9 +7,10 @@ import {
   createLogger,
   Logger,
   NetworkContracts,
+  parseGRT,
 } from '@graphprotocol/common-ts'
 
-import { createIndexerManagementClient } from '../client'
+import { createIndexerManagementClient, IndexerManagementDefaults } from '../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
 
 // Make global Jest variable available
@@ -52,6 +53,13 @@ let address: string
 let contracts: NetworkContracts
 let logger: Logger
 
+const defaults: IndexerManagementDefaults = {
+  globalIndexingRule: {
+    allocationAmount: parseGRT('100'),
+    parallelAllocations: 2,
+  },
+}
+
 describe('Cost models', () => {
   beforeEach(async () => {
     // Spin up db
@@ -81,6 +89,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     expect(
@@ -109,6 +118,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     expect(
@@ -137,6 +147,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     expect(
@@ -202,6 +213,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     for (const update of updates) {
@@ -221,6 +233,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     expect(
@@ -252,6 +265,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     for (const input of inputs) {
@@ -284,6 +298,7 @@ describe('Cost models', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     for (const input of inputs) {
