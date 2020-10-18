@@ -22,6 +22,10 @@ ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
+
+${chalk.dim('Hints:')}
+
+  * If no keys are provided, all keys are reset.
 `
 
 module.exports = {
