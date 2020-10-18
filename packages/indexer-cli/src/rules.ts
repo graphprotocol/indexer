@@ -313,3 +313,23 @@ export const setIndexingRule = async (
 
   return indexingRuleFromGraphQL(result.data.setIndexingRule)
 }
+
+export const deleteIndexingRules = async (
+  client: IndexerManagementClient,
+  deployments: SubgraphDeploymentIDIsh[],
+): Promise<void> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation deleteIndexingRules($deployments: [String!]!) {
+          deleteIndexingRules(deployments: $deployments)
+        }
+      `,
+      { deployments: deployments.map(deployment => deployment.toString()) },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+}
