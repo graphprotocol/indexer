@@ -206,6 +206,12 @@ export default {
       address: network.indexerAddress,
       contracts: network.contracts,
       logger,
+      defaults: {
+        globalIndexingRule: {
+          allocationAmount: parseGRT(argv.defaultAllocationAmount),
+          parallelAllocations: 2,
+        },
+      },
     })
     await createIndexerManagementServer({
       logger,
