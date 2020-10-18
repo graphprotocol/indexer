@@ -7,9 +7,10 @@ import {
   createLogger,
   Logger,
   NetworkContracts,
+  parseGRT,
 } from '@graphprotocol/common-ts'
 
-import { createIndexerManagementClient } from '../client'
+import { createIndexerManagementClient, IndexerManagementDefaults } from '../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
@@ -42,6 +43,12 @@ const SET_INDEXING_RULE_MUTATION = gql`
 const DELETE_INDEXING_RULE_MUTATION = gql`
   mutation deleteIndexingRule($deployment: String!) {
     deleteIndexingRule(deployment: $deployment)
+  }
+`
+
+const DELETE_INDEXING_RULES_MUTATION = gql`
+  mutation deleteIndexingRules($deployments: [String!]!) {
+    deleteIndexingRules(deployments: $deployments)
   }
 `
 
@@ -87,6 +94,13 @@ let address: string
 let contracts: NetworkContracts
 let logger: Logger
 
+const defaults: IndexerManagementDefaults = {
+  globalIndexingRule: {
+    allocationAmount: parseGRT('100'),
+    parallelAllocations: 2,
+  },
+}
+
 describe('Indexing rules', () => {
   beforeEach(async () => {
     // Spin up db
@@ -125,6 +139,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     // Update the rule and ensure the right data is returned
@@ -163,6 +178,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     // Update the rule
@@ -201,6 +217,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       logger,
+      defaults,
     })
 
     // Write the orginal
@@ -254,6 +271,7 @@ describe('Indexing rules', () => {
       models,
       address,
       contracts,
+      defaults,
     })
 
     // Write the orginal
@@ -329,6 +347,7 @@ describe('Indexing rules', () => {
       models,
       address,
       contracts,
+      defaults,
     })
 
     // Write the orginals
@@ -388,6 +407,7 @@ describe('Indexing rules', () => {
       models,
       address,
       contracts,
+      defaults,
     })
 
     // Write the rule
@@ -435,6 +455,7 @@ describe('Indexing rules', () => {
       models,
       address,
       contracts,
+      defaults,
     })
 
     // Write the rule
@@ -518,6 +539,7 @@ describe('Indexing rules', () => {
       models,
       address,
       contracts,
+      defaults,
     })
 
     // Write the orginals
@@ -560,6 +582,104 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.indexingRules', [
       globalExpected,
       deploymentMergedExpected,
+    ])
+  })
+
+  test('Delete global rules (which should reset)', async () => {
+    const globalInput = {
+      deployment: INDEXING_RULE_GLOBAL,
+      allocationAmount: '1',
+      minSignal: '1',
+      decisionBasis: IndexingDecisionBasis.NEVER,
+      minAverageQueryFees: '1',
+    }
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      defaults,
+    })
+
+    await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
+
+    await expect(
+      client
+        .mutation(DELETE_INDEXING_RULE_MUTATION, {
+          deployment: 'global',
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.deleteIndexingRule', true)
+
+    await expect(
+      client.query(INDEXING_RULES_QUERY, { merged: false }).toPromise(),
+    ).resolves.toHaveProperty('data.indexingRules', [
+      {
+        ...defaults.globalIndexingRule,
+        custom: null,
+        decisionBasis: 'rules',
+        deployment: 'global',
+        maxAllocationPercentage: null,
+        maxSignal: null,
+        minAverageQueryFees: null,
+        minSignal: null,
+        minStake: null,
+      },
+    ])
+  })
+
+  test('Delete multiple rules, including global (which should reset)', async () => {
+    const globalInput = {
+      deployment: INDEXING_RULE_GLOBAL,
+      allocationAmount: '1',
+      minSignal: '1',
+      decisionBasis: IndexingDecisionBasis.NEVER,
+      minAverageQueryFees: '1',
+    }
+
+    const deploymentInput = {
+      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      allocationAmount: '1',
+      minSignal: '2',
+    }
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      defaults,
+    })
+
+    await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
+    await client
+      .mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput })
+      .toPromise()
+
+    await expect(
+      client
+        .mutation(DELETE_INDEXING_RULES_MUTATION, {
+          deployments: [
+            'global',
+            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          ],
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.deleteIndexingRules', true)
+
+    await expect(
+      client.query(INDEXING_RULES_QUERY, { merged: false }).toPromise(),
+    ).resolves.toHaveProperty('data.indexingRules', [
+      {
+        ...defaults.globalIndexingRule,
+        custom: null,
+        decisionBasis: 'rules',
+        deployment: 'global',
+        maxAllocationPercentage: null,
+        maxSignal: null,
+        minAverageQueryFees: null,
+        minSignal: null,
+        minStake: null,
+      },
     ])
   })
 })

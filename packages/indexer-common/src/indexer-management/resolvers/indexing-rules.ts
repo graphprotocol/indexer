@@ -1,7 +1,28 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
-import { IndexingRuleCreationAttributes, INDEXING_RULE_GLOBAL } from '../models'
-import { IndexerManagementResolverContext } from '../client'
+import {
+  IndexerManagementModels,
+  IndexingRuleCreationAttributes,
+  INDEXING_RULE_GLOBAL,
+} from '../models'
+import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
+import { Transaction } from 'sequelize/types'
+
+const resetGlobalRule = async (
+  deployment: string,
+  defaults: IndexerManagementDefaults['globalIndexingRule'],
+  models: IndexerManagementModels,
+  transaction: Transaction,
+) => {
+  await models.IndexingRule.upsert(
+    {
+      ...defaults,
+      allocationAmount: defaults.allocationAmount.toString(),
+      deployment,
+    },
+    { transaction },
+  )
+}
 
 export default {
   indexingRule: async (
@@ -55,13 +76,49 @@ export default {
 
   deleteIndexingRule: async (
     { deployment }: { deployment: string },
-    { models }: IndexerManagementResolverContext,
+    { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
-    const numDeleted = await models.IndexingRule.destroy({
-      where: {
-        deployment,
-      },
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
+      const numDeleted = await models.IndexingRule.destroy({
+        where: {
+          deployment,
+        },
+        transaction,
+      })
+
+      // Reset the global rule
+      if (deployment === 'global') {
+        await resetGlobalRule(
+          deployment,
+          defaults.globalIndexingRule,
+          models,
+          transaction,
+        )
+      }
+
+      return numDeleted > 0
     })
-    return numDeleted > 0
+  },
+
+  deleteIndexingRules: async (
+    { deployments }: { deployments: string[] },
+    { models, defaults }: IndexerManagementResolverContext,
+  ): Promise<boolean> => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
+      const numDeleted = await models.IndexingRule.destroy({
+        where: {
+          deployment: deployments,
+        },
+        transaction,
+      })
+
+      if (deployments.includes('global')) {
+        await resetGlobalRule('global', defaults.globalIndexingRule, models, transaction)
+      }
+
+      return numDeleted > 0
+    })
   },
 }
