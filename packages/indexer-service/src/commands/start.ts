@@ -1,7 +1,7 @@
 import fetch from 'isomorphic-fetch'
 import { Argv } from 'yargs'
 import { createClient } from '@urql/core'
-import { Wallet, providers } from 'ethers'
+import { Wallet, providers, BigNumber } from 'ethers'
 
 import {
   createLogger,
@@ -218,6 +218,13 @@ export default {
       address,
       contracts,
       logger,
+      defaults: {
+        // This is just a dummy, since we're never writing to the management
+        // client from the indexer service.
+        globalIndexingRule: {
+          allocationAmount: BigNumber.from('0'),
+        },
+      },
     })
 
     // Spin up a basic webserver
