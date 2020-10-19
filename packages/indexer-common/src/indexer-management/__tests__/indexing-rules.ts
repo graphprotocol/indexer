@@ -616,6 +616,7 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.indexingRules', [
       {
         ...defaults.globalIndexingRule,
+        allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
         deployment: 'global',
@@ -671,6 +672,7 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.indexingRules', [
       {
         ...defaults.globalIndexingRule,
+        allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
         deployment: 'global',
