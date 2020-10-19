@@ -295,4 +295,34 @@ describe('Cost models', () => {
       inputs,
     )
   })
+
+  test('Clear model by passing in an empty model', async () => {
+    let input = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '{ votes } => 10 * $n',
+      variables: JSON.stringify({ n: 100 }),
+    }
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+    })
+
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+
+    input = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '',
+      variables: '{}',
+    }
+
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+
+    expect(
+      client.query(GET_COST_MODELS_QUERY).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', [input])
+  })
 })

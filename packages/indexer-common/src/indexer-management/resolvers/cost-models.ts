@@ -35,7 +35,10 @@ export default {
       where: { deployment: costModel.deployment },
     })
     model.deployment = costModel.deployment || model.deployment
-    model.model = costModel.model || model.model
+    model.model =
+      costModel.model !== null && costModel.model !== undefined
+        ? costModel.model
+        : model.model
     model.variables = costModel.variables || model.variables
     return (await model.save()).toGraphQL()
   },
