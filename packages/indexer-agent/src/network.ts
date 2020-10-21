@@ -257,7 +257,7 @@ export class Network {
         .query(
           gql`
             query {
-              subgraphDeployments {
+              subgraphDeployments(first: 1000) {
                 id
                 stakedTokens
                 signalAmount
@@ -383,7 +383,10 @@ export class Network {
         .query(
           gql`
             query allocations($indexer: String!, $status: AllocationStatus!) {
-              allocations(where: { indexer: $indexer, status: $status }) {
+              allocations(
+                where: { indexer: $indexer, status: $status }
+                first: 1000
+              ) {
                 id
                 allocatedTokens
                 createdAtEpoch
@@ -428,6 +431,7 @@ export class Network {
                   closedAtEpoch_lte: $disputableEpoch
                   status: Closed
                 }
+                first: 1000
               ) {
                 id
                 allocatedTokens
