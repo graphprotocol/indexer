@@ -32,6 +32,7 @@
     "p-filter": "^2.1.0",
     "p-map": "^4.0.0",
     "p-queue": "^6.4.0",
+    "p-reduce": "^2.1.0",
     "yargs": "^15.1.0"
   },
   "devDependencies": {

@@ -483,12 +483,11 @@ class Agent {
         desiredNumberOfAllocations,
         allocationAmount: formatGRT(allocationAmount),
       })
-
-      await pMap(
-        ti.repeat(allocationAmount, desiredNumberOfAllocations),
-        async amount =>
-          await this.network.allocate(deployment, amount, activeAllocations),
-        { concurrency: 1 },
+      await this.network.allocateMultiple(
+        deployment,
+        allocationAmount,
+        activeAllocations,
+        desiredNumberOfAllocations,
       )
 
       return
@@ -627,12 +626,12 @@ class Agent {
           allocationAmount: formatGRT(allocationAmount),
         },
       )
-      await pMap(
-        ti.repeat(allocationAmount, allocationsToCreate),
-        async amount => {
-          await this.network.allocate(deployment, amount, activeAllocations)
-        },
-        { concurrency: 1 },
+
+      await this.network.allocateMultiple(
+        deployment,
+        allocationAmount,
+        activeAllocations,
+        allocationsToCreate,
       )
     }
   }

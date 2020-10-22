@@ -32,6 +32,8 @@ import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
 import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
+import pReduce from 'p-reduce'
+import * as ti from '@thi.ng/iterators'
 
 const txOverrides = {
   gasLimit: 1000000,
@@ -552,11 +554,34 @@ export class Network {
     }
   }
 
-  async allocate(
+  async allocateMultiple(
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
     activeAllocations: Allocation[],
-  ): Promise<void> {
+    numAllocations: number,
+  ): Promise<Allocation[]> {
+    return await pReduce(
+      ti.repeat(amount, numAllocations),
+      async (allocations, allocationAmount) => {
+        const newAllocation = await this.allocate(
+          deployment,
+          allocationAmount,
+          allocations,
+        )
+        if (newAllocation) {
+          allocations.push(newAllocation)
+        }
+        return allocations
+      },
+      activeAllocations,
+    )
+  }
+
+  private async allocate(
+    deployment: SubgraphDeploymentID,
+    amount: BigNumber,
+    activeAllocations: Allocation[],
+  ): Promise<Allocation | undefined> {
     const price = parseGRT('0.01')
 
     const logger = this.logger.child({ deployment: deployment.display })
@@ -657,6 +682,19 @@ export class Network {
       allocation: eventInputs.allocationID,
       epoch: eventInputs.epoch.toString(),
     })
+
+    return {
+      id: id,
+      subgraphDeployment: {
+        id: deployment,
+        stakedTokens: BigNumber.from(0),
+        signalAmount: BigNumber.from(0),
+      },
+      allocatedTokens: BigNumber.from(eventInputs.tokens),
+      createdAtBlockHash: '0x0',
+      createdAtEpoch: eventInputs.epoch,
+      closedAtEpoch: 0,
+    } as Allocation
   }
 
   async close(allocation: Allocation, poi: string): Promise<boolean> {
