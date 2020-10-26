@@ -6,7 +6,7 @@ yargs
   .scriptName('indexer-agent')
   .env('INDEXER_AGENT')
   .command(start)
-  .fail(function (msg, err, yargs) {
+  .fail(function(msg, err, yargs) {
     if (err) {
       console.error(err)
     } else {
