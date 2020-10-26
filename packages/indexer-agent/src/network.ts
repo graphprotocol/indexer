@@ -622,18 +622,36 @@ export class Network {
       )
     }
 
+    logger.debug('Obtain a unique Allocation ID')
     // Obtain a unique allocation ID
-    const id = uniqueAllocationID(
+    const allocationId = uniqueAllocationID(
       this.wallet.mnemonic.phrase,
       currentEpoch.toNumber(),
       deployment,
       activeAllocations.map(allocation => allocation.id),
     )
 
+    // Double-check whether the allocationID already exists on chain, to
+    // avoid unnecessary transactions.
+    // Note: We're checking the allocation state here, which is defined as
+    //
+    //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+    //
+    // in the contracts.
+    const state = await this.contracts.staking.getAllocationState(allocationId)
+
+    if (state === 0) {
+      logger.debug(`Skipping Allocation as it already exists onchain.`, {
+        indexer: this.indexerAddress,
+        allocationId,
+      })
+      return
+    }
+
     logger.info(`Allocate`, {
       indexer: this.indexerAddress,
       amount: formatGRT(amount),
-      allocationId: id,
+      allocationId,
       price,
       txOverrides,
     })
@@ -643,7 +661,7 @@ export class Network {
         this.indexerAddress,
         deployment.bytes32,
         amount,
-        id,
+        allocationId,
         utils.hexlify(Array(32).fill(0)),
         txOverrides,
       ),
@@ -681,7 +699,7 @@ export class Network {
     })
 
     return {
-      id: id,
+      id: allocationId,
       subgraphDeployment: {
         id: deployment,
         stakedTokens: BigNumber.from(0),
