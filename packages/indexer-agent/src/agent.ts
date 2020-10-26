@@ -467,7 +467,7 @@ class Agent {
               (await this.indexer.proofOfIndexing(
                 deployment,
                 allocation.createdAtBlockHash,
-              )) || utils.hexlify(Array(32).fill(0))
+              )) || utils.hexlify(utils.randomBytes(32))
             await this.network.close(allocation, poi)
           },
           { concurrency: 1 },
