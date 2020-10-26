@@ -188,6 +188,7 @@ export class Network {
               indexerQueryEndpoint,
             ).toString(),
             fetch,
+            requestPolicy: 'network-only',
           })
 
     let providerUrl
@@ -276,8 +277,6 @@ export class Network {
               }
             }
           `,
-          undefined,
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -406,7 +405,6 @@ export class Network {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             status: AllocationStatus[status],
           },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -452,7 +450,6 @@ export class Network {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             disputableEpoch,
           },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 

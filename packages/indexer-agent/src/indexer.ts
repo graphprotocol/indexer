@@ -72,8 +72,6 @@ export class Indexer {
               }
             }
           `,
-          undefined,
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -119,7 +117,6 @@ export class Indexer {
             blockHash: block,
             indexer: this.indexerAddress,
           },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -159,7 +156,6 @@ export class Indexer {
             }
           `,
           { merged },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -188,7 +184,6 @@ export class Indexer {
             }
           `,
           { deployment: INDEXING_RULE_GLOBAL },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
 
@@ -221,7 +216,6 @@ export class Indexer {
               }
             `,
             { rule: defaults },
-            { requestPolicy: 'network-only' },
           )
           .toPromise()
 
@@ -274,7 +268,6 @@ export class Indexer {
             }
           `,
           { deployments: [deployment.ipfsHash] },
-          { requestPolicy: 'network-only' },
         )
         .toPromise()
       return (

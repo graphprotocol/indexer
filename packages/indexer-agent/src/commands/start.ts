@@ -186,7 +186,10 @@ export default {
 
     logger.info('Connect to network')
     const networkSubgraph = argv.networkSubgraphEndpoint
-      ? createClient({ url: argv.networkSubgraphEndpoint })
+      ? createClient({
+          url: argv.networkSubgraphEndpoint,
+          requestPolicy: 'network-only',
+        })
       : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
     const network = await Network.create(
       logger,

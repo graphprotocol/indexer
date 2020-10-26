@@ -60,9 +60,6 @@ export const monitorActiveAllocations = ({
           {
             indexer: indexer.toLowerCase(),
           },
-          {
-            requestPolicy: 'network-only',
-          },
         )
         .toPromise()
 
