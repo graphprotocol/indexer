@@ -115,9 +115,9 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
-      .option('inject-dai-grt-conversion-rate', {
+      .option('inject-grt-dai-conversion-rate', {
         description:
-          'Whether to inject the DAI/GRT conversion rate into cost model variables',
+          'Whether to inject the GRT/DAI conversion rate into cost model variables',
         type: 'boolean',
         default: true,
         group: 'Cost Models',
@@ -251,7 +251,7 @@ export default {
       ethereum,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
-      injectDaiGrtConversionRate: argv.injectDaiGrtConversionRate,
+      injectGrtDaiConversionRate: argv.injectGrtDaiConversionRate,
     })
 
     await startAgent({
