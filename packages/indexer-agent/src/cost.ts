@@ -60,12 +60,12 @@ const monitorAndInjectDaiConversionRate = ({
   timer(120 * 1000).pipe(async () => {
     const pair = await Fetcher.fetchPairData(GRT, DAI, ethereum)
     const route = new Route([pair], DAI)
-    const grt2gdai = route.midPrice.toSignificant(18)
+    const grtPerDai = route.midPrice.toSignificant(18)
 
     logger.info(
       'Updating cost models with GRT/DAI conversion rate variable ($DAI)',
       {
-        grtPerDai: grt2gdai,
+        grtPerDai: grtPerDai,
       },
     )
 
@@ -102,13 +102,13 @@ const monitorAndInjectDaiConversionRate = ({
           `Update cost model with GRT/DAI conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
-            grtPerDai: `${grt2gdai}`,
+            grtPerDai: `${grtPerDai}`,
           },
         )
 
         costModel.variables = JSON.stringify({
           ...JSON.parse(costModel.variables),
-          DAI: `${grt2gdai}`,
+          DAI: `${grtPerDai}`,
         })
 
         const result = await indexerManagement
