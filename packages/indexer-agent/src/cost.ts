@@ -58,14 +58,14 @@ const monitorAndInjectDaiConversionRate = ({
   const GRT = new Token(ChainId.RINKEBY, contracts.token.address, 18)
 
   timer(120 * 1000).pipe(async () => {
-    const pair = await Fetcher.fetchPairData(DAI, GRT, ethereum)
-    const route = new Route([pair], GRT)
-    const gdai2grt = route.midPrice.toSignificant(18)
+    const pair = await Fetcher.fetchPairData(GRT, DAI, ethereum)
+    const route = new Route([pair], DAI)
+    const grt2gdai = route.midPrice.toSignificant(18)
 
     logger.info(
       'Updating cost models with DAI/GRT conversion rate variable ($DAI)',
       {
-        conversionRate: gdai2grt,
+        conversionRate: grt2gdai,
       },
     )
 
@@ -102,13 +102,13 @@ const monitorAndInjectDaiConversionRate = ({
           `Update cost model with DAI/GRT conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
-            conversionRate: `${gdai2grt}`,
+            conversionRate: `${grt2gdai}`,
           },
         )
 
         costModel.variables = JSON.stringify({
           ...JSON.parse(costModel.variables),
-          DAI: `${gdai2grt}`,
+          DAI: `${grt2gdai}`,
         })
 
         const result = await indexerManagement
