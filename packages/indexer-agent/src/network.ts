@@ -641,9 +641,9 @@ export class Network {
     const state = await this.contracts.staking.getAllocationState(allocationId)
 
     if (state === 0) {
-      logger.debug(`Skipping Allocation as it already exists onchain.`, {
+      logger.debug(`Skipping Allocation as it already exists onchain`, {
         indexer: this.indexerAddress,
-        allocationId,
+        allocation: allocationId,
       })
       return
     }
@@ -651,7 +651,7 @@ export class Network {
     logger.info(`Allocate`, {
       indexer: this.indexerAddress,
       amount: formatGRT(amount),
-      allocationId,
+      allocation: allocationId,
       price,
       txOverrides,
     })
