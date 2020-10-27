@@ -5,6 +5,8 @@ import {
   SubgraphDeploymentID,
   connectDatabase,
   parseGRT,
+  createMetrics,
+  createMetricsServer,
 } from '@graphprotocol/common-ts'
 import {
   defineIndexerManagementModels,
@@ -115,9 +117,16 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
-      .option('inject-grt-dai-conversion-rate', {
+      .option('metrics-port', {
+        description: 'Port to serve Prometheus metrics at',
+        type: 'number',
+        defaut: 7300,
+        required: false,
+        group: 'Indexer Infrastructure',
+      })
+      .option('inject-grt-per-dai-conversion-variable', {
         description:
-          'Whether to inject the GRT/DAI conversion rate into cost model variables',
+          'Whether to inject the GRT per DAI conversion rate into cost model variables',
         type: 'boolean',
         default: true,
         group: 'Cost Models',
@@ -175,6 +184,14 @@ export default {
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
     const logger = createLogger({ name: 'IndexerAgent', async: false })
+
+    // Spin up a metrics server
+    const metrics = createMetrics()
+    createMetricsServer({
+      logger: logger.child({ component: 'MetricsServer' }),
+      registry: metrics.registry,
+      port: argv.metricsPort,
+    })
 
     logger.info('Connect to database', {
       host: argv.postgresHost,
@@ -251,7 +268,8 @@ export default {
       ethereum,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
-      injectGrtDaiConversionRate: argv.injectGrtDaiConversionRate,
+      injectGrtPerDaiConversionVariable: argv.injectGrtPerDaiConversionVariable,
+      metrics,
     })
 
     await startAgent({

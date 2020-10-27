@@ -1,8 +1,10 @@
 import { ChainId, Token, Fetcher, Route } from '@uniswap/sdk'
 import gql from 'graphql-tag'
+import { Gauge } from 'prom-client'
 
 import {
   Logger,
+  Metrics,
   NetworkContracts,
   SubgraphDeploymentID,
   timer,
@@ -10,12 +12,32 @@ import {
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import { providers } from 'ethers'
 
+interface CostModelAutomationMetrics {
+  grtPerDai: Gauge<string>
+  daiPerGrt: Gauge<string>
+}
+
+const registerMetrics = (metrics: Metrics): CostModelAutomationMetrics => ({
+  grtPerDai: new metrics.client.Gauge({
+    name: 'cost_model_automation_grt_per_dai',
+    help: 'Conversion rate from GRT to DAI',
+    registers: [metrics.registry],
+  }),
+
+  daiPerGrt: new metrics.client.Gauge({
+    name: 'cost_model_automation_dai_per_grt',
+    help: 'Conversion rate from DAI to GRT',
+    registers: [metrics.registry],
+  }),
+})
+
 export interface CostModelAutomationOptions {
   logger: Logger
   ethereum: providers.JsonRpcProvider
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
-  injectGrtDaiConversionRate: boolean
+  injectGrtPerDaiConversionVariable: boolean
+  metrics: Metrics
 }
 
 export const startCostModelAutomation = ({
@@ -23,16 +45,20 @@ export const startCostModelAutomation = ({
   ethereum,
   contracts,
   indexerManagement,
-  injectGrtDaiConversionRate,
+  injectGrtPerDaiConversionVariable,
+  metrics,
 }: CostModelAutomationOptions): void => {
   logger = logger.child({ component: 'CostModelAutomation' })
 
-  if (injectGrtDaiConversionRate) {
+  const automationMetrics = registerMetrics(metrics)
+
+  if (injectGrtPerDaiConversionVariable) {
     monitorAndInjectDaiConversionRate({
       logger,
       ethereum,
       contracts,
       indexerManagement,
+      metrics: automationMetrics,
     })
   }
 }
@@ -42,12 +68,11 @@ const monitorAndInjectDaiConversionRate = ({
   ethereum,
   contracts,
   indexerManagement,
-}: {
-  logger: Logger
-  ethereum: providers.JsonRpcProvider
-  contracts: NetworkContracts
-  indexerManagement: IndexerManagementClient
-}): void => {
+  metrics,
+}: Omit<
+  CostModelAutomationOptions,
+  'injectGrtPerDaiConversionVariable' | 'metrics'
+> & { metrics: CostModelAutomationMetrics }): void => {
   // FIXME: Make this mainnet-compatible by picking the REAL DAI address?
   const DAI = new Token(
     ChainId.RINKEBY,
@@ -61,12 +86,15 @@ const monitorAndInjectDaiConversionRate = ({
     const pair = await Fetcher.fetchPairData(GRT, DAI, ethereum)
     const route = new Route([pair], DAI)
     const grtPerDai = route.midPrice.toSignificant(18)
+    const daiPerGrt = route.midPrice.invert().toSignificant(18)
+
+    // Observe conversion rate in metrics
+    metrics.daiPerGrt.set(parseFloat(daiPerGrt))
+    metrics.grtPerDai.set(parseFloat(grtPerDai))
 
     logger.info(
-      'Updating cost models with GRT/DAI conversion rate variable ($DAI)',
-      {
-        grtPerDai: grtPerDai,
-      },
+      'Updating cost models with GRT per DAI conversion rate variable ($DAI)',
+      { value: grtPerDai },
     )
 
     const result = await indexerManagement
@@ -99,7 +127,7 @@ const monitorAndInjectDaiConversionRate = ({
 
       try {
         logger.trace(
-          `Update cost model with GRT/DAI conversion rate variable ($DAI)`,
+          `Update cost model with GRT per DAI conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
             grtPerDai: `${grtPerDai}`,
@@ -131,7 +159,7 @@ const monitorAndInjectDaiConversionRate = ({
         }
       } catch (error) {
         logger.warn(
-          `Failed to update cost model with GRT/DAI conversion rate variable ($DAI)`,
+          `Failed to update cost model with GRT per DAI conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
             error: error.message || error,
