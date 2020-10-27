@@ -1,10 +1,11 @@
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
-import { BigNumber } from 'ethers'
+import { BigNumber, providers } from 'ethers'
 import { Network } from './network'
 import { Client } from '@urql/core'
 
 export interface AgentConfig {
+  ethereum: providers.JsonRpcProvider
   statusEndpoint: string
   adminEndpoint: string
   indexerManagement: IndexerManagementClient

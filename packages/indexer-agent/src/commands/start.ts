@@ -14,6 +14,8 @@ import {
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
+import { providers } from 'ethers'
+import { startCostModelAutomation } from '../cost'
 
 export default {
   command: 'start',
@@ -113,6 +115,13 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
+      .option('inject-dai-grt-conversion-rate', {
+        description:
+          'Whether to inject the DAI/GRT conversion rate into cost model variables',
+        type: 'boolean',
+        default: true,
+        group: 'Cost Models',
+      })
       .option('postgres-host', {
         description: 'Postgres host',
         type: 'string',
@@ -184,6 +193,20 @@ export default {
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
+    logger.info(`Connect to Ethereum`)
+    let providerUrl
+    try {
+      providerUrl = new URL(argv.ethereum)
+    } catch (e) {
+      throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
+    }
+    const ethereum = new providers.JsonRpcProvider({
+      url: providerUrl.toString(),
+      user: providerUrl.username,
+      password: providerUrl.password,
+    })
+    logger.info(`Connected to Ethereum`)
+
     logger.info('Connect to network')
     const networkSubgraph = argv.networkSubgraphEndpoint
       ? createClient({
@@ -193,7 +216,7 @@ export default {
       : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
     const network = await Network.create(
       logger,
-      argv.ethereum,
+      ethereum,
       argv.mnemonic,
       argv.indexerAddress,
       argv.publicIndexerUrl,
@@ -223,7 +246,16 @@ export default {
     })
     logger.info(`Launched indexer management API server`)
 
+    startCostModelAutomation({
+      logger,
+      ethereum,
+      contracts: network.contracts,
+      indexerManagement: indexerManagementClient,
+      injectDaiGrtConversionRate: argv.injectDaiGrtConversionRate,
+    })
+
     await startAgent({
+      ethereum,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
       logger,
