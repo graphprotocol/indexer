@@ -15,7 +15,7 @@ export interface CostModelAutomationOptions {
   ethereum: providers.JsonRpcProvider
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
-  injectDaiGrtConversionRate: boolean
+  injectGrtDaiConversionRate: boolean
 }
 
 export const startCostModelAutomation = ({
@@ -23,11 +23,11 @@ export const startCostModelAutomation = ({
   ethereum,
   contracts,
   indexerManagement,
-  injectDaiGrtConversionRate,
+  injectGrtDaiConversionRate,
 }: CostModelAutomationOptions): void => {
   logger = logger.child({ component: 'CostModelAutomation' })
 
-  if (injectDaiGrtConversionRate) {
+  if (injectGrtDaiConversionRate) {
     monitorAndInjectDaiConversionRate({
       logger,
       ethereum,
@@ -63,9 +63,9 @@ const monitorAndInjectDaiConversionRate = ({
     const grt2gdai = route.midPrice.toSignificant(18)
 
     logger.info(
-      'Updating cost models with DAI/GRT conversion rate variable ($DAI)',
+      'Updating cost models with GRT/DAI conversion rate variable ($DAI)',
       {
-        conversionRate: grt2gdai,
+        grtPerDai: grt2gdai,
       },
     )
 
@@ -99,10 +99,10 @@ const monitorAndInjectDaiConversionRate = ({
 
       try {
         logger.trace(
-          `Update cost model with DAI/GRT conversion rate variable ($DAI)`,
+          `Update cost model with GRT/DAI conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
-            conversionRate: `${grt2gdai}`,
+            grtPerDai: `${grt2gdai}`,
           },
         )
 
@@ -131,7 +131,7 @@ const monitorAndInjectDaiConversionRate = ({
         }
       } catch (error) {
         logger.warn(
-          `Failed to update cost model with DAI/GRT conversion rate variable ($DAI)`,
+          `Failed to update cost model with GRT/DAI conversion rate variable ($DAI)`,
           {
             deployment: deployment.display,
             error: error.message || error,
