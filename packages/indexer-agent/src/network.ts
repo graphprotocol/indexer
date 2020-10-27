@@ -48,7 +48,7 @@ export class Network {
   indexerGeoCoordinates: [string, string]
   wallet: Wallet
   logger: Logger
-  ethereumProvider: providers.JsonRpcProvider
+  ethereum: providers.JsonRpcProvider
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
 
@@ -60,7 +60,7 @@ export class Network {
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
     subgraph: Client,
-    ethereumProvider: providers.JsonRpcProvider,
+    ethereum: providers.JsonRpcProvider,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -69,7 +69,7 @@ export class Network {
     this.indexerGeoCoordinates = geoCoordinates
     this.contracts = contracts
     this.subgraph = subgraph
-    this.ethereumProvider = ethereumProvider
+    this.ethereum = ethereum
     this.paused = this.monitorNetworkPauses()
     this.isOperator = this.monitorIsOperator()
   }
@@ -171,7 +171,7 @@ export class Network {
 
   static async create(
     parentLogger: Logger,
-    ethereumProviderUrl: string,
+    ethereum: providers.JsonRpcProvider,
     mnemonic: string,
     indexerAddress: Address,
     indexerUrl: string,
@@ -191,19 +191,7 @@ export class Network {
             requestPolicy: 'network-only',
           })
 
-    let providerUrl
-    try {
-      providerUrl = new URL(ethereumProviderUrl)
-    } catch (e) {
-      throw new Error(`Invalid Ethereum URL '${ethereumProviderUrl}': ${e}`)
-    }
-
-    const ethereumProvider = new providers.JsonRpcProvider({
-      url: providerUrl.toString(),
-      user: providerUrl.username,
-      password: providerUrl.password,
-    })
-    const network = await ethereumProvider.getNetwork()
+    const network = await ethereum.getNetwork()
 
     let logger = parentLogger.child({
       component: 'Network',
@@ -213,10 +201,9 @@ export class Network {
     logger.info(`Create wallet`, {
       network: network.name,
       chainId: network.chainId,
-      provider: ethereumProviderUrl,
     })
     let wallet = Wallet.fromMnemonic(mnemonic)
-    wallet = wallet.connect(ethereumProvider)
+    wallet = wallet.connect(ethereum)
     logger.info(`Successfully created wallet`, { address: wallet.address })
 
     logger = logger.child({ operator: wallet.address })
@@ -243,7 +230,7 @@ export class Network {
       geoCoordinates,
       contracts,
       subgraph,
-      ethereumProvider,
+      ethereum,
     )
   }
 
