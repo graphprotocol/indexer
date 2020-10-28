@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.3] - 2020-10-28
+### Fixed
+- Preserve `$DAI` on updates
+- Fix injecting `$DAI` into `null` variables
+- Fix adding `$DAI` to `null` cost models in `setCostModel` mutation
+- Don't accidentally clear non-`$DAI` variables
+
+### Added
+- Inject `$DAI` into new models when they are created
+
+### Changed
+- Change cost model variable columns in the database to JSONB
+
 ## [0.3.2] - 2020-10-27
 ### Added
 - Add 'deleteIndexingRules' mutation
@@ -29,7 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.3...HEAD
+[0.3.3]: https://github.com/graphprotocol/indexer/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/graphprotocol/indexer/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/graphprotocol/indexer/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/graphprotocol/indexer/compare/v0.2.6...v0.3.0
