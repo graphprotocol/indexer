@@ -518,6 +518,40 @@ describe('Feature: Inject $DAI variable', () => {
     )
   })
 
+  test('$DAI is preserved when cost model is updated', async () => {
+    const initial = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '{ votes } => 10 * $n',
+      variables: JSON.stringify({ n: 5, DAI: '10.0' }),
+    }
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: true,
+      },
+    })
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    const update = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: 'default => 1;',
+      variables: null,
+    }
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
+    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+      'data.costModels',
+      [
+        {
+          ...update,
+          variables: initial.variables,
+        },
+      ],
+    )
+  })
+
   test('If feature is disabled, $DAI variable is not preserved', async () => {
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',

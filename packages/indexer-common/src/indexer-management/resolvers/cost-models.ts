@@ -81,17 +81,21 @@ export default {
       const oldDai = getVariable(model.variables, 'DAI')
       const newDai = getVariable(update.variables, 'DAI')
 
-      // Make sure the Dai variable is never dropped
+      // Update the model variables (fall back to current value if unchanged)
+      model.variables = update.variables || model.variables
+
       // Inject the latest DAI value if available
       if (dai.valueReady) {
-        update.variables = setVariable(update.variables, 'DAI', await dai.value())
+        model.variables = setVariable(model.variables, 'DAI', await dai.value())
       } else if (newDai === undefined && oldDai !== undefined) {
-        // Otherwise preserve the old DAI value if there is one
-        update.variables = setVariable(update.variables, 'DAI', oldDai)
+        // Otherwise preserve the old DAI value if there is one;
+        // this ensures it's never dropped
+        model.variables = setVariable(model.variables, 'DAI', oldDai)
       }
+    } else {
+      // Update the model variables (fall back to current value if unchanged)
+      model.variables = update.variables || model.variables
     }
-
-    model.variables = update.variables || model.variables
 
     return (await model.save()).toGraphQL()
   },
