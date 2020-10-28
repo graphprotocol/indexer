@@ -3,7 +3,6 @@
 
 import { CostModelVariables, GraphQLCostModel, parseGraphQLCostModel } from '../models'
 import { IndexerManagementResolverContext } from '../client'
-import { disableExperimentalFragmentVariables } from 'graphql-tag'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getVariable = (vars: CostModelVariables | null, name: string): any | undefined => {
