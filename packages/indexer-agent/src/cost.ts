@@ -1,12 +1,10 @@
 import { ChainId, Token, Fetcher, Route } from '@uniswap/sdk'
-import gql from 'graphql-tag'
 import { Gauge } from 'prom-client'
 
 import {
   Logger,
   Metrics,
   NetworkContracts,
-  SubgraphDeploymentID,
   timer,
 } from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
