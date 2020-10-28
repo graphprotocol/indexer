@@ -46,9 +46,15 @@ export default {
         group: 'Ethereum',
       })
       .option('port', {
-        description: 'Port to serve from',
+        description: 'Port to serve queries at',
         type: 'number',
         default: 7600,
+        group: 'Indexer Infrastructure',
+      })
+      .option('metrics-port', {
+        description: 'Port to serve Prometheus metrics at',
+        type: 'number',
+        default: 7300,
         group: 'Indexer Infrastructure',
       })
       .option('graph-node-query-endpoint', {
@@ -165,6 +171,7 @@ export default {
     createMetricsServer({
       logger: logger.child({ component: 'MetricsServer' }),
       registry: metrics.registry,
+      port: argv.metricsPort,
     })
 
     // Create receipt manager
