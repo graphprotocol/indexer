@@ -10,8 +10,8 @@
     "format": "./node_modules/.bin/prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "./node_modules/.bin/eslint . --ext .ts,.tsx",
     "prepare": "yarn format && yarn lint && ./node_modules/.bin/tsc",
-    "test": "jest --runInBand --passWithNoTests --verbose",
-    "test:watch": "jest --runInBand --watch --passWithNoTests --verbose"
+    "test": "jest --runInBand --detectOpenHandles --passWithNoTests --verbose",
+    "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose"
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.3.3",
