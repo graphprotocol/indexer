@@ -242,11 +242,14 @@ export default {
     } catch (e) {
       throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
     }
-    const ethereum = new providers.JsonRpcProvider({
-      url: providerUrl.toString(),
-      user: providerUrl.username,
-      password: providerUrl.password,
-    })
+    const ethereum = new providers.JsonRpcProvider(
+      {
+        url: providerUrl.toString(),
+        user: providerUrl.username,
+        password: providerUrl.password,
+      },
+      'rinkeby',
+    )
     logger.info(`Connected to Ethereum`)
 
     logger.info('Connect to network')

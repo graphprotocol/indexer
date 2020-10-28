@@ -151,11 +151,14 @@ export default {
     } catch (e) {
       throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
     }
-    const web3 = new providers.JsonRpcProvider({
-      url: ethereum.toString(),
-      user: ethereum.username,
-      password: ethereum.password,
-    })
+    const web3 = new providers.JsonRpcProvider(
+      {
+        url: ethereum.toString(),
+        user: ethereum.username,
+        password: ethereum.password,
+      },
+      'rinkeby',
+    )
     const network = await web3.getNetwork()
     logger.info('Successfully connected to Ethereum', { provider: web3.connection.url })
 
