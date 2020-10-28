@@ -5,13 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Fix not creating any allocations at all anymore
 
 ## [0.3.2] - 2020-10-27
 ### Added
 - Don't try to allocate zero or negative GRT amounts
 - Submit random POI, if cannot create one, to allow testing of indexer rewards distribution on testnet
 - Add optional GDAI/GRT variable automation
-- Include metrics for the GRT<->DAI conversion rate in both directions
+- Include metrics for the GRT&lt;->DAI conversion rate in both directions
 
 ### Fixed
 - Reduce failed allocate txs by improving allocation id collision resistence

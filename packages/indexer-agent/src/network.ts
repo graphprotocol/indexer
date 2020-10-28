@@ -626,11 +626,11 @@ export class Network {
     //
     // in the contracts.
     const state = await this.contracts.staking.getAllocationState(allocationId)
-
-    if (state === 0) {
+    if (state !== 0) {
       logger.debug(`Skipping Allocation as it already exists onchain`, {
         indexer: this.indexerAddress,
         allocation: allocationId,
+        state,
       })
       return
     }
