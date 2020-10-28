@@ -16,7 +16,6 @@ import {
   IndexerManagementFeatures,
 } from '../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
-import { Json } from 'sequelize/types/lib/utils'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
