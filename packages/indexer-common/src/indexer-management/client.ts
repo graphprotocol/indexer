@@ -175,12 +175,11 @@ export class IndexerManagementClient extends Client {
     this.dai.push(value)
 
     // Update DAI in all cost models
+    const update = `'${JSON.stringify({ DAI: value })}'::jsonb`
     await this.models.CostModel.update(
       {
         // This merges DAI into the variables, overwriting existing values
-        variables: Sequelize.literal(
-          `variables || '${JSON.stringify({ DAI: value })}'::jsonb`,
-        ),
+        variables: Sequelize.literal(`coalesce(variables, '{}'::jsonb) || ${update}`),
       },
       {
         // This is just a non-obvious way to match all models
