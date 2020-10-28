@@ -124,9 +124,9 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
-      .option('inject-grt-per-dai-conversion-variable', {
+      .option('inject-dai', {
         description:
-          'Whether to inject the GRT per DAI conversion rate into cost model variables',
+          'Inject the GRT per DAI conversion rate into cost model variables',
         type: 'boolean',
         default: true,
         group: 'Cost Models',
@@ -255,6 +255,9 @@ export default {
           parallelAllocations: 2,
         },
       },
+      features: {
+        injectDai: argv.injectDai,
+      },
     })
     await createIndexerManagementServer({
       logger,
@@ -268,7 +271,7 @@ export default {
       ethereum,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
-      injectGrtPerDaiConversionVariable: argv.injectGrtPerDaiConversionVariable,
+      injectDai: argv.injectDai,
       metrics,
     })
 

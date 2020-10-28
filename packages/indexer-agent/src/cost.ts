@@ -36,7 +36,7 @@ export interface CostModelAutomationOptions {
   ethereum: providers.JsonRpcProvider
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
-  injectGrtPerDaiConversionVariable: boolean
+  injectDai: boolean
   metrics: Metrics
 }
 
@@ -45,15 +45,15 @@ export const startCostModelAutomation = ({
   ethereum,
   contracts,
   indexerManagement,
-  injectGrtPerDaiConversionVariable,
+  injectDai,
   metrics,
 }: CostModelAutomationOptions): void => {
   logger = logger.child({ component: 'CostModelAutomation' })
 
   const automationMetrics = registerMetrics(metrics)
 
-  if (injectGrtPerDaiConversionVariable) {
-    monitorAndInjectDaiConversionRate({
+  if (injectDai) {
+    monitorAndInjectDai({
       logger,
       ethereum,
       contracts,
@@ -63,16 +63,15 @@ export const startCostModelAutomation = ({
   }
 }
 
-const monitorAndInjectDaiConversionRate = ({
+const monitorAndInjectDai = ({
   logger,
   ethereum,
   contracts,
   indexerManagement,
   metrics,
-}: Omit<
-  CostModelAutomationOptions,
-  'injectGrtPerDaiConversionVariable' | 'metrics'
-> & { metrics: CostModelAutomationMetrics }): void => {
+}: Omit<CostModelAutomationOptions, 'injectDai' | 'metrics'> & {
+  metrics: CostModelAutomationMetrics
+}): void => {
   // FIXME: Make this mainnet-compatible by picking the REAL DAI address?
   const DAI = new Token(
     ChainId.RINKEBY,
@@ -82,7 +81,8 @@ const monitorAndInjectDaiConversionRate = ({
 
   const GRT = new Token(ChainId.RINKEBY, contracts.token.address, 18)
 
-  timer(120 * 1000).pipe(async () => {
+  // Update the GRT per DAI conversion rate every 15 minutes
+  timer(15 * 60 * 1000).pipe(async () => {
     const pair = await Fetcher.fetchPairData(GRT, DAI, ethereum)
     const route = new Route([pair], DAI)
     const grtPerDai = route.midPrice.toSignificant(18)
@@ -92,80 +92,7 @@ const monitorAndInjectDaiConversionRate = ({
     metrics.daiPerGrt.set(parseFloat(daiPerGrt))
     metrics.grtPerDai.set(parseFloat(grtPerDai))
 
-    logger.info(
-      'Updating cost models with GRT per DAI conversion rate variable ($DAI)',
-      { value: grtPerDai },
-    )
-
-    const result = await indexerManagement
-      .query(
-        gql`
-          {
-            costModels {
-              deployment
-              variables
-            }
-          }
-        `,
-      )
-      .toPromise()
-
-    if (result.error) {
-      logger.warn(`Failed to query cost models`, {
-        error: result.error.message || result.error,
-      })
-      return
-    }
-
-    if (!result.data || !result.data.costModels) {
-      logger.warn(`No cost models found`)
-      return
-    }
-
-    for (const costModel of result.data.costModels) {
-      const deployment = new SubgraphDeploymentID(costModel.deployment)
-
-      try {
-        logger.trace(
-          `Update cost model with GRT per DAI conversion rate variable ($DAI)`,
-          {
-            deployment: deployment.display,
-            grtPerDai: `${grtPerDai}`,
-          },
-        )
-
-        costModel.variables = JSON.stringify({
-          ...JSON.parse(costModel.variables),
-          DAI: `${grtPerDai}`,
-        })
-
-        const result = await indexerManagement
-          .mutation(
-            gql`
-              mutation setCostModel($costModel: CostModelInput!) {
-                setCostModel(costModel: $costModel) {
-                  deployment
-                }
-              }
-            `,
-            {
-              costModel,
-            },
-          )
-          .toPromise()
-
-        if (result.error) {
-          throw result.error
-        }
-      } catch (error) {
-        logger.warn(
-          `Failed to update cost model with GRT per DAI conversion rate variable ($DAI)`,
-          {
-            deployment: deployment.display,
-            error: error.message || error,
-          },
-        )
-      }
-    }
+    logger.info('Update $DAI variable', { value: grtPerDai })
+    await indexerManagement.setDai(grtPerDai)
   })
 }
