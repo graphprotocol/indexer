@@ -10,7 +10,11 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 
-import { createIndexerManagementClient, IndexerManagementDefaults } from '../client'
+import {
+  createIndexerManagementClient,
+  IndexerManagementDefaults,
+  IndexerManagementFeatures,
+} from '../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
@@ -101,6 +105,10 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
+const features: IndexerManagementFeatures = {
+  injectDai: false,
+}
+
 describe('Indexing rules', () => {
   beforeEach(async () => {
     // Spin up db
@@ -140,6 +148,7 @@ describe('Indexing rules', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     // Update the rule and ensure the right data is returned
@@ -179,6 +188,7 @@ describe('Indexing rules', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     // Update the rule
@@ -218,6 +228,7 @@ describe('Indexing rules', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     // Write the orginal
@@ -272,6 +283,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     // Write the orginal
@@ -348,6 +360,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     // Write the orginals
@@ -408,6 +421,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     // Write the rule
@@ -456,6 +470,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     // Write the rule
@@ -540,6 +555,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     // Write the orginals
@@ -599,6 +615,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
@@ -649,6 +666,7 @@ describe('Indexing rules', () => {
       address,
       contracts,
       defaults,
+      features,
     })
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()

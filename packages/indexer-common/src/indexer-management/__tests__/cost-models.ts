@@ -10,8 +10,13 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 
-import { createIndexerManagementClient, IndexerManagementDefaults } from '../client'
+import {
+  createIndexerManagementClient,
+  IndexerManagementDefaults,
+  IndexerManagementFeatures,
+} from '../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
+import { Json } from 'sequelize/types/lib/utils'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -60,20 +65,27 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
-describe('Cost models', () => {
-  beforeEach(async () => {
-    // Spin up db
-    sequelize = await connectDatabase(__DATABASE__)
-    models = defineIndexerManagementModels(sequelize)
-    address = '0xtest'
-    contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
-    await sequelize.sync({ force: true })
-    logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
-  })
+const features: IndexerManagementFeatures = {
+  injectDai: true,
+}
 
-  afterEach(async () => {
-    await sequelize.drop({})
-  })
+const setup = async () => {
+  // Spin up db
+  sequelize = await connectDatabase(__DATABASE__)
+  models = defineIndexerManagementModels(sequelize)
+  address = '0xtest'
+  contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
+  await sequelize.sync({ force: true })
+  logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+}
+
+const teardown = async () => {
+  await sequelize.drop({})
+}
+
+describe('Cost models', () => {
+  beforeEach(setup)
+  afterEach(teardown)
 
   test('Set and get cost model (model and variables)', async () => {
     const input = {
@@ -90,9 +102,10 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
-    expect(
+    await expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
           costModel: input,
@@ -119,9 +132,10 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
-    expect(
+    await expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
           costModel: input,
@@ -139,7 +153,7 @@ describe('Cost models', () => {
     const expected = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: null,
-      variables: input.variables,
+      variables: `{"baz":5,"foo":"bar"}`,
     }
 
     const client = await createIndexerManagementClient({
@@ -148,9 +162,10 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
-    expect(
+    await expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
           costModel: input,
@@ -214,6 +229,7 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     for (const update of updates) {
@@ -234,9 +250,10 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
-    expect(
+    await expect(
       client
         .query(GET_COST_MODEL_QUERY, {
           deployment:
@@ -266,6 +283,7 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     for (const input of inputs) {
@@ -299,13 +317,14 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     for (const input of inputs) {
       await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
     }
 
-    expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
       'data.costModels',
       inputs,
     )
@@ -324,6 +343,7 @@ describe('Cost models', () => {
       contracts,
       logger,
       defaults,
+      features,
     })
 
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
@@ -331,13 +351,199 @@ describe('Cost models', () => {
     input = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: '',
-      variables: '{}',
+      variables: JSON.stringify({}),
     }
 
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
 
-    expect(
+    await expect(
       client.query(GET_COST_MODELS_QUERY).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [input])
+  })
+})
+
+describe('Feature: Inject $DAI variable', () => {
+  beforeEach(setup)
+  afterEach(teardown)
+
+  test('$DAI variable is preserved when clearing variables', async () => {
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features,
+    })
+
+    const initial = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '{ votes } => 10 * $n',
+      variables: JSON.stringify({ DAI: '10.0' }),
+    }
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+
+    const update = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: null,
+      variables: JSON.stringify({}),
+    }
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
+
+    await expect(
+      client.query(GET_COST_MODELS_QUERY).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', [initial])
+  })
+
+  test('$DAI variable can be overwritten', async () => {
+    const initial = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '{ votes } => 10 * $n',
+      variables: JSON.stringify({ DAI: '10.0' }),
+    }
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features,
+    })
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    const update = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: initial.model,
+      variables: JSON.stringify({ DAI: '15.0' }),
+    }
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
+    await expect(
+      client.query(GET_COST_MODELS_QUERY).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', [update])
+  })
+
+  test('$DAI updates are applied to all cost models', async () => {
+    const inputs = [
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: '{ votes } => 10 * $n',
+        variables: JSON.stringify({ n: 100, DAI: '10.0' }),
+      },
+      {
+        deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        model: '{ proposals } => 30 * $n',
+        variables: JSON.stringify({ n: 10 }),
+      },
+    ]
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: true,
+      },
+    })
+
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    await client.setDai('15.3')
+
+    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+      'data.costModels',
+      [
+        {
+          ...inputs[0],
+          // DAI was replaced here
+          variables: JSON.stringify({ n: 100, DAI: '15.3' }),
+        },
+        {
+          ...inputs[1],
+          // DAI was added here
+          variables: JSON.stringify({ n: 10, DAI: '15.3' }),
+        },
+      ],
+    )
+  })
+
+  test('$DAI is added to new models', async () => {
+    const inputs = [
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: '{ votes } => 10 * $n',
+        variables: JSON.stringify({ n: 100, DAI: '10.0' }),
+      },
+      {
+        deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        model: '{ proposals } => 30 * $n',
+        variables: JSON.stringify({ n: 10 }),
+      },
+    ]
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: true,
+      },
+    })
+
+    // This time, set the DAI value first
+    await client.setDai('15.3')
+
+    // THEN add new cost models
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+      'data.costModels',
+      [
+        {
+          ...inputs[0],
+          // DAI was replaced here
+          variables: JSON.stringify({ n: 100, DAI: '15.3' }),
+        },
+        {
+          ...inputs[1],
+          // DAI was added here
+          variables: JSON.stringify({ n: 10, DAI: '15.3' }),
+        },
+      ],
+    )
+  })
+
+  test('If feature is disabled, $DAI variable is not preserved', async () => {
+    const initial = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: '{ votes } => 10 * $n',
+      variables: JSON.stringify({ DAI: '10.0' }),
+    }
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: false,
+      },
+    })
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    const update = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: initial.model,
+      variables: JSON.stringify({}),
+    }
+    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
+    await expect(
+      client.query(GET_COST_MODELS_QUERY).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', [update])
   })
 })
