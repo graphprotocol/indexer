@@ -71,7 +71,7 @@ module.exports = {
     let costModel = parseCostModel({
       deployment,
       model: null,
-      variables,
+      variables: parsedVariables,
     })
 
     try {

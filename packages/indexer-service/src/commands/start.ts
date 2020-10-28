@@ -225,6 +225,9 @@ export default {
           allocationAmount: BigNumber.from('0'),
         },
       },
+      features: {
+        injectDai: true,
+      },
     })
 
     // Spin up a basic webserver
