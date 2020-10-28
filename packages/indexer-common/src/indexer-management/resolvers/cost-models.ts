@@ -28,7 +28,7 @@ const setVariable = (
   value: any,
 ): CostModelVariables => {
   if (vars === null) {
-    return { name: value }
+    return { [name]: value }
   } else {
     try {
       vars[name] = value
