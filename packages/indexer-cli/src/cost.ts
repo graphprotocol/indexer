@@ -1,6 +1,7 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   CostModelAttributes,
+  GraphQLCostModel,
   IndexerManagementClient,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
@@ -67,7 +68,7 @@ const COST_MODEL_CONVERTERS_TO_GRAPHQL: Record<
  * Parses a user-provided cost model into a normalized form.
  */
 export const parseCostModel = (
-  cost: Partial<CostModelAttributes>,
+  cost: Partial<GraphQLCostModel>,
 ): Partial<CostModelAttributes> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj = {} as any
