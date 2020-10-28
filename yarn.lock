@@ -5275,6 +5275,14 @@ fs-jetpack@^2.2.2:
     minimatch "^3.0.2"
     rimraf "^2.6.3"
 
+fs-jetpack@^3.0.0:
+  version "3.2.0"
+  resolved "https://registry.npmjs.org/fs-jetpack/-/fs-jetpack-3.2.0.tgz#4b7f375718cfe36594c9a1b5158b753c9c66122d"
+  integrity sha512-LMUQxf85b3y/IuQZM9gz7bPMH60Y+NpulmHdhv8nHvgu6daYd7DiSZJSgiHKk1h6vfv1VCOqpdJcR+ThO7sFVA==
+  dependencies:
+    minimatch "^3.0.2"
+    rimraf "^2.6.3"
+
 fs-minipass@^1.2.5:
   version "1.2.7"
   resolved "https://registry.npmjs.org/fs-minipass/-/fs-minipass-1.2.7.tgz#ccff8570841e7fe4265693da88936c55aed7f7c7"
@@ -10821,6 +10829,14 @@ umask@^1.1.0:
   version "1.1.0"
   resolved "https://registry.npmjs.org/umask/-/umask-1.1.0.tgz#f29cebf01df517912bb58ff9c4e50fde8e33320d"
   integrity sha1-8pzr8B31F5ErtY/5xOUP3o4zMg0=
+
+umzug@^3.0.0-beta.6:
+  version "3.0.0-beta.6"
+  resolved "https://registry.npmjs.org/umzug/-/umzug-3.0.0-beta.6.tgz#e2ad369e9fa4a0194e3bad97e916e0414d4afeae"
+  integrity sha512-wCHoAZJD04P44bW/amAkffeuMzQx2r/kDpzhNydXO/x7tEuB0/wvBv5kkUvtstYXGpZ7sl2zuUNAN/NzYfberw==
+  dependencies:
+    fs-jetpack "^3.0.0"
+    glob "^7.1.6"
 
 unc-path-regex@^0.1.2:
   version "0.1.2"

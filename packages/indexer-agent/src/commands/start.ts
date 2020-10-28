@@ -1,5 +1,8 @@
+import path from 'path'
+
 import { Argv } from 'yargs'
 import { createClient } from '@urql/core'
+import { Umzug, SequelizeStorage } from 'umzug'
 import {
   createLogger,
   SubgraphDeploymentID,
@@ -209,6 +212,28 @@ export default {
     const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
+
+    // Automatic database migrations
+    logger.info(`Run database migrations`)
+    try {
+      const umzug = new Umzug({
+        migrations: { glob: path.join(__dirname, '..', 'migrations', '*.js') },
+        context: {
+          queryInterface: sequelize.getQueryInterface(),
+          logger,
+        },
+        storage: new SequelizeStorage({ sequelize }),
+        logger,
+      })
+      await umzug.up()
+    } catch (error) {
+      logger.error(`Failed to run database migrations`, {
+        error: error.message,
+      })
+      process.exit(1)
+      return
+    }
+    logger.info(`Successfully ran database migrations`)
 
     logger.info(`Connect to Ethereum`)
     let providerUrl
