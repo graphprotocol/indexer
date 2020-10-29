@@ -11,23 +11,23 @@
     "prepare": "rm -rf dist && yarn format && yarn lint && tsc"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "0.3.3",
-    "@graphprotocol/indexer-common": "^0.3.3",
-    "@iarna/toml": "^2.2.5",
-    "@thi.ng/iterators": "^5.1.34",
-    "@urql/core": "^1.12.3",
-    "chalk": "^4.1.0",
-    "env-paths": "^2.2.0",
-    "ethers": "^5.0.8",
-    "gluegun": "^4.4.0",
-    "graphql-tag": "^2.11.0",
-    "isomorphic-fetch": "^2.2.1",
-    "table": "^5.4.6",
-    "yaml": "^1.10.0"
+    "@graphprotocol/common-ts": "0.3.5",
+    "@graphprotocol/indexer-common": "0.2.6",
+    "@iarna/toml": "2.2.5",
+    "@thi.ng/iterators": "5.1.40",
+    "@urql/core": "1.14.1",
+    "chalk": "4.1.0",
+    "env-paths": "2.2.0",
+    "ethers": "5.0.19",
+    "gluegun": "4.5.0",
+    "graphql-tag": "2.11.0",
+    "isomorphic-fetch": "3.0.0",
+    "table": "6.0.3",
+    "yaml": "1.10.0"
   },
   "devDependencies": {
-    "@types/isomorphic-fetch": "^0.0.35",
-    "@types/table": "^5.0.0"
+    "@types/isomorphic-fetch": "0.0.35",
+    "@types/table": "6.0.0"
   },
   "resolutions": {
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"

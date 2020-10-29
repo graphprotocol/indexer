@@ -7,5 +7,5 @@ export const createIndexerManagementClient = async ({
 }: {
   url: string
 }): Promise<IndexerManagementClient> => {
-  return createClient({ url, fetch }) as IndexerManagementClient
+  return (createClient({ url, fetch }) as unknown) as IndexerManagementClient
 }
