@@ -741,14 +741,14 @@
     prom-client "^12.0.0"
     sequelize "^6.3.4"
 
-"@graphprotocol/common-ts@0.3.5":
-  version "0.3.5"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.3.5.tgz#335ec18f917aa2e61d439a2d318833ba1810a40b"
-  integrity sha512-pNrZWdhUbgPm8VCrFHecV6sMgz2e3sOVgDyeP2ugDeYUpBzO2X8VkhGKwic9IQq0QIs3ueBjT8e6GQl1cfKawA==
+"@graphprotocol/common-ts@0.3.6":
+  version "0.3.6"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.3.6.tgz#d91f2241e3a0d28ed7f509ae6bd73dbbc9340ec9"
+  integrity sha512-6FGWPwHek4jsJFk4j7xortQJ0tRN0ROKJPXjmw25XziDnweB+DSjdIulZNPgvrmknGEtGi+MhYP5YpuJ2Ii3Fw==
   dependencies:
     "@graphprotocol/contracts" "0.7.7-testnet-phase2"
-    "@urql/core" "1.14.1"
-    "@urql/exchange-execute" "1.0.2"
+    "@urql/core" "1.13.1"
+    "@urql/exchange-execute" "1.0.1"
     body-parser "1.19.0"
     bs58 "4.0.1"
     cors "2.8.5"
@@ -2453,21 +2453,22 @@
   resolved "https://registry.npmjs.org/@uniswap/v2-core/-/v2-core-1.0.1.tgz#af8f508bf183204779938969e2e54043e147d425"
   integrity sha512-MtybtkUPSyysqLY2U210NBDeCHX+ltHt3oADGdjqoThZaFRDKwM6k1Nb3F0A3hk5hwuQvytFWhrWHOEq6nVJ8Q==
 
-"@urql/core@1.12.3":
-  version "1.12.3"
-  resolved "https://registry.npmjs.org/@urql/core/-/core-1.12.3.tgz#74f7b8e073cf706380bb3dd28484b8136cc96905"
-  integrity sha512-e4IXXQ4nes3KyusgYV925DuzfDAfo4ex7Ls3tZfOExkxEcXh0i0XnizXp0rvZmWRch69YCkc+Lh1Gy2aY49HTQ==
+"@urql/core@1.13.1", "@urql/core@>=1.12.0", "@urql/core@>=1.14.0", "@urql/core@^1.12.3":
+  version "1.13.1"
+  resolved "https://registry.npmjs.org/@urql/core/-/core-1.13.1.tgz#7247c27dccd7570010de91730d1f16fd15892829"
+  integrity sha512-Zl4UwvcE9JbWKzrtxnlmfF+rkX50GzK5dpMlB6FnUYF0sLmuGMxp67lnhTQsfTNJ+41bkj4lk0PMWEnG7KUsTw==
   dependencies:
     wonka "^4.0.14"
 
-"@urql/core@1.14.1", "@urql/core@>=1.14.0", "@urql/core@^1.12.3":
-  version "1.14.1"
-  resolved "https://registry.npmjs.org/@urql/core/-/core-1.14.1.tgz#eadd3f4dbbb9d194a67bc84fcce082bb511d13fe"
-  integrity sha512-yRpGazoqn4eSzcVcnwKCYcXEePiwc/fwkKAzguPP9sNZu3qWMBSHzH7huu0FeuwTiSxu6S1x3l0s7QYere0ZFQ==
+"@urql/exchange-execute@1.0.1":
+  version "1.0.1"
+  resolved "https://registry.npmjs.org/@urql/exchange-execute/-/exchange-execute-1.0.1.tgz#4cda7cbb8130c6c99f035927ca5d4756685f1ab4"
+  integrity sha512-7WgchTfgfPr+9KAiRlsf/MocMcjbP+1Tvlfjd5jWCiJDtIfaGA6ALx/ibAUhTRKF97zXuHfyeD3dWrodmPLuag==
   dependencies:
+    "@urql/core" ">=1.12.0"
     wonka "^4.0.14"
 
-"@urql/exchange-execute@1.0.2", "@urql/exchange-execute@^1.0.1":
+"@urql/exchange-execute@^1.0.1":
   version "1.0.2"
   resolved "https://registry.npmjs.org/@urql/exchange-execute/-/exchange-execute-1.0.2.tgz#b09c7aa14cb2da53b44b94462b2954315bb150a2"
   integrity sha512-4eK3ow7wOtPpeKET1+PaAFOLxnELen9tMoLF16B0FuuNRwuzhLK1tk3eNaTWIwSv4VlTdV086W5e2b+GcWn+bw==

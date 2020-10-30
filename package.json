@@ -9,9 +9,7 @@
       "packages/indexer-service"
     ],
     "nohoist": [
-      "@graphprotocol/receipt-manager/**/ethers",
-      "@graphprotocol/receipt-manager/**/@graphprotocol/common-ts",
-      "@graphprotocol/receipt-manager/**/@graphprotocol/contracts"
+      "**/@graphprotocol/receipt-manager/**"
     ]
   },
   "scripts": {
@@ -26,6 +24,7 @@
     "lerna": "3.22.1"
   },
   "resolutions": {
+    "@urql/core": "1.13.1",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
