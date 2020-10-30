@@ -94,7 +94,8 @@ export default {
         group: 'Network Subgraph',
       })
       .option('index-node-ids', {
-        description: 'Node IDs of Graph nodes to use for indexing',
+        description:
+          'Node IDs of Graph nodes to use for indexing (separated by commas)',
         type: 'string',
         array: true,
         required: true,
