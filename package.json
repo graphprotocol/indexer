@@ -7,9 +7,6 @@
       "packages/indexer-cli",
       "packages/indexer-agent",
       "packages/indexer-service"
-    ],
-    "nohoist": [
-      "**/@graphprotocol/receipt-manager/**"
     ]
   },
   "scripts": {

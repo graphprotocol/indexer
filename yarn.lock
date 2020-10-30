@@ -767,32 +767,6 @@
     prom-client "12.0.0"
     sequelize "6.3.5"
 
-"@graphprotocol/common-ts@^0.2.5":
-  version "0.2.12"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-0.2.12.tgz#a4a2e7b568862e7681493c35202fc1b56cf04889"
-  integrity sha512-V+cAXp6VOlTbcPWuDyrMpjJk9PUuprNbMIk1FF8Whi+Wg2IQCNRiZddzEsjz9gQjZJIquXRkw8RRMcuWcVdt9A==
-  dependencies:
-    "@graphprotocol/contracts" "0.5.0-testnet-phase1"
-    "@urql/core" "^1.12.3"
-    "@urql/exchange-execute" "^1.0.1"
-    body-parser "^1.19.0"
-    bs58 "^4.0.1"
-    cors "^2.8.5"
-    cross-fetch "^3.0.5"
-    ethers "^5.0.15"
-    express "^4.17.1"
-    graphql "^15.3.0"
-    graphql-tag "^2.11.0"
-    helmet "^4.1.0"
-    lodash.isequal "^4.5.0"
-    morgan "^1.10.0"
-    ngeohash "^0.6.3"
-    pg "^8.2.1"
-    pg-hstore "^2.3.3"
-    pino "^6.3.2"
-    prom-client "^12.0.0"
-    sequelize "^6.3.4"
-
 "@graphprotocol/contracts@0.5.0-testnet-phase1":
   version "0.5.0-testnet-phase1"
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-0.5.0-testnet-phase1.tgz#db457821ce9d849262d51d020b9564706808b7eb"
@@ -805,24 +779,6 @@
   dependencies:
     "@ethersproject/contracts" "^5.0.3"
     ethers "^5.0.9"
-
-"@graphprotocol/indexer-common@0.2.6":
-  version "0.2.6"
-  resolved "https://registry.npmjs.org/@graphprotocol/indexer-common/-/indexer-common-0.2.6.tgz#f6e6270a6b0135a95d233bea9ee916d4ba0dfbdf"
-  integrity sha512-onoIfbeAHhryo8nknZLkuFqGEtNhCpdUrgpkibL4z3CjVgF5Quzye9ZlXyZ01z8pykAlyJL3IzeFMxRCQsTvUw==
-  dependencies:
-    "@graphprotocol/common-ts" "^0.2.5"
-    "@urql/core" "^1.12.3"
-    "@urql/exchange-execute" "^1.0.1"
-    body-parser "^1.19.0"
-    cors "^2.8.5"
-    ethers "^5.0.9"
-    express "^4.17.1"
-    graphql "^15.3.0"
-    graphql-tag "^2.11.0"
-    morgan "^1.10.0"
-    ngeohash "^0.6.3"
-    sequelize "^6.3.4"
 
 "@graphprotocol/receipt-manager@0.3.2":
   version "0.3.2"
@@ -2102,9 +2058,9 @@
     "@thi.ng/random" "^2.0.2"
 
 "@types/babel__core@^7.0.0", "@types/babel__core@^7.1.7":
-  version "7.1.10"
-  resolved "https://registry.npmjs.org/@types/babel__core/-/babel__core-7.1.10.tgz#ca58fc195dd9734e77e57c6f2df565623636ab40"
-  integrity sha512-x8OM8XzITIMyiwl5Vmo2B1cR1S1Ipkyv4mdlbJjMa1lmuKvKY9FrBbEANIaMlnWn5Rf7uO+rC/VgYabNkE17Hw==
+  version "7.1.11"
+  resolved "https://registry.npmjs.org/@types/babel__core/-/babel__core-7.1.11.tgz#7fae4660a009a4031e293f25b213f142d823b3c4"
+  integrity sha512-E5nSOzrjnvhURYnbOR2dClTqcyhPbPvtEwLHf7JJADKedPbcZsoJVfP+I2vBNfBjz4bnZIuhL/tNmRi5nJ7Jlw==
   dependencies:
     "@babel/parser" "^7.1.0"
     "@babel/types" "^7.0.0"
@@ -2240,9 +2196,9 @@
   integrity sha512-3c+yGKvVP5Y9TYBEibGNR+kLtijnj7mYrXRg+WpFb2X9xm04g/DXYkfg4hmzJQosc9snFNUPkbYIhu+KAm6jJw==
 
 "@types/lodash@^4.14.159":
-  version "4.14.163"
-  resolved "https://registry.npmjs.org/@types/lodash/-/lodash-4.14.163.tgz#6026f73c8267a0b7d41c7c8aadacfa2a5255774f"
-  integrity sha512-BeZM/FZaV53emqyHxn9L39Oz6XbHMBRLA1b1quROku48J/1kYYxPmVOJ/qSQheb81on4BI7H6QDo6bkUuRaDNQ==
+  version "4.14.164"
+  resolved "https://registry.npmjs.org/@types/lodash/-/lodash-4.14.164.tgz#52348bcf909ac7b4c1bcbeda5c23135176e5dfa0"
+  integrity sha512-fXCEmONnrtbYUc5014avwBeMdhHHO8YJCkOBflUL9EoJBSKZ1dei+VO74fA7JkTHZ1GvZack2TyIw5U+1lT8jg==
 
 "@types/mime@*":
   version "2.0.3"
@@ -4424,7 +4380,7 @@ ethers@5.0.12:
     "@ethersproject/web" "^5.0.4"
     "@ethersproject/wordlists" "^5.0.3"
 
-ethers@5.0.19, ethers@^5.0.13, ethers@^5.0.15, ethers@^5.0.8, ethers@^5.0.9:
+ethers@5.0.19, ethers@^5.0.13, ethers@^5.0.8, ethers@^5.0.9:
   version "5.0.19"
   resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.19.tgz#a4636f62a180135b13fd1f0a393477beafd535b7"
   integrity sha512-0AZnUgZh98q888WAd1oI3aLeI+iyDtrupjANVtPPS7O63lVopkR/No8A1NqSkgl/rU+b2iuu2mUZor6GD4RG2w==
