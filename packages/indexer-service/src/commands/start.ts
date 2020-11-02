@@ -141,7 +141,11 @@ export default {
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network`)
-    const networkSubgraph = createClient({ url: argv.networkSubgraphEndpoint, fetch })
+    const networkSubgraph = createClient({
+      url: argv.networkSubgraphEndpoint,
+      fetch,
+      requestPolicy: 'network-only',
+    })
     logger.info(`Successfully connected to network`)
 
     logger.info('Connecting to Ethereum', { provider: argv.ethereum })
