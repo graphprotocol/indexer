@@ -111,14 +111,18 @@ export class QueryProcessor implements QueryProcessorInterface {
       throw new Error(`Unable to sign the query response attestation`)
     }
 
-    /**
-     * This call is only needed if the indexer service wants to validate that the stateChannelMessage
-     *  contains a valid payment before executing the query.
-     * It is safe to call provideAttestation or declineQuery without first calling inputStateChannelMessage.
-     * The downside of removing this call is that the indexer service would execute the query and potentially
-     *  discover that there is no valid payment state.
-     */
-    await this.receiptManager.inputStateChannelMessage(stateChannelMessage)
+    // FIXME: Checking the validity of the state channel message before executing
+    // the query is desirable, so it would be good to have a replacement for the
+    // commented out code below (which apparently is causing issues).
+    //
+    // /**
+    //  * This call is only needed if the indexer service wants to validate that the stateChannelMessage
+    //  *  contains a valid payment before executing the query.
+    //  * It is safe to call provideAttestation or declineQuery without first calling inputStateChannelMessage.
+    //  * The downside of removing this call is that the indexer service would execute the query and potentially
+    //  *  discover that there is no valid payment state.
+    //  */
+    // await this.receiptManager.inputStateChannelMessage(stateChannelMessage)
 
     let response: AxiosResponse<string>
     try {
