@@ -23,7 +23,7 @@ COPY packages/indexer-common/ ./packages/indexer-common
 COPY packages/indexer-agent/ ./packages/indexer-agent
 
 # Install dependencies; include dev dependencies
-RUN yarn --pure-lockfile --non-interactive --production=false
+RUN yarn --frozen-lockfile --non-interactive --production=false
 
 ########################################################################
 # Runtime image
@@ -52,7 +52,7 @@ COPY --from=build /opt/indexer/packages/indexer-agent/package.json /opt/indexer/
 COPY --from=build /opt/indexer/packages/indexer-agent/dist /opt/indexer/packages/indexer-agent/dist
 
 # Install dependencies; exclude dev dependencies
-RUN yarn --pure-lockfile --non-interactive
+RUN yarn --frozen-lockfile --non-interactive
 
 ENV ETHEREUM ""
 
