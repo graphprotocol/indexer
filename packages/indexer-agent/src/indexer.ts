@@ -30,7 +30,11 @@ export class Indexer {
     indexerAddress: string,
   ) {
     this.indexerManagement = indexerManagement
-    this.statuses = createClient({ url: statusEndpoint, fetch })
+    this.statuses = createClient({
+      url: statusEndpoint,
+      fetch,
+      requestPolicy: 'network-only',
+    })
     this.logger = logger
     this.indexerAddress = indexerAddress
 
