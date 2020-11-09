@@ -251,13 +251,13 @@ export const createApp = async ({
               .header('x-graph-payment', response.envelopedAttestation)
               .contentType('application/json')
               .send(response.result)
-          } catch (error) {
-            logger.error(`Failed to handle paid query`, { error: error.message })
+          } catch (err) {
+            logger.error(`Failed to handle paid query`, { err })
             serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.bytes32 })
             res
-              .status(error.status || 500)
+              .status(err.status || 500)
               .contentType('application/json')
-              .send({ error: `${error.message}` })
+              .send({ error: `${err.message}` })
           }
         } else {
           logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
@@ -272,12 +272,12 @@ export const createApp = async ({
               .status(response.status || 200)
               .contentType('application/json')
               .send(response.result)
-          } catch (error) {
-            logger.error(`Failed to handle free query`, { error: error.message })
+          } catch (err) {
+            logger.error(`Failed to handle free query`, { err })
             res
-              .status(error.status || 500)
+              .status(err.status || 500)
               .contentType('application/json')
-              .send({ error: `${error.message}` })
+              .send({ error: `${err.message}` })
           }
         }
       } finally {
@@ -300,14 +300,14 @@ export const createApp = async ({
         const response = await receiptManager.inputStateChannelMessage(req.body)
         serverMetrics.successfulChannelMessages.inc()
         return res.status(200).send(response)
-      } catch (error) {
+      } catch (err) {
         serverMetrics.failedChannelMessages.inc()
         logger.error(`Failed to handle state channel message`, {
           body: req.body,
           headers: req.headers,
-          error: error.message,
+          err,
         })
-        return res.status(500).send({ error: error.message })
+        return res.status(500).send({ error: err.message })
       } finally {
         stopTimer()
       }

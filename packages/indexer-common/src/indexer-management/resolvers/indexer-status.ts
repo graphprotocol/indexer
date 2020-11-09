@@ -212,11 +212,9 @@ export default {
           endpoints.channels.tests = tests
         }
       }
-    } catch (error) {
+    } catch (err) {
       // Return empty endpoints
-      logger?.warn(`Failed to detect service endpoints`, {
-        error: error.message || error,
-      })
+      logger?.warn(`Failed to detect service endpoints`, { err })
     }
 
     return endpoints

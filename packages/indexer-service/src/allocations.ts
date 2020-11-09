@@ -77,10 +77,10 @@ export const monitorActiveAllocations = ({
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return result.data.indexer.allocations.map(parseGraphQLAllocation)
-    } catch (error) {
+    } catch (err) {
       logger.warn(`Failed to query allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
-        error: error.message || error,
+        err,
       })
       return currentAllocations
     }
@@ -146,12 +146,12 @@ export const ensureAttestationSigners = ({
 
           // Update the cache
           cache.set(allocation.id, signer)
-        } catch (error) {
+        } catch (err) {
           logger.warn(`Failed to identify attestation signer for allocation`, {
             allocation: allocation.id,
             deployment: allocation.subgraphDeployment.id.display,
             createdAtEpoch: allocation.createdAtEpoch,
-            error: error.message || error,
+            err,
           })
         }
       }

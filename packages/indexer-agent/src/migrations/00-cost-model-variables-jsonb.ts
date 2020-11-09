@@ -89,11 +89,11 @@ export async function up({ context }: Context): Promise<void> {
           `UPDATE "CostModels" SET variables = ${sqlVariables} WHERE id = '${costModel.id}'`,
           { transaction },
         )
-      } catch (error) {
+      } catch (err) {
         logger.warn(`Failed to migrate cost model`, {
           id: costModel.id,
           deployment: costModel.deployment,
-          error: error.message,
+          err,
         })
       }
     }

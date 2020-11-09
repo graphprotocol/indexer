@@ -227,10 +227,8 @@ export default {
         logger,
       })
       await umzug.up()
-    } catch (error) {
-      logger.error(`Failed to run database migrations`, {
-        error: error.message,
-      })
+    } catch (err) {
+      logger.error(`Failed to run database migrations`, { err })
       process.exit(1)
       return
     }

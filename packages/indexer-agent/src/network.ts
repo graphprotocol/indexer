@@ -99,10 +99,10 @@ export class Network {
           }
 
           return result.data.graphNetworks[0].isPaused
-        } catch (error) {
+        } catch (err) {
           this.logger.warn(
             `Failed to check for network pause, assuming it has not changed`,
-            { error: error.message || error, paused: currentlyPaused },
+            { err, paused: currentlyPaused },
           )
           return currentlyPaused
         }
@@ -124,10 +124,10 @@ export class Network {
               this.indexerAddress,
             ))
           )
-        } catch (error) {
+        } catch (err) {
           this.logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
-            { error: error.message || error, isOperator },
+            { err, isOperator },
           )
           return isOperator
         }
@@ -357,11 +357,11 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
       )
-    } catch (error) {
+    } catch (err) {
       this.logger.error(`Failed to query subgraphs on the network`, {
-        error: error.message,
+        err,
       })
-      throw error
+      throw err
     }
   }
 
@@ -400,9 +400,9 @@ export class Network {
       }
 
       return result.data.allocations.map(parseGraphQLAllocation)
-    } catch (error) {
-      this.logger.error(`Failed to query indexer allocations `)
-      throw error
+    } catch (err) {
+      this.logger.error(`Failed to query indexer allocations`, { err })
+      throw err
     }
   }
 
@@ -463,9 +463,9 @@ export class Network {
           closedAtEpoch: allocation.closedAtEpoch,
         }),
       )
-    } catch (error) {
-      this.logger.error(`Failed to query indexer allocations `)
-      throw error
+    } catch (err) {
+      this.logger.error(`Failed to query indexer allocations`, err)
+      throw err
     }
   }
 
@@ -530,11 +530,9 @@ export class Network {
       assert.ok(event)
 
       logger.info(`Successfully registered indexer`)
-    } catch (error) {
-      logger.error(`Failed to register indexer`, {
-        error: error.message || error,
-      })
-      throw error
+    } catch (err) {
+      logger.error(`Failed to register indexer`, { err })
+      throw err
     }
   }
 
@@ -734,9 +732,9 @@ export class Network {
       }
       logger.info(`Successfully closed allocation`)
       return true
-    } catch (error) {
+    } catch (err) {
       logger.warn(`Failed to close allocation`, {
-        error: error.message || error,
+        err,
       })
       return false
     }
@@ -779,10 +777,8 @@ export class Network {
       )
       logger.info(`Successfully claimed allocation`)
       return true
-    } catch (error) {
-      logger.warn(`Failed to claim allocation`, {
-        error: error.message || error,
-      })
+    } catch (err) {
+      logger.warn(`Failed to claim allocation`, { err })
       return false
     }
   }

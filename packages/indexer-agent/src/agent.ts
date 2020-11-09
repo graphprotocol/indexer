@@ -158,10 +158,8 @@ class Agent {
         try {
           // Obtain the latest indexer and network state
           return await this.synchronize()
-        } catch (error) {
-          this.logger.warn(`Failed to synchronize with network`, {
-            error: error.message || error,
-          })
+        } catch (err) {
+          this.logger.warn(`Failed to synchronize with network`, { err })
           return state
         }
       }, initialState)
@@ -206,9 +204,9 @@ class Agent {
 
             // Claim rebate pool rewards from finalized allocations
             await this.claimRebateRewards(claimableAllocations)
-          } catch (error) {
+          } catch (err) {
             this.logger.warn(`Failed to reconcile indexer and network:`, {
-              error: error.message || error,
+              err,
             })
           }
         },
@@ -509,13 +507,13 @@ class Agent {
           allocation.id,
         )
         return onChainAllocation.closedAtEpoch.eq('0')
-      } catch (error) {
+      } catch (err) {
         this.logger.warn(
           `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
           {
             deployment: deployment.display,
             allocation: allocation.id,
-            error: error.message,
+            err,
           },
         )
         return true

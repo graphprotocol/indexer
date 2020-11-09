@@ -231,11 +231,11 @@ export class Indexer {
           rule: defaultGlobalRule.data.setIndexingRule,
         })
       }
-    } catch (error) {
+    } catch (err) {
       this.logger.error('Failed to ensure default "global" indexing rule', {
-        error: error.message || error,
+        err,
       })
-      throw error
+      throw err
     }
   }
 
@@ -405,11 +405,11 @@ export class Indexer {
       await this.create(name)
       await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
-    } catch (error) {
+    } catch (err) {
       this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
         name,
         deployment: deployment.display,
-        error,
+        err,
       })
     }
   }
