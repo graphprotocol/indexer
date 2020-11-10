@@ -195,12 +195,8 @@ export const createApp = async ({
         // Trusted indexer scenario: if the sender provides the free
         // query auth token, we do not require payment
         let paymentRequired = true
-        if (freeQueryAuthValue) {
-          logger.debug(`Checking free query auth token`, {
-            authorizationHeader: req.headers['authorization'],
-            freeQueryAuthValue,
-          })
-          paymentRequired = req.headers['authorization'] === freeQueryAuthValue
+        if (freeQueryAuthValue && req.headers['authorization'] === freeQueryAuthValue) {
+          paymentRequired = false
         }
 
         if (paymentRequired) {
