@@ -7,7 +7,7 @@
 This repository is managed using [Lerna](https://lerna.js.org/) and [Yarn
 workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
 
-[Chan](https://github.com/geut/chan/tree/master/packages/chan) is (or will be)
+[chan](https://github.com/geut/chan/tree/master/packages/chan) is (or will be)
 used to maintain the following changelogs:
 
 - [indexer-service](packages/indexer-service/CHANGELOG.md)
