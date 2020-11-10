@@ -196,7 +196,11 @@ export const createApp = async ({
         // query auth token, we do not require payment
         let paymentRequired = true
         if (freeQueryAuthValue) {
-          paymentRequired = req.headers['authorization'] == freeQueryAuthValue
+          logger.debug(`Checking free query auth token`, {
+            authorizationHeader: req.headers['authorization'],
+            freeQueryAuthValue,
+          })
+          paymentRequired = req.headers['authorization'] === freeQueryAuthValue
         }
 
         if (paymentRequired) {
