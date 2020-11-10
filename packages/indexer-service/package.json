@@ -25,7 +25,7 @@
   "dependencies": {
     "@graphprotocol/common-ts": "0.3.11",
     "@graphprotocol/indexer-common": "^0.3.5",
-    "@graphprotocol/receipt-manager": "0.0.2-next.ed5de1e.164",
+    "@graphprotocol/receipt-manager": "0.0.2-next.344f4a2.168",
     "@statechannels/server-wallet": "0.3.10",
     "@thi.ng/cache": "1.0.59",
     "@urql/core": "1.13.1",
