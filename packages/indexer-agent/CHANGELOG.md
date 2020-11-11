@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2020-11-11
+### Changed
+- Document that --index-node-ids are comma-separated
+- Update network subgraph deployment
+
+### Fixed
+- Fix caching of indexing status queries
+- Fix submitting a non-zero PoI on incompatible networks
+
 ## [0.3.4] - 2020-10-29
 ### Changed
 - Update and pin all dependencies
@@ -100,7 +109,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/graphprotocol/indexer/compare/v0.3.4...v0.3.6
 [0.3.4]: https://github.com/graphprotocol/indexer/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/graphprotocol/indexer/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/graphprotocol/indexer/compare/v0.3.1...v0.3.2

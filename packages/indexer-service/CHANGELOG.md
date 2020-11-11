@@ -5,8 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.3.6] - 2020-11-11
 ### Fixed
 - Don\\'t cache network subgraph data
+- Fix free query auth token detection
+
+### Changed
+- Update common-ts to 0.3.11
+- Update receipt manager to 0.4.3
+- Skip EVM validation in state channels (for now)
+- Use --frozen-lockfile for Docker image
 
 ## [0.3.4] - 2020-10-29
 ### Changed
@@ -59,7 +68,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.6...HEAD
+[0.3.6]: https://github.com/graphprotocol/indexer/compare/v0.3.4...v0.3.6
 [0.3.4]: https://github.com/graphprotocol/indexer/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/graphprotocol/indexer/compare/v0.3.2...v0.3.3
 [0.3.2]: https://github.com/graphprotocol/indexer/compare/v0.3.1...v0.3.2
