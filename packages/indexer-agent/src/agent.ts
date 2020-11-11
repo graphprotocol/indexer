@@ -465,7 +465,10 @@ class Agent {
               (await this.indexer.proofOfIndexing(
                 deployment,
                 allocation.createdAtBlockHash,
-              )) || utils.hexlify(utils.randomBytes(32))
+              )) ||
+              utils.hexlify(
+                '0xC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEEEEE',
+              )
             await this.network.close(allocation, poi)
           },
           { concurrency: 1 },
@@ -534,7 +537,10 @@ class Agent {
               (await this.indexer.proofOfIndexing(
                 deployment,
                 allocation.createdAtBlockHash,
-              )) || utils.hexlify(Array(32).fill(0))
+              )) ||
+              utils.hexlify(
+                '0xC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEEEEE',
+              )
             const closed = await this.network.close(allocation, poi)
             return !closed
           } else {
@@ -596,7 +602,10 @@ class Agent {
                 (await this.indexer.proofOfIndexing(
                   deployment,
                   allocation.createdAtBlockHash,
-                )) || utils.hexlify(Array(32).fill(0))
+                )) ||
+                utils.hexlify(
+                  '0xC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEEEEE',
+                )
               const closed = await this.network.close(allocation, poi)
               return !closed
             } else {
