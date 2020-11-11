@@ -756,21 +756,21 @@
     "@ethersproject/contracts" "^5.0.3"
     ethers "^5.0.9"
 
-"@graphprotocol/receipt-manager@0.0.2-next.344f4a2.168":
-  version "0.0.2-next.344f4a2.168"
-  resolved "https://registry.npmjs.org/@graphprotocol/receipt-manager/-/receipt-manager-0.0.2-next.344f4a2.168.tgz#8ac69465b3f527c90c070e44d0357349165d1ef1"
-  integrity sha512-kYx+nfbwrQE863rFbOW6EPEchwBYunBChIdF3iInWrKQkKmx8iZbXPEggmmWM/3HBXWZTrtmHuviV8ksvlo9QQ==
+"@graphprotocol/receipt-manager@0.4.3":
+  version "0.4.3"
+  resolved "https://registry.npmjs.org/@graphprotocol/receipt-manager/-/receipt-manager-0.4.3.tgz#d7717000315d996d93498be046c621afc08fbc94"
+  integrity sha512-ITo8wOHiawJ4ch+WJtQbfdVIERXGQ2ngUYvNmYTEDW+jKmlmVoRCqxzFtFCo54NE/LT1sXNLjsiggaZf1WjiHw==
   dependencies:
     "@graphprotocol/common-ts" "^0.3.3"
-    "@graphprotocol/statechannels" "0.0.5-next.344f4a2.168+344f4a2"
+    "@graphprotocol/statechannels" "0.1.3"
     "@statechannels/server-wallet" "1.10.1"
     ethers "^5.0.9"
     lodash "^4.17.20"
 
-"@graphprotocol/statechannels@0.0.5-next.344f4a2.168+344f4a2":
-  version "0.0.5-next.344f4a2.168"
-  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.0.5-next.344f4a2.168.tgz#52b90a05e6b4fe79f99782176cbaf4a8f5412a4e"
-  integrity sha512-v17/YDev9AkmHXxjxXB58I8F/WZAwYnfxs2EoukezdS4oWz1rRXkFtrvL0phlbjHb0q2VFXiprIT8ua0situhw==
+"@graphprotocol/statechannels@0.1.3":
+  version "0.1.3"
+  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.1.3.tgz#2171ec7cebfd87286c97ac902563e3422ccc5a0a"
+  integrity sha512-3KrTEWeD4o37433den+/ZEQ7iJJjgGAlEB9HRYDKIDWbkVjEQU1aXfuRya2EKtRtPdRj+HdAWaKf/ZfqgvgOYg==
   dependencies:
     "@openzeppelin/contracts" "3.0.1"
     "@statechannels/client-api-schema" "0.4.3"
