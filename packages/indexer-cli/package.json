@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-cli",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "Indexer CLI for The Graph Network",
   "main": "dist/index.js",
   "repository": "https://github.com/graphprotocol/cli",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.3.11",
-    "@graphprotocol/indexer-common": "^0.3.5",
+    "@graphprotocol/indexer-common": "^0.3.6",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.40",
     "@urql/core": "1.13.1",
