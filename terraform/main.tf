@@ -3,10 +3,10 @@
 #
 provider "google" {
   credentials = file(".gcloud-credentials.json")
-  project = var.project
-  region  = var.region
-  zone    = var.zone
-  version = "~> 3.19"
+  project     = var.project
+  region      = var.region
+  zone        = var.zone
+  version     = "~> 3.19"
 }
 
 # Pull Access Token from gcloud client config
@@ -14,11 +14,11 @@ provider "google" {
 data "google_client_config" "gcloud" {}
 
 provider "kubernetes" {
-  load_config_file        = false
-  host                    = google_container_cluster.cluster.endpoint
+  load_config_file = false
+  host             = google_container_cluster.cluster.endpoint
   # Use the token to authenticate to K8s
-  token                   = data.google_client_config.gcloud.access_token
-  cluster_ca_certificate  = base64decode(google_container_cluster.cluster.master_auth[0].cluster_ca_certificate)
+  token                  = data.google_client_config.gcloud.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.cluster.master_auth[0].cluster_ca_certificate)
 }
 
 
@@ -26,7 +26,7 @@ provider "kubernetes" {
 # Kubernetes cluster
 #
 resource "google_container_cluster" "cluster" {
-  name     = var.indexer
+  name = var.indexer
 
   # We can't create a cluster with no node pool defined, but we want to only use
   # separately managed node pools. So we create the smallest possible default
@@ -61,7 +61,7 @@ resource "google_container_node_pool" "default_pool" {
 
   node_config {
     preemptible  = var.preemptible
-    machine_type = var.machine_type
+    machine_type = var.default_machine_type
     image_type   = var.image_type
 
     shielded_instance_config {
@@ -174,25 +174,25 @@ resource "google_container_node_pool" "index_pool" {
 # we create and destroy databases a lot, we append 4 random digits to
 # the database name.
 resource "random_integer" "dbname" {
-  min     = 1000
-  max     = 9999
+  min = 1000
+  max = 9999
   keepers = {
     indexer = "${var.indexer}"
   }
 }
 
 resource "google_sql_database_instance" "graph" {
-  database_version  = "POSTGRES_12"
-  name              = "${var.indexer}-${random_integer.dbname.result}"
+  database_version = "POSTGRES_12"
+  name             = "${var.indexer}-${random_integer.dbname.result}"
   settings {
-    activation_policy           = "ALWAYS"
-    availability_type           = "ZONAL"
-    disk_autoresize             = true
-    disk_size                   = 100
-    disk_type                   = "PD_SSD"
-    tier                        = var.database_tier
+    activation_policy = "ALWAYS"
+    availability_type = "ZONAL"
+    disk_autoresize   = true
+    disk_size         = 100
+    disk_type         = "PD_SSD"
+    tier              = var.database_tier
     ip_configuration {
-      ipv4_enabled = false
+      ipv4_enabled    = false
       private_network = "projects/${var.project}/global/networks/default"
     }
     backup_configuration {
@@ -232,8 +232,8 @@ resource "kubernetes_secret" "postgres-credentials" {
     name = "postgres-credentials"
   }
   data = {
-    host = google_sql_database_instance.graph.first_ip_address
-    user = google_sql_user.graph.name
+    host     = google_sql_database_instance.graph.first_ip_address
+    user     = google_sql_user.graph.name
     password = var.database_password
   }
 }
@@ -270,7 +270,7 @@ resource "kubernetes_secret" "docker-registry" {
 #
 data "template_file" "docker_config_script" {
   template = "${file("${path.module}/docker-config.json")}"
-  vars     = {
+  vars = {
     docker-server   = "registry.hub.docker.com"
     docker-username = var.dockerhub_username
     docker-password = var.dockerhub_password
@@ -283,9 +283,9 @@ data "template_file" "docker_config_script" {
 # Persistent disks
 #
 resource "google_compute_disk" "prometheus" {
-  name  = "${var.indexer}-prometheus"
-  type  = "pd-standard"
-  size  = var.prometheus_disk_size
+  name = "${var.indexer}-prometheus"
+  type = "pd-standard"
+  size = var.prometheus_disk_size
 }
 
 resource "kubernetes_persistent_volume" "prometheus" {
@@ -324,14 +324,14 @@ resource "kubernetes_persistent_volume_claim" "prometheus" {
       }
     }
     storage_class_name = "standard"
-    volume_name = kubernetes_persistent_volume.prometheus.metadata.0.name
+    volume_name        = kubernetes_persistent_volume.prometheus.metadata.0.name
   }
 }
 
 resource "google_compute_disk" "nfs" {
-  name  = "${var.indexer}-nfs"
-  type  = "pd-standard"
-  size  = 256
+  name = "${var.indexer}-nfs"
+  type = "pd-standard"
+  size = 256
 }
 
 resource "kubernetes_persistent_volume" "nfs" {
@@ -370,6 +370,6 @@ resource "kubernetes_persistent_volume_claim" "nfs" {
       }
     }
     storage_class_name = "standard"
-    volume_name = kubernetes_persistent_volume.nfs.metadata.0.name
+    volume_name        = kubernetes_persistent_volume.nfs.metadata.0.name
   }
 }
