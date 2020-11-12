@@ -404,7 +404,7 @@
     "@ethersproject/logger" "^5.0.5"
     "@ethersproject/properties" "^5.0.3"
 
-"@ethersproject/experimental@5.0.5", "@ethersproject/experimental@^5.0.4":
+"@ethersproject/experimental@5.0.5":
   version "5.0.5"
   resolved "https://registry.npmjs.org/@ethersproject/experimental/-/experimental-5.0.5.tgz#4d1fd2156dc428cc2c02217a2bdd36db3d532ced"
   integrity sha512-cnsKRU0BD6XvRDC1u0GaEDo0yMKSzxIbpJ7DjzCQfNUBbI1Gc9+JDy5zrCobgdgVv6WV45bHqclZ8aE5Ldv8Tw==
@@ -1924,13 +1924,6 @@
   dependencies:
     ajv "6.11.0"
 
-"@statechannels/client-api-schema@^0.3.9-alpha.0":
-  version "0.3.10"
-  resolved "https://registry.npmjs.org/@statechannels/client-api-schema/-/client-api-schema-0.3.10.tgz#f712c912c21863bbca79d0061ccadcf72eb0cb8f"
-  integrity sha512-gCoaGQ+PsX9ZwICh+QxBHD29OwWzmW3gKecbUcZcw5GFOTefVF8cnXsPbje9EjSvyWDCapWz3BCtrH9DdI1JIg==
-  dependencies:
-    ajv "6.11.0"
-
 "@statechannels/nitro-protocol@0.6.0":
   version "0.6.0"
   resolved "https://registry.npmjs.org/@statechannels/nitro-protocol/-/nitro-protocol-0.6.0.tgz#1ab2651aa952a2c4e74344fa35ecfd2421402ef2"
@@ -1946,36 +1939,6 @@
   dependencies:
     "@openzeppelin/contracts" "3.0.1"
     ethers "5.0.12"
-
-"@statechannels/nitro-protocol@^0.3.10":
-  version "0.3.10"
-  resolved "https://registry.npmjs.org/@statechannels/nitro-protocol/-/nitro-protocol-0.3.10.tgz#e1d5f1c0cc100479382bed3c03aa8a68e97ee8d0"
-  integrity sha512-devRdG46lySuKxXZeybldWE5KdSJa6G2jTmLUhUcPulJFni6vnFIoVUO5aQvHs3nAOO2MH5cT0potgvAuDRLeQ==
-  dependencies:
-    "@openzeppelin/contracts" "3.0.1"
-    ethers "5.0.12"
-
-"@statechannels/server-wallet@0.3.10":
-  version "0.3.10"
-  resolved "https://registry.npmjs.org/@statechannels/server-wallet/-/server-wallet-0.3.10.tgz#060f2c6effed459e264b53afae425b9e52224cf7"
-  integrity sha512-C0rG1h6810/G4+y9I60GLNQHqj5pfi7OUGN1ZVHIUUoTB7GWg3xLqTFU4x1i1fToayv0Dc1xBxNMGNZiVVbJGg==
-  dependencies:
-    "@ethersproject/experimental" "^5.0.4"
-    "@statechannels/client-api-schema" "^0.3.9-alpha.0"
-    "@statechannels/nitro-protocol" "^0.3.10"
-    "@statechannels/wallet-core" "^0.3.10"
-    "@statechannels/wasm-utils" "0.1.5"
-    ethers "5.0.12"
-    evt "1.8.8"
-    fp-ts "2.7.0"
-    knex "0.20.9"
-    objection "2.1.2"
-    p-queue "6.6.0"
-    pg "7.17.1"
-    pino "6.2.0"
-    pure-evm "0.1.3"
-    rxjs "6.6.3"
-    tarn "^3.0.0"
 
 "@statechannels/server-wallet@1.10.1":
   version "1.10.1"
@@ -2021,16 +1984,6 @@
     ethers "5.0.12"
     lodash "4.17.20"
 
-"@statechannels/wallet-core@^0.3.10":
-  version "0.3.10"
-  resolved "https://registry.npmjs.org/@statechannels/wallet-core/-/wallet-core-0.3.10.tgz#37ca2cd35c975b8d9ecc4b085ff6273e9e44e95a"
-  integrity sha512-tdbjgUnLmuIBvcuT35CSD0keexIrUraImPaCBrVHMFjcsooyd6lNj4SdFhFT+Z8t470Iy5n40x2sFyo4ILOcQg==
-  dependencies:
-    "@statechannels/nitro-protocol" "^0.3.10"
-    "@statechannels/wire-format" "^0.3.9-alpha.0"
-    ethers "5.0.12"
-    lodash "4.17.19"
-
 "@statechannels/wasm-utils@0.1.5":
   version "0.1.5"
   resolved "https://registry.npmjs.org/@statechannels/wasm-utils/-/wasm-utils-0.1.5.tgz#0d4b2def2a910a188ae3bb3f7482268b85c5097d"
@@ -2047,13 +2000,6 @@
   version "0.8.0"
   resolved "https://registry.npmjs.org/@statechannels/wire-format/-/wire-format-0.8.0.tgz#8ad201ef524b863643529b8665d890765a6def2a"
   integrity sha512-+60Y0lmy7ortO5E0oI4fR965qqAR0hmxodur6ttp39Irf8IUBA2JWzmRaQJ+Cj/guQ9Tb56u/e2t1yVUQigM/A==
-  dependencies:
-    ajv "6.11.0"
-
-"@statechannels/wire-format@^0.3.9-alpha.0":
-  version "0.3.10"
-  resolved "https://registry.npmjs.org/@statechannels/wire-format/-/wire-format-0.3.10.tgz#baf96b8d331d91f93d5c33f495585f85fcad43d4"
-  integrity sha512-NLRSdMcULhhEp0gCLOc6nbTz3XCMQk/JsFLy2dEaOfQhUZehtGHGaViYUQyGKd9I0EDqCkYM5g85/cMsprzoHA==
   dependencies:
     ajv "6.11.0"
 
@@ -4600,14 +4546,6 @@ evt@1.7.13:
     minimal-polyfills "^2.1.2"
     run-exclusive "^2.2.7"
 
-evt@1.8.8:
-  version "1.8.8"
-  resolved "https://registry.npmjs.org/evt/-/evt-1.8.8.tgz#42dacf676bdc7cf8dfc40f02582b19a4c00571d7"
-  integrity sha512-DJqjfFOR9CbSUWw6xjc2shdR+is8JgiRBj2pQjNwGMsHgVfbSLFAKjy3CWBGc39ZelXnL/MMUxLvdgGKxTRFmQ==
-  dependencies:
-    minimal-polyfills "^2.1.5"
-    run-exclusive "^2.2.14"
-
 exec-sh@^0.3.2:
   version "0.3.4"
   resolved "https://registry.npmjs.org/exec-sh/-/exec-sh-0.3.4.tgz#3a018ceb526cc6f6df2bb504b2bfe8e3a4934ec5"
@@ -7062,11 +7000,6 @@ lodash.upperfirst@^4.3.1:
   resolved "https://registry.npmjs.org/lodash.upperfirst/-/lodash.upperfirst-4.3.1.tgz#1365edf431480481ef0d1c68957a5ed99d49f7ce"
   integrity sha1-E2Xt9DFIBIHvDRxolXpe2Z1J984=
 
-lodash@4.17.19:
-  version "4.17.19"
-  resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.19.tgz#e48ddedbe30b3321783c5b4301fbd353bc1e4a4b"
-  integrity sha512-JNvd8XER9GQX0v2qJgsaN/mzFCNA5BRe/j8JN9d+tWyGLSodKQHKFicdwNYzWwI3wjRnaKPsGj1XkBjx/F96DQ==
-
 lodash@4.17.20, lodash@^4.17.12, lodash@^4.17.14, lodash@^4.17.15, lodash@^4.17.19, lodash@^4.17.20, lodash@^4.2.1:
   version "4.17.20"
   resolved "https://registry.npmjs.org/lodash/-/lodash-4.17.20.tgz#b44a9b6297bcb698f1c51a3545a2b3b368d59c52"
@@ -7842,14 +7775,6 @@ object.pick@^1.2.0, object.pick@^1.3.0:
   dependencies:
     isobject "^3.0.1"
 
-objection@2.1.2:
-  version "2.1.2"
-  resolved "https://registry.npmjs.org/objection/-/objection-2.1.2.tgz#da42e743ef69eabbb29bbf50efbe6f49acc854ba"
-  integrity sha512-55tkg1C8iFfsEz07N3peKXU4COve+jRTaUlSXAGlcC2Kk/7ONntREnwErQp+0483g7eexEbc8EJ7CDPu/RmYoQ==
-  dependencies:
-    ajv "^6.10.2"
-    db-errors "^0.2.3"
-
 objection@2.2.3:
   version "2.2.3"
   resolved "https://registry.npmjs.org/objection/-/objection-2.2.3.tgz#7509620b75a6907227cfb6a3fc4135222bb2e749"
@@ -8047,14 +7972,6 @@ p-queue@6.4.0:
   integrity sha512-X7ddxxiQ+bLR/CUt3/BVKrGcJDNxBr0pEEFKHHB6vTPWNUhgDv36GpIH18RmGM3YGPpBT+JWGjDDqsVGuF0ERw==
   dependencies:
     eventemitter3 "^4.0.0"
-    p-timeout "^3.1.0"
-
-p-queue@6.6.0:
-  version "6.6.0"
-  resolved "https://registry.npmjs.org/p-queue/-/p-queue-6.6.0.tgz#263f2b73add4cefca81d8d6b2696ee74b326de2f"
-  integrity sha512-zPHXPNy9jZsiym0PpJjvnHQysx1fSd/QdaNVwiDRLU2KFChD6h9CkCB6b8i3U8lBwJyA+mHgNZCzcy77glUssQ==
-  dependencies:
-    eventemitter3 "^4.0.4"
     p-timeout "^3.1.0"
 
 p-queue@6.6.2, p-queue@^6.6.2:
@@ -8662,11 +8579,6 @@ punycode@^2.1.0, punycode@^2.1.1:
   resolved "https://registry.npmjs.org/punycode/-/punycode-2.1.1.tgz#b58b010ac40c22c5657616c8d2c2c02c7bf479ec"
   integrity sha512-XRsRjdf+j5ml+y/6GKHPZbrF/8p2Yga0JPtdqTIY2Xe5ohJPD9saDJJLPvp9+NSBprVvevdXZybnj2cv8OEd0A==
 
-pure-evm@0.1.3:
-  version "0.1.3"
-  resolved "https://registry.npmjs.org/pure-evm/-/pure-evm-0.1.3.tgz#8bfd23aa906fba9c69ea6fc1e26851315b1e2806"
-  integrity sha512-H0BODiSLpNzFdasISVPhPopcijIvRKbAJIzKDCZvj9aEJ13icnFPn7C9UAonpsf6Y5CL1zTx6sB7hMihOGiWKw==
-
 q@^1.5.1:
   version "1.5.1"
   resolved "https://registry.npmjs.org/q/-/q-1.5.1.tgz#7e32f75b41381291d04611f1bf14109ac00651d7"
@@ -9109,7 +9021,7 @@ run-async@^2.2.0:
   resolved "https://registry.npmjs.org/run-async/-/run-async-2.4.1.tgz#8440eccf99ea3e70bd409d49aab88e10c189a455"
   integrity sha512-tvVnVv01b8c1RrA6Ep7JkStj85Guv/YrMcwqYQnwjsAS2cTmmPGBBjAjpCW7RrSodNSoE2/qg9O4bceNvUuDgQ==
 
-run-exclusive@^2.2.14, run-exclusive@^2.2.7:
+run-exclusive@^2.2.7:
   version "2.2.14"
   resolved "https://registry.npmjs.org/run-exclusive/-/run-exclusive-2.2.14.tgz#4f41dc7843e091f10991f8708fce87b09022a0ce"
   integrity sha512-NHaQfB3zPJFx7p4M06AcmoK8xz/h8YDMCdy3jxfyoC9VqIbl1U+DiVjUuAYZBRMwvj5qkQnOUGfsmyUC4k46dg==
@@ -9844,11 +9756,6 @@ tarn@^2.0.0:
   version "2.0.0"
   resolved "https://registry.npmjs.org/tarn/-/tarn-2.0.0.tgz#c68499f69881f99ae955b4317ca7d212d942fdee"
   integrity sha512-7rNMCZd3s9bhQh47ksAQd92ADFcJUjjbyOvyFjNLwTPpGieFHMC84S+LOzw0fx1uh6hnDz/19r8CPMnIjJlMMA==
-
-tarn@^3.0.0:
-  version "3.0.1"
-  resolved "https://registry.npmjs.org/tarn/-/tarn-3.0.1.tgz#ebac2c6dbc6977d34d4526e0a7814200386a8aec"
-  integrity sha512-6usSlV9KyHsspvwu2duKH+FMUhqJnAh6J5J/4MITl8s94iSUQTLkJggdiewKv4RyARQccnigV48Z+khiuVZDJw==
 
 tdigest@^0.1.1:
   version "0.1.1"

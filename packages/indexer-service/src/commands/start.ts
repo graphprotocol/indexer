@@ -11,7 +11,6 @@ import {
   toAddress,
   connectDatabase,
 } from '@graphprotocol/common-ts'
-import { SigningWallet } from '@statechannels/server-wallet/lib/src/models/signing-wallet'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
 import {
   createIndexerManagementClient,
@@ -181,21 +180,12 @@ export default {
     // Create receipt manager
     const receiptManager = new ReceiptManager(
       logger.child({ component: 'ReceiptManager' }),
-      wallet.privateKey,
+      wallet.privateKey, // <-- signingAddress is broadcast in AllocationCreated events
     )
     await receiptManager.migrateWalletDB()
 
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
-    await SigningWallet.query()
-      .insert(SigningWallet.fromJson({ privateKey: wallet.privateKey, address }))
-      .catch(() => {
-        // Ignore duplicate entry error; handle constraint violation by warning
-        // the user that they already have a _different_ signing key below:
-      })
-      .finally(() => {
-        logger.info('Seeded state channels wallet with operator key')
-      })
 
     logger = logger.child({
       indexer: indexerAddress.toString(),
