@@ -171,9 +171,9 @@ export const createApp = async ({
       const subgraphDeploymentID = new SubgraphDeploymentID(id)
 
       const stopQueryTimer = serverMetrics.queryDuration.startTimer({
-        deployment: subgraphDeploymentID.bytes32,
+        deployment: subgraphDeploymentID.ipfsHash,
       })
-      serverMetrics.queries.inc({ deployment: subgraphDeploymentID.bytes32 })
+      serverMetrics.queries.inc({ deployment: subgraphDeploymentID.ipfsHash })
 
       try {
         // Extract the payment
@@ -184,7 +184,7 @@ export const createApp = async ({
             envelopedPayment,
           })
           serverMetrics.queriesWithInvalidPaymentHeader.inc({
-            deployment: subgraphDeploymentID.bytes32,
+            deployment: subgraphDeploymentID.ipfsHash,
           })
           return res
             .status(402)
@@ -207,7 +207,7 @@ export const createApp = async ({
               deployment: subgraphDeploymentID.display,
             })
             serverMetrics.queriesWithoutPayment.inc({
-              deployment: subgraphDeploymentID.bytes32,
+              deployment: subgraphDeploymentID.ipfsHash,
             })
             return res
               .status(402)
@@ -227,7 +227,7 @@ export const createApp = async ({
             allocationID = parsed.allocationID
           } catch (error) {
             serverMetrics.queriesWithInvalidPaymentValue.inc({
-              deployment: subgraphDeploymentID.bytes32,
+              deployment: subgraphDeploymentID.ipfsHash,
             })
             return res
               .status(400)
@@ -244,7 +244,7 @@ export const createApp = async ({
               requestCID: utils.keccak256(new TextEncoder().encode(query)),
             })
             serverMetrics.successfulQueries.inc({
-              deployment: subgraphDeploymentID.bytes32,
+              deployment: subgraphDeploymentID.ipfsHash,
             })
             res
               .status(response.status || 200)
@@ -253,7 +253,7 @@ export const createApp = async ({
               .send(response.result)
           } catch (err) {
             logger.error(`Failed to handle paid query`, { err })
-            serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.bytes32 })
+            serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.ipfsHash })
             res
               .status(err.status || 500)
               .contentType('application/json')
