@@ -97,7 +97,7 @@ export const createApp = async ({
     }),
 
     successfulChannelMessages: new metrics.client.Counter({
-      name: 'indexer_Service_channel_messages_ok',
+      name: 'indexer_service_channel_messages_ok',
       help: 'Successfully handled channel messages',
       registers: [metrics.registry],
       labelNames: [],
