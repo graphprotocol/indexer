@@ -128,6 +128,12 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
+      .option('restake-rewards', {
+        description: `Restake claimed indexer rewards, if set to 'false' rewards will be returned to the wallet`,
+        type: 'boolean',
+        default: true,
+        group: 'Indexer Infrastructure',
+      })
       .option('inject-dai', {
         description:
           'Inject the GRT per DAI conversion rate into cost model variables',
@@ -264,8 +270,11 @@ export default {
       argv.graphNodeQueryEndpoint,
       argv.indexerGeoCoordinates,
       networkSubgraph,
+      argv.restakeRewards,
     )
-    logger.info('Successfully connected to network')
+    logger.info('Successfully connected to network', {
+      restakeRewards: argv.restakeRewards,
+    })
 
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({

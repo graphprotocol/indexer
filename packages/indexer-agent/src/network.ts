@@ -51,6 +51,7 @@ export class Network {
   ethereum: providers.JsonRpcProvider
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
+  restakeRewards: boolean
 
   private constructor(
     logger: Logger,
@@ -61,6 +62,7 @@ export class Network {
     contracts: NetworkContracts,
     subgraph: Client,
     ethereum: providers.JsonRpcProvider,
+    restakeRewards: boolean,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -72,6 +74,7 @@ export class Network {
     this.ethereum = ethereum
     this.paused = this.monitorNetworkPauses()
     this.isOperator = this.monitorIsOperator()
+    this.restakeRewards = restakeRewards
   }
 
   monitorNetworkPauses(): Eventual<boolean> {
@@ -178,6 +181,7 @@ export class Network {
     indexerQueryEndpoint: string,
     geoCoordinates: [string, string],
     networkSubgraph: Client | SubgraphDeploymentID,
+    restakeRewards: boolean,
   ): Promise<Network> {
     const subgraph =
       networkSubgraph instanceof Client
@@ -231,6 +235,7 @@ export class Network {
       contracts,
       subgraph,
       ethereum,
+      restakeRewards,
     )
   }
 
@@ -747,6 +752,7 @@ export class Network {
       createdAtEpoch: allocation.createdAtEpoch,
       closedAtEpoch: allocation.closedAtEpoch,
       createdAtBlockHash: allocation.createdAtBlockHash,
+      restakeRewards: this.restakeRewards,
     })
     try {
       logger.info(`Claim tokens from the rebate pool for allocation`)
@@ -772,7 +778,11 @@ export class Network {
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
       await this.executeTransaction(
-        this.contracts.staking.claim(allocation.id, true, txOverrides),
+        this.contracts.staking.claim(
+          allocation.id,
+          this.restakeRewards,
+          txOverrides,
+        ),
         logger.child({ action: 'claim' }),
       )
       logger.info(`Successfully claimed allocation`)
