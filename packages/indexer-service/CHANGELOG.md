@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.7-alpha.0] - 2020-11-17
+### Fixed
+- Remove unnecessary (and duplicate) server wallet migration (the receipt manager does it for us) (#107)
+- Fix typo (capital letter) in `indexer_service_channel_messages_ok` metric
+
+### Changed
+- Use IPFS deployment IDs in all metrics
+- Update `@graphprotocol/common-ts` to 0.3.13
+- Update receipt manager to latest canary release
+
 ## [0.3.6] - 2020-11-11
 ### Fixed
 - Don\\'t cache network subgraph data
@@ -68,7 +78,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.0...HEAD
+[0.3.7-alpha.0]: https://github.com/graphprotocol/indexer/compare/v0.3.6...v0.3.7-alpha.0
 [0.3.6]: https://github.com/graphprotocol/indexer/compare/v0.3.4...v0.3.6
 [0.3.4]: https://github.com/graphprotocol/indexer/compare/v0.3.3...v0.3.4
 [0.3.3]: https://github.com/graphprotocol/indexer/compare/v0.3.2...v0.3.3
