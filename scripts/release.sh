@@ -12,12 +12,12 @@ fi
 
 for package in packages/*; do
   pushd $package
-  chan release "$VERSION" || true
+  chan release --allow-prerelease "$VERSION" || true
   popd
 done
 
 (
-  git add -p packages/*/CHANGELOG.md \
+  git add packages/*/CHANGELOG.md \
     && git commit -m "*: Update changelogs ahead of release"
 ) || true
 
