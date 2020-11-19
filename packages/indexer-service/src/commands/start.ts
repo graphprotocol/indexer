@@ -1,3 +1,4 @@
+import path from 'path'
 import fetch from 'isomorphic-fetch'
 import readPkg from 'read-pkg'
 import { Argv } from 'yargs'
@@ -114,7 +115,7 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const pkg = await readPkg({ cwd: __dirname })
+    const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const dependencies = pkg.dependencies!
