@@ -3,10 +3,26 @@
 set -e
 set -x
 
+VERSION="$1"
+
+if [[ -z "$VERSION" ]]; then
+  echo "Usage: $0 <version>"
+  exit 1
+fi
+
+for package in packages/*; do
+  chan release "$VERSION" || true
+done
+
+(
+  git add -p packages/*/CHANGELOG.md \
+    && git commit -m "*: Update changelogs ahead of release"
+) || true
+
 # Publish to NPM
 rm -rf node_modules packages/*/node_modules
 yarn --registry https://registry.npmjs.org/
-lerna publish
+lerna publish "$VERSION"
 
 # Publish to testnet NPM registry
 git clone git@github.com:graphprotocol/indexer.git /tmp/indexer-release
