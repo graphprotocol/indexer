@@ -1,4 +1,5 @@
 import fetch from 'isomorphic-fetch'
+import readPkg from 'read-pkg'
 import { Argv } from 'yargs'
 import { createClient } from '@urql/core'
 import { Wallet, providers, BigNumber } from 'ethers'
@@ -113,9 +114,20 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
+    const pkg = await readPkg()
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const dependencies = pkg.dependencies!
+    const release = {
+      version: pkg.version,
+      dependencies: {
+        '@graphprotocol/common-ts': dependencies['@graphprotocol/common-ts'],
+        '@graphprotocol/receipt-manager': dependencies['@graphprotocol/receipt-manager'],
+      },
+    }
+
     let logger = createLogger({ name: 'IndexerService', async: false })
 
-    logger.info('Starting up...')
+    logger.info('Starting up...', { version: pkg.version, deps: pkg.bundledDependencies })
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
     const indexerAddress = toAddress(argv.indexerAddress)
@@ -241,6 +253,7 @@ export default {
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
       freeQueryAuthToken: argv.freeQueryAuthToken,
       indexerManagementClient,
+      release,
     })
   },
 }

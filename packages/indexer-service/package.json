@@ -45,6 +45,7 @@
     "morgan": "1.9.1",
     "p-map": "4.0.0",
     "p-queue": "6.4.0",
+    "read-pkg": "5.2.0",
     "yargs": "15.1.0"
   },
   "devDependencies": {

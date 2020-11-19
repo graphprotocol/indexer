@@ -25,6 +25,10 @@ export interface ServerOptions {
   freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
   indexerManagementClient: IndexerManagementClient
+  release: {
+    version: string
+    dependencies: { [key: string]: string }
+  }
 }
 
 export const createApp = async ({
@@ -35,6 +39,7 @@ export const createApp = async ({
   graphNodeStatusEndpoint,
   indexerManagementClient,
   metrics,
+  release,
 }: ServerOptions): Promise<express.Express> => {
   // Install metrics for incoming queries
   const serverMetrics = {
@@ -136,6 +141,11 @@ export const createApp = async ({
   // Endpoint for health checks
   app.get('/', (_, res) => {
     res.status(200).send('Ready to roll!')
+  })
+
+  // Endpoint for version
+  app.use('/version', (_, res) => {
+    res.status(200).send({ ...release })
   })
 
   // Endpoint for the public status API
@@ -325,6 +335,7 @@ export const createServer = async ({
   graphNodeStatusEndpoint,
   indexerManagementClient,
   metrics,
+  release,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -334,6 +345,7 @@ export const createServer = async ({
     graphNodeStatusEndpoint,
     indexerManagementClient,
     metrics,
+    release,
   })
 
   app.listen(port, () => {
