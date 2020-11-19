@@ -11,7 +11,9 @@ if [[ -z "$VERSION" ]]; then
 fi
 
 for package in packages/*; do
+  pushd $package
   chan release "$VERSION" || true
+  popd
 done
 
 (
