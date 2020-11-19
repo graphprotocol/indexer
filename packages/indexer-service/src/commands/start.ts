@@ -114,7 +114,8 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const pkg = await readPkg()
+    const pkg = await readPkg({ cwd: __dirname })
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const dependencies = pkg.dependencies!
     const release = {
