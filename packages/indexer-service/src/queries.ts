@@ -108,7 +108,13 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     // Fail query outright if we have no signer for this attestation
     if (signer === undefined) {
-      throw new Error(`Unable to sign the query response attestation`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const error = Error(`Unable to sign the query response attestation`) as any
+      error.envelopedResponse = JSON.stringify(
+        await this.receiptManager.declineQuery(stateChannelMessage),
+      )
+      error.status = 500
+      throw error
     }
 
     // FIXME: Checking the validity of the state channel message before executing
@@ -131,9 +137,10 @@ export class QueryProcessor implements QueryProcessorInterface {
         query.query,
       )
     } catch (error) {
-      error.envelopedResponse = await this.receiptManager.declineQuery(
-        stateChannelMessage,
+      error.envelopedResponse = JSON.stringify(
+        await this.receiptManager.declineQuery(stateChannelMessage),
       )
+      error.status = 500
       throw error
     }
 

@@ -264,10 +264,11 @@ export const createApp = async ({
           } catch (err) {
             logger.error(`Failed to handle paid query`, { err })
             serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.ipfsHash })
-            res
-              .status(err.status || 500)
-              .contentType('application/json')
-              .send({ error: `${err.message}` })
+            res = res.status(err.status || 500).contentType('application/json')
+            if (err.envelopedResponse) {
+              res = res.header('x-graph-payment', err.envelopedResponse)
+            }
+            res.send({ error: `${err.message}` })
           }
         } else {
           logger.info(`Received free query`, { deployment: subgraphDeploymentID.display })
