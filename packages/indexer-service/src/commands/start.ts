@@ -195,7 +195,7 @@ export default {
     const receiptManager = new ReceiptManager(
       logger.child({ component: 'ReceiptManager' }),
       wallet.privateKey, // <-- signingAddress is broadcast in AllocationCreated events,
-      contracts
+      contracts,
     )
     await receiptManager.migrateWalletDB()
 
