@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-agent",
-  "version": "0.3.7-alpha.5",
+  "version": "0.3.7-alpha.6",
   "description": "Indexer agent",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "0.3.13",
-    "@graphprotocol/indexer-common": "^0.3.7-alpha.5",
+    "@graphprotocol/indexer-common": "^0.3.7-alpha.6",
     "@thi.ng/iterators": "5.1.40",
     "@uniswap/sdk": "3.0.3",
     "axios": "0.21.0",
