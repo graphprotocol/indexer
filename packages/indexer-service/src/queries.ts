@@ -100,7 +100,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
-      allocationID: allocationID,
+      allocation: allocationID,
     })
 
     // Look up or derive a signer for the attestation for this query

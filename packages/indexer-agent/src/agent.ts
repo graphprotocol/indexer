@@ -150,8 +150,8 @@ class Agent {
     // Obtain the state of of the indexer and network at the current time
     const initialState = await this.synchronize()
 
-    // Have a timer fire every 10s
-    timer(10000)
+    // Have a timer fire every 30s
+    timer(30_000)
       // Whenever the timer fires, obtain the latest local and network state;
       // if this fails, stick to the previous state
       .reduce(async state => {

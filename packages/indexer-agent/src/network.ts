@@ -78,7 +78,7 @@ export class Network {
   }
 
   monitorNetworkPauses(): Eventual<boolean> {
-    return timer(10000)
+    return timer(60_000)
       .reduce(async currentlyPaused => {
         try {
           const result = await this.subgraph
@@ -117,7 +117,7 @@ export class Network {
   }
 
   monitorIsOperator(): Eventual<boolean> {
-    return timer(10000)
+    return timer(60_000)
       .reduce(async isOperator => {
         try {
           return (
