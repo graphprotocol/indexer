@@ -120,9 +120,7 @@ export const ensureAttestationSigners = ({
   const logger = parentLogger.child({ component: 'AttestationSignerCache' })
 
   const cache: AttestationSignerCache = new LRUCache(null, {
-    ksize: (k: string) => k.length,
-    vsize: (v: string) => v.length,
-    maxsize: 10000,
+    maxlen: 1000,
   })
 
   const signers = allocations.map(async allocations => {
