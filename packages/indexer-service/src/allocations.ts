@@ -9,6 +9,8 @@ import { LRUCache } from '@thi.ng/cache'
 import {
   Allocation,
   allocationSigner,
+  indexerError,
+  IndexerErrorCode,
   parseGraphQLAllocation,
 } from '@graphprotocol/indexer-common'
 
@@ -78,9 +80,9 @@ export const monitorActiveAllocations = ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return result.data.indexer.allocations.map(parseGraphQLAllocation)
     } catch (err) {
-      logger.warn(`Failed to query allocations, keeping existing`, {
+      logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
-        err,
+        err: indexerError(IndexerErrorCode.IE010, err),
       })
       return currentAllocations
     }
@@ -149,7 +151,7 @@ export const ensureAttestationSigners = ({
             allocation: allocation.id,
             deployment: allocation.subgraphDeployment.id.display,
             createdAtEpoch: allocation.createdAtEpoch,
-            err,
+            err: indexerError(IndexerErrorCode.IE022, err),
           })
         }
       }

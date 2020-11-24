@@ -12,7 +12,11 @@ import {
   SubgraphDeploymentID,
   secureExpressApp,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
+import {
+  indexerError,
+  IndexerErrorCode,
+  IndexerManagementClient,
+} from '@graphprotocol/indexer-common'
 import { ReceiptManager } from '@graphprotocol/receipt-manager'
 import { createCostServer } from './cost'
 
@@ -196,10 +200,11 @@ export const createApp = async ({
           serverMetrics.queriesWithInvalidPaymentHeader.inc({
             deployment: subgraphDeploymentID.ipfsHash,
           })
+          const err = indexerError(IndexerErrorCode.IE029)
           return res
             .status(402)
             .contentType('application/json')
-            .send({ error: 'Invalid X-Graph-Payment header provided' })
+            .send({ error: err.message })
         }
 
         // Trusted indexer scenario: if the sender provides the free
@@ -219,10 +224,11 @@ export const createApp = async ({
             serverMetrics.queriesWithoutPayment.inc({
               deployment: subgraphDeploymentID.ipfsHash,
             })
+            const err = indexerError(IndexerErrorCode.IE030)
             return res
               .status(402)
               .contentType('application/json')
-              .send({ error: 'No X-Graph-Payment provided' })
+              .send({ error: err.message })
           }
 
           logger.info(`Received paid query`, {
@@ -239,10 +245,11 @@ export const createApp = async ({
             serverMetrics.queriesWithInvalidPaymentValue.inc({
               deployment: subgraphDeploymentID.ipfsHash,
             })
+            const err = indexerError(IndexerErrorCode.IE031)
             return res
               .status(400)
               .contentType('application/json')
-              .send({ error: 'Invalid X-Graph-Payment value provided' })
+              .send({ error: err.message })
           }
 
           try {
@@ -261,12 +268,13 @@ export const createApp = async ({
               .header('x-graph-payment', response.envelopedAttestation)
               .contentType('application/json')
               .send(response.result)
-          } catch (err) {
+          } catch (error) {
+            const err = indexerError(IndexerErrorCode.IE032, error)
             logger.error(`Failed to handle paid query`, { err })
             serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.ipfsHash })
-            res = res.status(err.status || 500).contentType('application/json')
-            if (err.envelopedResponse) {
-              res = res.header('x-graph-payment', err.envelopedResponse)
+            res = res.status(error.status || 500).contentType('application/json')
+            if (error.envelopedResponse) {
+              res = res.header('x-graph-payment', error.envelopedResponse)
             }
             res.send({ error: `${err.message}` })
           }
@@ -283,10 +291,11 @@ export const createApp = async ({
               .status(response.status || 200)
               .contentType('application/json')
               .send(response.result)
-          } catch (err) {
+          } catch (error) {
+            const err = indexerError(IndexerErrorCode.IE033, error)
             logger.error(`Failed to handle free query`, { err })
             res
-              .status(err.status || 500)
+              .status(error.status || 500)
               .contentType('application/json')
               .send({ error: `${err.message}` })
           }
@@ -311,8 +320,9 @@ export const createApp = async ({
         const response = await receiptManager.inputStateChannelMessage(req.body)
         serverMetrics.successfulChannelMessages.inc()
         return res.status(200).send(response)
-      } catch (err) {
+      } catch (error) {
         serverMetrics.failedChannelMessages.inc()
+        const err = indexerError(IndexerErrorCode.IE023, error)
         logger.error(`Failed to handle state channel message`, {
           body: req.body,
           headers: req.headers,

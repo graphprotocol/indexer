@@ -17,6 +17,9 @@ import { ReceiptManager } from '@graphprotocol/receipt-manager'
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
+  indexerError,
+  IndexerErrorCode,
+  registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -115,8 +118,9 @@ export default {
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
+    let logger = createLogger({ name: 'IndexerService', async: false })
 
+    const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const dependencies = pkg.dependencies!
     const release = {
@@ -127,9 +131,19 @@ export default {
       },
     }
 
-    let logger = createLogger({ name: 'IndexerService', async: false })
-
     logger.info('Starting up...', { version: pkg.version, deps: pkg.bundledDependencies })
+
+    // Spin up a metrics server
+    const metrics = createMetrics()
+    createMetricsServer({
+      logger: logger.child({ component: 'MetricsServer' }),
+      registry: metrics.registry,
+      port: argv.metricsPort,
+    })
+
+    // Register indexer error metrics so we can track any errors that happen
+    // inside the service
+    registerIndexerErrorMetrics(metrics)
 
     const wallet = Wallet.fromMnemonic(argv.mnemonic)
     const indexerAddress = toAddress(argv.indexerAddress)
@@ -165,8 +179,13 @@ export default {
     let ethereum
     try {
       ethereum = new URL(argv.ethereum)
-    } catch (e) {
-      throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
+    } catch (err) {
+      logger.critical(`Invalid Ethereum URL`, {
+        err: indexerError(IndexerErrorCode.IE002, err),
+        url: argv.ethereum,
+      })
+      process.exit(1)
+      return
     }
     const web3 = new providers.JsonRpcProvider({
       url: ethereum.toString(),
@@ -182,14 +201,6 @@ export default {
     })
     const contracts = await connectContracts(web3, network.chainId)
     logger.info('Successfully to contracts')
-
-    // Spin up a metrics server
-    const metrics = createMetrics()
-    createMetricsServer({
-      logger: logger.child({ component: 'MetricsServer' }),
-      registry: metrics.registry,
-      port: argv.metricsPort,
-    })
 
     // Create receipt manager
     const receiptManager = new ReceiptManager(
