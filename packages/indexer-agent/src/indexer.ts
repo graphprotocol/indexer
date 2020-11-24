@@ -60,9 +60,12 @@ export class Indexer {
           deployment => deployment.display,
         ),
       })
-    } catch (e) {
-      this.logger.error(`Failed to connect to indexing status API`)
-      throw e
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE024, error)
+      this.logger.error(`Failed to connect to indexing status API`, {
+        err,
+      })
+      throw err
     }
   }
 
@@ -93,8 +96,9 @@ export class Indexer {
           return new SubgraphDeploymentID(status.subgraphDeployment)
         })
     } catch (error) {
-      this.logger.error(`Failed to query indexing status API`)
-      throw error
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(`Failed to query indexing status API`, { err })
+      throw err
     }
   }
 
@@ -131,12 +135,13 @@ export class Indexer {
       }
 
       return result.data.proofOfIndexing
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE019, error)
       this.logger.error(`Failed to query proof of indexing`, {
         subgraph: deployment.ipfsHash,
         blockHash: block,
         indexer: this.indexerAddress,
-        err: indexerError(IndexerErrorCode.IE019, err),
+        err: err,
       })
       throw err
     }
@@ -172,8 +177,9 @@ export class Indexer {
 
       return result.data.indexingRules
     } catch (error) {
-      this.logger.error(`Failed to query indexer management server`)
-      throw error
+      const err = indexerError(IndexerErrorCode.IE025, error)
+      this.logger.error(`Failed to query indexer management API`, { err })
+      throw err
     }
   }
 
@@ -234,9 +240,10 @@ export class Indexer {
           rule: defaultGlobalRule.data.setIndexingRule,
         })
       }
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE017, error)
       this.logger.error('Failed to ensure default "global" indexing rule', {
-        err: indexerError(IndexerErrorCode.IE017, err),
+        err,
       })
       throw err
     }
@@ -288,9 +295,10 @@ export class Indexer {
           }))
           .pop()
       )
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, {
-        err: indexerError(IndexerErrorCode.IE018, err),
+        err,
       })
       throw err
     }
@@ -335,12 +343,14 @@ export class Indexer {
         name,
         deployment: deployment.display,
       })
-    } catch (e) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE026, error)
       this.logger.error(`Failed to deploy subgraph deployment`, {
         name,
         deployment: deployment.display,
+        err,
       })
-      throw e
+      throw err
     }
   }
 
@@ -359,11 +369,13 @@ export class Indexer {
       this.logger.info(`Successfully removed subgraph deployment`, {
         deployment: deployment.display,
       })
-    } catch (e) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE027, error)
       this.logger.error(`Failed to remove subgraph deployment`, {
         deployment: deployment.display,
+        err,
       })
-      throw e
+      throw err
     }
   }
 
@@ -391,10 +403,12 @@ export class Indexer {
         })
         return
       }
+      const err = indexerError(IndexerErrorCode.IE028, error)
       this.logger.error(`Failed to reassign subgraph deployment`, {
         deployment: deployment.display,
+        err,
       })
-      throw error
+      throw err
     }
   }
 
@@ -410,11 +424,12 @@ export class Indexer {
       await this.create(name)
       await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE020, error)
       this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
         name,
         deployment: deployment.display,
-        err: indexerError(IndexerErrorCode.IE020, err),
+        err,
       })
     }
   }

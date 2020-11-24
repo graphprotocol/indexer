@@ -367,9 +367,10 @@ export class Network {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
       )
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE009, error)
       this.logger.error(`Failed to query subgraph deployments worth indexing`, {
-        err: indexerError(IndexerErrorCode.IE009, err),
+        err,
       })
       throw err
     }
@@ -410,9 +411,10 @@ export class Network {
       }
 
       return result.data.allocations.map(parseGraphQLAllocation)
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer allocations`, {
-        err: indexerError(IndexerErrorCode.IE010, err),
+        err,
       })
       throw err
     }
@@ -475,9 +477,10 @@ export class Network {
           closedAtEpoch: allocation.closedAtEpoch,
         }),
       )
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE011, error)
       this.logger.error(`Failed to query claimable indexer allocations`, {
-        err: indexerError(IndexerErrorCode.IE011, err),
+        err,
       })
       throw err
     }
@@ -544,9 +547,10 @@ export class Network {
       assert.ok(event)
 
       logger.info(`Successfully registered indexer`)
-    } catch (err) {
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE012, error)
       logger.error(`Failed to register indexer`, {
-        err: indexerError(IndexerErrorCode.IE012, err),
+        err,
       })
       throw err
     }
