@@ -34,6 +34,16 @@ export enum IndexerErrorCode {
   IE021 = 'IE021',
   IE022 = 'IE022',
   IE023 = 'IE023',
+  IE024 = 'IE024',
+  IE025 = 'IE025',
+  IE026 = 'IE026',
+  IE027 = 'IE027',
+  IE028 = 'IE028',
+  IE029 = 'IE029',
+  IE030 = 'IE030',
+  IE031 = 'IE031',
+  IE032 = 'IE032',
+  IE033 = 'IE033',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -60,6 +70,16 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE021: 'Failed to migrate cost model',
   IE022: 'Failed to identify attestation signer for allocation',
   IE023: 'Failed to handle state channel message',
+  IE024: 'Failed to connect to indexing status API',
+  IE025: 'Failed to query indexer management API',
+  IE026: 'Failed to deploy subgraph deployment',
+  IE027: 'Failed to remove subgraph deployment',
+  IE028: 'Failed to reassign subgraph deployment',
+  IE029: 'Invalid X-Graph-Payment header provided',
+  IE030: 'No X-Graph-Payment header provided',
+  IE031: 'Invalid X-Graph-Payment value provided',
+  IE032: 'Failed to process paid query',
+  IE033: 'Failed to process free query',
 }
 
 export class IndexerError extends CustomError {
