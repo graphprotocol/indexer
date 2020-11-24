@@ -15,6 +15,9 @@ import {
   defineIndexerManagementModels,
   createIndexerManagementServer,
   createIndexerManagementClient,
+  indexerError,
+  IndexerErrorCode,
+  registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
@@ -203,6 +206,10 @@ export default {
       port: argv.metricsPort,
     })
 
+    // Register indexer error metrics so we can track any errors that happen
+    // inside the agent
+    registerIndexerErrorMetrics(metrics)
+
     logger.info('Connect to database', {
       host: argv.postgresHost,
       port: argv.postgresPort,
@@ -234,7 +241,9 @@ export default {
       })
       await umzug.up()
     } catch (err) {
-      logger.error(`Failed to run database migrations`, { err })
+      logger.fatal(`Failed to run database migrations`, {
+        err: indexerError(IndexerErrorCode.IE001, err),
+      })
       process.exit(1)
       return
     }
@@ -244,8 +253,13 @@ export default {
     let providerUrl
     try {
       providerUrl = new URL(argv.ethereum)
-    } catch (e) {
-      throw new Error(`Invalid Ethereum URL '${argv.ethereum}': ${e}`)
+    } catch (err) {
+      logger.fatal(`Invalid Ethereum URL`, {
+        err: indexerError(IndexerErrorCode.IE002, err),
+        url: argv.ethereum,
+      })
+      process.exit(1)
+      return
     }
     const ethereum = new providers.JsonRpcProvider({
       url: providerUrl.toString(),

@@ -9,6 +9,8 @@ import {
   AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
+  indexerError,
+  IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig } from './types'
@@ -116,8 +118,11 @@ class Agent {
 
         // Throw if the subgraph has failed
         if (status.health !== 'healthy') {
-          throw new Error(
-            `Failed to index network subgraph deployment '${this.networkSubgraph}': ${status.fatalError.message}`,
+          throw indexerError(
+            IndexerErrorCode.IE003,
+            new Error(
+              `Failed to index network subgraph deployment '${this.networkSubgraph}': ${status.fatalError.message}`,
+            ),
           )
         }
 
@@ -159,7 +164,9 @@ class Agent {
           // Obtain the latest indexer and network state
           return await this.synchronize()
         } catch (err) {
-          this.logger.warn(`Failed to synchronize with network`, { err })
+          this.logger.warn(`Failed to synchronize with network`, {
+            err: indexerError(IndexerErrorCode.IE004, err),
+          })
           return state
         }
       }, initialState)
@@ -205,8 +212,8 @@ class Agent {
             // Claim rebate pool rewards from finalized allocations
             await this.claimRebateRewards(claimableAllocations)
           } catch (err) {
-            this.logger.warn(`Failed to reconcile indexer and network:`, {
-              err,
+            this.logger.warn(`Failed to reconcile indexer and network`, {
+              err: indexerError(IndexerErrorCode.IE005, err),
             })
           }
         },
@@ -516,7 +523,7 @@ class Agent {
           {
             deployment: deployment.display,
             allocation: allocation.id,
-            err,
+            err: indexerError(IndexerErrorCode.IE006, err),
           },
         )
         return true

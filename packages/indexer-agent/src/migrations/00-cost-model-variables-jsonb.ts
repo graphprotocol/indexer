@@ -1,4 +1,5 @@
 import { Logger } from '@graphprotocol/common-ts'
+import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 import { QueryInterface, DataTypes } from 'sequelize'
 
 interface MigrationContext {
@@ -93,7 +94,7 @@ export async function up({ context }: Context): Promise<void> {
         logger.warn(`Failed to migrate cost model`, {
           id: costModel.id,
           deployment: costModel.deployment,
-          err,
+          err: indexerError(IndexerErrorCode.IE020, err),
         })
       }
     }

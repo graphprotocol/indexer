@@ -18,6 +18,8 @@ import {
   INDEXING_RULE_GLOBAL,
   parseGraphQLAllocation,
   uniqueAllocationID,
+  indexerError,
+  IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -105,7 +107,10 @@ export class Network {
         } catch (err) {
           this.logger.warn(
             `Failed to check for network pause, assuming it has not changed`,
-            { err, paused: currentlyPaused },
+            {
+              err: indexerError(IndexerErrorCode.IE007, err),
+              paused: currentlyPaused,
+            },
           )
           return currentlyPaused
         }
@@ -130,7 +135,7 @@ export class Network {
         } catch (err) {
           this.logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
-            { err, isOperator },
+            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
           )
           return isOperator
         }
@@ -363,8 +368,8 @@ export class Network {
           .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
       )
     } catch (err) {
-      this.logger.error(`Failed to query subgraphs on the network`, {
-        err,
+      this.logger.error(`Failed to query subgraph deployments worth indexing`, {
+        err: indexerError(IndexerErrorCode.IE009, err),
       })
       throw err
     }
@@ -406,7 +411,9 @@ export class Network {
 
       return result.data.allocations.map(parseGraphQLAllocation)
     } catch (err) {
-      this.logger.error(`Failed to query indexer allocations`, { err })
+      this.logger.error(`Failed to query indexer allocations`, {
+        err: indexerError(IndexerErrorCode.IE010, err),
+      })
       throw err
     }
   }
@@ -469,7 +476,9 @@ export class Network {
         }),
       )
     } catch (err) {
-      this.logger.error(`Failed to query indexer allocations`, err)
+      this.logger.error(`Failed to query claimable indexer allocations`, {
+        err: indexerError(IndexerErrorCode.IE011, err),
+      })
       throw err
     }
   }
@@ -536,7 +545,9 @@ export class Network {
 
       logger.info(`Successfully registered indexer`)
     } catch (err) {
-      logger.error(`Failed to register indexer`, { err })
+      logger.error(`Failed to register indexer`, {
+        err: indexerError(IndexerErrorCode.IE012, err),
+      })
       throw err
     }
   }
@@ -603,16 +614,20 @@ export class Network {
 
     // If there isn't enough left for allocating, abort
     if (freeStake.lt(amount)) {
-      throw new Error(
-        `Failed to allocate ${formatGRT(
-          amount,
-        )} GRT to '${deployment}': indexer only has ${formatGRT(
-          freeStake,
-        )} GRT stake free for allocating`,
+      throw indexerError(
+        IndexerErrorCode.IE013,
+        new Error(
+          `Failed to allocate ${formatGRT(
+            amount,
+          )} GRT to '${deployment}': indexer only has ${formatGRT(
+            freeStake,
+          )} GRT stake free for allocating`,
+        ),
       )
     }
 
     logger.debug('Obtain a unique Allocation ID')
+
     // Obtain a unique allocation ID
     const allocationId = uniqueAllocationID(
       this.wallet.mnemonic.phrase,
@@ -669,10 +684,13 @@ export class Network {
     )
 
     if (!event) {
-      throw new Error(
-        `Failed to allocate ${formatGRT(
-          amount,
-        )} GRT to '${deployment}': allocation was never created`,
+      throw indexerError(
+        IndexerErrorCode.IE014,
+        new Error(
+          `Failed to allocate ${formatGRT(
+            amount,
+          )} GRT to '${deployment}': allocation was never created`,
+        ),
       )
     }
 
@@ -739,7 +757,7 @@ export class Network {
       return true
     } catch (err) {
       logger.warn(`Failed to close allocation`, {
-        err,
+        err: indexerError(IndexerErrorCode.IE015, err),
       })
       return false
     }
@@ -788,7 +806,9 @@ export class Network {
       logger.info(`Successfully claimed allocation`)
       return true
     } catch (err) {
-      logger.warn(`Failed to claim allocation`, { err })
+      logger.warn(`Failed to claim allocation`, {
+        err: indexerError(IndexerErrorCode.IE016, err),
+      })
       return false
     }
   }

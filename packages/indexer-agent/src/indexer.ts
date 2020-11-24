@@ -8,6 +8,8 @@ import {
   IndexingRuleAttributes,
   IndexerManagementClient,
   INDEXING_RULE_GLOBAL,
+  indexerError,
+  IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import { IndexingStatus } from './types'
 
@@ -129,13 +131,14 @@ export class Indexer {
       }
 
       return result.data.proofOfIndexing
-    } catch (error) {
+    } catch (err) {
       this.logger.error(`Failed to query proof of indexing`, {
         subgraph: deployment.ipfsHash,
         blockHash: block,
         indexer: this.indexerAddress,
+        err: indexerError(IndexerErrorCode.IE019, err),
       })
-      throw error
+      throw err
     }
   }
 
@@ -233,7 +236,7 @@ export class Indexer {
       }
     } catch (err) {
       this.logger.error('Failed to ensure default "global" indexing rule', {
-        err,
+        err: indexerError(IndexerErrorCode.IE017, err),
       })
       throw err
     }
@@ -285,9 +288,11 @@ export class Indexer {
           }))
           .pop()
       )
-    } catch (error) {
-      this.logger.error(`Failed to query indexing status API`)
-      throw error
+    } catch (err) {
+      this.logger.error(`Failed to query indexing status API`, {
+        err: indexerError(IndexerErrorCode.IE018, err),
+      })
+      throw err
     }
   }
 
@@ -409,7 +414,7 @@ export class Indexer {
       this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
         name,
         deployment: deployment.display,
-        err,
+        err: indexerError(IndexerErrorCode.IE020, err),
       })
     }
   }
