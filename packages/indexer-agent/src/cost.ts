@@ -73,7 +73,7 @@ const monitorAndInjectDai = ({
   // FIXME: Make this mainnet-compatible by picking the REAL DAI address?
   const DAI = new Token(
     ChainId.RINKEBY,
-    '0xFb49BDaA59d4B7aE6260D22b7D86e6Fe94031b82',
+    '0xaCf3F4093B9851292181BEE2F80D2A450dB25D7a',
     18,
   )
 
