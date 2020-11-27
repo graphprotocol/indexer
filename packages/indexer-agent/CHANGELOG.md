@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2020-11-27
+### Fixed
+- Fix GDAI token address
+
 ## [0.4.0] - 2020-11-27
 ### Added
 - Add migration to reset state channels
@@ -131,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/graphprotocol/indexer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0
 [0.3.7-alpha.8]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.7...v0.3.7-alpha.8
 [0.3.7-alpha.7]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.0...v0.3.7-alpha.7
