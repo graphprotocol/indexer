@@ -6,6 +6,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2020-11-27
+### Added
+- Add `--wallet-worker-threads` / `INDEXER_SERVICE_WALLET_WORKER_THREADS` to replace the old `AMOUNT_OF_WORKER_THREADS` environment variable
+- Add `--wallet-skip-evm-validation` / `INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION` to replace the `SKIP_EVM_VALIDATION` environment variable
+
+### Changed
+- Update common-ts to 0.4.0
+
+## [0.3.7-alpha.8] - 2020-11-27
+### Added
+- Make use of the new indexer error codes
+
+## [0.3.7-alpha.7] - 2020-11-27
+### Fixed
+- Fix caching of only a few attestation signers
+
+### Changed
+- Increase network synchronization intervals
+
+## [0.3.7-alpha.6] - 2020-11-27
+### Changed
+- Update receipt manager and receipt manager construction
+
+## [0.3.7-alpha.5] - 2020-11-27
+### Fixed
+- Fix how queries are declined
+
+## [0.3.7-alpha.4] - 2020-11-27
+### Fixed
+- Fix detecting and reading `package.json` (really)
+
+## [0.3.7-alpha.3] - 2020-11-27
+### Fixed
+- Fix detecting and reading `package.json`
+
 ## [0.3.7-alpha.2] - 2020-11-19
 ### Added
 - Add `/version` endpoint
@@ -86,7 +121,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0
+[0.3.7-alpha.8]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.7...v0.3.7-alpha.8
+[0.3.7-alpha.7]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.6...v0.3.7-alpha.7
+[0.3.7-alpha.6]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.5...v0.3.7-alpha.6
+[0.3.7-alpha.5]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.4...v0.3.7-alpha.5
+[0.3.7-alpha.4]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.3...v0.3.7-alpha.4
+[0.3.7-alpha.3]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.2...v0.3.7-alpha.3
 [0.3.7-alpha.2]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.1...v0.3.7-alpha.2
 [0.3.7-alpha.1]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.0...v0.3.7-alpha.1
 [0.3.7-alpha.0]: https://github.com/graphprotocol/indexer/compare/v0.3.6...v0.3.7-alpha.0

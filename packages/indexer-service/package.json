@@ -23,9 +23,9 @@
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "0.3.13",
+    "@graphprotocol/common-ts": "0.4.0",
     "@graphprotocol/indexer-common": "^0.3.7-alpha.8",
-    "@graphprotocol/receipt-manager": "0.5.11",
+    "@graphprotocol/receipt-manager": "0.5.13",
     "@thi.ng/cache": "1.0.59",
     "@urql/core": "1.13.1",
     "apollo-link-http": "1.5.17",

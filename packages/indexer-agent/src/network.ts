@@ -28,6 +28,7 @@ import {
   providers,
   Wallet,
   utils,
+  Signer,
 } from 'ethers'
 import { strict as assert } from 'assert'
 import { Client, createClient } from '@urql/core'
@@ -40,6 +41,19 @@ import * as ti from '@thi.ng/iterators'
 const txOverrides = {
   gasLimit: 1000000,
   gasPrice: utils.parseUnits('25', 'gwei'),
+}
+
+const allocationIdProof = (
+  signer: Signer,
+  indexerAddress: string,
+  allocationId: string,
+): Promise<string> => {
+  const messageHash = utils.solidityKeccak256(
+    ['address', 'address'],
+    [indexerAddress, allocationId],
+  )
+  const messageHashBytes = utils.arrayify(messageHash)
+  return signer.signMessage(messageHashBytes)
 }
 
 export class Network {
@@ -114,7 +128,7 @@ export class Network {
           )
           return currentlyPaused
         }
-      }, false)
+      }, true)
       .map(paused => {
         this.logger.info(paused ? `Network paused` : `Network active`)
         return paused
@@ -672,6 +686,7 @@ export class Network {
         amount,
         allocationId,
         utils.hexlify(Array(32).fill(0)),
+        await allocationIdProof(this.wallet, this.indexerAddress, allocationId),
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),
