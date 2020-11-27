@@ -115,6 +115,20 @@ export default {
         required: true,
         group: 'Network Subgraph',
       })
+      .option('wallet-worker-threads', {
+        description: 'Number of worker threads for the server wallet',
+        type: 'number',
+        required: false,
+        default: 8,
+        group: 'State Channels',
+      })
+      .option('wallet-skip-evm-validation', {
+        description: 'Whether to skip EVM-based validation of state channel transitions',
+        type: 'boolean',
+        required: false,
+        default: true,
+        group: 'State Channels',
+      })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
@@ -207,6 +221,18 @@ export default {
       logger.child({ component: 'ReceiptManager' }),
       wallet.privateKey, // <-- signingAddress is broadcast in AllocationCreated events,
       contracts,
+      {
+        databaseConfiguration: {
+          connection: `postgresql://${argv.postgresUsername}:${argv.postgresPassword}@${argv.postgresHost}:${argv.postgresPort}/${argv.postgresDatabase}`,
+        },
+        ethereumPrivateKey: wallet.privateKey,
+        networkConfiguration: {
+          chainNetworkID: network.chainId,
+          rpcEndpoint: argv.ethereum,
+        },
+        skipEvmValidation: argv.walletSkipEvmValidation,
+        workerThreadAmount: argv.walletWorkerThreads,
+      },
     )
     await receiptManager.migrateWalletDB()
 
@@ -223,7 +249,7 @@ export default {
       indexer: indexerAddress,
       logger,
       networkSubgraph,
-      interval: 10000,
+      interval: 10_000,
     })
 
     // Ensure there is an attestation signer for every allocation
