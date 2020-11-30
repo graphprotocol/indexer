@@ -20,6 +20,7 @@ import {
   uniqueAllocationID,
   indexerError,
   IndexerErrorCode,
+  allocationSigner,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -647,7 +648,7 @@ export class Network {
     logger.debug('Obtain a unique Allocation ID')
 
     // Obtain a unique allocation ID
-    const allocationId = uniqueAllocationID(
+    const { allocationSigner, allocationId } = uniqueAllocationID(
       this.wallet.mnemonic.phrase,
       currentEpoch.toNumber(),
       deployment,
@@ -686,7 +687,11 @@ export class Network {
         amount,
         allocationId,
         utils.hexlify(Array(32).fill(0)),
-        await allocationIdProof(this.wallet, this.indexerAddress, allocationId),
+        await allocationIdProof(
+          allocationSigner,
+          this.indexerAddress,
+          allocationId,
+        ),
         txOverrides,
       ),
       logger.child({ action: 'allocate' }),

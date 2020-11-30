@@ -1,4 +1,4 @@
-import { Wallet, utils } from 'ethers'
+import { Wallet, utils, Signer } from 'ethers'
 import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
 import { Allocation } from './types'
 
@@ -55,12 +55,15 @@ export const uniqueAllocationID = (
   epoch: number,
   deployment: SubgraphDeploymentID,
   existingIDs: Address[],
-): Address => {
+): { allocationSigner: Signer; allocationId: Address } => {
   for (let i = 0; i < 100; i++) {
     const hdNode = utils.HDNode.fromMnemonic(indexerMnemonic)
     const keyPair = deriveKeyPair(hdNode, epoch, deployment, i)
     if (!existingIDs.includes(keyPair.address)) {
-      return keyPair.address
+      return {
+        allocationSigner: new Wallet(keyPair.privateKey),
+        allocationId: keyPair.address,
+      }
     }
   }
 
