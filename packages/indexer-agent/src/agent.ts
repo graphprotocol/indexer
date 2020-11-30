@@ -190,7 +190,7 @@ class Agent {
         }) => {
           if (paused) {
             return this.logger.info(
-              `The network is currently paused, not doing anything util it resumes`,
+              `The network is currently paused, not doing anything until it resumes`,
             )
           }
 
