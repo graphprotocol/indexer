@@ -51,7 +51,7 @@ spec:
             - name: INDEXER_AGENT_GRAPH_NODE_STATUS_ENDPOINT
               value: http://query-node.default.svc.cluster.local/index-node/graphql
             - name: INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT
-              value: QmTAXJgwyFShE297dU7qRVRtz7EigRrprZyYGfbnFpLj1e
+              value: Qmex7X63rHpoodb7tEveu8C9CabMmAQdKtQew3vC8dHhQb
             - name: INDEXER_AGENT_POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
