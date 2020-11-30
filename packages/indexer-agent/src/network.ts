@@ -20,7 +20,6 @@ import {
   uniqueAllocationID,
   indexerError,
   IndexerErrorCode,
-  allocationSigner,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
