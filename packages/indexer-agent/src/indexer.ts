@@ -375,7 +375,6 @@ export class Indexer {
         deployment: deployment.display,
         err,
       })
-      throw err
     }
   }
 
