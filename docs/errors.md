@@ -76,7 +76,7 @@ can be reached but is not behaving correctly, please collect the `IE004` error
 logs and file an issue on <https://github.com/graphprotocol/indexer>:
 
 ```bash
-grep <logs> | grep IE004 | pino-pretty -t
+grep <logs> | grep IE004
 ```
 
 ## IE005
@@ -180,7 +180,7 @@ Search the indexer service and agent logs for the `IE010` error code, e.g.
 with
 
 ```bash
-grep <logs> | grep IE010 | pino-pretty -t
+grep <logs> | grep IE010
 ```
 
 File an issue on https://github.com/graphprotocol/indexer/issues with the
@@ -462,11 +462,12 @@ Failing to process a paid query can have a number of reasons:
 **Solution**
 
 Due to the complexity of this error message, the best advice is to grep the
-indexer service logs for the `IE032` error and create an issue on
+indexer service logs for the `IE010` and `IE032` error and create an issue on
 https://github.com/graphprotocol/indexer/issues:
 
 ```bash
-grep <logs> | grep IE032 | pino-pretty -t
+grep <logs> | grep IE010
+grep <logs> | grep IE032
 ```
 
 ## IE033
