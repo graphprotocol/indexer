@@ -466,9 +466,9 @@ class Agent {
 
       // Make sure to close all active allocations on the way out
       if (activeAllocations.length > 0) {
-        // We can only close allocations that are at least one epoch old;
-        // try the others again later
         await pMap(
+          // We can only close allocations that are at least one epoch old;
+          // try the others again later
           activeAllocations.filter(
             allocation => allocation.createdAtEpoch < epoch,
           ),
@@ -481,6 +481,7 @@ class Agent {
               utils.hexlify(
                 '0xC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEC0FFEEEEEE',
               )
+
             await this.network.close(allocation, poi)
           },
           { concurrency: 1 },
@@ -516,24 +517,27 @@ class Agent {
     // latencies, this data may be slightly outdated. Cross-check with the
     // contracts to avoid closing allocations that are already closed on
     // chain.
-    expiredAllocations = await pFilter(expiredAllocations, async allocation => {
-      try {
-        const onChainAllocation = await this.network.contracts.staking.getAllocation(
-          allocation.id,
-        )
-        return onChainAllocation.closedAtEpoch.eq('0')
-      } catch (err) {
-        this.logger.warn(
-          `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
-          {
-            deployment: deployment.display,
-            allocation: allocation.id,
-            err: indexerError(IndexerErrorCode.IE006, err),
-          },
-        )
-        return true
-      }
-    })
+    expiredAllocations = await pFilter(
+      expiredAllocations,
+      async (allocation: Allocation) => {
+        try {
+          const onChainAllocation = await this.network.contracts.staking.getAllocation(
+            allocation.id,
+          )
+          return onChainAllocation.closedAtEpoch.eq('0')
+        } catch (err) {
+          this.logger.warn(
+            `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
+            {
+              deployment: deployment.display,
+              allocation: allocation.id,
+              err: indexerError(IndexerErrorCode.IE006, err),
+            },
+          )
+          return true
+        }
+      },
+    )
 
     if (expiredAllocations.length > 0) {
       logger.info(`Settling expired allocations`, {
@@ -543,7 +547,7 @@ class Agent {
 
       activeAllocations = await pFilter(
         activeAllocations,
-        async allocation => {
+        async (allocation: Allocation) => {
           if (allocationInList(expiredAllocations, allocation)) {
             const poi =
               (await this.indexer.proofOfIndexing(
@@ -567,7 +571,7 @@ class Agent {
 
     if (
       !ti.some(
-        allocation => allocation.createdAtEpoch === epoch,
+        (allocation: Allocation) => allocation.createdAtEpoch === epoch,
         activeAllocations,
       )
     ) {
@@ -608,7 +612,7 @@ class Agent {
 
         activeAllocations = await pFilter(
           activeAllocations,
-          async allocation => {
+          async (allocation: Allocation) => {
             if (allocationInList(halfExpired, allocation)) {
               const poi =
                 (await this.indexer.proofOfIndexing(

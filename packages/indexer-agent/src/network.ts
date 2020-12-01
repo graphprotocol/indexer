@@ -598,6 +598,7 @@ export class Network {
     amount: BigNumber,
     activeAllocations: Allocation[],
   ): Promise<Allocation | undefined> {
+    // FIXME: This is currently hard-coded but shouldn't be.
     const price = parseGRT('0.01')
 
     const logger = this.logger.child({ deployment: deployment.display })
@@ -619,128 +620,135 @@ export class Network {
       return
     }
 
-    const currentEpoch = await this.contracts.epochManager.currentEpoch()
-    logger.info(`Allocate to subgraph deployment`, {
-      amountGRT: formatGRT(amount),
-      epoch: currentEpoch.toString(),
-    })
+    try {
+      const currentEpoch = await this.contracts.epochManager.currentEpoch()
 
-    // Identify how many GRT the indexer has staked
-    const freeStake = await this.contracts.staking.getIndexerCapacity(
-      this.indexerAddress,
-    )
-
-    // If there isn't enough left for allocating, abort
-    if (freeStake.lt(amount)) {
-      throw indexerError(
-        IndexerErrorCode.IE013,
-        new Error(
-          `Failed to allocate ${formatGRT(
-            amount,
-          )} GRT to '${deployment}': indexer only has ${formatGRT(
-            freeStake,
-          )} GRT stake free for allocating`,
-        ),
-      )
-    }
-
-    logger.debug('Obtain a unique Allocation ID')
-
-    // Obtain a unique allocation ID
-    const { allocationSigner, allocationId } = uniqueAllocationID(
-      this.wallet.mnemonic.phrase,
-      currentEpoch.toNumber(),
-      deployment,
-      activeAllocations.map(allocation => allocation.id),
-    )
-
-    // Double-check whether the allocationID already exists on chain, to
-    // avoid unnecessary transactions.
-    // Note: We're checking the allocation state here, which is defined as
-    //
-    //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
-    //
-    // in the contracts.
-    const state = await this.contracts.staking.getAllocationState(allocationId)
-    if (state !== 0) {
-      logger.debug(`Skipping Allocation as it already exists onchain`, {
-        indexer: this.indexerAddress,
-        allocation: allocationId,
-        state,
+      logger.info(`Allocate to subgraph deployment`, {
+        amountGRT: formatGRT(amount),
+        epoch: currentEpoch.toString(),
       })
-      return
-    }
 
-    logger.info(`Allocate`, {
-      indexer: this.indexerAddress,
-      amount: formatGRT(amount),
-      allocation: allocationId,
-      price,
-      txOverrides,
-    })
-
-    const receipt = await this.executeTransaction(
-      this.contracts.staking.allocateFrom(
+      // Identify how many GRT the indexer has staked
+      const freeStake = await this.contracts.staking.getIndexerCapacity(
         this.indexerAddress,
-        deployment.bytes32,
-        amount,
+      )
+
+      // If there isn't enough left for allocating, abort
+      if (freeStake.lt(amount)) {
+        throw indexerError(
+          IndexerErrorCode.IE013,
+          new Error(
+            `Unable to allocate ${formatGRT(
+              amount,
+            )} GRT: indexer only has a free stake amount of ${formatGRT(
+              freeStake,
+            )} GRT`,
+          ),
+        )
+      }
+
+      logger.debug('Obtain a unique Allocation ID')
+
+      // Obtain a unique allocation ID
+      const { allocationSigner, allocationId } = uniqueAllocationID(
+        this.wallet.mnemonic.phrase,
+        currentEpoch.toNumber(),
+        deployment,
+        activeAllocations.map(allocation => allocation.id),
+      )
+
+      // Double-check whether the allocationID already exists on chain, to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const state = await this.contracts.staking.getAllocationState(
         allocationId,
-        utils.hexlify(Array(32).fill(0)),
-        await allocationIdProof(
-          allocationSigner,
-          this.indexerAddress,
-          allocationId,
-        ),
+      )
+      if (state !== 0) {
+        logger.debug(`Skipping Allocation as it already exists onchain`, {
+          indexer: this.indexerAddress,
+          allocation: allocationId,
+          state,
+        })
+        return
+      }
+
+      logger.info(`Allocate`, {
+        indexer: this.indexerAddress,
+        amount: formatGRT(amount),
+        allocation: allocationId,
+        price,
         txOverrides,
-      ),
-      logger.child({ action: 'allocate' }),
-    )
+      })
 
-    if (receipt === 'paused' || receipt === 'unauthorized') {
-      return
-    }
+      const receipt = await this.executeTransaction(
+        this.contracts.staking.allocateFrom(
+          this.indexerAddress,
+          deployment.bytes32,
+          amount,
+          allocationId,
+          utils.hexlify(Array(32).fill(0)),
+          await allocationIdProof(
+            allocationSigner,
+            this.indexerAddress,
+            allocationId,
+          ),
+          txOverrides,
+        ),
+        logger.child({ action: 'allocate' }),
+      )
 
-    const event = receipt.events?.find(event =>
-      event.topics.includes(
-        this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-      ),
-    )
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        return
+      }
 
-    if (!event) {
-      throw indexerError(
-        IndexerErrorCode.IE014,
-        new Error(
-          `Failed to allocate ${formatGRT(
-            amount,
-          )} GRT to '${deployment}': allocation was never created`,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const event = receipt.events?.find((event: any) =>
+        event.topics.includes(
+          this.contracts.staking.interface.getEventTopic('AllocationCreated'),
         ),
       )
+
+      if (!event) {
+        throw indexerError(
+          IndexerErrorCode.IE014,
+          new Error(`Allocation was never mined`),
+        )
+      }
+
+      const eventInputs = this.contracts.staking.interface.decodeEventLog(
+        'AllocationCreated',
+        event.data,
+        event.topics,
+      )
+
+      logger.info(`Successfully allocated to subgraph deployment`, {
+        amountGRT: formatGRT(eventInputs.tokens),
+        allocation: eventInputs.allocationID,
+        epoch: eventInputs.epoch.toString(),
+      })
+
+      return {
+        id: allocationId,
+        subgraphDeployment: {
+          id: deployment,
+          stakedTokens: BigNumber.from(0),
+          signalAmount: BigNumber.from(0),
+        },
+        allocatedTokens: BigNumber.from(eventInputs.tokens),
+        createdAtBlockHash: '0x0',
+        createdAtEpoch: eventInputs.epoch,
+        closedAtEpoch: 0,
+      } as Allocation
+    } catch (err) {
+      logger.error(`Failed to allocate`, {
+        amount: formatGRT(amount),
+        err,
+      })
     }
-
-    const eventInputs = this.contracts.staking.interface.decodeEventLog(
-      'AllocationCreated',
-      event.data,
-      event.topics,
-    )
-
-    logger.info(`Successfully allocated to subgraph deployment`, {
-      amountGRT: formatGRT(eventInputs.tokens),
-      allocation: eventInputs.allocationID,
-      epoch: eventInputs.epoch.toString(),
-    })
-
-    return {
-      id: allocationId,
-      subgraphDeployment: {
-        id: deployment,
-        stakedTokens: BigNumber.from(0),
-        signalAmount: BigNumber.from(0),
-      },
-      allocatedTokens: BigNumber.from(eventInputs.tokens),
-      createdAtBlockHash: '0x0',
-      createdAtEpoch: eventInputs.epoch,
-      closedAtEpoch: 0,
-    } as Allocation
   }
 
   async close(allocation: Allocation, poi: string): Promise<boolean> {

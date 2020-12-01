@@ -143,7 +143,6 @@ export class Indexer {
         indexer: this.indexerAddress,
         err: err,
       })
-      throw err
     }
   }
 
