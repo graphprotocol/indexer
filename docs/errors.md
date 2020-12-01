@@ -443,9 +443,31 @@ TODO
 
 Failed to process paid query.
 
+**Description**
+
+Failing to process a paid query can have a number of reasons:
+
+- The indexer service is out of sync with the network. Specifically, it
+  hasn't detected the allocations made by the indexer agent yet. The most
+  likely cause for this is that the network subgraph endpoint specified via
+  `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` or `--network-subgraph-endpoint`
+  is unhealthy and failing repeatedly. This particular situation would manifest
+  itself in a `Unable to sign the query response attesattion` error message.
+- The indexer service either fails to forward queries to the graph/query node
+  or nodes, or the graph/query node or nodes fail to execute the query.
+- The indexer service fails to push the payment or attestation into the
+  server wallet, either due to a problem with the database or corrupt/invalid
+  payment or receipt messages.
+
 **Solution**
 
-TODO
+Due to the complexity of this error message, the best advice is to grep the
+indexer service logs for the `IE032` error and create an issue on
+https://github.com/graphprotocol/indexer/issues:
+
+```bash
+grep <logs> | grep IE032 | pino-pretty -t
+```
 
 ## IE033
 
