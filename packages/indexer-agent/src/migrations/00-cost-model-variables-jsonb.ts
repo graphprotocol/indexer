@@ -94,7 +94,7 @@ export async function up({ context }: Context): Promise<void> {
         logger.warn(`Failed to migrate cost model`, {
           id: costModel.id,
           deployment: costModel.deployment,
-          err: indexerError(IndexerErrorCode.IE020, err),
+          err: indexerError(IndexerErrorCode.IE021, err),
         })
       }
     }
