@@ -262,7 +262,7 @@ export default {
       process.exit(1)
       return
     }
-    const ethereum = new providers.JsonRpcProvider({
+    const ethereum = new providers.StaticJsonRpcProvider({
       url: providerUrl.toString(),
       user: providerUrl.username,
       password: providerUrl.password,

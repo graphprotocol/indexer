@@ -5,7 +5,7 @@ import { Network } from './network'
 import { Client } from '@urql/core'
 
 export interface AgentConfig {
-  ethereum: providers.JsonRpcProvider
+  ethereum: providers.StaticJsonRpcProvider
   statusEndpoint: string
   adminEndpoint: string
   indexerManagement: IndexerManagementClient

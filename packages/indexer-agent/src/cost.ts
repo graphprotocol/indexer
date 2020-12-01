@@ -31,7 +31,7 @@ const registerMetrics = (metrics: Metrics): CostModelAutomationMetrics => ({
 
 export interface CostModelAutomationOptions {
   logger: Logger
-  ethereum: providers.JsonRpcProvider
+  ethereum: providers.StaticJsonRpcProvider
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
   injectDai: boolean
