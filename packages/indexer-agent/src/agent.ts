@@ -188,18 +188,18 @@ class Agent {
           activeAllocations,
           claimableAllocations,
         }) => {
-          // Claim rebate pool rewards from finalized allocations
-          try {
-            await this.claimRebateRewards(claimableAllocations)
-          } catch (err) {
-            this.logger.warn(`Failed to claim rebate rewards`, { err })
-          }
-
           // Do nothing else if the network is paused
           if (paused) {
             return this.logger.info(
               `The network is currently paused, not doing anything until it resumes`,
             )
+          }
+
+          // Claim rebate pool rewards from finalized allocations
+          try {
+            await this.claimRebateRewards(claimableAllocations)
+          } catch (err) {
+            this.logger.warn(`Failed to claim rebate rewards`, { err })
           }
 
           try {
