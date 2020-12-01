@@ -64,7 +64,7 @@ export class Network {
   indexerGeoCoordinates: [string, string]
   wallet: Wallet
   logger: Logger
-  ethereum: providers.JsonRpcProvider
+  ethereum: providers.StaticJsonRpcProvider
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   restakeRewards: boolean
@@ -77,7 +77,7 @@ export class Network {
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
     subgraph: Client,
-    ethereum: providers.JsonRpcProvider,
+    ethereum: providers.StaticJsonRpcProvider,
     restakeRewards: boolean,
   ) {
     this.logger = logger
@@ -193,7 +193,7 @@ export class Network {
 
   static async create(
     parentLogger: Logger,
-    ethereum: providers.JsonRpcProvider,
+    ethereum: providers.StaticJsonRpcProvider,
     mnemonic: string,
     indexerAddress: Address,
     indexerUrl: string,

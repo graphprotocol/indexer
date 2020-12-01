@@ -201,7 +201,7 @@ export default {
       process.exit(1)
       return
     }
-    const web3 = new providers.JsonRpcProvider({
+    const web3 = new providers.StaticJsonRpcProvider({
       url: ethereum.toString(),
       user: ethereum.username,
       password: ethereum.password,
