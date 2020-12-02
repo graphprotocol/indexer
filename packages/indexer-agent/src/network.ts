@@ -782,7 +782,7 @@ export class Network {
         this.contracts.staking.closeAllocation(allocation.id, poi, txOverrides),
         logger.child({ action: 'close' }),
       )
-      if (receipt === 'paused') {
+      if (receipt === 'paused' || receipt === 'unauthorized') {
         return false
       }
       logger.info(`Successfully closed allocation`)
@@ -827,7 +827,7 @@ export class Network {
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
-      await this.executeTransaction(
+      const receipt = await this.executeTransaction(
         this.contracts.staking.claim(
           allocation.id,
           this.restakeRewards,
@@ -835,6 +835,9 @@ export class Network {
         ),
         logger.child({ action: 'claim' }),
       )
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        return false
+      }
       logger.info(`Successfully claimed allocation`)
       return true
     } catch (err) {
