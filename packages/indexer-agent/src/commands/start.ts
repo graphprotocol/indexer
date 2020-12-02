@@ -10,6 +10,7 @@ import {
   parseGRT,
   createMetrics,
   createMetricsServer,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   defineIndexerManagementModels,
@@ -279,7 +280,7 @@ export default {
       logger,
       ethereum,
       argv.mnemonic,
-      argv.indexerAddress,
+      toAddress(argv.indexerAddress),
       argv.publicIndexerUrl,
       argv.graphNodeQueryEndpoint,
       argv.indexerGeoCoordinates,
@@ -293,7 +294,7 @@ export default {
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models,
-      address: network.indexerAddress,
+      address: toAddress(network.indexerAddress),
       contracts: network.contracts,
       logger,
       defaults: {

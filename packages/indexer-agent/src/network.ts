@@ -60,7 +60,7 @@ const allocationIdProof = (
 export class Network {
   subgraph: Client
   contracts: NetworkContracts
-  indexerAddress: string
+  indexerAddress: Address
   indexerUrl: string
   indexerGeoCoordinates: [string, string]
   wallet: Wallet
@@ -139,19 +139,19 @@ export class Network {
   monitorIsOperator(): Eventual<boolean> {
     // If indexer and operator address are identical, operator status is
     // implicitly granted => we'll never have to check again
-    if (toAddress(this.indexerAddress) === toAddress(this.wallet.address)) {
+    if (this.indexerAddress === toAddress(this.wallet.address)) {
+      this.logger.info(
+        `Indexer and operator are identical, operator status granted`,
+      )
       return mutable(true)
     }
 
     return timer(60_000)
       .reduce(async isOperator => {
         try {
-          return (
-            toAddress(this.wallet.address) === this.indexerAddress ||
-            (await this.contracts.staking.isOperator(
-              this.wallet.address,
-              this.indexerAddress,
-            ))
+          return await this.contracts.staking.isOperator(
+            this.wallet.address,
+            this.indexerAddress,
           )
         } catch (err) {
           this.logger.warn(
@@ -160,7 +160,7 @@ export class Network {
           )
           return isOperator
         }
-      }, true)
+      }, false)
       .map(isOperator => {
         this.logger.info(
           isOperator
