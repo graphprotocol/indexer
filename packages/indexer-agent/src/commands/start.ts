@@ -37,7 +37,7 @@ export default {
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
-        description: 'Polling interval for the Ethereum provider',
+        description: 'Polling interval for the Ethereum provider (ms)',
         type: 'number',
         default: 4000,
         group: 'Ethereum',
@@ -283,7 +283,7 @@ export default {
         name: 'eth_provider_requests',
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
-        labelNames: ['method'],
+        labelNames: ['method', 'data'],
       }),
     }
 
@@ -294,19 +294,20 @@ export default {
     })
     ethereum.pollingInterval = argv.ethereumPollingInterval
 
-    if (argv.logLevel == 'trace') {
-      ethereum.on('debug', info => {
-        if (info.action == 'response') {
-          ethProviderMetrics.requests.inc({ method: info.request.method })
+    ethereum.on('debug', info => {
+      if (info.action === 'response') {
+        ethProviderMetrics.requests.inc({
+          method: info.request.method,
+          data: info.request.params?.data || '',
+        })
 
-          logger.trace('Provider request:', {
-            method: info.request.method,
-            params: info.request.params,
-            response: info.response,
-          })
-        }
-      })
-    }
+        logger.trace('Ethereum request', {
+          method: info.request.method,
+          params: info.request.params,
+          response: info.response,
+        })
+      }
+    })
 
     logger.info(`Connected to Ethereum`, {
       pollingInterval: ethereum.pollingInterval,
