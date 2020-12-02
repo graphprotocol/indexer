@@ -119,7 +119,6 @@ to be reported. Make sure that
   allocations have been closed and have released the allocated GRT again. In
   this case, the situation should resolve automatically.
 
-
 ## IE006
 
 **Summary**
@@ -156,7 +155,7 @@ TODO
 
 Failed to query subgraph deployments worth indexing.
 
-**Description*
+**Description**
 
 The indexer service or agent failed querying the network subgraph via the URL
 defined in one of the following environment variables / command-line options:
@@ -482,3 +481,19 @@ Failed to process free query.
 **Solution**
 
 TODO
+
+## IE034
+
+**Summary**
+
+Not authorized as an operator for the indexer.
+
+**Description**
+
+This error is reported when the indexer and operator addresses are different
+and the operator address is not registered as an operator for the indexer.
+
+**Solution**
+
+Add the operator address to your indexer in the explorer. The operator address
+is included in the error message.
