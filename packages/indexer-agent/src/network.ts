@@ -9,6 +9,7 @@ import {
   Eventual,
   Address,
   toAddress,
+  mutable,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -136,6 +137,12 @@ export class Network {
   }
 
   monitorIsOperator(): Eventual<boolean> {
+    // If indexer and operator address are identical, operator status is
+    // implicitly granted => we'll never have to check again
+    if (toAddress(this.indexerAddress) === toAddress(this.wallet.address)) {
+      return mutable(true)
+    }
+
     return timer(60_000)
       .reduce(async isOperator => {
         try {
