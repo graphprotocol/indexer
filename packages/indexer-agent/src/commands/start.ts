@@ -37,6 +37,12 @@ export default {
         required: true,
         group: 'Ethereum',
       })
+      .option('ethereum-polling-interval', {
+        description: 'Polling interval for the Ethereum provider',
+        type: 'number',
+        default: 4000,
+        group: 'Ethereum',
+      })
       .option('mnemonic', {
         description: 'Mnemonic for the operator wallet',
         type: 'string',
@@ -177,6 +183,12 @@ export default {
         required: true,
         group: 'Postgres',
       })
+      .option('log-level', {
+        description: 'Log level',
+        type: 'string',
+        default: 'debug',
+        group: 'Indexer Infrastructure',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -197,7 +209,11 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
-    const logger = createLogger({ name: 'IndexerAgent', async: false })
+    const logger = createLogger({
+      name: 'IndexerAgent',
+      async: false,
+      level: argv.logLevel,
+    })
 
     // Spin up a metrics server
     const metrics = createMetrics()
@@ -267,7 +283,24 @@ export default {
       user: providerUrl.username,
       password: providerUrl.password,
     })
-    logger.info(`Connected to Ethereum`)
+    ethereum.pollingInterval = argv.ethereumPollingInterval
+
+    if (argv.logLevel == 'trace') {
+      ethereum.on('debug', info => {
+        if (info.action == 'response') {
+          logger.trace('Provider request:', {
+            method: info.request.method,
+            params: info.request.params,
+            response: info.response,
+          })
+        }
+      })
+    }
+
+    logger.info(`Connected to Ethereum`, {
+      pollingInterval: ethereum.pollingInterval,
+      network: await ethereum.detectNetwork(),
+    })
 
     logger.info('Connect to network')
     const networkSubgraph = argv.networkSubgraphEndpoint
