@@ -165,7 +165,7 @@ export class Network {
   }
 
   async executeTransaction(
-    transaction: Promise<ContractTransaction>,
+    transaction: () => Promise<ContractTransaction>,
     logger: Logger,
   ): Promise<ContractReceipt | 'paused' | 'unauthorized'> {
     if (await this.paused.value()) {
@@ -180,7 +180,7 @@ export class Network {
       return 'unauthorized'
     }
 
-    const tx = await transaction
+    const tx = await transaction()
     logger.info(`Transaction pending`, { tx: tx.hash })
     const receipt = await tx.wait(1)
     logger.info(`Transaction successfully included in block`, {
@@ -541,12 +541,13 @@ export class Network {
       }
 
       const receipt = await this.executeTransaction(
-        this.contracts.serviceRegistry.registerFor(
-          this.indexerAddress,
-          this.indexerUrl,
-          geoHash,
-          txOverrides,
-        ),
+        () =>
+          this.contracts.serviceRegistry.registerFor(
+            this.indexerAddress,
+            this.indexerUrl,
+            geoHash,
+            txOverrides,
+          ),
         logger.child({ action: 'register' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -686,19 +687,20 @@ export class Network {
       })
 
       const receipt = await this.executeTransaction(
-        this.contracts.staking.allocateFrom(
-          this.indexerAddress,
-          deployment.bytes32,
-          amount,
-          allocationId,
-          utils.hexlify(Array(32).fill(0)),
-          await allocationIdProof(
-            allocationSigner,
+        async () =>
+          this.contracts.staking.allocateFrom(
             this.indexerAddress,
+            deployment.bytes32,
+            amount,
             allocationId,
+            utils.hexlify(Array(32).fill(0)),
+            await allocationIdProof(
+              allocationSigner,
+              this.indexerAddress,
+              allocationId,
+            ),
+            txOverrides,
           ),
-          txOverrides,
-        ),
         logger.child({ action: 'allocate' }),
       )
 
@@ -779,7 +781,12 @@ export class Network {
       }
 
       const receipt = await this.executeTransaction(
-        this.contracts.staking.closeAllocation(allocation.id, poi, txOverrides),
+        () =>
+          this.contracts.staking.closeAllocation(
+            allocation.id,
+            poi,
+            txOverrides,
+          ),
         logger.child({ action: 'close' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -828,11 +835,12 @@ export class Network {
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
       const receipt = await this.executeTransaction(
-        this.contracts.staking.claim(
-          allocation.id,
-          this.restakeRewards,
-          txOverrides,
-        ),
+        () =>
+          this.contracts.staking.claim(
+            allocation.id,
+            this.restakeRewards,
+            txOverrides,
+          ),
         logger.child({ action: 'claim' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
