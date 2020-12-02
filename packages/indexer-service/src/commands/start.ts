@@ -37,6 +37,12 @@ export default {
         required: true,
         group: 'Ethereum',
       })
+      .option('ethereum-polling-interval', {
+        description: 'Polling interval for the Ethereum provider',
+        type: 'number',
+        default: 4000,
+        group: 'Ethereum',
+      })
       .option('mnemonic', {
         describe: 'Mnemonic for the operator wallet',
         type: 'string',
@@ -129,10 +135,20 @@ export default {
         default: true,
         group: 'State Channels',
       })
+      .option('log-level', {
+        description: 'Log level',
+        type: 'string',
+        default: 'debug',
+        group: 'Indexer Infrastructure',
+      })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
-    let logger = createLogger({ name: 'IndexerService', async: false })
+    let logger = createLogger({
+      name: 'IndexerService',
+      async: false,
+      level: argv.logLevel,
+    })
 
     const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -201,13 +217,41 @@ export default {
       process.exit(1)
       return
     }
+    const web3ProviderMetrics = {
+      requests: new metrics.client.Counter({
+        name: 'eth_provider_requests',
+        help: 'Ethereum provider requests',
+        registers: [metrics.registry],
+        labelNames: ['method'],
+      }),
+    }
     const web3 = new providers.StaticJsonRpcProvider({
       url: ethereum.toString(),
       user: ethereum.username,
       password: ethereum.password,
     })
+    web3.pollingInterval = argv.ethereumPollingInterval
+
+    if (argv.logLevel == 'trace') {
+      web3.on('debug', info => {
+        if (info.action == 'response') {
+          web3ProviderMetrics.requests.inc({ method: info.request.method })
+
+          logger.trace('Provider request:', {
+            method: info.request.method,
+            params: info.request.params,
+            response: info.response,
+          })
+        }
+      })
+    }
+
     const network = await web3.getNetwork()
-    logger.info('Successfully connected to Ethereum', { provider: web3.connection.url })
+    logger.info('Successfully connected to Ethereum', {
+      provider: web3.connection.url,
+      pollingInterval: web3.pollingInterval,
+      network: await web3.detectNetwork(),
+    })
 
     logger.info('Connect to contracts', {
       network: network.name,
