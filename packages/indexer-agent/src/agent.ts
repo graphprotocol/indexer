@@ -3,6 +3,7 @@ import {
   Logger,
   SubgraphDeploymentID,
   timer,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -59,6 +60,7 @@ const loop = async (f: () => Promise<boolean>, interval: number) => {
 
 interface AgentInputs {
   paused: boolean
+  isOperator: boolean
   currentEpoch: number
   maxAllocationEpochs: number
   activeDeployments: SubgraphDeploymentID[]
@@ -149,8 +151,8 @@ class Agent {
       this.logger.info(`Network subgraph deployment is synced`)
     }
 
-    // Synchronize with the network roughly every 10s
-    this.logger.info(`Synchronize with the network every 10s`)
+    // Synchronize with the network roughly every 120s
+    this.logger.info(`Synchronize with the network every 120s`)
 
     // Obtain the state of of the indexer and network at the current time
     const initialState = await this.synchronize()
@@ -180,6 +182,7 @@ class Agent {
       .pipe(
         async ({
           paused,
+          isOperator,
           currentEpoch,
           maxAllocationEpochs,
           activeDeployments,
@@ -192,6 +195,18 @@ class Agent {
           if (paused) {
             return this.logger.info(
               `The network is currently paused, not doing anything until it resumes`,
+            )
+          }
+
+          // Do nothing if we're not authorized as an operator for the indexer
+          if (!isOperator) {
+            return this.logger.error(
+              `Not authorized as an operator for the indexer`,
+              {
+                err: indexerError(IndexerErrorCode.IE034),
+                indexer: toAddress(this.network.indexerAddress),
+                operator: toAddress(this.network.wallet.address),
+              },
             )
           }
 
@@ -227,6 +242,7 @@ class Agent {
 
   async synchronize(): Promise<AgentInputs> {
     const paused = await this.network.paused.value()
+    const isOperator = await this.network.isOperator.value()
 
     // Identify the current epoch
     const currentEpoch = (
@@ -274,6 +290,7 @@ class Agent {
 
     return {
       paused,
+      isOperator,
       currentEpoch,
       maxAllocationEpochs,
       activeDeployments,

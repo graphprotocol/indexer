@@ -44,6 +44,7 @@ export enum IndexerErrorCode {
   IE031 = 'IE031',
   IE032 = 'IE032',
   IE033 = 'IE033',
+  IE034 = 'IE034',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -80,6 +81,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE031: 'Invalid X-Graph-Payment value provided',
   IE032: 'Failed to process paid query',
   IE033: 'Failed to process free query',
+  IE034: 'Not authorized as an operator for the indexer',
 }
 
 export class IndexerError extends CustomError {
