@@ -783,7 +783,7 @@ export class Network {
         allocation.id,
       )
       if (state !== 1) {
-        logger.info(`Allocation is not active`)
+        logger.info(`Allocation has already been closed`)
         return true
       }
 
