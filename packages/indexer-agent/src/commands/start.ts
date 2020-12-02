@@ -278,6 +278,16 @@ export default {
       process.exit(1)
       return
     }
+
+    const ethProviderMetrics = {
+      requests: new metrics.client.Counter({
+        name: 'eth_provider_requests',
+        help: 'Ethereum provider requests',
+        registers: [metrics.registry],
+        labelNames: ['method'],
+      }),
+    }
+
     const ethereum = new providers.StaticJsonRpcProvider({
       url: providerUrl.toString(),
       user: providerUrl.username,
@@ -288,6 +298,8 @@ export default {
     if (argv.logLevel == 'trace') {
       ethereum.on('debug', info => {
         if (info.action == 'response') {
+          ethProviderMetrics.requests.inc({ method: info.request.method })
+
           logger.trace('Provider request:', {
             method: info.request.method,
             params: info.request.params,
