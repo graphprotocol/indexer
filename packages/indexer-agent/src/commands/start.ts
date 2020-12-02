@@ -284,7 +284,7 @@ export default {
         name: 'eth_provider_requests',
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
-        labelNames: ['method', 'data'],
+        labelNames: ['method'],
       }),
     }
 
@@ -299,7 +299,6 @@ export default {
       if (info.action === 'response') {
         ethProviderMetrics.requests.inc({
           method: info.request.method,
-          data: info.request.params?.data || '',
         })
 
         logger.trace('Ethereum request', {
