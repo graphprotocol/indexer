@@ -31,5 +31,6 @@
   },
   "resolutions": {
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
-  }
+  },
+  "gitHead": "dfd59638a3ca1c57b1ddbf241c0fd4d184dcba58"
 }
