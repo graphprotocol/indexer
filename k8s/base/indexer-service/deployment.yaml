@@ -82,5 +82,5 @@ spec:
                   key: password
             - name: SERVER_DB_NAME
               value: indexer-service
-            - name: SKIP_EVM_VALIDATION
+            - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
               value: "true"
