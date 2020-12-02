@@ -63,24 +63,5 @@ spec:
                   key: password
             - name: INDEXER_SERVICE_POSTGRES_DATABASE
               value: indexer-service
-            - name: SERVER_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: host
-            - name: SERVER_PORT
-              value: "5432"
-            - name: SERVER_DB_USER
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: user
-            - name: SERVER_DB_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: postgres-credentials
-                  key: password
-            - name: SERVER_DB_NAME
-              value: indexer-service
             - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
               value: "true"
