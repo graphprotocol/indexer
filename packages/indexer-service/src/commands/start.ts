@@ -222,7 +222,7 @@ export default {
         name: 'eth_provider_requests',
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
-        labelNames: ['method', 'data'],
+        labelNames: ['method'],
       }),
     }
     const web3 = new providers.StaticJsonRpcProvider({
@@ -236,7 +236,6 @@ export default {
       if (info.action === 'response') {
         web3ProviderMetrics.requests.inc({
           method: info.request.method,
-          data: info.request.params?.data || '',
         })
 
         logger.trace('Ethereum request', {
