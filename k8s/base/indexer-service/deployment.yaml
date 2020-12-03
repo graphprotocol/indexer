@@ -65,3 +65,7 @@ spec:
               value: indexer-service
             - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
               value: "true"
+            - name: INDEXER_SERVICE_NITRO_ADJUDICATOR_ADDRESS
+              value: "0x1d25Bbf952781e0c75d248904B5422FeE9FcA558"
+            - name: INDEXER_SERVICE_ETH_ASSET_HOLDER_ADDRESS
+              value: "0x0d9F0670170Fab72F0f879D020f9E77590aEE642"
