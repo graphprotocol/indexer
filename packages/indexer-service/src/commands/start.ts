@@ -222,7 +222,7 @@ export default {
         name: 'eth_provider_requests',
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
-        labelNames: ['method'],
+        labelNames: ['method', 'function_signature'],
       }),
     }
     const web3 = new providers.StaticJsonRpcProvider({
@@ -234,9 +234,16 @@ export default {
 
     web3.on('debug', info => {
       if (info.action === 'response') {
-        web3ProviderMetrics.requests.inc({
-          method: info.request.method,
-        })
+        if (info.request.method === 'eth_call' && info.request.params.data) {
+          web3ProviderMetrics.requests.inc({
+            method: info.request.method,
+            function_signature: info.request.params.data.subststr(2,4)
+          })
+        } else {
+          web3ProviderMetrics.requests.inc({
+            method: info.request.method,
+          })
+        }
 
         logger.trace('Ethereum request', {
           method: info.request.method,
@@ -248,7 +255,6 @@ export default {
 
     const network = await web3.getNetwork()
     logger.info('Successfully connected to Ethereum', {
-      provider: web3.connection.url,
       pollingInterval: web3.pollingInterval,
       network: await web3.detectNetwork(),
     })

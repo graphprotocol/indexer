@@ -283,7 +283,7 @@ export default {
         name: 'eth_provider_requests',
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
-        labelNames: ['method'],
+        labelNames: ['method', 'function_signature'],
       }),
     }
 
@@ -296,9 +296,16 @@ export default {
 
     ethereum.on('debug', info => {
       if (info.action === 'response') {
-        ethProviderMetrics.requests.inc({
-          method: info.request.method,
-        })
+        if (info.request.method === 'eth_call' && info.request.params.data) {
+          ethProviderMetrics.requests.inc({
+            method: info.request.method,
+            function_signature: info.request.params.data.subststr(2,4)
+          })
+        } else {
+          ethProviderMetrics.requests.inc({
+            method: info.request.method,
+          })
+        }
 
         logger.trace('Ethereum request', {
           method: info.request.method,

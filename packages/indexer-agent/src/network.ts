@@ -306,7 +306,7 @@ export class Network {
             // The deployment is not eligible for deployment if it doesn't have an allocation amount
             if (!deploymentRule?.allocationAmount) {
               this.logger.debug(
-                `Could not find matching rule with non-null 'allocation':`,
+                `Could not find matching rule with non-null 'allocation'`,
                 {
                   deployment: deployment.display,
                 },
