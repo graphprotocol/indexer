@@ -269,10 +269,17 @@ export default {
         databaseConfiguration: {
           connection: `postgresql://${argv.postgresUsername}:${argv.postgresPassword}@${argv.postgresHost}:${argv.postgresPort}/${argv.postgresDatabase}`,
         },
-        ethereumPrivateKey: wallet.privateKey,
         networkConfiguration: {
           chainNetworkID: network.chainId,
-          rpcEndpoint: argv.ethereum,
+        },
+        chainServiceConfiguration: {
+          attachChainService: false,
+          pk: wallet.privateKey,
+          provider: argv.ethereum,
+        },
+        loggingConfiguration: {
+          logLevel: argv.logLevel,
+          logDestination: 'console',
         },
         skipEvmValidation: argv.walletSkipEvmValidation,
         workerThreadAmount: argv.walletWorkerThreads,
