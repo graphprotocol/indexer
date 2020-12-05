@@ -126,7 +126,7 @@ export const ensureAttestationSigners = ({
   })
 
   const signers = allocations.map(async allocations => {
-    logger.info(`Updating attestation signers`)
+    logger.info(`Update attestation signers`)
 
     await pMap(allocations, async allocation => {
       if (!cache.has(allocation.id)) {
