@@ -45,7 +45,7 @@ spec:
             - name: INDEXER_SERVICE_GRAPH_NODE_STATUS_ENDPOINT
               value: http://query-node.default.svc.cluster.local/index-node/graphql
             - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
-              value: https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet-phase2
+              value: https://gateway-testnet.thegraph.com/network
             - name: INDEXER_SERVICE_POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
