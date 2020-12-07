@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2020-12-07
+### Fixed
+- Use StaticJsonRpcProvider to reduce Ethereum requests
+
+### Added
+- Add `--log-level` / `INDEXER_SERVICE_LOG_LEVEL` option
+- Add `--ethereum-polling-interval` / `INDEXER_SERVICE_ETHEREUM_POLLING_INTERVAL` option
+- Add `eth_provider_requests` metric to track Ethereum requests
+
 ## [0.4.0] - 2020-11-27
 ### Added
 - Add `--wallet-worker-threads` / `INDEXER_SERVICE_WALLET_WORKER_THREADS` to replace the old `AMOUNT_OF_WORKER_THREADS` environment variable
@@ -121,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/graphprotocol/indexer/compare/v0.4.0...v0.4.3
 [0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0
 [0.3.7-alpha.8]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.7...v0.3.7-alpha.8
 [0.3.7-alpha.7]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.6...v0.3.7-alpha.7

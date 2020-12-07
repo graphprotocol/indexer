@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.3] - 2020-12-07
+### Fixed
+- Fix incorrect error code used in database migrations
+- Decouple claiming rewards from updating allocations
+- Don't abort reconciling if removing a deployment fails
+- Never fail reconciling early
+- Fix zero allocation amount log messages
+- Catch more unauthorized transactions
+- Only queue transactions after checking paused and operator status
+- Do nothing if not an operator
+- Fix indexer === operator detection
+- Use StaticJsonRpcProvider to reduce Ethereum requests
+
+### Changed
+- Lengthen network synchronization interval to 120s
+- Improve log message for already closed allocations
+- Add `eth_provider_requests` metric to track Ethereum requests
+
 ## [0.4.2] - 2020-11-30
 ### Fixed
 - Fix signing allocation ID proofs with the corresponding private key
@@ -139,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/graphprotocol/indexer/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/graphprotocol/indexer/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/graphprotocol/indexer/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0
