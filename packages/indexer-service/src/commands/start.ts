@@ -37,6 +37,13 @@ export default {
         required: true,
         group: 'Ethereum',
       })
+      .option('ethereum-network', {
+        description: 'Ethereum network ',
+        type: 'string',
+        required: false,
+        default: 'rinkeby',
+        group: 'Ethereum',
+      })
       .option('ethereum-polling-interval', {
         description: 'Polling interval for the Ethereum provider (ms)',
         type: 'number',
@@ -225,11 +232,22 @@ export default {
         labelNames: ['method', 'function_signature'],
       }),
     }
-    const web3 = new providers.StaticJsonRpcProvider({
-      url: ethereum.toString(),
-      user: ethereum.username,
-      password: ethereum.password,
-    })
+
+    if (ethereum.password && ethereum.protocol == 'http:') {
+      logger.warn(
+        'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
+      )
+    }
+
+    const web3 = new providers.StaticJsonRpcProvider(
+      {
+        url: ethereum.toString(),
+        user: ethereum.username,
+        password: ethereum.password,
+        allowInsecureAuthentication: true,
+      },
+      'any',
+    )
     web3.pollingInterval = argv.ethereumPollingInterval
 
     web3.on('debug', info => {
@@ -237,7 +255,7 @@ export default {
         if (info.request.method === 'eth_call' && info.request.params.data) {
           web3ProviderMetrics.requests.inc({
             method: info.request.method,
-            function_signature: info.request.params.data.subststr(2,4)
+            function_signature: info.request.params.data.subststr(2, 4),
           })
         } else {
           web3ProviderMetrics.requests.inc({
@@ -253,6 +271,13 @@ export default {
       }
     })
 
+    web3.on('network', (newNetwork, oldNetwork) => {
+      logger.trace('Ethereum network change', {
+        old_network: oldNetwork,
+        new_network: newNetwork,
+      })
+    })
+
     const network = await web3.getNetwork()
     logger.info('Successfully connected to Ethereum', {
       pollingInterval: web3.pollingInterval,
@@ -263,8 +288,21 @@ export default {
       network: network.name,
       chainId: network.chainId,
     })
-    const contracts = await connectContracts(web3, network.chainId)
-    logger.info('Successfully to contracts')
+
+    let contracts = undefined
+    try {
+      contracts = await connectContracts(web3, network.chainId)
+    } catch (error) {
+      logger.error(
+        `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
+        {
+          error,
+        },
+      )
+      throw error
+    }
+
+    logger.info('Successfully connected to contracts')
 
     // Create receipt manager
     const receiptManager = new ReceiptManager(
