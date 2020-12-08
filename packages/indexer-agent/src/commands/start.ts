@@ -37,6 +37,13 @@ export default {
         required: true,
         group: 'Ethereum',
       })
+      .option('ethereum-network', {
+        description: 'Ethereum network ',
+        type: 'string',
+        required: false,
+        default: 'rinkeby',
+        group: 'Ethereum',
+      })
       .option('ethereum-polling-interval', {
         description: 'Polling interval for the Ethereum provider (ms)',
         type: 'number',
@@ -288,11 +295,21 @@ export default {
       }),
     }
 
-    const ethereum = new providers.StaticJsonRpcProvider({
-      url: providerUrl.toString(),
-      user: providerUrl.username,
-      password: providerUrl.password,
-    })
+    if (providerUrl.password && providerUrl.protocol == 'http:') {
+      logger.warn(
+        'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
+      )
+    }
+
+    const ethereum = new providers.StaticJsonRpcProvider(
+      {
+        url: providerUrl.toString(),
+        user: providerUrl.username,
+        password: providerUrl.password,
+        allowInsecureAuthentication: true,
+      },
+      argv.ethereumNetwork,
+    )
     ethereum.pollingInterval = argv.ethereumPollingInterval
 
     ethereum.on('debug', info => {
@@ -307,6 +324,13 @@ export default {
           response: info.response,
         })
       }
+    })
+
+    ethereum.on('network', (newNetwork, oldNetwork) => {
+      logger.trace('Ethereum network change', {
+        oldNetwork: oldNetwork,
+        newNetwork: newNetwork,
+      })
     })
 
     logger.info(`Connected to Ethereum`, {

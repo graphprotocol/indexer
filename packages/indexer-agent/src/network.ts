@@ -239,7 +239,18 @@ export class Network {
     logger = logger.child({ operator: wallet.address })
 
     logger.info(`Connecting to contracts`)
-    const contracts = await connectContracts(wallet, network.chainId)
+    let contracts = undefined
+    try {
+      contracts = await connectContracts(wallet, network.chainId)
+    } catch (error) {
+      logger.error(
+        `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
+        {
+          error,
+        },
+      )
+      throw error
+    }
 
     logger.info(`Successfully connected to contracts`, {
       curation: contracts.curation.address,
