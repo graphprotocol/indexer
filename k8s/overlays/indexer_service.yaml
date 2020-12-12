@@ -10,4 +10,13 @@ spec:
           env:
             # Set this to your Ethereum node/provider
             - name: INDEXER_SERVICE_ETHEREUM
-              value: https://kovan.alchemyapi.io/jsonrpc/demo/
+              value: https://rinkeby.infura.io/v3/1038a69b6bcc49de85bfb5b032938c5a
+            - name: AMOUNT_OF_WORKER_THREADS
+              value: '12'
+            - name: INDEXER_SERVICE_SKIP_EVM_VALIDATION
+              value: 'true'
+
+            - name: INDEXER_SERVICE_INDEXER_ADDRESS
+              value: '0x864CFD42a8f2f41FC914e81eA02CaA6fCC747bF9'
+            - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
+              value: https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet-phase2
