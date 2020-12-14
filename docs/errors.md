@@ -497,3 +497,32 @@ and the operator address is not registered as an operator for the indexer.
 
 Add the operator address to your indexer in the explorer. The operator address
 is included in the error message.
+
+## IE035
+
+**Summary**
+
+An asynchronous operation (promise) failed somewhere in the system but this
+error wasn't handled. A frequent cause for these are failed promises internal to
+ethers.js, which have caused indexer-agent and index-service to crash.
+
+**Solution**
+
+If this error is related to ethers.js and Ethereum requests, there _may_ be
+issues with your Ethereum node or provider, but it may also simply be an
+internal error in ethers.js, in which case you can ignore this error.
+
+If the error is _not_ related to Ethereum requests, it is likely to be an
+unhandled error in indexer-agent and indexer-service and is best reported as an
+issue on https://github.com/graphprotocol/indexer/issues.
+
+## IE036
+
+**Summary**
+
+An operation failed somewhere in the system but this error wasn't handled.
+
+**Solution**
+
+This is likely to be an unhandled error in indexer-agent and indexer-service and
+is best reported as an issue on https://github.com/graphprotocol/indexer/issues.

@@ -45,6 +45,8 @@ export enum IndexerErrorCode {
   IE032 = 'IE032',
   IE033 = 'IE033',
   IE034 = 'IE034',
+  IE035 = 'IE035',
+  IE036 = 'IE036',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -82,14 +84,18 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE032: 'Failed to process paid query',
   IE033: 'Failed to process free query',
   IE034: 'Not authorized as an operator for the indexer',
+  IE035: 'Unhandled promise rejection',
+  IE036: 'Unhandled exception',
 }
+
+export type IndexerErrorCause = unknown
 
 export class IndexerError extends CustomError {
   public code: IndexerErrorCode
   public explanation: string
-  public cause?: Error
+  public cause?: IndexerErrorCause
 
-  constructor(code: IndexerErrorCode, cause?: Error) {
+  constructor(code: IndexerErrorCode, cause?: IndexerErrorCause) {
     super(INDEXER_ERROR_MESSAGES[code])
     this.code = code
     this.explanation = `${ERROR_BASE_URL}#${code.toLowerCase()}`
@@ -101,7 +107,10 @@ export class IndexerError extends CustomError {
   }
 }
 
-export function indexerError(code: IndexerErrorCode, cause?: Error): IndexerError {
+export function indexerError(
+  code: IndexerErrorCode,
+  cause?: IndexerErrorCause,
+): IndexerError {
   return new IndexerError(code, cause)
 }
 

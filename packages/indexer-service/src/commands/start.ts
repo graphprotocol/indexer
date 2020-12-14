@@ -157,6 +157,18 @@ export default {
       level: argv.logLevel,
     })
 
+    process.on('unhandledRejection', err => {
+      logger.warn(`Unhandled promise rejection`, {
+        err: indexerError(IndexerErrorCode.IE035, err),
+      })
+    })
+
+    process.on('uncaughtException', err => {
+      logger.warn(`Uncaught exception`, {
+        err: indexerError(IndexerErrorCode.IE036, err),
+      })
+    })
+
     const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const dependencies = pkg.dependencies!
