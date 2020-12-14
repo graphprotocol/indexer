@@ -21,6 +21,7 @@ import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
+import pRetry from 'p-retry'
 import { Client } from '@urql/core'
 
 const delay = async (ms: number) => {
@@ -155,7 +156,12 @@ class Agent {
     this.logger.info(`Synchronize with the network every 120s`)
 
     // Obtain the state of of the indexer and network at the current time
-    const initialState = await this.synchronize()
+    const initialState = await pRetry(async () => await this.synchronize(), {
+      forever: true,
+
+      // Never wait more than ten minutes before retrying
+      maxTimeout: 600_000,
+    })
 
     // Have a timer fire every 120s
     timer(120_000)
@@ -164,7 +170,7 @@ class Agent {
       .reduce(async state => {
         try {
           // Obtain the latest indexer and network state
-          return await this.synchronize()
+          return pRetry(async () => await this.synchronize(), { retries: 5 })
         } catch (err) {
           this.logger.warn(`Failed to synchronize with network`, {
             err: indexerError(IndexerErrorCode.IE004, err),
