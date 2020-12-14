@@ -1108,22 +1108,22 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/receipt-manager@0.5.13":
-  version "0.5.13"
-  resolved "https://registry.npmjs.org/@graphprotocol/receipt-manager/-/receipt-manager-0.5.13.tgz#b7d48681fdd5227e80ec1705d765ef8fbc558bb6"
-  integrity sha512-IvC0lppWwW3aOi+JZ8oEBvFyYqEjjNTcM4qgKagNwk7pxSOqrQDeOky3I8FWbBmCmA77ZdU+ZUsXpSIADSrXYA==
+"@graphprotocol/receipt-manager@0.5.14-next.731e67a.6+731e67a":
+  version "0.5.14-next.731e67a.6"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/receipt-manager/-/receipt-manager-0.5.14-next.731e67a.6.tgz#b425951fcc2c509d248b838ef0d502723356ff77"
+  integrity sha512-t06AgZKRcfuPE9s4Th115b4IHP7MHfsFLWAEjaH5+Xp+MJXkImrWq+oQVx8Jy1H+R0FmcFF0fePzYN2TRQQ38Q==
   dependencies:
     "@graphprotocol/common-ts" "0.4.0"
-    "@graphprotocol/statechannels" "0.1.17"
+    "@graphprotocol/statechannels" "0.1.18-next.731e67a.6+731e67a"
     "@statechannels/client-api-schema" "0.4.9"
     "@statechannels/server-wallet" "1.13.1"
     ethers "^5.0.9"
     lodash "^4.17.20"
 
-"@graphprotocol/statechannels@0.1.17":
-  version "0.1.17"
-  resolved "https://registry.npmjs.org/@graphprotocol/statechannels/-/statechannels-0.1.17.tgz#8ad3e57e5c5bd48980ea70f4e82e76695ff27228"
-  integrity sha512-ZlPuigcan2l31fkuWZ7viO+btbta0uo01bK68qZ4z7CFgtlOLgkc4ZMB1ic5Ac8+acbWOHo4cSJJiSR8XqFAgA==
+"@graphprotocol/statechannels@0.1.18-next.731e67a.6+731e67a":
+  version "0.1.18-next.731e67a.6"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/statechannels/-/statechannels-0.1.18-next.731e67a.6.tgz#2e2dfc793cd37515c74dfb6374a774557051866d"
+  integrity sha512-erTBhnW1MXD+zjHsNnPKxxMqc9DH/Ue5R+RL7xLQsdLgvpoaYev3r/1QULxU+tcc4tsy9Oz+ZRtMmOPnA4CZGg==
   dependencies:
     "@graphprotocol/common-ts" "0.4.0"
     "@openzeppelin/contracts" "3.2.2-solc-0.7"

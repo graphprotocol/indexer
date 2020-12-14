@@ -26,7 +26,7 @@
   "dependencies": {
     "@graphprotocol/common-ts": "0.4.0",
     "@graphprotocol/indexer-common": "^0.4.4",
-    "@graphprotocol/receipt-manager": "0.5.13",
+    "@graphprotocol/receipt-manager": "0.5.14-next.731e67a.6+731e67a",
     "@thi.ng/cache": "1.0.59",
     "@urql/core": "1.13.1",
     "apollo-link-http": "1.5.17",
