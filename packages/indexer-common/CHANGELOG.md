@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `IE035` and `IE036` error types for unhandled promises and exceptions
 
 ## [0.4.2] - 2020-11-30
 ### Changed

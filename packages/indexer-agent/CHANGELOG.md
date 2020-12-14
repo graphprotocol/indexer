@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Allow non-HTTPS/insuecure Ethereum connections
+- Catch and log unhandled promise rejections and exceptions instead of crashing
+
+### Added
+- Allow Ethereum network to be configured, avoiding fallible network detection in ethers.js
 
 ## [0.4.3] - 2020-12-07
 ### Fixed
