@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: query-node
@@ -52,8 +52,8 @@ spec:
             - name: index-node
               containerPort: 8030
           volumeMounts:
-             - name: nfs-shared
-               mountPath: /var/lib/graph
+            - name: nfs-shared
+              mountPath: /var/lib/graph
           env:
             # TODO: Do we even need an ethereum node for a query node?
             - name: ethereum
@@ -61,7 +61,7 @@ spec:
             - name: EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE
               value: synced
             - name: GRAPH_KILL_IF_UNRESPONSIVE
-              value: 'true'
+              value: "true"
             - name: postgres_host
               valueFrom:
                 secretKeyRef:
