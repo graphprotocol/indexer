@@ -29,7 +29,8 @@ export const createIndexerManagementServer = async ({
   const server = express()
 
   // Log requests to the logger stream
-  server.use(morgan('tiny', { stream: loggerStream }))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  server.use(morgan('tiny', { stream: loggerStream }) as any)
   server.use(cors())
 
   // Endpoint for health checks

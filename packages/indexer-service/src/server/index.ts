@@ -136,7 +136,8 @@ export const createApp = async ({
   const app = express()
 
   // Log requests to the logger stream
-  app.use(morgan('tiny', { stream: loggerStream }))
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  app.use(morgan('tiny', { stream: loggerStream }) as any)
   app.use(cors())
 
   // Security
