@@ -1062,7 +1062,7 @@
     unique-filename "^1.1.1"
     which "^1.3.1"
 
-"@graphprotocol/common-ts@0.4.0", "@graphprotocol/common-ts@1.0.0-alpha.0":
+"@graphprotocol/common-ts@0.4.0", "@graphprotocol/common-ts@1.0.0-alpha.0", "@graphprotocol/common-ts@1.0.0-alpha.1":
   version "1.0.0-alpha.0"
   resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.0.0-alpha.0.tgz#73393fc334612281e2af456c498ada22ce93d420"
   integrity sha512-jVAmUmM4qaOwDKjazU9unPu70ChJ/e2x+rTQDXTvBEGwbgPfiK+eseD5xawlxURVsErqsd6Iy31TkJkLJQ1jTQ==
