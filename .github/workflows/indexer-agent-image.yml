@@ -36,4 +36,4 @@ jobs:
           push: ${{github.event_name != 'pull_request'}}
           tags: ${{steps.docker_meta.outputs.tags}}
           labels: ${{steps.docker_meta.outputs.labels}}
-          build_args: NPM_TOKEN=${{secrets.npm_token}}
+          build_args: NPM_TOKEN=${{secrets.graphprotocol_npm_token}}
