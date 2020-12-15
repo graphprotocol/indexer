@@ -22,6 +22,7 @@ spec:
       containers:
         - name: indexer-agent
           image: indexer-agent-image
+          imagePullPolicy: Always
           resources:
             requests:
               cpu: 600m
