@@ -20,9 +20,9 @@ used to maintain the following changelogs:
 The indexer service, agent and CLI can be installed as NPM packages, using
 
 ```sh
-npm install -g @graphprotocol/indexer-service --registry https://testnet.thegraph.com/npm-registry/
-npm install -g @graphprotocol/indexer-agent   --registry https://testnet.thegraph.com/npm-registry/
-npm install -g @graphprotocol/indexer-cli     --registry https://testnet.thegraph.com/npm-registry/
+npm install -g @graphprotocol/indexer-service
+npm install -g @graphprotocol/indexer-agent
+npm install -g @graphprotocol/indexer-cli
 ```
 
 After that, they can be run with the following commands:
@@ -236,11 +236,11 @@ Creating a new release involves the following steps:
 3. Publish a new release:
 
    ```sh
-   lerna publish
+   yarn release <new-version>
    ```
 
-   When it asks for the version to release, select the same one that was used
-   when updating the changelogs.
+   This will clone the repository into a temporary directory in order to
+   build and publish the packages from a clean directory.
 
 # Copyright
 
