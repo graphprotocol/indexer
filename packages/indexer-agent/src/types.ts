@@ -14,6 +14,7 @@ export interface AgentConfig {
   logger: Logger
   networkSubgraph: Client | SubgraphDeploymentID
   indexNodeIDs: string[]
+  registerIndexer: boolean
 }
 
 export interface SubgraphDeployment {

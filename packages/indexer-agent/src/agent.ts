@@ -76,24 +76,29 @@ class Agent {
   network: Network
   logger: Logger
   networkSubgraph: Client | SubgraphDeploymentID
+  registerIndexer: boolean
 
   constructor(
     logger: Logger,
     indexer: Indexer,
     network: Network,
     networkSubgraph: Client | SubgraphDeploymentID,
+    registerIndexer: boolean,
   ) {
     this.logger = logger
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
+    this.registerIndexer = registerIndexer
   }
 
   async start(): Promise<void> {
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
 
-    await this.network.register()
+    if (this.registerIndexer) {
+      await this.network.register()
+    }
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
@@ -706,6 +711,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     indexer,
     config.network,
     config.networkSubgraph,
+    config.registerIndexer,
   )
   await agent.start()
   return agent

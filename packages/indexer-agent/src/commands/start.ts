@@ -196,6 +196,12 @@ export default {
         default: 'debug',
         group: 'Indexer Infrastructure',
       })
+      .option('register', {
+        description: 'Whether to register the indexer on chain',
+        type: 'boolean',
+        default: true,
+        group: 'Protocol',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -414,6 +420,7 @@ export default {
       networkSubgraph,
       indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
+      registerIndexer: argv.registerIndexer,
     })
   },
 }
