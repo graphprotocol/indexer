@@ -153,6 +153,23 @@ class Agent {
       },
     )
 
+    const currentEpochStartBlockHash = currentEpoch.tryMap(
+      async () => {
+        const startBlockNumber = await this.network.contracts.epochManager.currentEpochBlock()
+        const startBlock = await this.network.ethereum.getBlock(
+          startBlockNumber.toNumber(),
+        )
+        return startBlock.hash
+      },
+      {
+        onError: err =>
+          this.logger.warn(
+            `Failed to fetch start block hash of current epoch`,
+            { err },
+          ),
+      },
+    )
+
     const channelDisputeEpochs = timer(600_000).tryMap(
       () => this.network.contracts.staking.channelDisputeEpochs(),
       {
@@ -239,7 +256,7 @@ class Agent {
       paused: this.network.paused,
       isOperator: this.network.isOperator,
       currentEpoch,
-      channelDisputeEpochs,
+      currentEpochStartBlockHash,
       maxAllocationEpochs,
       indexingRules,
       activeDeployments,
@@ -251,6 +268,7 @@ class Agent {
         paused,
         isOperator,
         currentEpoch,
+        currentEpochStartBlockHash,
         maxAllocationEpochs,
         indexingRules,
         activeAllocations,
@@ -295,6 +313,7 @@ class Agent {
             targetDeployments,
             indexingRules,
             currentEpoch.toNumber(),
+            currentEpochStartBlockHash,
             maxAllocationEpochs,
           )
         } catch (err) {
@@ -359,7 +378,7 @@ class Agent {
     const queue = new PQueue({ concurrency: 10 })
 
     // Index all new deployments worth indexing
-    queue.addAll(
+    await queue.addAll(
       deploy.map(deployment => async () => {
         const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
@@ -376,7 +395,7 @@ class Agent {
     )
 
     // Stop indexing deployments that are no longer worth indexing
-    queue.addAll(
+    await queue.addAll(
       remove.map(deployment => async () => this.indexer.remove(deployment)),
     )
 
@@ -388,6 +407,7 @@ class Agent {
     targetDeployments: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
+    currentEpochStartBlockHash: string,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
@@ -444,6 +464,7 @@ class Agent {
             rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL),
 
           currentEpoch,
+          currentEpochStartBlockHash,
           maxAllocationEpochs,
         )
       },
@@ -457,6 +478,7 @@ class Agent {
     worthIndexing: boolean,
     rule: IndexingRuleAttributes | undefined,
     epoch: number,
+    epochStartBlockHash: string,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const logger = this.logger.child({
@@ -513,7 +535,7 @@ class Agent {
             const poi =
               (await this.indexer.proofOfIndexing(
                 deployment,
-                allocation.createdAtBlockHash,
+                epochStartBlockHash,
               )) || utils.hexlify(Array(32).fill(0))
 
             await this.network.close(allocation, poi)
@@ -586,7 +608,7 @@ class Agent {
             const poi =
               (await this.indexer.proofOfIndexing(
                 deployment,
-                allocation.createdAtBlockHash,
+                epochStartBlockHash,
               )) || utils.hexlify(Array(32).fill(0))
             const closed = await this.network.close(allocation, poi)
             return !closed
@@ -648,7 +670,7 @@ class Agent {
               const poi =
                 (await this.indexer.proofOfIndexing(
                   deployment,
-                  allocation.createdAtBlockHash,
+                  epochStartBlockHash,
                 )) || utils.hexlify(Array(32).fill(0))
               const closed = await this.network.close(allocation, poi)
               return !closed
