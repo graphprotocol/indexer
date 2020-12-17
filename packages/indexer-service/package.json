@@ -21,12 +21,13 @@
   "resolutions": {
     "ethers": "5.0.19",
     "graphql": "15.4.0",
+    "@graphprotocol/common-ts": "1.0.0",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "0.4.0",
+    "@graphprotocol/common-ts": "1.0.0",
     "@graphprotocol/indexer-common": "^0.4.5",
-    "@graphprotocol/receipt-manager": "0.5.14-next.731e67a.6",
+    "@graphprotocol/receipt-manager": "0.5.14-alpha.6",
     "@thi.ng/cache": "1.0.59",
     "@urql/core": "1.13.1",
     "apollo-link-http": "1.5.17",
