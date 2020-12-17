@@ -4,7 +4,8 @@
   "description": "Indexer CLI for The Graph Network",
   "main": "dist/index.js",
   "repository": "https://github.com/graphprotocol/cli",
-  "author": "Graph Protocol, Inc.",
+  "author": "The Graph Foundation",
+  "license": "MIT",
   "scripts": {
     "format": "prettier --write src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",

@@ -5,7 +5,8 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": "https://github.com/graphprotocol/indexer",
-  "author": "Graph Protocol, Inc.",
+  "author": "The Graph Foundation",
+  "license": "MIT",
   "scripts": {
     "format": "./node_modules/.bin/prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "./node_modules/.bin/eslint . --ext .ts,.tsx",

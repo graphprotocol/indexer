@@ -17,17 +17,23 @@ Getting help:
 ```sh
 $ graph indexer --help
 
-Manage indexing rules and prices
+Manage indexer configuration
 
-  indexer                        Manage indexing rules and prices
-  indexer connect                Connect to indexer management API
-  indexer rules                  Configure indexing rules
-  indexer rules always (start)   Always index a deployment (and start indexing it if necessary)
-  indexer rules clear (reset)    Clear one or more indexing rules
-  indexer rules get              Get one or more indexing rules
-  indexer rules maybe            Index a deployment based on rules
-  indexer rules never (stop)     Never index a deployment (and stop indexing it if necessary)
+  indexer status                 Check the status of an indexer
+  indexer rules stop (never)     Never index a deployment (and stop indexing it if necessary)
+  indexer rules start (always)   Always index a deployment (and start indexing it if necessary)
   indexer rules set              Set one or more indexing rules
+  indexer rules maybe            Index a deployment based on rules
+  indexer rules get              Get one or more indexing rules
+  indexer rules delete           Remove one or many indexing rules
+  indexer rules clear (reset)    Clear one or more indexing rules
+  indexer rules                  Configure indexing rules
+  indexer cost set variables     Update cost model variables
+  indexer cost set model         Update a cost model
+  indexer cost get               Get cost models and/or variables for one or all subgraphs
+  indexer cost                   Manage costing for subgraphs
+  indexer connect                Connect to indexer management API
+  indexer                        Manage indexer configuration
 ```
 
 Connecting to an indexer management API:
@@ -103,3 +109,9 @@ $ graph indexer rules clear 0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd
 ║ 0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3 │            │                         │           │           │          │                     │        │ rules         ║
 ╚════════════════════════════════════════════════════════════════════╧════════════╧═════════════════════════╧═══════════╧═══════════╧══════════╧═════════════════════╧════════╧═══════════════╝
 ```
+
+# Copyright
+
+Copyright &copy; 2020 The Graph Foundation
+
+Licensed under the [MIT license](LICENSE).

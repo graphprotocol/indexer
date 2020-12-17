@@ -1,4 +1,4 @@
-# Graph Protocol Indexer Components (Private)
+# Graph Protocol Indexer Components
 
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
 [![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-service)
@@ -45,36 +45,6 @@ graph indexer ...
 ```sh
 $ graph-indexer-service start --help
 
-Start the service
-
-Ethereum
-  --ethereum         Ethereum node or provider URL           [string] [required]
-  --mnemonic         Mnemonic for the operator wallet        [string] [required]
-  --indexer-address  Ethereum address of the indexer         [string] [required]
-
-Indexer Infrastructure
-  --port                        Port to serve from      [number] [default: 7600]
-  --graph-node-query-endpoint   Graph Node endpoint to forward queries to
-                                                             [string] [required]
-  --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
-                                                             [string] [required]
-
-Postgres
-  --postgres-host      Postgres host                         [string] [required]
-  --postgres-port      Postgres port                    [number] [default: 5432]
-  --postgres-username  Postgres username          [string] [default: "postgres"]
-  --postgres-password  Postgres password                  [string] [default: ""]
-  --postgres-database  Postgres database name                [string] [required]
-
-Network Subgraph
-  --network-subgraph-endpoint  Endpoint to query the network subgraph from
-                                                             [string] [required]
-
-Options:
-  --version                Show version number                         [boolean]
-  --help                   Show help                                   [boolean]
-  --free-query-auth-token  Auth token that clients can use to query for free
-                                                                         [array]
 ```
 
 #### Indexer agent
@@ -82,49 +52,6 @@ Options:
 ```sh
 $ graph-indexer-agent start --help
 
-Start the agent
-
-Ethereum
-  --ethereum         Ethereum node or provider URL           [string] [required]
-  --mnemonic         Mnemonic for the operator wallet        [string] [required]
-  --indexer-address  Ethereum address of the indexer         [string] [required]
-
-Indexer Infrastructure
-  --graph-node-query-endpoint   Graph Node endpoint for querying subgraphs
-                                                             [string] [required]
-  --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
-                                                             [string] [required]
-  --graph-node-admin-endpoint   Graph Node endpoint for applying and updating
-                                subgraph deployments         [string] [required]
-  --public-indexer-url          Indexer endpoint for receiving requests from the
-                                network                      [string] [required]
-  --indexer-geo-coordinates     Coordinates describing the Indexer's location
-                                using latitude and longitude
-                                   [array] [default: ["31.780715","-41.179504"]]
-  --index-node-ids              Node IDs of Graph nodes to use for indexing
-                                                              [array] [required]
-  --indexer-management-port     Port to serve the indexer management API at
-                                                        [number] [default: 8000]
-
-Network Subgraph
-  --network-subgraph-deployment  Network subgraph deployment            [string]
-  --network-subgraph-endpoint    Endpoint to query the network subgraph from
-                                                                        [string]
-
-Protocol
-  --default-allocation-amount  Default amount of GRT to allocate to a subgraph
-                               deployment             [string] [default: "0.01"]
-
-Postgres
-  --postgres-host      Postgres host                         [string] [required]
-  --postgres-port      Postgres port                    [number] [default: 5432]
-  --postgres-username  Postgres username          [string] [default: "postgres"]
-  --postgres-password  Postgres password                  [string] [default: ""]
-  --postgres-database  Postgres database name                [string] [required]
-
-Options:
-  --version  Show version number                                       [boolean]
-  --help     Show help                                                 [boolean]
 ```
 
 ## Running from source
@@ -244,4 +171,6 @@ Creating a new release involves the following steps:
 
 # Copyright
 
-Copyright &copy; 2020 Graph Protocol, Inc.
+Copyright &copy; 2020 The Graph Foundation
+
+Licensed under the [MIT license](LICENSE).
