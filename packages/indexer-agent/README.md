@@ -8,8 +8,14 @@
 Start the agent
 
 Ethereum
-  --ethereum  Ethereum node or provider URL                  [string] [required]
-  --mnemonic  Mnemonic for the wallet                        [string] [required]
+  --ethereum                   Ethereum node or provider URL [string] [required]
+  --ethereum-network           Ethereum network    [string] [default: "rinkeby"]
+  --ethereum-polling-interval  Polling interval for the Ethereum provider (ms)
+                                                        [number] [default: 4000]
+  --mnemonic                   Mnemonic for the operator wallet
+                                                             [string] [required]
+  --indexer-address            Ethereum address of the indexer
+                                                             [string] [required]
 
 Indexer Infrastructure
   --graph-node-query-endpoint   Graph Node endpoint for querying subgraphs
@@ -24,9 +30,14 @@ Indexer Infrastructure
                                 using latitude and longitude
                                    [array] [default: ["31.780715","-41.179504"]]
   --index-node-ids              Node IDs of Graph nodes to use for indexing
-                                                              [array] [required]
+                                (separated by commas)         [array] [required]
   --indexer-management-port     Port to serve the indexer management API at
                                                         [number] [default: 8000]
+  --metrics-port                Port to serve Prometheus metrics at     [number]
+  --restake-rewards             Restake claimed indexer rewards, if set to
+                                'false' rewards will be returned to the wallet
+                                                       [boolean] [default: true]
+  --log-level                   Log level            [string] [default: "debug"]
 
 Network Subgraph
   --network-subgraph-deployment  Network subgraph deployment            [string]
@@ -36,6 +47,10 @@ Network Subgraph
 Protocol
   --default-allocation-amount  Default amount of GRT to allocate to a subgraph
                                deployment             [string] [default: "0.01"]
+
+Cost Models
+  --inject-dai  Inject the GRT per DAI conversion rate into cost model variables
+                                                       [boolean] [default: true]
 
 Postgres
   --postgres-host      Postgres host                         [string] [required]
@@ -48,3 +63,9 @@ Options:
   --version  Show version number                                       [boolean]
   --help     Show help                                                 [boolean]
 ```
+
+# Copyright
+
+Copyright &copy; 2020 The Graph Foundation
+
+Licensed under the [MIT license](LICENSE).
