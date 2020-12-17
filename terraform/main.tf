@@ -251,6 +251,18 @@ resource "kubernetes_secret" "indexer-mnemonic" {
 }
 
 #
+# Free query auth token (optional)
+#
+resource "kubernetes_secret" "free-query-auth-token" {
+  metadata {
+    name = "free-query-auth-token"
+  }
+  data = {
+    mnemonic = var.free_query_auth_token
+  }
+}
+
+#
 # Temporary: Secret for pulling private Docker Hub images
 #
 
