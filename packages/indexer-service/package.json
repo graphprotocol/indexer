@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-service",
-  "version": "0.4.4",
+  "version": "0.8.0",
   "description": "Indexer service",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "1.0.0",
-    "@graphprotocol/indexer-common": "^0.4.4",
+    "@graphprotocol/indexer-common": "^0.8.0",
     "@graphprotocol/receipt-manager": "0.5.14-next.731e67a.6+731e67a",
     "@thi.ng/cache": "1.0.59",
     "@urql/core": "1.13.1",
