@@ -76,6 +76,12 @@ variable "indexer_mnemonic" {
   description = "Mnemonic for the indexer's Ethereum private key"
 }
 
+variable "free_query_auth_token" {
+  type        = string
+  description = "Auth token that can be used to send free queries to the indexer"
+  default     = ""
+}
+
 variable "sizes" {
   type = object({
     query_pool   = number

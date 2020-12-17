@@ -66,3 +66,8 @@ spec:
               value: indexer-service
             - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
               value: "true"
+            - name: INDEXER_SERVICE_FREE_QUERY_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: free-query-auth-token
+                  key: token
