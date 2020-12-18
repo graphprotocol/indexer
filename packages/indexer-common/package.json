@@ -61,5 +61,5 @@
     "@urql/exchange-execute/@urql/core": "1.13.1",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
-  "gitHead": "18175dcc6d5b97d1e286611fb0c4be5398ed908b"
+  "gitHead": "c2b8b34c86248c30c80978ecd5ae175601a18588"
 }
