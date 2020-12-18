@@ -420,7 +420,7 @@ export default {
       networkSubgraph,
       indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
-      registerIndexer: argv.registerIndexer,
+      registerIndexer: argv.register,
     })
   },
 }
