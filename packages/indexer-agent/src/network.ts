@@ -39,11 +39,6 @@ import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
 import * as ti from '@thi.ng/iterators'
 
-const txOverrides = {
-  gasLimit: 1000000,
-  gasPrice: utils.parseUnits('25', 'gwei'),
-}
-
 const allocationIdProof = (
   signer: Signer,
   indexerAddress: string,
@@ -564,7 +559,6 @@ export class Network {
             this.indexerAddress,
             this.indexerUrl,
             geoHash,
-            txOverrides,
           ),
         logger.child({ action: 'register' }),
       )
@@ -701,7 +695,6 @@ export class Network {
         amount: formatGRT(amount),
         allocation: allocationId,
         price,
-        txOverrides,
       })
 
       const receipt = await this.executeTransaction(
@@ -717,7 +710,6 @@ export class Network {
               this.indexerAddress,
               allocationId,
             ),
-            txOverrides,
           ),
         logger.child({ action: 'allocate' }),
       )
@@ -799,12 +791,7 @@ export class Network {
       }
 
       const receipt = await this.executeTransaction(
-        () =>
-          this.contracts.staking.closeAllocation(
-            allocation.id,
-            poi,
-            txOverrides,
-          ),
+        () => this.contracts.staking.closeAllocation(allocation.id, poi),
         logger.child({ action: 'close' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -853,12 +840,7 @@ export class Network {
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
       const receipt = await this.executeTransaction(
-        () =>
-          this.contracts.staking.claim(
-            allocation.id,
-            this.restakeRewards,
-            txOverrides,
-          ),
+        () => this.contracts.staking.claim(allocation.id, this.restakeRewards),
         logger.child({ action: 'claim' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
