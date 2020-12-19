@@ -26,6 +26,8 @@ rm -rf node_modules packages/*/node_modules
 yarn --registry https://registry.npmjs.org/
 lerna publish "$VERSION"
 
+read  -n 1 -p "[Press any key to continue releasing to the testnet registry] "
+
 # Publish to testnet NPM registry
 git clone git@github.com:graphprotocol/indexer.git /tmp/indexer-release
 pushd /tmp/indexer-release
