@@ -697,20 +697,37 @@ export class Network {
         price,
       })
 
-      const receipt = await this.executeTransaction(
-        async () =>
-          this.contracts.staking.allocateFrom(
+      const estimatedGas = (
+        await this.contracts.staking.estimateGas.allocateFrom(
+          this.indexerAddress,
+          deployment.bytes32,
+          amount,
+          allocationId,
+          utils.hexlify(Array(32).fill(0)),
+          await allocationIdProof(
+            allocationSigner,
             this.indexerAddress,
-            deployment.bytes32,
-            amount,
             allocationId,
-            utils.hexlify(Array(32).fill(0)),
-            await allocationIdProof(
-              allocationSigner,
-              this.indexerAddress,
-              allocationId,
-            ),
           ),
+        )
+      ).toNumber()
+
+      const tx = this.contracts.staking.allocateFrom(
+        this.indexerAddress,
+        deployment.bytes32,
+        amount,
+        allocationId,
+        utils.hexlify(Array(32).fill(0)),
+        await allocationIdProof(
+          allocationSigner,
+          this.indexerAddress,
+          allocationId,
+        ),
+        { gasLimit: Math.round(estimatedGas * 1.5) },
+      )
+
+      const receipt = await this.executeTransaction(
+        async () => tx,
         logger.child({ action: 'allocate' }),
       )
 
@@ -790,10 +807,22 @@ export class Network {
         return true
       }
 
+      const estimatedGas = (
+        await this.contracts.staking.estimateGas.closeAllocation(
+          allocation.id,
+          poi,
+        )
+      ).toNumber()
+
+      const tx = this.contracts.staking.closeAllocation(allocation.id, poi, {
+        gasLimit: Math.round(estimatedGas * 1.5),
+      })
+
       const receipt = await this.executeTransaction(
-        () => this.contracts.staking.closeAllocation(allocation.id, poi),
+        async () => tx,
         logger.child({ action: 'close' }),
       )
+
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return false
       }
@@ -839,10 +868,22 @@ export class Network {
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
+      const estimatedGas = (
+        await this.contracts.staking.estimateGas.claim(
+          allocation.id,
+          this.restakeRewards,
+        )
+      ).toNumber()
+      const tx = this.contracts.staking.claim(
+        allocation.id,
+        this.restakeRewards,
+        { gasLimit: Math.round(estimatedGas * 1.5) },
+      )
       const receipt = await this.executeTransaction(
-        () => this.contracts.staking.claim(allocation.id, this.restakeRewards),
+        async () => tx,
         logger.child({ action: 'claim' }),
       )
+
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return false
       }
