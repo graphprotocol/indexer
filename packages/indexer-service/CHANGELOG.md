@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0-alpha.3] - 2020-12-19
+### Changed
+- Default to mainnet instead of rinkeby in `--ethereum-network`
+
+### Fixed
+- Fix `--ethereum-network` not being used
+
 ## [0.4.4] - 2020-12-14
 ### Fixed
 - Allow non-HTTPS/insuecure Ethereum connections
@@ -138,7 +145,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.0-alpha.3...HEAD
+[0.9.0-alpha.3]: https://github.com/graphprotocol/indexer/compare/v0.4.4...v0.9.0-alpha.3
 [0.4.4]: https://github.com/graphprotocol/indexer/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/graphprotocol/indexer/compare/v0.4.0...v0.4.3
 [0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0

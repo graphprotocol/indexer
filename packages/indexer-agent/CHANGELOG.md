@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0-alpha.3] - 2020-12-19
+### Fixed
+- Use 1.5x the estimated gas to avoid transactions running out of gas
+
+### Changed
+- Default to mainnet instead of rinkeby in `--ethereum-network`
+
+### Added
+- Add `--dai-contract` / `INDEXER_AGENT_DAI_CONTRACT` to set the stablecoint for `--inject-dai`
+
 ## [0.4.5] - 2020-12-15
 ### Fixed
 - Retry network synchronization (#146)
@@ -170,7 +180,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.5...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.0-alpha.3...HEAD
+[0.9.0-alpha.3]: https://github.com/graphprotocol/indexer/compare/v0.4.5...v0.9.0-alpha.3
 [0.4.5]: https://github.com/graphprotocol/indexer/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/graphprotocol/indexer/compare/v0.4.3...v0.4.4
 [0.4.3]: https://github.com/graphprotocol/indexer/compare/v0.4.2...v0.4.3
