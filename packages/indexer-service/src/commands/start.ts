@@ -258,7 +258,7 @@ export default {
         password: ethereum.password,
         allowInsecureAuthentication: true,
       },
-      'any',
+      argv.ethereumNetwork,
     )
     web3.pollingInterval = argv.ethereumPollingInterval
 
