@@ -38,10 +38,10 @@ export default {
         group: 'Ethereum',
       })
       .option('ethereum-network', {
-        description: 'Ethereum network ',
+        description: 'Ethereum network',
         type: 'string',
         required: false,
-        default: 'rinkeby',
+        default: 'mainnet',
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
