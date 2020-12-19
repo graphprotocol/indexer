@@ -1,4 +1,4 @@
-import { ChainId, Token, Fetcher, Route } from '@uniswap/sdk'
+import { Token, Fetcher, Route } from '@uniswap/sdk'
 import { Gauge } from 'prom-client'
 
 import {
@@ -6,9 +6,10 @@ import {
   Metrics,
   NetworkContracts,
   timer,
+  Address,
 } from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
-import { providers } from 'ethers'
+import { Contract, providers } from 'ethers'
 
 interface CostModelAutomationMetrics {
   grtPerDai: Gauge<string>
@@ -35,6 +36,7 @@ export interface CostModelAutomationOptions {
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
   injectDai: boolean
+  daiContractAddress: Address
   metrics: Metrics
 }
 
@@ -44,6 +46,7 @@ export const startCostModelAutomation = ({
   contracts,
   indexerManagement,
   injectDai,
+  daiContractAddress,
   metrics,
 }: CostModelAutomationOptions): void => {
   logger = logger.child({ component: 'CostModelAutomation' })
@@ -57,27 +60,30 @@ export const startCostModelAutomation = ({
       contracts,
       indexerManagement,
       metrics: automationMetrics,
+      daiContractAddress,
     })
   }
 }
 
-const monitorAndInjectDai = ({
+const ERC20_ABI = ['function decimals() view returns (uint8)']
+
+const monitorAndInjectDai = async ({
   logger,
   ethereum,
   contracts,
   indexerManagement,
   metrics,
+  daiContractAddress,
 }: Omit<CostModelAutomationOptions, 'injectDai' | 'metrics'> & {
   metrics: CostModelAutomationMetrics
-}): void => {
-  // FIXME: Make this mainnet-compatible by picking the REAL DAI address?
-  const DAI = new Token(
-    ChainId.RINKEBY,
-    '0xaCf3F4093B9851292181BEE2F80D2A450dB25D7a',
-    18,
-  )
+}): Promise<void> => {
+  // Identify the decimals used by the DAI or USDC contract
+  const chainId = ethereum.network.chainId
+  const stableCoin = new Contract(daiContractAddress, ERC20_ABI, ethereum)
+  const decimals = await stableCoin.decimals()
 
-  const GRT = new Token(ChainId.RINKEBY, contracts.token.address, 18)
+  const DAI = new Token(chainId, daiContractAddress, decimals)
+  const GRT = new Token(chainId, contracts.token.address, 18)
 
   // Update the GRT per DAI conversion rate every 15 minutes
   timer(15 * 60 * 1000).pipe(async () => {

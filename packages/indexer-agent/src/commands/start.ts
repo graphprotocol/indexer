@@ -153,10 +153,17 @@ export default {
       })
       .option('inject-dai', {
         description:
-          'Inject the GRT per DAI conversion rate into cost model variables',
+          'Inject the GRT to DAI/USDC conversion rate into cost model variables',
         type: 'boolean',
         default: true,
         group: 'Cost Models',
+      })
+      .option('dai-contract', {
+        description:
+          'Address of the DAI or USDC contract to use for the --inject-dai conversion rate',
+        type: 'string',
+        // Default to USDC
+        default: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       })
       .option('postgres-host', {
         description: 'Postgres host',
@@ -401,12 +408,13 @@ export default {
     })
     logger.info(`Launched indexer management API server`)
 
-    startCostModelAutomation({
+    await startCostModelAutomation({
       logger,
       ethereum,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
       injectDai: argv.injectDai,
+      daiContractAddress: toAddress(argv.daiContract),
       metrics,
     })
 
