@@ -30,6 +30,7 @@ import {
   Wallet,
   utils,
   Signer,
+  BigNumberish,
 } from 'ethers'
 import { strict as assert } from 'assert'
 import { Client, createClient } from '@urql/core'
@@ -168,7 +169,7 @@ export class Network {
 
   async executeTransaction(
     gasEstimation: () => Promise<BigNumber>,
-    transaction: (gasLimit: BigNumber) => Promise<ContractTransaction>,
+    transaction: (gasLimit: BigNumberish) => Promise<ContractTransaction>,
     logger: Logger,
   ): Promise<ContractReceipt | 'paused' | 'unauthorized'> {
     if (await this.paused.value()) {
@@ -184,7 +185,7 @@ export class Network {
     }
 
     const estimatedGas = await gasEstimation()
-    const tx = await transaction(estimatedGas.mul('1.5'))
+    const tx = await transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
     logger.info(`Transaction pending`, { tx: tx.hash })
     const receipt = await tx.wait(1)
     logger.info(`Transaction successfully included in block`, {
