@@ -16,9 +16,6 @@ spec:
         prometheus.io/path: "/metrics"
         prometheus.io/port: "7300"
     spec:
-      # Temporary: Allow to pull private Docker images
-      imagePullSecrets:
-        - name: docker-registry
       containers:
         - name: indexer-service
           image: indexer-service-image

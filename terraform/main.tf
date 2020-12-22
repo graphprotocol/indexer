@@ -263,35 +263,6 @@ resource "kubernetes_secret" "free-query-auth-token" {
 }
 
 #
-# Temporary: Secret for pulling private Docker Hub images
-#
-
-resource "kubernetes_secret" "docker-registry" {
-  metadata {
-    name = "docker-registry"
-  }
-  data = {
-    ".dockerconfigjson" = "${data.template_file.docker_config_script.rendered}"
-  }
-
-  type = "kubernetes.io/dockerconfigjson"
-}
-
-#
-# Temporary: Docker config for pulling private Docker Hub images
-#
-data "template_file" "docker_config_script" {
-  template = "${file("${path.module}/docker-config.json")}"
-  vars = {
-    docker-server   = "registry.hub.docker.com"
-    docker-username = var.dockerhub_username
-    docker-password = var.dockerhub_password
-    docker-email    = var.dockerhub_email
-    auth            = base64encode("${var.dockerhub_username}:${var.dockerhub_password}")
-  }
-}
-
-#
 # Persistent disks
 #
 resource "google_compute_disk" "prometheus" {
