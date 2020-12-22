@@ -1,8 +1,8 @@
 # Graph Protocol Indexer Components
 
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
-[![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-service)
-[![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-agent)
+[![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-service)
+[![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
 **NOTE: THIS PROJECT IS BETA SOFTWARE.**
 
@@ -218,8 +218,8 @@ The easiest way to run the indexer service agent is by using Docker. Docker
 images can either be pulled via
 
 ```sh
-docker pull graphprotocol/indexer-service:latest
-docker pull graphprotocol/indexer-agent:latest
+docker pull ghcr.io/graphprotocol/indexer-service:latest
+docker pull ghcr.io/graphprotocol/indexer-agent:latest
 ```
 
 or built locally with
