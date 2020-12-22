@@ -3,7 +3,7 @@ name: Indexer Agent Image
 on:
   push:
     branches:
-    - main
+    - master
     tags: 
     - v*.*.*
 
@@ -18,7 +18,7 @@ jobs:
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1
         with:
-          images: ghcr.io/edgeandnode/indexer-agent
+          images: ghcr.io/graphprotocol/indexer-agent
           tag-sha: true
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
