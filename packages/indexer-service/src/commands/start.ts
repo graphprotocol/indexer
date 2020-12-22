@@ -13,7 +13,7 @@ import {
   toAddress,
   connectDatabase,
 } from '@graphprotocol/common-ts'
-import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipts'
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
@@ -176,7 +176,7 @@ export default {
       version: pkg.version,
       dependencies: {
         '@graphprotocol/common-ts': dependencies['@graphprotocol/common-ts'],
-        '@graphprotocol/receipt-manager': dependencies['@graphprotocol/receipt-manager'],
+        '@graphprotocol/receipts': dependencies['@graphprotocol/receipts'],
       },
     }
 

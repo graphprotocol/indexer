@@ -10,7 +10,7 @@ import { createLogger, createMetrics } from '@graphprotocol/common-ts'
 
 import { createApp } from '..'
 import { QueryProcessor } from '../../queries'
-import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipts'
 
 describe('Server', () => {
   let receiptManager: ReceiptManager

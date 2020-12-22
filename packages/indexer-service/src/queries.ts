@@ -8,7 +8,7 @@ import {
   Receipt,
   Eventual,
 } from '@graphprotocol/common-ts'
-import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipts'
 import {
   QueryProcessor as QueryProcessorInterface,
   PaidQuery,

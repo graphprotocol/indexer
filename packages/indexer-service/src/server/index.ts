@@ -17,7 +17,7 @@ import {
   IndexerErrorCode,
   IndexerManagementClient,
 } from '@graphprotocol/indexer-common'
-import { ReceiptManager } from '@graphprotocol/receipt-manager'
+import { ReceiptManager } from '@graphprotocol/receipts'
 import { createCostServer } from './cost'
 
 export interface ServerOptions {
