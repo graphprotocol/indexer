@@ -2,21 +2,41 @@ name: Indexer Service Image
 
 on:
   push:
-    branches: [jannis/statechannels, master]
+    branches:
+    - main
+    tags: 
+    - v*.*.*
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Build and push Indexer Service image
-        uses: docker/build-push-action@v1.1.0
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Docker meta
+        id: docker_meta
+        uses: crazy-max/ghaction-docker-meta@v1
         with:
-          username: jannispohlmann
-          password: ${{secrets.dockerhub_token}}
-          repository: graphprotocol/indexer-service
-          tags: latest
-          tag_with_sha: true
-          dockerfile: Dockerfile.indexer-service
-          build_args: NPM_TOKEN=${{secrets.npm_token}}
+          images: ghcr.io/edgeandnode/indexer-service
+          tag-sha: true
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{github.repository_owner}}
+          password: ${{secrets.cr_pat}}
+      - name: Build and push Indexer Service image
+        id: docker_build
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: Dockerfile.indexer-service
+          push: ${{github.event_name != 'pull_request'}}
+          tags: ${{steps.docker_meta.outputs.tags}}
+          labels: ${{steps.docker_meta.outputs.labels}}
+          build-args: NPM_TOKEN=${{secrets.graphprotocol_npm_token}}
