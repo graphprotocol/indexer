@@ -4,6 +4,8 @@
 [![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-service)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://hub.docker.com/r/graphprotocol/indexer-agent)
 
+**NOTE: THIS PROJECT IS BETA SOFTWARE.**
+
 This repository is managed using [Lerna](https://lerna.js.org/) and [Yarn
 workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
 
