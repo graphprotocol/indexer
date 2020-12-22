@@ -171,6 +171,7 @@ simply by running `graph indexer`.
 ```sh
 $ graph --help
 
+  ...
   indexer status                 Check the status of an indexer
   indexer rules stop (never)     Never index a deployment (and stop indexing it if necessary)
   indexer rules start (always)   Always index a deployment (and start indexing it if necessary)
@@ -270,7 +271,6 @@ Creating a new release involves the following steps:
    chan added ...
    chan fixed ...
    chan changed ...
-   chan release <new-version>
    popd
 
    pushd packages/indexer-agent
@@ -287,22 +287,12 @@ Creating a new release involves the following steps:
 
    ```
 
-2. Commit these changelogs:
+2. Publish the release. This includes committing the changelogs, tagging the
+   new version and publishing packages on npmjs.com.
 
    ```sh
-   git add packages/**/CHANGELOG.md
-   git commit -m "Update changelogs ahead of release"
+   yarn release <version>
    ```
-
-3. Publish a new release:
-
-   ```sh
-   lerna publish
-   ```
-
-   When it asks for the version to release, select the same one that was used
-   when updating the changelogs.
-
 # Copyright
 
 Copyright &copy; 2020 The Graph Foundation
