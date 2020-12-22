@@ -41,9 +41,9 @@ graph-indexer-agent start ...
 graph indexer ...
 ```
 
-### Usage
+## Usage
 
-#### Indexer service
+### Indexer service
 
 ```sh
 $ graph-indexer-service start --help
@@ -94,7 +94,7 @@ Options:
                                                                          [array]
 ```
 
-#### Indexer agent
+### Indexer agent
 
 ```sh
 $ graph-indexer-agent start --help
@@ -259,6 +259,17 @@ After this, the indexer agent and service can be run as follows:
    on the host at port 18000.
 
    ````
+
+## Terraform & Kubernetes
+
+The [terraform/](./terraform/) and [k8s/](./k8s) directories provide a
+complete example setup for running an indexer on the Google Cloud Kubernetes
+Engine (GKE). This setup was also used as the reference setup in the Mission
+Control testnet and can be a good starting point for those looking to run the
+indexer in a virtualized environment.
+
+Check out the [terraform README](./terraform/README.md) for details on how to
+get started.
 
 ## Releasing
 
