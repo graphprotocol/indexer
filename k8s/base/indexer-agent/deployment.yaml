@@ -41,18 +41,14 @@ spec:
                   key: mnemonic
             - name: INDEXER_AGENT_INDEX_NODE_IDS
               value: index-node-0
-            - name: INDEXER_AGENT_ETHEREUM
-              value: https://kovan.alchemyapi.io/jsonrpc/demo/
             - name: INDEXER_AGENT_GRAPH_NODE_QUERY_ENDPOINT
               value: http://query-node.default.svc.cluster.local/
             - name: INDEXER_AGENT_GRAPH_NODE_ADMIN_ENDPOINT
               value: http://index-node.default.svc.cluster.local/
-            - name: INDEXER_AGENT_PUBLIC_INDEXER_URL
-              value: http://localhost/
             - name: INDEXER_AGENT_GRAPH_NODE_STATUS_ENDPOINT
               value: http://query-node.default.svc.cluster.local/index-node/graphql
-            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT
-              value: Qmex7X63rHpoodb7tEveu8C9CabMmAQdKtQew3vC8dHhQb
+            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT
+              value: https://gateway.network.thegraph.com/network
             - name: INDEXER_AGENT_POSTGRES_HOST
               valueFrom:
                 secretKeyRef:
@@ -69,4 +65,4 @@ spec:
                   name: postgres-credentials
                   key: password
             - name: INDEXER_AGENT_POSTGRES_DATABASE
-              value: indexer-service
+              value: indexer

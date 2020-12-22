@@ -5,5 +5,4 @@ metadata:
   namespace: default
 data:
   networks: >-
-    mainnet:https://eth-mainnet.alchemyapi.io/jsonrpc/demo
-    rinkeby:https://eth-rinkeby.alchemyapi.io/jsonrpc/demo
+    mainnet:https://eth-mainnet.node/

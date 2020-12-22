@@ -13,7 +13,7 @@ spec:
               value: index_node_0,index_node_1
             # Set this to your Ethereum node/provider
             - name: INDEXER_AGENT_ETHEREUM
-              value: https://kovan.alchemyapi.io/jsonrpc/demo/
+              value: https://eth-mainnet.node/
             # Set this to the public URL that your indexer serves from
             - name: INDEXER_AGENT_PUBLIC_INDEXER_URL
-              value: http://localhost/
+              value: http://not.localhost/

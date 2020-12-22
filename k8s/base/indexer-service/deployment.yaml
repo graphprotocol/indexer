@@ -63,7 +63,7 @@ spec:
                   name: postgres-credentials
                   key: password
             - name: INDEXER_SERVICE_POSTGRES_DATABASE
-              value: indexer-service
+              value: indexer
             - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
               value: "true"
             - name: INDEXER_SERVICE_FREE_QUERY_AUTH_TOKEN

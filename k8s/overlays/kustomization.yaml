@@ -12,14 +12,14 @@ images:
     newName: graphprotocol/graph-node-debug
     newTag: latest
   - name: indexer-agent-image
-    newName: registry.hub.docker.com/graphprotocol/indexer-agent
+    newName: ghcr.io/graphprotocol/indexer-agent
     newTag: latest
   - name: indexer-service-image
-    newName: registry.hub.docker.com/graphprotocol/indexer-service
+    newName: ghcr.io/graphprotocol/indexer-service
     newTag: latest
   - name: prometheus-image
     newName: prom/prometheus
-    newTag: v2.17.1
+    newTag: v2.23.0
   - name: busybox-image
     newName: busybox
     newTag: "1.30"

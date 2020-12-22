@@ -81,3 +81,5 @@ spec:
                 configMapKeyRef:
                   name: ethereum-networks
                   key: networks
+            - name: ipfs
+              value: https://ipfs.network.thegraph.com

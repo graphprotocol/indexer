@@ -15,7 +15,5 @@ spec:
               # that one VM in the node pool has
               cpu: 600m
           env:
-            - name: ipfs
-              value: https://api.staging.thegraph.com/ipfs/
             - name: GRAPH_LOG
               value: debug

@@ -55,9 +55,12 @@ spec:
             - name: nfs-shared
               mountPath: /var/lib/graph
           env:
-            # TODO: Do we even need an ethereum node for a query node?
+            # Query nodes connect to Ethereum but don't call the Ethereum node
+            # for anything; this argument could be made obsolete
             - name: ethereum
-              value: mainnet:https://eth-mainnet.alchemyapi.io/jsonrpc/demo
+              value: mainnet:https://eth-mainnet.node/
+            - name: ipfs
+              value: https://ipfs.network.thegraph.com
             - name: EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE
               value: synced
             - name: GRAPH_KILL_IF_UNRESPONSIVE

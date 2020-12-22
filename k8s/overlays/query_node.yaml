@@ -14,6 +14,3 @@ spec:
               # Set this to a little more than half the number of CPUs
               # that one VM in the node pool has
               cpu: 600m
-          env:
-            - name: ipfs
-              value: https://api.staging.thegraph.com/ipfs/
