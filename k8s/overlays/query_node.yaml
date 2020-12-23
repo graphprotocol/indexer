@@ -14,3 +14,7 @@ spec:
               # Set this to a little more than half the number of CPUs
               # that one VM in the node pool has
               cpu: 600m
+          env:
+            # Set this to your Ethereum node
+            - name: ethereum
+              value: https://eth-mainnet.node/

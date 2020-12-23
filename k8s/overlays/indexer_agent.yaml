@@ -17,3 +17,5 @@ spec:
             # Set this to the public URL that your indexer serves from
             - name: INDEXER_AGENT_PUBLIC_INDEXER_URL
               value: http://not.localhost/
+            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT
+              value: https://gateway.network.thegraph.com/network
