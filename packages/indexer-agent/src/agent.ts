@@ -96,10 +96,6 @@ class Agent {
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
 
-    if (this.registerIndexer) {
-      await this.network.register()
-    }
-
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
 
@@ -155,6 +151,10 @@ class Agent {
       }, 5000)
 
       this.logger.info(`Network subgraph deployment is synced`)
+    }
+
+    if (this.registerIndexer) {
+      await this.network.register()
     }
 
     // Synchronize with the network roughly every 120s
