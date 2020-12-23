@@ -17,4 +17,4 @@ spec:
           env:
             # Set this to your Ethereum node
             - name: ethereum
-              value: https://eth-mainnet.node/
+              value: mainnet:https://eth-mainnet.node/
