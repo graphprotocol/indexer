@@ -322,7 +322,9 @@ export default {
         ethereumPrivateKey: wallet.privateKey,
         networkConfiguration: {
           chainNetworkID: network.chainId,
-          rpcEndpoint: argv.ethereum,
+          // FIXME: This disables the ChainService in the server wallet, which
+          // is not needed with fake funding:
+          // rpcEndpoint: walletConfig.ethereum
         },
         skipEvmValidation: argv.walletSkipEvmValidation,
         workerThreadAmount: argv.walletWorkerThreads,
