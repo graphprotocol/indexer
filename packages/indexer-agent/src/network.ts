@@ -65,6 +65,7 @@ export class Network {
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   restakeRewards: boolean
+  queryFeesCollectedClaimThreshold: BigNumber
 
   private constructor(
     logger: Logger,
@@ -78,6 +79,7 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
+    queryFeesCollectedClaimThreshold: BigNumber
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -90,6 +92,7 @@ export class Network {
     this.paused = paused
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
+    this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
   }
 
   async executeTransaction(
@@ -131,6 +134,7 @@ export class Network {
     geoCoordinates: [string, string],
     networkSubgraph: Client | SubgraphDeploymentID,
     restakeRewards: boolean,
+    queryFeesCollectedClaimThreshold: number,
   ): Promise<Network> {
     const subgraph =
       networkSubgraph instanceof Client
@@ -206,6 +210,7 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
+      parseGRT(queryFeesCollectedClaimThreshold.toString())
     )
   }
 
@@ -391,11 +396,12 @@ export class Network {
       const result = await this.subgraph
         .query(
           gql`
-            query allocations($indexer: String!, $disputableEpoch: Int!) {
+            query allocations($indexer: String!, $disputableEpoch: Int!, $minimumQueryFeesCollected: BigInt!) {
               allocations(
                 where: {
                   indexer: $indexer
                   closedAtEpoch_lte: $disputableEpoch
+                  queryFeesCollected_gte: $minimumQueryFeesCollected
                   status: Closed
                 }
                 first: 1000
@@ -416,6 +422,7 @@ export class Network {
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             disputableEpoch,
+            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold
           },
         )
         .toPromise()

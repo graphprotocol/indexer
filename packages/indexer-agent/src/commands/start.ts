@@ -151,6 +151,12 @@ export default {
         default: true,
         group: 'Indexer Infrastructure',
       })
+      .option('allocation-claim-threshold', {
+        description: `Minimum query fees collected (GRT) on an allocation for it to be claimed`,
+        type: 'number',
+        default: 0,
+        group: 'Indexer Infrastructure',
+      })
       .option('inject-dai', {
         description:
           'Inject the GRT to DAI/USDC conversion rate into cost model variables',
@@ -380,6 +386,7 @@ export default {
       argv.indexerGeoCoordinates,
       networkSubgraph,
       argv.restakeRewards,
+      argv.allocationClaimThreshold,
     )
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
