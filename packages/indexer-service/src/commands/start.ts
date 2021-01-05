@@ -12,6 +12,7 @@ import {
   createMetricsServer,
   toAddress,
   connectDatabase,
+  mutable,
 } from '@graphprotocol/common-ts'
 import { ReceiptManager } from '@graphprotocol/receipts'
 import {
@@ -365,7 +366,7 @@ export default {
     const indexerManagementClient = await createIndexerManagementClient({
       models,
       address,
-      contracts,
+      contracts: mutable(contracts),
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management

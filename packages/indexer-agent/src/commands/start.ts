@@ -11,6 +11,7 @@ import {
   createMetrics,
   createMetricsServer,
   toAddress,
+  connectContracts,
 } from '@graphprotocol/common-ts'
 import {
   defineIndexerManagementModels,
@@ -23,8 +24,8 @@ import {
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
-import { providers } from 'ethers'
 import { startCostModelAutomation } from '../cost'
+import { createEthereumProvider } from '../ethereum'
 
 export default {
   command: 'start',
@@ -298,69 +299,31 @@ export default {
     }
     logger.info(`Successfully ran database migrations`)
 
-    logger.info(`Connect to Ethereum`)
-    let providerUrl
-    try {
-      providerUrl = new URL(argv.ethereum)
-    } catch (err) {
-      logger.fatal(`Invalid Ethereum URL`, {
-        err: indexerError(IndexerErrorCode.IE002, err),
+    const ethereumProvider = await createEthereumProvider({
+      logger,
+      metrics,
+      ethereum: {
         url: argv.ethereum,
-      })
-      process.exit(1)
-      return
-    }
-
-    const ethProviderMetrics = {
-      requests: new metrics.client.Counter({
-        name: 'eth_provider_requests',
-        help: 'Ethereum provider requests',
-        registers: [metrics.registry],
-        labelNames: ['method'],
-      }),
-    }
-
-    if (providerUrl.password && providerUrl.protocol == 'http:') {
-      logger.warn(
-        'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
-      )
-    }
-
-    const ethereum = new providers.StaticJsonRpcProvider(
-      {
-        url: providerUrl.toString(),
-        user: providerUrl.username,
-        password: providerUrl.password,
-        allowInsecureAuthentication: true,
+        network: argv.ethereumNetwork,
+        pollingInterval: argv.ethereumPollingInterval,
       },
-      argv.ethereumNetwork,
+    })
+
+    logger.info('Connect contracts')
+    const contracts = ethereumProvider.map(provider =>
+      connectContracts(provider, provider.network.chainId),
     )
-    ethereum.pollingInterval = argv.ethereumPollingInterval
-
-    ethereum.on('debug', info => {
-      if (info.action === 'response') {
-        ethProviderMetrics.requests.inc({
-          method: info.request.method,
-        })
-
-        logger.trace('Ethereum request', {
-          method: info.request.method,
-          params: info.request.params,
-          response: info.response,
-        })
-      }
-    })
-
-    ethereum.on('network', (newNetwork, oldNetwork) => {
-      logger.trace('Ethereum network change', {
-        oldNetwork: oldNetwork,
-        newNetwork: newNetwork,
+    contracts.pipe(contracts => {
+      logger.info('Successfully connected to contracts', {
+        curation: contracts.curation.address,
+        disputeManager: contracts.disputeManager.address,
+        epochManager: contracts.epochManager.address,
+        gns: contracts.gns.address,
+        rewardsManager: contracts.rewardsManager.address,
+        serviceRegistry: contracts.serviceRegistry.address,
+        staking: contracts.staking.address,
+        token: contracts.token.address,
       })
-    })
-
-    logger.info(`Connected to Ethereum`, {
-      pollingInterval: ethereum.pollingInterval,
-      network: await ethereum.detectNetwork(),
     })
 
     logger.info('Connect to network')
@@ -370,17 +333,18 @@ export default {
           requestPolicy: 'network-only',
         })
       : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
-    const network = await Network.create(
+    const network = await Network.create({
       logger,
-      ethereum,
-      argv.mnemonic,
-      toAddress(argv.indexerAddress),
-      argv.publicIndexerUrl,
-      argv.graphNodeQueryEndpoint,
-      argv.indexerGeoCoordinates,
+      ethereumProvider,
+      contracts,
       networkSubgraph,
-      argv.restakeRewards,
-    )
+      mnemonic: argv.mnemonic,
+      indexerAddress: toAddress(argv.indexerAddress),
+      indexerUrl: argv.indexerUrl,
+      graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+      geoCoordinates: argv.indexerGeoCoordinates,
+      restakeRewards: argv.restakeRewards,
+    })
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
     })
@@ -388,8 +352,8 @@ export default {
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models,
-      address: toAddress(network.indexerAddress),
-      contracts: network.contracts,
+      address: toAddress(argv.indexerAddress),
+      contracts,
       logger,
       defaults: {
         globalIndexingRule: {
@@ -408,10 +372,10 @@ export default {
     })
     logger.info(`Launched indexer management API server`)
 
-    await startCostModelAutomation({
+    startCostModelAutomation({
       logger,
-      ethereum,
-      contracts: network.contracts,
+      ethereumProvider,
+      contracts,
       indexerManagement: indexerManagementClient,
       injectDai: argv.injectDai,
       daiContractAddress: toAddress(argv.daiContract),
@@ -419,16 +383,16 @@ export default {
     })
 
     await startAgent({
-      ethereum,
+      logger,
+      networkSubgraph,
+      network,
+      indexerManagement: indexerManagementClient,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
-      logger,
       indexNodeIDs: argv.indexNodeIds,
-      network,
-      networkSubgraph,
-      indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
       registerIndexer: argv.register,
+      indexerAddress: toAddress(argv.indexerAddress),
     })
   },
 }

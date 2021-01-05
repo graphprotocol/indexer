@@ -7,6 +7,7 @@ import {
   NetworkContracts,
   timer,
   Address,
+  Eventual,
 } from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import { Contract, providers } from 'ethers'
@@ -32,8 +33,8 @@ const registerMetrics = (metrics: Metrics): CostModelAutomationMetrics => ({
 
 export interface CostModelAutomationOptions {
   logger: Logger
-  ethereum: providers.StaticJsonRpcProvider
-  contracts: NetworkContracts
+  ethereumProvider: Eventual<providers.StaticJsonRpcProvider>
+  contracts: Eventual<NetworkContracts>
   indexerManagement: IndexerManagementClient
   injectDai: boolean
   daiContractAddress: Address
@@ -42,7 +43,7 @@ export interface CostModelAutomationOptions {
 
 export const startCostModelAutomation = ({
   logger,
-  ethereum,
+  ethereumProvider,
   contracts,
   indexerManagement,
   injectDai,
@@ -56,7 +57,7 @@ export const startCostModelAutomation = ({
   if (injectDai) {
     monitorAndInjectDai({
       logger,
-      ethereum,
+      ethereumProvider,
       contracts,
       indexerManagement,
       metrics: automationMetrics,
@@ -69,7 +70,7 @@ const ERC20_ABI = ['function decimals() view returns (uint8)']
 
 const monitorAndInjectDai = async ({
   logger,
-  ethereum,
+  ethereumProvider,
   contracts,
   indexerManagement,
   metrics,
@@ -77,17 +78,25 @@ const monitorAndInjectDai = async ({
 }: Omit<CostModelAutomationOptions, 'injectDai' | 'metrics'> & {
   metrics: CostModelAutomationMetrics
 }): Promise<void> => {
+  const oneTimeEthereumProvider = await ethereumProvider.value()
+  const oneTimeContracts = await contracts.value()
+
   // Identify the decimals used by the DAI or USDC contract
-  const chainId = ethereum.network.chainId
-  const stableCoin = new Contract(daiContractAddress, ERC20_ABI, ethereum)
+  const chainId = oneTimeEthereumProvider.network.chainId
+  const stableCoin = new Contract(
+    daiContractAddress,
+    ERC20_ABI,
+    oneTimeEthereumProvider,
+  )
   const decimals = await stableCoin.decimals()
 
   const DAI = new Token(chainId, daiContractAddress, decimals)
-  const GRT = new Token(chainId, contracts.token.address, 18)
+  const GRT = new Token(chainId, oneTimeContracts.token.address, 18)
 
   // Update the GRT per DAI conversion rate every 15 minutes
   timer(15 * 60 * 1000).pipe(async () => {
-    const pair = await Fetcher.fetchPairData(GRT, DAI, ethereum)
+    const provider = await ethereumProvider.value()
+    const pair = await Fetcher.fetchPairData(GRT, DAI, provider)
     const route = new Route([pair], DAI)
     const grtPerDai = route.midPrice.toSignificant(18)
     const daiPerGrt = route.midPrice.invert().toSignificant(18)

@@ -1,7 +1,6 @@
 import {
   Logger,
   NetworkContracts,
-  connectContracts,
   SubgraphDeploymentID,
   formatGRT,
   parseGRT,
@@ -10,6 +9,7 @@ import {
   Address,
   toAddress,
   mutable,
+  join,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -53,6 +53,19 @@ const allocationIdProof = (
   return signer.signMessage(messageHashBytes)
 }
 
+export interface CreateNetworkOptions {
+  logger: Logger
+  networkSubgraph: Client | SubgraphDeploymentID
+  ethereumProvider: Eventual<providers.StaticJsonRpcProvider>
+  contracts: Eventual<NetworkContracts>
+  mnemonic: string
+  indexerAddress: Address
+  indexerUrl: string
+  graphNodeQueryEndpoint: string
+  geoCoordinates: [string, string]
+  restakeRewards: boolean
+}
+
 export class Network {
   subgraph: Client
   contracts: NetworkContracts
@@ -66,7 +79,82 @@ export class Network {
   isOperator: Eventual<boolean>
   restakeRewards: boolean
 
-  private constructor(
+  static async create({
+    logger,
+    networkSubgraph,
+    ethereumProvider,
+    contracts,
+    mnemonic,
+    indexerAddress,
+    indexerUrl,
+    graphNodeQueryEndpoint,
+    geoCoordinates,
+    restakeRewards,
+  }: CreateNetworkOptions): Promise<Eventual<Network>> {
+    // Ensure we have a network subgraph client
+    const networkSubgraphClient =
+      networkSubgraph instanceof Client
+        ? networkSubgraph
+        : createClient({
+            url: new URL(
+              `/subgraphs/id/${networkSubgraph.ipfsHash}`,
+              graphNodeQueryEndpoint,
+            ).toString(),
+            fetch,
+            requestPolicy: 'network-only',
+          })
+
+    logger = logger.child({
+      component: 'Network',
+      indexer: indexerAddress.toString(),
+    })
+
+    const network = (await ethereumProvider.value()).network
+    logger.debug(`Create or refresh wallet`, {
+      network: network.name,
+      chainId: network.chainId,
+    })
+    const unconnectedWallet = Wallet.fromMnemonic(mnemonic)
+    logger.info(`Successfully created wallet`, {
+      address: unconnectedWallet.address,
+    })
+    logger = logger.child({ operator: unconnectedWallet.address })
+
+    return join({
+      ethereumProvider,
+      contracts,
+    }).map(async ({ ethereumProvider, contracts }) => {
+      const wallet = unconnectedWallet.connect(ethereumProvider)
+
+      const paused = await monitorNetworkPauses(
+        logger,
+        contracts,
+        networkSubgraphClient,
+      )
+      const isOperator = await monitorIsOperator(
+        logger,
+        contracts,
+        indexerAddress,
+        wallet,
+      )
+
+      return new Network(
+        logger,
+        wallet,
+        indexerAddress,
+        indexerUrl,
+        geoCoordinates,
+        contracts,
+        networkSubgraphClient,
+        ethereumProvider,
+        paused,
+        isOperator,
+        restakeRewards,
+      )
+    })
+  }
+
+  protected constructor(
     logger: Logger,
     wallet: Wallet,
     indexerAddress: Address,
@@ -119,94 +207,6 @@ export class Network {
       blockHash: receipt.blockHash,
     })
     return receipt
-  }
-
-  static async create(
-    parentLogger: Logger,
-    ethereum: providers.StaticJsonRpcProvider,
-    mnemonic: string,
-    indexerAddress: Address,
-    indexerUrl: string,
-    indexerQueryEndpoint: string,
-    geoCoordinates: [string, string],
-    networkSubgraph: Client | SubgraphDeploymentID,
-    restakeRewards: boolean,
-  ): Promise<Network> {
-    const subgraph =
-      networkSubgraph instanceof Client
-        ? networkSubgraph
-        : createClient({
-            url: new URL(
-              `/subgraphs/id/${networkSubgraph.ipfsHash}`,
-              indexerQueryEndpoint,
-            ).toString(),
-            fetch,
-            requestPolicy: 'network-only',
-          })
-
-    const network = await ethereum.getNetwork()
-
-    let logger = parentLogger.child({
-      component: 'Network',
-      indexer: indexerAddress.toString(),
-    })
-
-    logger.info(`Create wallet`, {
-      network: network.name,
-      chainId: network.chainId,
-    })
-    let wallet = Wallet.fromMnemonic(mnemonic)
-    wallet = wallet.connect(ethereum)
-    logger.info(`Successfully created wallet`, { address: wallet.address })
-
-    logger = logger.child({ operator: wallet.address })
-
-    logger.info(`Connecting to contracts`)
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, network.chainId)
-    } catch (error) {
-      logger.error(
-        `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
-        {
-          error,
-        },
-      )
-      throw error
-    }
-
-    logger.info(`Successfully connected to contracts`, {
-      curation: contracts.curation.address,
-      disputeManager: contracts.disputeManager.address,
-      epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
-      rewardsManager: contracts.rewardsManager.address,
-      serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
-      token: contracts.token.address,
-    })
-
-    const paused = await monitorNetworkPauses(logger, contracts, subgraph)
-    const isOperator = await monitorIsOperator(
-      logger,
-      contracts,
-      indexerAddress,
-      wallet,
-    )
-
-    return new Network(
-      logger,
-      wallet,
-      indexerAddress,
-      indexerUrl,
-      geoCoordinates,
-      contracts,
-      subgraph,
-      ethereum,
-      paused,
-      isOperator,
-      restakeRewards,
-    )
   }
 
   async subgraphDeploymentsWorthIndexing(

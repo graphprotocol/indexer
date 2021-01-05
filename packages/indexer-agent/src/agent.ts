@@ -1,4 +1,5 @@
 import {
+  Eventual,
   formatGRT,
   Logger,
   SubgraphDeploymentID,
@@ -73,7 +74,7 @@ interface AgentInputs {
 
 class Agent {
   indexer: Indexer
-  network: Network
+  network: Eventual<Network>
   logger: Logger
   networkSubgraph: Client | SubgraphDeploymentID
   registerIndexer: boolean
@@ -81,7 +82,7 @@ class Agent {
   constructor(
     logger: Logger,
     indexer: Indexer,
-    network: Network,
+    network: Eventual<Network>,
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
   ) {
@@ -154,7 +155,8 @@ class Agent {
     }
 
     if (this.registerIndexer) {
-      await this.network.register()
+      const network = await this.network.value()
+      network.register()
     }
 
     // Synchronize with the network roughly every 120s
@@ -211,12 +213,13 @@ class Agent {
 
           // Do nothing if we're not authorized as an operator for the indexer
           if (!isOperator) {
+            const network = await this.network.value()
             return this.logger.error(
               `Not authorized as an operator for the indexer`,
               {
                 err: indexerError(IndexerErrorCode.IE034),
-                indexer: toAddress(this.network.indexerAddress),
-                operator: toAddress(this.network.wallet.address),
+                indexer: toAddress(network.indexerAddress),
+                operator: toAddress(network.wallet.address),
               },
             )
           }
@@ -252,15 +255,17 @@ class Agent {
   }
 
   async synchronize(): Promise<AgentInputs> {
-    const paused = await this.network.paused.value()
-    const isOperator = await this.network.isOperator.value()
+    const network = await this.network.value()
+
+    const paused = await network.paused.value()
+    const isOperator = await network.isOperator.value()
 
     // Identify the current epoch
     const currentEpoch = (
-      await this.network.contracts.epochManager.currentEpoch()
+      await network.contracts.epochManager.currentEpoch()
     ).toNumber()
-    const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
-    const channelDisputeEpochs = await this.network.contracts.staking.channelDisputeEpochs()
+    const maxAllocationEpochs = await network.contracts.staking.maxAllocationEpochs()
+    const channelDisputeEpochs = await network.contracts.staking.channelDisputeEpochs()
 
     // Identify subgraph deployments indexing locally
     const activeDeployments = await this.indexer.subgraphDeployments()
@@ -279,15 +284,13 @@ class Agent {
     const targetDeployments =
       indexingRules.length === 0
         ? []
-        : await this.network.subgraphDeploymentsWorthIndexing(indexingRules)
+        : await network.subgraphDeploymentsWorthIndexing(indexingRules)
 
     // Identify active allocations
-    const activeAllocations = await this.network.allocations(
-      AllocationStatus.Active,
-    )
+    const activeAllocations = await network.allocations(AllocationStatus.Active)
 
     // Identify finalized allocations (available to claim rewards from)
-    const claimableAllocations = await this.network.claimableAllocations(
+    const claimableAllocations = await network.claimableAllocations(
       currentEpoch - channelDisputeEpochs,
     )
 
@@ -315,7 +318,8 @@ class Agent {
     await pMap(
       allocations,
       async allocation => {
-        await this.network.claim(allocation)
+        const network = await this.network.value()
+        await network.claim(allocation)
       },
       { concurrency: 1 },
     )
@@ -514,7 +518,8 @@ class Agent {
                 allocation.createdAtBlockHash,
               )) || utils.hexlify(Array(32).fill(0))
 
-            await this.network.close(allocation, poi)
+            const network = await this.network.value()
+            await network.close(allocation, poi)
           },
           { concurrency: 1 },
         )
@@ -529,7 +534,8 @@ class Agent {
         desiredNumberOfAllocations,
         allocationAmount: formatGRT(allocationAmount),
       })
-      await this.network.allocateMultiple(
+      const network = await this.network.value()
+      await network.allocateMultiple(
         deployment,
         allocationAmount,
         activeAllocations,
@@ -553,7 +559,8 @@ class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          const onChainAllocation = await this.network.contracts.staking.getAllocation(
+          const network = await this.network.value()
+          const onChainAllocation = await network.contracts.staking.getAllocation(
             allocation.id,
           )
           return onChainAllocation.closedAtEpoch.eq('0')
@@ -586,7 +593,8 @@ class Agent {
                 deployment,
                 allocation.createdAtBlockHash,
               )) || utils.hexlify(Array(32).fill(0))
-            const closed = await this.network.close(allocation, poi)
+            const network = await this.network.value()
+            const closed = await network.close(allocation, poi)
             return !closed
           } else {
             return true
@@ -648,7 +656,8 @@ class Agent {
                   deployment,
                   allocation.createdAtBlockHash,
                 )) || utils.hexlify(Array(32).fill(0))
-              const closed = await this.network.close(allocation, poi)
+              const network = await this.network.value()
+              const closed = await network.close(allocation, poi)
               return !closed
             } else {
               return true
@@ -676,7 +685,8 @@ class Agent {
         },
       )
 
-      await this.network.allocateMultiple(
+      const network = await this.network.value()
+      await network.allocateMultiple(
         deployment,
         allocationAmount,
         activeAllocations,
@@ -694,7 +704,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.logger,
     config.indexNodeIDs,
     config.defaultAllocationAmount,
-    config.network.indexerAddress,
+    config.indexerAddress,
   )
 
   const agent = new Agent(

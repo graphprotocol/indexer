@@ -3,7 +3,7 @@ import jayson, { Client as RpcClient } from 'jayson/promise'
 import fetch from 'isomorphic-fetch'
 import { Client, createClient } from '@urql/core'
 import { BigNumber } from 'ethers'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Address, Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   IndexingRuleAttributes,
   IndexerManagementClient,
@@ -20,7 +20,7 @@ export class Indexer {
   logger: Logger
   indexNodeIDs: string[]
   defaultAllocationAmount: BigNumber
-  indexerAddress: string
+  indexerAddress: Address
 
   constructor(
     adminEndpoint: string,
@@ -29,7 +29,7 @@ export class Indexer {
     logger: Logger,
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
-    indexerAddress: string,
+    indexerAddress: Address,
   ) {
     this.indexerManagement = indexerManagement
     this.statuses = createClient({

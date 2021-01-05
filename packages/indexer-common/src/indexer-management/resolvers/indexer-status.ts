@@ -56,8 +56,10 @@ const URL_VALIDATION_TEST: Test = {
 export default {
   indexerRegistration: async (
     _: {},
-    { address, contracts }: IndexerManagementResolverContext,
+    { address, contracts: networkContracts }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    const contracts = await networkContracts.value()
+
     const registered = await contracts.serviceRegistry.isRegistered(address)
 
     if (registered) {
@@ -82,8 +84,10 @@ export default {
 
   indexerEndpoints: async (
     _: {},
-    { address, contracts, logger }: IndexerManagementResolverContext,
+    { address, contracts: networkContracts, logger }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    const contracts = await networkContracts.value()
+
     const endpoints = {
       service: {
         url: null as string | null,

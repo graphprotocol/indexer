@@ -26,7 +26,7 @@ export interface IndexerManagementFeatures {
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
   address: string
-  contracts: NetworkContracts
+  contracts: Eventual<NetworkContracts>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -139,7 +139,7 @@ export interface IndexerManagementDefaults {
 export interface IndexerManagementClientOptions {
   models: IndexerManagementModels
   address: string
-  contracts: NetworkContracts
+  contracts: Eventual<NetworkContracts>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
