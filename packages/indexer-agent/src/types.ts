@@ -23,12 +23,6 @@ export interface AgentConfig {
   payments: PaymentsConfig
 }
 
-export interface SubgraphDeployment {
-  id: SubgraphDeploymentID
-  stakedTokens: BigNumber
-  signalAmount: BigNumber
-}
-
 export interface EthereumBlock {
   number: number
   hash: string
