@@ -721,7 +721,7 @@
 
 "@ethersproject/providers@^5.0.6":
   version "5.0.17"
-  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.0.17.tgz#f380e7831149e24e7a1c6c9b5fb1d6dfc729d024"
+  resolved "https://registry.yarnpkg.com/@ethersproject/providers/-/providers-5.0.17.tgz#f380e7831149e24e7a1c6c9b5fb1d6dfc729d024"
   integrity sha512-bJnvs5X7ttU5x2ekGJYG7R3Z+spZawLFfR0IDsbaMDLiCwZOyrgk+VTBU7amSFLT0WUhWFv8WwSUB+AryCQG1Q==
   dependencies:
     "@ethersproject/abstract-provider" "^5.0.4"
@@ -827,7 +827,7 @@
 
 "@ethersproject/solidity@^5.0.3":
   version "5.0.7"
-  resolved "https://registry.npmjs.org/@ethersproject/solidity/-/solidity-5.0.7.tgz#72a3455f47a454db2dcf363992d42e9045dc7fce"
+  resolved "https://registry.yarnpkg.com/@ethersproject/solidity/-/solidity-5.0.7.tgz#72a3455f47a454db2dcf363992d42e9045dc7fce"
   integrity sha512-dUevKUZ06p/VMLP/+cz4QUV+lA17NixucDJfm0ioWF0B3R0Lf+6wqwPchcqiAXlxkNFGIax7WNLgGMh4CkQ8iw==
   dependencies:
     "@ethersproject/bignumber" "^5.0.7"
@@ -895,7 +895,7 @@
 
 "@ethersproject/units@^5.0.3":
   version "5.0.8"
-  resolved "https://registry.npmjs.org/@ethersproject/units/-/units-5.0.8.tgz#563325b20fe1eceff7b61857711d5e2b3f38fd09"
+  resolved "https://registry.yarnpkg.com/@ethersproject/units/-/units-5.0.8.tgz#563325b20fe1eceff7b61857711d5e2b3f38fd09"
   integrity sha512-3O4MaNHFs05vC5v2ZGqVFVWtO1WyqFejO78M7Qh16njo282aoMlENtVI6cn2B36zOLFXRvYt2pYx6xCG53qKzg==
   dependencies:
     "@ethersproject/bignumber" "^5.0.7"
@@ -925,7 +925,7 @@
 
 "@ethersproject/wallet@^5.0.3":
   version "5.0.9"
-  resolved "https://registry.npmjs.org/@ethersproject/wallet/-/wallet-5.0.9.tgz#976c7d950489c40308d676869d24e59ab7b82ad1"
+  resolved "https://registry.yarnpkg.com/@ethersproject/wallet/-/wallet-5.0.9.tgz#976c7d950489c40308d676869d24e59ab7b82ad1"
   integrity sha512-GfpQF56PO/945SJq7Wdg5F5U6wkxaDgkAzcgGbCW6Joz8oW8MzKItkvYCzMh+j/8gJMzFncsuqX4zg2gq3J6nQ==
   dependencies:
     "@ethersproject/abstract-provider" "^5.0.4"
@@ -3321,19 +3321,19 @@ aws4@^1.8.0:
   resolved "https://registry.npmjs.org/aws4/-/aws4-1.11.0.tgz#d61f46d83b2519250e2784daf5b09479a8b41c59"
   integrity sha512-xh1Rl34h6Fi1DC2WWKfxUTVqRsNnr6LsKz2+hfwDxQJWmrx8+c7ylaqBMcHfl1U1r2dsifOvKX3LQuLNZ+XSvA==
 
-axios@0.19.2, axios@^0.19.0:
+axios@0.21.1:
+  version "0.21.1"
+  resolved "https://registry.yarnpkg.com/axios/-/axios-0.21.1.tgz#22563481962f4d6bde9a76d516ef0e5d3c09b2b8"
+  integrity sha512-dKQiRHxGD9PPRIUNIWvZhPTPpl1rf/OxTYKsqKUDjBwYylTvV7SjSHJb9ratfyzM6wCdLCOYLzs73qpg5c4iGA==
+  dependencies:
+    follow-redirects "^1.10.0"
+
+axios@^0.19.0:
   version "0.19.2"
   resolved "https://registry.npmjs.org/axios/-/axios-0.19.2.tgz#3ea36c5d8818d0d5f8a8a97a6d36b86cdc00cb27"
   integrity sha512-fjgm5MvRHLhx+osE2xoekY70AhARk3a6hkN+3Io1jc00jtquGvxYlKlsFUhmUET0V5te6CcZI7lcv2Ym61mjHA==
   dependencies:
     follow-redirects "1.5.10"
-
-axios@0.21.0:
-  version "0.21.0"
-  resolved "https://registry.npmjs.org/axios/-/axios-0.21.0.tgz#26df088803a2350dff2c27f96fef99fe49442aca"
-  integrity sha512-fmkJBknJKoZwem3/IKSSLpkdNXZeBu5Q7GA/aRsr2btgrptmSCxi2oFjZHqGdK9DoTil9PIHlPIZw2EcRJXRvw==
-  dependencies:
-    follow-redirects "^1.10.0"
 
 babel-jest@^26.6.3:
   version "26.6.3"
@@ -4815,7 +4815,7 @@ etag@~1.8.1:
 
 ethers@5.0.12:
   version "5.0.12"
-  resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.12.tgz#8986cf53a425d1a00af6bda886e9098b0448d1fb"
+  resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.0.12.tgz#8986cf53a425d1a00af6bda886e9098b0448d1fb"
   integrity sha512-mgF1ZLd1y5r+hS1IPATKwKx5k/PCSqz4PEQjMR+er+Hhu6IefVVcoYATUMjmK4FG+3PAkorRMA9rJ4Y/fdW0UA==
   dependencies:
     "@ethersproject/abi" "^5.0.3"
@@ -4887,7 +4887,7 @@ ethers@5.0.19, ethers@^5.0.13, ethers@^5.0.9:
 
 ethers@5.0.9:
   version "5.0.9"
-  resolved "https://registry.npmjs.org/ethers/-/ethers-5.0.9.tgz#ce77cc0fc5b83c57c607e4fd79edcd9bc46dc511"
+  resolved "https://registry.yarnpkg.com/ethers/-/ethers-5.0.9.tgz#ce77cc0fc5b83c57c607e4fd79edcd9bc46dc511"
   integrity sha512-jv2ULxAKRlJv0zrhpUvYcwwITFghoJOEhOqSJhLBT3TnZyF/lmAS3tC8nejIlwxzOJw7LCyde8U+BwTzZdFDrQ==
   dependencies:
     "@ethersproject/abi" "^5.0.3"

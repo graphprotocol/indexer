@@ -21,7 +21,7 @@
     "@graphprotocol/indexer-common": "^0.9.0",
     "@thi.ng/iterators": "5.1.40",
     "@uniswap/sdk": "3.0.3",
-    "axios": "0.21.0",
+    "axios": "0.21.1",
     "bs58": "4.0.1",
     "ethers": "5.0.19",
     "global": "4.4.0",
