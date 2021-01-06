@@ -17,12 +17,6 @@ export interface AgentConfig {
   registerIndexer: boolean
 }
 
-export interface SubgraphDeployment {
-  id: SubgraphDeploymentID
-  stakedTokens: BigNumber
-  signalAmount: BigNumber
-}
-
 export interface EthereumBlock {
   number: number
   hash: string
