@@ -16,6 +16,7 @@ import { IndexerManagementModels, IndexingRuleCreationAttributes } from './model
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
 import costModelResolvers from './resolvers/cost-models'
+import poiDisputeResolvers from './resolvers/poi-disputes'
 import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 
@@ -40,6 +41,26 @@ const SCHEMA_SDL = gql`
     rules
     never
     always
+  }
+
+  type POIDispute {
+    allocationID: String!
+    allocationIndexer: String!
+    allocationAmount: BigInt!
+    allocationProof: String!
+    allocationClosedBlockHash: String!
+    indexerProof: String!
+    status: String!
+  }
+
+  input POIDisputeInput {
+    allocationID: String!
+    allocationIndexer: String!
+    allocationAmount: BigInt!
+    allocationProof: String!
+    allocationClosedBlockHash: String!
+    indexerProof: String!
+    status: String!
   }
 
   type IndexingRule {
@@ -118,6 +139,10 @@ const SCHEMA_SDL = gql`
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
+
+    dispute(allocationID: String!): POIDispute
+    disputes: [POIDispute]!
+    disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
   }
 
   type Mutation {
@@ -126,6 +151,9 @@ const SCHEMA_SDL = gql`
     deleteIndexingRules(deployments: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
+
+    storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
+    deleteDisputes(allocationIDs: [String!]!): Int!
   }
 `
 
@@ -198,6 +226,7 @@ export const createIndexerManagementClient = async (
     ...indexingRuleResolvers,
     ...statusResolvers,
     ...costModelResolvers,
+    ...poiDisputeResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()
