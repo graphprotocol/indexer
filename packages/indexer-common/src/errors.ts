@@ -47,6 +47,9 @@ export enum IndexerErrorCode {
   IE034 = 'IE034',
   IE035 = 'IE035',
   IE036 = 'IE036',
+  IE037 = 'IE037',
+  IE038 = 'IE038',
+  IE039 = 'IE039',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -86,6 +89,9 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE034: 'Not authorized as an operator for the indexer',
   IE035: 'Unhandled promise rejection',
   IE036: 'Unhandled exception',
+  IE037: 'Failed to query disputable allocations',
+  IE038: 'Failed to query epochs',
+  IE039: 'Failed to store pending POI disputes',
 }
 
 export type IndexerErrorCause = unknown
