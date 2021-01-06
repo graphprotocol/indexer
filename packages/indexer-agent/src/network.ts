@@ -79,7 +79,7 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
-    queryFeesCollectedClaimThreshold: BigNumber
+    queryFeesCollectedClaimThreshold: BigNumber,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -210,7 +210,7 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
-      parseGRT(queryFeesCollectedClaimThreshold.toString())
+      parseGRT(queryFeesCollectedClaimThreshold.toString()),
     )
   }
 
@@ -396,7 +396,11 @@ export class Network {
       const result = await this.subgraph
         .query(
           gql`
-            query allocations($indexer: String!, $disputableEpoch: Int!, $minimumQueryFeesCollected: BigInt!) {
+            query allocations(
+              $indexer: String!
+              $disputableEpoch: Int!
+              $minimumQueryFeesCollected: BigInt!
+            ) {
               allocations(
                 where: {
                   indexer: $indexer
@@ -422,7 +426,7 @@ export class Network {
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             disputableEpoch,
-            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold
+            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold,
           },
         )
         .toPromise()

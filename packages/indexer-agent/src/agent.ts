@@ -1,5 +1,6 @@
 import {
   formatGRT,
+  join,
   Logger,
   SubgraphDeploymentID,
   timer,
@@ -21,7 +22,6 @@ import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import pRetry from 'p-retry'
 import { Client } from '@urql/core'
 
 const delay = async (ms: number) => {
@@ -57,18 +57,6 @@ const loop = async (f: () => Promise<boolean>, interval: number) => {
     }
     await delay(interval)
   }
-}
-
-interface AgentInputs {
-  paused: boolean
-  isOperator: boolean
-  currentEpoch: number
-  maxAllocationEpochs: number
-  activeDeployments: SubgraphDeploymentID[]
-  targetDeployments: SubgraphDeploymentID[]
-  indexingRules: IndexingRuleAttributes[]
-  activeAllocations: Allocation[]
-  claimableAllocations: Allocation[]
 }
 
 class Agent {
@@ -157,151 +145,165 @@ class Agent {
       await this.network.register()
     }
 
-    // Synchronize with the network roughly every 120s
-    this.logger.info(`Synchronize with the network every 120s`)
-
-    // Obtain the state of of the indexer and network at the current time
-    const initialState = await pRetry(async () => await this.synchronize(), {
-      forever: true,
-
-      // Never wait more than ten minutes before retrying
-      maxTimeout: 600_000,
-    })
-
-    // Have a timer fire every 120s
-    timer(120_000)
-      // Whenever the timer fires, obtain the latest local and network state;
-      // if this fails, stick to the previous state
-      .reduce(async state => {
-        try {
-          // Obtain the latest indexer and network state
-          return pRetry(async () => await this.synchronize(), { retries: 5 })
-        } catch (err) {
-          this.logger.warn(`Failed to synchronize with network`, {
-            err: indexerError(IndexerErrorCode.IE004, err),
-          })
-          return state
-        }
-      }, initialState)
-      // Reconcile local deployments and allocations whenever the local
-      // deployments or on-chain data change;
-      //
-      // Note the pipe callback will be called _only_ if any of the state fields
-      // change, otherwise the indexer agent will do nothing (this is the beauty
-      // of eventuals, and what makes this different from a loop or regular
-      // `setInterval`).
-      .pipe(
-        async ({
-          paused,
-          isOperator,
-          currentEpoch,
-          maxAllocationEpochs,
-          activeDeployments,
-          targetDeployments,
-          indexingRules,
-          activeAllocations,
-          claimableAllocations,
-        }) => {
-          // Do nothing else if the network is paused
-          if (paused) {
-            return this.logger.info(
-              `The network is currently paused, not doing anything until it resumes`,
-            )
-          }
-
-          // Do nothing if we're not authorized as an operator for the indexer
-          if (!isOperator) {
-            return this.logger.error(
-              `Not authorized as an operator for the indexer`,
-              {
-                err: indexerError(IndexerErrorCode.IE034),
-                indexer: toAddress(this.network.indexerAddress),
-                operator: toAddress(this.network.wallet.address),
-              },
-            )
-          }
-
-          // Claim rebate pool rewards from finalized allocations
-          try {
-            await this.claimRebateRewards(claimableAllocations)
-          } catch (err) {
-            this.logger.warn(`Failed to claim rebate rewards`, { err })
-          }
-
-          try {
-            await this.reconcileDeployments(
-              activeDeployments,
-              targetDeployments,
-            )
-
-            // Reconcile allocations
-            await this.reconcileAllocations(
-              activeAllocations,
-              targetDeployments,
-              indexingRules,
-              currentEpoch,
-              maxAllocationEpochs,
-            )
-          } catch (err) {
-            this.logger.warn(`Failed to reconcile indexer and network`, {
-              err: indexerError(IndexerErrorCode.IE005, err),
-            })
-          }
-        },
-      )
-  }
-
-  async synchronize(): Promise<AgentInputs> {
-    const paused = await this.network.paused.value()
-    const isOperator = await this.network.isOperator.value()
-
-    // Identify the current epoch
-    const currentEpoch = (
-      await this.network.contracts.epochManager.currentEpoch()
-    ).toNumber()
-    const maxAllocationEpochs = await this.network.contracts.staking.maxAllocationEpochs()
-    const channelDisputeEpochs = await this.network.contracts.staking.channelDisputeEpochs()
-
-    // Identify subgraph deployments indexing locally
-    const activeDeployments = await this.indexer.subgraphDeployments()
-
-    // Fetch all indexing rules
-    const indexingRules = await this.indexer.indexingRules(true)
-
-    if (indexingRules.length === 0) {
-      this.logger.warn(
-        'No indexing rules defined yet. Use the `graph indexer` CLI to add rules',
-      )
-    }
-
-    // Identify subgraph deployments on the network that are worth picking up;
-    // these may overlap with the ones we're already indexing
-    const targetDeployments =
-      indexingRules.length === 0
-        ? []
-        : await this.network.subgraphDeploymentsWorthIndexing(indexingRules)
-
-    // Identify active allocations
-    const activeAllocations = await this.network.allocations(
-      AllocationStatus.Active,
+    const currentEpoch = timer(600_000).tryMap(
+      () => this.network.contracts.epochManager.currentEpoch(),
+      {
+        onError: err =>
+          this.logger.warn(`Failed to fetch current epoch`, { err }),
+      },
     )
 
-    // Identify finalized allocations (available to claim rewards from)
-    const claimableAllocations = await this.network.claimableAllocations(
-      currentEpoch - channelDisputeEpochs,
+    const channelDisputeEpochs = timer(600_000).tryMap(
+      () => this.network.contracts.staking.channelDisputeEpochs(),
+      {
+        onError: err =>
+          this.logger.warn(`Failed to fetch channel dispute epochs`, { err }),
+      },
     )
 
-    return {
-      paused,
-      isOperator,
+    const maxAllocationEpochs = timer(600_000).tryMap(
+      () => this.network.contracts.staking.maxAllocationEpochs(),
+      {
+        onError: err =>
+          this.logger.warn(`Failed to fetch max allocation epochs`, { err }),
+      },
+    )
+
+    const indexingRules = timer(60_000).tryMap(
+      () => this.indexer.indexingRules(true),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain indexing rules, trying again later`,
+          ),
+      },
+    )
+
+    const activeDeployments = timer(60_000).tryMap(
+      () => this.indexer.subgraphDeployments(),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain active deployments, trying again later`,
+          ),
+      },
+    )
+
+    const targetDeployments = timer(120_000).tryMap(
+      async () => {
+        const rules = await indexingRules.value()
+
+        // Identify subgraph deployments on the network that are worth picking up;
+        // these may overlap with the ones we're already indexing
+        return rules.length === 0
+          ? []
+          : await this.network.subgraphDeploymentsWorthIndexing(rules)
+      },
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain target deployments, trying again later`,
+          ),
+      },
+    )
+
+    const activeAllocations = timer(120_000).tryMap(
+      () => this.network.allocations(AllocationStatus.Active),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain active allocations, trying again later`,
+          ),
+      },
+    )
+
+    const claimableAllocations = join({
       currentEpoch,
+      channelDisputeEpochs,
+    }).tryMap(
+      ({ currentEpoch, channelDisputeEpochs }) =>
+        this.network.claimableAllocations(
+          currentEpoch.toNumber() - channelDisputeEpochs,
+        ),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain claimable allocations, trying again later`,
+          ),
+      },
+    )
+    this.logger.info(`Waiting for network data before reconciling every 120s`)
+
+    join({
+      ticker: timer(120_000),
+      paused: this.network.paused,
+      isOperator: this.network.isOperator,
+      currentEpoch,
+      channelDisputeEpochs,
       maxAllocationEpochs,
-      activeDeployments,
       indexingRules,
+      activeDeployments,
       targetDeployments,
       activeAllocations,
       claimableAllocations,
-    }
+    }).pipe(
+      async ({
+        paused,
+        isOperator,
+        currentEpoch,
+        maxAllocationEpochs,
+        indexingRules,
+        activeAllocations,
+        claimableAllocations,
+        activeDeployments,
+        targetDeployments,
+      }) => {
+        this.logger.info(`Reconcile with the network`)
+
+        // Do nothing else if the network is paused
+        if (paused) {
+          return this.logger.info(
+            `The network is currently paused, not doing anything until it resumes`,
+          )
+        }
+
+        // Do nothing if we're not authorized as an operator for the indexer
+        if (!isOperator) {
+          return this.logger.error(
+            `Not authorized as an operator for the indexer`,
+            {
+              err: indexerError(IndexerErrorCode.IE034),
+              indexer: toAddress(this.network.indexerAddress),
+              operator: toAddress(this.network.wallet.address),
+            },
+          )
+        }
+
+        // Claim rebate pool rewards from finalized allocations
+        try {
+          await this.claimRebateRewards(claimableAllocations)
+        } catch (err) {
+          this.logger.warn(`Failed to claim rebate rewards`, { err })
+        }
+
+        try {
+          await this.reconcileDeployments(activeDeployments, targetDeployments)
+
+          // Reconcile allocations
+          await this.reconcileAllocations(
+            activeAllocations,
+            targetDeployments,
+            indexingRules,
+            currentEpoch.toNumber(),
+            maxAllocationEpochs,
+          )
+        } catch (err) {
+          this.logger.warn(`Failed to reconcile indexer and network`, {
+            err: indexerError(IndexerErrorCode.IE005, err),
+          })
+        }
+      },
+    )
   }
 
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
