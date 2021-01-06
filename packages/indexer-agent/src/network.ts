@@ -14,13 +14,16 @@ import {
 import {
   Allocation,
   AllocationStatus,
+  Epoch,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
   parseGraphQLAllocation,
+  parseGraphQLEpochs,
   uniqueAllocationID,
   indexerError,
   IndexerErrorCode,
+  INDEXER_ERROR_MESSAGES,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -358,6 +361,9 @@ export class Network {
                 first: 1000
               ) {
                 id
+                indexer {
+                  id
+                }
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
@@ -377,6 +383,7 @@ export class Network {
         )
         .toPromise()
 
+      // this.logger.info('YAYYYYY', { result: result })
       if (result.error) {
         throw result.error
       }
@@ -411,10 +418,14 @@ export class Network {
                 first: 1000
               ) {
                 id
+                indexer {
+                  id
+                }
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
                 createdAtBlockHash
+                closedAtBlockHash
                 subgraphDeployment {
                   id
                   stakedTokens
@@ -435,28 +446,139 @@ export class Network {
         throw result.error
       }
 
-      return result.data.allocations.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (allocation: any) => ({
-          id: allocation.id,
-          subgraphDeployment: {
-            id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
-            stakedTokens: BigNumber.from(
-              allocation.subgraphDeployment.stakedTokens,
-            ),
-            signalAmount: BigNumber.from(
-              allocation.subgraphDeployment.signalAmount,
-            ),
-          },
-          allocatedTokens: BigNumber.from(allocation.allocatedTokens),
-          createdAtEpoch: allocation.createdAtEpoch,
-          createdAtBlockHash: allocation.createdAtBlockHash,
-          closedAtEpoch: allocation.closedAtEpoch,
-        }),
-      )
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE011, error)
-      this.logger.error(`Failed to query claimable indexer allocations`, {
+      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
+        err,
+      })
+      throw err
+    }
+  }
+
+  async disputableAllocations(
+    subgraphs: SubgraphDeploymentID[],
+    minimumAllocation: number,
+  ): Promise<Allocation[]> {
+    try {
+      const zeroPOI = utils.hexlify(Array(32).fill(0))
+      const result = await this.subgraph
+        .query(
+          gql`
+            query allocations(
+              $subgraphs: [String!]!
+              $minimumAllocation: Int
+              $zeroPOI: String!
+            ) {
+              allocations(
+                where: {
+                  subgraphDeployment_in: $subgraphs
+                  allocatedTokens_gt: $minimumAllocation
+                  status: Closed
+                  poi_not: $zeroPOI
+                }
+                first: 1000
+              ) {
+                id
+                indexer {
+                  id
+                }
+                poi
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                closedAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
+              }
+            }
+          `,
+          {
+            subgraphs: subgraphs.map(subgraph => subgraph.bytes32),
+            minimumAllocation,
+            zeroPOI,
+          },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      const allocations: Allocation[] = result.data.allocations.map(
+        parseGraphQLAllocation,
+      )
+      const disputableEpochs = await this.epochs([
+        ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
+      ])
+      disputableEpochs.map(
+        async (epoch: Epoch): Promise<Epoch> => {
+          epoch.startBlockHash = (
+            await this.ethereum.getBlock(epoch?.startBlock)
+          ).hash
+          return epoch
+        },
+      )
+
+      return await Promise.all(
+        allocations
+          .filter(allocation =>
+            disputableEpochs.some(
+              epoch => epoch.id == allocation.closedAtEpoch,
+            ),
+          )
+          .map(async allocation => {
+            const closedAtEpoch = disputableEpochs.find(
+              epoch => epoch.id == allocation.closedAtEpoch,
+            )
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            allocation.closedAtEpochStartBlockHash = closedAtEpoch!.startBlockHash
+            return allocation
+          }),
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE037, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE037], {
+        err,
+      })
+      throw err
+    }
+  }
+
+  async epochs(epochNumbers: number[]): Promise<Epoch[]> {
+    try {
+      const result = await this.subgraph
+        .query(
+          gql`
+            query epochs($epochs: [Int!]!) {
+              epoches(where: { id_in: $epochs }, first: 1000) {
+                id
+                startBlock
+                endBlock
+                signalledTokens
+                stakeDeposited
+                queryFeeRebates
+                totalRewards
+                totalIndexerRewards
+                totalDelegatorRewards
+              }
+            }
+          `,
+          {
+            epochs: epochNumbers,
+          },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      return result.data.epoches.map(parseGraphQLEpochs)
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE038, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE038], {
         err,
       })
       throw err
@@ -727,6 +849,9 @@ export class Network {
         createdAtBlockHash: '0x0',
         createdAtEpoch: eventInputs.epoch,
         closedAtEpoch: 0,
+        closedAtBlockHash: '0x0',
+        closedAtEpochStartBlockHash: '0x0',
+        poi: undefined,
       } as Allocation
     } catch (err) {
       logger.error(`Failed to allocate`, {
