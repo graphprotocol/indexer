@@ -46,6 +46,9 @@ export const monitorActiveAllocations = ({
                   first: 1000
                 ) {
                   id
+                  indexer {
+                    id
+                  }
                   allocatedTokens
                   createdAtBlockHash
                   createdAtEpoch

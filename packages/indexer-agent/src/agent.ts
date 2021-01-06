@@ -7,12 +7,15 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  allocationRewardsPool,
   Allocation,
   AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
   indexerError,
   IndexerErrorCode,
+  RewardsPool,
+  POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, EthereumBlock } from './types'
@@ -256,6 +259,19 @@ class Agent {
     )
     this.logger.info(`Waiting for network data before reconciling every 120s`)
 
+    const disputableAllocations = activeDeployments.tryMap(
+      activeDeployments =>
+        this.network.disputableAllocations(activeDeployments, 0),
+      {
+        onError: err =>
+          this.logger.warn(`Failed to fetch disputable allocations`, { err }),
+      },
+    )
+
+    this.logger.warn('DISPUTABLES', {
+      allocations: disputableAllocations,
+    })
+
     join({
       ticker: timer(120_000),
       paused: this.network.paused,
@@ -268,6 +284,7 @@ class Agent {
       targetDeployments,
       activeAllocations,
       claimableAllocations,
+      disputableAllocations,
     }).pipe(
       async ({
         paused,
@@ -276,10 +293,11 @@ class Agent {
         currentEpochStartBlock,
         maxAllocationEpochs,
         indexingRules,
-        activeAllocations,
-        claimableAllocations,
         activeDeployments,
         targetDeployments,
+        activeAllocations,
+        claimableAllocations,
+        disputableAllocations,
       }) => {
         this.logger.info(`Reconcile with the network`)
 
@@ -321,6 +339,9 @@ class Agent {
             currentEpochStartBlock,
             maxAllocationEpochs,
           )
+
+          // Find disputable allocations
+          await this.identifyPotentialDisputes(disputableAllocations)
         } catch (err) {
           this.logger.warn(`Failed to reconcile indexer and network`, {
             err: indexerError(IndexerErrorCode.IE005, err),
@@ -345,6 +366,73 @@ class Agent {
       },
       { concurrency: 1 },
     )
+  }
+
+  async identifyPotentialDisputes(
+    disputableAllocations: Allocation[],
+  ): Promise<void> {
+    // const uniqueCloseEpochNumbers: number[] = [...new Set(disputableAllocations.map(allocation => allocation.closedAtEpoch))]
+    // const epochStartHashes: Record<number, string> = {}
+    // for (const epochNumber of uniqueCloseEpochNumbers) {
+    //   const currentEpochStartBlock = await this.network.contracts.epochManager.currentEpochBlock()
+    //   epochStartHashes[epochNumber] = (await this.network.ethereum.getBlock(epochNumber)).hash
+    // }
+
+    const uniqueRewardsPools: RewardsPool[] = await Promise.all(
+      [
+        ...new Set(
+          disputableAllocations.map(allocation =>
+            allocationRewardsPool(allocation),
+          ),
+        ),
+      ]
+        .filter(pool => pool.closedAtEpochStartBlockHash)
+        .map(async pool => {
+          pool.referencePOI = await this.indexer.proofOfIndexing(
+            pool.subgraphDeployment,
+            // The block hash for the POIs will soon change to be the first block of the epoch the allocation is closed in
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            pool.allocationCreatedAtBlockHash!,
+            pool.allocationIndexer,
+          )
+          return pool
+        }),
+    )
+
+    const potentials = disputableAllocations.reduce(
+      (flaggedAllocations: POIDisputeAttributes[], allocation: Allocation) => {
+        const rewardsPool = uniqueRewardsPools.find(
+          pool =>
+            pool.subgraphDeployment == allocation.subgraphDeployment.id &&
+            pool.closedAtEpoch == allocation.closedAtEpoch,
+        )
+        this.logger.info('REWARDS POOL:', rewardsPool)
+        if (rewardsPool?.referencePOI !== allocation.poi) {
+          const dispute: POIDisputeAttributes = {
+            allocationID: allocation.id,
+            allocationIndexer: allocation.indexer,
+            allocationAmount: allocation.allocatedTokens,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            allocationProof: allocation.poi!,
+            allocationClosedBlockHash: allocation.closedAtBlockHash,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            indexerProof: rewardsPool!.referencePOI!,
+            status: 'pending',
+          }
+          flaggedAllocations.push(dispute)
+        }
+        return flaggedAllocations
+      },
+      [],
+    )
+
+    if (potentials.length > 0) {
+      this.logger.info(`Identified '${potentials.length}' POI disputes`, {})
+      const stored = await this.indexer.storePoiDisputes(potentials)
+      this.logger.debug(`Stored POI disputes`, {
+        disputesStored: stored,
+      })
+    }
   }
 
   async reconcileDeployments(
@@ -547,6 +635,7 @@ class Agent {
             const poi = await this.indexer.proofOfIndexing(
               deployment,
               epochStartBlock,
+              this.indexer.indexerAddress
             )
 
             // Don't proceed if the POI is 0x0 or null
@@ -624,6 +713,7 @@ class Agent {
             const poi = await this.indexer.proofOfIndexing(
               deployment,
               epochStartBlock,
+              this.indexer.indexerAddress,
             )
 
             // Don't proceed if the POI is 0x0 or null
@@ -691,6 +781,7 @@ class Agent {
               const poi = await this.indexer.proofOfIndexing(
                 deployment,
                 epochStartBlock,
+                this.indexer.indexerAddress,
               )
 
               // Don't proceed if the POI is 0x0 or null
