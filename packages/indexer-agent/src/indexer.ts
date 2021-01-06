@@ -10,9 +10,42 @@ import {
   INDEXING_RULE_GLOBAL,
   indexerError,
   IndexerErrorCode,
+  POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import { EthereumBlock, IndexingStatus } from './types'
 import pRetry from 'p-retry'
+
+const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
+  keyof POIDisputeAttributes,
+  (x: never) => string | BigNumber | number | null
+> = {
+  allocationID: x => x,
+  allocationIndexer: x => x,
+  allocationAmount: (x: string) => BigNumber.from(x),
+  allocationProof: x => x,
+  allocationClosedBlockHash: x => x,
+  indexerProof: x => x,
+  status: x => x,
+}
+
+/**
+ * Parses a POI dispute returned from the indexer management GraphQL
+ * API into normalized form.
+ */
+const disputesFromGraphQL = (
+  cost: Partial<POIDisputeAttributes>,
+): POIDisputeAttributes => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = {} as any
+  for (const [key, value] of Object.entries(cost)) {
+    if (key === '__typename') {
+      continue
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    obj[key] = (POI_DISPUTES_CONVERTERS_FROM_GRAPHQL as any)[key](value)
+  }
+  return obj as POIDisputeAttributes
+}
 
 export class Indexer {
   statuses: Client
@@ -106,6 +139,7 @@ export class Indexer {
   async proofOfIndexing(
     deployment: SubgraphDeploymentID,
     block: EthereumBlock,
+    indexerAddress: string,
   ): Promise<string | null> {
     try {
       return await pRetry(
@@ -138,7 +172,7 @@ export class Indexer {
                 subgraph: deployment.ipfsHash,
                 blockNumber: block.number,
                 blockHash: block.hash,
-                indexer: this.indexerAddress,
+                indexer: indexerAddress,
               },
             )
             .toPromise()
@@ -268,6 +302,42 @@ export class Indexer {
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE017, error)
       this.logger.error('Failed to ensure default "global" indexing rule', {
+        err,
+      })
+      throw err
+    }
+  }
+
+  async storePoiDisputes(
+    disputes: POIDisputeAttributes[],
+  ): Promise<POIDisputeAttributes> {
+    try {
+      const result = await this.indexerManagement
+        .mutation(
+          gql`
+            mutation storeDisputes($disputes: POIDisputeInput!) {
+              storeDisputes(disputes: $disputes) {
+                allocationId
+                allocationIndexer
+                allocationAmount
+                allocationProof
+                allocationClosedBlockHash
+                indexerProof
+                status
+              }
+            }
+          `,
+          { disputes: disputes },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      return disputesFromGraphQL(result.data.storeDisputes)
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE039, error)
+      this.logger.error('Failed to store potential POI disputes', {
         err,
       })
       throw err
