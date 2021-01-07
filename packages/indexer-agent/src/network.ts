@@ -457,22 +457,23 @@ export class Network {
   }
 
   async disputableAllocations(
-    subgraphs: SubgraphDeploymentID[],
+    deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
+    // FIXME: Paginate to support more than 1000 disputable at a time
     try {
       const zeroPOI = utils.hexlify(Array(32).fill(0))
       const result = await this.subgraph
         .query(
           gql`
             query allocations(
-              $subgraphs: [String!]!
-              $minimumAllocation: Int
+              $deployments: [String!]!
+              $minimumAllocation: Int!
               $zeroPOI: String!
             ) {
               allocations(
                 where: {
-                  subgraphDeployment_in: $subgraphs
+                  subgraphDeployment_in: $deployments
                   allocatedTokens_gt: $minimumAllocation
                   status: Closed
                   poi_not: $zeroPOI
@@ -497,7 +498,7 @@ export class Network {
             }
           `,
           {
-            subgraphs: subgraphs.map(subgraph => subgraph.bytes32),
+            deployments: deployments.map(subgraph => subgraph.bytes32),
             minimumAllocation,
             zeroPOI,
           },
@@ -507,14 +508,25 @@ export class Network {
       if (result.error) {
         throw result.error
       }
+
       const allocations: Allocation[] = result.data.allocations.map(
         parseGraphQLAllocation,
       )
+
       const disputableEpochs = await this.epochs([
         ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
       ])
+
+      // FIXME: The following is incorrect/insufficient because an allocation
+      // can be intended to be closed at epoch N but actually be mined at epoch
+      // N+1; with the current design, this means such POIs can't be disputed,
+      // because the challenging indexer needs to decide which epoch the is for,
+      // and it has no way of knowing.
+
       disputableEpochs.map(
         async (epoch: Epoch): Promise<Epoch> => {
+          // TODO: May need to retry or skip epochs where obtaining
+          // start block fails
           epoch.startBlockHash = (
             await this.ethereum.getBlock(epoch?.startBlock)
           ).hash
@@ -524,6 +536,7 @@ export class Network {
 
       return await Promise.all(
         allocations
+          // FIXME: Is filter true for all allocations? What's its purpose?
           .filter(allocation =>
             disputableEpochs.some(
               epoch => epoch.id == allocation.closedAtEpoch,
@@ -540,7 +553,7 @@ export class Network {
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE037, error)
-      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE037], {
+      this.logger.error(INDEXER_ERROR_MESSAGES.IE037, {
         err,
       })
       throw err
