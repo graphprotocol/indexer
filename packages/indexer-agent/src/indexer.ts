@@ -11,7 +11,7 @@ import {
   indexerError,
   IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
-import { IndexingStatus } from './types'
+import { EthereumBlock, IndexingStatus } from './types'
 
 export class Indexer {
   statuses: Client
@@ -104,7 +104,7 @@ export class Indexer {
 
   async proofOfIndexing(
     deployment: SubgraphDeploymentID,
-    block: string,
+    block: EthereumBlock,
   ): Promise<string | undefined> {
     try {
       const result = await this.statuses
@@ -112,11 +112,13 @@ export class Indexer {
           gql`
             query proofOfIndexing(
               $subgraph: String!
+              $blockNumber: Int!
               $blockHash: String!
               $indexer: String!
             ) {
               proofOfIndexing(
                 subgraph: $subgraph
+                blockNumber: $blockNumber
                 blockHash: $blockHash
                 indexer: $indexer
               )
@@ -124,7 +126,8 @@ export class Indexer {
           `,
           {
             subgraph: deployment.ipfsHash,
-            blockHash: block,
+            blockNumber: block.number,
+            blockHash: block.hash,
             indexer: this.indexerAddress,
           },
         )

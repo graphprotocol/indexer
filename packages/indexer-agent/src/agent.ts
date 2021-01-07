@@ -15,7 +15,7 @@ import {
   IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
-import { AgentConfig } from './types'
+import { AgentConfig, EthereumBlock } from './types'
 import { Indexer } from './indexer'
 import { Network } from './network'
 import { BigNumber, utils } from 'ethers'
@@ -153,20 +153,22 @@ class Agent {
       },
     )
 
-    const currentEpochStartBlockHash = currentEpoch.tryMap(
+    const currentEpochStartBlock = currentEpoch.tryMap(
       async () => {
         const startBlockNumber = await this.network.contracts.epochManager.currentEpochBlock()
         const startBlock = await this.network.ethereum.getBlock(
           startBlockNumber.toNumber(),
         )
-        return startBlock.hash
+        return {
+          number: startBlock.number,
+          hash: startBlock.hash,
+        }
       },
       {
         onError: err =>
-          this.logger.warn(
-            `Failed to fetch start block hash of current epoch`,
-            { err },
-          ),
+          this.logger.warn(`Failed to fetch start block of current epoch`, {
+            err,
+          }),
       },
     )
 
@@ -256,7 +258,7 @@ class Agent {
       paused: this.network.paused,
       isOperator: this.network.isOperator,
       currentEpoch,
-      currentEpochStartBlockHash,
+      currentEpochStartBlock,
       maxAllocationEpochs,
       indexingRules,
       activeDeployments,
@@ -268,7 +270,7 @@ class Agent {
         paused,
         isOperator,
         currentEpoch,
-        currentEpochStartBlockHash,
+        currentEpochStartBlock,
         maxAllocationEpochs,
         indexingRules,
         activeAllocations,
@@ -313,7 +315,7 @@ class Agent {
             targetDeployments,
             indexingRules,
             currentEpoch.toNumber(),
-            currentEpochStartBlockHash,
+            currentEpochStartBlock,
             maxAllocationEpochs,
           )
         } catch (err) {
@@ -407,7 +409,7 @@ class Agent {
     targetDeployments: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
-    currentEpochStartBlockHash: string,
+    currentEpochStartBlock: EthereumBlock,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
@@ -464,7 +466,7 @@ class Agent {
             rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL),
 
           currentEpoch,
-          currentEpochStartBlockHash,
+          currentEpochStartBlock,
           maxAllocationEpochs,
         )
       },
@@ -478,7 +480,7 @@ class Agent {
     worthIndexing: boolean,
     rule: IndexingRuleAttributes | undefined,
     epoch: number,
-    epochStartBlockHash: string,
+    epochStartBlock: EthereumBlock,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const logger = this.logger.child({
@@ -535,7 +537,7 @@ class Agent {
             const poi =
               (await this.indexer.proofOfIndexing(
                 deployment,
-                epochStartBlockHash,
+                epochStartBlock,
               )) || utils.hexlify(Array(32).fill(0))
 
             await this.network.close(allocation, poi)
@@ -608,7 +610,7 @@ class Agent {
             const poi =
               (await this.indexer.proofOfIndexing(
                 deployment,
-                epochStartBlockHash,
+                epochStartBlock,
               )) || utils.hexlify(Array(32).fill(0))
             const closed = await this.network.close(allocation, poi)
             return !closed
@@ -670,7 +672,7 @@ class Agent {
               const poi =
                 (await this.indexer.proofOfIndexing(
                   deployment,
-                  epochStartBlockHash,
+                  epochStartBlock,
                 )) || utils.hexlify(Array(32).fill(0))
               const closed = await this.network.close(allocation, poi)
               return !closed
