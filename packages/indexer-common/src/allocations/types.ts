@@ -13,7 +13,7 @@ export interface SubgraphDeployment {
 export interface Allocation {
   id: Address
   subgraphDeployment: SubgraphDeployment
-  indexer: string
+  indexer: Address
   allocatedTokens: BigNumber
   createdAtEpoch: number
   createdAtBlockHash: string
@@ -39,7 +39,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
     stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
     signalAmount: BigNumber.from(allocation.subgraphDeployment.signalAmount),
   },
-  indexer: allocation.indexer.id,
+  indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
@@ -51,7 +51,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
 
 export interface RewardsPool {
   subgraphDeployment: SubgraphDeploymentID
-  allocationIndexer: string
+  allocationIndexer: Address
   allocationCreatedAtBlockHash: string
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined

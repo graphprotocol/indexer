@@ -105,9 +105,8 @@ describe('POI disputes', () => {
 
   test('Store POI dispute', async () => {
     const dispute = {
-      allocationID: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      allocationIndexer:
-        '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+      allocationID: '0x0000000000000000000000000000000000000000',
+      allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
       allocationAmount: '100',
       allocationProof:
         '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -149,8 +148,7 @@ describe('POI disputes', () => {
     await expect(
       client
         .query(GET_POI_DISPUTE_QUERY, {
-          allocationID:
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          allocationID: '0x0000000000000000000000000000000000000001',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.dispute', null)
@@ -159,10 +157,8 @@ describe('POI disputes', () => {
   test('Get one dispute at a time', async () => {
     const disputes = [
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000001',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -173,10 +169,8 @@ describe('POI disputes', () => {
         status: 'Closed',
       },
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000002',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000002',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -211,10 +205,8 @@ describe('POI disputes', () => {
   test('Get all disputes', async () => {
     const disputes = [
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000000',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -225,10 +217,8 @@ describe('POI disputes', () => {
         status: 'Closed',
       },
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000001',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -259,10 +249,8 @@ describe('POI disputes', () => {
   test('Remove dispute from store', async () => {
     const disputes = [
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000000',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -273,10 +261,8 @@ describe('POI disputes', () => {
         status: 'Closed',
       },
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000001',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -302,9 +288,7 @@ describe('POI disputes', () => {
     await expect(
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
-          allocationIDs: [
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-          ],
+          allocationIDs: ['0x0000000000000000000000000000000000000001'],
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
@@ -318,10 +302,8 @@ describe('POI disputes', () => {
   test('Remove multiple disputes from store', async () => {
     const disputes = [
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000000',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -332,10 +314,8 @@ describe('POI disputes', () => {
         status: 'Closed',
       },
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000001',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000001',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -346,10 +326,8 @@ describe('POI disputes', () => {
         status: 'Closed',
       },
       {
-        allocationID:
-          '0x0000000000000000000000000000000000000000000000000000000000000002',
-        allocationIndexer:
-          '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
+        allocationID: '0x0000000000000000000000000000000000000002',
+        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
         allocationAmount: '100',
         allocationProof:
           '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -376,8 +354,8 @@ describe('POI disputes', () => {
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
           allocationIDs: [
-            '0x0000000000000000000000000000000000000000000000000000000000000001',
-            '0x0000000000000000000000000000000000000000000000000000000000000002',
+            '0x0000000000000000000000000000000000000001',
+            '0x0000000000000000000000000000000000000002',
           ],
         })
         .toPromise(),

@@ -263,8 +263,10 @@ class Agent {
       activeDeployments =>
         this.network.disputableAllocations(activeDeployments, 0),
       {
-        onError: err =>
-          this.logger.warn(`Failed to fetch disputable allocations`, { err }),
+        onError: () =>
+          this.logger.warn(
+            `Failed to fetch disputable allocations, trying again later`,
+          ),
       },
     )
 
