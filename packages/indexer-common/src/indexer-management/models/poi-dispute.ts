@@ -64,7 +64,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (utils.isHexString(value, 20)) {
               return
             }
 
@@ -83,7 +83,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (utils.isHexString(value, 20)) {
               return
             }
 
