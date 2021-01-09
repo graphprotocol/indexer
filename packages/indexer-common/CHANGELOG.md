@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2021-01-09
+### Changed
+- Update common-ts to 1.2.0
+
 ## [0.4.4] - 2020-12-14
 ### Added
 - Add `IE035` and `IE036` error types for unhandled promises and exceptions
@@ -66,7 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.4.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/graphprotocol/indexer/compare/v0.4.4...v0.9.2
 [0.4.4]: https://github.com/graphprotocol/indexer/compare/v0.4.2...v0.4.4
 [0.4.2]: https://github.com/graphprotocol/indexer/compare/v0.4.0...v0.4.2
 [0.4.0]: https://github.com/graphprotocol/indexer/compare/v0.3.7-alpha.8...v0.4.0

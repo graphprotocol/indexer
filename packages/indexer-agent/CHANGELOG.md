@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.2] - 2021-01-09
+### Added
+- Add `--allocation-claim-threshold` option for configure a GRT amount below which the agent should not attempt to claim rebate (query) rewards
+
+### Fixed
+- Synchronize data independently using different intervals and reconcile reliably every 2 minutes
+- Submit proof of indexing for the first block of the current epoch
+- Reliably obtain proof of indexing by passing block number to `proofOfIndexing` API (#186)
+
+### Changed
+- Update common-ts to 1.2.0
+
 ## [0.9.1] - 2020-12-31
 ### Changed
 - Register after having the network subgraph synced
@@ -188,7 +200,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/graphprotocol/indexer/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/graphprotocol/indexer/compare/v0.9.0-alpha.4...v0.9.1
 [0.9.0-alpha.4]: https://github.com/graphprotocol/indexer/compare/v0.9.0-alpha.3...v0.9.0-alpha.4
 [0.9.0-alpha.3]: https://github.com/graphprotocol/indexer/compare/v0.4.5...v0.9.0-alpha.3
