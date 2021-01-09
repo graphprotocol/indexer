@@ -12,7 +12,7 @@
     "prepare": "rm -rf dist && yarn format && yarn lint && tsc"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.1.1-alpha.2",
+    "@graphprotocol/common-ts": "1.2.0",
     "@graphprotocol/indexer-common": "^0.9.0",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.40",
