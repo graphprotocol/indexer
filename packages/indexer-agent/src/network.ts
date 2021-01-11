@@ -426,7 +426,7 @@ export class Network {
           {
             indexer: this.indexerAddress.toLocaleLowerCase(),
             disputableEpoch,
-            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold,
+            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold.toString(),
           },
         )
         .toPromise()
