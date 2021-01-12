@@ -24,4 +24,5 @@ done
 # Publish to NPM
 rm -rf node_modules packages/*/node_modules
 yarn --registry https://registry.npmjs.org/
+yarn config set registry https://registry.npmjs.org/
 lerna publish "$VERSION"
