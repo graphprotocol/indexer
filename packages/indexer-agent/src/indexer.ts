@@ -12,6 +12,7 @@ import {
   IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import { EthereumBlock, IndexingStatus } from './types'
+import pRetry from 'p-retry'
 
 export class Indexer {
   statuses: Client
@@ -105,39 +106,60 @@ export class Indexer {
   async proofOfIndexing(
     deployment: SubgraphDeploymentID,
     block: EthereumBlock,
-  ): Promise<string | undefined> {
+  ): Promise<string | null> {
     try {
-      const result = await this.statuses
-        .query(
-          gql`
-            query proofOfIndexing(
-              $subgraph: String!
-              $blockNumber: Int!
-              $blockHash: String!
-              $indexer: String!
-            ) {
-              proofOfIndexing(
-                subgraph: $subgraph
-                blockNumber: $blockNumber
-                blockHash: $blockHash
-                indexer: $indexer
-              )
-            }
-          `,
-          {
-            subgraph: deployment.ipfsHash,
-            blockNumber: block.number,
-            blockHash: block.hash,
+      return await pRetry(
+        async attempt => {
+          this.logger.info(`Query proof of indexing`, {
             indexer: this.indexerAddress,
+            subgraph: deployment.ipfsHash,
+            block: block,
+            attempt,
+          })
+
+          const result = await this.statuses
+            .query(
+              gql`
+                query proofOfIndexing(
+                  $subgraph: String!
+                  $blockNumber: Int!
+                  $blockHash: String!
+                  $indexer: String!
+                ) {
+                  proofOfIndexing(
+                    subgraph: $subgraph
+                    blockNumber: $blockNumber
+                    blockHash: $blockHash
+                    indexer: $indexer
+                  )
+                }
+              `,
+              {
+                subgraph: deployment.ipfsHash,
+                blockNumber: block.number,
+                blockHash: block.hash,
+                indexer: this.indexerAddress,
+              },
+            )
+            .toPromise()
+
+          if (result.error) {
+            throw result.error
+          }
+
+          return result.data.proofOfIndexing
+        },
+        {
+          retries: 10,
+          onFailedAttempt: err => {
+            this.logger.warn(`Proof of indexing could not be queried`, {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
           },
-        )
-        .toPromise()
-
-      if (result.error) {
-        throw result.error
-      }
-
-      return result.data.proofOfIndexing
+        },
+      )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE019, error)
       this.logger.error(`Failed to query proof of indexing`, {
@@ -146,6 +168,7 @@ export class Indexer {
         indexer: this.indexerAddress,
         err: err,
       })
+      return null
     }
   }
 
