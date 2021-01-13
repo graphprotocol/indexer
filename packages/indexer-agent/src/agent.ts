@@ -534,11 +534,15 @@ class Agent {
             allocation => allocation.createdAtEpoch < epoch,
           ),
           async allocation => {
-            const poi =
-              (await this.indexer.proofOfIndexing(
-                deployment,
-                epochStartBlock,
-              )) || utils.hexlify(Array(32).fill(0))
+            const poi = await this.indexer.proofOfIndexing(
+              deployment,
+              epochStartBlock,
+            )
+
+            // Don't proceed if the POI is 0x0 or null
+            if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+              return false
+            }
 
             await this.network.close(allocation, poi)
           },
@@ -607,11 +611,16 @@ class Agent {
         activeAllocations,
         async (allocation: Allocation) => {
           if (allocationInList(expiredAllocations, allocation)) {
-            const poi =
-              (await this.indexer.proofOfIndexing(
-                deployment,
-                epochStartBlock,
-              )) || utils.hexlify(Array(32).fill(0))
+            const poi = await this.indexer.proofOfIndexing(
+              deployment,
+              epochStartBlock,
+            )
+
+            // Don't proceed if the POI is 0x0 or null
+            if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+              return false
+            }
+
             const closed = await this.network.close(allocation, poi)
             return !closed
           } else {
@@ -669,11 +678,16 @@ class Agent {
           activeAllocations,
           async (allocation: Allocation) => {
             if (allocationInList(halfExpired, allocation)) {
-              const poi =
-                (await this.indexer.proofOfIndexing(
-                  deployment,
-                  epochStartBlock,
-                )) || utils.hexlify(Array(32).fill(0))
+              const poi = await this.indexer.proofOfIndexing(
+                deployment,
+                epochStartBlock,
+              )
+
+              // Don't proceed if the POI is 0x0 or null
+              if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+                return false
+              }
+
               const closed = await this.network.close(allocation, poi)
               return !closed
             } else {
