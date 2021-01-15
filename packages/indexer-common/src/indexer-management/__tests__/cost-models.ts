@@ -89,7 +89,7 @@ describe('Cost models', () => {
   test('Set and get cost model (model and variables)', async () => {
     const input = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ n: 100 }),
     }
 
@@ -116,7 +116,7 @@ describe('Cost models', () => {
   test('Set and get cost model (model only)', async () => {
     const input = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
     }
 
     const expected = {
@@ -180,22 +180,22 @@ describe('Cost models', () => {
       {
         input: {
           deployment,
-          model: '{ votes} => 10 * $n',
+          model: 'query { votes} => 10 * $n;',
         },
         expected: {
           deployment,
-          model: '{ votes} => 10 * $n',
+          model: 'query { votes} => 10 * $n;',
           variables: null,
         },
       },
       {
         input: {
           deployment,
-          model: '{ votes} => 20 * $n',
+          model: 'query { votes} => 20 * $n;',
         },
         expected: {
           deployment,
-          model: '{ votes} => 20 * $n',
+          model: 'query { votes} => 20 * $n;',
           variables: null,
         },
       },
@@ -206,7 +206,7 @@ describe('Cost models', () => {
         },
         expected: {
           deployment,
-          model: '{ votes} => 20 * $n',
+          model: 'query { votes} => 20 * $n;',
           variables: JSON.stringify({ n: 1 }),
         },
       },
@@ -217,7 +217,7 @@ describe('Cost models', () => {
         },
         expected: {
           deployment,
-          model: '{ votes} => 20 * $n',
+          model: 'query { votes} => 20 * $n;',
           variables: JSON.stringify({ n: 2 }),
         },
       },
@@ -266,12 +266,12 @@ describe('Cost models', () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        model: '{ votes } => 10 * $n',
+        model: 'query { votes } => 10 * $n;',
         variables: JSON.stringify({ n: 100 }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        model: '{ proposals } => 30 * $n',
+        model: 'query { proposals } => 30 * $n;',
         variables: JSON.stringify({ n: 10 }),
       },
     ]
@@ -296,16 +296,16 @@ describe('Cost models', () => {
     }
   })
 
-  test('Get all cost model', async () => {
+  test('Get all cost models', async () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        model: '{ votes } => 10 * $n',
+        model: 'query { votes } => 10 * $n;',
         variables: JSON.stringify({ n: 100 }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        model: '{ proposals } => 30 * $n',
+        model: 'query { proposals } => 30 * $n;',
         variables: JSON.stringify({ n: 10 }),
       },
     ]
@@ -332,7 +332,7 @@ describe('Cost models', () => {
   test('Clear model by passing in an empty model', async () => {
     let input = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n',
       variables: JSON.stringify({ n: 100 }),
     }
 
@@ -377,7 +377,7 @@ describe('Feature: Inject $DAI variable', () => {
 
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
@@ -397,7 +397,7 @@ describe('Feature: Inject $DAI variable', () => {
   test('$DAI variable can be overwritten', async () => {
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
     const client = await createIndexerManagementClient({
@@ -424,12 +424,12 @@ describe('Feature: Inject $DAI variable', () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        model: '{ votes } => 10 * $n',
+        model: 'query { votes } => 10 * $n;',
         variables: JSON.stringify({ n: 100, DAI: '10.0' }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        model: '{ proposals } => 30 * $n',
+        model: 'query { proposals } => 30 * $n;',
         variables: JSON.stringify({ n: 10 }),
       },
     ]
@@ -472,12 +472,12 @@ describe('Feature: Inject $DAI variable', () => {
     const inputs = [
       {
         deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-        model: '{ votes } => 10 * $n',
+        model: 'query { votes } => 10 * $n;',
         variables: JSON.stringify({ n: 100, DAI: '10.0' }),
       },
       {
         deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
-        model: '{ proposals } => 30 * $n',
+        model: 'query { proposals } => 30 * $n;',
         variables: JSON.stringify({ n: 10 }),
       },
     ]
@@ -521,7 +521,7 @@ describe('Feature: Inject $DAI variable', () => {
   test('$DAI is preserved when cost model is updated', async () => {
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ n: 5, DAI: '10.0' }),
     }
     const client = await createIndexerManagementClient({
@@ -555,7 +555,7 @@ describe('Feature: Inject $DAI variable', () => {
   test('If feature is disabled, $DAI variable is not preserved', async () => {
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      model: '{ votes } => 10 * $n',
+      model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
     const client = await createIndexerManagementClient({
