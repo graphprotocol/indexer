@@ -30,7 +30,7 @@
     "body-parser": "1.19.0",
     "cors": "2.8.5",
     "eslint": "7.12.1",
-    "ethers": "5.0.19",
+    "ethers": "5.0.26",
     "express": "4.17.1",
     "graphql": "15.4.0",
     "graphql-tag": "2.11.0",
