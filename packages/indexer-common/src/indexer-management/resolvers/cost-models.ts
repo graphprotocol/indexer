@@ -3,6 +3,7 @@
 
 import { CostModelVariables, GraphQLCostModel, parseGraphQLCostModel } from '../models'
 import { IndexerManagementResolverContext } from '../client'
+import { compileAsync } from '@graphprotocol/cost-model'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getVariable = (vars: CostModelVariables | null, name: string): any | undefined => {
@@ -67,6 +68,15 @@ export default {
     { models, features, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
     const update = parseGraphQLCostModel(costModel)
+
+    // Validate cost model
+    try {
+      const modelForValidation = update.model || 'default => 1;'
+      const variablesForValidation = JSON.stringify(update.variables || {})
+      await compileAsync(modelForValidation, variablesForValidation)
+    } catch (err) {
+      throw new Error(`Invalid cost model or variables: ${err.message}`)
+    }
 
     const [model] = await models.CostModel.findOrBuild({
       where: { deployment: update.deployment },
