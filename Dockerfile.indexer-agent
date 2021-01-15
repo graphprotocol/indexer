@@ -9,6 +9,9 @@ ENV NODE_ENV production
 
 RUN apt-get update && apt-get install -y python build-essential git
 
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
+
 WORKDIR /opt/indexer
 
 # Copy root files
@@ -35,6 +38,9 @@ ARG NPM_TOKEN
 ENV NODE_ENV production
 
 RUN apt-get update && apt-get install -y python build-essential git
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
 
 WORKDIR /opt/indexer
 
