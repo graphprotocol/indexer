@@ -16,6 +16,8 @@ import {
   IndexerManagementFeatures,
 } from '../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
+import { CombinedError } from '@urql/core'
+import { GraphQLError } from 'graphql'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -578,5 +580,71 @@ describe('Feature: Inject $DAI variable', () => {
     await expect(
       client.query(GET_COST_MODELS_QUERY).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [update])
+  })
+})
+
+describe('Cost model validation', () => {
+  test('Invalid cost models are rejected', async () => {
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: false,
+      },
+    })
+
+    const costModel = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: 'default => 1.0', // semicolon missing
+      variables: '{}',
+    }
+
+    await expect(
+      client.mutation(SET_COST_MODEL_MUTATION, { costModel }).toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Invalid cost model or variables: Failed to compile cost model',
+          ),
+        ],
+      }),
+    )
+  })
+
+  test('Invalid cost model variables are rejected', async () => {
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features: {
+        injectDai: false,
+      },
+    })
+
+    const costModel = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: 'default => 1.0;',
+      variables: '"foo"',
+    }
+
+    await expect(
+      client.mutation(SET_COST_MODEL_MUTATION, { costModel }).toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Invalid cost model or variables: Failed to compile cost model',
+          ),
+        ],
+      }),
+    )
   })
 })
