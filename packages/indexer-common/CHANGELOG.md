@@ -6,6 +6,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2021-01-16
+### Fixed
+- Update ethers to 5.0.26 to avoid unresolved promise rejections (#183)
+
+### Changed
+- Update common-ts to 1.2.1
+
+### Added
+- Validate cost models in `setCostModel` (#182)
+
 ## [0.9.4] - 2021-01-13
 ### Changed
 - No changes
@@ -78,7 +88,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.9.5...HEAD
+[0.9.5]: https://github.com/graphprotocol/indexer/compare/v0.9.4...v0.9.5
 [0.9.4]: https://github.com/graphprotocol/indexer/compare/v0.9.3...v0.9.4
 [0.9.3]: https://github.com/graphprotocol/indexer/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/graphprotocol/indexer/compare/v0.4.4...v0.9.2
