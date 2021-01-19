@@ -19,6 +19,7 @@ import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
 import costModelResolvers from './resolvers/cost-models'
 import allocationResolvers from './resolvers/allocations'
+import { Address } from '@graphprotocol/common-ts'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -179,8 +180,9 @@ export interface IndexerManagementDefaults {
 }
 
 export interface IndexerManagementClientOptions {
+  networkSubgraph: Client
   models: IndexerManagementModels
-  address: string
+  address: Address
   contracts: NetworkContracts
   logger?: Logger
   defaults: IndexerManagementDefaults
