@@ -236,7 +236,15 @@ export class IndexerManagementClient extends Client {
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, address, contracts, logger, defaults, features } = options
+  const {
+    models,
+    address,
+    contracts,
+    logger,
+    defaults,
+    features,
+    networkSubgraph,
+  } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -258,6 +266,7 @@ export const createIndexerManagementClient = async (
       defaults,
       features,
       dai,
+      networkSubgraph,
     },
   })
 
