@@ -64,8 +64,8 @@ module.exports = {
           `,
           {
             filter: {
-              active,
-              claimable,
+              active: active === false ? false : true,
+              claimable: claimable === false ? false : true,
             },
           },
         )
