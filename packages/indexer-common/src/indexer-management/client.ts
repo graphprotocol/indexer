@@ -1,3 +1,5 @@
+import { BigNumber } from 'ethers'
+import { Op, Sequelize } from 'sequelize'
 import { buildSchema, print } from 'graphql'
 import gql from 'graphql-tag'
 import { executeExchange } from '@urql/exchange-execute'
@@ -16,8 +18,7 @@ import { IndexerManagementModels, IndexingRuleCreationAttributes } from './model
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
 import costModelResolvers from './resolvers/cost-models'
-import { BigNumber } from 'ethers'
-import { Op, Sequelize } from 'sequelize'
+import allocationResolvers from './resolvers/allocations'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -31,6 +32,7 @@ export interface IndexerManagementResolverContext {
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   dai: Eventual<string>
+  networkSubgraph: Client
 }
 
 const SCHEMA_SDL = gql`
@@ -110,6 +112,42 @@ const SCHEMA_SDL = gql`
     variables: String
   }
 
+  input AllocationFilter {
+    active: Boolean!
+    claimable: Boolean!
+  }
+
+  enum AllocationStatus {
+    ACTIVE
+    CLAIMABLE
+  }
+
+  type Allocation {
+    id: String!
+    deployment: String!
+    allocatedTokens: String!
+
+    createdAtEpoch: Int!
+    closedAtEpoch: Int
+
+    deadlineEpoch: Int!
+    deadlineTimestamp: String!
+
+    indexingRewards: String!
+    queryFees: String!
+
+    status: AllocationStatus!
+  }
+
+  input CloseAllocationRequest {
+    id: String!
+  }
+
+  type CloseAllocationResult {
+    id: String!
+    success: Boolean!
+  }
+
   type Query {
     indexingRule(deployment: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
@@ -118,6 +156,8 @@ const SCHEMA_SDL = gql`
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
+
+    allocations(filter: AllocationFilter!): [Allocation!]!
   }
 
   type Mutation {
@@ -126,6 +166,8 @@ const SCHEMA_SDL = gql`
     deleteIndexingRules(deployments: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
+
+    # TODO: closeAllocations(requests: [CloseAllocationRequest!]!): [CloseAllocationResult!]!
   }
 `
 
@@ -198,6 +240,7 @@ export const createIndexerManagementClient = async (
     ...indexingRuleResolvers,
     ...statusResolvers,
     ...costModelResolvers,
+    ...allocationResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()
