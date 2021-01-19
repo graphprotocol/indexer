@@ -1,7 +1,7 @@
 import path from 'path'
 
 import { Argv } from 'yargs'
-import { createClient } from '@urql/core'
+import { Client, createClient } from '@urql/core'
 import { Umzug, SequelizeStorage } from 'umzug'
 import {
   createLogger,
@@ -376,6 +376,17 @@ export default {
           requestPolicy: 'network-only',
         })
       : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+    const networkSubgraphClient =
+      networkSubgraph instanceof Client
+        ? networkSubgraph
+        : createClient({
+            url: new URL(
+              `/subgraphs/id/${networkSubgraph.ipfsHash}`,
+              argv.graphNodeQueryEndpoint,
+            ).toString(),
+            fetch,
+            requestPolicy: 'network-only',
+          })
     const network = await Network.create(
       logger,
       ethereum,
@@ -395,6 +406,7 @@ export default {
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models,
+      networkSubgraph: networkSubgraphClient,
       address: toAddress(network.indexerAddress),
       contracts: network.contracts,
       logger,
