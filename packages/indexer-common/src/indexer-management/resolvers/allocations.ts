@@ -71,7 +71,10 @@ async function queryAllocations(
   },
 ): Promise<AllocationInfo[]> {
   const result = await networkSubgraph
-    .query(ALLOCATION_QUERIES[mode], variables)
+    .query(ALLOCATION_QUERIES[mode], {
+      indexer: variables.indexer.toLowerCase(),
+      disputableEpoch: variables.disputableEpoch,
+    })
     .toPromise()
 
   if (result.error) {
