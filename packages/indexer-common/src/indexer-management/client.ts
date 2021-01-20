@@ -116,6 +116,7 @@ const SCHEMA_SDL = gql`
   input AllocationFilter {
     active: Boolean!
     claimable: Boolean!
+    allocations: [String!]
   }
 
   enum AllocationStatus {

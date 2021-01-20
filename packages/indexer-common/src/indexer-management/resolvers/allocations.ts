@@ -16,6 +16,7 @@ import { BigNumber } from 'ethers'
 interface AllocationFilter {
   active: boolean
   claimable: boolean
+  allocations: string[] | null
 }
 
 enum QueryAllocationMode {
@@ -24,43 +25,92 @@ enum QueryAllocationMode {
 }
 
 const ALLOCATION_QUERIES = {
-  [QueryAllocationMode.Active]: gql`
-    query allocations($indexer: String!) {
-      allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
-        id
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        subgraphDeployment {
+  [QueryAllocationMode.Active]: {
+    all: gql`
+      query allocations($indexer: String!) {
+        allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
           id
+          allocatedTokens
+          createdAtEpoch
+          closedAtEpoch
+          subgraphDeployment {
+            id
+          }
         }
       }
-    }
-  `,
+    `,
+    allocations: gql`
+      query allocations($indexer: String!, $allocations: [String!]!) {
+        allocations(
+          where: { indexer: $indexer, status: Active, id_in: $allocations }
+          first: 1000
+        ) {
+          id
+          allocatedTokens
+          createdAtEpoch
+          closedAtEpoch
+          subgraphDeployment {
+            id
+          }
+        }
+      }
+    `,
+  },
 
-  [QueryAllocationMode.Claimable]: gql`
-    query allocations($indexer: String!, $disputableEpoch: Int!) {
-      allocations(
-        where: { indexer: $indexer, closedAtEpoch_lte: $disputableEpoch, status: Closed }
-        first: 1000
-      ) {
-        id
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        subgraphDeployment {
+  [QueryAllocationMode.Claimable]: {
+    all: gql`
+      query allocations($indexer: String!, $disputableEpoch: Int!) {
+        allocations(
+          where: {
+            indexer: $indexer
+            closedAtEpoch_lte: $disputableEpoch
+            status: Closed
+          }
+          first: 1000
+        ) {
           id
+          allocatedTokens
+          createdAtEpoch
+          closedAtEpoch
+          subgraphDeployment {
+            id
+          }
         }
       }
-    }
-  `,
+    `,
+    allocations: gql`
+      query allocations(
+        $indexer: String!
+        $disputableEpoch: Int!
+        $allocations: [String!]!
+      ) {
+        allocations(
+          where: {
+            indexer: $indexer
+            closedAtEpoch_lte: $disputableEpoch
+            status: Closed
+            id_in: $allocations
+          }
+          first: 1000
+        ) {
+          id
+          allocatedTokens
+          createdAtEpoch
+          closedAtEpoch
+          subgraphDeployment {
+            id
+          }
+        }
+      }
+    `,
+  },
 }
 
 async function queryAllocations(
   networkSubgraph: Client,
   contracts: NetworkContracts,
   mode: QueryAllocationMode,
-  variables: { indexer: Address; disputableEpoch: number },
+  variables: { indexer: Address; disputableEpoch: number; allocations: Address[] | null },
   context: {
     currentEpoch: number
     currentEpochStartBlock: number
@@ -71,10 +121,23 @@ async function queryAllocations(
   },
 ): Promise<AllocationInfo[]> {
   const result = await networkSubgraph
-    .query(ALLOCATION_QUERIES[mode], {
-      indexer: variables.indexer.toLowerCase(),
-      disputableEpoch: variables.disputableEpoch,
-    })
+    .query(
+      variables.allocations === null
+        ? ALLOCATION_QUERIES[mode]['all']
+        : ALLOCATION_QUERIES[mode]['allocations'],
+      variables.allocations == null
+        ? {
+            indexer: variables.indexer.toLowerCase(),
+            disputableEpoch: variables.disputableEpoch,
+          }
+        : {
+            indexer: variables.indexer.toLowerCase(),
+            disputableEpoch: variables.disputableEpoch,
+            allocations: variables.allocations.map((allocation) =>
+              allocation.toLowerCase(),
+            ),
+          },
+    )
     .toPromise()
 
   if (result.error) {
@@ -142,6 +205,9 @@ export default {
     const variables = {
       indexer: toAddress(address),
       disputableEpoch: currentEpoch.sub(disputeEpochs).toNumber(),
+      allocations: filter.allocations
+        ? filter.allocations.map((allocation) => toAddress(allocation))
+        : null,
     }
     const context = {
       currentEpoch: currentEpoch.toNumber(),
