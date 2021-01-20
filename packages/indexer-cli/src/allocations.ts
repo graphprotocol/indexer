@@ -21,9 +21,11 @@ export const formatAllocation = (allocation: AllocationInfo): any => ({
   ),
   closeDeadline:
     allocation.status === 'ACTIVE'
-      ? `epoch ${allocation.deadlineEpoch} (~ ${moment().to(
-          moment().add(allocation.deadlineTimestamp),
-        )})`
+      ? `epoch ${
+          allocation.closeDeadlineEpoch
+        } (${allocation.closeDeadlineBlocksRemaining.toLocaleString()} blocks remaining, ~ ${moment
+          .duration(moment().diff(moment().add(allocation.closeDeadlineTimeRemaining)))
+          .humanize()})`
       : '-',
 })
 
@@ -35,7 +37,9 @@ export const printAllocations = (
 ): void => {
   if (Array.isArray(allocations)) {
     allocations = allocations.map(allocation => formatAllocation(allocation))
-    allocations.sort((a, b) => a.deadlineTimestamp - b.deadlineTimestamp)
+    allocations.sort(
+      (a, b) => a.closeDeadlineTimeRemaining - b.closeDeadlineTimeRemaining,
+    )
     print.info(displayAllocations(outputFormat, allocations))
   } else if (allocations) {
     const allocation = formatAllocation(allocations)

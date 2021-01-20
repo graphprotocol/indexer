@@ -80,8 +80,9 @@ module.exports = {
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
-                deadlineEpoch
-                deadlineTimestamp
+                closeDeadlineEpoch
+                closeDeadlineBlocksRemaining
+                closeDeadlineTimeRemaining
                 indexingRewards
                 queryFees
                 status
