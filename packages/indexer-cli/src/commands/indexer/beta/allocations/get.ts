@@ -1,16 +1,16 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
 
-import { loadValidatedConfig } from '../../../config'
-import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { loadValidatedConfig } from '../../../../config'
+import { createIndexerManagementClient } from '../../../../client'
+import { fixParameters, validateDeploymentID } from '../../../../command-helpers'
 import gql from 'graphql-tag'
-import { printAllocations } from '../../../allocations'
+import { printAllocations } from '../../../../allocations'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options] all
-${chalk.bold('graph indexer allocations get')} [options] <id>
+${chalk.bold('graph indexer allocations get')} [options] <allocation-id>
 
 ${chalk.dim('Options:')}
 
@@ -101,7 +101,14 @@ module.exports = {
         throw result.error
       }
 
-      printAllocations(print, outputFormat, deployment, result.data.allocations)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allocations = result.data.allocations.filter((allocation: any) => {
+        const allocationDeployment = new SubgraphDeploymentID(allocation.deployment)
+        return (
+          deployment === 'all' || allocationDeployment.ipfsHash === deployment.ipfsHash
+        )
+      })
+      printAllocations(print, outputFormat, deployment, allocations)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
