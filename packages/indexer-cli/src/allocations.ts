@@ -60,7 +60,7 @@ export const displayAllocations = (
     : outputFormat === 'yaml'
     ? yaml.stringify(rules).trim()
     : rules.length === 0
-    ? 'No data'
+    ? 'No allocations found'
     : table([Object.keys(rules[0]), ...rules.map(rule => Object.values(rule))], {
         border: getBorderCharacters('norc'),
       }).trim()

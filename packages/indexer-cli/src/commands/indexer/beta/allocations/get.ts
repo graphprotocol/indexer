@@ -6,7 +6,7 @@ import { createIndexerManagementClient } from '../../../../client'
 import { fixParameters, validateDeploymentID } from '../../../../command-helpers'
 import gql from 'graphql-tag'
 import { printAllocations } from '../../../../allocations'
-import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options] all
@@ -24,7 +24,7 @@ ${chalk.dim('Options:')}
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'Get one or more indexing allocations',
+  description: 'List one or more indexing allocations',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -37,7 +37,7 @@ module.exports = {
       o,
       output,
     } = parameters.options
-    const [id, ...keys] = fixParameters(parameters, { h, help, active, claimable }) || []
+    const [id] = fixParameters(parameters, { h, help, active, claimable }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -93,6 +93,7 @@ module.exports = {
             filter: {
               active: !claimable,
               claimable: !active,
+              allocations: id === 'all' || !id ? null : [toAddress(id)],
             },
           },
         )
