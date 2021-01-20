@@ -135,7 +135,6 @@ export default {
   ): Promise<object[]> => {
     const allocations: AllocationInfo[] = []
 
-    // TODO: Obtain disputable epoch
     const currentEpoch = await contracts.epochManager.currentEpoch()
     const disputeEpochs = await contracts.staking.channelDisputeEpochs()
     const variables = {
