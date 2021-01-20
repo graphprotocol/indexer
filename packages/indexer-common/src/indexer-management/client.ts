@@ -131,8 +131,9 @@ const SCHEMA_SDL = gql`
     createdAtEpoch: Int!
     closedAtEpoch: Int
 
-    deadlineEpoch: Int!
-    deadlineTimestamp: Int!
+    closeDeadlineEpoch: Int!
+    closeDeadlineBlocksRemaining: Int!
+    closeDeadlineTimeRemaining: Int!
 
     indexingRewards: String!
     queryFees: String!

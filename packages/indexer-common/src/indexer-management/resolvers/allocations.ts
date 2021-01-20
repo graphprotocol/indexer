@@ -100,8 +100,9 @@ async function queryAllocations(
         allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
         createdAtEpoch: allocation.createdAtEpoch,
         closedAtEpoch: allocation.closedAtEpoch,
-        deadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
-        deadlineTimestamp: remainingBlocks * context.avgBlockTime,
+        closeDeadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
+        closeDeadlineBlocksRemaining: remainingBlocks,
+        closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
         indexingRewards: (
           await contracts.rewardsManager.getRewards(allocation.id)
         ).toString(),
@@ -120,8 +121,9 @@ export interface AllocationInfo {
   allocatedTokens: string
   createdAtEpoch: number
   closedAtEpoch: number | null
-  deadlineEpoch: number
-  deadlineTimestamp: number
+  closeDeadlineEpoch: number
+  closeDeadlineBlocksRemaining: number
+  closeDeadlineTimeRemaining: number
   indexingRewards: string
   queryFees: string
   status: 'ACTIVE' | 'CLAIMABLE'
