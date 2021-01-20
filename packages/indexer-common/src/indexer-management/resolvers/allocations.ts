@@ -64,7 +64,7 @@ async function queryAllocations(
   context: {
     currentEpoch: number
     currentEpochStartBlock: number
-    latestBlock: number
+    currentEpochElapsedBlocks: number
     maxAllocationEpochs: number
     blocksPerEpoch: number
     avgBlockTime: number
@@ -90,13 +90,13 @@ async function queryAllocations(
       const remainingBlocks =
         // blocks remaining in current epoch
         context.blocksPerEpoch -
-        (context.latestBlock - context.currentEpochStartBlock) +
+        context.currentEpochElapsedBlocks +
         // blocks in the remaining epochs after this one
         context.blocksPerEpoch * (deadlineEpoch - context.currentEpoch - 1)
 
       return {
         id: allocation.id,
-        deployment: new SubgraphDeploymentID(allocation.subgraphDeployment).ipfsHash,
+        deployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id).ipfsHash,
         allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
         createdAtEpoch: allocation.createdAtEpoch,
         closedAtEpoch: allocation.closedAtEpoch,
@@ -147,13 +147,13 @@ export default {
       currentEpochStartBlock: (
         await contracts.epochManager.currentEpochBlock()
       ).toNumber(),
-      elapsedBlocks: (
+      currentEpochElapsedBlocks: (
         await contracts.epochManager.currentEpochBlockSinceStart()
       ).toNumber(),
       latestBlock: (await contracts.epochManager.blockNum()).toNumber(),
       maxAllocationEpochs: await contracts.staking.maxAllocationEpochs(),
       blocksPerEpoch: (await contracts.epochManager.epochLength()).toNumber(),
-      avgBlockTime: 15,
+      avgBlockTime: 13_000,
     }
 
     if (filter.active) {

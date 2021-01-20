@@ -132,7 +132,7 @@ const SCHEMA_SDL = gql`
     closedAtEpoch: Int
 
     deadlineEpoch: Int!
-    deadlineTimestamp: String!
+    deadlineTimestamp: Int!
 
     indexingRewards: String!
     queryFees: String!
