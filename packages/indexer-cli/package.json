@@ -23,6 +23,7 @@
     "gluegun": "4.5.0",
     "graphql-tag": "2.11.0",
     "isomorphic-fetch": "3.0.0",
+    "moment": "^2.29.1",
     "table": "6.0.3",
     "yaml": "1.10.0"
   },

@@ -5,6 +5,8 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, validateDeploymentID } from '../../../command-helpers'
 import gql from 'graphql-tag'
+import { printAllocations } from '../../../allocations'
+import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options] all
@@ -26,7 +28,15 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { active, claimable, h, help, o, output } = parameters.options
+    const {
+      active,
+      claimable,
+      deployment: rawDeployment,
+      h,
+      help,
+      o,
+      output,
+    } = parameters.options
     const [id, ...keys] = fixParameters(parameters, { h, help, active, claimable }) || []
     const outputFormat = o || output || 'table'
 
@@ -41,10 +51,26 @@ module.exports = {
       return
     }
 
+    if (rawDeployment) {
+      try {
+        validateDeploymentID(rawDeployment, { all: true, global: false })
+      } catch (error) {
+        print.error(error.toString())
+        process.exitCode = 1
+        return
+      }
+    }
+
+    const deployment = rawDeployment
+      ? rawDeployment === 'all'
+        ? 'all'
+        : new SubgraphDeploymentID(rawDeployment)
+      : 'all'
+
     const config = loadValidatedConfig()
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      const allocations = await client
+      const result = await client
         .query(
           gql`
             query allocations($filter: AllocationFilter!) {
@@ -64,26 +90,22 @@ module.exports = {
           `,
           {
             filter: {
-              active: active === false ? false : true,
-              claimable: claimable === false ? false : true,
+              active: !claimable,
+              claimable: !active,
             },
           },
         )
         .toPromise()
 
-      console.table(allocations)
+      if (result.error) {
+        throw result.error
+      }
+
+      printAllocations(print, outputFormat, deployment, result.data.allocations)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
       return
     }
-
-    // try {
-    //   validateDeploymentID(rawDeployment, { all: true, global: true })
-    // } catch (error) {
-    //   print.error(error.toString())
-    //   process.exitCode = 1
-    //   return
-    // }
   },
 }
