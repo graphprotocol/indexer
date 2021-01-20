@@ -1,20 +1,3 @@
-# TODO
-
-Before we can publish these files, we need to address the following
-questions:
-
-* How do we recommend people manage the overlays for the k8s setup? We want
-  them to modify them, but we also want them to be able to easily see and
-  incorporate any changes we might make. The README currently suggests
-  copying `k8s/overlays`, which might not be the best strategy
-* Is this the right repo? It's likely that the setup scripts will change at
-  a different pace than the code in this repo, and it might make sense to
-  move them to a dedicated repo
-* We don't have a good default IPFS endpoint. The README points at the
-  staging node, but that is not the right one for production uses
-* The images that `graph-node` builds need to be put into the
-  `graphprotocol` namespace in Docker Hub
-
 # Getting started
 
 These instructions assume that you are using Google Cloud, and walk you
