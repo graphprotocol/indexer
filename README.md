@@ -6,16 +6,10 @@
 
 **NOTE: THIS PROJECT IS BETA SOFTWARE.**
 
-This repository is managed using [Lerna](https://lerna.js.org/) and [Yarn
-workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
+## The Graph Network vs. Testnet
 
-[chan](https://github.com/geut/chan/tree/master/packages/chan) is (or will be)
-used to maintain the following changelogs:
-
-- [indexer-service](packages/indexer-service/CHANGELOG.md)
-- [indexer-agent](packages/indexer-agent/CHANGELOG.md)
-- [indexer-cli](packages/indexer-cli/CHANGELOG.md)
-- [indexer-common](packages/indexer-common/CHANGELOG.md)
+For configuration details for The Graph Network and the testnet, see the
+[Mainnet and Testnet Configuration docs](./docs/networks.md).
 
 ## Running from NPM packages
 
@@ -275,6 +269,17 @@ get started.
 
 ## Releasing
 
+This repository is managed using [Lerna](https://lerna.js.org/) and [Yarn
+workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
+
+[chan](https://github.com/geut/chan/tree/master/packages/chan) is
+used to maintain the following changelogs:
+
+- [indexer-service](packages/indexer-service/CHANGELOG.md)
+- [indexer-agent](packages/indexer-agent/CHANGELOG.md)
+- [indexer-cli](packages/indexer-cli/CHANGELOG.md)
+- [indexer-common](packages/indexer-common/CHANGELOG.md)
+
 Creating a new release involves the following steps:
 
 1. Update all changelogs:
@@ -306,8 +311,9 @@ Creating a new release involves the following steps:
    ```sh
    yarn release <version>
    ```
+
 # Copyright
 
-Copyright &copy; 2020 The Graph Foundation
+Copyright &copy; 2020-2021 The Graph Foundation
 
 Licensed under the [MIT license](LICENSE).
