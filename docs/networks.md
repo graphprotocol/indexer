@@ -5,7 +5,7 @@
 ### Registration / Funding (GRT)
 
 The Graph Network mainnet is open for everyone to participate in as an
-indexer. The only requirement is a _minimum stake of 100k GRT_.
+indexer. The only requirement is a minimum stake of 100k GRT.
 
 ### Latest Release
 
