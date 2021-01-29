@@ -62,7 +62,7 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 | `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
 
-## Testnet (https://testnet.thegraph.com/)
+## Testnet (https://testnet.thegraph.com/, Rinkeby)
 
 ### Registration / Funding (GRT)
 
