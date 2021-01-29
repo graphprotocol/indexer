@@ -1,6 +1,6 @@
 # Mainnet and Testnet Configuration
 
-## Mainnet
+## Mainnet (https://network.thegraph.com)
 
 ### Registration / Funding (GRT)
 
@@ -62,7 +62,7 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 | `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
 
-## Testnet
+## Testnet (https://testnet.thegraph.com/)
 
 ### Registration / Funding (GRT)
 
@@ -103,15 +103,15 @@ testnet (for now) are all mainnet subgraphs. This means:
 
 #### Indexer Agent
 
-| Environment Variable                      | CLI Argument                  | Value                                               |
-| ----------------------------------------- | ----------------------------- | --------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider                   |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                       |
-| `INDEXER_AGENT_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer                 |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`   | `--indexer-geo-coordinates`   | Geo coordinates of testnet indexer infrastructure   |
-| `INDEXER_AGENT_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator              |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network`      |
-| `INDEXER_AGENT_DAI_CONTRACT`              | `--dai-contract`              | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC) |
+| Environment Variable                      | CLI Argument                  | Value                                             |
+| ----------------------------------------- | ----------------------------- | ------------------------------------------------- |
+| `INDEXER_AGENT_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider                 |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                     |
+| `INDEXER_AGENT_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer               |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`   | `--indexer-geo-coordinates`   | Geo coordinates of testnet indexer infrastructure |
+| `INDEXER_AGENT_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator            |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network`    |
+| `INDEXER_AGENT_DAI_CONTRACT`              | `--dai-contract`              | `?` (GDAI?)                                       |
 
 #### Indexer Service
 
