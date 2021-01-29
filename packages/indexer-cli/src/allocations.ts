@@ -19,6 +19,7 @@ export const formatAllocation = (allocation: AllocationInfo): any => ({
   pendingRewards: formatGRT(
     BigNumber.from(allocation.indexingRewards).add(allocation.queryFees),
   ),
+  closable: allocation.status === 'ACTIVE' ? allocation.ageInEpochs > 0 : false,
   closeDeadline:
     allocation.status === 'ACTIVE'
       ? `epoch ${
@@ -26,7 +27,7 @@ export const formatAllocation = (allocation: AllocationInfo): any => ({
         } (${allocation.closeDeadlineBlocksRemaining.toLocaleString()} blocks remaining, ~ ${moment
           .duration(moment().diff(moment().add(allocation.closeDeadlineTimeRemaining)))
           .humanize()})`
-      : '-',
+      : '',
 })
 
 export const printAllocations = (

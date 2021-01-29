@@ -373,6 +373,7 @@ export default {
     const networkSubgraph = argv.networkSubgraphEndpoint
       ? createClient({
           url: argv.networkSubgraphEndpoint,
+          fetch,
           requestPolicy: 'network-only',
         })
       : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
@@ -409,6 +410,8 @@ export default {
       networkSubgraph: networkSubgraphClient,
       address: toAddress(network.indexerAddress),
       contracts: network.contracts,
+      paused: network.paused,
+      isOperator: network.isOperator,
       logger,
       defaults: {
         globalIndexingRule: {
@@ -427,27 +430,27 @@ export default {
     })
     logger.info(`Launched indexer management API server`)
 
-    await startCostModelAutomation({
-      logger,
-      ethereum,
-      contracts: network.contracts,
-      indexerManagement: indexerManagementClient,
-      injectDai: argv.injectDai,
-      daiContractAddress: toAddress(argv.daiContract),
-      metrics,
-    })
+    // await startCostModelAutomation({
+    //   logger,
+    //   ethereum,
+    //   contracts: network.contracts,
+    //   indexerManagement: indexerManagementClient,
+    //   injectDai: argv.injectDai,
+    //   daiContractAddress: toAddress(argv.daiContract),
+    //   metrics,
+    // })
 
-    await startAgent({
-      ethereum,
-      adminEndpoint: argv.graphNodeAdminEndpoint,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-      logger,
-      indexNodeIDs: argv.indexNodeIds,
-      network,
-      networkSubgraph,
-      indexerManagement: indexerManagementClient,
-      defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
-      registerIndexer: argv.register,
-    })
+    // await startAgent({
+    //   ethereum,
+    //   adminEndpoint: argv.graphNodeAdminEndpoint,
+    //   statusEndpoint: argv.graphNodeStatusEndpoint,
+    //   logger,
+    //   indexNodeIDs: argv.indexNodeIds,
+    //   network,
+    //   networkSubgraph,
+    //   indexerManagement: indexerManagementClient,
+    //   defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
+    //   registerIndexer: argv.register,
+    // })
   },
 }

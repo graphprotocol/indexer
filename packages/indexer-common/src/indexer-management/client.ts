@@ -11,6 +11,8 @@ import {
   mutable,
   NetworkContracts,
   WritableEventual,
+  Address,
+  Eventual,
 } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
@@ -19,7 +21,6 @@ import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
 import costModelResolvers from './resolvers/cost-models'
 import allocationResolvers from './resolvers/allocations'
-import { Address } from '@graphprotocol/common-ts'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -29,6 +30,8 @@ export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -130,6 +133,7 @@ const SCHEMA_SDL = gql`
     allocatedTokens: String!
 
     createdAtEpoch: Int!
+    ageInEpochs: Int!
     closedAtEpoch: Int
 
     closeDeadlineEpoch: Int!
@@ -149,6 +153,7 @@ const SCHEMA_SDL = gql`
   type CloseAllocationResult {
     id: String!
     success: Boolean!
+    indexerRewards: String!
   }
 
   type Query {
@@ -170,7 +175,7 @@ const SCHEMA_SDL = gql`
 
     setCostModel(costModel: CostModelInput!): CostModel!
 
-    # TODO: closeAllocations(requests: [CloseAllocationRequest!]!): [CloseAllocationResult!]!
+    closeAllocations(requests: [CloseAllocationRequest!]!): [CloseAllocationResult!]!
   }
 `
 
@@ -186,6 +191,8 @@ export interface IndexerManagementClientOptions {
   models: IndexerManagementModels
   address: Address
   contracts: NetworkContracts
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -242,6 +249,8 @@ export const createIndexerManagementClient = async (
     models,
     address,
     contracts,
+    paused,
+    isOperator,
     logger,
     defaults,
     features,
@@ -269,6 +278,8 @@ export const createIndexerManagementClient = async (
       features,
       dai,
       networkSubgraph,
+      paused,
+      isOperator,
     },
   })
 

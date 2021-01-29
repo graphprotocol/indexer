@@ -1,17 +1,19 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
-import { IndexerManagementResolverContext } from '../client'
 import pMap from 'p-map'
 import gql from 'graphql-tag'
 import { Client } from '@urql/core'
+import { BigNumber, utils } from 'ethers'
 import {
   Address,
   NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
+import { IndexerManagementResolverContext } from '../client'
+import { executeTransaction } from '../../transactions'
+import { execute } from 'graphql'
 
 interface AllocationFilter {
   active: boolean
@@ -22,6 +24,31 @@ interface AllocationFilter {
 enum QueryAllocationMode {
   Active,
   Claimable,
+}
+
+export interface AllocationInfo {
+  id: Address
+  deployment: string
+  allocatedTokens: string
+  createdAtEpoch: number
+  closedAtEpoch: number | null
+  ageInEpochs: number
+  closeDeadlineEpoch: number
+  closeDeadlineBlocksRemaining: number
+  closeDeadlineTimeRemaining: number
+  indexingRewards: string
+  queryFees: string
+  status: 'ACTIVE' | 'CLAIMABLE'
+}
+
+export interface CloseAllocationRequest {
+  id: string
+}
+
+export interface CloseAllocationResult {
+  id: string
+  success: boolean
+  indexerRewards: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -163,6 +190,9 @@ async function queryAllocations(
         allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
         createdAtEpoch: allocation.createdAtEpoch,
         closedAtEpoch: allocation.closedAtEpoch,
+        ageInEpochs: allocation.closedAtEpoch
+          ? allocation.closedAtEpoch - allocation.createdAtEpoch
+          : context.currentEpoch - allocation.createdAtEpoch,
         closeDeadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
         closeDeadlineBlocksRemaining: remainingBlocks,
         closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
@@ -176,20 +206,6 @@ async function queryAllocations(
       }
     },
   )
-}
-
-export interface AllocationInfo {
-  id: Address
-  deployment: string
-  allocatedTokens: string
-  createdAtEpoch: number
-  closedAtEpoch: number | null
-  closeDeadlineEpoch: number
-  closeDeadlineBlocksRemaining: number
-  closeDeadlineTimeRemaining: number
-  indexingRewards: string
-  queryFees: string
-  status: 'ACTIVE' | 'CLAIMABLE'
 }
 
 export default {
@@ -248,5 +264,61 @@ export default {
     }
 
     return allocations
+  },
+
+  closeAllocations: async (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    { requests }: { requests: CloseAllocationRequest[] },
+    {
+      networkSubgraph,
+      address,
+      contracts,
+      ethereum,
+      logger,
+      paused,
+      isOperator,
+    }: IndexerManagementResolverContext,
+  ): Promise<CloseAllocationResult[]> => {
+    const results: CloseAllocationResult[] = []
+    const errors: Error[] = []
+
+    for (const request of requests) {
+      try {
+        // Obtain the start block of the current epoch
+        const epochStartBlockNumber = await contracts.epochManager.currentEpochBlock()
+        const epochStartBlock = await ethereum.getBlock(epochStartBlockNumber.toNumber())
+
+        // Obtain the deployment ID of the allocation
+        const deployment = await queryAllocationDeployment(
+          networkSubgraph,
+          toAddress(request.id),
+        )
+
+        const poi = await this.indexer.proofOfIndexing(
+          deployment.ipfsHash,
+          epochStartBlock.hash,
+        )
+
+        // Don't proceed if the POI is 0x0 or null
+        if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+          throw new Error(`Allocation "${request.id}" is missing a proof Of indexing`)
+        }
+
+        await executeTransaction(
+          logger,
+          paused,
+          isOperator,
+          () => contracts.staking.estimateGas.closeAllocation(request.id, poi),
+          (gasLimit) =>
+            contracts.staking.closeAllocation(request.id, poi, {
+              gasLimit,
+            }),
+        )
+      } catch (err) {
+        errors.push(err)
+      }
+    }
+
+    return results
   },
 }

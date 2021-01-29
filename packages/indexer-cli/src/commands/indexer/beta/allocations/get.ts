@@ -10,7 +10,7 @@ import { SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options] all
-${chalk.bold('graph indexer allocations get')} [options] <allocation-id>
+${chalk.bold('graph indexer allocations get')} [options] <id>
 
 ${chalk.dim('Options:')}
 
@@ -24,7 +24,7 @@ ${chalk.dim('Options:')}
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'List one or more indexing allocations',
+  description: 'List one or more allocations',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -80,6 +80,7 @@ module.exports = {
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
+                ageInEpochs
                 closeDeadlineEpoch
                 closeDeadlineBlocksRemaining
                 closeDeadlineTimeRemaining
