@@ -69,6 +69,19 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 In order to register for the testnet and have testnet GRT distributed to you,
 please fill out the [testnet registration form](https://airtable.com/shrL1trS84Jf0aawP).
 
+### Setting An Operator
+
+To set an operator for your testnet indexer, you can use the contracts CLI as follows.
+This is similar to using Remix, except it's easier.
+
+```bash
+git clone https://github.com/graphprotocol/contracts
+cd contracts
+
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
+  contracts staking setOperator --operator <operator-address> --allowed true
+```
+
 ### Network Parameters
 
 | Parameter                   | Value |
