@@ -131,7 +131,7 @@ cd contracts
 
 ### Configuration
 
-The Graph testnet contracts live on mainnet, but the subgraphs used in the
+The Graph testnet contracts live on rinkeby, but the subgraphs used in the
 testnet (for now) are all mainnet subgraphs. This means:
 
 - Indexer Agent and Indexer Service must connect to rinkeby
