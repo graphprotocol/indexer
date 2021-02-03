@@ -69,6 +69,29 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 In order to register for the testnet and have testnet GRT distributed to you,
 please fill out the [testnet registration form](https://airtable.com/shrL1trS84Jf0aawP).
 
+### Approving And Staking
+
+To approve your testnet GRT to be spent through the staking contract, first approve
+it in the GRT contract:
+
+```bash
+git clone https://github.com/graphprotocol/contracts
+cd contracts
+
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
+  contracts graphToken approve --account 0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c --amount <grt>
+```
+
+Afterwards, stake this amount:
+
+```bash
+git clone https://github.com/graphprotocol/contracts
+cd contracts
+
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
+  contracts staking stake --amount <grt>
+```
+
 ### Setting An Operator
 
 To set an operator for your testnet indexer, you can use the contracts CLI as follows.
