@@ -120,16 +120,123 @@ export class Network {
       return 'unauthorized'
     }
 
+    let pending = true
+    let output: providers.TransactionReceipt | undefined = undefined
+
     const estimatedGas = await gasEstimation()
-    const tx = await transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
-    logger.info(`Transaction pending`, { tx: tx.hash })
-    const receipt = await tx.wait(2)
-    logger.info(`Transaction successfully included in block`, {
-      tx: tx.hash,
-      blockNumber: receipt.blockNumber,
-      blockHash: receipt.blockHash,
+    const txPromise = transaction(Math.ceil(estimatedGas.toNumber()))
+    let tx = await txPromise
+
+    let txConfig: Record<string, number> = {
+      attempt: 1,
+      nonceOffset: 0,
+      gasBump: 1 + 20 / 100,
+      nonce: tx.nonce,
+      gasPrice: tx.gasPrice.toNumber(),
+      gasLimit: tx.gasLimit.toNumber(),
+    }
+
+    logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
+
+    while (pending) {
+      if (txConfig.attempt >= 4) {
+        logger.warn('Transaction attempt threshold surpassed, moving on', {
+          attempts: txConfig.attempt,
+        })
+        break
+      }
+
+      try {
+        if (txConfig.attempt > 1) {
+          logger.info('Resubmitting transaction', {
+            txConfig: txConfig,
+          })
+          const transaction: providers.TransactionRequest = {
+            value: tx.value,
+            to: tx.to,
+            data: tx.data,
+            chainId: tx.chainId,
+            from: tx.from,
+            nonce: txConfig.nonce,
+            gasPrice: Math.ceil(txConfig.gasPrice),
+            gasLimit: Math.ceil(txConfig.gasLimit),
+          }
+          tx = await this.wallet.sendTransaction(transaction)
+        }
+
+        logger.info(`Transaction pending`, { tx: tx })
+
+        const receipt = await this.ethereum.waitForTransaction(
+          tx?.hash,
+          3,
+          120000,
+        )
+
+        if (receipt.status == 0) {
+          const tx = await this.ethereum.getTransaction(receipt.transactionHash)
+          const code = await this.ethereum.call(tx)
+          throw Error(`Transaction reverted, reason: ${code}`)
+        }
+
+        logger.info(`Transaction successfully included in block`, {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          tx: tx?.hash,
+          receipt: receipt,
+        })
+        output = receipt
+        pending = false
+      } catch (error) {
+        txConfig = await this.updateTransactionConfig(logger, txConfig, error)
+        continue
+      }
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return output!
+  }
+
+  async updateTransactionConfig(
+    logger: Logger,
+    txConfig: Record<string, number>,
+    error: Error,
+  ): Promise<Record<string, number>> {
+    if (
+      error.message.includes(
+        'Transaction with the same hash was already imported',
+      )
+    ) {
+      txConfig.nonceOffset += 1
+      txConfig.nonce =
+        (await this.wallet.getTransactionCount('pending')) -
+        txConfig.nonceOffset +
+        1
+    } else if (
+      error.message.includes(
+        'Transaction nonce is too low. Try incrementing the nonce.',
+      )
+    ) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      txConfig.nonce! += 1
+    } else if (error.message.includes('Reverted')) {
+      txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      txConfig.nonce! += 1
+    } else if (
+      error.message.includes('Try increasing the fee') ||
+      error.message.includes(
+        'Transaction gas price supplied is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.',
+      ) ||
+      error.message?.includes('timeout exceeded')
+    ) {
+      txConfig.gasPrice =
+        txConfig.gasPrice * txConfig.gasBump > 50000000
+          ? 50000000
+          : txConfig.gasPrice * txConfig.gasBump
+    }
+    logger.warning('Error sending transaction, retrying', {
+      error: error.message,
     })
-    return receipt
+    txConfig.attempt += 1
+    return txConfig
   }
 
   static async create(
@@ -629,7 +736,6 @@ export class Network {
           }
         }
       }
-
       const receipt = await this.executeTransaction(
         () =>
           this.contracts.serviceRegistry.estimateGas.registerFor(
@@ -735,9 +841,9 @@ export class Network {
         throw indexerError(
           IndexerErrorCode.IE013,
           new Error(
-            `Unable to allocate ${formatGRT(
+            `Allocation of ${formatGRT(
               amount,
-            )} GRT: indexer only has a free stake amount of ${formatGRT(
+            )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
               freeStake,
             )} GRT`,
           ),
@@ -814,13 +920,18 @@ export class Network {
         return
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const event = receipt.events?.find((event: any) =>
-        event.topics.includes(
-          this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-        ),
-      )
-
+      const event =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        receipt.events?.find((event: any) =>
+          event.topics.includes(
+            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+          ),
+        ) ||
+        receipt.logs?.find((log: providers.Log) =>
+          log.topics.includes(
+            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+          ),
+        )
       if (!event) {
         throw indexerError(
           IndexerErrorCode.IE014,
