@@ -1,0 +1,71 @@
+########################################################################
+# Build image
+
+FROM node:14.15.4-slim as build
+
+ENV NODE_ENV production
+
+RUN apt-get update && apt-get install -y python build-essential git curl
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY tsconfig.json .
+COPY lerna.json .
+
+# Copy shared and package files
+COPY packages/indexer-common/ ./packages/indexer-common
+COPY packages/indexer-cli/ ./packages/indexer-cli
+
+# Install dependencies; include dev dependencies
+RUN yarn --frozen-lockfile --non-interactive --production=false
+
+########################################################################
+# Runtime image
+
+FROM node:14.15.4-slim
+
+ENV NODE_ENV production
+
+RUN apt-get update && apt-get install -y python build-essential git curl
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
+ENV PATH="/root/.cargo/bin:$PATH"
+
+WORKDIR /opt/indexer
+
+# Copy root files
+COPY package.json .
+COPY yarn.lock .
+COPY tsconfig.json .
+COPY lerna.json .
+
+# Copy build output
+COPY --from=build /opt/indexer/packages/indexer-cli/package.json /opt/indexer/packages/indexer-cli/package.json
+COPY --from=build /opt/indexer/packages/indexer-cli/dist /opt/indexer/packages/indexer-cli/dist
+COPY --from=build /opt/indexer/packages/indexer-cli/bin /opt/indexer/packages/indexer-cli/bin
+
+
+
+# Install dependencies; exclude dev dependencies
+RUN yarn --frozen-lockfile --non-interactive --production=true
+RUN ln -s /opt/indexer/packages/indexer-cli/bin/graph-indexer /usr/bin/graph
+
+
+ENV ETHEREUM ""
+
+ENV USER=graph
+ENV UID=10001
+
+RUN adduser --disabled-password --gecos "" --home "/home/graph" --shell "/bin/bash" --uid "${UID}" "${USER}"
+
+WORKDIR /home/${USER}
+USER ${USER}
+ENTRYPOINT ["cat"]
