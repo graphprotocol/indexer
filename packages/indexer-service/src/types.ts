@@ -1,32 +1,30 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
-import { Attestation, Receipt, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+
+export interface Signature {
+  v: number
+  r: string
+  s: string
+}
 
 export interface QueryResult {
   graphQLResponse: string
-  attestation: Attestation
+  attestation: Signature
 }
 
 export interface UnattestedQueryResult {
   graphQLResponse: string
-  attestation: Receipt
 }
 
-export interface PaidQueryResponse {
-  result: QueryResult
-  status: number
-  envelopedAttestation: string
-}
-
-export interface UnpaidQueryResponse {
-  result: UnattestedQueryResult
+export type Response<T> = {
+  result: T
   status: number
 }
 
 export interface PaidQuery {
-  allocationID: string
   subgraphDeploymentID: SubgraphDeploymentID
-  stateChannelMessage: unknown
+  payment: string
   query: string
   requestCID: string
 }
@@ -34,12 +32,11 @@ export interface PaidQuery {
 export interface FreeQuery {
   subgraphDeploymentID: SubgraphDeploymentID
   query: string
-  requestCID: string
 }
 
 export interface QueryProcessor {
-  executeFreeQuery(query: FreeQuery): Promise<UnpaidQueryResponse>
-  executePaidQuery(query: PaidQuery): Promise<PaidQueryResponse>
+  executeFreeQuery(query: FreeQuery): Promise<Response<UnattestedQueryResult>>
+  executePaidQuery(query: PaidQuery): Promise<Response<QueryResult>>
 }
 
 export class QueryError extends Error {
