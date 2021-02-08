@@ -17,7 +17,6 @@ import {
   IndexerErrorCode,
   IndexerManagementClient,
 } from '@graphprotocol/indexer-common'
-import { ReceiptManager } from '@graphprotocol/receipts'
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
 
@@ -25,7 +24,6 @@ export interface ServerOptions {
   logger: Logger
   metrics: Metrics
   port?: number
-  receiptManager: ReceiptManager
   queryProcessor: QueryProcessor
   freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
@@ -39,7 +37,6 @@ export interface ServerOptions {
 
 export const createApp = async ({
   logger,
-  receiptManager,
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
@@ -202,11 +199,11 @@ export const createApp = async ({
 
       try {
         // Extract the payment
-        const envelopedPayment = req.headers['x-graph-payment']
-        if (envelopedPayment !== undefined && typeof envelopedPayment !== 'string') {
-          logger.info(`Query has invalid enveloped payment`, {
+        const payment = req.headers['x-graph-payment']
+        if (payment !== undefined && typeof payment !== 'string') {
+          logger.info(`Query has invalid payment`, {
             deployment: subgraphDeploymentID.display,
-            envelopedPayment,
+            payment,
           })
           serverMetrics.queriesWithInvalidPaymentHeader.inc({
             deployment: subgraphDeploymentID.ipfsHash,
@@ -228,7 +225,7 @@ export const createApp = async ({
         if (paymentRequired) {
           // Regular scenario: a payment is required; fail if no
           // state channel is specified
-          if (envelopedPayment === undefined) {
+          if (payment === undefined) {
             logger.info(`Query is missing signed state`, {
               deployment: subgraphDeploymentID.display,
             })
@@ -244,30 +241,13 @@ export const createApp = async ({
 
           logger.info(`Received paid query`, {
             deployment: subgraphDeploymentID.display,
+            receipt: payment,
           })
-
-          let stateChannelMessage
-          let allocationID
-          try {
-            const parsed = JSON.parse(envelopedPayment)
-            stateChannelMessage = parsed.message
-            allocationID = parsed.allocationID
-          } catch (error) {
-            serverMetrics.queriesWithInvalidPaymentValue.inc({
-              deployment: subgraphDeploymentID.ipfsHash,
-            })
-            const err = indexerError(IndexerErrorCode.IE031)
-            return res
-              .status(400)
-              .contentType('application/json')
-              .send({ error: err.message })
-          }
 
           try {
             const response = await queryProcessor.executePaidQuery({
-              allocationID,
               subgraphDeploymentID,
-              stateChannelMessage,
+              payment,
               query,
               requestCID: utils.keccak256(new TextEncoder().encode(query)),
             })
@@ -276,7 +256,6 @@ export const createApp = async ({
             })
             res
               .status(response.status || 200)
-              .header('x-graph-payment', response.envelopedAttestation)
               .contentType('application/json')
               .send(response.result)
           } catch (error) {
@@ -284,9 +263,6 @@ export const createApp = async ({
             logger.error(`Failed to handle paid query`, { err })
             serverMetrics.failedQueries.inc({ deployment: subgraphDeploymentID.ipfsHash })
             res = res.status(error.status || 500).contentType('application/json')
-            if (error.envelopedResponse) {
-              res = res.header('x-graph-payment', error.envelopedResponse)
-            }
             res.send({ error: `${err.message}` })
           }
         } else {
@@ -296,7 +272,6 @@ export const createApp = async ({
             const response = await queryProcessor.executeFreeQuery({
               subgraphDeploymentID,
               query,
-              requestCID: utils.keccak256(new TextEncoder().encode(query)),
             })
             res
               .status(response.status || 200)
@@ -317,41 +292,12 @@ export const createApp = async ({
     },
   )
 
-  // Endpoint for channel messages
-  app.post(
-    '/channel-messages-inbox',
-
-    // Accept JSON and parse it
-    bodyParser.json({ limit: '5mb' }),
-
-    async (req, res) => {
-      const stopTimer = serverMetrics.channelMessageDuration.startTimer()
-      serverMetrics.channelMessages.inc()
-      try {
-        const response = await receiptManager.inputStateChannelMessage(req.body)
-        serverMetrics.successfulChannelMessages.inc()
-        return res.status(200).send(response)
-      } catch (error) {
-        serverMetrics.failedChannelMessages.inc()
-        const err = indexerError(IndexerErrorCode.IE023, error)
-        logger.error(`Failed to handle state channel message`, {
-          body: req.body,
-          headers: req.headers,
-          err,
-        })
-        return res.status(500).send({ error: err.message })
-      } finally {
-        stopTimer()
-      }
-    },
-  )
   return app
 }
 
 export const createServer = async ({
   logger,
   port,
-  receiptManager,
   queryProcessor,
   freeQueryAuthToken,
   graphNodeStatusEndpoint,
@@ -362,7 +308,6 @@ export const createServer = async ({
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
-    receiptManager,
     queryProcessor,
     freeQueryAuthToken,
     graphNodeStatusEndpoint,

@@ -13,18 +13,19 @@ import {
   toAddress,
   connectDatabase,
 } from '@graphprotocol/common-ts'
-import { ReceiptManager } from '@graphprotocol/receipts'
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
+  defineReceiptModel,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorActiveAllocations } from '../allocations'
+import { ReceiptManager } from '../payments'
 
 export default {
   command: 'start',
@@ -128,25 +129,29 @@ export default {
         required: true,
         group: 'Network Subgraph',
       })
-      .option('wallet-worker-threads', {
-        description: 'Number of worker threads for the server wallet',
-        type: 'number',
-        required: false,
-        default: 8,
-        group: 'State Channels',
-      })
-      .option('wallet-skip-evm-validation', {
-        description: 'Whether to skip EVM-based validation of state channel transitions',
-        type: 'boolean',
-        required: false,
-        default: true,
-        group: 'State Channels',
-      })
       .option('log-level', {
         description: 'Log level',
         type: 'string',
         default: 'debug',
         group: 'Indexer Infrastructure',
+      })
+      .option('vector-node', {
+        description: 'URL of a vector node',
+        type: 'string',
+        required: true,
+        group: 'Payments',
+      })
+      .option('vector-router', {
+        description: 'Public identifier of the vector router',
+        type: 'string',
+        required: true,
+        group: 'Payments',
+      })
+      .option('vector-transfer-definition', {
+        description: 'Address of the Graph transfer definition contract',
+        type: 'string',
+        default: 'auto',
+        group: 'Payments',
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -176,7 +181,6 @@ export default {
       version: pkg.version,
       dependencies: {
         '@graphprotocol/common-ts': dependencies['@graphprotocol/common-ts'],
-        '@graphprotocol/receipts': dependencies['@graphprotocol/receipts'],
       },
     }
 
@@ -212,6 +216,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
+    const receipts = defineReceiptModel(sequelize)
     const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
@@ -311,26 +316,14 @@ export default {
     logger.info('Successfully connected to contracts')
 
     // Create receipt manager
-    const receiptManager = new ReceiptManager(
+    const receiptManager = await ReceiptManager.create(
+      sequelize,
+      receipts,
       logger.child({ component: 'ReceiptManager' }),
-      wallet.privateKey, // <-- signingAddress is broadcast in AllocationCreated events,
-      contracts,
-      {
-        databaseConfiguration: {
-          connection: `postgresql://${argv.postgresUsername}:${argv.postgresPassword}@${argv.postgresHost}:${argv.postgresPort}/${argv.postgresDatabase}`,
-        },
-        ethereumPrivateKey: wallet.privateKey,
-        networkConfiguration: {
-          chainNetworkID: network.chainId,
-          // FIXME: This disables the ChainService in the server wallet, which
-          // is not needed with fake funding:
-          // rpcEndpoint: walletConfig.ethereum
-        },
-        skipEvmValidation: argv.walletSkipEvmValidation,
-        workerThreadAmount: argv.walletWorkerThreads,
-      },
+      network.chainId,
+      argv.vectorNode,
+      argv.vectorRouter,
     )
-    await receiptManager.migrateWalletDB()
 
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
@@ -383,7 +376,6 @@ export default {
     await createServer({
       logger: logger.child({ component: 'Server' }),
       port: argv.port,
-      receiptManager,
       queryProcessor,
       metrics,
       graphNodeStatusEndpoint: argv.graphNodeStatusEndpoint,
