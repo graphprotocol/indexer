@@ -77,6 +77,7 @@ it in the GRT contract:
 ```bash
 git clone https://github.com/graphprotocol/contracts
 cd contracts
+npm install # if you haven't done this before
 
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts graphToken approve --account 0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c --amount <grt>
@@ -87,6 +88,7 @@ Afterwards, stake this amount:
 ```bash
 git clone https://github.com/graphprotocol/contracts
 cd contracts
+npm install # if you haven't done this before
 
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts staking stake --amount <grt>
@@ -100,6 +102,7 @@ This is similar to using Remix, except it's easier.
 ```bash
 git clone https://github.com/graphprotocol/contracts
 cd contracts
+npm install # if you haven't done this before
 
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts staking setOperator --operator <operator-address> --allowed true
