@@ -69,16 +69,21 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 In order to register for the testnet and have testnet GRT distributed to you,
 please fill out the [testnet registration form](https://airtable.com/shrL1trS84Jf0aawP).
 
+### Preparing tool
+
+```bash
+git clone https://github.com/graphprotocol/contracts
+cd contracts
+npm install
+npm run compile
+```
+
 ### Approving And Staking
 
 To approve your testnet GRT to be spent through the staking contract, first approve
 it in the GRT contract:
 
 ```bash
-git clone https://github.com/graphprotocol/contracts
-cd contracts
-npm install # if you haven't done this before
-
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts graphToken approve --account 0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c --amount <grt>
 ```
@@ -86,10 +91,6 @@ npm install # if you haven't done this before
 Afterwards, stake this amount:
 
 ```bash
-git clone https://github.com/graphprotocol/contracts
-cd contracts
-npm install # if you haven't done this before
-
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts staking stake --amount <grt>
 ```
@@ -100,10 +101,6 @@ To set an operator for your testnet indexer, you can use the contracts CLI as fo
 This is similar to using Remix, except it's easier.
 
 ```bash
-git clone https://github.com/graphprotocol/contracts
-cd contracts
-npm install # if you haven't done this before
-
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
   contracts staking setOperator --operator <operator-address> --allowed true
 ```
