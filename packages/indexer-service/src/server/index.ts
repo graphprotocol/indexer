@@ -19,6 +19,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { ReceiptManager } from '@graphprotocol/receipts'
 import { createCostServer } from './cost'
+import { createOperatorServer } from './operator'
 
 export interface ServerOptions {
   logger: Logger
@@ -33,6 +34,7 @@ export interface ServerOptions {
     version: string
     dependencies: { [key: string]: string }
   }
+  operatorPublicKey: string
 }
 
 export const createApp = async ({
@@ -44,6 +46,7 @@ export const createApp = async ({
   indexerManagementClient,
   metrics,
   release,
+  operatorPublicKey,
 }: ServerOptions): Promise<express.Express> => {
   // Install metrics for incoming queries
   const serverMetrics = {
@@ -165,6 +168,13 @@ export const createApp = async ({
     '/cost',
     bodyParser.json(),
     await createCostServer({ indexerManagementClient, metrics }),
+  )
+
+  // Endpoint for operator information
+  app.use(
+    '/operator',
+    bodyParser.json(),
+    await createOperatorServer({ operatorPublicKey }),
   )
 
   let freeQueryAuthValue: string | undefined
@@ -348,6 +358,7 @@ export const createServer = async ({
   indexerManagementClient,
   metrics,
   release,
+  operatorPublicKey,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -358,6 +369,7 @@ export const createServer = async ({
     indexerManagementClient,
     metrics,
     release,
+    operatorPublicKey,
   })
 
   app.listen(port, () => {
