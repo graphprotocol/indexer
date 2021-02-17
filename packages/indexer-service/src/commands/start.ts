@@ -390,6 +390,7 @@ export default {
       freeQueryAuthToken: argv.freeQueryAuthToken,
       indexerManagementClient,
       release,
+      operatorPublicKey: wallet.publicKey,
     })
   },
 }
