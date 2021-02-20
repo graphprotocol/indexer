@@ -21,17 +21,9 @@ import {
   uniqueAllocationID,
   indexerError,
   IndexerErrorCode,
+  executeTransaction,
 } from '@graphprotocol/indexer-common'
-import {
-  ContractTransaction,
-  ContractReceipt,
-  BigNumber,
-  providers,
-  Wallet,
-  utils,
-  Signer,
-  BigNumberish,
-} from 'ethers'
+import { BigNumber, providers, Wallet, utils, Signer } from 'ethers'
 import { strict as assert } from 'assert'
 import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
@@ -93,35 +85,6 @@ export class Network {
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
     this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
-  }
-
-  async executeTransaction(
-    gasEstimation: () => Promise<BigNumber>,
-    transaction: (gasLimit: BigNumberish) => Promise<ContractTransaction>,
-    logger: Logger,
-  ): Promise<ContractReceipt | 'paused' | 'unauthorized'> {
-    if (await this.paused.value()) {
-      logger.info(`Network is paused, skipping this action`)
-      return 'paused'
-    }
-
-    if (!(await this.isOperator.value())) {
-      logger.info(
-        `Not authorized as an operator for indexer, skipping this action`,
-      )
-      return 'unauthorized'
-    }
-
-    const estimatedGas = await gasEstimation()
-    const tx = await transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
-    logger.info(`Transaction pending`, { tx: tx.hash })
-    const receipt = await tx.wait(1)
-    logger.info(`Transaction successfully included in block`, {
-      tx: tx.hash,
-      blockNumber: receipt.blockNumber,
-      blockHash: receipt.blockHash,
-    })
-    return receipt
   }
 
   static async create(
@@ -502,7 +465,10 @@ export class Network {
         }
       }
 
-      const receipt = await this.executeTransaction(
+      const receipt = await executeTransaction(
+        logger.child({ action: 'register' }),
+        this.paused,
+        this.isOperator,
         () =>
           this.contracts.serviceRegistry.estimateGas.registerFor(
             this.indexerAddress,
@@ -518,7 +484,6 @@ export class Network {
               gasLimit,
             },
           ),
-        logger.child({ action: 'register' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return
@@ -655,7 +620,10 @@ export class Network {
         price,
       })
 
-      const receipt = await this.executeTransaction(
+      const receipt = await executeTransaction(
+        logger.child({ action: 'allocate' }),
+        this.paused,
+        this.isOperator,
         async () =>
           this.contracts.staking.estimateGas.allocateFrom(
             this.indexerAddress,
@@ -683,7 +651,6 @@ export class Network {
             ),
             { gasLimit },
           ),
-        logger.child({ action: 'allocate' }),
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -762,7 +729,10 @@ export class Network {
         return true
       }
 
-      const receipt = await this.executeTransaction(
+      const receipt = await executeTransaction(
+        logger.child({ action: 'close' }),
+        this.paused,
+        this.isOperator,
         () =>
           this.contracts.staking.estimateGas.closeAllocation(
             allocation.id,
@@ -772,7 +742,6 @@ export class Network {
           this.contracts.staking.closeAllocation(allocation.id, poi, {
             gasLimit,
           }),
-        logger.child({ action: 'close' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return false
@@ -819,7 +788,10 @@ export class Network {
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
-      const receipt = await this.executeTransaction(
+      const receipt = await executeTransaction(
+        logger.child({ action: 'claim' }),
+        this.paused,
+        this.isOperator,
         () =>
           this.contracts.staking.estimateGas.claim(
             allocation.id,
@@ -829,7 +801,6 @@ export class Network {
           this.contracts.staking.claim(allocation.id, this.restakeRewards, {
             gasLimit,
           }),
-        logger.child({ action: 'claim' }),
       )
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return false

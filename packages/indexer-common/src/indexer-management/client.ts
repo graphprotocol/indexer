@@ -1,3 +1,5 @@
+import { BigNumber } from 'ethers'
+import { Op, Sequelize } from 'sequelize'
 import { buildSchema, print } from 'graphql'
 import gql from 'graphql-tag'
 import { executeExchange } from '@urql/exchange-execute'
@@ -9,6 +11,8 @@ import {
   mutable,
   NetworkContracts,
   WritableEventual,
+  Address,
+  Eventual,
 } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
@@ -16,8 +20,7 @@ import { IndexerManagementModels, IndexingRuleCreationAttributes } from './model
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import statusResolvers from './resolvers/indexer-status'
 import costModelResolvers from './resolvers/cost-models'
-import { BigNumber } from 'ethers'
-import { Op, Sequelize } from 'sequelize'
+import allocationResolvers from './resolvers/allocations'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -27,10 +30,13 @@ export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   dai: Eventual<string>
+  networkSubgraph: Client
 }
 
 const SCHEMA_SDL = gql`
@@ -110,6 +116,46 @@ const SCHEMA_SDL = gql`
     variables: String
   }
 
+  input AllocationFilter {
+    active: Boolean!
+    claimable: Boolean!
+    allocations: [String!]
+  }
+
+  enum AllocationStatus {
+    ACTIVE
+    CLAIMABLE
+  }
+
+  type Allocation {
+    id: String!
+    deployment: String!
+    allocatedTokens: String!
+
+    createdAtEpoch: Int!
+    ageInEpochs: Int!
+    closedAtEpoch: Int
+
+    closeDeadlineEpoch: Int!
+    closeDeadlineBlocksRemaining: Int!
+    closeDeadlineTimeRemaining: Int!
+
+    indexingRewards: String!
+    queryFees: String!
+
+    status: AllocationStatus!
+  }
+
+  input CloseAllocationRequest {
+    id: String!
+  }
+
+  type CloseAllocationResult {
+    id: String!
+    success: Boolean!
+    indexerRewards: String!
+  }
+
   type Query {
     indexingRule(deployment: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
@@ -118,6 +164,8 @@ const SCHEMA_SDL = gql`
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
+
+    allocations(filter: AllocationFilter!): [Allocation!]!
   }
 
   type Mutation {
@@ -126,6 +174,8 @@ const SCHEMA_SDL = gql`
     deleteIndexingRules(deployments: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
+
+    closeAllocations(requests: [CloseAllocationRequest!]!): [CloseAllocationResult!]!
   }
 `
 
@@ -137,9 +187,12 @@ export interface IndexerManagementDefaults {
 }
 
 export interface IndexerManagementClientOptions {
+  networkSubgraph: Client
   models: IndexerManagementModels
-  address: string
+  address: Address
   contracts: NetworkContracts
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -192,12 +245,23 @@ export class IndexerManagementClient extends Client {
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, address, contracts, logger, defaults, features } = options
+  const {
+    models,
+    address,
+    contracts,
+    paused,
+    isOperator,
+    logger,
+    defaults,
+    features,
+    networkSubgraph,
+  } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
     ...statusResolvers,
     ...costModelResolvers,
+    ...allocationResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()
@@ -213,6 +277,9 @@ export const createIndexerManagementClient = async (
       defaults,
       features,
       dai,
+      networkSubgraph,
+      paused,
+      isOperator,
     },
   })
 

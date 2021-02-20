@@ -363,6 +363,7 @@ export default {
     })
 
     const indexerManagementClient = await createIndexerManagementClient({
+      networkSubgraph,
       models,
       address,
       contracts,
