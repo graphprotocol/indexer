@@ -18,7 +18,7 @@ jobs:
         id: docker_meta
         uses: crazy-max/ghaction-docker-meta@v1
         with:
-          images: ghcr.io/graphprotocol/indexer-agent
+          images: ghcr.io/edgeandnode/indexer-agent
           tag-sha: true
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v1
