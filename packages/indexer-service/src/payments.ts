@@ -7,7 +7,7 @@ import {
   ReceiptStore,
   ReceiptsTransfer,
 } from '@graphprotocol/indexer-common'
-import { Logger, toAddress } from '@graphprotocol/common-ts'
+import { Address, Logger, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction, Model } from 'sequelize'
 import { RestServerNodeService } from '@connext/vector-utils'
 
@@ -73,6 +73,7 @@ async function getTransfer(
   node: RestServerNodeService,
   channelAddress: string,
   transferId: string,
+  vectorTransferDefinition: Address,
 ): Promise<ReceiptsTransfer> {
   // Get the transfer
   const result = await node.getTransferByRoutingId({
@@ -84,12 +85,17 @@ async function getTransfer(
     throw result.getError()
   }
 
-  // TODO: (Security) Ensure that the verifying contract of the transfer
-  // is the expected one. Otherwise we may be approving data which does
-  // not unlock expected funds. This can wait until after other trust
-  // assumptions are removed and contracts are deployed.
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const transfer = result.getValue()!
+
+  // Security: Ensure that the verifying contract of the transfer
+  // is the expected one. Otherwise we may be approving data which does
+  // not unlock expected funds.
+  if (toAddress(transfer.transferDefinition) !== vectorTransferDefinition) {
+    throw new Error(
+      `Transfer "${transfer.transferId}" has unsupported transfer definition "${transfer.transferDefinition}"`,
+    )
+  }
 
   return {
     signer: toAddress(transfer.transferState.signer),
@@ -124,11 +130,12 @@ export class ReceiptManager {
     logger: Logger,
     node: RestServerNodeService,
     channelAddress: string,
+    vectorTransferDefinition: Address,
   ) {
     this._sequelize = sequelize
     this._receiptModel = model
     this._transferCache = new AsyncCache((transferId: string) =>
-      getTransfer(node, channelAddress, transferId),
+      getTransfer(node, channelAddress, transferId, vectorTransferDefinition),
     )
 
     // Sync to the database forever.
@@ -156,6 +163,7 @@ export class ReceiptManager {
     chainId: number,
     vectorNodeUrl: string,
     vectorRouterIdentifier: string,
+    vectorTransferDefinition: Address,
   ): Promise<ReceiptManager> {
     logger = logger.child({ component: 'ReceiptManager' })
 
@@ -208,7 +216,14 @@ export class ReceiptManager {
       channelAddress,
     })
 
-    return new ReceiptManager(sequelize, model, logger, node, channelAddress)
+    return new ReceiptManager(
+      sequelize,
+      model,
+      logger,
+      node,
+      channelAddress,
+      vectorTransferDefinition,
+    )
   }
 
   private _findTransfer(vectorTransferId: string): Promise<ReceiptsTransfer> {
