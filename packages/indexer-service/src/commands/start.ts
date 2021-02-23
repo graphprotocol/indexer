@@ -315,6 +315,16 @@ export default {
 
     logger.info('Successfully connected to contracts')
 
+    // Identify the Graph transfer definition address
+    // FIXME: Pick it from the `contracts`
+    const vectorTransferDefinition = toAddress(
+      argv.vectorTransferDefinition === 'auto'
+        ? network.chainId === 1
+          ? '0x0000000000000000000000000000000000000000'
+          : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
+        : argv.vectorTransferDefinition,
+    )
+
     // Create receipt manager
     const receiptManager = await ReceiptManager.create(
       sequelize,
@@ -323,6 +333,7 @@ export default {
       network.chainId,
       argv.vectorNode,
       argv.vectorRouter,
+      vectorTransferDefinition,
     )
 
     // Ensure the address is checksummed
