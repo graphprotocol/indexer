@@ -35,7 +35,7 @@ export function defineReceiptTransferModel(sequelize: Sequelize): ReceiptsTransf
       type: DataTypes.STRING,
       allowNull: false,
     },
-    vectorTransferId: {
+    transferRoutingId: {
       type: DataTypes.STRING(66),
       allowNull: false,
       primaryKey: true,
