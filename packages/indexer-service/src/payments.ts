@@ -306,9 +306,11 @@ export class ReceiptManager {
             }
           }
 
-          // Make sure the new payment amount is set
+          // Make sure the new payment amount and signature are set
           state.set('paymentAmount', receipt.paymentAmount.toHexString())
+          state.set('signature', receipt.signature)
 
+          // Save the new or updated receipt to the db
           await state.save()
         },
       )
