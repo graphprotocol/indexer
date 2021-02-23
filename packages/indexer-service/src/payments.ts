@@ -7,7 +7,7 @@ import {
   ReceiptStore,
   ReceiptsTransfer,
 } from '@graphprotocol/indexer-common'
-import { Address, Logger, toAddress } from '@graphprotocol/common-ts'
+import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction, Model } from 'sequelize'
 import { RestServerNodeService } from '@connext/vector-utils'
 
@@ -138,22 +138,16 @@ export class ReceiptManager {
       getTransfer(node, channelAddress, transferId, vectorTransferDefinition),
     )
 
-    // Sync to the database forever.
-    ;(async () => {
-      for (;;) {
-        try {
-          while (await this._flushOne());
-        } catch (err) {
-          logger.error(
-            `Failed to sync payment to the db. If this does not correct itself, revenue may be lost.`,
-            { err },
-          )
-        }
-
-        // Sleep 30 seconds
-        await new Promise(r => setTimeout(r, 30000))
+    timer(30_000).pipe(async () => {
+      try {
+        while (await this._flushOne());
+      } catch (err) {
+        logger.error(
+          `Failed to sync payment to the db. If this does not correct itself, revenue may be lost.`,
+          { err },
+        )
       }
-    })()
+    })
   }
 
   public static async create(
