@@ -19,6 +19,7 @@ import {
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
+  defineReceiptTransferModel,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
@@ -304,6 +305,7 @@ export default {
       database: argv.postgresDatabase,
     })
     const models = defineIndexerManagementModels(sequelize)
+    defineReceiptTransferModel(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
