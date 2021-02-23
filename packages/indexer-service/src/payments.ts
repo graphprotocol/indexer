@@ -4,14 +4,11 @@ import {
   IndexerErrorCode,
   Receipt,
   ReceiptModel,
-  ReceiptStore,
-  ReceiptsTransfer,
+  ReceiptTransfer,
 } from '@graphprotocol/indexer-common'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
-import { Sequelize, Transaction, Model } from 'sequelize'
+import { Sequelize, Transaction } from 'sequelize'
 import { RestServerNodeService } from '@connext/vector-utils'
-
-type CompleteModel<T> = Model<T> & T
 
 // Reverses endianness of a valid hexadecimal string without the leading 0x
 // Eg: "a1b2c3" => "c3b2a1".
@@ -74,7 +71,7 @@ async function getTransfer(
   channelAddress: string,
   routingId: string,
   vectorTransferDefinition: Address,
-): Promise<ReceiptsTransfer> {
+): Promise<ReceiptTransfer> {
   // Get the transfer
   const result = await node.getTransferByRoutingId({ channelAddress, routingId })
 
@@ -101,7 +98,7 @@ async function getTransfer(
   }
 }
 
-function validateSignature(transfer: ReceiptsTransfer, receiptData: string): string {
+function validateSignature(transfer: ReceiptTransfer, receiptData: string): string {
   const signedData = readBinary(receiptData, 64, 136)
   const signature = '0x' + receiptData.slice(136, 266)
   const address = utils.recoverAddress(utils.keccak256(signedData), signature)
@@ -119,7 +116,7 @@ export class ReceiptManager {
   private readonly _receiptModel: ReceiptModel
   private readonly _cache: Map<string, Readonly<Receipt>> = new Map()
   private readonly _flushQueue: string[] = []
-  private readonly _transferCache: AsyncCache<string, ReceiptsTransfer>
+  private readonly _transferCache: AsyncCache<string, ReceiptTransfer>
 
   private constructor(
     sequelize: Sequelize,
@@ -288,31 +285,31 @@ export class ReceiptManager {
       this._sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
         async (transaction: Transaction) => {
-          const prevState = (await this._receiptModel.findOne({
+          const [state, isNew] = await this._receiptModel.findOrBuild({
             where: { id: receipt.id, signer: receipt.signer },
+            defaults: {
+              id: receipt.id,
+              signature: receipt.signature,
+              signer: receipt.signer,
+              paymentAmount: receipt.paymentAmount.toHexString(),
+            },
             transaction,
-          })) as null | CompleteModel<ReceiptStore>
-          if (prevState != null) {
-            // Try updating an existing receipt, if any
-            const prevPaymentAmount = BigNumber.from(prevState.paymentAmount)
-            // Don't save over receipts that are already advanced
-            if (prevPaymentAmount.gte(receipt.paymentAmount)) {
+          })
+
+          // Don't save over receipts that are already advanced
+          if (!isNew) {
+            const storedPaymentAmount = BigNumber.from(
+              state.getDataValue('paymentAmount'),
+            )
+            if (storedPaymentAmount.gte(receipt.paymentAmount)) {
               return
             }
-
-            prevState.paymentAmount = receipt.paymentAmount.toHexString()
-            prevState.signature = receipt.signature
-            await prevState.save()
-          } else {
-            // If there is no previous receipt create one.
-            const newState = {
-              signature: receipt.signature,
-              paymentAmount: receipt.paymentAmount.toHexString(),
-              signer: receipt.signer,
-              id: receipt.id,
-            }
-            await this._receiptModel.create(newState)
           }
+
+          // Make sure the new payment amount is set
+          state.set('paymentAmount', receipt.paymentAmount.toHexString())
+
+          await state.save()
         },
       )
     } catch (e) {
