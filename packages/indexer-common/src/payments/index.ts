@@ -18,14 +18,14 @@ export type ReceiptStore = {
 
 export type ReceiptModel = ModelCtor<Model<ReceiptStore>>
 
-export type ReceiptsTransfer = {
+export type ReceiptTransfer = {
   signer: Address
   allocation: string
 }
 
-export type ReceiptsTransferModel = ModelCtor<Model<Receipt>>
+export type ReceiptTransferModel = ModelCtor<Model<ReceiptTransfer>>
 
-export function defineReceiptTransferModel(sequelize: Sequelize): ReceiptsTransferModel {
+export function defineReceiptTransferModel(sequelize: Sequelize): ReceiptTransferModel {
   const model = {
     signer: {
       type: DataTypes.STRING(42),
