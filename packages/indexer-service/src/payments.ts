@@ -220,10 +220,6 @@ export class ReceiptManager {
     )
   }
 
-  private _findTransfer(vectorTransferId: string): Promise<ReceiptsTransfer> {
-    return this._transferCache.get(vectorTransferId)
-  }
-
   // Saves the payment and returns the allocation for signing
   async add(receiptData: string): Promise<string> {
     // Security: Input validation
@@ -236,7 +232,7 @@ export class ReceiptManager {
     // This should always work for valid transfers (aside from eg: network failures)
     // The Gateway initiates a transfer, but won't use it until there is a double-signed
     // commitment. That means our Vector node should know about it.
-    const transfer = await this._findTransfer(vectorTransferId)
+    const transfer = await this._transferCache.get(vectorTransferId)
 
     const signature = validateSignature(transfer, receiptData)
 
