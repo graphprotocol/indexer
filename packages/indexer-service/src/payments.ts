@@ -100,7 +100,7 @@ async function getTransfer(
   return {
     signer: toAddress(transfer.transferState.signer),
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    allocationID: toAddress(transfer.meta!.allocation),
+    allocation: toAddress(transfer.meta!.allocation),
   }
 }
 
@@ -246,7 +246,7 @@ export class ReceiptManager {
       signer: transfer.signer,
     }
     this._queue(receipt)
-    return transfer.allocationID
+    return transfer.allocation
 
     // TODO: (Security) Additional validations are required to remove trust from
     // the Gateway which are deferred until we can fully remove trust which requires:

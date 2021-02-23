@@ -20,7 +20,7 @@ export type ReceiptModel = ModelCtor<Model<ReceiptStore>>
 
 export type ReceiptsTransfer = {
   signer: Address
-  allocationID: string
+  allocation: string
 }
 
 export type ReceiptsTransferModel = ModelCtor<Model<Receipt>>
@@ -31,7 +31,7 @@ export function defineReceiptTransferModel(sequelize: Sequelize): ReceiptsTransf
       type: DataTypes.STRING(42),
       allowNull: false,
     },
-    allocationID: {
+    allocation: {
       type: DataTypes.STRING,
       allowNull: false,
     },
