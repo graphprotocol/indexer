@@ -72,14 +72,11 @@ class AsyncCache<K, V> {
 async function getTransfer(
   node: RestServerNodeService,
   channelAddress: string,
-  transferId: string,
+  routingId: string,
   vectorTransferDefinition: Address,
 ): Promise<ReceiptsTransfer> {
   // Get the transfer
-  const result = await node.getTransferByRoutingId({
-    channelAddress,
-    routingId: transferId,
-  })
+  const result = await node.getTransferByRoutingId({ channelAddress, routingId })
 
   if (result.isError) {
     throw result.getError()
@@ -134,8 +131,8 @@ export class ReceiptManager {
   ) {
     this._sequelize = sequelize
     this._receiptModel = model
-    this._transferCache = new AsyncCache((transferId: string) =>
-      getTransfer(node, channelAddress, transferId, vectorTransferDefinition),
+    this._transferCache = new AsyncCache((routingId: string) =>
+      getTransfer(node, channelAddress, routingId, vectorTransferDefinition),
     )
 
     timer(30_000).pipe(async () => {
