@@ -282,7 +282,7 @@ export class ReceiptManager {
     try {
       // Put this in a transaction because this has a write which is
       // dependent on a read and must be atomic or payments could be dropped.
-      this._sequelize.transaction(
+      await this._sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
         async (transaction: Transaction) => {
           const [state, isNew] = await this._receiptModel.findOrBuild({
@@ -311,7 +311,7 @@ export class ReceiptManager {
           state.set('signature', receipt.signature)
 
           // Save the new or updated receipt to the db
-          await state.save()
+          await state.save({ transaction })
         },
       )
     } catch (e) {
