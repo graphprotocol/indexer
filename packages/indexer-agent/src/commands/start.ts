@@ -52,6 +52,32 @@ export default {
         default: 4000,
         group: 'Ethereum',
       })
+      .option('gas-bump-time-limit', {
+        description:
+          'Time limit for transactions after which the transaction will be resubmitted with more gas (ms)',
+        type: 'number',
+        default: 240000,
+        group: 'Ethereum',
+      })
+      .option('gas-bump-percent', {
+        description:
+          'The percent to bump the gas price before resubmitting a stuck transaction (%)',
+        type: 'number',
+        default: 20,
+        group: 'Ethereum',
+      })
+      .option('gas-price-max', {
+        description: 'The maximum gas price to use for a transaction (gwei)',
+        type: 'number',
+        default: 2000000000,
+        group: 'Ethereum',
+      })
+      .option('max-retries', {
+        description: 'The maximum number of transaction retries',
+        type: 'number',
+        default: 5,
+        group: 'Ethereum',
+      })
       .option('mnemonic', {
         description: 'Mnemonic for the operator wallet',
         type: 'string',
@@ -481,6 +507,10 @@ export default {
       argv.allocationClaimThreshold,
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
+      argv.gasBumpTimeLimit,
+      argv.gasBumpPercent,
+      argv.gasPriceMax,
+      argv.maxRetries,
     )
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,

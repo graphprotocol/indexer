@@ -70,6 +70,10 @@ export class Network {
   queryFeesCollectedClaimThreshold: BigNumber
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
+  gasBumpTimeLimit: number
+  gasBumpPercent: number
+  gasPriceMax: number
+  maxRetries: number
 
   private constructor(
     logger: Logger,
@@ -86,6 +90,10 @@ export class Network {
     queryFeesCollectedClaimThreshold: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
+    gasBumpTimeLimit: number,
+    gasBumpPercent: number,
+    gasPriceMax: number,
+    maxRetries: number,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -101,6 +109,10 @@ export class Network {
     this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
+    this.gasBumpTimeLimit = gasBumpTimeLimit
+    this.gasBumpPercent = gasBumpPercent
+    this.gasPriceMax = gasPriceMax
+    this.maxRetries = maxRetries
   }
 
   async executeTransaction(
@@ -130,7 +142,7 @@ export class Network {
     let txConfig: Record<string, number> = {
       attempt: 1,
       nonceOffset: 0,
-      gasBump: 1 + 20 / 100,
+      gasBump: 1 + this.gasBumpPercent / 100,
       nonce: tx.nonce,
       gasPrice: tx.gasPrice.toNumber(),
       gasLimit: tx.gasLimit.toNumber(),
@@ -139,7 +151,7 @@ export class Network {
     logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
 
     while (pending) {
-      if (txConfig.attempt >= 4) {
+      if (txConfig.attempt >= this.maxRetries) {
         logger.warn('Transaction attempt threshold surpassed, moving on', {
           attempts: txConfig.attempt,
         })
@@ -169,7 +181,7 @@ export class Network {
         const receipt = await this.ethereum.waitForTransaction(
           tx?.hash,
           3,
-          120000,
+          this.gasBumpTimeLimit,
         )
 
         if (receipt.status == 0) {
@@ -228,8 +240,8 @@ export class Network {
       error.message?.includes('timeout exceeded')
     ) {
       txConfig.gasPrice =
-        txConfig.gasPrice * txConfig.gasBump > 50000000
-          ? 50000000
+        txConfig.gasPrice * txConfig.gasBump > this.gasPriceMax
+          ? this.gasPriceMax
           : txConfig.gasPrice * txConfig.gasBump
     }
     logger.warning('Error sending transaction, retrying', {
@@ -253,6 +265,10 @@ export class Network {
     queryFeesCollectedClaimThreshold: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
+    gasBumpTimeLimit: number,
+    gasBumpPercent: number,
+    gasPriceMax: number,
+    maxRetries: number,
   ): Promise<Network> {
     const subgraph =
       networkSubgraph instanceof Client
@@ -295,6 +311,10 @@ export class Network {
       parseGRT(queryFeesCollectedClaimThreshold.toString()),
       poiDisputeMonitoring,
       poiDisputableEpochs,
+      gasBumpTimeLimit,
+      gasBumpPercent,
+      gasPriceMax,
+      maxRetries,
     )
   }
 
