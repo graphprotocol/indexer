@@ -5,10 +5,11 @@ import {
   Receipt,
   ReceiptModel,
   ReceiptTransfer,
+  VectorClient,
 } from '@graphprotocol/indexer-common'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
-import { RestServerNodeService } from '@connext/vector-utils'
+import { INodeService } from '@connext/vector-types'
 
 // Reverses endianness of a valid hexadecimal string without the leading 0x
 // Eg: "a1b2c3" => "c3b2a1".
@@ -67,7 +68,7 @@ class AsyncCache<K, V> {
 }
 
 async function getTransfer(
-  node: RestServerNodeService,
+  node: INodeService,
   channelAddress: string,
   routingId: string,
   vectorTransferDefinition: Address,
@@ -118,18 +119,24 @@ export class ReceiptManager {
   private readonly _flushQueue: string[] = []
   private readonly _transferCache: AsyncCache<string, ReceiptTransfer>
 
-  private constructor(
+  constructor(
     sequelize: Sequelize,
     model: ReceiptModel,
     logger: Logger,
-    node: RestServerNodeService,
-    channelAddress: string,
+    vector: VectorClient,
     vectorTransferDefinition: Address,
   ) {
+    logger = logger.child({ component: 'ReceiptManager' })
+
     this._sequelize = sequelize
     this._receiptModel = model
     this._transferCache = new AsyncCache((routingId: string) =>
-      getTransfer(node, channelAddress, routingId, vectorTransferDefinition),
+      getTransfer(
+        vector.node,
+        vector.channelAddress,
+        routingId,
+        vectorTransferDefinition,
+      ),
     )
 
     timer(30_000).pipe(async () => {
@@ -142,76 +149,6 @@ export class ReceiptManager {
         )
       }
     })
-  }
-
-  public static async create(
-    sequelize: Sequelize,
-    model: ReceiptModel,
-    logger: Logger,
-    chainId: number,
-    vectorNodeUrl: string,
-    vectorRouterIdentifier: string,
-    vectorTransferDefinition: Address,
-  ): Promise<ReceiptManager> {
-    logger = logger.child({ component: 'ReceiptManager' })
-
-    // Connect to Vector node
-    const node = await RestServerNodeService.connect(vectorNodeUrl, logger, undefined, 0)
-
-    // Ensure there is a channel set up with the router
-    logger.info(`Establish state channel with router`, {
-      publicIdentifier: node.publicIdentifier,
-      counterpartyIdentifier: vectorRouterIdentifier,
-      chainId,
-    })
-
-    let channelAddress: string
-    try {
-      const result = await node.getStateChannelByParticipants({
-        publicIdentifier: node.publicIdentifier,
-        counterparty: vectorRouterIdentifier,
-        chainId,
-      })
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      channelAddress = result.getValue()!.channelAddress
-    } catch (err) {
-      try {
-        const result = await node.setup({
-          counterpartyIdentifier: vectorRouterIdentifier,
-          chainId,
-          timeout: '86400',
-        })
-
-        if (result.isError) {
-          throw result.getError()
-        }
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        channelAddress = result.getValue()!.channelAddress
-      } catch (err) {
-        logger.error(`Failed to set up state channel with router`, {
-          publicIdentifier: node.publicIdentifier,
-          counterpartyIdentifier: vectorRouterIdentifier,
-          chainId,
-        })
-        throw err
-      }
-    }
-
-    logger.info(`Successfully established state channel with router`, {
-      publicIdentifier: node.publicIdentifier,
-      counterpartyIdentifier: vectorRouterIdentifier,
-      chainId,
-      channelAddress,
-    })
-
-    return new ReceiptManager(
-      sequelize,
-      model,
-      logger,
-      node,
-      channelAddress,
-      vectorTransferDefinition,
-    )
   }
 
   // Saves the payment and returns the allocation for signing

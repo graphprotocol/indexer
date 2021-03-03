@@ -20,6 +20,7 @@ import {
   IndexerErrorCode,
   registerIndexerErrorMetrics,
   defineReceiptModel,
+  createVectorClient,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -256,7 +257,7 @@ export default {
       )
     }
 
-    const web3 = new providers.StaticJsonRpcProvider(
+    const ethereumProvider = new providers.StaticJsonRpcProvider(
       {
         url: ethereum.toString(),
         user: ethereum.username,
@@ -265,9 +266,9 @@ export default {
       },
       argv.ethereumNetwork,
     )
-    web3.pollingInterval = argv.ethereumPollingInterval
+    ethereumProvider.pollingInterval = argv.ethereumPollingInterval
 
-    web3.on('debug', info => {
+    ethereumProvider.on('debug', info => {
       if (info.action === 'response') {
         web3ProviderMetrics.requests.inc({
           method: info.request.method,
@@ -281,18 +282,18 @@ export default {
       }
     })
 
-    web3.on('network', (newNetwork, oldNetwork) => {
+    ethereumProvider.on('network', (newNetwork, oldNetwork) => {
       logger.trace('Ethereum network change', {
         oldNetwork: oldNetwork,
         newNetwork: newNetwork,
       })
     })
 
-    const network = await web3.getNetwork()
+    const network = await ethereumProvider.getNetwork()
     logger.info('Successfully connected to Ethereum', {
-      provider: web3.connection.url,
-      pollingInterval: web3.pollingInterval,
-      network: await web3.detectNetwork(),
+      provider: ethereumProvider.connection.url,
+      pollingInterval: ethereumProvider.pollingInterval,
+      network: await ethereumProvider.detectNetwork(),
     })
 
     logger.info('Connect to contracts', {
@@ -302,7 +303,7 @@ export default {
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(web3, network.chainId)
+      contracts = await connectContracts(ethereumProvider, network.chainId)
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
@@ -325,14 +326,23 @@ export default {
         : argv.vectorTransferDefinition,
     )
 
+    // Create vector client
+    const vector = await createVectorClient({
+      logger,
+      ethereum: ethereumProvider,
+      wallet,
+      contracts,
+      metrics,
+      nodeUrl: argv.vectorNode,
+      routerIdentifier: argv.vectorRouter,
+    })
+
     // Create receipt manager
-    const receiptManager = await ReceiptManager.create(
+    const receiptManager = new ReceiptManager(
       sequelize,
       receipts,
-      logger.child({ component: 'ReceiptManager' }),
-      network.chainId,
-      argv.vectorNode,
-      argv.vectorRouter,
+      logger,
+      vector,
       vectorTransferDefinition,
     )
 
