@@ -215,6 +215,18 @@ export default {
         default: true,
         group: 'Protocol',
       })
+      .option('offchain-subgraphs', {
+        description:
+          'Subgraphs to index that are not on chain (comma-separated)',
+        type: 'string',
+        array: true,
+        default: [],
+        coerce: arg =>
+          arg.reduce(
+            (acc: string[], value: string) => [...acc, ...value.split(',')],
+            [],
+          ),
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -436,6 +448,9 @@ export default {
       indexerManagement: indexerManagementClient,
       defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
       registerIndexer: argv.register,
+      offchainSubgraphs: argv.offchainSubgraphs.map(
+        (s: string) => new SubgraphDeploymentID(s),
+      ),
     })
   },
 }
