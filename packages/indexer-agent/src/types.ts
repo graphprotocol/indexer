@@ -1,11 +1,17 @@
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  Metrics,
+  NetworkContracts,
+  SubgraphDeploymentID,
+} from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
-import { BigNumber, providers } from 'ethers'
+import { BigNumber, providers, Wallet } from 'ethers'
 import { Network } from './network'
 import { Client } from '@urql/core'
 
 export interface AgentConfig {
   ethereum: providers.StaticJsonRpcProvider
+  metrics: Metrics
   statusEndpoint: string
   adminEndpoint: string
   indexerManagement: IndexerManagementClient
@@ -16,6 +22,22 @@ export interface AgentConfig {
   indexNodeIDs: string[]
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
+  payments: {
+    wallet: Wallet
+    contracts: NetworkContracts
+    nodeUrl: string
+    routerIdentifier: string
+    eventServer?: {
+      url: string
+      port: string
+    }
+  }
+}
+
+export interface SubgraphDeployment {
+  id: SubgraphDeploymentID
+  stakedTokens: BigNumber
+  signalAmount: BigNumber
 }
 
 export interface EthereumBlock {

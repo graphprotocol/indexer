@@ -11,6 +11,7 @@ import {
   createMetrics,
   createMetricsServer,
   toAddress,
+  connectContracts,
 } from '@graphprotocol/common-ts'
 import {
   defineIndexerManagementModels,
@@ -24,7 +25,7 @@ import {
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
-import { providers } from 'ethers'
+import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 
 export default {
@@ -256,6 +257,37 @@ export default {
         }
         return true
       })
+      .option('vector-node', {
+        description: 'URL of a vector node',
+        type: 'string',
+        required: true,
+        group: 'Payments',
+      })
+      .option('vector-router', {
+        description: 'Public identifier of the vector router',
+        type: 'string',
+        required: true,
+        group: 'Payments',
+      })
+      .option('vector-transfer-definition', {
+        description: 'Address of the Graph transfer definition contract',
+        type: 'string',
+        default: 'auto',
+        group: 'Payments',
+      })
+      .option('vector-event-server', {
+        description: 'External URL of the vector event server of the agent',
+        type: 'string',
+        required: true,
+        group: 'Payments',
+      })
+      .option('vector-event-server-port', {
+        description: 'Port to serve the vector event server at',
+        type: 'number',
+        required: true,
+        default: 6801,
+        group: 'Payments',
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -396,6 +428,38 @@ export default {
       network: await ethereum.detectNetwork(),
     })
 
+    logger.info(`Connect wallet`, {
+      network: ethereum.network.name,
+      chainId: ethereum.network.chainId,
+    })
+    const wallet = Wallet.fromMnemonic(argv.menmonic)
+    wallet.connect(ethereum)
+    logger.info(`Connected wallet`)
+
+    logger.info(`Connecting to contracts`)
+    let contracts = undefined
+    try {
+      contracts = await connectContracts(wallet, ethereum.network.chainId)
+    } catch (err) {
+      logger.error(
+        `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
+        {
+          err,
+        },
+      )
+      process.exit(1)
+    }
+    logger.info(`Successfully connected to contracts`, {
+      curation: contracts.curation.address,
+      disputeManager: contracts.disputeManager.address,
+      epochManager: contracts.epochManager.address,
+      gns: contracts.gns.address,
+      rewardsManager: contracts.rewardsManager.address,
+      serviceRegistry: contracts.serviceRegistry.address,
+      staking: contracts.staking.address,
+      token: contracts.token.address,
+    })
+
     logger.info('Connect to network')
     const networkSubgraph = argv.networkSubgraphEndpoint
       ? createClient({
@@ -406,7 +470,8 @@ export default {
     const network = await Network.create(
       logger,
       ethereum,
-      argv.mnemonic,
+      contracts,
+      wallet,
       toAddress(argv.indexerAddress),
       argv.publicIndexerUrl,
       argv.graphNodeQueryEndpoint,
@@ -455,10 +520,11 @@ export default {
     })
 
     await startAgent({
+      logger,
+      metrics,
       ethereum,
       adminEndpoint: argv.graphNodeAdminEndpoint,
       statusEndpoint: argv.graphNodeStatusEndpoint,
-      logger,
       indexNodeIDs: argv.indexNodeIds,
       network,
       networkSubgraph,
@@ -468,6 +534,16 @@ export default {
       offchainSubgraphs: argv.offchainSubgraphs.map(
         (s: string) => new SubgraphDeploymentID(s),
       ),
+      payments: {
+        wallet,
+        contracts,
+        nodeUrl: argv.vectorNode,
+        routerIdentifier: argv.vectorRouter,
+        eventServer: {
+          url: argv.vectorEventServer,
+          port: argv.vectorEventServerPort,
+        },
+      },
     })
   },
 }
