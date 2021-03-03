@@ -2,6 +2,7 @@ import {
   formatGRT,
   join,
   Logger,
+  Metrics,
   SubgraphDeploymentID,
   timer,
   toAddress,
@@ -13,6 +14,7 @@ import {
   IndexingRuleAttributes,
   indexerError,
   IndexerErrorCode,
+  createVectorClient,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, EthereumBlock } from './types'
@@ -60,29 +62,51 @@ const loop = async (f: () => Promise<boolean>, interval: number) => {
 }
 
 class Agent {
+  logger: Logger
+  metrics: Metrics
   indexer: Indexer
   network: Network
-  logger: Logger
   networkSubgraph: Client | SubgraphDeploymentID
   registerIndexer: boolean
 
   constructor(
     logger: Logger,
+    metrics: Metrics,
     indexer: Indexer,
     network: Network,
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
   ) {
     this.logger = logger
+    this.metrics = metrics
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
     this.registerIndexer = registerIndexer
   }
 
-  async start(): Promise<void> {
+  async start(payments: AgentConfig['payments']): Promise<Agent> {
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
+    this.logger.info(`Connected to Graph node(s)`)
+
+    // Connect to the vector node for withdrawing query fees into the
+    // rebate pool when allocations are closed
+    const vector = await createVectorClient({
+      logger: this.logger,
+      metrics: this.metrics,
+      ethereum: this.network.ethereum,
+      contracts: payments.contracts,
+      wallet: payments.wallet,
+      nodeUrl: payments.nodeUrl,
+      routerIdentifier: payments.routerIdentifier,
+      eventServer: payments.eventServer
+        ? {
+            ...payments.eventServer,
+            evts: {},
+          }
+        : undefined,
+    })
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
@@ -325,6 +349,8 @@ class Agent {
         }
       },
     )
+
+    return this
   }
 
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
@@ -739,11 +765,11 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
 
   const agent = new Agent(
     config.logger,
+    config.metrics,
     indexer,
     config.network,
     config.networkSubgraph,
     config.registerIndexer,
   )
-  await agent.start()
-  return agent
+  return await agent.start(config.payments)
 }
