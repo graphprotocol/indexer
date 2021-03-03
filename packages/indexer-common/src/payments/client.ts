@@ -19,6 +19,7 @@ export interface CreateVectorClientOptions {
   eventServer?: {
     url: string
     port: string
+    evts?: Partial<EventCallbackConfig>
   }
 }
 
@@ -94,6 +95,9 @@ export async function createVectorClient(
     [EngineEvents.TRANSACTION_SUBMITTED]: {},
     [EngineEvents.TRANSACTION_MINED]: {},
     [EngineEvents.TRANSACTION_FAILED]: {},
+
+    // Mix in the event overrides
+    ...options.eventServer?.evts,
   }
 
   logger.info(`Connect to vector node`, { url: options.nodeUrl })

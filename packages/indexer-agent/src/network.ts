@@ -1,7 +1,6 @@
 import {
   Logger,
   NetworkContracts,
-  connectContracts,
   SubgraphDeploymentID,
   formatGRT,
   parseGRT,
@@ -136,7 +135,8 @@ export class Network {
   static async create(
     parentLogger: Logger,
     ethereum: providers.StaticJsonRpcProvider,
-    mnemonic: string,
+    contracts: NetworkContracts,
+    wallet: Wallet,
     indexerAddress: Address,
     indexerUrl: string,
     indexerQueryEndpoint: string,
@@ -159,46 +159,10 @@ export class Network {
             requestPolicy: 'network-only',
           })
 
-    const network = await ethereum.getNetwork()
-
-    let logger = parentLogger.child({
+    const logger = parentLogger.child({
       component: 'Network',
       indexer: indexerAddress.toString(),
-    })
-
-    logger.info(`Create wallet`, {
-      network: network.name,
-      chainId: network.chainId,
-    })
-    let wallet = Wallet.fromMnemonic(mnemonic)
-    wallet = wallet.connect(ethereum)
-    logger.info(`Successfully created wallet`, { address: wallet.address })
-
-    logger = logger.child({ operator: wallet.address })
-
-    logger.info(`Connecting to contracts`)
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, network.chainId)
-    } catch (error) {
-      logger.error(
-        `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
-        {
-          error,
-        },
-      )
-      throw error
-    }
-
-    logger.info(`Successfully connected to contracts`, {
-      curation: contracts.curation.address,
-      disputeManager: contracts.disputeManager.address,
-      epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
-      rewardsManager: contracts.rewardsManager.address,
-      serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
-      token: contracts.token.address,
+      operator: wallet.address,
     })
 
     const paused = await monitorNetworkPauses(logger, contracts, subgraph)
