@@ -65,6 +65,7 @@ class Agent {
   logger: Logger
   networkSubgraph: Client | SubgraphDeploymentID
   registerIndexer: boolean
+  offchainSubgraphs: SubgraphDeploymentID[]
 
   constructor(
     logger: Logger,
@@ -72,12 +73,14 @@ class Agent {
     network: Network,
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
+    offchainSubgraphs: SubgraphDeploymentID[],
   ) {
     this.logger = logger
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
     this.registerIndexer = registerIndexer
+    this.offchainSubgraphs = offchainSubgraphs
   }
 
   async start(): Promise<void> {
@@ -355,6 +358,13 @@ class Agent {
     if (this.networkSubgraph instanceof SubgraphDeploymentID) {
       if (!deploymentInList(targetDeployments, this.networkSubgraph)) {
         targetDeployments.push(this.networkSubgraph)
+      }
+    }
+
+    // Ensure all offchain subgraphs are _always_ indexed
+    for (const offchainSubgraph of this.offchainSubgraphs) {
+      if (!deploymentInList(targetDeployments, offchainSubgraph)) {
+        targetDeployments.push(offchainSubgraph)
       }
     }
 
@@ -743,6 +753,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.network,
     config.networkSubgraph,
     config.registerIndexer,
+    config.offchainSubgraphs,
   )
   await agent.start()
   return agent

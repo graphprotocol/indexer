@@ -15,6 +15,7 @@ export interface AgentConfig {
   networkSubgraph: Client | SubgraphDeploymentID
   indexNodeIDs: string[]
   registerIndexer: boolean
+  offchainSubgraphs: SubgraphDeploymentID[]
 }
 
 export interface SubgraphDeployment {
