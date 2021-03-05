@@ -11,24 +11,9 @@ import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import { INodeService } from '@connext/vector-types'
 
-// Reverses endianness of a valid hexadecimal string without the leading 0x
-// Eg: "a1b2c3" => "c3b2a1".
-// This is here because solidity uses little-endian, your machine very
-// likely uses little-endian (and for good reason), Rust libraries that we
-// use support little-endian, but ethers BigNumber uses big-endian and
-// doesn't even bother to document the fact. The format choice we have
-// is to optimize for Rust -> solidity and cut out JS.
-function reverseEndianness(value: string) {
-  let result = ''
-  for (let i = value.length; i > 1; i -= 2) {
-    result += value.slice(i - 2, i)
-  }
-  return result
-}
-
-// Takes a valid little-endian hexadecimal string and parses it as a BigNumber
+// Takes a valid big-endian hexadecimal string and parses it as a BigNumber
 function readNumber(data: string, start: number, end: number): BigNumber {
-  return BigNumber.from('0x' + reverseEndianness(data.slice(start, end)))
+  return BigNumber.from('0x' + data.slice(start, end))
 }
 
 function readBinary(data: string, start: number, end: number): Uint8Array {
