@@ -19,8 +19,8 @@ import {
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
-  defineReceiptModel,
   createVectorClient,
+  definePaymentModels,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -217,7 +217,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const receipts = defineReceiptModel(sequelize)
+    const paymentModels = definePaymentModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
@@ -340,7 +340,7 @@ export default {
     // Create receipt manager
     const receiptManager = new ReceiptManager(
       sequelize,
-      receipts,
+      paymentModels,
       logger,
       vector,
       vectorTransferDefinition,
