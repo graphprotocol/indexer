@@ -1,10 +1,14 @@
 import {
+  Address,
   Logger,
   Metrics,
   NetworkContracts,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
+import {
+  IndexerManagementClient,
+  PaymentModels,
+} from '@graphprotocol/indexer-common'
 import { BigNumber, providers, Wallet } from 'ethers'
 import { Network } from './network'
 import { Client } from '@urql/core'
@@ -27,10 +31,12 @@ export interface AgentConfig {
     contracts: NetworkContracts
     nodeUrl: string
     routerIdentifier: string
-    eventServer?: {
+    vectorTransferDefinition: Address
+    eventServer: {
       url: string
       port: string
     }
+    models: PaymentModels
   }
 }
 
