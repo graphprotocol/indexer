@@ -2,9 +2,9 @@ import { BigNumber, utils } from 'ethers'
 import {
   indexerError,
   IndexerErrorCode,
-  Receipt,
-  ReceiptModel,
-  ReceiptTransfer,
+  PaymentModels,
+  ReceiptAttributes,
+  Transfer,
   VectorClient,
 } from '@graphprotocol/indexer-common'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
@@ -72,7 +72,7 @@ async function getTransfer(
   channelAddress: string,
   routingId: string,
   vectorTransferDefinition: Address,
-): Promise<ReceiptTransfer> {
+): Promise<Pick<Transfer, 'signer' | 'allocation'>> {
   // Get the transfer
   const result = await node.getTransferByRoutingId({ channelAddress, routingId })
 
@@ -99,7 +99,10 @@ async function getTransfer(
   }
 }
 
-function validateSignature(transfer: ReceiptTransfer, receiptData: string): string {
+function validateSignature(
+  transfer: Pick<Transfer, 'signer' | 'allocation'>,
+  receiptData: string,
+): string {
   const signedData = readBinary(receiptData, 64, 136)
   const signature = '0x' + receiptData.slice(136, 266)
   const address = utils.recoverAddress(utils.keccak256(signedData), signature)
@@ -114,14 +117,17 @@ function validateSignature(transfer: ReceiptTransfer, receiptData: string): stri
 
 export class ReceiptManager {
   private readonly _sequelize: Sequelize
-  private readonly _receiptModel: ReceiptModel
-  private readonly _cache: Map<string, Readonly<Receipt>> = new Map()
+  private readonly _paymentModels: PaymentModels
+  private readonly _cache: Map<string, Readonly<ReceiptAttributes>> = new Map()
   private readonly _flushQueue: string[] = []
-  private readonly _transferCache: AsyncCache<string, ReceiptTransfer>
+  private readonly _transferCache: AsyncCache<
+    string,
+    Pick<Transfer, 'signer' | 'allocation'>
+  >
 
   constructor(
     sequelize: Sequelize,
-    model: ReceiptModel,
+    paymentModels: PaymentModels,
     logger: Logger,
     vector: VectorClient,
     vectorTransferDefinition: Address,
@@ -129,7 +135,7 @@ export class ReceiptManager {
     logger = logger.child({ component: 'ReceiptManager' })
 
     this._sequelize = sequelize
-    this._receiptModel = model
+    this._paymentModels = paymentModels
     this._transferCache = new AsyncCache((routingId: string) =>
       getTransfer(
         vector.node,
@@ -170,7 +176,7 @@ export class ReceiptManager {
     const paymentAmount = readNumber(receiptData, 64, 128)
     const id = readNumber(receiptData, 128, 136).toNumber()
 
-    const receipt: Receipt = {
+    const receipt: ReceiptAttributes = {
       paymentAmount,
       id,
       signature,
@@ -222,13 +228,13 @@ export class ReceiptManager {
       await this._sequelize.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
         async (transaction: Transaction) => {
-          const [state, isNew] = await this._receiptModel.findOrBuild({
+          const [state, isNew] = await this._paymentModels.receipts.findOrBuild({
             where: { id: receipt.id, signer: receipt.signer },
             defaults: {
               id: receipt.id,
               signature: receipt.signature,
               signer: receipt.signer,
-              paymentAmount: receipt.paymentAmount.toHexString(),
+              paymentAmount: receipt.paymentAmount,
             },
             transaction,
           })
@@ -244,7 +250,7 @@ export class ReceiptManager {
           }
 
           // Make sure the new payment amount and signature are set
-          state.set('paymentAmount', receipt.paymentAmount.toHexString())
+          state.set('paymentAmount', receipt.paymentAmount)
           state.set('signature', receipt.signature)
 
           // Save the new or updated receipt to the db
@@ -265,7 +271,7 @@ export class ReceiptManager {
     return true
   }
 
-  _queue(receipt: Receipt): void {
+  _queue(receipt: ReceiptAttributes): void {
     // This is collision resistant only because address has a fixed length.
     const qualifiedId = `${receipt.signer}${receipt.id}`
     const latest = this._cache.get(qualifiedId)

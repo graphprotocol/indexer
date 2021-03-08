@@ -20,7 +20,7 @@ import {
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
-  defineReceiptTransferModel,
+  definePaymentModels,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
@@ -336,8 +336,8 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const models = defineIndexerManagementModels(sequelize)
-    defineReceiptTransferModel(sequelize)
+    const managementModels = defineIndexerManagementModels(sequelize)
+    const paymentModels = definePaymentModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
 
@@ -488,7 +488,7 @@ export default {
 
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
-      models,
+      models: managementModels,
       address: toAddress(network.indexerAddress),
       contracts: network.contracts,
       logger,
