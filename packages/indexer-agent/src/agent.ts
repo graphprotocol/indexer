@@ -937,6 +937,23 @@ class Agent {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private async collectQueryFees(allocation: Allocation): Promise<boolean> {
+    // Wait long enough so that all receipts are likely to be flushed to the db
+    // by the indexer service
+    //
+    // FIXME: There are better ways to achieve this without blocking the
+    // allocation processing by 60s with each one that has fees;
+    //
+    // One idea:
+    //
+    // - Always create a transfer for the most recent allocation
+    // - Make it so that the gateway only sees only transfers by this
+    //   most recent allocation
+    // - Resolve transfers only once there is at least one transfer
+    //   for a more recent allocation
+    if (await this.transfers?.hasUnresolvedTransfers(allocation)) {
+      await new Promise(resolve => setTimeout(resolve, 60_000))
+    }
+
     // 1. Resolve all unresolved transfers for the allocation in question
     //   - For this, we need to get all transfers and all matching receipts
     //   - Then we need to resolve transfers one at a time

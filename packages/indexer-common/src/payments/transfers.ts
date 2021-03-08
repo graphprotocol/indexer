@@ -102,6 +102,17 @@ export class TransferManager {
     }
   }
 
+  async hasUnresolvedTransfers(allocation: Allocation): Promise<boolean> {
+    const unresolvedTransfers = await this.models.transfers.count({
+      include: [this.models.transfers.associations.receipts],
+      where: {
+        allocation: allocation.id,
+        isResolved: false,
+      },
+    })
+    return unresolvedTransfers > 0
+  }
+
   async unresolvedTransfersAndReceipts(allocation: Allocation): Promise<Transfer[]> {
     return await this.models.transfers.findAll({
       include: [this.models.transfers.associations.receipts],
