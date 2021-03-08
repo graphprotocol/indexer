@@ -56,7 +56,7 @@ export class TransferManager {
     const allocation = payload.transfer.meta!.allocation
     const signer = payload.transfer.transferState.signer
 
-    this.logger.info(`Transfer created, write it to the db`, {
+    this.logger.info(`Add new transfer to the db`, {
       routingId,
       allocation,
       signer,
@@ -70,7 +70,7 @@ export class TransferManager {
         isResolved: false,
       })
     } catch (err) {
-      this.logger.error(`Failed to write transfer to db`, {
+      this.logger.error(`Failed to add new transfer to the db`, {
         routingId,
         allocation,
         signer,
@@ -90,7 +90,7 @@ export class TransferManager {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const routingId = payload.transfer.meta!.routingId
 
-    this.logger.info(`Transfer resolved, mark it as such in the db`, { routingId })
+    this.logger.info(`Mark transfer as resolved in the db`, { routingId })
 
     try {
       await this.models.transfers.update({ isResolved: true }, { where: { routingId } })
