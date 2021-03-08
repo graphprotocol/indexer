@@ -1,74 +1,121 @@
-import { DataTypes, Sequelize, ModelCtor, Model } from 'sequelize'
+import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { BigNumber } from 'ethers'
 import { Address } from '@graphprotocol/common-ts'
 
-export type Receipt = {
-  signer: string
+export interface ReceiptAttributes {
   id: number
+  signer: Address
   paymentAmount: BigNumber
   signature: string
 }
 
-export type ReceiptStore = {
-  signer: string
-  id: number
-  paymentAmount: string
-  signature: string
+export class Receipt extends Model<ReceiptAttributes> implements ReceiptAttributes {
+  public id!: number
+  public signer!: Address
+  public paymentAmount!: BigNumber
+  public signature!: string
+
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+
+  public readonly transfer?: Transfer
+
+  public static associations: {
+    transfer: Association<Receipt, Transfer>
+  }
 }
 
-export type ReceiptModel = ModelCtor<Model<ReceiptStore>>
-
-export type ReceiptTransfer = {
+export interface TransferAttributes {
+  routingId: string
+  allocation: Address
   signer: Address
-  allocation: string
+  isResolved: boolean
 }
 
-export type ReceiptTransferModel = ModelCtor<Model<ReceiptTransfer>>
+export class Transfer extends Model<TransferAttributes> implements TransferAttributes {
+  public routingId!: string
+  public allocation!: Address
+  public signer!: Address
+  public isResolved!: boolean
 
-export function defineReceiptTransferModel(sequelize: Sequelize): ReceiptTransferModel {
-  const model = {
-    signer: {
-      type: DataTypes.STRING(42),
-      allowNull: false,
-    },
-    allocation: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
-    transferRoutingId: {
-      type: DataTypes.STRING(66),
-      allowNull: false,
-      primaryKey: true,
-    },
-    isResolved: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-    },
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+
+  public readonly receipts?: Receipt[]
+
+  public static associations: {
+    receipts: Association<Transfer, Receipt>
   }
-  return sequelize.define('receiptTransfers', model)
 }
 
-export function defineReceiptModel(sequelize: Sequelize): ReceiptModel {
-  const model = {
-    signer: {
-      type: DataTypes.STRING(42),
-      allowNull: false,
-      primaryKey: true,
-    },
-    id: {
-      type: DataTypes.INTEGER({ unsigned: true }),
-      allowNull: false,
-      primaryKey: true,
-    },
-    signature: {
-      type: DataTypes.STRING(132),
-      allowNull: false,
-    },
-    paymentAmount: {
-      type: DataTypes.STRING(66),
-      allowNull: false,
-    },
-  }
+export interface PaymentModels {
+  receipts: typeof Receipt
+  transfers: typeof Transfer
+}
 
-  return sequelize.define('receipts', model)
+export function definePaymentModels(sequelize: Sequelize): PaymentModels {
+  Transfer.init(
+    {
+      signer: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+        primaryKey: true,
+      },
+      allocation: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+      routingId: {
+        type: DataTypes.STRING(66),
+        allowNull: false,
+        primaryKey: true,
+      },
+      isResolved: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+      },
+    },
+    { sequelize, tableName: 'transfers' },
+  )
+
+  Receipt.init(
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true,
+      },
+      signer: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+        primaryKey: true,
+      },
+      signature: {
+        type: DataTypes.STRING(132),
+        allowNull: false,
+      },
+      paymentAmount: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        validate: {
+          min: 0.0,
+        },
+      },
+    },
+    { sequelize, tableName: 'receipts' },
+  )
+
+  Transfer.hasMany(Receipt, {
+    sourceKey: 'signer',
+    foreignKey: 'signer',
+    as: 'receipts',
+  })
+
+  Receipt.belongsTo(Transfer, {
+    targetKey: 'signer',
+    foreignKey: 'signer',
+    as: 'transfer',
+  })
+
+  return { receipts: Receipt, transfers: Transfer }
 }
