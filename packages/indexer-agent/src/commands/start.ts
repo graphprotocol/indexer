@@ -432,8 +432,8 @@ export default {
       network: ethereum.network.name,
       chainId: ethereum.network.chainId,
     })
-    const wallet = Wallet.fromMnemonic(argv.menmonic)
-    wallet.connect(ethereum)
+    let wallet = Wallet.fromMnemonic(argv.mnemonic)
+    wallet = wallet.connect(ethereum)
     logger.info(`Connected wallet`)
 
     logger.info(`Connecting to contracts`)
