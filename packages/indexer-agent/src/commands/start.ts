@@ -519,6 +519,16 @@ export default {
       metrics,
     })
 
+    // Identify the Graph transfer definition address
+    // FIXME: Pick it from the `contracts`
+    const vectorTransferDefinition = toAddress(
+      argv.vectorTransferDefinition === 'auto'
+        ? ethereum.network.chainId === 1
+          ? '0x0000000000000000000000000000000000000000'
+          : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
+        : argv.vectorTransferDefinition,
+    )
+
     await startAgent({
       logger,
       metrics,
@@ -539,10 +549,12 @@ export default {
         contracts,
         nodeUrl: argv.vectorNode,
         routerIdentifier: argv.vectorRouter,
+        vectorTransferDefinition,
         eventServer: {
           url: argv.vectorEventServer,
           port: argv.vectorEventServerPort,
         },
+        models: paymentModels,
       },
     })
   },

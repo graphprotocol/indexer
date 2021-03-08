@@ -18,7 +18,11 @@ import {
   RewardsPool,
   POIDisputeAttributes,
   createVectorClient,
+  VectorClient,
+  TransferManager,
+  Transfer,
 } from '@graphprotocol/indexer-common'
+import { Evt } from 'evt'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, EthereumBlock } from './types'
 import { Indexer } from './indexer'
@@ -28,6 +32,12 @@ import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
 import { Client } from '@urql/core'
+import {
+  EngineEvents,
+  ConditionalTransferCreatedPayload,
+  ConditionalTransferResolvedPayload,
+} from '@connext/vector-types'
+import { EventCallbackConfig } from '@connext/vector-utils'
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -73,6 +83,10 @@ class Agent {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
 
+  // NOTE: this is always defined after calling `start()`
+  vector: VectorClient | undefined
+  transfers: TransferManager | undefined
+
   constructor(
     logger: Logger,
     metrics: Metrics,
@@ -96,9 +110,27 @@ class Agent {
     await this.indexer.connect()
     this.logger.info(`Connected to Graph node(s)`)
 
+    // Connect to the vector node
+    const evts: Partial<EventCallbackConfig> = {
+      [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {
+        evt: Evt.create<ConditionalTransferCreatedPayload>(),
+        url: new URL(
+          `/${EngineEvents.CONDITIONAL_TRANSFER_CREATED}`,
+          payments.eventServer.url,
+        ).toString(),
+      },
+      [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {
+        evt: Evt.create<ConditionalTransferResolvedPayload>(),
+        url: new URL(
+          `/${EngineEvents.CONDITIONAL_TRANSFER_RESOLVED}`,
+          payments.eventServer.url,
+        ).toString(),
+      },
+    }
+
     // Connect to the vector node for withdrawing query fees into the
     // rebate pool when allocations are closed
-    const vector = await createVectorClient({
+    this.vector = await createVectorClient({
       logger: this.logger,
       metrics: this.metrics,
       ethereum: this.network.ethereum,
@@ -106,12 +138,18 @@ class Agent {
       wallet: payments.wallet,
       nodeUrl: payments.nodeUrl,
       routerIdentifier: payments.routerIdentifier,
-      eventServer: payments.eventServer
-        ? {
-            ...payments.eventServer,
-            evts: {},
-          }
-        : undefined,
+      eventServer: {
+        ...payments.eventServer,
+        evts,
+      },
+    })
+
+    // Automatically sync the status of receipt transfers to the db
+    this.transfers = new TransferManager({
+      logger: this.logger,
+      vector: this.vector,
+      vectorTransferDefinition: payments.vectorTransferDefinition,
+      models: payments.models,
     })
 
     // Ensure there is a 'global' indexing rule
@@ -696,18 +734,7 @@ class Agent {
             allocation => allocation.createdAtEpoch < epoch,
           ),
           async allocation => {
-            const poi = await this.indexer.proofOfIndexing(
-              deployment,
-              epochStartBlock,
-              this.indexer.indexerAddress,
-            )
-
-            // Don't proceed if the POI is 0x0 or null
-            if (poi === undefined || poi === utils.hexlify(Array(32).fill(0))) {
-              return false
-            }
-
-            await this.network.close(allocation, poi)
+            await this.closeAllocation(epochStartBlock, allocation)
           },
           { concurrency: 1 },
         )
@@ -774,18 +801,10 @@ class Agent {
         activeAllocations,
         async (allocation: Allocation) => {
           if (allocationInList(expiredAllocations, allocation)) {
-            const poi = await this.indexer.proofOfIndexing(
-              deployment,
+            const { closed } = await this.closeAllocation(
               epochStartBlock,
-              this.indexer.indexerAddress,
+              allocation,
             )
-
-            // Don't proceed if the POI is 0x0 or null
-            if (poi === undefined || poi === utils.hexlify(Array(32).fill(0))) {
-              return false
-            }
-
-            const closed = await this.network.close(allocation, poi)
             return !closed
           } else {
             return true
@@ -842,21 +861,10 @@ class Agent {
           activeAllocations,
           async (allocation: Allocation) => {
             if (allocationInList(halfExpired, allocation)) {
-              const poi = await this.indexer.proofOfIndexing(
-                deployment,
+              const { closed } = await this.closeAllocation(
                 epochStartBlock,
-                this.indexer.indexerAddress,
+                allocation,
               )
-
-              // Don't proceed if the POI is 0x0 or null
-              if (
-                poi === undefined ||
-                poi === utils.hexlify(Array(32).fill(0))
-              ) {
-                return false
-              }
-
-              const closed = await this.network.close(allocation, poi)
               return !closed
             } else {
               return true
@@ -891,6 +899,124 @@ class Agent {
         allocationsToCreate,
       )
     }
+  }
+
+  private async closeAllocation(
+    epochStartBlock: EthereumBlock,
+    allocation: Allocation,
+  ): Promise<{ closed: boolean; feesCollected: boolean }> {
+    const poi = await this.indexer.proofOfIndexing(
+      allocation.subgraphDeployment.id,
+      epochStartBlock,
+      this.indexer.indexerAddress,
+    )
+
+    // Don't proceed if the POI is 0x0 or null
+    if (
+      poi === undefined ||
+      poi === null ||
+      poi === utils.hexlify(Array(32).fill(0))
+    ) {
+      this.logger.error(`Received a null or zero POI for deployment`, {
+        deployment: allocation.subgraphDeployment.id.display,
+        allocation: allocation.id,
+        epochStartBlock,
+      })
+
+      return { closed: false, feesCollected: false }
+    }
+
+    // Close the allocation
+    const closed = await this.network.close(allocation, poi)
+
+    // Withdraw
+    const feesCollected = await this.collectQueryFees(allocation)
+
+    return { closed, feesCollected }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private async collectQueryFees(allocation: Allocation): Promise<boolean> {
+    // 1. Resolve all unresolved transfers for the allocation in question
+    //   - For this, we need to get all transfers and all matching receipts
+    //   - Then we need to resolve transfers one at a time
+
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    let unresolvedTransfers = await this.transfers!.unresolvedTransfersAndReceipts(
+      allocation,
+    )
+
+    // Filter out unresolved transfers that have no receipts
+    unresolvedTransfers = unresolvedTransfers.filter(
+      transfer => (transfer.receipts?.length || 0) > 0,
+    )
+
+    this.logger.info(`Resolve transfers for allocation`, {
+      allocation: allocation.id,
+      transfers: unresolvedTransfers.map(transfer => ({
+        routingId: transfer.routingId,
+        receipts: transfer.receipts?.map(receipt => receipt.id),
+      })),
+    })
+
+    const successfulTransfers: Transfer[] = []
+    const failedTransfers: Transfer[] = []
+
+    for (const transfer of unresolvedTransfers) {
+      try {
+        await this.transfers?.resolveTransfer(transfer)
+        successfulTransfers.push(transfer)
+      } catch (err) {
+        this.logger.error(
+          `Failed to resolve transfer for allocation, skipping`,
+          {
+            allocation: allocation.id,
+            routingId: transfer.routingId,
+            err,
+          },
+        )
+        failedTransfers.push(transfer)
+      }
+    }
+
+    this.logger.info(`Resolved transfers for allocation`, {
+      successfulTransfers: successfulTransfers.map(
+        transfer => transfer.routingId,
+      ),
+      failedTransfers: failedTransfers.map(transfer => transfer.routingId),
+    })
+
+    const queryFees = successfulTransfers.reduce(
+      (sum, transfer) =>
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        transfer.receipts!.reduce(
+          (sum, receipt) => sum.add(receipt.paymentAmount),
+          sum,
+        ),
+      BigNumber.from('0'),
+    )
+
+    // 2. Collect total amount from all resolved transfers and call `withdraw`
+    if (queryFees.gt('0')) {
+      const encoding = 'tuple(address staking,address allocationID)'
+      const data = {
+        staking: this.network.contracts.staking.address,
+        allocationID: allocation.id,
+      }
+      const callData = utils.defaultAbiCoder.encode([encoding], [data])
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.vector!.node.withdraw({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        channelAddress: this.vector!.channelAddress,
+        assetId: this.network.contracts.token.address,
+        amount: queryFees.toString(),
+        recipient: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+        callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+        callData,
+      })
+    }
+
+    return true
   }
 }
 
