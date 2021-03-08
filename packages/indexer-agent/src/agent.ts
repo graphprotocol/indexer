@@ -83,9 +83,8 @@ class Agent {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
 
-  // NOTE: this is always defined after calling `start()`
-  vector: VectorClient | undefined
-  transfers: TransferManager | undefined
+  vector: VectorClient
+  transfers: TransferManager
 
   constructor(
     logger: Logger,
@@ -95,6 +94,8 @@ class Agent {
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
+    vector: VectorClient,
+    transfers: TransferManager,
   ) {
     this.logger = logger
     this.metrics = metrics
@@ -103,54 +104,14 @@ class Agent {
     this.networkSubgraph = networkSubgraph
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
+    this.vector = vector
+    this.transfers = transfers
   }
 
-  async start(payments: AgentConfig['payments']): Promise<Agent> {
+  async start(): Promise<Agent> {
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
     this.logger.info(`Connected to Graph node(s)`)
-
-    // Connect to the vector node
-    const evts: Partial<EventCallbackConfig> = {
-      [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {
-        evt: Evt.create<ConditionalTransferCreatedPayload>(),
-        url: new URL(
-          `/${EngineEvents.CONDITIONAL_TRANSFER_CREATED}`,
-          payments.eventServer.url,
-        ).toString(),
-      },
-      [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {
-        evt: Evt.create<ConditionalTransferResolvedPayload>(),
-        url: new URL(
-          `/${EngineEvents.CONDITIONAL_TRANSFER_RESOLVED}`,
-          payments.eventServer.url,
-        ).toString(),
-      },
-    }
-
-    // Connect to the vector node for withdrawing query fees into the
-    // rebate pool when allocations are closed
-    this.vector = await createVectorClient({
-      logger: this.logger,
-      metrics: this.metrics,
-      ethereum: this.network.ethereum,
-      contracts: payments.contracts,
-      wallet: payments.wallet,
-      nodeUrl: payments.nodeUrl,
-      routerIdentifier: payments.routerIdentifier,
-      eventServer: {
-        ...payments.eventServer,
-        evts,
-      },
-    })
-
-    // Automatically sync the status of receipt transfers to the db
-    this.transfers = new TransferManager({
-      logger: this.logger,
-      vector: this.vector,
-      vectorTransferDefinition: payments.vectorTransferDefinition,
-      models: payments.models,
-    })
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
@@ -950,7 +911,7 @@ class Agent {
     //   most recent allocation
     // - Resolve transfers only once there is at least one transfer
     //   for a more recent allocation
-    if (await this.transfers?.hasUnresolvedTransfers(allocation)) {
+    if (await this.transfers.hasUnresolvedTransfers(allocation)) {
       await new Promise(resolve => setTimeout(resolve, 60_000))
     }
 
@@ -959,7 +920,7 @@ class Agent {
     //   - Then we need to resolve transfers one at a time
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    let unresolvedTransfers = await this.transfers!.unresolvedTransfersAndReceipts(
+    let unresolvedTransfers = await this.transfers.unresolvedTransfersAndReceipts(
       allocation,
     )
 
@@ -981,7 +942,7 @@ class Agent {
 
     for (const transfer of unresolvedTransfers) {
       try {
-        await this.transfers?.resolveTransfer(transfer)
+        await this.transfers.resolveTransfer(transfer)
         successfulTransfers.push(transfer)
       } catch (err) {
         this.logger.error(
@@ -1022,9 +983,9 @@ class Agent {
       }
       const callData = utils.defaultAbiCoder.encode([encoding], [data])
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.vector!.node.withdraw({
+      await this.vector.node.withdraw({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        channelAddress: this.vector!.channelAddress,
+        channelAddress: this.vector.channelAddress,
         assetId: this.network.contracts.token.address,
         amount: queryFees.toString(),
         recipient: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
@@ -1048,6 +1009,50 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.network.indexerAddress,
   )
 
+  const logger = config.logger.child({ component: 'Agent' })
+
+  // Connect to the vector node
+  const evts: Partial<EventCallbackConfig> = {
+    [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {
+      evt: Evt.create<ConditionalTransferCreatedPayload>(),
+      url: new URL(
+        `/${EngineEvents.CONDITIONAL_TRANSFER_CREATED}`,
+        config.payments.eventServer.url,
+      ).toString(),
+    },
+    [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {
+      evt: Evt.create<ConditionalTransferResolvedPayload>(),
+      url: new URL(
+        `/${EngineEvents.CONDITIONAL_TRANSFER_RESOLVED}`,
+        config.payments.eventServer.url,
+      ).toString(),
+    },
+  }
+
+  // Connect to the vector node for withdrawing query fees into the
+  // rebate pool when allocations are closed
+  const vector = await createVectorClient({
+    logger,
+    metrics: config.metrics,
+    ethereum: config.network.ethereum,
+    contracts: config.payments.contracts,
+    wallet: config.payments.wallet,
+    nodeUrl: config.payments.nodeUrl,
+    routerIdentifier: config.payments.routerIdentifier,
+    eventServer: {
+      ...config.payments.eventServer,
+      evts,
+    },
+  })
+
+  // Automatically sync the status of receipt transfers to the db
+  const transfers = new TransferManager({
+    logger: logger,
+    vector: vector,
+    vectorTransferDefinition: config.payments.vectorTransferDefinition,
+    models: config.payments.models,
+  })
+
   const agent = new Agent(
     config.logger,
     config.metrics,
@@ -1056,6 +1061,8 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.networkSubgraph,
     config.registerIndexer,
     config.offchainSubgraphs,
+    vector,
+    transfers,
   )
-  return await agent.start(config.payments)
+  return await agent.start()
 }
