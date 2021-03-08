@@ -65,12 +65,16 @@ export async function createVectorClient(
     const server = fastify({
       logger: serverLogger.inner,
     })
-    server.post(`/conditional-transfer-resolved`, async (request, response) => {
-      // evts[EngineEvents.CONDITIONAL_TRANSFER_RESOLVED].evt?.post(
-      //   request.body as ConditionalTransferResolvedPayload,
-      // )
-      return response.status(200).send({ message: 'success' })
-    })
+
+    for (const eventType in options.eventServer.evts) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const eventInfo = (options.eventServer.evts as any)[eventType]
+      server.post(`/${eventType}`, async (request, response) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        eventInfo.evt?.post(request.body as any)
+        return response.status(200).send({ message: 'success' })
+      })
+    }
     try {
       const address = await server.listen(options.eventServer.port, '0.0.0.0')
       serverLogger.info(`Listening`, { address })
@@ -92,9 +96,6 @@ export async function createVectorClient(
     [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {},
     [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {},
     [EngineEvents.DEPOSIT_RECONCILED]: {},
-    [EngineEvents.TRANSACTION_SUBMITTED]: {},
-    [EngineEvents.TRANSACTION_MINED]: {},
-    [EngineEvents.TRANSACTION_FAILED]: {},
 
     // Mix in the event overrides
     ...options.eventServer?.evts,
