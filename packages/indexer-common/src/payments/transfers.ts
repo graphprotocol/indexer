@@ -109,6 +109,7 @@ export class TransferManager {
         allocation: allocation.id,
         isResolved: false,
       },
+      order: [[this.models.transfers.associations.receipts, 'id', 'ASC']],
     })
   }
 
