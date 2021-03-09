@@ -10,6 +10,7 @@ import {
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import { INodeService } from '@connext/vector-types'
+import pRetry from 'p-retry'
 
 // Takes a valid big-endian hexadecimal string and parses it as a BigNumber
 function readNumber(data: string, start: number, end: number): BigNumber {
@@ -206,8 +207,7 @@ export class ReceiptManager {
     const receipt = this._cache.get(qualifiedId)!
     this._cache.delete(qualifiedId)
 
-    // Save to the db
-    try {
+    const transact = async () => {
       // Put this in a transaction because this has a write which is
       // dependent on a read and must be atomic or payments could be dropped.
       await this._sequelize.transaction(
@@ -242,8 +242,26 @@ export class ReceiptManager {
           await state.save({ transaction })
         },
       )
-    } catch (e) {
-      // If we fail for whatever reason, keep this data  in the cache to flush
+    }
+
+    // Save to the db
+    try {
+      await pRetry(
+        async () => {
+          try {
+            await transact()
+          } catch (err) {
+            // Only retry if the error is a 40001 error, aka 'could not serialize
+            // access due to concurrent update'
+            if (err.parent.code !== '40001') {
+              throw new pRetry.AbortError(err)
+            }
+          }
+        },
+        { retries: 20 },
+      )
+    } catch (err) {
+      // If we fail for whatever reason, keep this data in the cache to flush
       // the next time around.
       //
       // This needs to go back through the normal add method,
@@ -251,7 +269,7 @@ export class ReceiptManager {
       // The receipt may have advanced while we were trying to flush
       // it and we don't want to overwrite new data with stale data.
       this._queue(receipt)
-      throw e
+      throw err
     }
     return true
   }
