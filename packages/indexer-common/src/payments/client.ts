@@ -96,6 +96,9 @@ export async function createVectorClient(
     [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {},
     [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {},
     [EngineEvents.DEPOSIT_RECONCILED]: {},
+    [EngineEvents.TRANSACTION_SUBMITTED]: {},
+    [EngineEvents.TRANSACTION_FAILED]: {},
+    [EngineEvents.TRANSACTION_MINED]: {},
 
     // Mix in the event overrides
     ...options.eventServer?.evts,
