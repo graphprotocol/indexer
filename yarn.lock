@@ -285,10 +285,10 @@
     exec-sh "^0.3.2"
     minimist "^1.2.0"
 
-"@connext/vector-types@0.2.0-beta.8":
-  version "0.2.0-beta.8"
-  resolved "https://registry.npmjs.org/@connext/vector-types/-/vector-types-0.2.0-beta.8.tgz#65816b4a7f66efd1bc3982149cff3789110e8ea8"
-  integrity sha512-0nQhn6B3CGfGYrNK/Od+M6KX7WZas56sKNab3WxrXcZCKteFYhnHPn6NMk7lQTT6Zwl0dWyclfZADXmq+nQXkg==
+"@connext/vector-types@0.2.0-beta.9":
+  version "0.2.0-beta.9"
+  resolved "https://registry.npmjs.org/@connext/vector-types/-/vector-types-0.2.0-beta.9.tgz#eadbe5c4d9346588fc982a344e407271cc73b667"
+  integrity sha512-9medLRWusQ3YmxqZLkYS/587HVLigBQZc7kxbF+uy+Aq37TK88SsK7XX/ThsuQ1fKgeQBt255h6jjqfkxTUIQw==
   dependencies:
     "@ethersproject/abstract-provider" "5.0.9"
     "@ethersproject/abstract-signer" "5.0.13"
@@ -297,12 +297,12 @@
     "@sinclair/typebox" "0.12.7"
     evt "1.9.12"
 
-"@connext/vector-utils@0.2.0-beta.8":
-  version "0.2.0-beta.8"
-  resolved "https://registry.npmjs.org/@connext/vector-utils/-/vector-utils-0.2.0-beta.8.tgz#4f4a262c2215dbe26a438d70e275676f8d42587e"
-  integrity sha512-EbEcdyDuDKnf9dIYQbJaDyw2vLwabRW+3vf5bQWm56U16MIqG0MT+N9WwREzPUQuTwzvo/aY5X70x2QOB6dfYg==
+"@connext/vector-utils@0.2.0-beta.9":
+  version "0.2.0-beta.9"
+  resolved "https://registry.npmjs.org/@connext/vector-utils/-/vector-utils-0.2.0-beta.9.tgz#56403a6b0cd3a8feb7e945ad1d53f41647bf15bd"
+  integrity sha512-SSeb6ckZYZhnRmYi0uoA58I1lVN0ABbbuNNqBANDAJWe70yZh3R6BXcPE/NMUowpBoU3JdGdiEPEDyx4VHverw==
   dependencies:
-    "@connext/vector-types" "0.2.0-beta.8"
+    "@connext/vector-types" "0.2.0-beta.9"
     "@ethereum-waffle/chai" "3.3.0"
     "@ethersproject/abi" "5.0.12"
     "@ethersproject/abstract-provider" "5.0.9"
@@ -11380,7 +11380,7 @@ p-reduce@^1.0.0:
   resolved "https://registry.npmjs.org/p-reduce/-/p-reduce-1.0.0.tgz#18c2b0dd936a4690a529f8231f58a0fdb6a47dfa"
   integrity sha1-GMKw3ZNqRpClKfgjH1ig/bakffo=
 
-p-retry@4.4.0, p-retry@^4.2.0:
+p-retry@4.4.0:
   version "4.4.0"
   resolved "https://registry.npmjs.org/p-retry/-/p-retry-4.4.0.tgz#fefc2abe883ca7c91ca0dd25060180438b61ebd4"
   integrity sha512-gVB/tBsG+3AHI1SyDHRrX6n9ZL0Bcbifps9W9/Bgu3Oyu4/OrAh8SvDzDsvpP0oxfCt3oWNT+0fQ9LyUGwBTLg==
