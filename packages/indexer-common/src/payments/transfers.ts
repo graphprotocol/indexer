@@ -2,17 +2,21 @@ import {
   ConditionalTransferCreatedPayload,
   ConditionalTransferResolvedPayload,
   EngineEvents,
+  WithdrawalResolvedPayload,
 } from '@connext/vector-types'
 import { Address, Logger, toAddress } from '@graphprotocol/common-ts'
+import { BigNumber, Wallet } from 'ethers'
 import { Allocation } from '../allocations'
 import { VectorClient } from './client'
 import { PaymentModels, Transfer } from './models'
+import pRetry from 'p-retry'
 
 export interface TransferManagerOptions {
   logger: Logger
   vector: VectorClient
   vectorTransferDefinition: Address
   models: PaymentModels
+  wallet: Wallet
 }
 
 export class TransferManager {
@@ -20,12 +24,14 @@ export class TransferManager {
   private vector: VectorClient
   private vectorTransferDefinition: Address
   private models: PaymentModels
+  private wallet: Wallet
 
   constructor(options: TransferManagerOptions) {
     this.logger = options.logger.child({ component: 'TransferManager' })
     this.vector = options.vector
     this.models = options.models
     this.vectorTransferDefinition = options.vectorTransferDefinition
+    this.wallet = options.wallet
 
     this.vector.node.on(
       EngineEvents.CONDITIONAL_TRANSFER_CREATED,
@@ -40,13 +46,23 @@ export class TransferManager {
       undefined,
       this.vector.node.publicIdentifier,
     )
+
+    this.vector.node.on(
+      EngineEvents.WITHDRAWAL_RESOLVED,
+      this.handleWithdrawalResolved.bind(this),
+      undefined,
+      this.vector.node.publicIdentifier,
+    )
   }
 
   private async handleTransferCreated(payload: ConditionalTransferCreatedPayload) {
     // Ignore non-Graph transfers
-    if (
-      toAddress(payload.transfer.transferDefinition) !== this.vectorTransferDefinition
-    ) {
+    const eventTransferDefinition = toAddress(payload.transfer.transferDefinition)
+    if (eventTransferDefinition !== this.vectorTransferDefinition) {
+      this.logger.warn(`Non-Graph transfer resolved`, {
+        eventTransferDefinition,
+        expectedTransferDefinition: this.vectorTransferDefinition,
+      })
       return
     }
 
@@ -81,9 +97,12 @@ export class TransferManager {
 
   private async handleTransferResolved(payload: ConditionalTransferResolvedPayload) {
     // Ignore non-Graph transfers
-    if (
-      toAddress(payload.transfer.transferDefinition) !== this.vectorTransferDefinition
-    ) {
+    const eventTransferDefinition = toAddress(payload.transfer.transferDefinition)
+    if (eventTransferDefinition !== this.vectorTransferDefinition) {
+      this.logger.warn(`Non-Graph transfer resolved`, {
+        eventTransferDefinition,
+        expectedTransferDefinition: this.vectorTransferDefinition,
+      })
       return
     }
 
@@ -97,6 +116,40 @@ export class TransferManager {
     } catch (err) {
       this.logger.error(`Failed to mark transfer as resolved in the db`, {
         routingId,
+        err,
+      })
+    }
+  }
+
+  private async handleWithdrawalResolved(payload: WithdrawalResolvedPayload) {
+    // TODO: Use the robust transaction management from
+    // https://github.com/graphprotocol/indexer/pull/212
+    // when it is ready
+
+    try {
+      await pRetry(
+        async () => {
+          this.logger.debug(`Collecting query fees via the rebate pool`, {
+            amount: payload.transaction.value,
+          })
+
+          // Estimate gas and add some buffer (like we do in network.ts)
+          const gasLimit = await this.wallet.estimateGas(payload.transaction)
+          const gasLimitWithBuffer = Math.ceil(gasLimit.toNumber() * 1.5)
+
+          // Submit the transaction and wait for 2 confirmations
+          const tx = await this.wallet.sendTransaction({
+            ...payload.transaction,
+            value: '0', // We're not sending any ETH
+            gasLimit: gasLimitWithBuffer,
+          })
+          await tx.wait(2)
+        },
+        { retries: 2 },
+      )
+    } catch (err) {
+      // FIXME: Add indexerError for this
+      this.logger.error(`Failed to collect query fes via the rebate pool`, {
         err,
       })
     }
