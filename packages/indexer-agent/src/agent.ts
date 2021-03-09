@@ -36,6 +36,7 @@ import {
   EngineEvents,
   ConditionalTransferCreatedPayload,
   ConditionalTransferResolvedPayload,
+  WithdrawalResolvedPayload,
 } from '@connext/vector-types'
 import { EventCallbackConfig } from '@connext/vector-utils'
 
@@ -945,6 +946,7 @@ class Agent {
         await this.transfers.resolveTransfer(transfer)
         successfulTransfers.push(transfer)
       } catch (err) {
+        // FIXME: add indexerError for this
         this.logger.error(
           `Failed to resolve transfer for allocation, skipping`,
           {
@@ -983,7 +985,7 @@ class Agent {
       }
       const callData = utils.defaultAbiCoder.encode([encoding], [data])
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.vector.node.withdraw({
+      const result = await this.vector.node.withdraw({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         channelAddress: this.vector.channelAddress,
         assetId: this.network.contracts.token.address,
@@ -991,7 +993,21 @@ class Agent {
         recipient: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
         callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
         callData,
+        initiatorSubmits: true,
       })
+
+      if (result.isError) {
+        // FIXME: Add indexerError for this
+        const err = result.getError()
+        this.logger.error(`Failed to collect query fees`, {
+          channelAddress: this.vector.channelAddress,
+          amount: queryFees.toString(),
+          callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+          callData,
+          err,
+        })
+        throw result.getError()
+      }
     }
 
     return true
@@ -1027,6 +1043,13 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
         config.payments.eventServer.url,
       ).toString(),
     },
+    [EngineEvents.WITHDRAWAL_RESOLVED]: {
+      evt: Evt.create<WithdrawalResolvedPayload>(),
+      url: new URL(
+        `/${EngineEvents.WITHDRAWAL_RESOLVED}`,
+        config.payments.eventServer.url,
+      ).toString(),
+    },
   }
 
   // Connect to the vector node for withdrawing query fees into the
@@ -1051,6 +1074,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     vector: vector,
     vectorTransferDefinition: config.payments.vectorTransferDefinition,
     models: config.payments.models,
+    wallet: config.payments.wallet,
   })
 
   const agent = new Agent(
