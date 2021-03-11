@@ -129,9 +129,7 @@ export class TransferManager {
     try {
       await pRetry(
         async () => {
-          this.logger.debug(`Collecting query fees via the rebate pool`, {
-            amount: payload.transaction.value,
-          })
+          this.logger.debug(`Collecting query fees via the rebate pool`)
 
           // Estimate gas and add some buffer (like we do in network.ts)
           const gasLimit = await this.wallet.estimateGas(payload.transaction)
@@ -140,7 +138,7 @@ export class TransferManager {
           // Submit the transaction and wait for 2 confirmations
           const tx = await this.wallet.sendTransaction({
             ...payload.transaction,
-            value: '0', // We're not sending any ETH
+            value: 0, // We're not sending any ETH
             gasLimit: gasLimitWithBuffer,
           })
           await tx.wait(2)
