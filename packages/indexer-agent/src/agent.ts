@@ -748,8 +748,7 @@ class Agent {
     }
 
     // Close the allocation
-    // const closed = await this.network.close(allocation, poi)
-    const closed = false
+    const closed = await this.network.close(allocation, poi)
 
     // Withdraw
     const feesCollected = await this.collectQueryFees(allocation)
