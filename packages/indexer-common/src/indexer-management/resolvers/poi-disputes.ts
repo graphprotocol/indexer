@@ -11,7 +11,6 @@ export default {
     const dispute = await models.POIDispute.findOne({
       where: { allocationID },
     })
-    // console.log('DISPUTE', dispute)
     return dispute?.toGraphQL() || dispute
   },
 
@@ -29,16 +28,11 @@ export default {
     { disputes }: { disputes: POIDisputeCreationAttributes[] },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    // console.log('DISPUTES', disputes)
     const createdDisputes = await models.POIDispute.bulkCreate(disputes, {
       returning: true,
-      validate: false,
+      validate: true,
+      ignoreDuplicates: true,
     })
-    // console.log('CREATED', createdDisputes)
-    // console.log(
-    //   'CREATED GQL',
-    //   createdDisputes.map((dispute: POIDispute) => dispute.toGraphQL()),
-    // )
     return createdDisputes.map((dispute: POIDispute) => dispute.toGraphQL())
   },
 

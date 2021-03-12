@@ -457,99 +457,115 @@ export class Network {
   }
 
   async disputableAllocations(
+    currentEpoch: BigNumber,
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
-    // FIXME: Paginate to support more than 1000 disputable at a time
+    let dataRemaining = true
+    let allocations: Allocation[] = []
+
     try {
       const zeroPOI = utils.hexlify(Array(32).fill(0))
-      const result = await this.subgraph
-        .query(
-          gql`
-            query allocations(
-              $deployments: [String!]!
-              $minimumAllocation: Int!
-              $zeroPOI: String!
-            ) {
-              allocations(
-                where: {
-                  subgraphDeployment_in: $deployments
-                  allocatedTokens_gt: $minimumAllocation
-                  status: Closed
-                  poi_not: $zeroPOI
-                }
-                first: 1000
+      // TODO: Use disputable epochs period value from the network instead of hardcoding to 2 epochs
+      const disputableEpoch = currentEpoch.toNumber() - 2
+      let lastCreatedAt = 0
+      while (dataRemaining) {
+        const result = await this.subgraph
+          .query(
+            gql`
+              query allocations(
+                $deployments: [String!]!
+                $minimumAllocation: Int!
+                $disputableEpoch: Int!
+                $zeroPOI: String!
+                $createdAt: Int!
               ) {
-                id
-                indexer {
+                allocations(
+                  where: {
+                    createdAt_gt: $createdAt
+                    subgraphDeployment_in: $deployments
+                    allocatedTokens_gt: $minimumAllocation
+                    closedAtEpoch_gte: $disputableEpoch
+                    status: Closed
+                    poi_not: $zeroPOI
+                  }
+                  first: 1000
+                  orderBy: createdAt
+                  orderDirection: asc
+                ) {
                   id
-                }
-                poi
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                closedAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalAmount
+                  createdAt
+                  indexer {
+                    id
+                  }
+                  poi
+                  allocatedTokens
+                  createdAtEpoch
+                  closedAtEpoch
+                  closedAtBlockHash
+                  subgraphDeployment {
+                    id
+                    stakedTokens
+                    signalAmount
+                  }
                 }
               }
-            }
-          `,
-          {
-            deployments: deployments.map(subgraph => subgraph.bytes32),
-            minimumAllocation,
-            zeroPOI,
-          },
-        )
-        .toPromise()
+            `,
+            {
+              deployments: deployments.map(subgraph => subgraph.bytes32),
+              minimumAllocation,
+              disputableEpoch,
+              createdAt: lastCreatedAt,
+              zeroPOI,
+            },
+          )
+          .toPromise()
 
-      if (result.error) {
-        throw result.error
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          dataRemaining = false
+        } else {
+          lastCreatedAt = result.data.allocations.slice(-1)[0].createdAt
+          const parsedResult: Allocation[] = result.data.allocations.map(
+            parseGraphQLAllocation,
+          )
+          allocations = allocations.concat(parsedResult)
+        }
       }
 
-      const allocations: Allocation[] = result.data.allocations.map(
-        parseGraphQLAllocation,
-      )
-
-      const disputableEpochs = await this.epochs([
+      let disputableEpochs = await this.epochs([
         ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
       ])
 
-      // FIXME: The following is incorrect/insufficient because an allocation
-      // can be intended to be closed at epoch N but actually be mined at epoch
-      // N+1; with the current design, this means such POIs can't be disputed,
-      // because the challenging indexer needs to decide which epoch the is for,
-      // and it has no way of knowing.
-
-      disputableEpochs.map(
-        async (epoch: Epoch): Promise<Epoch> => {
-          // TODO: May need to retry or skip epochs where obtaining
-          // start block fails
-          epoch.startBlockHash = (
-            await this.ethereum.getBlock(epoch?.startBlock)
-          ).hash
-          return epoch
-        },
+      disputableEpochs = await Promise.all(
+        disputableEpochs.map(
+          async (epoch: Epoch): Promise<Epoch> => {
+            // TODO: May need to retry or skip epochs where obtaining start block fails
+            epoch.startBlockHash = (
+              await this.ethereum.getBlock(epoch?.startBlock)
+            )?.hash
+            return epoch
+          },
+        ),
       )
 
       return await Promise.all(
-        allocations
-          // FIXME: Is filter true for all allocations? What's its purpose?
-          .filter(allocation =>
-            disputableEpochs.some(
-              epoch => epoch.id == allocation.closedAtEpoch,
-            ),
+        allocations.map(async allocation => {
+          const closedAtEpochIndex = disputableEpochs.findIndex(
+            epoch => epoch.id == allocation.closedAtEpoch,
           )
-          .map(async allocation => {
-            const closedAtEpoch = disputableEpochs.find(
-              epoch => epoch.id == allocation.closedAtEpoch,
-            )
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            allocation.closedAtEpochStartBlockHash = closedAtEpoch!.startBlockHash
-            return allocation
-          }),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.closedAtEpochStartBlockHash = disputableEpochs[
+            closedAtEpochIndex
+          ]!.startBlockHash
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.previousEpochStartBlockHash =
+            disputableEpochs[closedAtEpochIndex - 1]?.startBlockHash
+          // this.logger.info('modified ALLO', { allo: allocation })
+          return allocation
+        }),
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE037, error)

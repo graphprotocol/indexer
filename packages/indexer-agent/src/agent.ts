@@ -259,9 +259,12 @@ class Agent {
     )
     this.logger.info(`Waiting for network data before reconciling every 120s`)
 
-    const disputableAllocations = activeDeployments.tryMap(
-      activeDeployments =>
-        this.network.disputableAllocations(activeDeployments, 0),
+    const disputableAllocations = join({
+      currentEpoch,
+      activeDeployments,
+    }).tryMap(
+      ({ currentEpoch, activeDeployments }) =>
+        this.network.disputableAllocations(currentEpoch, activeDeployments, 0),
       {
         onError: () =>
           this.logger.warn(
@@ -269,10 +272,6 @@ class Agent {
           ),
       },
     )
-
-    this.logger.warn('DISPUTABLES', {
-      allocations: disputableAllocations,
-    })
 
     join({
       ticker: timer(120_000),
@@ -373,13 +372,6 @@ class Agent {
   async identifyPotentialDisputes(
     disputableAllocations: Allocation[],
   ): Promise<void> {
-    // const uniqueCloseEpochNumbers: number[] = [...new Set(disputableAllocations.map(allocation => allocation.closedAtEpoch))]
-    // const epochStartHashes: Record<number, string> = {}
-    // for (const epochNumber of uniqueCloseEpochNumbers) {
-    //   const currentEpochStartBlock = await this.network.contracts.epochManager.currentEpochBlock()
-    //   epochStartHashes[epochNumber] = (await this.network.ethereum.getBlock(epochNumber)).hash
-    // }
-
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
       [
         ...new Set(
@@ -390,11 +382,33 @@ class Agent {
       ]
         .filter(pool => pool.closedAtEpochStartBlockHash)
         .map(async pool => {
+          const closedAtEpochStartBlock = await this.network.ethereum.getBlock(
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            pool.closedAtEpochStartBlockHash!,
+          )
+
+          // Todo: Lazily fetch this, only if the first reference POI doesn't match?
+          const previousEpochStartBlock = await this.network.ethereum.getBlock(
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            pool.previousEpochStartBlockHash!,
+          )
+          pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
           pool.referencePOI = await this.indexer.proofOfIndexing(
             pool.subgraphDeployment,
-            // The block hash for the POIs will soon change to be the first block of the epoch the allocation is closed in
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            pool.allocationCreatedAtBlockHash!,
+            {
+              number: closedAtEpochStartBlock.number,
+              hash: closedAtEpochStartBlock.hash,
+            },
+            pool.allocationIndexer,
+          )
+          pool.referencePreviousPOI = await this.indexer.proofOfIndexing(
+            pool.subgraphDeployment,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            {
+              number: previousEpochStartBlock.number,
+              hash: previousEpochStartBlock.hash,
+            },
             pool.allocationIndexer,
           )
           return pool
@@ -408,18 +422,30 @@ class Agent {
             pool.subgraphDeployment == allocation.subgraphDeployment.id &&
             pool.closedAtEpoch == allocation.closedAtEpoch,
         )
-        this.logger.info('REWARDS POOL:', rewardsPool)
-        if (rewardsPool?.referencePOI !== allocation.poi) {
+        if (
+          rewardsPool?.referencePOI !== allocation.poi &&
+          rewardsPool?.referencePreviousPOI !== allocation.poi
+        ) {
           const dispute: POIDisputeAttributes = {
             allocationID: allocation.id,
             allocationIndexer: allocation.indexer,
-            allocationAmount: allocation.allocatedTokens,
+            allocationAmount: allocation.allocatedTokens.toString(),
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             allocationProof: allocation.poi!,
-            allocationClosedBlockHash: allocation.closedAtBlockHash,
+            closedEpoch: allocation.closedAtEpoch,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            indexerProof: rewardsPool!.referencePOI!,
-            status: 'pending',
+            closedEpochReferenceProof: rewardsPool!.referencePOI!,
+            closedEpochStartBlockHash: allocation.closedAtBlockHash,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            closedEpochStartBlockNumber: rewardsPool!
+              .closedAtEpochStartBlockNumber!,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            previousEpochReferenceProof: rewardsPool!.referencePOI!,
+            previousEpochStartBlockHash: allocation.closedAtBlockHash,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            previousEpochStartBlockNumber: rewardsPool!
+              .closedAtEpochStartBlockNumber!,
+            status: 'Potential',
           }
           flaggedAllocations.push(dispute)
         }
@@ -429,7 +455,9 @@ class Agent {
     )
 
     if (potentials.length > 0) {
-      this.logger.info(`Identified '${potentials.length}' POI disputes`, {})
+      this.logger.info(`Identified '${potentials.length}' POI disputes`, {
+        potentials: potentials,
+      })
       const stored = await this.indexer.storePoiDisputes(potentials)
       this.logger.debug(`Stored POI disputes`, {
         disputesStored: stored,
@@ -621,7 +649,10 @@ class Agent {
       logger.info(
         `Deployment is not (or no longer) worth indexing, close all active allocations that are at least one epoch old`,
         {
-          allocations: activeAllocations.map(allocation => allocation.id),
+          activeAllocations: activeAllocations.map(allocation => allocation.id),
+          eligibleForClose: activeAllocations
+            .filter(allocation => allocation.createdAtEpoch < epoch)
+            .map(allocation => allocation.id),
         },
       )
 
@@ -637,11 +668,11 @@ class Agent {
             const poi = await this.indexer.proofOfIndexing(
               deployment,
               epochStartBlock,
-              this.indexer.indexerAddress
+              this.indexer.indexerAddress,
             )
 
             // Don't proceed if the POI is 0x0 or null
-            if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+            if (poi === undefined || poi === utils.hexlify(Array(32).fill(0))) {
               return false
             }
 
@@ -719,7 +750,7 @@ class Agent {
             )
 
             // Don't proceed if the POI is 0x0 or null
-            if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+            if (poi === undefined || poi === utils.hexlify(Array(32).fill(0))) {
               return false
             }
 
@@ -787,7 +818,10 @@ class Agent {
               )
 
               // Don't proceed if the POI is 0x0 or null
-              if (poi === null || poi === utils.hexlify(Array(32).fill(0))) {
+              if (
+                poi === undefined ||
+                poi === utils.hexlify(Array(32).fill(0))
+              ) {
                 return false
               }
 
