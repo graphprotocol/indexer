@@ -21,7 +21,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
 > = {
   allocationID: x => x,
   allocationIndexer: x => x,
-  allocationAmount: (x: string) => BigNumber.from(x),
+  allocationAmount: x => x,
   allocationProof: x => x,
   closedEpoch: x => +x,
   closedEpochStartBlockHash: x => x,

@@ -37,10 +37,10 @@ const d1: POIDisputeAttributes = {
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
 }
-const d2 = {
+const d2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
-  allocationAmount: '500000000000000000000000',
+  allocationAmount: '5000000',
   allocationProof:
     '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
   closedEpoch: 203,
@@ -57,39 +57,13 @@ const d2 = {
   status: 'potential',
 }
 
-// const DISPUTE_1: POIDisputeAttributes = {
-//   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
-//   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
-//   allocationAmount: '500000000000000000000000',
-//   allocationProof:
-//     '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
-//   closedEpochStartBlockHash:
-//     '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
-//   indexerProof:
-//     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-//   status: 'pending',
-// }
-//
-// const DiSPUTE_2: POIDisputeAttributes = {
-//   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
-//   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
-//   allocationAmount: '500000000000000000000000',
-//   allocationProof:
-//     '0x99b5722c3d7c4e77b76bccdc1b1b85bf4dd58b0c68fe1832de9234dd90ec0044',
-//   closedEpochStartBlockHash:
-//     '0x1a4ca1d6c49c9973e791213d71fd4589632af0b6ac9dbdabf8fbdeeff3561565',
-//   indexerProof:
-//     '0x9f26ec98a142679551cf9236681df8f60b70676cc395acc530fcd48d587b7607',
-//   status: 'pending',
-// }
-
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
   (x: never) => string | BigNumber | number | undefined
 > = {
   allocationID: x => x,
   allocationIndexer: x => x,
-  allocationAmount: (x: string) => +x,
+  allocationAmount: x => x,
   allocationProof: x => x,
   closedEpoch: x => +x,
   closedEpochStartBlockHash: x => x,
@@ -185,8 +159,8 @@ describe('Indexer tests', () => {
   test('Store POI Disputes rejects invalid indexer address', async () => {
     const badDispute: POIDisputeAttributes = {
       allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
-      allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
-      allocationAmount: '0xCOFFEECOFFEECOFFEE',
+      allocationIndexer: '0xCOFFEECOFFEECOFFEE',
+      allocationAmount: '500000000',
       allocationProof:
         '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
       closedEpoch: 203,

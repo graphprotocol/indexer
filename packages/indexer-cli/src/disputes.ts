@@ -30,7 +30,7 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   > = {
   allocationID: x => x,
   allocationIndexer: x => x,
-  allocationAmount: (x: string) => +x,
+  allocationAmount: x => +x,
   allocationProof: x => x,
   closedEpoch: x => +x,
   closedEpochReferenceProof: x => x,
@@ -44,7 +44,7 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
 
 
 /**
- * Formats an indexing rule for display in the console.
+ * Formats a dispute for display in the console.
  */
 export const formatDispute = (
   rule: Partial<POIDisputeAttributes>,

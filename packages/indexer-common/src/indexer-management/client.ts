@@ -50,10 +50,10 @@ const SCHEMA_SDL = gql`
     allocationProof: String!
     closedEpoch: Int!
     closedEpochStartBlockHash: String!
-    closedEpochStartBlockNumber: String!
+    closedEpochStartBlockNumber: Int!
     closedEpochReferenceProof: String!
     previousEpochStartBlockHash: String!
-    previousEpochStartBlockNumber: String!
+    previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String!
     status: String!
   }
@@ -65,10 +65,10 @@ const SCHEMA_SDL = gql`
     allocationProof: String!
     closedEpoch: Int!
     closedEpochStartBlockHash: String!
-    closedEpochStartBlockNumber: String!
+    closedEpochStartBlockNumber: Int!
     closedEpochReferenceProof: String!
     previousEpochStartBlockHash: String!
-    previousEpochStartBlockNumber: String!
+    previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String!
     status: String!
   }

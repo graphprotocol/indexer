@@ -106,7 +106,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
 }
-const TEST_DISPUTE_2 = {
+const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
@@ -125,7 +125,7 @@ const TEST_DISPUTE_2 = {
   status: 'potential',
 }
 
-const TEST_DISPUTE_3 = {
+const TEST_DISPUTE_3: POIDisputeAttributes = {
   allocationID: '0x0000000000000000000000000000000000000002',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
@@ -145,6 +145,23 @@ const TEST_DISPUTE_3 = {
 }
 
 const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toObject(dispute: POIDisputeAttributes): Record<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expected: Record<string, any> = Object.assign({}, dispute)
+  expected.allocationAmount = expected.allocationAmount.toString()
+  return expected
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toObjectArray(disputes: POIDisputeAttributes[]): Record<string, any>[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expected: Record<string, any>[] = []
+  disputes.forEach((dispute) => {
+    expected.push(toObject(dispute))
+  })
+  return expected
+}
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
@@ -182,7 +199,14 @@ describe('POI disputes', () => {
 
   test('Store POI disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY
-    const expected = disputes
+    // let expected: Record<string, any>[] = [];
+    // disputes.forEach(dispute => {
+    //   expected.push(Object.assign({}, dispute))
+    // });
+    //
+    // expected = expected.map((dispute) => toGraphQL(dispute))
+    const expected = toObjectArray(disputes)
+    // const expected = disputes.map(dispute => toGraphQL(dispute))
 
     const client = await createIndexerManagementClient({
       models,
@@ -280,11 +304,11 @@ describe('POI disputes', () => {
     await expect(
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
-          allocationIDs: ['0x0000000000000000000000000000000000000001'],
+          allocationIDs: ['0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'],
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
-    disputes.splice(1, 1)
+    disputes.splice(0, 1)
 
     await expect(
       client.query(GET_POI_DISPUTES_QUERY).toPromise(),
@@ -315,7 +339,7 @@ describe('POI disputes', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 2)
-    disputes.splice(1, 2)
+    disputes.splice(0, 2)
 
     await expect(
       client.query(GET_POI_DISPUTES_QUERY).toPromise(),
