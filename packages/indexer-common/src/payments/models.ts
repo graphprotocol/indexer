@@ -1,18 +1,17 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
-import { BigNumber } from 'ethers'
 import { Address } from '@graphprotocol/common-ts'
 
 export interface ReceiptAttributes {
   id: number
   signer: Address
-  paymentAmount: BigNumber
+  paymentAmount: string
   signature: string
 }
 
 export class Receipt extends Model<ReceiptAttributes> implements ReceiptAttributes {
   public id!: number
   public signer!: Address
-  public paymentAmount!: BigNumber
+  public paymentAmount!: string
   public signature!: string
 
   public readonly createdAt!: Date

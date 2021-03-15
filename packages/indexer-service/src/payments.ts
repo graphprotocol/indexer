@@ -163,7 +163,7 @@ export class ReceiptManager {
     const id = readNumber(receiptData, 128, 136).toNumber()
 
     const receipt: ReceiptAttributes = {
-      paymentAmount,
+      paymentAmount: paymentAmount.toString(),
       id,
       signature,
       signer: transfer.signer,
@@ -275,7 +275,10 @@ export class ReceiptManager {
     // This is collision resistant only because address has a fixed length.
     const qualifiedId = `${receipt.signer}${receipt.id}`
     const latest = this._cache.get(qualifiedId)
-    if (latest === undefined || latest.paymentAmount.lt(receipt.paymentAmount)) {
+    if (
+      latest === undefined ||
+      BigNumber.from(latest.paymentAmount).lt(receipt.paymentAmount)
+    ) {
       if (latest === undefined) {
         this._flushQueue.push(qualifiedId)
       }
