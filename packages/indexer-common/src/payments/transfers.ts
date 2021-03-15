@@ -168,15 +168,16 @@ export class TransferManager {
 
     // Check if there's another transfer to resolve every 10s
     timer(10_000).pipe(async () => {
-      let transfer = this.transfersToResolve.peek()
-      // Check if there is a transfer to resolve and whether it's timeout has
-      // expired
-      if (transfer !== undefined && transfer.timeout >= Date.now()) {
-        // Remove the transfer from the processing queue
-        transfer = this.transfersToResolve.pop()
+      while (this.transfersToResolve.length > 0) {
+        // Check whether the next transfer's timeout has expired
+        let transfer = this.transfersToResolve.peek()
+        if (transfer.timeout >= Date.now()) {
+          // Remove the transfer from the processing queue
+          transfer = this.transfersToResolve.pop()
 
-        // Resolve the transfer now
-        await this.resolveTransfer(transfer.transfer)
+          // Resolve the transfer now
+          await this.resolveTransfer(transfer.transfer)
+        }
       }
     })
   }
