@@ -13,16 +13,12 @@ import {
   AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
+  RewardsPool,
   indexerError,
   IndexerErrorCode,
-  RewardsPool,
-  POIDisputeAttributes,
-  createVectorClient,
-  VectorClient,
   TransferManager,
-  Transfer,
+  POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
-import { Evt } from 'evt'
 import * as ti from '@thi.ng/iterators'
 import { AgentConfig, EthereumBlock } from './types'
 import { Indexer } from './indexer'
@@ -32,13 +28,6 @@ import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
 import { Client } from '@urql/core'
-import {
-  EngineEvents,
-  ConditionalTransferCreatedPayload,
-  ConditionalTransferResolvedPayload,
-  WithdrawalResolvedPayload,
-} from '@connext/vector-types'
-import { EventCallbackConfig } from '@connext/vector-utils'
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -84,7 +73,6 @@ class Agent {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
 
-  vector: VectorClient
   transfers: TransferManager
 
   constructor(
@@ -95,7 +83,6 @@ class Agent {
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
-    vector: VectorClient,
     transfers: TransferManager,
   ) {
     this.logger = logger
@@ -105,7 +92,6 @@ class Agent {
     this.networkSubgraph = networkSubgraph
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
-    this.vector = vector
     this.transfers = transfers
   }
 
@@ -866,7 +852,7 @@ class Agent {
   private async closeAllocation(
     epochStartBlock: EthereumBlock,
     allocation: Allocation,
-  ): Promise<{ closed: boolean; feesCollected: boolean }> {
+  ): Promise<{ closed: boolean; transfersResolving: boolean }> {
     const poi = await this.indexer.proofOfIndexing(
       allocation.subgraphDeployment.id,
       epochStartBlock,
@@ -885,132 +871,18 @@ class Agent {
         epochStartBlock,
       })
 
-      return { closed: false, feesCollected: false }
+      return { closed: false, transfersResolving: false }
     }
 
     // Close the allocation
     const closed = await this.network.close(allocation, poi)
 
-    // Withdraw
-    const feesCollected = await this.collectQueryFees(allocation)
-
-    return { closed, feesCollected }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async collectQueryFees(allocation: Allocation): Promise<boolean> {
-    // Wait long enough so that all receipts are likely to be flushed to the db
-    // by the indexer service
-    //
-    // FIXME: There are better ways to achieve this without blocking the
-    // allocation processing by 60s with each one that has fees;
-    //
-    // One idea:
-    //
-    // - Always create a transfer for the most recent allocation
-    // - Make it so that the gateway only sees only transfers by this
-    //   most recent allocation
-    // - Resolve transfers only once there is at least one transfer
-    //   for a more recent allocation
-    if (await this.transfers.hasUnresolvedTransfers(allocation)) {
-      await new Promise(resolve => setTimeout(resolve, 60_000))
-    }
-
-    // 1. Resolve all unresolved transfers for the allocation in question
-    //   - For this, we need to get all transfers and all matching receipts
-    //   - Then we need to resolve transfers one at a time
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    let unresolvedTransfers = await this.transfers.unresolvedTransfersAndReceipts(
+    // Queue transfers of the allocation for resolving
+    const transfersResolving = await this.transfers.markAllocationAsClosed(
       allocation,
     )
 
-    // Filter out unresolved transfers that have no receipts
-    unresolvedTransfers = unresolvedTransfers.filter(
-      transfer => (transfer.receipts?.length || 0) > 0,
-    )
-
-    this.logger.info(`Resolve transfers for allocation`, {
-      allocation: allocation.id,
-      transfers: unresolvedTransfers.map(transfer => ({
-        routingId: transfer.routingId,
-        receipts: transfer.receipts?.map(receipt => receipt.id),
-      })),
-    })
-
-    const successfulTransfers: Transfer[] = []
-    const failedTransfers: Transfer[] = []
-
-    for (const transfer of unresolvedTransfers) {
-      try {
-        await this.transfers.resolveTransfer(transfer)
-        successfulTransfers.push(transfer)
-      } catch (err) {
-        // FIXME: add indexerError for this
-        this.logger.error(
-          `Failed to resolve transfer for allocation, skipping`,
-          {
-            allocation: allocation.id,
-            routingId: transfer.routingId,
-            err,
-          },
-        )
-        failedTransfers.push(transfer)
-      }
-    }
-
-    this.logger.info(`Resolved transfers for allocation`, {
-      successfulTransfers: successfulTransfers.map(
-        transfer => transfer.routingId,
-      ),
-      failedTransfers: failedTransfers.map(transfer => transfer.routingId),
-    })
-
-    const queryFees = successfulTransfers.reduce(
-      (sum, transfer) =>
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        transfer.receipts!.reduce(
-          (sum, receipt) => sum.add(receipt.paymentAmount),
-          sum,
-        ),
-      BigNumber.from('0'),
-    )
-
-    // 2. Collect total amount from all resolved transfers and call `withdraw`
-    if (queryFees.gt('0')) {
-      const encoding = 'tuple(address staking,address allocationID)'
-      const data = {
-        staking: this.network.contracts.staking.address,
-        allocationID: allocation.id,
-      }
-      const callData = utils.defaultAbiCoder.encode([encoding], [data])
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const result = await this.vector.node.withdraw({
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        channelAddress: this.vector.channelAddress,
-        assetId: this.network.contracts.token.address,
-        amount: queryFees.toString(),
-        recipient: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
-        callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
-        callData,
-        initiatorSubmits: true,
-      })
-
-      if (result.isError) {
-        // FIXME: Add indexerError for this
-        const err = result.getError()
-        this.logger.error(`Failed to collect query fees`, {
-          channelAddress: this.vector.channelAddress,
-          amount: queryFees.toString(),
-          callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
-          callData,
-          err,
-        })
-        throw result.getError()
-      }
-    }
-
-    return true
+    return { closed, transfersResolving }
   }
 }
 
@@ -1027,55 +899,15 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
 
   const logger = config.logger.child({ component: 'Agent' })
 
-  // Connect to the vector node
-  const evts: Partial<EventCallbackConfig> = {
-    [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {
-      evt: Evt.create<ConditionalTransferCreatedPayload>(),
-      url: new URL(
-        `/${EngineEvents.CONDITIONAL_TRANSFER_CREATED}`,
-        config.payments.eventServer.url,
-      ).toString(),
-    },
-    [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {
-      evt: Evt.create<ConditionalTransferResolvedPayload>(),
-      url: new URL(
-        `/${EngineEvents.CONDITIONAL_TRANSFER_RESOLVED}`,
-        config.payments.eventServer.url,
-      ).toString(),
-    },
-    [EngineEvents.WITHDRAWAL_RESOLVED]: {
-      evt: Evt.create<WithdrawalResolvedPayload>(),
-      url: new URL(
-        `/${EngineEvents.WITHDRAWAL_RESOLVED}`,
-        config.payments.eventServer.url,
-      ).toString(),
-    },
-  }
-
-  // Connect to the vector node for withdrawing query fees into the
-  // rebate pool when allocations are closed
-  const vector = await createVectorClient({
-    logger,
-    metrics: config.metrics,
-    ethereum: config.network.ethereum,
-    contracts: config.payments.contracts,
-    wallet: config.payments.wallet,
-    nodeUrl: config.payments.nodeUrl,
-    routerIdentifier: config.payments.routerIdentifier,
-    eventServer: {
-      ...config.payments.eventServer,
-      evts,
-    },
-  })
-
   // Automatically sync the status of receipt transfers to the db
-  const transfers = new TransferManager({
+  const transfers = await TransferManager.create({
     logger: logger,
-    vector: vector,
-    vectorTransferDefinition: config.payments.vectorTransferDefinition,
-    models: config.payments.models,
-    wallet: config.payments.wallet,
+    contracts: config.network.contracts,
+    payments: config.payments,
+    ethereum: config.ethereum,
+    metrics: config.metrics,
   })
+  transfers.queuePendingTransfersFromDatabase()
 
   const agent = new Agent(
     config.logger,
@@ -1085,7 +917,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.networkSubgraph,
     config.registerIndexer,
     config.offchainSubgraphs,
-    vector,
     transfers,
   )
   return await agent.start()
