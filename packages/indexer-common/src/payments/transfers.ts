@@ -187,9 +187,9 @@ export class TransferManager {
       const withdrawableAllocations = await this.withdrawableAllocations()
       for (const withdrawableAllocation of withdrawableAllocations) {
         if (
-          BigNumber.from(withdrawableAllocation.queryFees)
-            .sub(withdrawableAllocation.withdrawnFees)
-            .gt(0)
+          BigNumber.from(withdrawableAllocation.queryFees).gt(
+            withdrawableAllocation.withdrawnFees,
+          )
         ) {
           await this.withdrawAllocation(withdrawableAllocation)
         } else {
