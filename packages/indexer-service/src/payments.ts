@@ -133,7 +133,7 @@ export class ReceiptManager {
 
     timer(30_000).pipe(async () => {
       try {
-        while (await this._flushOne());
+        await this._flushOutstanding()
       } catch (err) {
         logger.error(
           `Failed to sync payment to the db. If this does not correct itself, revenue may be lost.`,
@@ -186,92 +186,89 @@ export class ReceiptManager {
     //   * This receipt ID is not being "forked" by concurrent usage.
   }
 
-  private async _flushOne(): Promise<boolean> {
-    if (!this._flushQueue.length) {
-      return false
-    }
+  /// Flushes all receipts that have been registered by this moment in time.
+  private async _flushOutstanding(): Promise<void> {
+    let count = this._flushQueue.length
 
-    const index = Math.floor(Math.random() * this._flushQueue.length)
-    const swap = this._flushQueue[index]
-    this._flushQueue[index] = this._flushQueue[this._flushQueue.length - 1]
-    this._flushQueue[this._flushQueue.length - 1] = swap
-    // Classic swap-n-pop. The list has already been verified to be non-empty.
-    // Therefore, the ! operator is being used as intended. The overzealous
-    // arbiters of code that maintain eslint can step aside.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const qualifiedId = this._flushQueue.pop()!
+    while (count > 0) {
+      count -= 1
 
-    // An invariant of this class is that _flushQueue indexes
-    // _cache. So, the ! is being used as intended again.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const receipt = this._cache.get(qualifiedId)!
-    this._cache.delete(qualifiedId)
+      // Swap and pop
+      const qualifiedId = this._flushQueue[count]
+      this._flushQueue[count] = this._flushQueue[this._flushQueue.length - 1]
+      this._flushQueue.pop()
 
-    const transact = async () => {
-      // Put this in a transaction because this has a write which is
-      // dependent on a read and must be atomic or payments could be dropped.
-      await this._sequelize.transaction(
-        { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
-        async (transaction: Transaction) => {
-          const [state, isNew] = await this._paymentModels.receipts.findOrBuild({
-            where: { id: receipt.id, signer: receipt.signer },
-            defaults: {
-              id: receipt.id,
-              signature: receipt.signature,
-              signer: receipt.signer,
-              paymentAmount: receipt.paymentAmount,
-            },
-            transaction,
-          })
+      // An invariant of this class is that _flushQueue indexes
+      // _cache. So, the ! is being used as intended.
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const receipt = this._cache.get(qualifiedId)!
+      this._cache.delete(qualifiedId)
 
-          // Don't save over receipts that are already advanced
-          if (!isNew) {
-            const storedPaymentAmount = BigNumber.from(
-              state.getDataValue('paymentAmount'),
-            )
-            if (storedPaymentAmount.gte(receipt.paymentAmount)) {
-              return
+      const transact = async () => {
+        // Put this in a transaction because this has a write which is
+        // dependent on a read and must be atomic or payments could be dropped.
+        await this._sequelize.transaction(
+          { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
+          async (transaction: Transaction) => {
+            const [state, isNew] = await this._paymentModels.receipts.findOrBuild({
+              where: { id: receipt.id, signer: receipt.signer },
+              defaults: {
+                id: receipt.id,
+                signature: receipt.signature,
+                signer: receipt.signer,
+                paymentAmount: receipt.paymentAmount,
+              },
+              transaction,
+            })
+
+            // Don't save over receipts that are already advanced
+            if (!isNew) {
+              const storedPaymentAmount = BigNumber.from(
+                state.getDataValue('paymentAmount'),
+              )
+              if (storedPaymentAmount.gte(receipt.paymentAmount)) {
+                return
+              }
             }
-          }
 
-          // Make sure the new payment amount and signature are set
-          state.set('paymentAmount', receipt.paymentAmount)
-          state.set('signature', receipt.signature)
+            // Make sure the new payment amount and signature are set
+            state.set('paymentAmount', receipt.paymentAmount)
+            state.set('signature', receipt.signature)
 
-          // Save the new or updated receipt to the db
-          await state.save({ transaction })
-        },
-      )
-    }
+            // Save the new or updated receipt to the db
+            await state.save({ transaction })
+          },
+        )
+      }
 
-    // Save to the db
-    try {
-      await pRetry(
-        async () => {
-          try {
-            await transact()
-          } catch (err) {
-            // Only retry if the error is a 40001 error, aka 'could not serialize
-            // access due to concurrent update'
-            if (err.parent.code !== '40001') {
-              throw new pRetry.AbortError(err)
+      // Save to the db
+      try {
+        await pRetry(
+          async () => {
+            try {
+              await transact()
+            } catch (err) {
+              // Only retry if the error is a 40001 error, aka 'could not serialize
+              // access due to concurrent update'
+              if (err.parent.code !== '40001') {
+                throw new pRetry.AbortError(err)
+              }
             }
-          }
-        },
-        { retries: 20 },
-      )
-    } catch (err) {
-      // If we fail for whatever reason, keep this data in the cache to flush
-      // the next time around.
-      //
-      // This needs to go back through the normal add method,
-      // rather than just inserting back into the queue.
-      // The receipt may have advanced while we were trying to flush
-      // it and we don't want to overwrite new data with stale data.
-      this._queue(receipt)
-      throw err
+          },
+          { retries: 20 },
+        )
+      } catch (err) {
+        // If we fail for whatever reason, keep this data in the cache to flush
+        // the next time around.
+        //
+        // This needs to go back through the normal add method,
+        // rather than just inserting back into the queue.
+        // The receipt may have advanced while we were trying to flush
+        // it and we don't want to overwrite new data with stale data.
+        this._queue(receipt)
+        throw err
+      }
     }
-    return true
   }
 
   _queue(receipt: ReceiptAttributes): void {
