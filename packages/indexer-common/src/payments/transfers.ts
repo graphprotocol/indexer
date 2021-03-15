@@ -2,36 +2,90 @@ import {
   ConditionalTransferCreatedPayload,
   ConditionalTransferResolvedPayload,
   EngineEvents,
+  FullTransferState,
   WithdrawalResolvedPayload,
 } from '@connext/vector-types'
-import { Address, Logger, toAddress } from '@graphprotocol/common-ts'
-import { BigNumber, Wallet } from 'ethers'
+import {
+  Address,
+  formatGRT,
+  Logger,
+  Metrics,
+  NetworkContracts,
+  timer,
+  toAddress,
+} from '@graphprotocol/common-ts'
+import { BigNumber, providers, utils, Wallet } from 'ethers'
 import { Allocation } from '../allocations'
-import { VectorClient } from './client'
-import { PaymentModels, Transfer } from './models'
+import { createVectorClient, VectorClient } from './client'
+import { AllocationSummary, PaymentModels, Transfer, TransferStatus } from './models'
+import { EventCallbackConfig } from '@connext/vector-utils'
+import { Evt } from 'evt'
+import { DHeap } from '@thi.ng/heaps'
 import pRetry from 'p-retry'
+import { Transaction, Op, Sequelize } from 'sequelize'
 
-export interface TransferManagerOptions {
+// Transfers that can be resolved are resolved with a delay of 10 minutes
+const TRANSFER_RESOLVE_DELAY = 600_000
+
+export interface PaymentsConfig {
+  wallet: Wallet
+  contracts: NetworkContracts
+  nodeUrl: string
+  routerIdentifier: string
+  vectorTransferDefinition: Address
+  eventServer: {
+    url: string
+    port: string
+  }
+  models: PaymentModels
+}
+
+export interface TransferManagerCreateOptions {
+  logger: Logger
+  payments: PaymentsConfig
+  metrics: Metrics
+  ethereum: providers.StaticJsonRpcProvider
+  contracts: NetworkContracts
+}
+
+interface TransferManagerOptions {
   logger: Logger
   vector: VectorClient
-  vectorTransferDefinition: Address
-  models: PaymentModels
-  wallet: Wallet
+  payments: PaymentsConfig
+  contracts: NetworkContracts
+}
+
+interface TransferToResolve {
+  transfer: Transfer
+  timeout: number
+}
+
+interface WithdrawableAllocation {
+  allocation: Address
+  queryFees: string
+  withdrawnFees: string
 }
 
 export class TransferManager {
   private logger: Logger
+  private contracts: NetworkContracts
   private vector: VectorClient
   private vectorTransferDefinition: Address
   private models: PaymentModels
-  private wallet: Wallet
 
-  constructor(options: TransferManagerOptions) {
-    this.logger = options.logger.child({ component: 'TransferManager' })
+  // Priority queue that orders transfers by the timeout after which
+  // they should be resolved
+  private transfersToResolve!: DHeap<TransferToResolve>
+
+  private constructor(options: TransferManagerOptions) {
+    this.logger = options.logger
+    this.contracts = options.contracts
     this.vector = options.vector
-    this.models = options.models
-    this.vectorTransferDefinition = options.vectorTransferDefinition
-    this.wallet = options.wallet
+    this.models = options.payments.models
+    this.vectorTransferDefinition = options.payments.vectorTransferDefinition
+
+    this.startTransferResolutionProcessing()
+    this.startWithdrawalProcessing()
 
     this.vector.node.on(
       EngineEvents.CONDITIONAL_TRANSFER_CREATED,
@@ -55,65 +109,259 @@ export class TransferManager {
     )
   }
 
-  private async handleTransferCreated(payload: ConditionalTransferCreatedPayload) {
-    // Ignore non-Graph transfers
-    const eventTransferDefinition = toAddress(payload.transfer.transferDefinition)
+  static async create(options: TransferManagerCreateOptions): Promise<TransferManager> {
+    const logger = options.logger.child({ component: 'TransferManager' })
+
+    // Connect to the vector node
+    const evts: Partial<EventCallbackConfig> = {
+      [EngineEvents.CONDITIONAL_TRANSFER_CREATED]: {
+        evt: Evt.create<ConditionalTransferCreatedPayload>(),
+        url: new URL(
+          `/${EngineEvents.CONDITIONAL_TRANSFER_CREATED}`,
+          options.payments.eventServer.url,
+        ).toString(),
+      },
+      [EngineEvents.CONDITIONAL_TRANSFER_RESOLVED]: {
+        evt: Evt.create<ConditionalTransferResolvedPayload>(),
+        url: new URL(
+          `/${EngineEvents.CONDITIONAL_TRANSFER_RESOLVED}`,
+          options.payments.eventServer.url,
+        ).toString(),
+      },
+      [EngineEvents.WITHDRAWAL_RESOLVED]: {
+        evt: Evt.create<WithdrawalResolvedPayload>(),
+        url: new URL(
+          `/${EngineEvents.WITHDRAWAL_RESOLVED}`,
+          options.payments.eventServer.url,
+        ).toString(),
+      },
+    }
+
+    // Connect to the vector node for withdrawing query fees into the
+    // rebate pool when allocations are closed
+    const vector = await createVectorClient({
+      logger,
+      metrics: options.metrics,
+      ethereum: options.ethereum,
+      contracts: options.payments.contracts,
+      wallet: options.payments.wallet,
+      nodeUrl: options.payments.nodeUrl,
+      routerIdentifier: options.payments.routerIdentifier,
+      eventServer: {
+        ...options.payments.eventServer,
+        evts,
+      },
+    })
+
+    return new TransferManager({
+      logger,
+      vector,
+      payments: options.payments,
+      contracts: options.contracts,
+    })
+  }
+
+  private startTransferResolutionProcessing() {
+    this.transfersToResolve = new DHeap<TransferToResolve>(null, {
+      compare: (t1, t2) => t1.timeout - t2.timeout,
+    })
+
+    // Check if there's another transfer to resolve every 10s
+    timer(10_000).pipe(async () => {
+      let transfer = this.transfersToResolve.peek()
+      // Check if there is a transfer to resolve and whether it's timeout has
+      // expired
+      if (transfer !== undefined && transfer.timeout >= Date.now()) {
+        // Remove the transfer from the processing queue
+        transfer = this.transfersToResolve.pop()
+
+        // Resolve the transfer now
+        await this.resolveTransfer(transfer.transfer)
+      }
+    })
+  }
+
+  private startWithdrawalProcessing() {
+    timer(5_000).pipe(async () => {
+      const withdrawableAllocations = await this.withdrawableAllocations()
+      for (const withdrawableAllocation of withdrawableAllocations) {
+        if (
+          BigNumber.from(withdrawableAllocation.queryFees)
+            .sub(withdrawableAllocation.withdrawnFees)
+            .gt(0)
+        ) {
+          await this.withdrawAllocation(withdrawableAllocation)
+        } else {
+          await this.cleanupWithdrawableAllocation(withdrawableAllocation.allocation)
+        }
+      }
+    })
+  }
+
+  public async queuePendingTransfersFromDatabase(): Promise<void> {
+    let transfers
+    try {
+      // Fetch all resolvable transfers from the db and put them into the
+      // processing queue
+      transfers = await this.models.transfers.findAll({
+        where: { status: TransferStatus.ALLOCATION_CLOSED },
+      })
+    } catch (err) {
+      // FIXME: Add indexerError
+      this.logger.error(`Failed to query transfers ready to resolve`, { err })
+      return
+    }
+
+    for (const transfer of transfers) {
+      try {
+        this.transfersToResolve.push({
+          transfer,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          timeout: transfer.allocationClosedAt!.valueOf() + TRANSFER_RESOLVE_DELAY,
+        })
+      } catch (err) {
+        // TODO: Add indexerError
+        this.logger.error(`Failed to queue transfer for resolving`, {
+          routingId: transfer.routingId,
+          allocation: transfer.allocation,
+          status: transfer.status,
+          allocationClosedAt: transfer.allocationClosedAt,
+          err,
+        })
+      }
+    }
+  }
+
+  private async cleanupWithdrawableAllocation(allocation: Address): Promise<void> {
+    // Delete all transfers for the allocation (cleanup)
+    await this.models.transfers.destroy({
+      where: { allocation },
+    })
+  }
+
+  private isGraphTransfer(transfer: FullTransferState): boolean {
+    const eventTransferDefinition = toAddress(transfer.transferDefinition)
     if (eventTransferDefinition !== this.vectorTransferDefinition) {
       this.logger.warn(`Non-Graph transfer resolved`, {
         eventTransferDefinition,
         expectedTransferDefinition: this.vectorTransferDefinition,
       })
+      return false
+    }
+    return true
+  }
+
+  private async ensureAllocationSummary(
+    allocation: Address,
+    transaction: Transaction,
+  ): Promise<AllocationSummary> {
+    const [summary] = await this.models.allocationSummaries.findOrBuild({
+      where: { allocation },
+      defaults: {
+        allocation,
+        closedAt: null,
+        createdTransfers: 0,
+        resolvedTransfers: 0,
+        failedTransfers: 0,
+        openTransfers: 0,
+        queryFees: '0',
+        withdrawnFees: '0',
+      },
+      transaction,
+    })
+    return summary
+  }
+
+  private async handleTransferCreated(payload: ConditionalTransferCreatedPayload) {
+    // Ignore non-Graph transfers
+    if (!this.isGraphTransfer(payload.transfer)) {
       return
     }
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const routingId = payload.transfer.meta!.routingId
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const allocation = payload.transfer.meta!.allocation
+    const { routingId, allocation } = payload.transfer.meta!
     const signer = payload.transfer.transferState.signer
 
-    this.logger.info(`Add new transfer to the db`, {
+    this.logger.info(`Add transfer to the database`, {
       routingId,
       allocation,
       signer,
     })
 
     try {
-      await this.models.transfers.create({
-        signer,
-        allocation,
-        routingId: routingId,
-        isResolved: false,
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.transfers.sequelize!.transaction(async (transaction) => {
+        // Update the allocation summary
+        const summary = await this.ensureAllocationSummary(allocation, transaction)
+        summary.createdTransfers += 1
+        summary.openTransfers += 1
+        await summary.save({ transaction })
+
+        // Add the transfer itself
+        await this.models.transfers.create(
+          {
+            signer,
+            allocation,
+            routingId: routingId,
+            status: TransferStatus.OPEN,
+            allocationClosedAt: null,
+          },
+          { transaction },
+        )
       })
     } catch (err) {
-      this.logger.error(`Failed to add new transfer to the db`, {
+      // FIXME: Add indexerError for this
+      this.logger.error(`Failed to add transfer to the database`, {
         routingId,
         allocation,
         signer,
         err,
       })
+      return
     }
   }
 
   private async handleTransferResolved(payload: ConditionalTransferResolvedPayload) {
     // Ignore non-Graph transfers
-    const eventTransferDefinition = toAddress(payload.transfer.transferDefinition)
-    if (eventTransferDefinition !== this.vectorTransferDefinition) {
-      this.logger.warn(`Non-Graph transfer resolved`, {
-        eventTransferDefinition,
-        expectedTransferDefinition: this.vectorTransferDefinition,
-      })
+    if (!this.isGraphTransfer(payload.transfer)) {
       return
     }
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const routingId = payload.transfer.meta!.routingId
+    const { routingId, allocation } = payload.transfer.meta!
+    const signer = payload.transfer.transferState.signer
 
-    this.logger.info(`Mark transfer as resolved in the db`, { routingId })
+    this.logger.info(`Mark transfer as resolved in the db`, {
+      routingId,
+      allocation,
+    })
 
     try {
-      await this.models.transfers.update({ isResolved: true }, { where: { routingId } })
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.transfers.sequelize!.transaction(async (transaction) => {
+        // Mark the transfer as resolved
+        await this.models.transfers.update(
+          { status: TransferStatus.RESOLVED },
+          { where: { routingId }, transaction },
+        )
+
+        // Remove all its receipts (cleanup)
+        await this.models.receipts.destroy({
+          where: { signer },
+          transaction,
+        })
+
+        // Update allocation summary
+        const summary = await this.ensureAllocationSummary(allocation, transaction)
+        summary.resolvedTransfers += 1
+        summary.openTransfers -= 1
+        summary.queryFees = BigNumber.from(summary.queryFees)
+          .add(payload.transfer.balance.amount[1])
+          .toString()
+        await summary.save({ transaction })
+      })
     } catch (err) {
+      // FIXME: Add indexerError for this
       this.logger.error(`Failed to mark transfer as resolved in the db`, {
         routingId,
         err,
@@ -122,21 +370,26 @@ export class TransferManager {
   }
 
   private async handleWithdrawalResolved(payload: WithdrawalResolvedPayload) {
-    // TODO: Use the robust transaction management from
-    // https://github.com/graphprotocol/indexer/pull/212
-    // when it is ready
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const { allocation, queryFees } = payload.transfer.meta!
 
     try {
       await pRetry(
         async () => {
-          this.logger.debug(`Collecting query fees via the rebate pool`)
+          this.logger.debug(`Collecting query fees via the rebate pool`, {
+            allocation: payload.transfer.meta.allocation,
+            queryFees: formatGRT(payload.transfer.meta.queryFees),
+          })
 
           // Estimate gas and add some buffer (like we do in network.ts)
-          const gasLimit = await this.wallet.estimateGas(payload.transaction)
+          const gasLimit = await this.vector.wallet.estimateGas(payload.transaction)
           const gasLimitWithBuffer = Math.ceil(gasLimit.toNumber() * 1.5)
 
           // Submit the transaction and wait for 2 confirmations
-          const tx = await this.wallet.sendTransaction({
+          // TODO: Use the robust transaction management from
+          // https://github.com/graphprotocol/indexer/pull/212
+          // when it is ready
+          const tx = await this.vector.wallet.sendTransaction({
             ...payload.transaction,
             value: 0, // We're not sending any ETH
             gasLimit: gasLimitWithBuffer,
@@ -145,12 +398,40 @@ export class TransferManager {
         },
         { retries: 2 },
       )
+
+      // Delete all transfers for the allocation (cleanup)
+      await this.models.transfers.destroy({
+        where: { allocation, status: { [Op.not]: TransferStatus.OPEN } },
+      })
     } catch (err) {
       // FIXME: Add indexerError for this
       this.logger.error(`Failed to collect query fes via the rebate pool`, {
+        allocation,
+        queryFees,
         err,
       })
     }
+  }
+
+  async withdrawableAllocations(): Promise<WithdrawableAllocation[]> {
+    return await this.models.allocationSummaries.findAll({
+      where: {
+        // In order to be withdrawable, allocations must be closed...
+        closedAt: { [Op.not]: null },
+
+        // ...they must have some unwithdrawn query fees...
+        queryFees: { [Op.gt]: Sequelize.col('withdrawnFees') },
+
+        // ...they must have seen at least one transfer...
+        createdTransfers: { [Op.gt]: 0 },
+
+        // ...and all transfers must have been resolved or failed.
+        openTransfers: { [Op.lte]: 0 },
+      },
+
+      // Return and start withdrawing the most valuable allocations first
+      order: [['queryFees', 'DESC']],
+    })
   }
 
   async hasUnresolvedTransfers(allocation: Allocation): Promise<boolean> {
@@ -158,50 +439,207 @@ export class TransferManager {
       include: [this.models.transfers.associations.receipts],
       where: {
         allocation: allocation.id,
-        isResolved: false,
+        status: [TransferStatus.OPEN, TransferStatus.ALLOCATION_CLOSED],
       },
     })
     return unresolvedTransfers > 0
   }
 
-  async unresolvedTransfersAndReceipts(allocation: Allocation): Promise<Transfer[]> {
+  async unresolvedTransfersWithReceipts(
+    allocation: Allocation,
+    transaction: Transaction,
+  ): Promise<Transfer[]> {
     return await this.models.transfers.findAll({
       include: [this.models.transfers.associations.receipts],
       where: {
         allocation: allocation.id,
-        isResolved: false,
+        status: [TransferStatus.OPEN, TransferStatus.ALLOCATION_CLOSED],
       },
       order: [[this.models.transfers.associations.receipts, 'id', 'ASC']],
+      transaction,
     })
   }
 
+  async markAllocationAsClosed(allocation: Allocation): Promise<boolean> {
+    try {
+      const now = new Date()
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const unresolvedTransfers = await this.models.transfers.sequelize!.transaction(
+        async (transaction) => {
+          // Mark all transfers for the allocation as closed
+          await this.models.transfers.update(
+            { status: TransferStatus.ALLOCATION_CLOSED, allocationClosedAt: now },
+            {
+              where: {
+                allocation: allocation.id,
+                status: [TransferStatus.OPEN],
+              },
+              transaction,
+            },
+          )
+
+          // Update the allocation summary
+          await this.models.allocationSummaries.update(
+            { closedAt: now },
+            { where: { allocation: allocation.id }, transaction },
+          )
+
+          // Fetch all transfers for the allocation that have the status
+          // OPEN or ALLOCATION_CLOSED and still need to be resolved
+          return await this.unresolvedTransfersWithReceipts(allocation, transaction)
+        },
+      )
+
+      // Resolve transfers with a delay
+      for (const transfer of unresolvedTransfers) {
+        this.transfersToResolve.push({
+          transfer,
+          timeout: now.valueOf() + TRANSFER_RESOLVE_DELAY,
+        })
+      }
+      return true
+    } catch (err) {
+      // FIXME: Add indexerError for this
+      this.logger.error(`Failed to queue transfers for resolving`, {
+        allocation: allocation.id,
+        deployment: allocation.subgraphDeployment.id.display,
+        err,
+      })
+      return false
+    }
+  }
+
   async resolveTransfer(transfer: Transfer): Promise<void> {
-    const transferResult = await this.vector.node.getTransferByRoutingId({
-      channelAddress: this.vector.channelAddress,
-      routingId: transfer.routingId,
-    })
-    if (transferResult.isError) {
-      throw transferResult.getError()
+    const { routingId, allocation } = transfer
+
+    this.logger.info(`Resolve transfer`, { routingId, allocation })
+
+    let failed = false
+    try {
+      const transferResult = await this.vector.node.getTransferByRoutingId({
+        channelAddress: this.vector.channelAddress,
+        routingId: transfer.routingId,
+      })
+      if (transferResult.isError) {
+        throw transferResult.getError()
+      }
+
+      const vectorTransfer = transferResult.getValue()
+      if (!vectorTransfer) {
+        throw new Error(`Transfer not found`)
+      }
+
+      const result = await this.vector.node.resolveTransfer({
+        channelAddress: this.vector.channelAddress,
+        transferId: vectorTransfer.transferId,
+        transferResolver: {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          receipts: transfer.receipts!.map((receipt) => ({
+            id: receipt.id,
+            amount: receipt.paymentAmount.toString(),
+            signature: receipt.signature,
+          })),
+        },
+      })
+
+      if (result.isError) {
+        throw result.getError()
+      }
+    } catch (err) {
+      // FIXME: Add indexerError for this
+      this.logger.error(`Failed to resolve transfer`, { routingId, allocation, err })
+      failed = true
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const vectorTransfer = transferResult.getValue()!
-
-    const result = await this.vector.node.resolveTransfer({
-      channelAddress: this.vector.channelAddress,
-      transferId: vectorTransfer?.transferId,
-      transferResolver: {
+    if (failed) {
+      try {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        receipts: transfer.receipts!.map((receipt) => ({
-          id: receipt.id,
-          amount: receipt.paymentAmount.toString(),
-          signature: receipt.signature,
-        })),
-      },
+        await this.models.transfers.sequelize!.transaction(async (transaction) => {
+          // Update transfer in the db
+          await this.models.transfers.update(
+            { status: TransferStatus.FAILED },
+            { where: { routingId }, transaction },
+          )
+
+          // Update allocation summary
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          const summary = (await this.models.allocationSummaries.findOne({
+            where: { allocation },
+          }))!
+          summary.failedTransfers += 1
+          summary.openTransfers -= 1
+          await summary.save({ transaction })
+        })
+      } catch (err) {
+        // FIXME: Add indexerError for this
+        this.logger.critical(`Failed to mark transfer as failed in the database`, {
+          routingId,
+          allocation,
+          err,
+        })
+      }
+    }
+  }
+
+  public async withdrawAllocation(withdrawal: WithdrawableAllocation): Promise<void> {
+    const withdrawnFees = BigNumber.from(withdrawal.withdrawnFees)
+    const feesToWithdraw = BigNumber.from(withdrawal.queryFees).sub(
+      withdrawal.withdrawnFees,
+    )
+
+    this.logger.info(`Withdraw query fees for allocation`, {
+      allocation: withdrawal.allocation,
+      queryFees: withdrawal.queryFees,
+      withdrawnFees: withdrawal.withdrawnFees.toString(),
+      feesToWithdraw: feesToWithdraw.toString(),
     })
 
-    if (result.isError) {
-      throw result.getError()
+    try {
+      // Update the withdrawn fees
+      await this.models.allocationSummaries.update(
+        { withdrawnFees: withdrawnFees.add(feesToWithdraw).toString() },
+        { where: { allocation: withdrawal.allocation } },
+      )
+
+      const encoding = 'tuple(address staking,address allocationID)'
+      const data = {
+        staking: this.contracts.staking.address,
+        allocationID: withdrawal.allocation,
+      }
+      const callData = utils.defaultAbiCoder.encode([encoding], [data])
+      const result = await this.vector.node.withdraw({
+        channelAddress: this.vector.channelAddress,
+        assetId: this.contracts.token.address,
+        amount: feesToWithdraw.toString(),
+        recipient: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+        callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+        callData,
+        initiatorSubmits: true,
+        meta: {
+          allocation: withdrawal.allocation,
+          queryFees: feesToWithdraw,
+        },
+      })
+
+      if (result.isError) {
+        // FIXME: Add indexerError for this
+        const err = result.getError()
+        this.logger.error(`Failed to withdraw`, {
+          channelAddress: this.vector.channelAddress,
+          amount: withdrawal.queryFees.toString(),
+          callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
+          callData,
+          err,
+        })
+        throw result.getError()
+      }
+    } catch (err) {
+      // TODO: add indexerError
+      this.logger.error(`Failed to withdraw query fees for allocation`, {
+        allocation: withdrawal.allocation,
+        queryFees: withdrawal.queryFees.toString(),
+      })
     }
   }
 }

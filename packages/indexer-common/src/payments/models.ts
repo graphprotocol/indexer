@@ -24,18 +24,27 @@ export class Receipt extends Model<ReceiptAttributes> implements ReceiptAttribut
   }
 }
 
+export enum TransferStatus {
+  OPEN = 'OPEN',
+  ALLOCATION_CLOSED = 'ALLOCATION_CLOSED',
+  RESOLVED = 'RESOLVED',
+  FAILED = 'FAILED',
+}
+
 export interface TransferAttributes {
   routingId: string
   allocation: Address
   signer: Address
-  isResolved: boolean
+  allocationClosedAt: Date | null
+  status: TransferStatus
 }
 
 export class Transfer extends Model<TransferAttributes> implements TransferAttributes {
   public routingId!: string
   public allocation!: Address
   public signer!: Address
-  public isResolved!: boolean
+  public allocationClosedAt!: Date | null
+  public status!: TransferStatus
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
@@ -47,9 +56,41 @@ export class Transfer extends Model<TransferAttributes> implements TransferAttri
   }
 }
 
+export interface AllocationSummaryAttributes {
+  allocation: Address
+  closedAt: Date | null
+  createdTransfers: number
+  resolvedTransfers: number
+  failedTransfers: number
+  openTransfers: number
+  queryFees: string
+  withdrawnFees: string
+}
+
+export class AllocationSummary
+  extends Model<AllocationSummaryAttributes>
+  implements AllocationSummaryAttributes {
+  public allocation!: Address
+  public closedAt!: Date
+  public createdTransfers!: number
+  public resolvedTransfers!: number
+  public failedTransfers!: number
+  public openTransfers!: number
+  public queryFees!: string
+  public withdrawnFees!: string
+
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+
+  public static associations: {
+    transfers: Association<AllocationSummary, Transfer>
+  }
+}
+
 export interface PaymentModels {
   receipts: typeof Receipt
   transfers: typeof Transfer
+  allocationSummaries: typeof AllocationSummary
 }
 
 export function definePaymentModels(sequelize: Sequelize): PaymentModels {
@@ -69,8 +110,17 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
         allowNull: false,
         primaryKey: true,
       },
-      isResolved: {
-        type: DataTypes.BOOLEAN,
+      allocationClosedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      status: {
+        type: DataTypes.ENUM(
+          TransferStatus.OPEN,
+          TransferStatus.ALLOCATION_CLOSED,
+          TransferStatus.RESOLVED,
+          TransferStatus.FAILED,
+        ),
         allowNull: false,
       },
     },
@@ -104,6 +154,45 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
     { sequelize, tableName: 'receipts' },
   )
 
+  AllocationSummary.init(
+    {
+      allocation: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+        primaryKey: true,
+      },
+      closedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      createdTransfers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      resolvedTransfers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      failedTransfers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      openTransfers: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      queryFees: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+      },
+      withdrawnFees: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+      },
+    },
+    { sequelize, tableName: 'allocation_summaries' },
+  )
+
   Transfer.hasMany(Receipt, {
     sourceKey: 'signer',
     foreignKey: 'signer',
@@ -116,5 +205,21 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
     as: 'transfer',
   })
 
-  return { receipts: Receipt, transfers: Transfer }
+  AllocationSummary.hasMany(Transfer, {
+    sourceKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'transfers',
+  })
+
+  Transfer.belongsTo(AllocationSummary, {
+    targetKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'allocationSummary',
+  })
+
+  return {
+    receipts: Receipt,
+    transfers: Transfer,
+    allocationSummaries: AllocationSummary,
+  }
 }
