@@ -534,43 +534,36 @@ export class Network {
         }
       }
 
-      const disputableEpochs = await this.epochs([
+      let disputableEpochs = await this.epochs([
         ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
       ])
 
-      // FIXME: The following is incorrect/insufficient because an allocation
-      // can be intended to be closed at epoch N but actually be mined at epoch
-      // N+1; with the current design, this means such POIs can't be disputed,
-      // because the challenging indexer needs to decide which epoch the is for,
-      // and it has no way of knowing.
-
-      disputableEpochs.map(
-        async (epoch: Epoch): Promise<Epoch> => {
-          // TODO: May need to retry or skip epochs where obtaining
-          // start block fails
-          epoch.startBlockHash = (
-            await this.ethereum.getBlock(epoch?.startBlock)
-          ).hash
-          return epoch
-        },
+      disputableEpochs = await Promise.all(
+        disputableEpochs.map(
+          async (epoch: Epoch): Promise<Epoch> => {
+            // TODO: May need to retry or skip epochs where obtaining start block fails
+            epoch.startBlockHash = (
+              await this.ethereum.getBlock(epoch?.startBlock)
+            )?.hash
+            return epoch
+          },
+        ),
       )
 
       return await Promise.all(
-        allocations
-          // FIXME: Is filter true for all allocations? What's its purpose?
-          .filter(allocation =>
-            disputableEpochs.some(
-              epoch => epoch.id == allocation.closedAtEpoch,
-            ),
+        allocations.map(async allocation => {
+          const closedAtEpochIndex = disputableEpochs.findIndex(
+            epoch => epoch.id == allocation.closedAtEpoch,
           )
-          .map(async allocation => {
-            const closedAtEpoch = disputableEpochs.find(
-              epoch => epoch.id == allocation.closedAtEpoch,
-            )
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            allocation.closedAtEpochStartBlockHash = closedAtEpoch!.startBlockHash
-            return allocation
-          }),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.closedAtEpochStartBlockHash = disputableEpochs[
+            closedAtEpochIndex
+          ]!.startBlockHash
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.previousEpochStartBlockHash =
+            disputableEpochs[closedAtEpochIndex - 1]?.startBlockHash
+          return allocation
+        }),
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE037, error)
