@@ -46,7 +46,6 @@ module.exports = {
     try {
       const storedDisputes = await disputes(client)
 
-      console.log('stored dispys', storedDisputes)
       printDisputes(
         print,
         outputFormat,
