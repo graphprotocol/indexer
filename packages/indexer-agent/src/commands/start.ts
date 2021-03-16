@@ -54,10 +54,11 @@ export default {
       })
       .option('gas-bump-time-limit', {
         description:
-          'Time limit for transactions after which the transaction will be resubmitted with more gas (ms)',
+          'Time limit for transactions after which the transaction will be resubmitted with more gas (s)',
         type: 'number',
-        default: 240000,
+        default: 240,
         group: 'Ethereum',
+        coerce: arg => arg * 1000,
       })
       .option('gas-bump-percent', {
         description:
@@ -281,6 +282,11 @@ export default {
             return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
           }
         }
+        if (argv['gas-bump-time-limit']) {
+          if (argv['gas-bump-time-limit'] < 30000) {
+            return 'Invalid --gas-bump-time-limit provided. Must be greater then 30 seconds'
+          }
+        }
         return true
       })
       .option('vector-node', {
@@ -324,6 +330,13 @@ export default {
       async: false,
       level: argv.logLevel,
     })
+
+    if (argv.gasBumpTimeLimit < 90000) {
+      logger.warn(
+        'Gas bump time limit is set to less than 90 seconds. Be careful with this setting as it may ' +
+          'lead to higher gas usage',
+      )
+    }
 
     process.on('unhandledRejection', err => {
       logger.warn(`Unhandled promise rejection`, {
