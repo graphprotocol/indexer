@@ -9,7 +9,8 @@
   "scripts": {
     "format": "prettier --write src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
-    "prepare": "rm -rf dist && yarn format && yarn lint && tsc"
+    "prepare": "rm -rf dist && yarn format && yarn lint && tsc",
+    "disputes": "yarn prepare && ./dist/cli.js indexer disputes get"
   },
   "dependencies": {
     "@graphprotocol/common-ts": "1.3.0",
