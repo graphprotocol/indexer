@@ -1,15 +1,20 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { BigNumber, utils } from 'ethers'
+import { utils } from 'ethers'
 
 export interface POIDisputeAttributes {
   allocationID: string
   allocationIndexer: string
-  allocationAmount: BigNumber
+  allocationAmount: string
   allocationProof: string
-  allocationClosedBlockHash: string
-  indexerProof: string
+  closedEpoch: number
+  closedEpochReferenceProof: string
+  closedEpochStartBlockHash: string
+  closedEpochStartBlockNumber: number
+  previousEpochReferenceProof: string
+  previousEpochStartBlockHash: string
+  previousEpochStartBlockNumber: number
   status: string
 }
 
@@ -20,8 +25,13 @@ export interface POIDisputeCreationAttributes
     | 'allocationIndexer'
     | 'allocationAmount'
     | 'allocationProof'
-    | 'allocationClosedBlockHash'
-    | 'indexerProof'
+    | 'closedEpoch'
+    | 'closedEpochReferenceProof'
+    | 'closedEpochStartBlockHash'
+    | 'closedEpochStartBlockNumber'
+    | 'previousEpochReferenceProof'
+    | 'previousEpochStartBlockHash'
+    | 'previousEpochStartBlockNumber'
     | 'status'
   > {}
 
@@ -30,10 +40,15 @@ export class POIDispute
   implements POIDisputeAttributes {
   public allocationID!: string
   public allocationIndexer!: string
-  public allocationAmount!: BigNumber
+  public allocationAmount!: string
   public allocationProof!: string
-  public allocationClosedBlockHash!: string
-  public indexerProof!: string
+  public closedEpoch!: number
+  public closedEpochReferenceProof!: string
+  public closedEpochStartBlockHash!: string
+  public closedEpochStartBlockNumber!: number
+  public previousEpochReferenceProof!: string
+  public previousEpochStartBlockHash!: string
+  public previousEpochStartBlockNumber!: number
   public status!: string
 
   public createdAt!: Date
@@ -118,7 +133,30 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
           },
         },
       },
-      allocationClosedBlockHash: {
+      closedEpoch: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      closedEpochReferenceProof: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          isHex: (value: any) => {
+            if (typeof value !== 'string') {
+              throw new Error('Allocation POI must be a string')
+            }
+
+            // "0x..." is ok
+            if (utils.isHexString(value, 32)) {
+              return
+            }
+
+            throw new Error(`Allocation POI must be a valid hex string`)
+          },
+        },
+      },
+      closedEpochStartBlockHash: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
@@ -137,14 +175,18 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
           },
         },
       },
-      indexerProof: {
+      closedEpochStartBlockNumber: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+      },
+      previousEpochReferenceProof: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isHex: (value: any) => {
             if (typeof value !== 'string') {
-              throw new Error('Indexer reference POI must be a string')
+              throw new Error('Allocation POI must be a string')
             }
 
             // "0x..." is ok
@@ -152,9 +194,32 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
               return
             }
 
-            throw new Error(`Indexer reference POI must be a valid hex string`)
+            throw new Error(`Allocation POI must be a valid hex string`)
           },
         },
+      },
+      previousEpochStartBlockHash: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          isHex: (value: any) => {
+            if (typeof value !== 'string') {
+              throw new Error('Allocation closed block hash must be a string')
+            }
+
+            // "0x..." is ok
+            if (utils.isHexString(value, 32)) {
+              return
+            }
+
+            throw new Error(`Allocation closed block hash must be a valid hex string`)
+          },
+        },
+      },
+      previousEpochStartBlockNumber: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
       },
       status: {
         type: DataTypes.STRING,
