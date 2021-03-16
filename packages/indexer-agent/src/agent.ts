@@ -259,9 +259,12 @@ class Agent {
     )
     this.logger.info(`Waiting for network data before reconciling every 120s`)
 
-    const disputableAllocations = activeDeployments.tryMap(
-      activeDeployments =>
-        this.network.disputableAllocations(activeDeployments, 0),
+    const disputableAllocations = join({
+      currentEpoch,
+      activeDeployments,
+    }).tryMap(
+      ({ currentEpoch, activeDeployments }) =>
+        this.network.disputableAllocations(currentEpoch, activeDeployments, 0),
       {
         onError: () =>
           this.logger.warn(
@@ -269,10 +272,6 @@ class Agent {
           ),
       },
     )
-
-    this.logger.warn('DISPUTABLES', {
-      allocations: disputableAllocations,
-    })
 
     join({
       ticker: timer(120_000),
