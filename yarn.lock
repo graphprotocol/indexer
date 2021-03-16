@@ -1502,10 +1502,10 @@
     "@fastify/forwarded" "^1.0.0"
     ipaddr.js "^2.0.0"
 
-"@graphprotocol/common-ts@1.3.0":
-  version "1.3.0"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.3.0.tgz#e75af6b6716f541767a43081b73ca744396fc98b"
-  integrity sha512-MLCSv1apOv5G4lG5DSgxFiUd/u8b5zm+UbLQzA04s+hHRq4uLX7tXk2UEfhsUoIUcNKoSvom4846HkQrHBLeag==
+"@graphprotocol/common-ts@1.3.1":
+  version "1.3.1"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.3.1.tgz#d59c971c947aebdcd205f165a45dacb6537fc6b3"
+  integrity sha512-mt6FKkRdjXOSUxGREy6LfvaJ54doLfNjNoYDe8XJZVXthSijcCTHbkdNn3LAV8DQFbHrsMJITSfSg37Ln2eQZA==
   dependencies:
     "@graphprotocol/contracts" "1.1.0"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
@@ -1520,7 +1520,6 @@
     graphql "15.4.0"
     graphql-tag "2.11.0"
     helmet "4.1.1"
-    lodash.isequal "4.5.0"
     morgan "1.10.0"
     ngeohash "0.6.3"
     pg "8.4.2"
@@ -9944,11 +9943,6 @@ lodash.isboolean@^3.0.3:
   version "3.0.3"
   resolved "https://registry.npmjs.org/lodash.isboolean/-/lodash.isboolean-3.0.3.tgz#6c2e171db2a257cd96802fd43b01b20d5f5870f6"
   integrity sha1-bC4XHbKiV82WgC/UOwGyDV9YcPY=
-
-lodash.isequal@4.5.0:
-  version "4.5.0"
-  resolved "https://registry.npmjs.org/lodash.isequal/-/lodash.isequal-4.5.0.tgz#415c4478f2bcc30120c22ce10ed3226f7d3e18e0"
-  integrity sha1-QVxEePK8wwEgwizhDtMib30+GOA=
 
 lodash.isinteger@^4.0.4:
   version "4.0.4"
