@@ -183,18 +183,10 @@ export class TransferManager {
   }
 
   private startWithdrawalProcessing() {
-    timer(5_000).pipe(async () => {
+    timer(30_000).pipe(async () => {
       const withdrawableAllocations = await this.withdrawableAllocations()
       for (const withdrawableAllocation of withdrawableAllocations) {
-        if (
-          BigNumber.from(withdrawableAllocation.queryFees).gt(
-            withdrawableAllocation.withdrawnFees,
-          )
-        ) {
-          await this.withdrawAllocation(withdrawableAllocation)
-        } else {
-          await this.cleanupWithdrawableAllocation(withdrawableAllocation.allocation)
-        }
+        await this.withdrawAllocation(withdrawableAllocation)
       }
     })
   }
@@ -231,13 +223,6 @@ export class TransferManager {
         })
       }
     }
-  }
-
-  private async cleanupWithdrawableAllocation(allocation: Address): Promise<void> {
-    // Delete all transfers for the allocation (cleanup)
-    await this.models.transfers.destroy({
-      where: { allocation },
-    })
   }
 
   private isGraphTransfer(transfer: FullTransferState): boolean {
@@ -341,6 +326,9 @@ export class TransferManager {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.transfers.sequelize!.transaction(async (transaction) => {
         // Mark the transfer as resolved
+        //
+        // NOTE: We may later want to delete these transfers if there
+        // are many of them.
         await this.models.transfers.update(
           { status: TransferStatus.RESOLVED },
           { where: { routingId }, transaction },
