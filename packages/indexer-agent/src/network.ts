@@ -457,6 +457,7 @@ export class Network {
   }
 
   async disputableAllocations(
+    currentEpoch: BigNumber,
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {

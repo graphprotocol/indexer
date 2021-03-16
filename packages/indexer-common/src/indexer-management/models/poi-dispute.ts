@@ -87,6 +87,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
               return
             }
 
+            //TODO: Ensure this error message gets logged when this throws (repeat for each validation function)
             throw new Error(`Allocation Indexer ID must be a valid hex string`)
           },
         },

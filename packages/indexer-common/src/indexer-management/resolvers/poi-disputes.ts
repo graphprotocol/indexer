@@ -30,7 +30,8 @@ export default {
   ): Promise<object | null> => {
     const createdDisputes = await models.POIDispute.bulkCreate(disputes, {
       returning: true,
-      validate: false,
+      validate: true,
+      ignoreDuplicates: true,
     })
     return createdDisputes.map((dispute: POIDispute) => dispute.toGraphQL())
   },

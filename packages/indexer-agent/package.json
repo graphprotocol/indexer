@@ -11,7 +11,8 @@
     "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "prepare": "yarn format && yarn lint && tsc",
-    "start": "yarn prepare && node ./dist/index.js start"
+    "start": "yarn prepare && node ./dist/index.js start",
+    "test": "jest --runInBand --detectOpenHandles --passWithNoTests --verbose"
   },
   "bin": {
     "graph-indexer-agent": "bin/graph-indexer-agent"
@@ -45,6 +46,8 @@
     "@types/ngeohash": "0.6.2",
     "@types/node": "14.14.6",
     "@types/yargs": "15.0.9",
+    "jest": "26.6.1",
+    "ts-jest": "26.4.3",
     "typechain": "3.0.0"
   },
   "resolutions": {
