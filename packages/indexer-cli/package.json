@@ -13,7 +13,7 @@
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.3.0",
+    "@graphprotocol/common-ts": "1.3.1",
     "@graphprotocol/indexer-common": "^0.10.0",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.40",
