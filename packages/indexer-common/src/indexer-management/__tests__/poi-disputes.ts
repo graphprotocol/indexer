@@ -15,7 +15,11 @@ import {
   IndexerManagementDefaults,
   IndexerManagementFeatures,
 } from '../client'
-import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
+import {
+  defineIndexerManagementModels,
+  IndexerManagementModels,
+  POIDisputeAttributes,
+} from '../models'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,8 +32,13 @@ const STORE_POI_DISPUTES_MUTATION = gql`
       allocationIndexer
       allocationAmount
       allocationProof
-      allocationClosedBlockHash
-      indexerProof
+      closedEpoch
+      closedEpochStartBlockHash
+      closedEpochStartBlockNumber
+      closedEpochReferenceProof
+      previousEpochStartBlockHash
+      previousEpochStartBlockNumber
+      previousEpochReferenceProof
       status
     }
   }
@@ -42,8 +51,13 @@ const GET_POI_DISPUTE_QUERY = gql`
       allocationIndexer
       allocationAmount
       allocationProof
-      allocationClosedBlockHash
-      indexerProof
+      closedEpoch
+      closedEpochStartBlockHash
+      closedEpochStartBlockNumber
+      closedEpochReferenceProof
+      previousEpochStartBlockHash
+      previousEpochStartBlockNumber
+      previousEpochReferenceProof
       status
     }
   }
@@ -56,8 +70,13 @@ const GET_POI_DISPUTES_QUERY = gql`
       allocationIndexer
       allocationAmount
       allocationProof
-      allocationClosedBlockHash
-      indexerProof
+      closedEpoch
+      closedEpochStartBlockHash
+      closedEpochStartBlockNumber
+      closedEpochReferenceProof
+      previousEpochStartBlockHash
+      previousEpochStartBlockNumber
+      previousEpochReferenceProof
       status
     }
   }
@@ -68,6 +87,81 @@ const DELETE_POI_DISPUTES_QUERY = gql`
     deleteDisputes(allocationIDs: $allocationIDs)
   }
 `
+
+const TEST_DISPUTE_1: POIDisputeAttributes = {
+  allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+  allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
+  allocationAmount: '500000000000000000000000',
+  allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
+  closedEpoch: 203,
+  closedEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  closedEpochStartBlockNumber: 848484,
+  closedEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  previousEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  previousEpochStartBlockNumber: 848484,
+  previousEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  status: 'potential',
+}
+const TEST_DISPUTE_2: POIDisputeAttributes = {
+  allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
+  allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
+  allocationAmount: '500000000000000000000000',
+  allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
+  closedEpoch: 203,
+  closedEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  closedEpochStartBlockNumber: 848484,
+  closedEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  previousEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  previousEpochStartBlockNumber: 848484,
+  previousEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  status: 'potential',
+}
+
+const TEST_DISPUTE_3: POIDisputeAttributes = {
+  allocationID: '0x0000000000000000000000000000000000000002',
+  allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
+  allocationAmount: '500000000000000000000000',
+  allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
+  closedEpoch: 203,
+  closedEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  closedEpochStartBlockNumber: 848484,
+  closedEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  previousEpochStartBlockHash:
+    '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
+  previousEpochStartBlockNumber: 848484,
+  previousEpochReferenceProof:
+    '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
+  status: 'potential',
+}
+
+const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toObject(dispute: POIDisputeAttributes): Record<string, any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expected: Record<string, any> = Object.assign({}, dispute)
+  expected.allocationAmount = expected.allocationAmount.toString()
+  return expected
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function toObjectArray(disputes: POIDisputeAttributes[]): Record<string, any>[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const expected: Record<string, any>[] = []
+  disputes.forEach((dispute) => {
+    expected.push(toObject(dispute))
+  })
+  return expected
+}
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
@@ -92,7 +186,7 @@ const setup = async () => {
   address = '0xtest'
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
-  logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+  logger = createLogger({ name: 'POI dispute tests', level: 'trace' })
 }
 
 const teardown = async () => {
@@ -103,19 +197,16 @@ describe('POI disputes', () => {
   beforeEach(setup)
   afterEach(teardown)
 
-  test('Store POI dispute', async () => {
-    const dispute = {
-      allocationID: '0x0000000000000000000000000000000000000000',
-      allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-      allocationAmount: '100',
-      allocationProof:
-        '0x0000000000000000000000000000000000000000000000000000000000000000',
-      allocationClosedBlockHash:
-        '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-      indexerProof: '0x0000000000000000000000000000000000000000000000000000000000000000',
-      status: 'Closed',
-    }
-    const expected = { ...dispute }
+  test('Store POI disputes', async () => {
+    const disputes = TEST_DISPUTES_ARRAY
+    // let expected: Record<string, any>[] = [];
+    // disputes.forEach(dispute => {
+    //   expected.push(Object.assign({}, dispute))
+    // });
+    //
+    // expected = expected.map((dispute) => toGraphQL(dispute))
+    const expected = toObjectArray(disputes)
+    // const expected = disputes.map(dispute => toGraphQL(dispute))
 
     const client = await createIndexerManagementClient({
       models,
@@ -129,10 +220,10 @@ describe('POI disputes', () => {
     await expect(
       client
         .mutation(STORE_POI_DISPUTES_MUTATION, {
-          disputes: [dispute],
+          disputes: disputes,
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.storeDisputes', [expected])
+    ).resolves.toHaveProperty('data.storeDisputes', expected)
   })
 
   test('Get non-existent dispute', async () => {
@@ -155,32 +246,7 @@ describe('POI disputes', () => {
   })
 
   test('Get one dispute at a time', async () => {
-    const disputes = [
-      {
-        allocationID: '0x0000000000000000000000000000000000000001',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-      {
-        allocationID: '0x0000000000000000000000000000000000000002',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-    ]
+    const disputes = TEST_DISPUTES_ARRAY
 
     const client = await createIndexerManagementClient({
       models,
@@ -203,32 +269,7 @@ describe('POI disputes', () => {
   })
 
   test('Get all disputes', async () => {
-    const disputes = [
-      {
-        allocationID: '0x0000000000000000000000000000000000000000',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-      {
-        allocationID: '0x0000000000000000000000000000000000000001',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-    ]
+    const disputes = TEST_DISPUTES_ARRAY
 
     const client = await createIndexerManagementClient({
       models,
@@ -247,32 +288,7 @@ describe('POI disputes', () => {
   })
 
   test('Remove dispute from store', async () => {
-    const disputes = [
-      {
-        allocationID: '0x0000000000000000000000000000000000000000',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-      {
-        allocationID: '0x0000000000000000000000000000000000000001',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-    ]
+    const disputes = TEST_DISPUTES_ARRAY
 
     const client = await createIndexerManagementClient({
       models,
@@ -288,11 +304,11 @@ describe('POI disputes', () => {
     await expect(
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
-          allocationIDs: ['0x0000000000000000000000000000000000000001'],
+          allocationIDs: ['0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'],
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
-    disputes.splice(1, 1)
+    disputes.splice(0, 1)
 
     await expect(
       client.query(GET_POI_DISPUTES_QUERY).toPromise(),
@@ -300,44 +316,7 @@ describe('POI disputes', () => {
   })
 
   test('Remove multiple disputes from store', async () => {
-    const disputes = [
-      {
-        allocationID: '0x0000000000000000000000000000000000000000',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-      {
-        allocationID: '0x0000000000000000000000000000000000000001',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-      {
-        allocationID: '0x0000000000000000000000000000000000000002',
-        allocationIndexer: '0xCOFFEECOFFEECOFFEECOFFEECOFFEECOFFEECOFF',
-        allocationAmount: '100',
-        allocationProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        allocationClosedBlockHash:
-          '0xd75c26ba1134debe856894debe64e0aad9f6eb61289af648f07113fd868c23a0',
-        indexerProof:
-          '0x0000000000000000000000000000000000000000000000000000000000000000',
-        status: 'Closed',
-      },
-    ]
+    const disputes = [TEST_DISPUTE_1, TEST_DISPUTE_2, TEST_DISPUTE_3]
 
     const client = await createIndexerManagementClient({
       models,
@@ -354,13 +333,13 @@ describe('POI disputes', () => {
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
           allocationIDs: [
-            '0x0000000000000000000000000000000000000001',
-            '0x0000000000000000000000000000000000000002',
+            '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+            '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
           ],
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 2)
-    disputes.splice(1, 2)
+    disputes.splice(0, 2)
 
     await expect(
       client.query(GET_POI_DISPUTES_QUERY).toPromise(),

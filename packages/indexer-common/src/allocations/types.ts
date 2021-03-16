@@ -19,6 +19,7 @@ export interface Allocation {
   createdAtBlockHash: string
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined
+  previousEpochStartBlockHash: string | undefined
   closedAtBlockHash: string
   poi: string | undefined
 }
@@ -43,8 +44,9 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
-  closedAtEpochStartBlockHash: allocation.closedAtEpochStartBlockHash,
   closedAtEpoch: allocation.closedAtEpoch,
+  closedAtEpochStartBlockHash: undefined,
+  previousEpochStartBlockHash: undefined,
   closedAtBlockHash: allocation.closedAtBlockHash,
   poi: allocation.poi,
 })
@@ -55,7 +57,11 @@ export interface RewardsPool {
   allocationCreatedAtBlockHash: string
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined
+  closedAtEpochStartBlockNumber: number | undefined
+  previousEpochStartBlockHash: string | undefined
+  previousEpochStartBlockNumber: number | undefined
   referencePOI: string | undefined
+  referencePreviousPOI: string | undefined
 }
 
 export const allocationRewardsPool = (allocation: Allocation): RewardsPool => ({
@@ -64,7 +70,11 @@ export const allocationRewardsPool = (allocation: Allocation): RewardsPool => ({
   allocationCreatedAtBlockHash: allocation.createdAtBlockHash,
   closedAtEpoch: allocation.closedAtEpoch,
   closedAtEpochStartBlockHash: allocation.closedAtEpochStartBlockHash,
+  closedAtEpochStartBlockNumber: undefined,
+  previousEpochStartBlockHash: allocation.previousEpochStartBlockHash,
+  previousEpochStartBlockNumber: undefined,
   referencePOI: undefined,
+  referencePreviousPOI: undefined,
 })
 
 export interface Epoch {

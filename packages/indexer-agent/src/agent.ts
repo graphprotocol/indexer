@@ -431,13 +431,24 @@ class Agent {
           const dispute: POIDisputeAttributes = {
             allocationID: allocation.id,
             allocationIndexer: allocation.indexer,
-            allocationAmount: allocation.allocatedTokens,
+            allocationAmount: allocation.allocatedTokens.toString(),
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             allocationProof: allocation.poi!,
-            allocationClosedBlockHash: allocation.closedAtBlockHash,
+            closedEpoch: allocation.closedAtEpoch,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            indexerProof: rewardsPool!.referencePOI!,
-            status: 'pending',
+            closedEpochReferenceProof: rewardsPool!.referencePOI!,
+            closedEpochStartBlockHash: allocation.closedAtBlockHash,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            closedEpochStartBlockNumber: rewardsPool!
+              .closedAtEpochStartBlockNumber!,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            previousEpochReferenceProof: rewardsPool!.referencePreviousPOI!,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            previousEpochStartBlockHash: allocation.previousEpochStartBlockHash!,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            previousEpochStartBlockNumber: rewardsPool!
+              .previousEpochStartBlockNumber!,
+            status: 'Potential',
           }
           flaggedAllocations.push(dispute)
         }

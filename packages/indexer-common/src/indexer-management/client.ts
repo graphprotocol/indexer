@@ -48,8 +48,13 @@ const SCHEMA_SDL = gql`
     allocationIndexer: String!
     allocationAmount: BigInt!
     allocationProof: String!
-    allocationClosedBlockHash: String!
-    indexerProof: String!
+    closedEpoch: Int!
+    closedEpochStartBlockHash: String!
+    closedEpochStartBlockNumber: Int!
+    closedEpochReferenceProof: String!
+    previousEpochStartBlockHash: String!
+    previousEpochStartBlockNumber: Int!
+    previousEpochReferenceProof: String!
     status: String!
   }
 
@@ -58,8 +63,13 @@ const SCHEMA_SDL = gql`
     allocationIndexer: String!
     allocationAmount: BigInt!
     allocationProof: String!
-    allocationClosedBlockHash: String!
-    indexerProof: String!
+    closedEpoch: Int!
+    closedEpochStartBlockHash: String!
+    closedEpochStartBlockNumber: Int!
+    closedEpochReferenceProof: String!
+    previousEpochStartBlockHash: String!
+    previousEpochStartBlockNumber: Int!
+    previousEpochReferenceProof: String!
     status: String!
   }
 

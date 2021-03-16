@@ -21,10 +21,15 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
 > = {
   allocationID: x => x,
   allocationIndexer: x => x,
-  allocationAmount: (x: string) => BigNumber.from(x),
+  allocationAmount: x => x,
   allocationProof: x => x,
-  allocationClosedBlockHash: x => x,
-  indexerProof: x => x,
+  closedEpoch: x => +x,
+  closedEpochStartBlockHash: x => x,
+  closedEpochStartBlockNumber: x => +x,
+  closedEpochReferenceProof: x => x,
+  previousEpochStartBlockHash: x => x,
+  previousEpochStartBlockNumber: x => +x,
+  previousEpochReferenceProof: x => x,
   status: x => x,
 }
 
@@ -32,12 +37,12 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
  * Parses a POI dispute returned from the indexer management GraphQL
  * API into normalized form.
  */
-const disputesFromGraphQL = (
-  cost: Partial<POIDisputeAttributes>,
+const disputeFromGraphQL = (
+  dispute: Partial<POIDisputeAttributes>,
 ): POIDisputeAttributes => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj = {} as any
-  for (const [key, value] of Object.entries(cost)) {
+  for (const [key, value] of Object.entries(dispute)) {
     if (key === '__typename') {
       continue
     }
@@ -140,7 +145,7 @@ export class Indexer {
     deployment: SubgraphDeploymentID,
     block: EthereumBlock,
     indexerAddress: string,
-  ): Promise<string | null> {
+  ): Promise<string | undefined> {
     try {
       return await pRetry(
         async attempt => {
@@ -180,6 +185,9 @@ export class Indexer {
           if (result.error) {
             throw result.error
           }
+          this.logger.info('Proof of indexing returned', {
+            proof: result.data.proofOfIndexing,
+          })
 
           return result.data.proofOfIndexing
         },
@@ -202,7 +210,7 @@ export class Indexer {
         indexer: this.indexerAddress,
         err: err,
       })
-      return null
+      return undefined
     }
   }
 
@@ -310,19 +318,24 @@ export class Indexer {
 
   async storePoiDisputes(
     disputes: POIDisputeAttributes[],
-  ): Promise<POIDisputeAttributes> {
+  ): Promise<POIDisputeAttributes[]> {
     try {
       const result = await this.indexerManagement
         .mutation(
           gql`
-            mutation storeDisputes($disputes: POIDisputeInput!) {
+            mutation storeDisputes($disputes: [POIDisputeInput!]!) {
               storeDisputes(disputes: $disputes) {
-                allocationId
+                allocationID
                 allocationIndexer
                 allocationAmount
                 allocationProof
-                allocationClosedBlockHash
-                indexerProof
+                closedEpoch
+                closedEpochStartBlockHash
+                closedEpochStartBlockNumber
+                closedEpochReferenceProof
+                previousEpochStartBlockHash
+                previousEpochStartBlockNumber
+                previousEpochReferenceProof
                 status
               }
             }
@@ -334,7 +347,63 @@ export class Indexer {
       if (result.error) {
         throw result.error
       }
-      return disputesFromGraphQL(result.data.storeDisputes)
+
+      return result.data.storeDisputes.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (dispute: Record<string, any>) => {
+          return disputeFromGraphQL(dispute)
+        },
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE039, error)
+      this.logger.error('Failed to store potential POI disputes', {
+        err,
+      })
+      throw err
+    }
+  }
+
+  async fetchPOIDisputes(status: string): Promise<POIDisputeAttributes> {
+    try {
+      const result = await this.indexerManagement
+        .query(
+          gql`
+            query disputes {
+              disputes {
+                allocationID
+                allocationIndexer
+                allocationAmount
+                allocationProof
+                closedEpoch
+                closedEpochStartBlockHash
+                closedEpochStartBlockNumber
+                closedEpochReferenceProof
+                previousEpochStartBlockHash
+                previousEpochStartBlockNumber
+                previousEpochReferenceProof
+                status
+              }
+            }
+          `,
+          {},
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      this.logger.warn('fetched disputes: ', {
+        resultData: result.data,
+        status: status,
+      })
+
+      return result.data.disputes.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (dispute: Record<string, any>) => {
+          return disputeFromGraphQL(dispute)
+        },
+      )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE039, error)
       this.logger.error('Failed to store potential POI disputes', {
