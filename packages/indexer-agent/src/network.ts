@@ -460,58 +460,79 @@ export class Network {
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
-    // FIXME: Paginate to support more than 1000 disputable at a time
+    let dataRemaining = true
+    let allocations: Allocation[] = []
+
     try {
       const zeroPOI = utils.hexlify(Array(32).fill(0))
-      const result = await this.subgraph
-        .query(
-          gql`
-            query allocations(
-              $deployments: [String!]!
-              $minimumAllocation: Int!
-              $zeroPOI: String!
-            ) {
-              allocations(
-                where: {
-                  subgraphDeployment_in: $deployments
-                  allocatedTokens_gt: $minimumAllocation
-                  status: Closed
-                  poi_not: $zeroPOI
-                }
-                first: 1000
+      // TODO: Use disputable epochs period value from the network instead of hardcoding to 2 epochs
+      const disputableEpoch = currentEpoch.toNumber() - 2
+      let lastCreatedAt = 0
+      while (dataRemaining) {
+        const result = await this.subgraph
+          .query(
+            gql`
+              query allocations(
+                $deployments: [String!]!
+                $minimumAllocation: Int!
+                $disputableEpoch: Int!
+                $zeroPOI: String!
+                $createdAt: Int!
               ) {
-                id
-                indexer {
+                allocations(
+                  where: {
+                    createdAt_gt: $createdAt
+                    subgraphDeployment_in: $deployments
+                    allocatedTokens_gt: $minimumAllocation
+                    closedAtEpoch_gte: $disputableEpoch
+                    status: Closed
+                    poi_not: $zeroPOI
+                  }
+                  first: 1000
+                  orderBy: createdAt
+                  orderDirection: asc
+                ) {
                   id
-                }
-                poi
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                closedAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalAmount
+                  createdAt
+                  indexer {
+                    id
+                  }
+                  poi
+                  allocatedTokens
+                  createdAtEpoch
+                  closedAtEpoch
+                  closedAtBlockHash
+                  subgraphDeployment {
+                    id
+                    stakedTokens
+                    signalAmount
+                  }
                 }
               }
-            }
-          `,
-          {
-            deployments: deployments.map(subgraph => subgraph.bytes32),
-            minimumAllocation,
-            zeroPOI,
-          },
-        )
-        .toPromise()
+            `,
+            {
+              deployments: deployments.map(subgraph => subgraph.bytes32),
+              minimumAllocation,
+              disputableEpoch,
+              createdAt: lastCreatedAt,
+              zeroPOI,
+            },
+          )
+          .toPromise()
 
-      if (result.error) {
-        throw result.error
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          dataRemaining = false
+        } else {
+          lastCreatedAt = result.data.allocations.slice(-1)[0].createdAt
+          const parsedResult: Allocation[] = result.data.allocations.map(
+            parseGraphQLAllocation,
+          )
+          allocations = allocations.concat(parsedResult)
+        }
       }
-
-      const allocations: Allocation[] = result.data.allocations.map(
-        parseGraphQLAllocation,
-      )
 
       const disputableEpochs = await this.epochs([
         ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
