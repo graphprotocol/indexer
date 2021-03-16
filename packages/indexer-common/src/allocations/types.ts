@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
@@ -32,6 +31,7 @@ export enum AllocationStatus {
   Claimed,
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
@@ -90,6 +90,7 @@ export interface Epoch {
   totalDelegatorRewards: number
 }
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export const parseGraphQLEpochs = (epoch: any): Epoch => ({
   id: epoch.id,
   startBlock: epoch.startBlock,
