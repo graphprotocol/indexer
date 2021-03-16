@@ -171,7 +171,7 @@ export class TransferManager {
       while (this.transfersToResolve.length > 0) {
         // Check whether the next transfer's timeout has expired
         let transfer = this.transfersToResolve.peek()
-        if (transfer.timeout >= Date.now()) {
+        if (transfer.timeout <= Date.now()) {
           // Remove the transfer from the processing queue
           transfer = this.transfersToResolve.pop()
 
