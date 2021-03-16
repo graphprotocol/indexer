@@ -652,7 +652,10 @@ class Agent {
       logger.info(
         `Deployment is not (or no longer) worth indexing, close all active allocations that are at least one epoch old`,
         {
-          allocations: activeAllocations.map(allocation => allocation.id),
+          activeAllocations: activeAllocations.map(allocation => allocation.id),
+          eligibleForClose: activeAllocations
+            .filter(allocation => allocation.createdAtEpoch < epoch)
+            .map(allocation => allocation.id),
         },
       )
 
@@ -668,7 +671,7 @@ class Agent {
             const poi = await this.indexer.proofOfIndexing(
               deployment,
               epochStartBlock,
-              this.indexer.indexerAddress
+              this.indexer.indexerAddress,
             )
 
             // Don't proceed if the POI is 0x0 or null
