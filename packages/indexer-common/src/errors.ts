@@ -50,6 +50,7 @@ export enum IndexerErrorCode {
   IE037 = 'IE037',
   IE038 = 'IE038',
   IE039 = 'IE039',
+  IE040 = 'IE040',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -92,6 +93,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE037: 'Failed to query disputable allocations',
   IE038: 'Failed to query epochs',
   IE039: 'Failed to store pending POI disputes',
+  IE040: 'Failed to fetch POI disputes',
 }
 
 export type IndexerErrorCause = unknown
