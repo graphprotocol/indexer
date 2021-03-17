@@ -23,6 +23,7 @@ import { Evt } from 'evt'
 import { DHeap } from '@thi.ng/heaps'
 import pRetry from 'p-retry'
 import { Transaction, Op, Sequelize } from 'sequelize'
+import { indexerError, IndexerErrorCode } from '../errors'
 
 // Transfers that can be resolved are resolved with a delay of 10 minutes
 const TRANSFER_RESOLVE_DELAY = 600_000
@@ -200,28 +201,18 @@ export class TransferManager {
         where: { status: TransferStatus.ALLOCATION_CLOSED },
       })
     } catch (err) {
-      // FIXME: Add indexerError
-      this.logger.error(`Failed to query transfers ready to resolve`, { err })
+      this.logger.error(`Failed to query transfers to resolve`, {
+        err: indexerError(IndexerErrorCode.IE041, err),
+      })
       return
     }
 
     for (const transfer of transfers) {
-      try {
-        this.transfersToResolve.push({
-          transfer,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          timeout: transfer.allocationClosedAt!.valueOf() + TRANSFER_RESOLVE_DELAY,
-        })
-      } catch (err) {
-        // TODO: Add indexerError
-        this.logger.error(`Failed to queue transfer for resolving`, {
-          routingId: transfer.routingId,
-          allocation: transfer.allocation,
-          status: transfer.status,
-          allocationClosedAt: transfer.allocationClosedAt,
-          err,
-        })
-      }
+      this.transfersToResolve.push({
+        transfer,
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        timeout: transfer.allocationClosedAt!.valueOf() + TRANSFER_RESOLVE_DELAY,
+      })
     }
   }
 
@@ -296,12 +287,11 @@ export class TransferManager {
         )
       })
     } catch (err) {
-      // FIXME: Add indexerError for this
       this.logger.error(`Failed to add transfer to the database`, {
         routingId,
         allocation,
         signer,
-        err,
+        err: indexerError(IndexerErrorCode.IE042, err),
       })
       return
     }
@@ -317,7 +307,7 @@ export class TransferManager {
     const { routingId, allocation } = payload.transfer.meta!
     const signer = payload.transfer.transferState.signer
 
-    this.logger.info(`Mark transfer as resolved in the db`, {
+    this.logger.info(`Mark transfer as resolved`, {
       routingId,
       allocation,
     })
@@ -350,10 +340,9 @@ export class TransferManager {
         await summary.save({ transaction })
       })
     } catch (err) {
-      // FIXME: Add indexerError for this
-      this.logger.error(`Failed to mark transfer as resolved in the db`, {
+      this.logger.error(`Failed to mark transfer as resolved`, {
         routingId,
-        err,
+        err: indexerError(IndexerErrorCode.IE043, err),
       })
     }
   }
@@ -393,11 +382,10 @@ export class TransferManager {
         where: { allocation, status: { [Op.not]: TransferStatus.OPEN } },
       })
     } catch (err) {
-      // FIXME: Add indexerError for this
-      this.logger.error(`Failed to collect query fes via the rebate pool`, {
+      this.logger.error(`Failed to collect query fees on chain`, {
         allocation,
         queryFees,
-        err,
+        err: indexerError(IndexerErrorCode.IE044, err),
       })
     }
   }
@@ -489,11 +477,10 @@ export class TransferManager {
       }
       return true
     } catch (err) {
-      // FIXME: Add indexerError for this
       this.logger.error(`Failed to queue transfers for resolving`, {
         allocation: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
-        err,
+        err: indexerError(IndexerErrorCode.IE045, err),
       })
       return false
     }
@@ -536,8 +523,11 @@ export class TransferManager {
         throw result.getError()
       }
     } catch (err) {
-      // FIXME: Add indexerError for this
-      this.logger.error(`Failed to resolve transfer`, { routingId, allocation, err })
+      this.logger.error(`Failed to resolve transfer`, {
+        routingId,
+        allocation,
+        err: indexerError(IndexerErrorCode.IE046, err),
+      })
       failed = true
     }
 
@@ -561,11 +551,10 @@ export class TransferManager {
           await summary.save({ transaction })
         })
       } catch (err) {
-        // FIXME: Add indexerError for this
-        this.logger.critical(`Failed to mark transfer as failed in the database`, {
+        this.logger.critical(`Failed to mark transfer as failed`, {
           routingId,
           allocation,
-          err,
+          err: indexerError(IndexerErrorCode.IE047, err),
         })
       }
     }
@@ -612,7 +601,6 @@ export class TransferManager {
       })
 
       if (result.isError) {
-        // FIXME: Add indexerError for this
         const err = result.getError()
         this.logger.error(`Failed to withdraw`, {
           channelAddress: this.vector.channelAddress,
@@ -621,13 +609,13 @@ export class TransferManager {
           callData,
           err,
         })
-        throw result.getError()
+        throw err
       }
     } catch (err) {
-      // TODO: add indexerError
       this.logger.error(`Failed to withdraw query fees for allocation`, {
         allocation: withdrawal.allocation,
         queryFees: withdrawal.queryFees.toString(),
+        err: indexerError(IndexerErrorCode.IE048, err),
       })
     }
   }
