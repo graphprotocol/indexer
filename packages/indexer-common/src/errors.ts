@@ -47,6 +47,14 @@ export enum IndexerErrorCode {
   IE034 = 'IE034',
   IE035 = 'IE035',
   IE036 = 'IE036',
+  IE037 = 'IE037',
+  IE038 = 'IE038',
+  IE039 = 'IE039',
+  IE040 = 'IE040',
+  IE041 = 'IE041',
+  IE042 = 'IE042',
+  IE043 = 'IE043',
+  IE044 = 'IE044',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -86,6 +94,14 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE034: 'Not authorized as an operator for the indexer',
   IE035: 'Unhandled promise rejection',
   IE036: 'Unhandled exception',
+  IE037: 'Failed to query transfers to resolve',
+  IE038: 'Failed to add transfer to the database',
+  IE039: 'Failed to mark transfer as resolved',
+  IE040: 'Failed to collect query fees on chain',
+  IE041: 'Failed to queue transfers for resolving',
+  IE042: 'Failed to resolve transfer',
+  IE043: 'Failed to mark transfer as failed',
+  IE044: 'Failed to withdraw query fees for allocation',
 }
 
 export type IndexerErrorCause = unknown
