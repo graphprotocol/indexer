@@ -534,9 +534,6 @@ export class Network {
     amount: BigNumber,
     activeAllocations: Allocation[],
   ): Promise<Allocation | undefined> {
-    // FIXME: This is currently hard-coded but shouldn't be.
-    const price = parseGRT('0.01')
-
     const logger = this.logger.child({ deployment: deployment.display })
 
     if (amount.lt('0')) {
@@ -604,7 +601,7 @@ export class Network {
         allocationId,
       )
       if (state !== 0) {
-        logger.debug(`Skipping Allocation as it already exists onchain`, {
+        logger.debug(`Skipping allocation as it already exists onchain`, {
           indexer: this.indexerAddress,
           allocation: allocationId,
           state,
@@ -616,7 +613,6 @@ export class Network {
         indexer: this.indexerAddress,
         amount: formatGRT(amount),
         allocation: allocationId,
-        price,
       })
 
       const receipt = await this.executeTransaction(
