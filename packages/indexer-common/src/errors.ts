@@ -51,6 +51,14 @@ export enum IndexerErrorCode {
   IE038 = 'IE038',
   IE039 = 'IE039',
   IE040 = 'IE040',
+  IE041 = 'IE041',
+  IE042 = 'IE042',
+  IE043 = 'IE043',
+  IE044 = 'IE044',
+  IE045 = 'IE045',
+  IE046 = 'IE046',
+  IE047 = 'IE047',
+  IE048 = 'IE048',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -94,6 +102,14 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE038: 'Failed to query epochs',
   IE039: 'Failed to store pending POI disputes',
   IE040: 'Failed to fetch POI disputes',
+  IE041: 'Failed to query transfers to resolve',
+  IE042: 'Failed to add transfer to the database',
+  IE043: 'Failed to mark transfer as resolved',
+  IE044: 'Failed to collect query fees on chain',
+  IE045: 'Failed to queue transfers for resolving',
+  IE046: 'Failed to resolve transfer',
+  IE047: 'Failed to mark transfer as failed',
+  IE048: 'Failed to withdraw query fees for allocation',
 }
 
 export type IndexerErrorCause = unknown

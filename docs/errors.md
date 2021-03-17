@@ -526,3 +526,131 @@ An operation failed somewhere in the system but this error wasn't handled.
 
 This is likely to be an unhandled error in indexer-agent and indexer-service and
 is best reported as an issue on https://github.com/graphprotocol/indexer/issues.
+
+## IE037
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE038
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE039
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE040
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE041
+
+**Summary**
+
+There is a problem looking up Vector transfers for closed allocations from
+the database. This is most likely due to a database connection issue.
+
+**Solution**
+
+Check the logs for details about database issues. It could be that
+the database cannot be reached for some reason.
+
+## IE042
+
+**Summary**
+
+A Vector transfer cannot be stored in the database. Most likely, this is a
+database connection error but it could also be a bug caused by a conflict
+with data that is already in the database. The error cause in the logs should
+reveal what the exact problem is.
+
+**Solution**
+
+See also: [#IE041](#ie041).
+
+## IE043
+
+**Summary**
+
+A Vector transfer cannot be marked as resolved in the database. Most likely,
+this is a database connection error but it could also be a bug caused by a
+conflict with data that is already in the database. The error cause in the
+logs should reveal what the exact problem is.
+
+**Solution**
+
+See also: [#IE041](#ie041).
+
+## IE044
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE045
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE046
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE047
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
+
+## IE048
+
+**Summary**
+
+TODO
+
+**Solution**
+
+TODO
