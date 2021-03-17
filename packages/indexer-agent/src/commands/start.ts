@@ -520,7 +520,7 @@ export default {
     })
 
     // Identify the Graph transfer definition address
-    // FIXME: Pick it from the `contracts`
+    // TODO: Pick it from the `contracts`
     const vectorTransferDefinition = toAddress(
       argv.vectorTransferDefinition === 'auto'
         ? ethereum.network.chainId === 1

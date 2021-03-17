@@ -317,7 +317,7 @@ export default {
     logger.info('Successfully connected to contracts')
 
     // Identify the Graph transfer definition address
-    // FIXME: Pick it from the `contracts`
+    // TODO: Pick it from the `contracts`
     const vectorTransferDefinition = toAddress(
       argv.vectorTransferDefinition === 'auto'
         ? network.chainId === 1
