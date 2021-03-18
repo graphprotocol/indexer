@@ -437,7 +437,8 @@ class Agent {
             closedEpoch: allocation.closedAtEpoch,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             closedEpochReferenceProof: rewardsPool!.referencePOI!,
-            closedEpochStartBlockHash: allocation.closedAtBlockHash,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            closedEpochStartBlockHash: allocation.closedAtEpochStartBlockHash!,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             closedEpochStartBlockNumber: rewardsPool!
               .closedAtEpochStartBlockNumber!,

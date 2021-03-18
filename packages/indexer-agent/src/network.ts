@@ -69,6 +69,8 @@ export class Network {
   isOperator: Eventual<boolean>
   restakeRewards: boolean
   queryFeesCollectedClaimThreshold: BigNumber
+  poiDisputeMonitoring: boolean
+  poiDisputableEpochs: number
 
   private constructor(
     logger: Logger,
@@ -83,6 +85,8 @@ export class Network {
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
     queryFeesCollectedClaimThreshold: BigNumber,
+    poiDisputeMonitoring: boolean,
+    poiDisputableEpochs: number,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -96,6 +100,8 @@ export class Network {
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
     this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
+    this.poiDisputeMonitoring = poiDisputeMonitoring
+    this.poiDisputableEpochs = poiDisputableEpochs
   }
 
   async executeTransaction(
@@ -138,6 +144,8 @@ export class Network {
     networkSubgraph: Client | SubgraphDeploymentID,
     restakeRewards: boolean,
     queryFeesCollectedClaimThreshold: number,
+    poiDisputeMonitoring: boolean,
+    poiDisputableEpochs: number,
   ): Promise<Network> {
     const subgraph =
       networkSubgraph instanceof Client
@@ -214,6 +222,8 @@ export class Network {
       isOperator,
       restakeRewards,
       parseGRT(queryFeesCollectedClaimThreshold.toString()),
+      poiDisputeMonitoring,
+      poiDisputableEpochs,
     )
   }
 
@@ -461,13 +471,17 @@ export class Network {
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
+    if (!this.poiDisputeMonitoring) {
+      this.logger.info('POI monitoring disabled, skipping')
+      return Promise.resolve([])
+    }
+
     let dataRemaining = true
     let allocations: Allocation[] = []
 
     try {
       const zeroPOI = utils.hexlify(Array(32).fill(0))
-      // TODO: Use disputable epochs period value from the network instead of hardcoding to 2 epochs
-      const disputableEpoch = currentEpoch.toNumber() - 2
+      const disputableEpoch = currentEpoch.toNumber() - this.poiDisputableEpochs
       let lastCreatedAt = 0
       while (dataRemaining) {
         const result = await this.subgraph
