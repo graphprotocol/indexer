@@ -284,7 +284,7 @@ export default {
       .option('vector-event-server-port', {
         description: 'Port to serve the vector event server at',
         type: 'number',
-        required: true,
+        required: false,
         default: 6801,
         group: 'Payments',
       })
