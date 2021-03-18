@@ -219,7 +219,7 @@ export class TransferManager {
   private isGraphTransfer(transfer: FullTransferState): boolean {
     const eventTransferDefinition = toAddress(transfer.transferDefinition)
     if (eventTransferDefinition !== this.vectorTransferDefinition) {
-      this.logger.warn(`Non-Graph transfer resolved`, {
+      this.logger.warn(`Non-Graph transfer detected`, {
         eventTransferDefinition,
         expectedTransferDefinition: this.vectorTransferDefinition,
       })
