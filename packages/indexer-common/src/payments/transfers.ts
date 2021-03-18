@@ -316,9 +316,6 @@ export class TransferManager {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.transfers.sequelize!.transaction(async (transaction) => {
         // Mark the transfer as resolved
-        //
-        // NOTE: We may later want to delete these transfers if there
-        // are many of them.
         await this.models.transfers.update(
           { status: TransferStatus.RESOLVED },
           { where: { routingId }, transaction },
