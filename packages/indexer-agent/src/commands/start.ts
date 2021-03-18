@@ -227,6 +227,19 @@ export default {
             [],
           ),
       })
+      .option('poi-disputable-epochs', {
+        description:
+          'The number of epochs in the past to look for potential POI disputes',
+        type: 'number',
+        default: 1,
+        group: 'Disputes',
+      })
+      .option('poi-dispute-monitoring', {
+        description: 'Monitor the network for potential POI disputes',
+        type: 'boolean',
+        default: true,
+        group: 'Disputes',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -399,6 +412,8 @@ export default {
       networkSubgraph,
       argv.restakeRewards,
       argv.allocationClaimThreshold,
+      argv.poiDisputeMonitoring,
+      argv.poiDisputableEpochs,
     )
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
