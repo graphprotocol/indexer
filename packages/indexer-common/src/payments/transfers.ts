@@ -348,12 +348,13 @@ export class TransferManager {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const { allocation, queryFees } = payload.transfer.meta!
 
+    let success = false
     try {
-      await pRetry(
+      success = await pRetry(
         async () => {
           this.logger.debug(`Collecting query fees via the rebate pool`, {
-            allocation: payload.transfer.meta.allocation,
-            queryFees: formatGRT(payload.transfer.meta.queryFees),
+            allocation,
+            queryFees: formatGRT(queryFees),
           })
 
           // Estimate gas and add some buffer (like we do in network.ts)
@@ -370,20 +371,31 @@ export class TransferManager {
             gasLimit: gasLimitWithBuffer,
           })
           await tx.wait(2)
+
+          return true
         },
         { retries: 2 },
       )
-
-      // Delete all transfers for the allocation (cleanup)
-      await this.models.transfers.destroy({
-        where: { allocation, status: { [Op.not]: TransferStatus.OPEN } },
-      })
     } catch (err) {
       this.logger.error(`Failed to collect query fees on chain`, {
         allocation,
         queryFees,
         err: indexerError(IndexerErrorCode.IE044, err),
       })
+    }
+
+    if (success) {
+      try {
+        // Delete all transfers for the allocation (cleanup)
+        await this.models.transfers.destroy({
+          where: { allocation, status: { [Op.not]: TransferStatus.OPEN } },
+        })
+      } catch (err) {
+        this.logger.error(`Failed to clean up transfers for allocation`, {
+          allocation,
+          err: indexerError(IndexerErrorCode.IE049),
+        })
+      }
     }
   }
 
