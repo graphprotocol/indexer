@@ -59,6 +59,7 @@ export enum IndexerErrorCode {
   IE046 = 'IE046',
   IE047 = 'IE047',
   IE048 = 'IE048',
+  IE049 = 'IE049',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -110,6 +111,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE046: 'Failed to resolve transfer',
   IE047: 'Failed to mark transfer as failed',
   IE048: 'Failed to withdraw query fees for allocation',
+  IE049: 'Failed to clean up transfers for allocation',
 }
 
 export type IndexerErrorCause = unknown
