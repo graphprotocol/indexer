@@ -285,7 +285,7 @@ export default {
         description: 'Port to serve the vector event server at',
         type: 'number',
         required: false,
-        default: 6801,
+        default: 8001,
         group: 'Payments',
       })
   },
