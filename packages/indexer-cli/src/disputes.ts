@@ -124,15 +124,16 @@ export const printDisputes = (
 }
 
 export const disputes = async (
-  client: IndexerManagementClient
+  client: IndexerManagementClient,
+  status: string,
+  minClosedEpoch: number,
 ): Promise<Partial<POIDisputeAttributes>[]> => {
     try {
-      console.log('tryinnnggg')
-        const result = await client
+      const result = await client
         .query(
           gql`
-            query disputes {
-              disputes {
+            query disputes($status: String!, $minClosedEpoch: Int!) {
+              disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
                 allocationID
                 allocationIndexer
                 allocationAmount
@@ -148,7 +149,10 @@ export const disputes = async (
               }
             }
           `,
-          {},
+          {
+            status,
+            minClosedEpoch
+          },
         )
         .toPromise()
 
@@ -156,8 +160,6 @@ export const disputes = async (
       if (result.error) {
         throw result.error
       }
-
-      console.log('yeeet')
 
       return result.data.disputes.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

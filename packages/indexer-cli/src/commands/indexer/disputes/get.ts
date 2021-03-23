@@ -6,8 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import {disputes, printDisputes} from '../../../disputes'
 
 const HELP = `
-${chalk.bold('graph indexer disputes get')} [options] all
-${chalk.bold('graph indexer disputes get')} [options] <status>
+${chalk.bold('graph indexer disputes get')} [options] <status> <minimumAllocationClosedEpoch>
 
 ${chalk.dim('Options:')}
 
@@ -24,8 +23,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-
-
+    const [status, minAllocationClosedEpoch] = parameters.array || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -44,7 +42,7 @@ module.exports = {
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      const storedDisputes = await disputes(client)
+      const storedDisputes = await disputes(client, status, +minAllocationClosedEpoch)
 
       printDisputes(
         print,
