@@ -2733,6 +2733,11 @@
   resolved "https://registry.npmjs.org/@thi.ng/api/-/api-7.1.3.tgz#6e32cca31252437345fc1e13d5da2afa018f9dcc"
   integrity sha512-a0Q0Y/DORKmRUPJx6s6n272MAhtWtQyAF51Rg8WXWFVXtknnke5iu3VkV+tdr6V3rcbymr9x8ZMntnTjYxIKgw==
 
+"@thi.ng/api@^7.1.4":
+  version "7.1.4"
+  resolved "https://registry.npmjs.org/@thi.ng/api/-/api-7.1.4.tgz#a01ec6db6ab56c4982224d71db8371e194bfaaf5"
+  integrity sha512-NpZB6gl4XVLr5squqYmQKa9zj8DzEOFqBF99y1IEGHs6QLgDBL0xMsCiPGuiLQte8rQFQA9qOuP/SkOQYpZ5PA==
+
 "@thi.ng/arrays@^0.10.1":
   version "0.10.1"
   resolved "https://registry.npmjs.org/@thi.ng/arrays/-/arrays-0.10.1.tgz#d1552ca84c1f78b9366456da9390a918e950d212"
@@ -2775,6 +2780,13 @@
   dependencies:
     "@thi.ng/api" "^7.1.3"
 
+"@thi.ng/compare@^1.3.28":
+  version "1.3.28"
+  resolved "https://registry.npmjs.org/@thi.ng/compare/-/compare-1.3.28.tgz#16c91f8450b7562f454526bf612bf1f50f7486ed"
+  integrity sha512-MYYPvbmjuopd5rQa2YyIhDHjlc8b9Xzdx368gUTcrOHG52RpSVMiTyCYWsnbfEbk/InIySrSvydkk526O3oL9A==
+  dependencies:
+    "@thi.ng/api" "^7.1.4"
+
 "@thi.ng/compose@^1.4.23":
   version "1.4.23"
   resolved "https://registry.npmjs.org/@thi.ng/compose/-/compose-1.4.23.tgz#cf1712344813e6a6d694f4e99b7f6c546ade50da"
@@ -2805,6 +2817,14 @@
   version "1.2.26"
   resolved "https://registry.npmjs.org/@thi.ng/errors/-/errors-1.2.26.tgz#04e1bed79ea5b841aee0bb15bb53361fe8c87719"
   integrity sha512-x7x4OhcthZ9obcisx0DNA1uzGh6mrG6Mjs+ATRafcfrmqxb/XyYuTLxswwfU60ZJmqz2ynyFESLTmBs9pOJn7A==
+
+"@thi.ng/heaps@1.2.38":
+  version "1.2.38"
+  resolved "https://registry.npmjs.org/@thi.ng/heaps/-/heaps-1.2.38.tgz#c5027c02bedb41644fc71d109cd16a878a48ad0b"
+  integrity sha512-lWDQsGmt6YuHgmog4wpSKa7wqawt0JVyCREWc/J2bA9vcg/cYfljda2teVTA3rTUhKWs/S2htorN8On7+Rxt5A==
+  dependencies:
+    "@thi.ng/api" "^7.1.4"
+    "@thi.ng/compare" "^1.3.28"
 
 "@thi.ng/heaps@^1.2.36":
   version "1.2.36"
