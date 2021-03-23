@@ -351,8 +351,13 @@ class Agent {
             maxAllocationEpochs,
           )
 
+          const disputableEpoch =
+            currentEpoch.toNumber() - this.network.poiDisputableEpochs
           // Find disputable allocations
-          await this.identifyPotentialDisputes(disputableAllocations)
+          await this.identifyPotentialDisputes(
+            disputableAllocations,
+            disputableEpoch,
+          )
         } catch (err) {
           this.logger.warn(`Failed to reconcile indexer and network`, {
             err: indexerError(IndexerErrorCode.IE005, err),
@@ -383,11 +388,21 @@ class Agent {
 
   async identifyPotentialDisputes(
     disputableAllocations: Allocation[],
+    disputableEpoch: number,
   ): Promise<void> {
+    const storedDisputes = await this.indexer.fetchPOIDisputes(
+      'Potential',
+      disputableEpoch,
+    )
+    const newDisputableAllocations = disputableAllocations.filter(
+      allocation =>
+        !storedDisputes.find(dispute => dispute.allocationID == allocation.id),
+    )
+
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
       [
         ...new Set(
-          disputableAllocations.map(allocation =>
+          newDisputableAllocations.map(allocation =>
             allocationRewardsPool(allocation),
           ),
         ),
@@ -429,7 +444,7 @@ class Agent {
         }),
     )
 
-    const potentials = disputableAllocations.reduce(
+    const potentials = newDisputableAllocations.reduce(
       (flaggedAllocations: POIDisputeAttributes[], allocation: Allocation) => {
         const rewardsPool = uniqueRewardsPools.find(
           pool =>
@@ -472,12 +487,10 @@ class Agent {
     )
 
     if (potentials.length > 0) {
-      this.logger.info(`Identified '${potentials.length}' POI disputes`, {
-        potentials: potentials,
-      })
       const stored = await this.indexer.storePoiDisputes(potentials)
-      this.logger.debug(`Stored POI disputes`, {
-        disputesStored: stored,
+      this.logger.info(`Identified potential POI disputes`, {
+        identified: potentials.length,
+        stored: stored.length,
       })
     }
   }

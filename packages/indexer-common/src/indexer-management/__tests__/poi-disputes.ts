@@ -64,8 +64,8 @@ const GET_POI_DISPUTE_QUERY = gql`
 `
 
 const GET_POI_DISPUTES_QUERY = gql`
-  query disputes {
-    disputes {
+  query disputes($status: String!, $minClosedEpoch: Int!) {
+    disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
       allocationID
       allocationIndexer
       allocationAmount
@@ -104,14 +104,14 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'potential',
+  status: 'Potential',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
-  closedEpoch: 203,
+  closedEpoch: 210,
   closedEpochStartBlockHash:
     '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
   closedEpochStartBlockNumber: 848484,
@@ -122,7 +122,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'potential',
+  status: 'Potential',
 }
 
 const TEST_DISPUTE_3: POIDisputeAttributes = {
@@ -130,7 +130,7 @@ const TEST_DISPUTE_3: POIDisputeAttributes = {
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
-  closedEpoch: 203,
+  closedEpoch: 210,
   closedEpochStartBlockHash:
     '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
   closedEpochStartBlockNumber: 848484,
@@ -141,7 +141,7 @@ const TEST_DISPUTE_3: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'potential',
+  status: 'Potential',
 }
 
 const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
@@ -268,7 +268,7 @@ describe('POI disputes', () => {
     }
   })
 
-  test('Get all disputes', async () => {
+  test('Get all potential disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
     const client = await createIndexerManagementClient({
@@ -283,8 +283,31 @@ describe('POI disputes', () => {
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
     await expect(
-      client.query(GET_POI_DISPUTES_QUERY).toPromise(),
+      client
+        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
+  })
+
+  test('Get disputes with closed epoch greater than', async () => {
+    const disputes = TEST_DISPUTES_ARRAY
+
+    const client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      logger,
+      defaults,
+      features,
+    })
+
+    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+
+    await expect(
+      client
+        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 205 })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.disputes', [TEST_DISPUTE_2])
   })
 
   test('Remove dispute from store', async () => {
@@ -311,7 +334,9 @@ describe('POI disputes', () => {
     disputes.splice(0, 1)
 
     await expect(
-      client.query(GET_POI_DISPUTES_QUERY).toPromise(),
+      client
+        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
   })
 
@@ -342,7 +367,9 @@ describe('POI disputes', () => {
     disputes.splice(0, 2)
 
     await expect(
-      client.query(GET_POI_DISPUTES_QUERY).toPromise(),
+      client
+        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
   })
 })

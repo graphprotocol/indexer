@@ -149,13 +149,6 @@ export class Indexer {
     try {
       return await pRetry(
         async attempt => {
-          this.logger.info(`Query proof of indexing`, {
-            indexer: this.indexerAddress,
-            subgraph: deployment.ipfsHash,
-            block: block,
-            attempt,
-          })
-
           const result = await this.statuses
             .query(
               gql`
@@ -185,8 +178,12 @@ export class Indexer {
           if (result.error) {
             throw result.error
           }
-          this.logger.info('Proof of indexing returned', {
+          this.logger.debug('Reference Proof of indexing generated', {
+            indexer: this.indexerAddress,
+            subgraph: deployment.ipfsHash,
+            block: block,
             proof: result.data.proofOfIndexing,
+            attempt,
           })
 
           return result.data.proofOfIndexing
@@ -363,13 +360,16 @@ export class Indexer {
     }
   }
 
-  async fetchPOIDisputes(status: string): Promise<POIDisputeAttributes> {
+  async fetchPOIDisputes(
+    status: string,
+    minClosedEpoch: number,
+  ): Promise<POIDisputeAttributes[]> {
     try {
       const result = await this.indexerManagement
         .query(
           gql`
-            query disputes {
-              disputes {
+            query disputes($status: String!, $minClosedEpoch: Int!) {
+              disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
                 allocationID
                 allocationIndexer
                 allocationAmount
@@ -385,18 +385,16 @@ export class Indexer {
               }
             }
           `,
-          {},
+          {
+            status: status,
+            minClosedEpoch: minClosedEpoch,
+          },
         )
         .toPromise()
 
       if (result.error) {
         throw result.error
       }
-
-      this.logger.warn('fetched disputes: ', {
-        resultData: result.data,
-        status: status,
-      })
 
       return result.data.disputes.map(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

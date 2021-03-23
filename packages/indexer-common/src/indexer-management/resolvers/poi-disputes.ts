@@ -2,6 +2,7 @@
 
 import { POIDispute, POIDisputeCreationAttributes } from '../models'
 import { IndexerManagementResolverContext } from '../client'
+import { Op } from 'sequelize'
 
 export default {
   dispute: async (
@@ -15,10 +16,20 @@ export default {
   },
 
   disputes: async (
-    _: {},
+    { status, minClosedEpoch }: { status: string; minClosedEpoch: number },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const disputes = await models.POIDispute.findAll({
+      where: {
+        [Op.and]: [
+          { status: status },
+          {
+            closedEpoch: {
+              [Op.gte]: minClosedEpoch,
+            },
+          },
+        ],
+      },
       order: [['allocationAmount', 'DESC']],
     })
     return disputes.map((dispute) => dispute.toGraphQL())
