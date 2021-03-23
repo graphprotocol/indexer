@@ -35,7 +35,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'potential',
+  status: 'Potential',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -43,7 +43,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationAmount: '5000000',
   allocationProof:
     '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
-  closedEpoch: 203,
+  closedEpoch: 210,
   closedEpochStartBlockHash:
     '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
   closedEpochStartBlockNumber: 848484,
@@ -54,7 +54,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'potential',
+  status: 'Potential',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -209,11 +209,12 @@ describe('Indexer tests', () => {
     const expectedResult = disputes.map((dispute: Record<string, any>) => {
       return disputeFromGraphQL(dispute)
     })
+    const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
     await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.fetchPOIDisputes('pending')).resolves.toEqual(
-      expectedResult,
+    await expect(indexer.fetchPOIDisputes('Potential', 205)).resolves.toEqual(
+      expectedFilteredResult,
     )
   })
 })

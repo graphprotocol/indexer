@@ -151,7 +151,7 @@ const SCHEMA_SDL = gql`
     costModel(deployment: String!): CostModel
 
     dispute(allocationID: String!): POIDispute
-    disputes: [POIDispute]!
+    disputes(status: String!, minClosedEpoch: Int!): [POIDispute]!
     disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
   }
 
