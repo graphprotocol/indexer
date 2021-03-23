@@ -15,8 +15,8 @@
     "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose"
   },
   "dependencies": {
-    "@connext/vector-types": "0.2.0-beta.9",
-    "@connext/vector-utils": "0.2.0-beta.9",
+    "@connext/vector-types": "0.2.1-beta.3",
+    "@connext/vector-utils": "0.2.1-beta.3",
     "@graphprotocol/common-ts": "1.3.1",
     "@graphprotocol/cost-model": "0.1.5",
     "@types/cors": "2.8.8",
