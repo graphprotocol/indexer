@@ -266,27 +266,50 @@ export class TransferManager {
       signer,
     })
 
-    try {
+    const transact = () =>
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.models.transfers.sequelize!.transaction(async (transaction) => {
-        // Update the allocation summary
-        const summary = await this.ensureAllocationSummary(allocation, transaction)
-        summary.createdTransfers += 1
-        summary.openTransfers += 1
-        await summary.save({ transaction })
+      this.models.transfers.sequelize!.transaction(
+        { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
+        async (transaction) => {
+          // Update the allocation summary
+          const summary = await this.ensureAllocationSummary(allocation, transaction)
+          summary.createdTransfers += 1
+          summary.openTransfers += 1
+          await summary.save({ transaction })
 
-        // Add the transfer itself
-        await this.models.transfers.create(
-          {
-            signer,
-            allocation,
-            routingId: routingId,
-            status: TransferStatus.OPEN,
-            allocationClosedAt: null,
-          },
-          { transaction },
-        )
-      })
+          // Add the transfer itself
+          await this.models.transfers.create(
+            {
+              signer,
+              allocation,
+              routingId: routingId,
+              status: TransferStatus.OPEN,
+              allocationClosedAt: null,
+            },
+            { transaction },
+          )
+        },
+      )
+
+    try {
+      await pRetry(
+        async () => {
+          try {
+            await transact()
+          } catch (err) {
+            // Only retry if the error is:
+            //   40001: 'could not serialize access due to concurrent update'
+            //      This happens when 2 transfer creations write to the allocation summary at the same time.
+            //   23505: 'duplicate key value violates unique constraint "allocation_summaries_pkey"',
+            //      This happens for the same as above, except that it creates the allocation summary.
+            const code = err.parent.code
+            if (!['40001', '23505'].includes(code)) {
+              throw new pRetry.AbortError(err)
+            }
+          }
+        },
+        { retries: 20 },
+      )
     } catch (err) {
       this.logger.error(`Failed to add transfer to the database`, {
         routingId,
