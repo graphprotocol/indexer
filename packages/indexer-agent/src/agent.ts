@@ -445,7 +445,7 @@ class Agent {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             previousEpochReferenceProof: rewardsPool!.referencePreviousPOI!,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            previousEpochStartBlockHash: allocation.previousEpochStartBlockHash!,
+            previousEpochStartBlockHash: rewardsPool!.previousEpochStartBlockHash!,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             previousEpochStartBlockNumber: rewardsPool!
               .previousEpochStartBlockNumber!,
