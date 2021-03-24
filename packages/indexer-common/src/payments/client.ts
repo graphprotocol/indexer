@@ -105,7 +105,12 @@ export async function createVectorClient(
   }
 
   logger.info(`Connect to vector node`, { url: options.nodeUrl })
-  const node = await RestServerNodeService.connect(options.nodeUrl, logger.inner, evts, 0)
+  const node = await RestServerNodeService.connect(
+    options.nodeUrl,
+    logger.inner,
+    options.eventServer?.evts ? evts : undefined,
+    0,
+  )
   logger.info(`Successfully connected to vector node`)
 
   // Ensure there is a channel set up with the router
