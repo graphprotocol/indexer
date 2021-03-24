@@ -520,8 +520,7 @@ export class TransferManager {
         channelAddress: this.vector.channelAddress,
         transferId: vectorTransfer.transferId,
         transferResolver: {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          receipts: transfer.receipts!.map((receipt) => ({
+          receipts: (transfer.receipts || []).map((receipt) => ({
             id: receipt.id,
             amount: receipt.paymentAmount.toString(),
             signature: receipt.signature,
