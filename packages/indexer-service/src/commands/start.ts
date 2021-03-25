@@ -76,6 +76,11 @@ export default {
         default: 7300,
         group: 'Indexer Infrastructure',
       })
+      .option('gcloud-profiling', {
+        type: 'boolean',
+        description: 'Whether to enable Google Cloud profiling',
+        default: false,
+      })
       .option('graph-node-query-endpoint', {
         description: 'Graph Node endpoint to forward queries to',
         type: 'string',
@@ -186,6 +191,21 @@ export default {
     }
 
     logger.info('Starting up...', { version: pkg.version, deps: pkg.bundledDependencies })
+
+    // Enable Google Cloud profiling if enabled
+    if (argv.gcloudProfiling) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        require('@google-cloud/profiler').start({
+          serviceContext: {
+            service: pkg.name.split('/').pop(),
+            version: pkg.version,
+          },
+        })
+      } catch (err) {
+        logger.warn(`Failed to enable Google Cloud profiling, skipping`, { err })
+      }
+    }
 
     // Spin up a metrics server
     const metrics = createMetrics()
