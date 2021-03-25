@@ -123,7 +123,7 @@ export class Network {
     const estimatedGas = await gasEstimation()
     const tx = await transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
     logger.info(`Transaction pending`, { tx: tx.hash })
-    const receipt = await tx.wait(1)
+    const receipt = await tx.wait(2)
     logger.info(`Transaction successfully included in block`, {
       tx: tx.hash,
       blockNumber: receipt.blockNumber,
