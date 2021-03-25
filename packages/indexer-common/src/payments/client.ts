@@ -108,6 +108,14 @@ export async function createVectorClient(
   const node = await RestServerNodeService.connect(
     options.nodeUrl,
     logger.inner,
+    // NOTE: Only one client can create a subscripton for the same public
+    // identifier, so we need to be very careful not to subscribe with two
+    // conflicting `evts` in service and agent;
+    //
+    // For now, we'll assume that service passes in no custom evts and
+    // that the agent passes in some custom evts. The service will then pass
+    // undefined to `connect()`, which shouldn't overwrite what the agent
+    // subscribes to.
     options.eventServer?.evts ? evts : undefined,
     0,
   )
