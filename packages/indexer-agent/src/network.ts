@@ -23,6 +23,7 @@ import {
   indexerError,
   IndexerErrorCode,
   INDEXER_ERROR_MESSAGES,
+  IndexerError,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -136,7 +137,7 @@ export class Network {
     let output: providers.TransactionReceipt | undefined = undefined
 
     const estimatedGas = await gasEstimation()
-    const txPromise = transaction(Math.ceil(estimatedGas.toNumber()))
+    const txPromise = transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
     let tx = await txPromise
 
     let txConfig: Record<string, number> = {
@@ -185,9 +186,10 @@ export class Network {
         )
 
         if (receipt.status == 0) {
-          const tx = await this.ethereum.getTransaction(receipt.transactionHash)
-          const code = await this.ethereum.call(tx)
-          throw Error(`Transaction reverted, reason: ${code}`)
+          if (receipt.cumulativeGasUsed.toNumber() > txConfig.gasLimit * 0.9) {
+            throw indexerError(IndexerErrorCode.IE050)
+          }
+          throw indexerError(IndexerErrorCode.IE051)
         }
 
         logger.info(`Transaction successfully included in block`, {
@@ -209,40 +211,50 @@ export class Network {
   async updateTransactionConfig(
     logger: Logger,
     txConfig: Record<string, number>,
-    error: Error,
+    error: Error | IndexerError,
   ): Promise<Record<string, number>> {
-    if (
-      error.message.includes(
-        'Transaction with the same hash was already imported',
-      )
-    ) {
-      txConfig.nonceOffset += 1
-      txConfig.nonce =
-        (await this.wallet.getTransactionCount('pending')) -
-        txConfig.nonceOffset +
-        1
-    } else if (
-      error.message.includes(
-        'Transaction nonce is too low. Try incrementing the nonce.',
-      )
-    ) {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      txConfig.nonce! += 1
-    } else if (error.message.includes('Reverted')) {
-      txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      txConfig.nonce! += 1
-    } else if (
-      error.message.includes('Try increasing the fee') ||
-      error.message.includes(
-        'Transaction gas price supplied is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.',
-      ) ||
-      error.message?.includes('timeout exceeded')
-    ) {
-      txConfig.gasPrice =
-        txConfig.gasPrice * txConfig.gasBump > this.gasPriceMax
-          ? this.gasPriceMax
-          : txConfig.gasPrice * txConfig.gasBump
+    if (error instanceof IndexerError) {
+      if (error.code == 'IE050') {
+        txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        txConfig.nonce! += 1
+      } else if (error.code == 'IE051') {
+        throw indexerError(IndexerErrorCode.IE051)
+      }
+    } else if (error instanceof Error) {
+      if (
+        error.message.includes(
+          'Transaction with the same hash was already imported',
+        )
+      ) {
+        txConfig.nonceOffset += 1
+        txConfig.nonce =
+          (await this.wallet.getTransactionCount('pending')) -
+          txConfig.nonceOffset +
+          1
+      } else if (
+        error.message.includes(
+          'Transaction nonce is too low. Try incrementing the nonce.',
+        )
+      ) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        txConfig.nonce! += 1
+      } else if (
+        error.message.includes('Try increasing the fee') ||
+        error.message.includes(
+          'Transaction gas price supplied is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.',
+        ) ||
+        error.message?.includes('timeout exceeded')
+      ) {
+        if (txConfig.gasPrice == this.gasPriceMax) {
+          throw indexerError(IndexerErrorCode.IE052)
+        } else {
+          txConfig.gasPrice =
+            txConfig.gasPrice * txConfig.gasBump > this.gasPriceMax
+              ? this.gasPriceMax
+              : txConfig.gasPrice * txConfig.gasBump
+        }
+      }
     }
     logger.warning('Error sending transaction, retrying', {
       error: error.message,
@@ -484,7 +496,6 @@ export class Network {
         )
         .toPromise()
 
-      // this.logger.info('YAYYYYY', { result: result })
       if (result.error) {
         throw result.error
       }

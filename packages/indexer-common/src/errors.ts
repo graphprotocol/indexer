@@ -60,6 +60,9 @@ export enum IndexerErrorCode {
   IE047 = 'IE047',
   IE048 = 'IE048',
   IE049 = 'IE049',
+  IE050 = 'IE050',
+  IE051 = 'IE051',
+  IE052 = 'IE052',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -112,6 +115,9 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE047: 'Failed to mark transfer as failed',
   IE048: 'Failed to withdraw query fees for allocation',
   IE049: 'Failed to clean up transfers for allocation',
+  IE050: 'Transaction reverted: gas limit likely hit (cumGasUsed > gasLimit * 0.9)',
+  IE051: 'Transaction reverted: reason unknown',
+  IE052: 'Transaction aborted: max gas price hit',
 }
 
 export type IndexerErrorCause = unknown
