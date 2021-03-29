@@ -71,10 +71,10 @@ export class Network {
   queryFeesCollectedClaimThreshold: BigNumber
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
-  gasBumpTimeLimit: number
-  gasBumpPercent: number
+  gasIncreaseTimeout: number
+  gasIncrease: number
   gasPriceMax: number
-  maxRetries: number
+  maxTransactionAttempts: number
 
   private constructor(
     logger: Logger,
@@ -91,10 +91,10 @@ export class Network {
     queryFeesCollectedClaimThreshold: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
-    gasBumpTimeLimit: number,
-    gasBumpPercent: number,
+    gasIncreaseTimeout: number,
+    gasIncrease: number,
     gasPriceMax: number,
-    maxRetries: number,
+    maxTransactionAttempts: number,
   ) {
     this.logger = logger
     this.wallet = wallet
@@ -110,10 +110,10 @@ export class Network {
     this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
-    this.gasBumpTimeLimit = gasBumpTimeLimit
-    this.gasBumpPercent = gasBumpPercent
+    this.gasIncreaseTimeout = gasIncreaseTimeout
+    this.gasIncrease = gasIncrease
     this.gasPriceMax = gasPriceMax
-    this.maxRetries = maxRetries
+    this.maxTransactionAttempts = maxTransactionAttempts
   }
 
   async executeTransaction(
@@ -143,7 +143,7 @@ export class Network {
     let txConfig: Record<string, number> = {
       attempt: 1,
       nonceOffset: 0,
-      gasBump: 1 + this.gasBumpPercent / 100,
+      gasBump: 1 + this.gasIncrease / 100,
       nonce: tx.nonce,
       gasPrice: tx.gasPrice.toNumber(),
       gasLimit: tx.gasLimit.toNumber(),
@@ -152,8 +152,8 @@ export class Network {
     logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
 
     while (pending) {
-      if (txConfig.attempt >= this.maxRetries) {
-        logger.warn('Transaction attempt threshold surpassed, moving on', {
+      if (txConfig.attempt >= this.maxTransactionAttempts) {
+        logger.warn('Transaction retry limit reached, giving up', {
           attempts: txConfig.attempt,
         })
         break
@@ -180,9 +180,9 @@ export class Network {
         logger.info(`Transaction pending`, { tx: tx })
 
         const receipt = await this.ethereum.waitForTransaction(
-          tx?.hash,
+          tx.hash,
           3,
-          this.gasBumpTimeLimit,
+          this.gasIncreaseTimeout,
         )
 
         if (receipt.status == 0) {
@@ -193,8 +193,7 @@ export class Network {
         }
 
         logger.info(`Transaction successfully included in block`, {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          tx: tx?.hash,
+          tx: tx.hash,
           receipt: receipt,
         })
         output = receipt
@@ -214,12 +213,12 @@ export class Network {
     error: Error | IndexerError,
   ): Promise<Record<string, number>> {
     if (error instanceof IndexerError) {
-      if (error.code == 'IE050') {
+      if (error.code == IndexerErrorCode.IE050) {
         txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        txConfig.nonce! += 1
-      } else if (error.code == 'IE051') {
-        throw indexerError(IndexerErrorCode.IE051)
+        txConfig.nonce += 1
+      } else if (error.code == IndexerErrorCode.IE051) {
+        throw error
       }
     } else if (error instanceof Error) {
       if (
@@ -241,22 +240,20 @@ export class Network {
         txConfig.nonce! += 1
       } else if (
         error.message.includes('Try increasing the fee') ||
-        error.message.includes(
-          'Transaction gas price supplied is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.',
-        ) ||
+        error.message.includes('gas price supplied is too low') ||
         error.message?.includes('timeout exceeded')
       ) {
-        if (txConfig.gasPrice == this.gasPriceMax) {
+        if (txConfig.gasPrice >= this.gasPriceMax) {
           throw indexerError(IndexerErrorCode.IE052)
         } else {
-          txConfig.gasPrice =
-            txConfig.gasPrice * txConfig.gasBump > this.gasPriceMax
-              ? this.gasPriceMax
-              : txConfig.gasPrice * txConfig.gasBump
+          txConfig.gasPrice = Math.min(
+            this.gasPriceMax,
+            txConfig.gasPrice * txConfig.gasBump,
+          )
         }
       }
     }
-    logger.warning('Error sending transaction, retrying', {
+    logger.warning('Failed to send transaction, retrying', {
       error: error.message,
     })
     txConfig.attempt += 1
@@ -277,10 +274,10 @@ export class Network {
     queryFeesCollectedClaimThreshold: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
-    gasBumpTimeLimit: number,
-    gasBumpPercent: number,
+    gasIncreaseTimeout: number,
+    gasIncrease: number,
     gasPriceMax: number,
-    maxRetries: number,
+    maxTransactionAttempts: number,
   ): Promise<Network> {
     const subgraph =
       networkSubgraph instanceof Client
@@ -323,10 +320,10 @@ export class Network {
       parseGRT(queryFeesCollectedClaimThreshold.toString()),
       poiDisputeMonitoring,
       poiDisputableEpochs,
-      gasBumpTimeLimit,
-      gasBumpPercent,
+      gasIncreaseTimeout,
+      gasIncrease,
       gasPriceMax,
-      maxRetries,
+      maxTransactionAttempts,
     )
   }
 

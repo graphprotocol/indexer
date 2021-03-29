@@ -52,29 +52,29 @@ export default {
         default: 4000,
         group: 'Ethereum',
       })
-      .option('gas-bump-time-limit', {
+      .option('gas-increase-time-limit', {
         description:
-          'Time limit for transactions after which the transaction will be resubmitted with more gas (s)',
+          'Time (in seconds) after which transactions will be resubmitted with a higher gas price',
         type: 'number',
         default: 240,
         group: 'Ethereum',
         coerce: arg => arg * 1000,
       })
-      .option('gas-bump-percent', {
+      .option('gas-increase', {
         description:
-          'The percent to bump the gas price before resubmitting a stuck transaction (%)',
+          'Percentage by which gas prices are increased when resubmitting transactions',
         type: 'number',
         default: 20,
         group: 'Ethereum',
       })
       .option('gas-price-max', {
-        description: 'The maximum gas price to use for a transaction (gwei)',
+        description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
         default: 2000000000,
         group: 'Ethereum',
       })
-      .option('max-retries', {
-        description: 'The maximum number of transaction retries',
+      .option('transaction-attempts', {
+        description: 'The maximum number of transaction attempts',
         type: 'number',
         default: 5,
         group: 'Ethereum',
@@ -282,9 +282,9 @@ export default {
             return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
           }
         }
-        if (argv['gas-bump-time-limit']) {
-          if (argv['gas-bump-time-limit'] < 30000) {
-            return 'Invalid --gas-bump-time-limit provided. Must be greater then 30 seconds'
+        if (argv['gas-increase-time-limit']) {
+          if (argv['gas-increase-time-limit'] < 30000) {
+            return 'Invalid --gas-increase-time-limit provided. Must be at least 30 seconds'
           }
         }
         return true
@@ -331,10 +331,9 @@ export default {
       level: argv.logLevel,
     })
 
-    if (argv.gasBumpTimeLimit < 90000) {
+    if (argv.gasIncreaseTimeLimit < 90000) {
       logger.warn(
-        'Gas bump time limit is set to less than 90 seconds. Be careful with this setting as it may ' +
-          'lead to higher gas usage',
+        'Gas increase timeout is set to less than 90 seconds (~ 6 blocks). This may lead to high gas usage.',
       )
     }
 
@@ -520,10 +519,10 @@ export default {
       argv.allocationClaimThreshold,
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
-      argv.gasBumpTimeLimit,
-      argv.gasBumpPercent,
+      argv.gasIncreaseTimeLimit,
+      argv.gasIncrease,
       argv.gasPriceMax,
-      argv.maxRetries,
+      argv.transactionAttempts,
     )
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
