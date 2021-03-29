@@ -115,9 +115,10 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE047: 'Failed to mark transfer as failed',
   IE048: 'Failed to withdraw query fees for allocation',
   IE049: 'Failed to clean up transfers for allocation',
-  IE050: 'Transaction reverted: gas limit likely hit (cumGasUsed > gasLimit * 0.9)',
+  IE050:
+    'Transaction reverted: gas limit likely hit (cumulative gas used is near the gas limit)',
   IE051: 'Transaction reverted: reason unknown',
-  IE052: 'Transaction aborted: max gas price hit',
+  IE052: 'Transaction aborted: maximum configured gas price reached',
 }
 
 export type IndexerErrorCause = unknown
