@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       app: indexer-agent
-  replicas: 1
+  replicas: 1 # Must not be changed, there should only be one indexer-agent
   template:
     metadata:
       labels:
