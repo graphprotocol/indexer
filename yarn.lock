@@ -936,6 +936,11 @@
   dependencies:
     neon-cli "^0.4.0"
 
+"@graphprotocol/indexer-native@file:packages/indexer-native":
+  version "0.1.0"
+  dependencies:
+    neon-cli "^0.8.0"
+
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
   resolved "https://registry.npmjs.org/@graphprotocol/pino-sentry-simple/-/pino-sentry-simple-0.7.1.tgz#ac08b978bfa33178b9e809f53ae0983ff5f724d8"
@@ -10442,6 +10447,26 @@ neon-cli@^0.4.0:
   version "0.4.2"
   resolved "https://registry.npmjs.org/neon-cli/-/neon-cli-0.4.2.tgz#e5dfda11a918922ca24cc87abb1f7b1e89adcdb0"
   integrity sha512-C7yRKV9ZRg3YCc4pcDDGMRxtpJWGuhFYnpK/6xbOIMhwvxmvTdXcS1N7IlVqedJmveVblJDWOzXk48h7JSPgzQ==
+  dependencies:
+    chalk "^4.1.0"
+    command-line-args "^5.1.1"
+    command-line-commands "^3.0.1"
+    command-line-usage "^6.1.0"
+    git-config "0.0.7"
+    handlebars "^4.7.6"
+    inquirer "^7.3.3"
+    make-promises-safe "^5.1.0"
+    rimraf "^3.0.2"
+    semver "^7.3.2"
+    toml "^3.0.0"
+    ts-typed-json "^0.3.2"
+    validate-npm-package-license "^3.0.4"
+    validate-npm-package-name "^3.0.0"
+
+neon-cli@^0.8.0:
+  version "0.8.0"
+  resolved "https://registry.yarnpkg.com/neon-cli/-/neon-cli-0.8.0.tgz#bca2e1cbc9706c65bf736a7057e6b3bf28f55857"
+  integrity sha512-QP85ECaRdn+MAveYG56hJAsNygtAj/yBk+z8+rpuX4eK9uTHOWHxI5gPZ48O75A/TGm32H6M5aDbNqTzu0fgpA==
   dependencies:
     chalk "^4.1.0"
     command-line-args "^5.1.1"

@@ -1,5 +1,5 @@
 {
-  "name": "indexer-native",
+  "name": "@graphprotocol/indexer-native",
   "version": "0.1.0",
   "description": "Performance sensitive indexer code",
   "main": "lib/index.js",

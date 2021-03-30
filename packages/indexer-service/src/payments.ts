@@ -1,4 +1,4 @@
-import { BigNumber, utils } from 'ethers'
+import { BigNumber } from 'ethers'
 import {
   indexerError,
   IndexerErrorCode,
@@ -7,6 +7,7 @@ import {
   Transfer,
   VectorClient,
 } from '@graphprotocol/indexer-common'
+import { NativeSignatureVerifier } from '@graphprotocol/indexer-native'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import { INodeService } from '@connext/vector-types'
@@ -15,10 +16,6 @@ import pRetry from 'p-retry'
 // Takes a valid big-endian hexadecimal string and parses it as a BigNumber
 function readNumber(data: string, start: number, end: number): BigNumber {
   return BigNumber.from('0x' + data.slice(start, end))
-}
-
-function readBinary(data: string, start: number, end: number): Uint8Array {
-  return utils.arrayify('0x' + data.slice(start, end))
 }
 
 const paymentValidator = /^[0-9A-Fa-f]{266}$/
@@ -58,7 +55,9 @@ async function getTransfer(
   channelAddress: string,
   routingId: string,
   vectorTransferDefinition: Address,
-): Promise<Pick<Transfer, 'signer' | 'allocation'>> {
+): Promise<
+  Pick<Transfer, 'signer' | 'allocation'> & { signatureVerifier: NativeSignatureVerifier }
+> {
   // Get the transfer
   const result = await node.getTransferByRoutingId({ channelAddress, routingId })
 
@@ -78,27 +77,32 @@ async function getTransfer(
     )
   }
 
+  const signer = toAddress(transfer.transferState.signer)
+
+  const signatureVerifier = new NativeSignatureVerifier(signer)
+
   return {
-    signer: toAddress(transfer.transferState.signer),
+    signer,
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     allocation: toAddress(transfer.meta!.allocation),
+    signatureVerifier,
   }
 }
 
-function validateSignature(
-  signer: string,
+async function validateSignature(
+  signer: NativeSignatureVerifier,
   receiptData: string,
-): string {
-  const signedData = readBinary(receiptData, 64, 136)
-  const signature = '0x' + receiptData.slice(136, 266)
-  const address = utils.recoverAddress(utils.keccak256(signedData), signature)
-  if (toAddress(address) !== signer) {
+): Promise<string> {
+  const message = receiptData.slice(64, 136)
+  const signature = receiptData.slice(136, 266)
+
+  if (!(await signer.verify(message, signature))) {
     throw indexerError(
       IndexerErrorCode.IE031,
-      `Invalid signature: recovered signer "${address}" but expected signer "${signer}"`,
+      `Invalid signature: expected signer "${signer}"`,
     )
   }
-  return signature
+  return '0x' + signature
 }
 
 export class ReceiptManager {
@@ -108,7 +112,9 @@ export class ReceiptManager {
   private readonly _flushQueue: string[] = []
   private readonly _transferCache: AsyncCache<
     string,
-    Pick<Transfer, 'signer' | 'allocation'>
+    Pick<Transfer, 'signer' | 'allocation'> & {
+      signatureVerifier: NativeSignatureVerifier
+    }
   >
 
   constructor(
@@ -157,7 +163,7 @@ export class ReceiptManager {
     // commitment. That means our Vector node should know about it.
     const transfer = await this._transferCache.get(vectorTransferId)
 
-    const signature = validateSignature(transfer.signer, receiptData)
+    const signature = await validateSignature(transfer.signatureVerifier, receiptData)
 
     const paymentAmount = readNumber(receiptData, 64, 128)
     const id = readNumber(receiptData, 128, 136).toNumber()
