@@ -178,7 +178,7 @@ export class Indexer {
           if (result.error) {
             throw result.error
           }
-          this.logger.debug('Reference Proof of indexing generated', {
+          this.logger.debug('Reference POI generated', {
             indexer: this.indexerAddress,
             subgraph: deployment.ipfsHash,
             block: block,
@@ -386,8 +386,8 @@ export class Indexer {
             }
           `,
           {
-            status: status,
-            minClosedEpoch: minClosedEpoch,
+            status,
+            minClosedEpoch,
           },
         )
         .toPromise()

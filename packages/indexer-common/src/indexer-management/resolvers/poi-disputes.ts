@@ -22,7 +22,7 @@ export default {
     const disputes = await models.POIDispute.findAll({
       where: {
         [Op.and]: [
-          { status: status },
+          { status },
           {
             closedEpoch: {
               [Op.gte]: minClosedEpoch,

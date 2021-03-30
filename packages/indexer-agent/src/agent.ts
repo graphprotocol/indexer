@@ -391,7 +391,7 @@ class Agent {
     disputableEpoch: number,
   ): Promise<void> {
     const storedDisputes = await this.indexer.fetchPOIDisputes(
-      'Potential',
+      'potential',
       disputableEpoch,
     )
     const newDisputableAllocations = disputableAllocations.filter(
@@ -477,7 +477,7 @@ class Agent {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             previousEpochStartBlockNumber: rewardsPool!
               .previousEpochStartBlockNumber!,
-            status: 'Potential',
+            status: 'potential',
           }
           flaggedAllocations.push(dispute)
         }

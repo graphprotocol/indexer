@@ -35,7 +35,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'Potential',
+  status: 'potential',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -54,7 +54,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'Potential',
+  status: 'potential',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -213,7 +213,7 @@ describe('Indexer tests', () => {
     await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.fetchPOIDisputes('Potential', 205)).resolves.toEqual(
+    await expect(indexer.fetchPOIDisputes('potential', 205)).resolves.toEqual(
       expectedFilteredResult,
     )
   })
