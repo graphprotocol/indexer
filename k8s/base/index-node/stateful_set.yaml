@@ -27,10 +27,10 @@ spec:
           operator: "Exists"
           effect: "NoSchedule"
       volumes:
-         - name: nfs-shared
-           persistentVolumeClaim:
-             claimName: nfs-shared
-             readOnly: false
+        - name: nfs-shared
+          persistentVolumeClaim:
+            claimName: nfs-shared
+            readOnly: false
       containers:
         - name: graph-node
           image: graph-node-image
@@ -52,7 +52,7 @@ spec:
             - name: BLOCK_INGESTOR
               value: index-node-0
             - name: GRAPH_KILL_IF_UNRESPONSIVE
-              value: 'true'
+              value: "true"
             - name: postgres_host
               valueFrom:
                 secretKeyRef:
@@ -69,7 +69,10 @@ spec:
                   name: postgres-credentials
                   key: password
             - name: postgres_db
-              value: graph
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: graph_db
             - name: node_role
               value: index-node
             - name: node_id

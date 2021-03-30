@@ -1,8 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: indexer-service
 spec:
+  serviceName: indexer-service
   selector:
     matchLabels:
       app: indexer-service
@@ -29,15 +30,33 @@ spec:
             - name: metrics
               containerPort: 7300
           env:
+            - name: INDEXER_SERVICE_PORT
+              value: "7600"
             - name: INDEXER_SERVICE_MNEMONIC
               valueFrom:
                 secretKeyRef:
-                  name: indexer-mnemonic
+                  name: indexer
                   key: mnemonic
-            - name: INDEXER_SERVICE_PORT
-              value: "7600"
+            - name: INDEXER_SERVICE_INDEXER_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: indexer
+                  key: indexer_address
+            - name: INDEXER_SERVICE_ETHEREUM_NETWORK
+              valueFrom:
+                secretKeyRef:
+                  name: ethereum
+                  key: network_name
             - name: INDEXER_SERVICE_ETHEREUM
-              value: https://kovan.alchemyapi.io/jsonrpc/demo/
+              valueFrom:
+                secretKeyRef:
+                  name: ethereum
+                  key: url
+            - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: network-subgraph
+                  key: endpoint
             - name: INDEXER_SERVICE_GRAPH_NODE_QUERY_ENDPOINT
               value: http://query-node.default.svc.cluster.local/
             - name: INDEXER_SERVICE_GRAPH_NODE_STATUS_ENDPOINT
@@ -60,11 +79,19 @@ spec:
                   name: postgres-credentials
                   key: password
             - name: INDEXER_SERVICE_POSTGRES_DATABASE
-              value: indexer-service
-            - name: INDEXER_SERVICE_WALLET_SKIP_EVM_VALIDATION
-              value: "true"
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: indexer_db
             - name: INDEXER_SERVICE_FREE_QUERY_AUTH_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: free-query-auth-token
                   key: token
+            - name: INDEXER_SERVICE_VECTOR_NODE
+              value: http://vector-node.default.svc.cluster.local
+            - name: INDEXER_SERVICE_VECTOR_ROUTER
+              valueFrom:
+                secretKeyRef:
+                  name: vector-env
+                  key: router

@@ -1,0 +1,14 @@
+{
+  "adminToken": "${admin_token}",
+  "chainProviders": {
+    "${chain_id}": "${provider_url}"
+  },
+  "nodeUrl": "http://vector-node.default.svc.cluster.local",
+  "logLevel": "info",
+  "messagingUrl": "https://messaging.connext.network",
+  "production": true,
+  "baseGasSubsidyPercentage": 0,
+  "allowedSwaps": [],
+  "skipCheckIn": true,
+  "mnemonic": "${mnemonic}"
+}

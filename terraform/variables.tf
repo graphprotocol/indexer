@@ -76,10 +76,35 @@ variable "indexer_mnemonic" {
   description = "Mnemonic for the indexer's Ethereum private key"
 }
 
+variable "indexer_address" {
+  type        = string
+  description = "The indexer's (not the operator's) Ethereum address"
+}
+
+variable "ethereum_chain_name" {
+  type        = string
+  description = "Name of the Ethereum network (mainnet for mainnet, rinkeby for testnet)"
+}
+
+variable "ethereum_chain_id" {
+  type        = number
+  description = "Numeric chain ID of the Ethereum network (1 for mainnet, 4 for testnet)"
+}
+
+variable "ethereum_provider" {
+  type        = string
+  description = "Ethereum node or provider URL"
+}
+
 variable "free_query_auth_token" {
   type        = string
   description = "Auth token that can be used to send free queries to the indexer"
   default     = ""
+}
+
+variable "network_subgraph_endpoint" {
+  type        = string
+  description = "An endpoint that serves the network subgraph deployment"
 }
 
 variable "sizes" {
@@ -102,16 +127,14 @@ variable "prometheus_disk_size" {
   description = "The size of the disk that stores monitoring data (in GB)"
 }
 
-# Temporary
-variable "dockerhub_username" {
+# Vector
+
+variable "vector_admin_token" {
   type        = string
-  description = "DockerHub username"
+  description = "Token for managing the Vector node"
 }
-variable "dockerhub_password" {
+
+variable "vector_router" {
   type        = string
-  description = "DockerHub password"
-}
-variable "dockerhub_email" {
-  type        = string
-  description = "DockerHub email"
+  description = "Public identifier of a Vector router"
 }

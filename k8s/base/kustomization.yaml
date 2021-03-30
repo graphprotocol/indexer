@@ -8,14 +8,16 @@ resources:
   - query-node/deployment.yaml
   - query-node/proxy.yaml
   - query-node/service.yaml
-  - indexer-agent/deployment.yaml
+  - indexer-agent/service.yaml
+  - indexer-agent/statefulset.yaml
   - indexer-service/backend_config.yaml
-  - indexer-service/deployment.yaml
+  - indexer-service/statefulset.yaml
   - indexer-service/service.yaml
   - shell.yaml
   - nfs.yaml
   - prometheus.yaml
   - grafana.yaml
   - ingress.yaml
+  - vector.yaml
 
 namespace: default
