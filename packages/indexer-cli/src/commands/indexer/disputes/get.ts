@@ -40,6 +40,18 @@ module.exports = {
       return
     }
 
+    if (!status) {
+      print.error(`No dispute status (potential, pending or valid) provided`)
+      process.exitCode = 1
+      return
+    }
+
+    if (minAllocationClosedEpoch === null || minAllocationClosedEpoch === undefined) {
+      print.error(`No minimum epoch for closed allocations provided`)
+      process.exitCode = 1
+      return
+    }
+
     const config = loadValidatedConfig()
 
     // Create indexer API client
