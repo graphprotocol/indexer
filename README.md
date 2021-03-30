@@ -77,15 +77,18 @@ Network Subgraph
   --network-subgraph-endpoint  Endpoint to query the network subgraph from
                                                              [string] [required]
 
-State Channels
-  --wallet-worker-threads       Number of worker threads for the server wallet
-                                                           [number] [default: 8]
-  --wallet-skip-evm-validation  Whether to skip EVM-based validation of state
-                                channel transitions    [boolean] [default: true]
+Payments
+  --vector-node                 URL of a vector node         [string] [required]
+  --vector-router               Public identifier of the vector router
+                                                             [string] [required]
+  --vector-transfer-definition  Address of the Graph transfer definition
+                                contract              [string] [default: "auto"]
 
 Options:
   --version                Show version number                         [boolean]
   --help                   Show help                                   [boolean]
+  --gcloud-profiling       Whether to enable Google Cloud profiling
+                                                      [boolean] [default: false]
   --free-query-auth-token  Auth token that clients can use to query for free
                                                                          [array]
 ```
@@ -102,6 +105,15 @@ Ethereum
   --ethereum-network           Ethereum network    [string] [default: "mainnet"]
   --ethereum-polling-interval  Polling interval for the Ethereum provider (ms)
                                                         [number] [default: 4000]
+  --gas-increase-timeout       Time (in seconds) after which transactions will
+                               be resubmitted with a higher gas price
+                                                         [number] [default: 240]
+  --gas-increase-factor        Factor by which gas prices are increased when
+                               resubmitting transactions [number] [default: 1.2]
+  --gas-price-max              The maximum gas price (gwei) to use for
+                               transactions       [number] [default: 2000000000]
+  --transaction-attempts       The maximum number of transaction attempts
+                                                           [number] [default: 5]
   --mnemonic                   Mnemonic for the operator wallet
                                                              [string] [required]
   --indexer-address            Ethereum address of the indexer
@@ -127,6 +139,9 @@ Indexer Infrastructure
   --restake-rewards             Restake claimed indexer rewards, if set to
                                 'false' rewards will be returned to the wallet
                                                        [boolean] [default: true]
+  --allocation-claim-threshold  Minimum query fees collected (GRT) on an
+                                allocation for it to be claimed
+                                                           [number] [default: 0]
   --log-level                   Log level            [string] [default: "debug"]
 
 Network Subgraph
@@ -151,12 +166,31 @@ Postgres
   --postgres-password  Postgres password                  [string] [default: ""]
   --postgres-database  Postgres database name                [string] [required]
 
+Disputes
+  --poi-disputable-epochs   The number of epochs in the past to look for
+                            potential POI disputes         [number] [default: 1]
+  --poi-dispute-monitoring  Monitor the network for potential POI disputes
+                                                       [boolean] [default: true]
+
+Payments
+  --vector-node                 URL of a vector node         [string] [required]
+  --vector-router               Public identifier of the vector router
+                                                             [string] [required]
+  --vector-transfer-definition  Address of the Graph transfer definition
+                                contract              [string] [default: "auto"]
+  --vector-event-server         External URL of the vector event server of the
+                                agent                        [string] [required]
+  --vector-event-server-port    Port to serve the vector event server at
+                                                        [number] [default: 8001]
+
 Options:
-  --version       Show version number                                  [boolean]
-  --help          Show help                                            [boolean]
-  --dai-contract  Address of the DAI or USDC contract to use for the
-                  --inject-dai conversion rate
+  --version             Show version number                            [boolean]
+  --help                Show help                                      [boolean]
+  --dai-contract        Address of the DAI or USDC contract to use for the
+                        --inject-dai conversion rate
                 [string] [default: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"]
+  --offchain-subgraphs  Subgraphs to index that are not on chain
+                        (comma-separated)                  [array] [default: []]
 ```
 
 ### Indexer CLI
@@ -169,6 +203,7 @@ $ graph --help
 
   ...
   indexer status                 Check the status of an indexer
+  indexer rules                  Configure indexing rules
   indexer rules stop (never)     Never index a deployment (and stop indexing it if necessary)
   indexer rules start (always)   Always index a deployment (and start indexing it if necessary)
   indexer rules set              Set one or more indexing rules
@@ -176,11 +211,12 @@ $ graph --help
   indexer rules get              Get one or more indexing rules
   indexer rules delete           Remove one or many indexing rules
   indexer rules clear (reset)    Clear one or more indexing rules
-  indexer rules                  Configure indexing rules
+  indexer disputes               POI monitoring
+  indexer disputes get           Cross-check POIs submitted in the network
+  indexer cost                   Manage costing for subgraphs
   indexer cost set variables     Update cost model variables
   indexer cost set model         Update a cost model
   indexer cost get               Get cost models and/or variables for one or all subgraphs
-  indexer cost                   Manage costing for subgraphs
   indexer connect                Connect to indexer management API
   indexer                        Manage indexer configuration
 ```
@@ -221,14 +257,12 @@ or built locally with
 ```sh
 # Indexer service
 docker build \
-  --build-arg NPM_TOKEN=<npm-token> \
   -f Dockerfile.indexer-service \
   -t indexer-service:latest \
   .
 
 # Indexer agent
 docker build \
-  --build-arg NPM_TOKEN=<npm-token> \
   -f Dockerfile.indexer-agent \
   -t indexer-agent:latest \
   .
