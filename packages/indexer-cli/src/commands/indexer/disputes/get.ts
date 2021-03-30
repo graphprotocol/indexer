@@ -3,10 +3,12 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import {disputes, printDisputes} from '../../../disputes'
+import { disputes, printDisputes } from '../../../disputes'
 
 const HELP = `
-${chalk.bold('graph indexer disputes get')} [options] <status> <minimumAllocationClosedEpoch>
+${chalk.bold(
+  'graph indexer disputes get',
+)} [options] <status> <minimumAllocationClosedEpoch>
 
   <status>  potential|pending|valid
   
@@ -19,7 +21,7 @@ ${chalk.dim('Options:')}
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'Get one or more indexing rules',
+  description: `Cross-check POIs submitted in the network`,
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -45,11 +47,7 @@ module.exports = {
     try {
       const storedDisputes = await disputes(client, status, +minAllocationClosedEpoch)
 
-      printDisputes(
-        print,
-        outputFormat,
-        storedDisputes,
-      )
+      printDisputes(print, outputFormat, storedDisputes)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
