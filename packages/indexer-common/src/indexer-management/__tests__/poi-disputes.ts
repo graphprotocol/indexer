@@ -104,7 +104,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'Potential',
+  status: 'potential',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -122,7 +122,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'Potential',
+  status: 'potential',
 }
 
 const TEST_DISPUTE_3: POIDisputeAttributes = {
@@ -141,7 +141,7 @@ const TEST_DISPUTE_3: POIDisputeAttributes = {
   previousEpochStartBlockNumber: 848484,
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
-  status: 'Potential',
+  status: 'potential',
 }
 
 const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
@@ -284,7 +284,7 @@ describe('POI disputes', () => {
 
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
   })
@@ -305,7 +305,7 @@ describe('POI disputes', () => {
 
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 205 })
+        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 205 })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', [TEST_DISPUTE_2])
   })
@@ -335,7 +335,7 @@ describe('POI disputes', () => {
 
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
   })
@@ -368,7 +368,7 @@ describe('POI disputes', () => {
 
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'Potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', disputes)
   })

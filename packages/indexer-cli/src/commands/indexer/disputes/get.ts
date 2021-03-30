@@ -11,7 +11,6 @@ ${chalk.bold('graph indexer disputes get')} [options] <status> <minimumAllocatio
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-      --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
