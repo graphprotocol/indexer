@@ -8,6 +8,8 @@ import {disputes, printDisputes} from '../../../disputes'
 const HELP = `
 ${chalk.bold('graph indexer disputes get')} [options] <status> <minimumAllocationClosedEpoch>
 
+  <status>  potential|pending|valid
+  
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
