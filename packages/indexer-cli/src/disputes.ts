@@ -1,15 +1,15 @@
 import {
-  IndexerManagementClient, POIDisputeAttributes, indexerError, IndexerErrorCode,
+  IndexerManagementClient,
+  POIDisputeAttributes,
+  indexerError,
+  IndexerErrorCode,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 
-const DISPUTE_FORMATTERS: Record<
-  keyof POIDisputeAttributes,
-  (x: never) => string
-  > = {
+const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => string> = {
   allocationID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => x,
@@ -27,7 +27,7 @@ const DISPUTE_FORMATTERS: Record<
 const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
   (x: never) => string | number
-  > = {
+> = {
   allocationID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => +x,
@@ -41,7 +41,6 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockNumber: x => +x,
   status: x => x,
 }
-
 
 /**
  * Formats a dispute for display in the console.
@@ -57,7 +56,6 @@ export const formatDispute = (
   }
   return obj as Partial<POIDisputeAttributes>
 }
-
 
 /**
  * Parses a POI dispute returned from the indexer management GraphQL
@@ -78,7 +76,6 @@ const disputeFromGraphQL = (
   return obj as POIDisputeAttributes
 }
 
-
 export const displayDisputes = (
   outputFormat: 'table' | 'json' | 'yaml',
   disputes: Partial<POIDisputeAttributes>[],
@@ -88,11 +85,13 @@ export const displayDisputes = (
     : outputFormat === 'yaml'
     ? yaml.stringify(disputes).trim()
     : disputes.length === 0
-      ? 'No data'
-      : table([Object.keys(disputes[0]), ...disputes.map(dispute => Object.values(dispute))], {
-        border: getBorderCharacters('norc'),
-      }).trim()
-
+    ? 'No data'
+    : table(
+        [Object.keys(disputes[0]), ...disputes.map(dispute => Object.values(dispute))],
+        {
+          border: getBorderCharacters('norc'),
+        },
+      ).trim()
 
 export const displayDispute = (
   outputFormat: 'table' | 'json' | 'yaml',
@@ -103,8 +102,8 @@ export const displayDispute = (
     : outputFormat === 'yaml'
     ? yaml.stringify(dispute).trim()
     : table([Object.keys(dispute), Object.values(dispute)], {
-      border: getBorderCharacters('norc'),
-    }).trim()
+        border: getBorderCharacters('norc'),
+      }).trim()
 
 export const printDisputes = (
   print: GluegunPrint,
@@ -128,47 +127,46 @@ export const disputes = async (
   status: string,
   minClosedEpoch: number,
 ): Promise<Partial<POIDisputeAttributes>[]> => {
-    try {
-      const result = await client
-        .query(
-          gql`
-            query disputes($status: String!, $minClosedEpoch: Int!) {
-              disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
-                allocationID
-                allocationIndexer
-                allocationAmount
-                allocationProof
-                closedEpoch
-                closedEpochStartBlockHash
-                closedEpochStartBlockNumber
-                closedEpochReferenceProof
-                previousEpochStartBlockHash
-                previousEpochStartBlockNumber
-                previousEpochReferenceProof
-                status
-              }
+  try {
+    const result = await client
+      .query(
+        gql`
+          query disputes($status: String!, $minClosedEpoch: Int!) {
+            disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
+              allocationID
+              allocationIndexer
+              allocationAmount
+              allocationProof
+              closedEpoch
+              closedEpochStartBlockHash
+              closedEpochStartBlockNumber
+              closedEpochReferenceProof
+              previousEpochStartBlockHash
+              previousEpochStartBlockNumber
+              previousEpochReferenceProof
+              status
             }
-          `,
-          {
-            status,
-            minClosedEpoch
-          },
-        )
-        .toPromise()
-
-      console.log(result)
-      if (result.error) {
-        throw result.error
-      }
-
-      return result.data.disputes.map(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (dispute: Record<string, any>) => {
-          return disputeFromGraphQL(dispute)
+          }
+        `,
+        {
+          status,
+          minClosedEpoch,
         },
       )
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE040, error)
-      throw err
+      .toPromise()
+
+    if (result.error) {
+      throw result.error
     }
+
+    return result.data.disputes.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (dispute: Record<string, any>) => {
+        return disputeFromGraphQL(dispute)
+      },
+    )
+  } catch (error) {
+    const err = indexerError(IndexerErrorCode.IE040, error)
+    throw err
+  }
 }
