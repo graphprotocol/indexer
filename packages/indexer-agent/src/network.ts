@@ -72,7 +72,7 @@ export class Network {
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
-  gasIncrease: number
+  gasIncreaseFactor: number
   gasPriceMax: number
   maxTransactionAttempts: number
 
@@ -92,7 +92,7 @@ export class Network {
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
-    gasIncrease: number,
+    gasIncreaseFactor: number,
     gasPriceMax: number,
     maxTransactionAttempts: number,
   ) {
@@ -111,7 +111,7 @@ export class Network {
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
-    this.gasIncrease = gasIncrease
+    this.gasIncreaseFactor = gasIncreaseFactor
     this.gasPriceMax = gasPriceMax
     this.maxTransactionAttempts = maxTransactionAttempts
   }
@@ -143,7 +143,7 @@ export class Network {
     let txConfig: Record<string, number> = {
       attempt: 1,
       nonceOffset: 0,
-      gasBump: 1 + this.gasIncrease / 100,
+      gasBump: this.gasIncreaseFactor,
       nonce: tx.nonce,
       gasPrice: tx.gasPrice.toNumber(),
       gasLimit: tx.gasLimit.toNumber(),
@@ -215,7 +215,6 @@ export class Network {
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
         txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         txConfig.nonce += 1
       } else if (error.code == IndexerErrorCode.IE051) {
         throw error
@@ -236,8 +235,7 @@ export class Network {
           'Transaction nonce is too low. Try incrementing the nonce.',
         )
       ) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        txConfig.nonce! += 1
+        txConfig.nonce += 1
       } else if (
         error.message.includes('Try increasing the fee') ||
         error.message.includes('gas price supplied is too low') ||
@@ -275,7 +273,7 @@ export class Network {
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
-    gasIncrease: number,
+    gasIncreaseFactor: number,
     gasPriceMax: number,
     maxTransactionAttempts: number,
   ): Promise<Network> {
@@ -321,7 +319,7 @@ export class Network {
       poiDisputeMonitoring,
       poiDisputableEpochs,
       gasIncreaseTimeout,
-      gasIncrease,
+      gasIncreaseFactor,
       gasPriceMax,
       maxTransactionAttempts,
     )

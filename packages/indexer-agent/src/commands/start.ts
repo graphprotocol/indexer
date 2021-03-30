@@ -52,7 +52,7 @@ export default {
         default: 4000,
         group: 'Ethereum',
       })
-      .option('gas-increase-time-limit', {
+      .option('gas-increase-timeout', {
         description:
           'Time (in seconds) after which transactions will be resubmitted with a higher gas price',
         type: 'number',
@@ -60,11 +60,11 @@ export default {
         group: 'Ethereum',
         coerce: arg => arg * 1000,
       })
-      .option('gas-increase', {
+      .option('gas-increase-factor', {
         description:
-          'Percentage by which gas prices are increased when resubmitting transactions',
+          'Factor by which gas prices are increased when resubmitting transactions',
         type: 'number',
-        default: 20,
+        default: 1.2,
         group: 'Ethereum',
       })
       .option('gas-price-max', {
@@ -282,10 +282,13 @@ export default {
             return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
           }
         }
-        if (argv['gas-increase-time-limit']) {
-          if (argv['gas-increase-time-limit'] < 30000) {
-            return 'Invalid --gas-increase-time-limit provided. Must be at least 30 seconds'
+        if (argv['gas-increase-timeout']) {
+          if (argv['gas-increase-timeout'] < 30000) {
+            return 'Invalid --gas-increase-timeout provided. Must be at least 30 seconds'
           }
+        }
+        if (argv['gas-increase-factor'] <= 1.0) {
+          return 'Invalid --gas-increase-factor provided. Must be > 1.0'
         }
         return true
       })
@@ -331,9 +334,17 @@ export default {
       level: argv.logLevel,
     })
 
-    if (argv.gasIncreaseTimeLimit < 90000) {
+    if (argv.gasIncreaseTimeout < 90000) {
       logger.warn(
-        'Gas increase timeout is set to less than 90 seconds (~ 6 blocks). This may lead to high gas usage.',
+        'Gas increase timeout is set to less than 90 seconds (~ 6 blocks). This may lead to high gas usage',
+        { gasIncreaseTimeout: argv.gasIncreaseTimeout / 1000.0 },
+      )
+    }
+
+    if (argv.gasIncreaseFactor > 1.5) {
+      logger.warn(
+        `Gas increase factor is set to > 1.5. This may lead to high gas usage`,
+        { gasIncreaseFactor: argv.gasIncreaseFactor },
       )
     }
 
@@ -519,8 +530,8 @@ export default {
       argv.allocationClaimThreshold,
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
-      argv.gasIncreaseTimeLimit,
-      argv.gasIncrease,
+      argv.gasIncreaseTimeout,
+      argv.gasIncreaseFactor,
       argv.gasPriceMax,
       argv.transactionAttempts,
     )
