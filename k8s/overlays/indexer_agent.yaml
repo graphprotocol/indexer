@@ -1,5 +1,5 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: indexer-agent
 spec:
@@ -11,11 +11,11 @@ spec:
             # Set this so it matches the index node pods
             - name: INDEXER_AGENT_INDEX_NODE_IDS
               value: index_node_0,index_node_1
-            # Set this to your Ethereum node/provider
-            - name: INDEXER_AGENT_ETHEREUM
-              value: https://eth-mainnet.node/
+
+            # Set this to your indexer's geo location
+            - name: INDEXER_AGENT_INDEXER_GEO_COORDINATES
+              value: "0.00 0.00"
+
             # Set this to the public URL that your indexer serves from
             - name: INDEXER_AGENT_PUBLIC_INDEXER_URL
               value: http://not.localhost/
-            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT
-              value: https://gateway.network.thegraph.com/network

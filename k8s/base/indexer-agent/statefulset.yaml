@@ -1,8 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: indexer-agent
 spec:
+  serviceName: indexer-agent
   selector:
     matchLabels:
       app: indexer-agent
@@ -34,8 +35,23 @@ spec:
             - name: INDEXER_AGENT_MNEMONIC
               valueFrom:
                 secretKeyRef:
-                  name: indexer-mnemonic
+                  name: indexer
                   key: mnemonic
+            - name: INDEXER_AGENT_INDEXER_ADDRESS
+              valueFrom:
+                secretKeyRef:
+                  name: indexer
+                  key: indexer_address
+            - name: INDEXER_AGENT_ETHEREUM_NETWORK
+              valueFrom:
+                secretKeyRef:
+                  name: ethereum
+                  key: network_name
+            - name: INDEXER_AGENT_ETHEREUM
+              valueFrom:
+                secretKeyRef:
+                  name: ethereum
+                  key: url
             - name: INDEXER_AGENT_INDEX_NODE_IDS
               value: index-node-0
             - name: INDEXER_AGENT_GRAPH_NODE_QUERY_ENDPOINT
@@ -60,4 +76,16 @@ spec:
                   name: postgres-credentials
                   key: password
             - name: INDEXER_AGENT_POSTGRES_DATABASE
-              value: indexer-service
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: indexer_db
+            - name: INDEXER_AGENT_VECTOR_NODE
+              value: http://vector-node.default.svc.cluster.local
+            - name: INDEXER_AGENT_VECTOR_ROUTER
+              valueFrom:
+                secretKeyRef:
+                  name: vector-env
+                  key: router
+            - name: INDEXER_AGENT_VECTOR_EVENT_SERVER
+              value: http://indexer-agent.default.svc.cluster.local:8001/

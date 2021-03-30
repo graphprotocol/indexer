@@ -1,0 +1,79 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: vector-node
+spec:
+  selector:
+    app: vector-node
+  ports:
+    - name: api
+      protocol: TCP
+      port: 80
+      targetPort: api
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: vector-node
+  labels:
+    app: vector-node
+spec:
+  serviceName: vector-node
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vector-node
+  template:
+    metadata:
+      labels:
+        app: vector-node
+    spec:
+      containers:
+        - name: node
+          image: vector-node
+          ports:
+            - name: api
+              containerPort: 8000
+          livenessProbe:
+            httpGet:
+              path: /ping
+              port: 8000
+          readinessProbe:
+            httpGet:
+              path: /ping
+              port: 8000
+          env:
+            - name: VECTOR_CONFIG
+              valueFrom:
+                secretKeyRef:
+                  name: vector-env
+                  key: config
+            - name: VECTOR_PROD
+              value: 'true'
+            - name: VECTOR_MNEMONIC
+              valueFrom:
+                secretKeyRef:
+                  name: vector-env
+                  key: mnemonic
+            - name: VECTOR_PG_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: host
+            - name: VECTOR_PG_PORT
+              value: '5432'
+            - name: VECTOR_PG_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: vector_db
+            - name: VECTOR_PG_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: user
+            - name: VECTOR_PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-credentials
+                  key: password
