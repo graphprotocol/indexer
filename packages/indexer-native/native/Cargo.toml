@@ -1,0 +1,24 @@
+[package]
+name = "indexer-native"
+version = "0.1.0"
+authors = ["Zac Burns <That3Percent@gmail.com>"]
+license = "MIT"
+build = "build.rs"
+edition = "2018"
+exclude = ["artifacts.json", "index.node"]
+
+[lib]
+name = "indexer_native"
+crate-type = ["cdylib"]
+
+[build-dependencies]
+neon-build = "0.8.0"
+
+[dependencies]
+neon = "0.8.0"
+native-utils = { git = "ssh://git@github.com/edgeandnode/native-utils.git", commit = "8f91ec8", branch = "main" }
+secp256k1 = { version = "0.20", features=["recovery"] }
+never = "0.1"
+keccak-hash = "0.5.1"
+lazy_static = "1.4"
+arc-swap = "1.2"

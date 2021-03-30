@@ -86,16 +86,16 @@ async function getTransfer(
 }
 
 function validateSignature(
-  transfer: Pick<Transfer, 'signer' | 'allocation'>,
+  signer: string,
   receiptData: string,
 ): string {
   const signedData = readBinary(receiptData, 64, 136)
   const signature = '0x' + receiptData.slice(136, 266)
   const address = utils.recoverAddress(utils.keccak256(signedData), signature)
-  if (toAddress(address) !== transfer.signer) {
+  if (toAddress(address) !== signer) {
     throw indexerError(
       IndexerErrorCode.IE031,
-      `Invalid signature: recovered signer "${address}" but expected signer "${transfer.signer}"`,
+      `Invalid signature: recovered signer "${address}" but expected signer "${signer}"`,
     )
   }
   return signature
@@ -157,7 +157,7 @@ export class ReceiptManager {
     // commitment. That means our Vector node should know about it.
     const transfer = await this._transferCache.get(vectorTransferId)
 
-    const signature = validateSignature(transfer, receiptData)
+    const signature = validateSignature(transfer.signer, receiptData)
 
     const paymentAmount = readNumber(receiptData, 64, 128)
     const id = readNumber(receiptData, 128, 136).toNumber()
