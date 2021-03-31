@@ -266,7 +266,7 @@ export default {
       .option('poi-dispute-monitoring', {
         description: 'Monitor the network for potential POI disputes',
         type: 'boolean',
-        default: true,
+        default: false,
         group: 'Disputes',
       })
       .check(argv => {
