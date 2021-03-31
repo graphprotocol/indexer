@@ -8,9 +8,7 @@ import { disputes, printDisputes } from '../../../disputes'
 const HELP = `
 ${chalk.bold(
   'graph indexer disputes get',
-)} [options] <status> <minimumAllocationClosedEpoch>
-
-  <status>  potential|pending|valid
+)} [options] potential <minimumAllocationClosedEpoch>
   
 ${chalk.dim('Options:')}
 
@@ -40,8 +38,8 @@ module.exports = {
       return
     }
 
-    if (!status) {
-      print.error(`No dispute status (potential, pending or valid) provided`)
+    if (!status || status !== 'potential') {
+      print.error(`Must provide a dispute status filter, options: 'potential'`)
       process.exitCode = 1
       return
     }
