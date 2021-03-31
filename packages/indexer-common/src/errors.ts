@@ -104,7 +104,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE036: 'Unhandled exception',
   IE037: 'Failed to query disputable allocations',
   IE038: 'Failed to query epochs',
-  IE039: 'Failed to store pending POI disputes',
+  IE039: 'Failed to store potential POI disputes',
   IE040: 'Failed to fetch POI disputes',
   IE041: 'Failed to query transfers to resolve',
   IE042: 'Failed to add transfer to the database',
