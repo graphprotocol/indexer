@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add POI disputes to the indexer management API
+- Add support for new payments system
+- Add error types for new payments system
+- Add error types for POI disputes
+- Add error types for transaction management
+
+### Changed
+- Update @graphprotocol/common-ts to 1.3.2 (equality check fix in eventuals, latest contracts)
 
 ## [0.10.0] - 2021-01-29
 ### Changed

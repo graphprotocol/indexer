@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `/operator/info` endpoint for retrieving operator data such as the public key
+- Add support for the new payments system
+
+### Changed
+- Update @graphprotocol/common-ts to 1.3.2 (equality fix in eventuals, latest contracts)
+- Add optional Google Cloud profiling through `--gcloud-profiling`
 
 ## [0.10.0] - 2021-01-29
 ### Changed

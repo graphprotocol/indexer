@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Add `--offchain-subgraphs` to index subgraph deployments that are not on chain
+- Add `--poi-monitoring` (experimental) to monitor and cross-check POIs submitted in the network
+- Add support for new payments system
+- Add database migration to remove old state channel tables
+- Resubmit transactions with higher gas price if they are not mined
+
+### Changed
+- Update @graphprotocol/common-ts to 1.3.2 (equality fix in eventuals, latest contracts)
 
 ## [0.10.0] - 2021-01-29
 ### Changed
