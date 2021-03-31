@@ -14,13 +14,14 @@ For mainnet:
 
 For testnet:
 
-| Component       | Release                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)    |
-| indexer-agent   | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)    |
-| indexer-cli     | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)    |
-| indexer-service | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)    |
-| graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.21.1) |
+| Component       | Release                                                                                                                                                                                |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)                                                                                                                |
+| indexer-agent   | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                                |
+| indexer-cli     | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                                |
+| indexer-service | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                                |
+| graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.22.0)                                                                                                             |
+| vector_node     | [0.2.1-beta.20](https://hub.docker.com/layers/connextproject/vector_node/0.2.1-beta.20/images/sha256-b589fd7ce43047de04226a082a819642dd1b41e2954e08e6519b75283193dccd?context=explore) |
 
 ## Mainnet (https://network.thegraph.com)
 
