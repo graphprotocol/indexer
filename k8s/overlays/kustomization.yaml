@@ -26,7 +26,7 @@ images:
     newTag: latest
   - name: vector-node
     newName: connextproject/vector_node
-    newTag: 0.2.1-beta.20
+    newTag: 0.2.1
 patchesStrategicMerge:
   - ethereum_networks.yaml
   - index_node.yaml
