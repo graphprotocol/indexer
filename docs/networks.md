@@ -207,6 +207,8 @@ The `VECTOR_CONFIG` variable should be a JSON string that contains the following
   },
   "nodeUrl": "<internal URL of the Vector node in your infrastructure>",
   "logLevel": "info",
+  "natsUrl": "nats://nats1.connext.provide.network:4222,nats://nats2.connext.provide.network:4222,nats://nats3.connext.provide.network:4222",
+  "authUrl": "https://messaging.connext.network",
   "messagingUrl": "https://messaging.connext.network",
   "production": true,
   "baseGasSubsidyPercentage": 0,
