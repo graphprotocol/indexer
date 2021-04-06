@@ -589,7 +589,7 @@ class Agent {
       ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
     ])
 
-    // Ensure the network subgraph is never allocaated towards
+    // Ensure the network subgraph is never allocated towards
     if (this.networkSubgraph instanceof SubgraphDeploymentID) {
       const networkSubgraphDeployment = this.networkSubgraph
       targetDeployments = targetDeployments.filter(

@@ -646,8 +646,16 @@ export class Network {
         }
       }
 
+      // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
       let disputableEpochs = await this.epochs([
-        ...new Set(allocations.map(allocation => allocation.closedAtEpoch)),
+        ...allocations.reduce(
+          (epochNumbers: Set<number>, allocation: Allocation) => {
+            epochNumbers.add(allocation.closedAtEpoch)
+            epochNumbers.add(allocation.closedAtEpoch - 1)
+            return epochNumbers
+          },
+          new Set(),
+        ),
       ])
 
       disputableEpochs = await Promise.all(
@@ -664,16 +672,14 @@ export class Network {
 
       return await Promise.all(
         allocations.map(async allocation => {
-          const closedAtEpochIndex = disputableEpochs.findIndex(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.closedAtEpochStartBlockHash = disputableEpochs.find(
             epoch => epoch.id == allocation.closedAtEpoch,
-          )
+          )!.startBlockHash
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.closedAtEpochStartBlockHash = disputableEpochs[
-            closedAtEpochIndex
-          ]!.startBlockHash
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.previousEpochStartBlockHash =
-            disputableEpochs[closedAtEpochIndex - 1]?.startBlockHash
+          allocation.previousEpochStartBlockHash = disputableEpochs.find(
+            epoch => epoch.id == allocation.closedAtEpoch - 1,
+          )!.startBlockHash
           return allocation
         }),
       )
