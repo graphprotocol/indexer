@@ -22,16 +22,13 @@ export type Response<T> = {
   status: number
 }
 
-export interface PaidQuery {
-  subgraphDeploymentID: SubgraphDeploymentID
-  payment: string
-  query: string
-  requestCID: string
-}
-
 export interface FreeQuery {
   subgraphDeploymentID: SubgraphDeploymentID
   query: string
+}
+
+export type PaidQuery = FreeQuery & {
+  payment: string
 }
 
 export interface QueryProcessor {

@@ -2,6 +2,7 @@ import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { Wallet } from 'ethers'
 import { Client } from '@urql/core'
+import { NativeAttestationSigner } from '@graphprotocol/indexer-native'
 
 import { Logger, Eventual, timer, Address } from '@graphprotocol/common-ts'
 
@@ -109,18 +110,23 @@ export interface EnsureAttestationSignersOptions {
   logger: Logger
   allocations: Eventual<Allocation[]>
   wallet: Wallet
+  chainId: number
+  disputeManagerAddress: string
 }
 
-export type AttestationSignerCache = LRUCache<string, string>
-export type AttestationSignerMap = Map<string, string>
+export type AttestationSignerCache = LRUCache<string, NativeAttestationSigner>
+export type AttestationSignerMap = Map<string, NativeAttestationSigner>
 
-const cacheToMap = (cache: LRUCache<string, string>): AttestationSignerMap =>
-  new Map([...cache.entries()].map(([k, v]) => [k, v.v]))
+const cacheToMap = (
+  cache: LRUCache<string, NativeAttestationSigner>,
+): AttestationSignerMap => new Map([...cache.entries()].map(([k, v]) => [k, v.v]))
 
 export const ensureAttestationSigners = ({
   logger: parentLogger,
   allocations,
   wallet,
+  chainId,
+  disputeManagerAddress,
 }: EnsureAttestationSignersOptions): Eventual<AttestationSignerMap> => {
   const logger = parentLogger.child({ component: 'AttestationSignerCache' })
 
@@ -141,6 +147,12 @@ export const ensureAttestationSigners = ({
 
           // Derive an epoch and subgraph specific private key
           const signer = allocationSigner(wallet, allocation)
+          const nativeSigner = new NativeAttestationSigner(
+            chainId,
+            disputeManagerAddress,
+            signer,
+            allocation.subgraphDeployment.id.bytes32,
+          )
 
           logger.info(`Successfully identified attestation signer for allocation`, {
             allocation: allocation.id,
@@ -148,7 +160,7 @@ export const ensureAttestationSigners = ({
           })
 
           // Update the cache
-          cache.set(allocation.id, signer)
+          cache.set(allocation.id, nativeSigner)
         } catch (err) {
           logger.warn(`Failed to identify attestation signer for allocation`, {
             allocation: allocation.id,
