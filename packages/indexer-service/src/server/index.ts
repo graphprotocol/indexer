@@ -4,7 +4,6 @@ import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
 import { QueryProcessor } from '../types'
-import { utils } from 'ethers'
 import { createStatusServer } from './status'
 import {
   Logger,
@@ -249,7 +248,6 @@ export const createApp = async ({
               subgraphDeploymentID,
               payment,
               query,
-              requestCID: utils.keccak256(new TextEncoder().encode(query)),
             })
             serverMetrics.successfulQueries.inc({
               deployment: subgraphDeploymentID.ipfsHash,

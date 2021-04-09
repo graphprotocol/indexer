@@ -389,7 +389,13 @@ export default {
     })
 
     // Ensure there is an attestation signer for every allocation
-    const signers = ensureAttestationSigners({ logger, allocations, wallet })
+    const signers = ensureAttestationSigners({
+      logger,
+      allocations,
+      wallet,
+      chainId: network.chainId,
+      disputeManagerAddress: contracts.disputeManager.address,
+    })
 
     // Create a query processor for paid queries
     const queryProcessor = new QueryProcessor({
@@ -397,8 +403,6 @@ export default {
       graphNode: argv.graphNodeQueryEndpoint,
       metrics,
       receiptManager,
-      chainId: network.chainId,
-      disputeManagerAddress: contracts.disputeManager.address,
       signers,
     })
 

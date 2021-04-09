@@ -8,10 +8,39 @@
        * The PublicKey to Address conversion is cached, saving a keccak hash
 */
 export class NativeSignatureVerifier {
-    constructor(address: string)
-    /*
+  constructor(address: string);
+  /*
         Verifies that the message was signed by the address this verifier
         was constructed with.
     */
-    async verify(message: string, signature: string): Promise<boolean>
+  async verify(message: string, signature: string): Promise<boolean>;
+}
+
+export type Attestation = {
+  requestCID: string;
+  responseCID: string;
+  subgraphDeploymentID: string;
+  v: number;
+  r: string;
+  s: string;
+};
+
+/*
+    Signs attestations using the given signing data
+*/
+export class NativeAttestationSigner {
+  constructor(
+    chainId: string | number,
+    disputeManagerAddress: string,
+    privateKey: string,
+    /// Bytes32
+    subgraphDeploymentId: string
+  );
+  /*
+        Signs an attestation using the data given in the constructor
+    */
+  async createAttestation(
+    request: string,
+    response: string
+  ): Promise<Attestation>;
 }

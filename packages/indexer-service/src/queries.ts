@@ -1,7 +1,6 @@
-import { utils } from 'ethers'
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 
-import { Logger, Metrics, createAttestation, Eventual } from '@graphprotocol/common-ts'
+import { Logger, Metrics, Eventual } from '@graphprotocol/common-ts'
 import {
   QueryProcessor as QueryProcessorInterface,
   PaidQuery,
@@ -17,8 +16,6 @@ export interface PaidQueryProcessorOptions {
   logger: Logger
   metrics: Metrics
   graphNode: string
-  chainId: number
-  disputeManagerAddress: string
   signers: Eventual<AttestationSignerMap>
   receiptManager: ReceiptManager
 }
@@ -27,8 +24,6 @@ export class QueryProcessor implements QueryProcessorInterface {
   logger: Logger
   metrics: Metrics
   graphNode: AxiosInstance
-  chainId: number
-  disputeManagerAddress: string
   signers: Eventual<AttestationSignerMap>
   receiptManager: ReceiptManager
 
@@ -36,9 +31,7 @@ export class QueryProcessor implements QueryProcessorInterface {
     logger,
     metrics,
     graphNode,
-    chainId,
     receiptManager,
-    disputeManagerAddress,
     signers,
   }: PaidQueryProcessorOptions) {
     this.logger = logger
@@ -58,8 +51,6 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Don't throw on bad responses
       validateStatus: () => true,
     })
-    this.chainId = chainId
-    this.disputeManagerAddress = disputeManagerAddress
     this.receiptManager = receiptManager
   }
 
@@ -80,13 +71,12 @@ export class QueryProcessor implements QueryProcessorInterface {
     }
   }
 
-  async executePaidQuery(query: PaidQuery): Promise<Response<QueryResult>> {
-    const { subgraphDeploymentID, requestCID, payment } = query
+  async executePaidQuery(paidQuery: PaidQuery): Promise<Response<QueryResult>> {
+    const { subgraphDeploymentID, payment, query } = paidQuery
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
-      receipt: query.payment,
-      requestCID,
+      payment,
     })
 
     const allocationID = await this.receiptManager.add(payment)
@@ -106,29 +96,14 @@ export class QueryProcessor implements QueryProcessorInterface {
     try {
       response = await this.graphNode.post<string>(
         `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
-        query.query,
+        query,
       )
     } catch (error) {
       error.status = 500
       throw error
     }
 
-    // Compute the response CID
-    const responseCID = utils.keccak256(new TextEncoder().encode(response.data))
-
-    // Obtain a signed attestation for the query result
-    const attestable = {
-      requestCID,
-      responseCID,
-      subgraphDeploymentID: subgraphDeploymentID.bytes32,
-    }
-
-    const attestation = await createAttestation(
-      signer,
-      this.chainId,
-      this.disputeManagerAddress,
-      attestable,
-    )
+    const attestation = await signer.createAttestation(query, response.data)
 
     return {
       status: 200,
