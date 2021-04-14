@@ -159,6 +159,12 @@ export default {
         default: 'auto',
         group: 'Payments',
       })
+      .option('allocation-syncing-interval', {
+        description: 'Interval (in ms) for syncing indexer allocations from the network',
+        type: 'number',
+        default: 120_000,
+        group: 'Network Subgraph',
+      })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
@@ -379,7 +385,7 @@ export default {
       indexer: indexerAddress,
       logger,
       networkSubgraph,
-      interval: 10_000,
+      interval: argv.allocationSyncingInterval,
     })
 
     // Ensure there is an attestation signer for every allocation
