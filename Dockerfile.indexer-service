@@ -21,6 +21,7 @@ COPY tsconfig.json .
 
 # Copy shared and package files
 COPY packages/indexer-common/ ./packages/indexer-common
+COPY packages/indexer-native/ ./packages/indexer-native
 COPY packages/indexer-service/ ./packages/indexer-service
 
 # Install dependencies; include dev dependencies
@@ -50,6 +51,9 @@ COPY tsconfig.json .
 # Copy build output
 COPY --from=build /opt/indexer/packages/indexer-common/package.json /opt/indexer/packages/indexer-common/package.json
 COPY --from=build /opt/indexer/packages/indexer-common/dist /opt/indexer/packages/indexer-common/dist
+COPY --from=build /opt/indexer/packages/indexer-native/package.json /opt/indexer/packages/indexer-native/package.json
+COPY --from=build /opt/indexer/packages/indexer-native/lib /opt/indexer/packages/indexer-native/lib
+COPY --from=build /opt/indexer/packages/indexer-native/native /opt/indexer/packages/indexer-native/native
 COPY --from=build /opt/indexer/packages/indexer-service/package.json /opt/indexer/packages/indexer-service/package.json
 COPY --from=build /opt/indexer/packages/indexer-service/dist /opt/indexer/packages/indexer-service/dist
 
