@@ -6,7 +6,8 @@
       "packages/indexer-common",
       "packages/indexer-cli",
       "packages/indexer-agent",
-      "packages/indexer-service"
+      "packages/indexer-service",
+      "packages/indexer-native"
     ]
   },
   "scripts": {
