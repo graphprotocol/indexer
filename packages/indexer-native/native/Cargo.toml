@@ -16,7 +16,7 @@ neon-build = "0.8.0"
 
 [dependencies]
 neon = "0.8.0"
-native-utils = { git = "ssh://git@github.com/edgeandnode/native-utils.git", commit = "cde9333", branch = "main" }
+native-utils = { git = "https://github.com/edgeandnode/native-utils", rev = "cde9333989c475c26624dfdc77a78eb0bff43187" }
 secp256k1 = { version = "0.20", features=["recovery"] }
 never = "0.1"
 keccak-hash = "0.5.1"
