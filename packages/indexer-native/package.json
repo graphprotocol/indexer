@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-native",
-  "version": "0.2.0",
+  "version": "0.12.0",
   "description": "Performance sensitive indexer code",
   "main": "lib/index.js",
   "author": "Zac Burns <That3Percent@gmail.com>",
