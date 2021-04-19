@@ -321,7 +321,7 @@ checksum = "0ee1c47aaa256ecabcaea351eae4a9b01ef39ed810004e298d2511ed284b1525"
 [[package]]
 name = "native-utils"
 version = "0.1.0"
-source = "git+ssh://git@github.com/edgeandnode/native-utils.git?branch=main#cde9333989c475c26624dfdc77a78eb0bff43187"
+source = "git+https://github.com/edgeandnode/native-utils?rev=cde9333989c475c26624dfdc77a78eb0bff43187#cde9333989c475c26624dfdc77a78eb0bff43187"
 dependencies = [
  "atomic-take",
  "faster-hex",
