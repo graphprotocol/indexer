@@ -17,9 +17,9 @@ For testnet:
 | Component       | Release                                                                                                                                                                |
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)                                                                                                |
-| indexer-agent   | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                |
-| indexer-cli     | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                |
-| indexer-service | [0.11.0](https://github.com/graphprotocol/indexer/releases/tag/v0.11.0)                                                                                                |
+| indexer-agent   | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
+| indexer-cli     | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
+| indexer-service | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
 | graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.22.0)                                                                                             |
 | vector_node     | [0.2.1](https://hub.docker.com/layers/connextproject/vector_node/0.2.1/images/sha256-81e3bf9aac77c775de84b50935249db4e4631b34c2ab7077bcb812532ba745b8?context=explore) |
 
