@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2021-04-19
+### Added
+- Add `--alloation-syncing-interval` option (default: 120s, previous 10s)
+- Use `indexer-native` package for native attestation signing and signature verification
+
+### Changed
+- Update to latest common-ts
+
 ## [0.12.0] - 2021-04-06
 ### Changed
 - Update common-ts, vector and ethers
@@ -185,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/graphprotocol/indexer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/graphprotocol/indexer/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/graphprotocol/indexer/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/graphprotocol/indexer/compare/v0.9.5...v0.10.0
