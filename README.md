@@ -281,14 +281,12 @@ After this, the indexer agent and service can be run as follows:
 
 2. Indexer Agent
 
-   ````sh
+   ```sh
    docker run -p 18000:8000 -it indexer-agent:latest ...
    ```
 
    This starts the indexer agent and serves the so-called indexer management API
    on the host at port 18000.
-
-   ````
 
 ## Terraform & Kubernetes
 
