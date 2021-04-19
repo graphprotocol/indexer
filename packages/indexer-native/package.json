@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-native",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Performance sensitive indexer code",
   "main": "lib/index.js",
   "author": "Zac Burns <That3Percent@gmail.com>",
@@ -14,7 +14,7 @@
   },
   "devDependencies": {
     "bs58": "4.0.1",
-    "jest": "^26.6.3",
-    "ethers": "5.0.26"
+    "ethers": "5.0.26",
+    "jest": "^26.6.3"
   }
 }
