@@ -21,6 +21,7 @@ export interface AgentConfig {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   payments: PaymentsConfig
+  detectiveOnly: boolean
 }
 
 export interface EthereumBlock {

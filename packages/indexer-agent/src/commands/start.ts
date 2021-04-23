@@ -269,6 +269,12 @@ export default {
         default: false,
         group: 'Disputes',
       })
+      .option('focused-detective', {
+        description: 'Only monitor the network, no interactions',
+        type: 'boolean',
+        default: false,
+        group: 'Disputes',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -609,6 +615,7 @@ export default {
         },
         models: paymentModels,
       },
+      detectiveOnly: argv.focusedDetective,
     })
   },
 }

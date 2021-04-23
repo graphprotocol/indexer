@@ -369,6 +369,77 @@ class Agent {
     return this
   }
 
+  async startDetectiveOnly(): Promise<Agent> {
+    this.logger.info(`Connect to Graph node(s)`)
+    await this.indexer.connect()
+    this.logger.info(`Connected to Graph node(s)`)
+
+    // Ensure there is a 'global' indexing rule
+    await this.indexer.ensureGlobalIndexingRule()
+
+    const currentEpoch = timer(600_000).tryMap(
+      () => this.network.contracts.epochManager.currentEpoch(),
+      {
+        onError: err =>
+          this.logger.warn(`Failed to fetch current epoch`, { err }),
+      },
+    )
+
+    const activeDeployments = timer(60_000).tryMap(
+      () => this.indexer.subgraphDeployments(),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain active deployments, trying again later`,
+          ),
+      },
+    )
+
+    const disputableAllocations = join({
+      currentEpoch,
+      activeDeployments,
+    }).tryMap(
+      ({ currentEpoch, activeDeployments }) =>
+        this.network.disputableAllocations(currentEpoch, activeDeployments, 0),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to fetch disputable allocations, trying again later`,
+          ),
+      },
+    )
+
+    join({
+      ticker: timer(120_000),
+      currentEpoch,
+      activeDeployments,
+      disputableAllocations,
+    }).pipe(
+      async ({ currentEpoch, activeDeployments, disputableAllocations }) => {
+        this.logger.info(`Reconcile with the network`)
+
+        try {
+          await this.reconcileDeployments(activeDeployments, [])
+
+          const disputableEpoch =
+            currentEpoch.toNumber() - this.network.poiDisputableEpochs
+
+          // Find disputable allocations
+          await this.identifyPotentialDisputes(
+            disputableAllocations,
+            disputableEpoch,
+          )
+        } catch (err) {
+          this.logger.warn(`Failed to reconcile indexer and network`, {
+            err: indexerError(IndexerErrorCode.IE005, err),
+          })
+        }
+      },
+    )
+
+    return this
+  }
+
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
     this.logger.info(`Claim rebate rewards`, {
       claimable: allocations.map(allocation => ({
@@ -941,5 +1012,9 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.offchainSubgraphs,
     transfers,
   )
-  return await agent.start()
+  if (config.detectiveOnly) {
+    return await agent.startDetectiveOnly()
+  } else {
+    return await agent.start()
+  }
 }
