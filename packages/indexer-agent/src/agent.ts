@@ -390,14 +390,23 @@ class Agent {
     disputableAllocations: Allocation[],
     disputableEpoch: number,
   ): Promise<void> {
-    const storedDisputes = await this.indexer.fetchPOIDisputes(
-      'potential',
-      disputableEpoch,
-    )
+    // TODO: Support supplying status = 'any' to fetchPOIDisputes() to fetch all previously processed allocations in a single query
+    const alreadyProcessed = (
+      await this.indexer.fetchPOIDisputes('potential', disputableEpoch)
+    ).concat(await this.indexer.fetchPOIDisputes('valid', disputableEpoch))
+
     const newDisputableAllocations = disputableAllocations.filter(
       allocation =>
-        !storedDisputes.find(dispute => dispute.allocationID == allocation.id),
+        !alreadyProcessed.find(
+          dispute => dispute.allocationID == allocation.id,
+        ),
     )
+    if (newDisputableAllocations.length == 0) {
+      this.logger.debug(
+        'No new disputable allocations to process for potential disputes',
+      )
+      return
+    }
 
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
       [
@@ -444,55 +453,54 @@ class Agent {
         }),
     )
 
-    const potentials = newDisputableAllocations.reduce(
-      (flaggedAllocations: POIDisputeAttributes[], allocation: Allocation) => {
+    const disputes: POIDisputeAttributes[] = newDisputableAllocations.map(
+      (allocation: Allocation) => {
         const rewardsPool = uniqueRewardsPools.find(
           pool =>
             pool.subgraphDeployment == allocation.subgraphDeployment.id &&
             pool.closedAtEpoch == allocation.closedAtEpoch,
         )
-        if (
-          rewardsPool?.referencePOI !== allocation.poi &&
-          rewardsPool?.referencePreviousPOI !== allocation.poi
-        ) {
-          const dispute: POIDisputeAttributes = {
-            allocationID: allocation.id,
-            allocationIndexer: allocation.indexer,
-            allocationAmount: allocation.allocatedTokens.toString(),
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            allocationProof: allocation.poi!,
-            closedEpoch: allocation.closedAtEpoch,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            closedEpochReferenceProof: rewardsPool!.referencePOI!,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            closedEpochStartBlockHash: allocation.closedAtEpochStartBlockHash!,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            closedEpochStartBlockNumber: rewardsPool!
-              .closedAtEpochStartBlockNumber!,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            previousEpochReferenceProof: rewardsPool!.referencePreviousPOI!,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            previousEpochStartBlockHash: rewardsPool!
-              .previousEpochStartBlockHash!,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            previousEpochStartBlockNumber: rewardsPool!
-              .previousEpochStartBlockNumber!,
-            status: 'potential',
-          }
-          flaggedAllocations.push(dispute)
-        }
-        return flaggedAllocations
-      },
-      [],
+
+        return {
+          allocationID: allocation.id,
+          allocationIndexer: allocation.indexer,
+          allocationAmount: allocation.allocatedTokens.toString(),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocationProof: allocation.poi!,
+          closedEpoch: allocation.closedAtEpoch,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          closedEpochReferenceProof: rewardsPool!.referencePOI!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          closedEpochStartBlockHash: allocation.closedAtEpochStartBlockHash!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          closedEpochStartBlockNumber: rewardsPool!
+            .closedAtEpochStartBlockNumber!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          previousEpochReferenceProof: rewardsPool!.referencePreviousPOI!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          previousEpochStartBlockHash: rewardsPool!
+            .previousEpochStartBlockHash!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          previousEpochStartBlockNumber: rewardsPool!
+            .previousEpochStartBlockNumber!,
+          status:
+            rewardsPool?.referencePOI !== allocation.poi &&
+            rewardsPool?.referencePreviousPOI !== allocation.poi
+              ? 'potential'
+              : 'valid',
+        } as POIDisputeAttributes
+      }
     )
 
-    if (potentials.length > 0) {
-      const stored = await this.indexer.storePoiDisputes(potentials)
-      this.logger.info(`Identified potential POI disputes`, {
-        identified: potentials.length,
-        stored: stored.length,
-      })
-    }
+    const potentialDisputes = disputes.filter(
+      dispute => dispute.status == 'potential',
+    ).length
+    const stored = await this.indexer.storePoiDisputes(disputes)
+
+    this.logger.info(`Disputable allocations' POIs validated`, {
+      potentialDisputes: potentialDisputes,
+      validAllocations: stored.length - potentialDisputes,
+    })
   }
 
   async reconcileDeployments(
