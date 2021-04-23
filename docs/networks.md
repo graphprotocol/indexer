@@ -21,7 +21,7 @@ For testnet:
 | indexer-cli     | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
 | indexer-service | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
 | graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.22.0)                                                                                             |
-| vector_node     | [a340c8a4 (commit)](https://hub.docker.com/layers/connextproject/vector_node/a340c8a4/images/sha256-b242d3e46c184ce07ce242d743ec16ba6453e50c694609d01104553dfa2216bd?context=explore) |
+| vector_node     | [a340c8a4](https://hub.docker.com/layers/connextproject/vector_node/a340c8a4/images/sha256-b242d3e46c184ce07ce242d743ec16ba6453e50c694609d01104553dfa2216bd?context=explore) (commit) |
 
 ## Mainnet (https://network.thegraph.com)
 
