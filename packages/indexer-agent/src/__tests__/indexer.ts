@@ -20,6 +20,7 @@ import { Indexer } from '../indexer'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+  subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof:
@@ -39,6 +40,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
+  subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '5000000',
   allocationProof:
@@ -62,6 +64,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   (x: never) => string | BigNumber | number | undefined
 > = {
   allocationID: x => x,
+  subgraphDeploymentID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => x,
   allocationProof: x => x,
@@ -159,6 +162,7 @@ describe('Indexer tests', () => {
   test('Store POI Disputes rejects invalid indexer address', async () => {
     const badDispute: POIDisputeAttributes = {
       allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
+      subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
       allocationIndexer: '0xCOFFEECOFFEECOFFEE',
       allocationAmount: '500000000',
       allocationProof:
@@ -180,7 +184,7 @@ describe('Indexer tests', () => {
     const disputes = [badDispute]
 
     await expect(indexer.storePoiDisputes(disputes)).rejects.toThrow(
-      'Failed to store pending POI disputes',
+      'Failed to store potential POI disputes',
     )
   })
 

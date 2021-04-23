@@ -5,6 +5,7 @@ import { utils } from 'ethers'
 
 export interface POIDisputeAttributes {
   allocationID: string
+  subgraphDeploymentID: string
   allocationIndexer: string
   allocationAmount: string
   allocationProof: string
@@ -22,6 +23,7 @@ export interface POIDisputeCreationAttributes
   extends Optional<
     POIDisputeAttributes,
     | 'allocationID'
+    | 'subgraphDeploymentID'
     | 'allocationIndexer'
     | 'allocationAmount'
     | 'allocationProof'
@@ -39,6 +41,7 @@ export class POIDispute
   extends Model<POIDisputeAttributes, POIDisputeCreationAttributes>
   implements POIDisputeAttributes {
   public allocationID!: string
+  public subgraphDeploymentID!: string
   public allocationIndexer!: string
   public allocationAmount!: string
   public allocationProof!: string
@@ -87,12 +90,26 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
           },
         },
       },
-      allocationIndexer: {
+      subgraphDeploymentID: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isHex: (value: any) => {
+            if (typeof value !== 'string') {
+              throw new Error('Subgraph deployment ID must be a string')
+            }
+
+            return
+          },
+        },
+      },
+      allocationIndexer: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          isValid: (value: any) => {
             if (typeof value !== 'string') {
               throw new Error('Allocation Indexer ID must be a string')
             }
