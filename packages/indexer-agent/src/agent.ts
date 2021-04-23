@@ -463,6 +463,7 @@ class Agent {
 
         return {
           allocationID: allocation.id,
+          subgraphDeploymentID: allocation.subgraphDeployment.id.ipfsHash,
           allocationIndexer: allocation.indexer,
           allocationAmount: allocation.allocatedTokens.toString(),
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion

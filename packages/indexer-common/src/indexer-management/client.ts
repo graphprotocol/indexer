@@ -45,6 +45,7 @@ const SCHEMA_SDL = gql`
 
   type POIDispute {
     allocationID: String!
+    subgraphDeploymentID: String!
     allocationIndexer: String!
     allocationAmount: BigInt!
     allocationProof: String!
@@ -60,6 +61,7 @@ const SCHEMA_SDL = gql`
 
   input POIDisputeInput {
     allocationID: String!
+    subgraphDeploymentID: String!
     allocationIndexer: String!
     allocationAmount: BigInt!
     allocationProof: String!
