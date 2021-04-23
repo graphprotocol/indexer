@@ -11,6 +11,7 @@ import { table, getBorderCharacters } from 'table'
 
 const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => string> = {
   allocationID: x => x,
+  subgraphDeploymentID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => x,
   allocationProof: x => x,
@@ -29,6 +30,7 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   (x: never) => string | number
 > = {
   allocationID: x => x,
+  subgraphDeploymentID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => +x,
   allocationProof: x => x,

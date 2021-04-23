@@ -20,6 +20,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   (x: never) => string | BigNumber | number | null
 > = {
   allocationID: x => x,
+  subgraphDeploymentID: x => x,
   allocationIndexer: x => x,
   allocationAmount: x => x,
   allocationProof: x => x,
@@ -323,6 +324,7 @@ export class Indexer {
             mutation storeDisputes($disputes: [POIDisputeInput!]!) {
               storeDisputes(disputes: $disputes) {
                 allocationID
+                subgraphDeploymentID
                 allocationIndexer
                 allocationAmount
                 allocationProof
@@ -371,6 +373,7 @@ export class Indexer {
             query disputes($status: String!, $minClosedEpoch: Int!) {
               disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
                 allocationID
+                subgraphDeploymentID
                 allocationIndexer
                 allocationAmount
                 allocationProof

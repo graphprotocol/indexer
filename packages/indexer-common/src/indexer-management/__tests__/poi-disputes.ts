@@ -29,6 +29,7 @@ const STORE_POI_DISPUTES_MUTATION = gql`
   mutation storeDisputes($disputes: [POIDisputeInput!]!) {
     storeDisputes(disputes: $disputes) {
       allocationID
+      subgraphDeploymentID
       allocationIndexer
       allocationAmount
       allocationProof
@@ -48,6 +49,7 @@ const GET_POI_DISPUTE_QUERY = gql`
   query dispute($allocationID: String!) {
     dispute(allocationID: $allocationID) {
       allocationID
+      subgraphDeploymentID
       allocationIndexer
       allocationAmount
       allocationProof
@@ -67,6 +69,7 @@ const GET_POI_DISPUTES_QUERY = gql`
   query disputes($status: String!, $minClosedEpoch: Int!) {
     disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
       allocationID
+      subgraphDeploymentID
       allocationIndexer
       allocationAmount
       allocationProof
@@ -90,6 +93,7 @@ const DELETE_POI_DISPUTES_QUERY = gql`
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+  subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
@@ -108,6 +112,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
+  subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
@@ -127,6 +132,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
 
 const TEST_DISPUTE_3: POIDisputeAttributes = {
   allocationID: '0x0000000000000000000000000000000000000002',
+  subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
   allocationIndexer: '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55',
   allocationAmount: '500000000000000000000000',
   allocationProof: '0xdb5b142ba36abbd98d41ebe627d96e7fffb8d79a3f2f25c70a9724e6cdc39ad4',
@@ -199,14 +205,7 @@ describe('POI disputes', () => {
 
   test('Store POI disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY
-    // let expected: Record<string, any>[] = [];
-    // disputes.forEach(dispute => {
-    //   expected.push(Object.assign({}, dispute))
-    // });
-    //
-    // expected = expected.map((dispute) => toGraphQL(dispute))
     const expected = toObjectArray(disputes)
-    // const expected = disputes.map(dispute => toGraphQL(dispute))
 
     const client = await createIndexerManagementClient({
       models,
