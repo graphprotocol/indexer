@@ -178,7 +178,7 @@ export class Indexer {
           if (result.error) {
             throw result.error
           }
-          this.logger.debug('Reference POI generated', {
+          this.logger.trace('Reference POI generated', {
             indexer: this.indexerAddress,
             subgraph: deployment.ipfsHash,
             block: block,
