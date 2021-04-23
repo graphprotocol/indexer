@@ -489,7 +489,7 @@ class Agent {
               ? 'potential'
               : 'valid',
         } as POIDisputeAttributes
-      }
+      },
     )
 
     const potentialDisputes = disputes.filter(

@@ -223,7 +223,8 @@ export class Network {
       if (
         error.message.includes(
           'Transaction with the same hash was already imported',
-        )
+        ) ||
+        error.message.includes('nonce has already been used')
       ) {
         txConfig.nonceOffset += 1
         txConfig.nonce =
