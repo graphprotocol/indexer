@@ -11,7 +11,7 @@
 For configuration details for The Graph Network and the testnet, see the
 [Mainnet and Testnet Configuration docs](./docs/networks.md).
 
-An overview of [Scalar](./docs/scalar.md), the microtransaction framework for
+An overview of [Scalar](./docs/scalar.md), a microtransaction framework for
 query fees, can be found [here](./docs/scalar.md).
 
 ## Running from NPM packages
