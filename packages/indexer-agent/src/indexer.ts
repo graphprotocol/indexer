@@ -1,7 +1,5 @@
 import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
-import fetch from 'isomorphic-fetch'
-import { Client, createClient } from '@urql/core'
 import { BigNumber } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
