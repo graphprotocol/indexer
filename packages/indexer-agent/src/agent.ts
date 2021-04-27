@@ -339,7 +339,11 @@ class Agent {
         }
 
         try {
-          await this.reconcileDeployments(activeDeployments, targetDeployments)
+          await this.reconcileDeployments(
+            activeDeployments,
+            targetDeployments,
+            activeAllocations,
+          )
 
           // Reconcile allocations
           await this.reconcileAllocations(
@@ -507,9 +511,13 @@ class Agent {
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
+    activeAllocations: Allocation[],
   ): Promise<void> {
     activeDeployments = uniqueDeployments(activeDeployments)
     targetDeployments = uniqueDeployments(targetDeployments)
+    const activeAllocationDeployments = uniqueDeployments(
+      activeAllocations.map(allocation => allocation.subgraphDeployment.id),
+    )
 
     // Ensure the network subgraph deployment is _always_ indexed
     if (this.networkSubgraph instanceof SubgraphDeploymentID) {
@@ -535,7 +543,9 @@ class Agent {
       deployment => !deploymentInList(activeDeployments, deployment),
     )
     const remove = activeDeployments.filter(
-      deployment => !deploymentInList(targetDeployments, deployment),
+      deployment =>
+        !deploymentInList(targetDeployments, deployment) &&
+        !deploymentInList(activeAllocationDeployments, deployment),
     )
 
     this.logger.info('Deployment changes', {
