@@ -10,7 +10,7 @@ import {
   FreeQuery,
 } from './types'
 import { AttestationSignerMap } from './allocations'
-import { ReceiptManager } from './payments'
+import { ReceiptManager } from './query-fees'
 
 export interface PaidQueryProcessorOptions {
   logger: Logger
