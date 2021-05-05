@@ -2,53 +2,25 @@ import { BigNumber } from 'ethers'
 import {
   indexerError,
   IndexerErrorCode,
-  PaymentModels,
-  ReceiptAttributes,
+  QueryFeeModels,
+  TransferReceiptAttributes,
   Transfer,
   VectorClient,
+  AsyncCache,
 } from '@graphprotocol/indexer-common'
 import { NativeSignatureVerifier } from '@graphprotocol/indexer-native'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import { INodeService } from '@connext/vector-types'
 import pRetry from 'p-retry'
+import { ReceiptManager } from '.'
 
 // Takes a valid big-endian hexadecimal string and parses it as a BigNumber
 function readNumber(data: string, start: number, end: number): BigNumber {
   return BigNumber.from('0x' + data.slice(start, end))
 }
 
-const paymentValidator = /^[0-9A-Fa-f]{266}$/
-
-// Cache which avoids concurrently getting the same thing more than once.
-class AsyncCache<K, V> {
-  private readonly _attempts: Map<K, Promise<V>> = new Map()
-  private readonly _fn: (k: K) => Promise<V>
-
-  constructor(fn: (k: K) => Promise<V>) {
-    this._fn = fn
-  }
-
-  get(k: K): Promise<V> {
-    const cached = this._attempts.get(k)
-    if (cached) {
-      return cached
-    }
-
-    // This shares concurrent attempts, but still retries on failure.
-    const attempt = (async () => {
-      try {
-        return await this._fn(k)
-      } catch (e) {
-        // By removing the cached attempt we ensure this is retried
-        this._attempts.delete(k)
-        throw e
-      }
-    })()
-    this._attempts.set(k, attempt)
-    return attempt
-  }
-}
+const transferReceiptValidator = /^[0-9A-Fa-f]{266}$/
 
 async function getTransfer(
   node: INodeService,
@@ -78,13 +50,11 @@ async function getTransfer(
   }
 
   const signer = toAddress(transfer.transferState.signer)
-
   const signatureVerifier = new NativeSignatureVerifier(signer)
 
   return {
     signer,
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    allocation: toAddress(transfer.meta!.allocation),
+    allocation: toAddress(transfer.meta.allocation),
     signatureVerifier,
   }
 }
@@ -105,12 +75,12 @@ async function validateSignature(
   return '0x' + signature
 }
 
-export class ReceiptManager {
+export class TransferReceiptManager implements ReceiptManager {
   private readonly _sequelize: Sequelize
-  private readonly _paymentModels: PaymentModels
-  private readonly _cache: Map<string, Readonly<ReceiptAttributes>> = new Map()
+  private readonly _queryFeeModels: QueryFeeModels
+  private readonly _cache: Map<string, Readonly<TransferReceiptAttributes>> = new Map()
   private readonly _flushQueue: string[] = []
-  private readonly _transferCache: AsyncCache<
+  private readonly _transferCache?: AsyncCache<
     string,
     Pick<Transfer, 'signer' | 'allocation'> & {
       signatureVerifier: NativeSignatureVerifier
@@ -119,7 +89,7 @@ export class ReceiptManager {
 
   constructor(
     sequelize: Sequelize,
-    paymentModels: PaymentModels,
+    queryFeeModels: QueryFeeModels,
     logger: Logger,
     vector: VectorClient,
     vectorTransferDefinition: Address,
@@ -127,7 +97,8 @@ export class ReceiptManager {
     logger = logger.child({ component: 'ReceiptManager' })
 
     this._sequelize = sequelize
-    this._paymentModels = paymentModels
+    this._queryFeeModels = queryFeeModels
+
     this._transferCache = new AsyncCache((routingId: string) =>
       getTransfer(
         vector.node,
@@ -150,9 +121,9 @@ export class ReceiptManager {
   }
 
   // Saves the payment and returns the allocation for signing
-  async add(receiptData: string): Promise<string> {
+  async add(receiptData: string): Promise<Address> {
     // Security: Input validation
-    if (!paymentValidator.test(receiptData)) {
+    if (!transferReceiptValidator.test(receiptData)) {
       throw indexerError(IndexerErrorCode.IE031, 'Expecting 266 hex characters')
     }
 
@@ -161,14 +132,15 @@ export class ReceiptManager {
     // This should always work for valid transfers (aside from eg: network failures)
     // The Gateway initiates a transfer, but won't use it until there is a double-signed
     // commitment. That means our Vector node should know about it.
-    const transfer = await this._transferCache.get(vectorTransferId)
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const transfer = await this._transferCache!.get(vectorTransferId)
 
     const signature = await validateSignature(transfer.signatureVerifier, receiptData)
 
     const paymentAmount = readNumber(receiptData, 64, 128)
     const id = readNumber(receiptData, 128, 136).toNumber()
 
-    const receipt: ReceiptAttributes = {
+    const receipt: TransferReceiptAttributes = {
       paymentAmount: paymentAmount.toString(),
       id,
       signature,
@@ -216,7 +188,10 @@ export class ReceiptManager {
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
-            const [state, isNew] = await this._paymentModels.receipts.findOrBuild({
+            const [
+              state,
+              isNew,
+            ] = await this._queryFeeModels.transferReceipts.findOrBuild({
               where: { id: receipt.id, signer: receipt.signer },
               defaults: {
                 id: receipt.id,
@@ -277,7 +252,7 @@ export class ReceiptManager {
     }
   }
 
-  _queue(receipt: ReceiptAttributes): void {
+  _queue(receipt: TransferReceiptAttributes): void {
     // This is collision resistant only because address has a fixed length.
     const qualifiedId = `${receipt.signer}${receipt.id}`
     const latest = this._cache.get(qualifiedId)

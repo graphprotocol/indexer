@@ -20,13 +20,13 @@ import {
   IndexerErrorCode,
   registerIndexerErrorMetrics,
   createVectorClient,
-  definePaymentModels,
+  defineQueryFeeModels,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorActiveAllocations } from '../allocations'
-import { ReceiptManager } from '../payments'
+import { AllocationReceiptManager, TransferReceiptManager } from '../query-fees'
 
 export default {
   command: 'start',
@@ -144,26 +144,39 @@ export default {
       .option('vector-node', {
         description: 'URL of a vector node',
         type: 'string',
-        required: true,
-        group: 'Payments',
+        required: false,
+        group: 'Scalar',
       })
       .option('vector-router', {
         description: 'Public identifier of the vector router',
         type: 'string',
-        required: true,
-        group: 'Payments',
+        required: false,
+        group: 'Scalar',
       })
       .option('vector-transfer-definition', {
         description: 'Address of the Graph transfer definition contract',
         type: 'string',
         default: 'auto',
-        group: 'Payments',
+        group: 'Scalar',
       })
       .option('allocation-syncing-interval', {
         description: 'Interval (in ms) for syncing indexer allocations from the network',
         type: 'number',
         default: 120_000,
         group: 'Network Subgraph',
+      })
+      .option('use-vector', {
+        description:
+          'Whether to use Vector as the off-chain settlement layer for query fees',
+        type: 'boolean',
+        default: false,
+        implies: ['vector-node', 'vector-router'],
+      })
+      .option('client-signer-address', {
+        description: 'Address that signs query fee receipts from a known client',
+        type: 'string',
+        required: true,
+        conflicts: ['use-vector'],
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,7 +256,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const paymentModels = definePaymentModels(sequelize)
+    const paymentModels = defineQueryFeeModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
     await sequelize.sync()
     logger.info('Successfully connected to database')
@@ -342,35 +355,46 @@ export default {
 
     logger.info('Successfully connected to contracts')
 
-    // Identify the Graph transfer definition address
-    // TODO: Pick it from the `contracts`
-    const vectorTransferDefinition = toAddress(
-      argv.vectorTransferDefinition === 'auto'
-        ? network.chainId === 1
-          ? '0x0000000000000000000000000000000000000000'
-          : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
-        : argv.vectorTransferDefinition,
-    )
+    let receiptManager
 
-    // Create vector client
-    const vector = await createVectorClient({
-      logger,
-      ethereum: ethereumProvider,
-      wallet,
-      contracts,
-      metrics,
-      nodeUrl: argv.vectorNode,
-      routerIdentifier: argv.vectorRouter,
-    })
+    if (argv.useVector) {
+      // Identify the Graph transfer definition address
+      // TODO: Pick it from the `contracts`
+      const vectorTransferDefinition = toAddress(
+        argv.vectorTransferDefinition === 'auto'
+          ? network.chainId === 1
+            ? '0x0000000000000000000000000000000000000000'
+            : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
+          : argv.vectorTransferDefinition,
+      )
 
-    // Create receipt manager
-    const receiptManager = new ReceiptManager(
-      sequelize,
-      paymentModels,
-      logger,
-      vector,
-      vectorTransferDefinition,
-    )
+      // Create vector client
+      const vector = await createVectorClient({
+        logger,
+        ethereum: ethereumProvider,
+        wallet,
+        contracts,
+        metrics,
+        nodeUrl: argv.vectorNode,
+        routerIdentifier: argv.vectorRouter,
+      })
+
+      // Create receipt manager
+      receiptManager = new TransferReceiptManager(
+        sequelize,
+        paymentModels,
+        logger,
+        vector,
+        vectorTransferDefinition,
+      )
+    } else {
+      receiptManager = new AllocationReceiptManager(
+        sequelize,
+        paymentModels,
+        logger,
+        toAddress(argv.clientSignerAddress),
+      )
+    }
 
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)
