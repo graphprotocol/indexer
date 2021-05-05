@@ -1,14 +1,35 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { Address } from '@graphprotocol/common-ts'
 
-export interface ReceiptAttributes {
+export interface AllocationReceiptAttributes {
+  id: string
+  allocation: Address
+  paymentAmount: string
+  signature: string
+}
+
+export class AllocationReceipt
+  extends Model<AllocationReceiptAttributes>
+  implements AllocationReceiptAttributes {
+  public id!: string
+  public allocation!: Address
+  public paymentAmount!: string
+  public signature!: string
+
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+}
+
+export interface TransferReceiptAttributes {
   id: number
   signer: Address
   paymentAmount: string
   signature: string
 }
 
-export class Receipt extends Model<ReceiptAttributes> implements ReceiptAttributes {
+export class TransferReceipt
+  extends Model<TransferReceiptAttributes>
+  implements TransferReceiptAttributes {
   public id!: number
   public signer!: Address
   public paymentAmount!: string
@@ -20,7 +41,7 @@ export class Receipt extends Model<ReceiptAttributes> implements ReceiptAttribut
   public readonly transfer?: Transfer
 
   public static associations: {
-    transfer: Association<Receipt, Transfer>
+    transfer: Association<TransferReceipt, Transfer>
   }
 }
 
@@ -49,10 +70,10 @@ export class Transfer extends Model<TransferAttributes> implements TransferAttri
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
 
-  public readonly receipts?: Receipt[]
+  public readonly receipts?: TransferReceipt[]
 
   public static associations: {
-    receipts: Association<Transfer, Receipt>
+    receipts: Association<Transfer, TransferReceipt>
   }
 }
 
@@ -87,13 +108,67 @@ export class AllocationSummary
   }
 }
 
-export interface PaymentModels {
-  receipts: typeof Receipt
+export interface QueryFeeModels {
+  allocationReceipts: typeof AllocationReceipt
+  transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
 }
 
-export function definePaymentModels(sequelize: Sequelize): PaymentModels {
+export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
+  AllocationReceipt.init(
+    {
+      id: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        primaryKey: true,
+      },
+      allocation: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+      },
+      signature: {
+        type: DataTypes.STRING(132),
+        allowNull: false,
+      },
+      paymentAmount: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        validate: {
+          min: 0.0,
+        },
+      },
+    },
+    { sequelize, tableName: 'allocation_receipts' },
+  )
+
+  TransferReceipt.init(
+    {
+      id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        primaryKey: true,
+      },
+      signer: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+        primaryKey: true,
+      },
+      signature: {
+        type: DataTypes.STRING(132),
+        allowNull: false,
+      },
+      paymentAmount: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        validate: {
+          min: 0.0,
+        },
+      },
+    },
+    { sequelize, tableName: 'transfer_receipts' },
+  )
+
   Transfer.init(
     {
       signer: {
@@ -125,33 +200,6 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
       },
     },
     { sequelize, tableName: 'transfers' },
-  )
-
-  Receipt.init(
-    {
-      id: {
-        type: DataTypes.INTEGER,
-        allowNull: false,
-        primaryKey: true,
-      },
-      signer: {
-        type: DataTypes.STRING(42),
-        allowNull: false,
-        primaryKey: true,
-      },
-      signature: {
-        type: DataTypes.STRING(132),
-        allowNull: false,
-      },
-      paymentAmount: {
-        type: DataTypes.DECIMAL,
-        allowNull: false,
-        validate: {
-          min: 0.0,
-        },
-      },
-    },
-    { sequelize, tableName: 'receipts' },
   )
 
   AllocationSummary.init(
@@ -193,13 +241,13 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
     { sequelize, tableName: 'allocation_summaries' },
   )
 
-  Transfer.hasMany(Receipt, {
+  Transfer.hasMany(TransferReceipt, {
     sourceKey: 'signer',
     foreignKey: 'signer',
     as: 'receipts',
   })
 
-  Receipt.belongsTo(Transfer, {
+  TransferReceipt.belongsTo(Transfer, {
     targetKey: 'signer',
     foreignKey: 'signer',
     as: 'transfer',
@@ -218,7 +266,8 @@ export function definePaymentModels(sequelize: Sequelize): PaymentModels {
   })
 
   return {
-    receipts: Receipt,
+    allocationReceipts: AllocationReceipt,
+    transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,
   }
