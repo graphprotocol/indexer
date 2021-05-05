@@ -20,7 +20,7 @@ import {
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
-  definePaymentModels,
+  defineQueryFeeModels,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
@@ -385,9 +385,6 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const managementModels = defineIndexerManagementModels(sequelize)
-    const paymentModels = definePaymentModels(sequelize)
-    await sequelize.sync()
     logger.info('Successfully connected to database')
 
     // Automatic database migrations
@@ -411,6 +408,12 @@ export default {
       return
     }
     logger.info(`Successfully ran database migrations`)
+
+    logger.info(`Sync database models`)
+    const managementModels = defineIndexerManagementModels(sequelize)
+    const queryFeeModels = defineQueryFeeModels(sequelize)
+    await sequelize.sync()
+    logger.info(`Successfully synced database models`)
 
     logger.info(`Connect to Ethereum`)
     let providerUrl
@@ -607,7 +610,7 @@ export default {
           url: argv.vectorEventServer,
           port: argv.vectorEventServerPort,
         },
-        models: paymentModels,
+        models: queryFeeModels,
       },
     })
   },
