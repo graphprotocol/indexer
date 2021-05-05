@@ -1,4 +1,5 @@
 export * from './indexer-management'
 export * from './allocations'
 export * from './errors'
-export * from './payments'
+export * from './query-fees'
+export * from './async-cache'
