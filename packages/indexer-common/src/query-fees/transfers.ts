@@ -17,7 +17,7 @@ import {
 import { BigNumber, providers, utils, Wallet } from 'ethers'
 import { Allocation } from '../allocations'
 import { createVectorClient, VectorClient } from './client'
-import { AllocationSummary, PaymentModels, Transfer, TransferStatus } from './models'
+import { AllocationSummary, QueryFeeModels, Transfer, TransferStatus } from './models'
 import { EventCallbackConfig } from '@connext/vector-utils'
 import { Evt } from 'evt'
 import { DHeap } from '@thi.ng/heaps'
@@ -38,7 +38,7 @@ export interface PaymentsConfig {
     url: string
     port: string
   }
-  models: PaymentModels
+  models: QueryFeeModels
 }
 
 export interface TransferManagerCreateOptions {
@@ -72,7 +72,7 @@ export class TransferManager {
   private contracts: NetworkContracts
   private vector: VectorClient
   private vectorTransferDefinition: Address
-  private models: PaymentModels
+  private models: QueryFeeModels
 
   // Priority queue that orders transfers by the timeout after which
   // they should be resolved
@@ -346,7 +346,7 @@ export class TransferManager {
         )
 
         // Remove all its receipts (cleanup)
-        await this.models.receipts.destroy({
+        await this.models.transferReceipts.destroy({
           where: { signer },
           transaction,
         })
