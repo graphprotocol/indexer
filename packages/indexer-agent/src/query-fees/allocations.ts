@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios'
-import { Logger, timer } from '@graphprotocol/common-ts'
+import { Logger, timer, BytesWriter } from '@graphprotocol/common-ts'
 import {
   Allocation,
   AllocationReceipt,
@@ -10,6 +10,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
+import { BigNumber } from 'ethers';
 
 // Receipts are collected with a delay of 10 minutes after
 // the corresponding allocation was closed
@@ -108,6 +109,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           batch = this.receiptsToCollect.pop()!
 
+          // If the array is empty we cannot know what allocation
+          // this group belongs to. Hopefully it doesn't
+          // this this far and this is just defensive.
+          if (batch.receipts.length === 0) {
+            continue;
+          }
+
           // Collect the receipts now
           await this.obtainReceiptsVoucher(batch.receipts)
         }
@@ -132,10 +140,23 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     receipts: AllocationReceipt[],
   ): Promise<void> {
     try {
-      // TODO: Encode the receipts batch
-      const encodedReceipts = '...'
+      // Encode the receipt batch to a buffer
+      // [allocationId, receipts[]] (in bytes)
+      const encodedReceipts = new BytesWriter(20 + (receipts.length * 112));
+      encodedReceipts.writeHex(receipts[0].allocation);
+      for (let receipt of receipts) {
+        // [fee, id, signature]
+        const fee = BigNumber.from(receipt.paymentAmount).toHexString();
+        const feePadding = 33 - (fee.length / 2);
+        encodedReceipts.writeZeroes(feePadding);
+        encodedReceipts.writeHex(fee);
+        encodedReceipts.writeHex(receipt.id);
+        encodedReceipts.writeHex(receipt.signature);
+      }
 
-      const response = await this.collectClient.post(encodedReceipts)
+      const clientUrl = 'TODO';
+
+      const response = await this.collectClient.post(clientUrl, encodedReceipts.unwrap().buffer)
 
       // TODO: Parse the response
       const voucherData: any = {
