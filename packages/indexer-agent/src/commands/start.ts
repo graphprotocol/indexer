@@ -27,6 +27,7 @@ import { startAgent } from '../agent'
 import { Network } from '../network'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
+import { TransferReceiptCollector } from '../query-fees'
 
 export default {
   command: 'start',
@@ -296,32 +297,39 @@ export default {
         description: 'URL of a vector node',
         type: 'string',
         required: true,
-        group: 'Payments',
+        group: 'Query Fees',
       })
       .option('vector-router', {
         description: 'Public identifier of the vector router',
         type: 'string',
         required: true,
-        group: 'Payments',
+        group: 'Query Fees',
       })
       .option('vector-transfer-definition', {
         description: 'Address of the Graph transfer definition contract',
         type: 'string',
         default: 'auto',
-        group: 'Payments',
+        group: 'Query Fees',
       })
       .option('vector-event-server', {
         description: 'External URL of the vector event server of the agent',
         type: 'string',
         required: true,
-        group: 'Payments',
+        group: 'Query Fees',
       })
       .option('vector-event-server-port', {
         description: 'Port to serve the vector event server at',
         type: 'number',
         required: false,
         default: 8001,
-        group: 'Payments',
+        group: 'Query Fees',
+      })
+      .option('use-vector', {
+        description: 'Whether to use Vector for query fees',
+        type: 'boolean',
+        required: false,
+        default: false,
+        group: 'Query Fees',
       })
   },
   handler: async (
@@ -565,7 +573,7 @@ export default {
     })
     logger.info(`Launched indexer management API server`)
 
-    await startCostModelAutomation({
+    startCostModelAutomation({
       logger,
       ethereum,
       contracts: network.contracts,
@@ -585,6 +593,26 @@ export default {
         : argv.vectorTransferDefinition,
     )
 
+    // Automatically sync the status of receipt transfers to the db
+    const receiptCollector = await TransferReceiptCollector.create({
+      logger,
+      ethereum,
+      metrics,
+      wallet,
+      contracts,
+      vector: {
+        nodeUrl: argv.vectorNode,
+        routerIdentifier: argv.vectorRouter,
+        transferDefinition: vectorTransferDefinition,
+        eventServer: {
+          url: argv.vectorEventServer,
+          port: argv.vectorEventServerPort,
+        },
+      },
+      models: queryFeeModels,
+    })
+    await receiptCollector.queuePendingTransfersFromDatabase()
+
     await startAgent({
       logger,
       metrics,
@@ -600,18 +628,7 @@ export default {
       offchainSubgraphs: argv.offchainSubgraphs.map(
         (s: string) => new SubgraphDeploymentID(s),
       ),
-      payments: {
-        wallet,
-        contracts,
-        nodeUrl: argv.vectorNode,
-        routerIdentifier: argv.vectorRouter,
-        vectorTransferDefinition,
-        eventServer: {
-          url: argv.vectorEventServer,
-          port: argv.vectorEventServerPort,
-        },
-        models: queryFeeModels,
-      },
+      receiptCollector,
     })
   },
 }
