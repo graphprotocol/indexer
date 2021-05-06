@@ -63,6 +63,7 @@ export enum IndexerErrorCode {
   IE050 = 'IE050',
   IE051 = 'IE051',
   IE052 = 'IE052',
+  IE053 = 'IE053',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -119,6 +120,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
     'Transaction reverted: gas limit likely hit (cumulative gas used is near the gas limit)',
   IE051: 'Transaction reverted: reason unknown',
   IE052: 'Transaction aborted: maximum configured gas price reached',
+  IE053: 'Failed to queue receipts for collecting',
 }
 
 export type IndexerErrorCause = unknown

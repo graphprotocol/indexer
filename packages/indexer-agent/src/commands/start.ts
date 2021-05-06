@@ -28,6 +28,7 @@ import { Network } from '../network'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { TransferReceiptCollector } from '../query-fees'
+import { AllocationReceiptCollector } from '../query-fees/allocations'
 
 export default {
   command: 'start',
@@ -583,35 +584,46 @@ export default {
       metrics,
     })
 
-    // Identify the Graph transfer definition address
-    // TODO: Pick it from the `contracts`
-    const vectorTransferDefinition = toAddress(
-      argv.vectorTransferDefinition === 'auto'
-        ? ethereum.network.chainId === 1
-          ? '0x0000000000000000000000000000000000000000'
-          : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
-        : argv.vectorTransferDefinition,
-    )
+    let receiptCollector
 
-    // Automatically sync the status of receipt transfers to the db
-    const receiptCollector = await TransferReceiptCollector.create({
-      logger,
-      ethereum,
-      metrics,
-      wallet,
-      contracts,
-      vector: {
-        nodeUrl: argv.vectorNode,
-        routerIdentifier: argv.vectorRouter,
-        transferDefinition: vectorTransferDefinition,
-        eventServer: {
-          url: argv.vectorEventServer,
-          port: argv.vectorEventServerPort,
+    if (argv.useVector) {
+      // Identify the Graph transfer definition address
+      // TODO: Pick it from the `contracts`
+      const vectorTransferDefinition = toAddress(
+        argv.vectorTransferDefinition === 'auto'
+          ? ethereum.network.chainId === 1
+            ? '0x0000000000000000000000000000000000000000'
+            : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
+          : argv.vectorTransferDefinition,
+      )
+
+      // Automatically sync the status of receipt transfers to the db
+      receiptCollector = await TransferReceiptCollector.create({
+        logger,
+        ethereum,
+        metrics,
+        wallet,
+        contracts,
+        vector: {
+          nodeUrl: argv.vectorNode,
+          routerIdentifier: argv.vectorRouter,
+          transferDefinition: vectorTransferDefinition,
+          eventServer: {
+            url: argv.vectorEventServer,
+            port: argv.vectorEventServerPort,
+          },
         },
-      },
-      models: queryFeeModels,
-    })
-    await receiptCollector.queuePendingTransfersFromDatabase()
+        models: queryFeeModels,
+      })
+      await receiptCollector.queuePendingTransfersFromDatabase()
+    } else {
+      receiptCollector = new AllocationReceiptCollector({
+        logger,
+        models: queryFeeModels,
+        collectEndpoint: argv.collectReceiptsEndpoint,
+      })
+      await receiptCollector.queuePendingReceiptsFromDatabase()
+    }
 
     await startAgent({
       logger,
