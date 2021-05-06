@@ -20,6 +20,21 @@ export class AllocationReceipt
   public readonly updatedAt!: Date
 }
 
+export interface VoucherAttributes {
+  allocation: Address
+  amount: string
+  signature: string
+}
+
+export class Voucher extends Model<VoucherAttributes> implements VoucherAttributes {
+  public allocation!: Address
+  public amount!: string
+  public signature!: string
+
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+}
+
 export interface TransferReceiptAttributes {
   id: number
   signer: Address
@@ -110,6 +125,7 @@ export class AllocationSummary
 
 export interface QueryFeeModels {
   allocationReceipts: typeof AllocationReceipt
+  vouchers: typeof Voucher
   transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
@@ -140,6 +156,28 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
     },
     { sequelize, tableName: 'allocation_receipts' },
+  )
+
+  Voucher.init(
+    {
+      allocation: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+        primaryKey: true,
+      },
+      amount: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        validate: {
+          min: 0.0,
+        },
+      },
+      signature: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+    },
+    { sequelize, tableName: 'vouchers' },
   )
 
   TransferReceipt.init(
@@ -267,6 +305,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
 
   return {
     allocationReceipts: AllocationReceipt,
+    vouchers: Voucher,
     transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,
