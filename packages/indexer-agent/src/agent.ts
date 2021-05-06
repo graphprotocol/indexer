@@ -16,7 +16,6 @@ import {
   RewardsPool,
   indexerError,
   IndexerErrorCode,
-  TransferManager,
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
@@ -28,6 +27,7 @@ import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
 import { Client } from '@urql/core'
+import { ReceiptCollector } from './query-fees'
 
 const delay = async (ms: number) => {
   await new Promise(resolve => setTimeout(resolve, ms))
@@ -72,8 +72,7 @@ class Agent {
   networkSubgraph: Client | SubgraphDeploymentID
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
-
-  transfers: TransferManager
+  receiptCollector: ReceiptCollector
 
   constructor(
     logger: Logger,
@@ -83,16 +82,16 @@ class Agent {
     networkSubgraph: Client | SubgraphDeploymentID,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
-    transfers: TransferManager,
+    receiptCollector: ReceiptCollector,
   ) {
-    this.logger = logger
+    this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
-    this.transfers = transfers
+    this.receiptCollector = receiptCollector
   }
 
   async start(): Promise<Agent> {
@@ -865,7 +864,7 @@ class Agent {
   private async closeAllocation(
     epochStartBlock: EthereumBlock,
     allocation: Allocation,
-  ): Promise<{ closed: boolean; transfersResolving: boolean }> {
+  ): Promise<{ closed: boolean; collectingQueryFees: boolean }> {
     const poi = await this.indexer.proofOfIndexing(
       allocation.subgraphDeployment.id,
       epochStartBlock,
@@ -884,18 +883,18 @@ class Agent {
         epochStartBlock,
       })
 
-      return { closed: false, transfersResolving: false }
+      return { closed: false, collectingQueryFees: false }
     }
 
     // Close the allocation
     const closed = await this.network.close(allocation, poi)
 
-    // Queue transfers of the allocation for resolving
-    const transfersResolving = await this.transfers.markAllocationAsClosed(
+    // Collect query fees for this allocation
+    const collectingQueryFees = await this.receiptCollector.collectReceipts(
       allocation,
     )
 
-    return { closed, transfersResolving }
+    return { closed, collectingQueryFees }
   }
 }
 
@@ -910,18 +909,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.network.indexerAddress,
   )
 
-  const logger = config.logger.child({ component: 'Agent' })
-
-  // Automatically sync the status of receipt transfers to the db
-  const transfers = await TransferManager.create({
-    logger: logger,
-    contracts: config.network.contracts,
-    payments: config.payments,
-    ethereum: config.ethereum,
-    metrics: config.metrics,
-  })
-  transfers.queuePendingTransfersFromDatabase()
-
   const agent = new Agent(
     config.logger,
     config.metrics,
@@ -930,7 +917,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.networkSubgraph,
     config.registerIndexer,
     config.offchainSubgraphs,
-    transfers,
+    config.receiptCollector,
   )
   return await agent.start()
 }

@@ -1,3 +1,2 @@
-export * from './client'
+export * from './vector-client'
 export * from './models'
-export * from './transfers'
