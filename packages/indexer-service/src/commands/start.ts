@@ -145,19 +145,19 @@ export default {
         description: 'URL of a vector node',
         type: 'string',
         required: false,
-        group: 'Scalar',
+        group: 'Query Fees',
       })
       .option('vector-router', {
         description: 'Public identifier of the vector router',
         type: 'string',
         required: false,
-        group: 'Scalar',
+        group: 'Query Fees',
       })
       .option('vector-transfer-definition', {
         description: 'Address of the Graph transfer definition contract',
         type: 'string',
         default: 'auto',
-        group: 'Scalar',
+        group: 'Query Fees',
       })
       .option('allocation-syncing-interval', {
         description: 'Interval (in ms) for syncing indexer allocations from the network',
@@ -166,8 +166,7 @@ export default {
         group: 'Network Subgraph',
       })
       .option('use-vector', {
-        description:
-          'Whether to use Vector as the off-chain settlement layer for query fees',
+        description: 'Whether to use Vector for query fees',
         type: 'boolean',
         default: false,
         implies: ['vector-node', 'vector-router'],
