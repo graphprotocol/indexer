@@ -1,4 +1,4 @@
-import axios, { AxiosInstance } from 'axios'
+import axios from 'axios'
 import { Logger, timer, BytesWriter } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -10,7 +10,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
-import { BigNumber } from 'ethers';
+import { BigNumber } from 'ethers'
 
 // Receipts are collected with a delay of 10 minutes after
 // the corresponding allocation was closed
@@ -30,7 +30,7 @@ export interface AllocationReceiptCollectorOptions {
 export class AllocationReceiptCollector implements ReceiptCollector {
   private logger: Logger
   private models: QueryFeeModels
-  private collectClient: AxiosInstance
+  private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
 
   constructor({
@@ -40,7 +40,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.models = models
-    this.collectClient = axios.create({ url: collectEndpoint.toString() })
+    this.collectEndpoint = collectEndpoint
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
@@ -113,7 +113,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           // this group belongs to. Hopefully it doesn't
           // this this far and this is just defensive.
           if (batch.receipts.length === 0) {
-            continue;
+            continue
           }
 
           // Collect the receipts now
@@ -142,21 +142,22 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     try {
       // Encode the receipt batch to a buffer
       // [allocationId, receipts[]] (in bytes)
-      const encodedReceipts = new BytesWriter(20 + (receipts.length * 112));
-      encodedReceipts.writeHex(receipts[0].allocation);
-      for (let receipt of receipts) {
+      const encodedReceipts = new BytesWriter(20 + receipts.length * 112)
+      encodedReceipts.writeHex(receipts[0].allocation)
+      for (const receipt of receipts) {
         // [fee, id, signature]
-        const fee = BigNumber.from(receipt.paymentAmount).toHexString();
-        const feePadding = 33 - (fee.length / 2);
-        encodedReceipts.writeZeroes(feePadding);
-        encodedReceipts.writeHex(fee);
-        encodedReceipts.writeHex(receipt.id);
-        encodedReceipts.writeHex(receipt.signature);
+        const fee = BigNumber.from(receipt.paymentAmount).toHexString()
+        const feePadding = 33 - fee.length / 2
+        encodedReceipts.writeZeroes(feePadding)
+        encodedReceipts.writeHex(fee)
+        encodedReceipts.writeHex(receipt.id)
+        encodedReceipts.writeHex(receipt.signature)
       }
 
-      const clientUrl = 'TODO';
-
-      const response = await this.collectClient.post(clientUrl, encodedReceipts.unwrap().buffer)
+      const response = await axios.post(
+        this.collectEndpoint.toString(),
+        encodedReceipts.unwrap().buffer,
+      )
 
       // TODO: Parse the response
       const voucherData: any = {
