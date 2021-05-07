@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { Logger, timer, BytesWriter } from '@graphprotocol/common-ts'
+import { Logger, timer, BytesWriter, toAddress } from '@graphprotocol/common-ts'
 import {
   Allocation,
   AllocationReceipt,
@@ -154,14 +154,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         encodedReceipts.writeHex(receipt.signature)
       }
 
+      // Exhcange the receipts for a voucher signed by the counterparty (aka the client)
       const response = await axios.post(
         this.collectEndpoint.toString(),
         encodedReceipts.unwrap().buffer,
       )
-
-      // TODO: Parse the response
-      const voucherData: any = {
-        /* ... */
+      const voucher = response.data as {
+        allocation: string
+        amount: string
+        signature: string
       }
 
       // Replace the receipts with the voucher in one db transaction;
@@ -179,17 +180,23 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
         // Add the voucher to the database
         await this.models.vouchers.findOrBuild({
-          where: { allocation: voucherData.allocation },
+          where: { allocation: voucher.allocation },
           defaults: {
-            allocation: voucherData.allocation,
-            amount: voucherData.amount,
-            signature: voucherData.signature,
+            allocation: toAddress(voucher.allocation),
+            amount: voucher.amount,
+            signature: voucher.signature,
           },
           transaction,
         })
       })
     } catch (err) {
-      // TODO: Log appropriate indexer error
+      this.logger.error(
+        `Failed to collect receipts to obtain a voucher for collecting query fees on chain`,
+        {
+          allocation: receipts[0].allocation,
+          err: indexerError(IndexerErrorCode.IE054),
+        },
+      )
     }
   }
 
