@@ -440,10 +440,25 @@
     "@ethersproject/properties" "^5.0.7"
     "@ethersproject/strings" "^5.0.8"
 
-"@ethersproject/abi@5.1.0", "@ethersproject/abi@^5.0.10", "@ethersproject/abi@^5.0.5", "@ethersproject/abi@^5.1.0":
+"@ethersproject/abi@5.1.0", "@ethersproject/abi@^5.1.0":
   version "5.1.0"
   resolved "https://registry.npmjs.org/@ethersproject/abi/-/abi-5.1.0.tgz#d582c9f6a8e8192778b5f2c991ce19d7b336b0c5"
   integrity sha512-N/W9Sbn1/C6Kh2kuHRjf/hX6euMK4+9zdJRBB8sDWmihVntjUAfxbusGZKzDQD8i3szAHhTz8K7XADV5iFNfJw==
+  dependencies:
+    "@ethersproject/address" "^5.1.0"
+    "@ethersproject/bignumber" "^5.1.0"
+    "@ethersproject/bytes" "^5.1.0"
+    "@ethersproject/constants" "^5.1.0"
+    "@ethersproject/hash" "^5.1.0"
+    "@ethersproject/keccak256" "^5.1.0"
+    "@ethersproject/logger" "^5.1.0"
+    "@ethersproject/properties" "^5.1.0"
+    "@ethersproject/strings" "^5.1.0"
+
+"@ethersproject/abi@^5.0.10", "@ethersproject/abi@^5.0.5":
+  version "5.1.2"
+  resolved "https://registry.npmjs.org/@ethersproject/abi/-/abi-5.1.2.tgz#a8e75cd0455e6dc9e4861c3d1c22bbe436c1d775"
+  integrity sha512-uMhoQVPX0UtfzTpekYQSEUcJGDgsJ25ifz+SV6PDETWaUFhcR8RNgb1QPTASP13inW8r6iy0/Xdq9D5hK2pNvA==
   dependencies:
     "@ethersproject/address" "^5.1.0"
     "@ethersproject/bignumber" "^5.1.0"
@@ -564,10 +579,19 @@
     "@ethersproject/logger" "^5.0.8"
     bn.js "^4.4.0"
 
-"@ethersproject/bignumber@5.1.0", "@ethersproject/bignumber@>=5.0.0-beta.130", "@ethersproject/bignumber@^5.0.13", "@ethersproject/bignumber@^5.0.7", "@ethersproject/bignumber@^5.1.0":
+"@ethersproject/bignumber@5.1.0", "@ethersproject/bignumber@>=5.0.0-beta.130", "@ethersproject/bignumber@^5.1.0":
   version "5.1.0"
   resolved "https://registry.npmjs.org/@ethersproject/bignumber/-/bignumber-5.1.0.tgz#966a013a5d871fc03fc67bf33cd8aadae627f0fd"
   integrity sha512-wUvQlhTjPjFXIdLPOuTrFeQmSa6Wvls1bGXQNQWvB/SEn1NsTCE8PmumIEZxmOPjSHl1eV2uyHP5jBm5Cgj92Q==
+  dependencies:
+    "@ethersproject/bytes" "^5.1.0"
+    "@ethersproject/logger" "^5.1.0"
+    bn.js "^4.4.0"
+
+"@ethersproject/bignumber@^5.0.13", "@ethersproject/bignumber@^5.0.7":
+  version "5.1.1"
+  resolved "https://registry.npmjs.org/@ethersproject/bignumber/-/bignumber-5.1.1.tgz#84812695253ccbc639117f7ac49ee1529b68e637"
+  integrity sha512-AVz5iqz7+70RIqoQTznsdJ6DOVBYciNlvO+AlQmPTB6ofCvoihI9bQdr6wljsX+d5W7Yc4nyvQvP4JMzg0Agig==
   dependencies:
     "@ethersproject/bytes" "^5.1.0"
     "@ethersproject/logger" "^5.1.0"
@@ -871,9 +895,9 @@
     ws "7.2.3"
 
 "@ethersproject/providers@^5.0.8":
-  version "5.1.1"
-  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.1.1.tgz#a72f446ee0ddd93eb8f7d86178629565c03b55b6"
-  integrity sha512-+xWqQh4eLnAePRR5CHSySCVke//NxGSuQEUzGTdDtt0yCbizwlKGm7CrsU0zF8JUcKDrDh36ezzTicOMd5sl9w==
+  version "5.1.2"
+  resolved "https://registry.npmjs.org/@ethersproject/providers/-/providers-5.1.2.tgz#4e4459698903f911402fe91aa7544eb07f3921ed"
+  integrity sha512-GqsS8rd+eyd4eNkcNgzZ4l9IRULBPUZa7JPnv22k4MHflMobUseyhfbVnmoN5bVNNkOxjV1IPTw9i0sV1hwdpg==
   dependencies:
     "@ethersproject/abstract-provider" "^5.1.0"
     "@ethersproject/abstract-signer" "^5.1.0"
@@ -1286,10 +1310,10 @@
   resolved "https://registry.npmjs.org/@google-cloud/promisify/-/promisify-2.0.3.tgz#f934b5cdc939e3c7039ff62b9caaf59a9d89e3a8"
   integrity sha512-d4VSA86eL/AFTe5xtyZX+ePUjE8dIFu2T8zmdeNBSa5/kNgXPCx/o/wbFNHAGLJdGnk1vddRuMESD9HbOC8irw==
 
-"@graphprotocol/common-ts@1.4.2":
-  version "1.4.2"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.4.2.tgz#513f9cce846ad65b3b9567bf7905036e1c5013de"
-  integrity sha512-t+js4sYfval1+1UDX0ndAGusLoCHI3PAQEcrJObXS/eujdlNasXnXJN6JctbEL1A32iD07BLLWr2YdeC7KNFrQ==
+"@graphprotocol/common-ts@1.5.0":
+  version "1.5.0"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.5.0.tgz#6faaf0888330adff200d4d3aedbb377981a28e9f"
+  integrity sha512-Wwfc8YovgcYmr/KCMtaPXJev5FjZTIhayEmeLt7x761odbpk0X+2vTVxMcTSI/cKeBLueSF9NmB/Q8OyY4ByBw==
   dependencies:
     "@graphprotocol/contracts" "1.2.0"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
