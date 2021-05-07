@@ -1,5 +1,11 @@
 import axios from 'axios'
-import { Logger, timer, BytesWriter, toAddress } from '@graphprotocol/common-ts'
+import {
+  Logger,
+  timer,
+  BytesWriter,
+  toAddress,
+  formatGRT,
+} from '@graphprotocol/common-ts'
 import {
   Allocation,
   AllocationReceipt,
@@ -10,8 +16,9 @@ import {
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
-import { BigNumber } from 'ethers'
+import { BigNumber, Contract } from 'ethers'
 import { Op } from 'sequelize'
+import { Network } from '../network'
 
 // Receipts are collected with a delay of 10 minutes after
 // the corresponding allocation was closed
@@ -24,24 +31,32 @@ interface AllocationReceiptsBatch {
 
 export interface AllocationReceiptCollectorOptions {
   logger: Logger
+  network: Network
   models: QueryFeeModels
   collectEndpoint: URL
+  allocationExchange: Contract
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
   private logger: Logger
   private models: QueryFeeModels
+  private network: Network
+  private allocationExchange: Contract
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
 
   constructor({
     logger,
+    network,
     models,
     collectEndpoint,
+    allocationExchange,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
+    this.network = network
     this.models = models
     this.collectEndpoint = collectEndpoint
+    this.allocationExchange = allocationExchange
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
@@ -218,15 +233,79 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     } catch (err) {
       logger.error(
         `Failed to collect receipts in exchange for an on-chain query fee voucher`,
-        { err: indexerError(IndexerErrorCode.IE054) },
+        { err: indexerError(IndexerErrorCode.IE054, err) },
       )
     }
   }
 
   private async submitVoucher(voucher: Voucher): Promise<void> {
-    // TODO: Submit the voucher on chain
-    // TODO: If that was successful, remove the voucher from the db
-    // TODO: If it was unsuccessful, log an error; if the error was that a voucher for the allocation was submitted earlier, remove the voucher from the db
+    const logger = this.logger.child({
+      allocation: voucher.allocation,
+      amount: formatGRT(voucher.amount),
+    })
+
+    logger.info(`Redeem query fee voucher on chain`)
+
+    // Check if a voucher for this allocation was already redeemed
+    if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
+      logger.warn(
+        `Query fee voucher for allocation already redeemed, delete local voucher copy`,
+      )
+
+      try {
+        await this.models.vouchers.destroy({
+          where: { allocation: voucher.allocation },
+        })
+      } catch (err) {
+        logger.warn(
+          `Failed to delete local voucher copy, will try again later`,
+          { err },
+        )
+      }
+      return
+    }
+
+    try {
+      // Submit the voucher on chain
+      const txReceipt = await this.network.executeTransaction(
+        () =>
+          this.allocationExchange.estimateGas.redeem(
+            voucher.allocation,
+            voucher.amount,
+            voucher.signature,
+          ),
+        async gasLimit =>
+          this.allocationExchange.redeem(
+            voucher.allocation,
+            voucher.amount,
+            voucher.signature,
+            { gasLimit },
+          ),
+        logger.child({ action: 'redeem' }),
+      )
+
+      if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+        return
+      }
+    } catch (err) {
+      logger.error(`Failed to redeem query fee voucher`, {
+        err: indexerError(IndexerErrorCode.IE055, err),
+      })
+      return
+    }
+
+    // Remove the now obsolete voucher from the database
+    logger.info(`Successfully redeemed query fee voucher, delete local copy`)
+    try {
+      await this.models.vouchers.destroy({
+        where: { allocation: voucher.allocation },
+      })
+      logger.info(`Successfully deleted local voucher copy`)
+    } catch (err) {
+      logger.warn(`Failed to delete local voucher copy, will try again later`, {
+        err,
+      })
+    }
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {

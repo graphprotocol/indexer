@@ -27,7 +27,10 @@ import { startAgent } from '../agent'
 import { Network } from '../network'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
-import { TransferReceiptCollector } from '../query-fees'
+import {
+  bindAllocationExchangeContract,
+  TransferReceiptCollector,
+} from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 
 export default {
@@ -332,6 +335,14 @@ export default {
         default: false,
         group: 'Query Fees',
       })
+      .option('allocation-exchange-contract', {
+        description: 'Address of the contract to submit query fee vouchers to',
+        type: 'string',
+        required: false,
+        default: 'auto',
+        group: 'Query Fees',
+        conflicts: ['use-vector'],
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -617,10 +628,26 @@ export default {
       })
       await receiptCollector.queuePendingTransfersFromDatabase()
     } else {
+      // Identify the allocation exchange contract address
+      // TODO: Pick it from the `contracts`
+      const allocationExchangeContract = toAddress(
+        argv.allocationExchangeContract === 'auto'
+          ? ethereum.network.chainId === 1
+            ? '0x0000000000000000000000000000000000000000' // mainnet
+            : '0x58Ce0A0f41449E349C1A91Dd9F3D9286Bf32c161' // rinkeby
+          : argv.allocationExchangeContract,
+      )
+
       receiptCollector = new AllocationReceiptCollector({
         logger,
+        network,
         models: queryFeeModels,
         collectEndpoint: argv.collectReceiptsEndpoint,
+        allocationExchange: bindAllocationExchangeContract(
+          ethereum,
+          wallet,
+          allocationExchangeContract,
+        ),
       })
       await receiptCollector.queuePendingReceiptsFromDatabase()
     }
