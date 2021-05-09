@@ -16,14 +16,14 @@ function readNumber(data: string, start: number, end: number): BigNumber {
   return BigNumber.from('0x' + data.slice(start, end))
 }
 
-const allocationReceiptValidator = /^[0-9A-Fa-f]{254}$/
+const allocationReceiptValidator = /^[0-9A-Fa-f]{264}$/
 
 async function validateSignature(
   signer: NativeSignatureVerifier,
   receiptData: string,
 ): Promise<string> {
-  const message = receiptData.slice(64, 136)
-  const signature = receiptData.slice(136, 266)
+  const message = receiptData.slice(0, 134)
+  const signature = receiptData.slice(134, 264)
 
   if (!(await signer.verify(message, signature))) {
     throw indexerError(
@@ -79,7 +79,7 @@ export class AllocationReceiptManager implements ReceiptManager {
   async add(receiptData: string): Promise<Address> {
     // Security: Input validation
     if (!allocationReceiptValidator.test(receiptData)) {
-      throw indexerError(IndexerErrorCode.IE031, 'Expecting 254 hex characters')
+      throw indexerError(IndexerErrorCode.IE031, 'Expecting 264 hex characters')
     }
 
     const receipt = this._parseAllocationReceipt(receiptData)
