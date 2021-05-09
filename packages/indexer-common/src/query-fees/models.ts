@@ -33,6 +33,12 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
+
+  public readonly allocationSummary?: AllocationSummary
+
+  public static associations: {
+    allocationSummary: Association<Voucher, AllocationSummary>
+  }
 }
 
 export interface TransferReceiptAttributes {
@@ -118,8 +124,14 @@ export class AllocationSummary
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
 
+  public readonly transfers?: Transfer[]
+  public readonly allocationReceipts?: AllocationReceipt[]
+  public readonly voucher?: Voucher
+
   public static associations: {
     transfers: Association<AllocationSummary, Transfer>
+    allocationReceipts: Association<AllocationSummary, AllocationReceipt>
+    voucher: Association<AllocationSummary, Voucher>
   }
 }
 
@@ -134,15 +146,20 @@ export interface QueryFeeModels {
 export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
   AllocationReceipt.init(
     {
+      // TODO: To distinguish between (id, allocation) pairs from different
+      // clients, the primary key should really be (id, allocation,
+      // clientAddress)
       id: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(66),
         allowNull: false,
         primaryKey: true,
       },
       allocation: {
         type: DataTypes.STRING(42),
         allowNull: false,
+        primaryKey: true,
       },
+
       signature: {
         type: DataTypes.STRING(132),
         allowNull: false,
@@ -297,7 +314,31 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     as: 'transfers',
   })
 
+  AllocationSummary.hasMany(AllocationReceipt, {
+    sourceKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'allocationReceipts',
+  })
+
+  AllocationSummary.hasOne(Voucher, {
+    sourceKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'voucher',
+  })
+
   Transfer.belongsTo(AllocationSummary, {
+    targetKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'allocationSummary',
+  })
+
+  AllocationReceipt.belongsTo(AllocationSummary, {
+    targetKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'allocationSummary',
+  })
+
+  Voucher.belongsTo(AllocationSummary, {
     targetKey: 'allocation',
     foreignKey: 'allocation',
     as: 'allocationSummary',
