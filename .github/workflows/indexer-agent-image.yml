@@ -5,6 +5,7 @@ on:
     branches:
     - main
     - jannis/release-prep
+    - jannis/allocation-receipts
     tags: 
     - v*.*.*
 
