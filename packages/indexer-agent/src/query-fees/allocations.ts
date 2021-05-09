@@ -20,9 +20,9 @@ import { BigNumber, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import { Network } from '../network'
 
-// Receipts are collected with a delay of 10 minutes after
+// Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
-const RECEIPT_COLLECT_DELAY = 600_000
+const RECEIPT_COLLECT_DELAY = 1200_000
 
 interface AllocationReceiptsBatch {
   receipts: AllocationReceipt[]
@@ -96,7 +96,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (receipts.length <= 0) {
         logger.info(`No receipts to collect for allocation`)
       } else {
-        // Collect the receipts for this allocation in 10 minutes
+        // Collect the receipts for this allocation in a bit
         this.receiptsToCollect.push({
           receipts,
           timeout: now.valueOf() + RECEIPT_COLLECT_DELAY,
