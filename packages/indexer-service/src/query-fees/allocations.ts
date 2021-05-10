@@ -28,7 +28,7 @@ async function validateSignature(
   if (!(await signer.verify(message, signature))) {
     throw indexerError(
       IndexerErrorCode.IE031,
-      `Invalid signature: expected signer "${signer}"`,
+      `Invalid signature: expected signer "${signer.address}"`,
     )
   }
   return '0x' + signature
