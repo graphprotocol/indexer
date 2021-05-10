@@ -300,13 +300,11 @@ export default {
       .option('vector-node', {
         description: 'URL of a vector node',
         type: 'string',
-        required: true,
         group: 'Query Fees',
       })
       .option('vector-router', {
         description: 'Public identifier of the vector router',
         type: 'string',
-        required: true,
         group: 'Query Fees',
       })
       .option('vector-transfer-definition', {
@@ -318,7 +316,6 @@ export default {
       .option('vector-event-server', {
         description: 'External URL of the vector event server of the agent',
         type: 'string',
-        required: true,
         group: 'Query Fees',
       })
       .option('vector-event-server-port', {
@@ -332,7 +329,13 @@ export default {
         description: 'Whether to use Vector for query fees',
         type: 'boolean',
         required: false,
-        default: false,
+        implies: [
+          'vector-node',
+          'vector-router',
+          'vector-transfer-definition',
+          'vector-event-server',
+          'vector-event-server-port',
+        ],
         group: 'Query Fees',
       })
       .option('allocation-exchange-contract', {
@@ -340,8 +343,8 @@ export default {
         type: 'string',
         required: false,
         default: 'auto',
-        group: 'Query Fees',
         conflicts: ['use-vector'],
+        group: 'Query Fees',
       })
   },
   handler: async (
