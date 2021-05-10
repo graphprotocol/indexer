@@ -13,7 +13,10 @@ interface Context {
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
   logger.info(`Rename 'receipts' table to 'transfer_receipts'`)
-  await queryInterface.renameTable('receipts', 'transfer_receipts')
+  const tables = await queryInterface.showAllTables()
+  if (tables.includes('receipts')) {
+    await queryInterface.renameTable('receipts', 'transfer_receipts')
+  }
 }
 
 export async function down({ context }: Context): Promise<void> {
