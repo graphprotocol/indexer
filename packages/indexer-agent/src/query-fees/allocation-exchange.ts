@@ -2,7 +2,7 @@ import { Address } from '@graphprotocol/common-ts'
 import { Contract, providers, Signer } from 'ethers'
 
 const ABI = [
-  'function allocationsRedeemed(address allocationID) returns bool',
+  'function allocationsRedeemed(address allocationID) view returns (bool)',
   'function redeem(address allocationID, uint256 amount, bytes signature)',
 ]
 
