@@ -168,13 +168,12 @@ export default {
       .option('use-vector', {
         description: 'Whether to use Vector for query fees',
         type: 'boolean',
-        default: false,
         implies: ['vector-node', 'vector-router'],
       })
       .option('client-signer-address', {
         description: 'Address that signs query fee receipts from a known client',
         type: 'string',
-        required: true,
+        required: false,
         conflicts: ['use-vector'],
       })
   },
