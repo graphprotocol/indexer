@@ -14,8 +14,10 @@ function promisify(f) {
 
 class NativeSignatureVerifier {
   constructor(address) {
+    this.address = address;
     this._native = new addon.NativeSignatureVerifier(address);
   }
+
   async verify(message, signature) {
     return await promisify((cb) => this._native.verify(cb, message, signature));
   }
