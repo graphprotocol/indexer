@@ -70,11 +70,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
 
     try {
+      logger.info('Remember allocations for collecting receipts later')
+
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
           for (const allocation of allocations) {
-            await this.ensureAllocationSummary(allocation.id, transaction)
+            const summary = await this.ensureAllocationSummary(
+              allocation.id,
+              transaction,
+            )
+            await summary.save()
           }
         },
       )
