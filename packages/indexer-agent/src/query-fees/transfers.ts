@@ -174,6 +174,32 @@ export class TransferReceiptCollector implements ReceiptCollector {
     })
   }
 
+  async rememberAllocations(allocations: Allocation[]): Promise<boolean> {
+    const logger = this.logger.child({
+      allocations: allocations.map(allocation => allocation.id),
+    })
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async transaction => {
+          for (const allocation of allocations) {
+            await this.ensureAllocationSummary(allocation.id, transaction)
+          }
+        },
+      )
+      return true
+    } catch (err) {
+      logger.error(
+        `Failed to remember allocations for collecting receipts later`,
+        {
+          err: indexerError(IndexerErrorCode.IE056, err),
+        },
+      )
+      return false
+    }
+  }
+
   // Queue transfers of the allocation for resolving
   async collectReceipts(allocation: Allocation): Promise<boolean> {
     try {
