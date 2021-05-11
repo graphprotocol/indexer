@@ -157,25 +157,26 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       compare: (t1, t2) => t1.timeout - t2.timeout,
     })
 
+    const hasReceiptsReadyForCollecting = () => {
+      const batch = this.receiptsToCollect.peek()
+      return batch && batch.timeout <= Date.now()
+    }
+
     // Check if there's another batch of receipts to collect every 10s
     timer(10_000).pipe(async () => {
-      while (this.receiptsToCollect.length > 0) {
-        // Check whether the next receipts batch timeout has expired
-        let batch = this.receiptsToCollect.peek()
-        if (batch && batch.timeout <= Date.now()) {
-          // Remove the batch from the processing queue
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          batch = this.receiptsToCollect.pop()!
+      while (hasReceiptsReadyForCollecting()) {
+        // Remove the batch from the processing queue
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const batch = this.receiptsToCollect.pop()!
 
-          // If the array is empty we cannot know what allocation this group
-          // belongs to. Should this assertion ever fail, then there is a
-          // programmer error where empty batches are pushed to the
-          // `receiptsToCollect` queue.
-          console.assert(batch.receipts.length > 0)
+        // If the array is empty we cannot know what allocation this group
+        // belongs to. Should this assertion ever fail, then there is a
+        // programmer error where empty batches are pushed to the
+        // `receiptsToCollect` queue.
+        console.assert(batch.receipts.length > 0)
 
-          // Collect the receipts now
-          await this.obtainReceiptsVoucher(batch.receipts)
-        }
+        // Collect the receipts now
+        await this.obtainReceiptsVoucher(batch.receipts)
       }
     })
   }
