@@ -852,12 +852,14 @@ class Agent {
         },
       )
 
-      await this.network.allocateMultiple(
+      const allocationsCreated = await this.network.allocateMultiple(
         deployment,
         allocationAmount,
         activeAllocations,
         allocationsToCreate,
       )
+
+      await this.receiptCollector.rememberAllocations(allocationsCreated)
     }
   }
 

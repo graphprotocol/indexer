@@ -66,6 +66,7 @@ export enum IndexerErrorCode {
   IE053 = 'IE053',
   IE054 = 'IE054',
   IE055 = 'IE055',
+  IE056 = 'IE056',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -125,6 +126,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE053: 'Failed to queue receipts for collecting',
   IE054: 'Failed to collect receipts in exchange for query fee voucher',
   IE055: 'Failed to redeem query fee voucher',
+  IE056: 'Failed to remember allocation for collecting receipts later',
 }
 
 export type IndexerErrorCause = unknown
