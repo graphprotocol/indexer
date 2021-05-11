@@ -27,7 +27,7 @@
     "@connext/vector-types": "0.2.1",
     "@connext/vector-utils": "0.2.1",
     "@google-cloud/profiler": "4.1.1",
-    "@graphprotocol/common-ts": "1.5.0",
+    "@graphprotocol/common-ts": "1.5.1",
     "@graphprotocol/indexer-common": "^0.13.0",
     "@graphprotocol/indexer-native": "^0.13.0",
     "@thi.ng/cache": "1.0.59",
