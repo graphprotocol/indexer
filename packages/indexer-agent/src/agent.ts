@@ -718,12 +718,13 @@ class Agent {
         desiredNumberOfAllocations,
         allocationAmount: formatGRT(allocationAmount),
       })
-      await this.network.allocateMultiple(
+      const allocationsCreated = await this.network.allocateMultiple(
         deployment,
         allocationAmount,
         activeAllocations,
         desiredNumberOfAllocations,
       )
+      await this.receiptCollector.rememberAllocations(allocationsCreated)
 
       return
     }
