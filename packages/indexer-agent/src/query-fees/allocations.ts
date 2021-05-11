@@ -241,10 +241,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         encodedReceipts.writeHex(receipt.signature)
       }
 
-      // Exhcange the receipts for a voucher signed by the counterparty (aka the client)
+      // Exchange the receipts for a voucher signed by the counterparty (aka the client)
       const response = await axios.post(
         this.collectEndpoint.toString(),
         encodedReceipts.unwrap().buffer,
+        { headers: { 'Content-Type': 'application/octet-stream' } },
       )
       const voucher = response.data as {
         allocation: string
