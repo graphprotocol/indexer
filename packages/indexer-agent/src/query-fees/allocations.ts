@@ -130,10 +130,16 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (receipts.length <= 0) {
         logger.info(`No receipts to collect for allocation`)
       } else {
+        const timeout = now.valueOf() + RECEIPT_COLLECT_DELAY
+
         // Collect the receipts for this allocation in a bit
         this.receiptsToCollect.push({
           receipts,
-          timeout: now.valueOf() + RECEIPT_COLLECT_DELAY,
+          timeout,
+        })
+        logger.info(`Successfully queued allocation receipts for collecting`, {
+          receipts: receipts.length,
+          timeout: new Date(timeout).toLocaleString(),
         })
       }
 
@@ -154,10 +160,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // Check if there's another batch of receipts to collect every 10s
     timer(10_000).pipe(async () => {
       while (this.receiptsToCollect.length > 0) {
-        this.logger.debug(
-          `${this.receiptsToCollect.length} batches of allocation receipts waiting to be collected`,
-        )
-
         // Check whether the next receipts batch timeout has expired
         let batch = this.receiptsToCollect.peek()
         if (batch && batch.timeout <= Date.now()) {
