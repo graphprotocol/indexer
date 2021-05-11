@@ -10,7 +10,7 @@
     "neon-cli": "^0.8.0"
   },
   "scripts": {
-    "install": "neon build",
+    "install": "neon build --release",
     "test": "jest"
   },
   "devDependencies": {
