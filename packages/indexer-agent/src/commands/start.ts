@@ -344,6 +344,15 @@ export default {
         required: false,
         default: 'auto',
         conflicts: ['use-vector'],
+        implies: ['collect-receipts-endpoint'],
+        group: 'Query Fees',
+      })
+      .option('collect-receipts-endpoint', {
+        description: 'Client endpoint for collecting receipts',
+        type: 'string',
+        required: false,
+        conflicts: ['use-vector'],
+        implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
   },
@@ -645,7 +654,7 @@ export default {
         logger,
         network,
         models: queryFeeModels,
-        collectEndpoint: argv.collectReceiptsEndpoint,
+        collectEndpoint: new URL(argv.collectReceiptsEndpoint),
         allocationExchange: bindAllocationExchangeContract(
           ethereum,
           wallet,
