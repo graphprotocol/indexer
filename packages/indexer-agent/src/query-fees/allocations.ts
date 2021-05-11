@@ -1,5 +1,6 @@
 import axios from 'axios'
 import {
+  Address,
   Logger,
   timer,
   BytesWriter,
@@ -9,6 +10,7 @@ import {
 import {
   Allocation,
   AllocationReceipt,
+  AllocationSummary,
   indexerError,
   IndexerErrorCode,
   QueryFeeModels,
@@ -17,7 +19,7 @@ import {
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
 import { BigNumber, Contract } from 'ethers'
-import { Op } from 'sequelize'
+import { Op, Transaction } from 'sequelize'
 import { Network } from '../network'
 
 // Receipts are collected with a delay of 20 minutes after
@@ -60,6 +62,32 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
+  }
+
+  async rememberAllocations(allocations: Allocation[]): Promise<boolean> {
+    const logger = this.logger.child({
+      allocations: allocations.map(allocation => allocation.id),
+    })
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async transaction => {
+          for (const allocation of allocations) {
+            await this.ensureAllocationSummary(allocation.id, transaction)
+          }
+        },
+      )
+      return true
+    } catch (err) {
+      logger.error(
+        `Failed to remember allocations for collecting receipts later`,
+        {
+          err: indexerError(IndexerErrorCode.IE056, err),
+        },
+      )
+      return false
+    }
   }
 
   async collectReceipts(allocation: Allocation): Promise<boolean> {
@@ -161,6 +189,27 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     return this.models.vouchers.findAll()
   }
 
+  private async ensureAllocationSummary(
+    allocation: Address,
+    transaction: Transaction,
+  ): Promise<AllocationSummary> {
+    const [summary] = await this.models.allocationSummaries.findOrBuild({
+      where: { allocation },
+      defaults: {
+        allocation,
+        closedAt: null,
+        createdTransfers: 0,
+        resolvedTransfers: 0,
+        failedTransfers: 0,
+        openTransfers: 0,
+        queryFees: '0',
+        withdrawnFees: '0',
+      },
+      transaction,
+    })
+    return summary
+  }
+
   private async obtainReceiptsVoucher(
     receipts: AllocationReceipt[],
   ): Promise<void> {
@@ -218,6 +267,16 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.debug(
           `Add voucher received in exchange for receipts to the database`,
         )
+
+        // Update the query fees tracked against the allocation
+        const summary = await this.ensureAllocationSummary(
+          toAddress(voucher.allocation),
+          transaction,
+        )
+        summary.queryFees = BigNumber.from(summary.queryFees)
+          .add(voucher.amount)
+          .toString()
+        await summary.save({ transaction })
 
         // Add the voucher to the database
         await this.models.vouchers.findOrBuild({
@@ -287,6 +346,20 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
         return
       }
+
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async transaction => {
+          const summary = await this.ensureAllocationSummary(
+            toAddress(voucher.allocation),
+            transaction,
+          )
+          summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
+            .add(voucher.amount)
+            .toString()
+          await summary.save()
+        },
+      )
     } catch (err) {
       logger.error(`Failed to redeem query fee voucher`, {
         err: indexerError(IndexerErrorCode.IE055, err),
