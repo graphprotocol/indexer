@@ -175,10 +175,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
           // Collect the receipts now
           await this.obtainReceiptsVoucher(batch.receipts)
-        } else {
-          this.logger.debug(
-            `No allocation receipt batches are ready to be collected yet`,
-          )
         }
       }
     })
