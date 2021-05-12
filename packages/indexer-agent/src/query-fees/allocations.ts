@@ -332,21 +332,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
 
     try {
+      const onchainVoucher = {
+        allocationID: voucher.allocation,
+        amount: voucher.amount,
+        signature: `0x${voucher.signature}`,
+      }
+
       // Submit the voucher on chain
       const txReceipt = await this.network.executeTransaction(
-        () =>
-          this.allocationExchange.estimateGas.redeem(
-            voucher.allocation,
-            voucher.amount,
-            `0x${voucher.signature}`,
-          ),
+        () => this.allocationExchange.estimateGas.redeem(onchainVoucher),
         async gasLimit =>
-          this.allocationExchange.redeem(
-            voucher.allocation,
-            voucher.amount,
-            `0x${voucher.signature}`,
-            { gasLimit },
-          ),
+          this.allocationExchange.redeem(onchainVoucher, { gasLimit }),
         logger.child({ action: 'redeem' }),
       )
 
