@@ -77,13 +77,15 @@ Postgres
   --postgres-database  Postgres database name                [string] [required]
 
 Network Subgraph
-  --network-subgraph-endpoint  Endpoint to query the network subgraph from
+  --network-subgraph-endpoint    Endpoint to query the network subgraph from
                                                              [string] [required]
+  --allocation-syncing-interval  Interval (in ms) for syncing indexer
+                                 allocations from the network
+                                                      [number] [default: 120000]
 
-Payments
-  --vector-node                 URL of a vector node         [string] [required]
-  --vector-router               Public identifier of the vector router
-                                                             [string] [required]
+Query Fees
+  --vector-node                 URL of a vector node                    [string]
+  --vector-router               Public identifier of the vector router  [string]
   --vector-transfer-definition  Address of the Graph transfer definition
                                 contract              [string] [default: "auto"]
 
@@ -94,6 +96,9 @@ Options:
                                                       [boolean] [default: false]
   --free-query-auth-token  Auth token that clients can use to query for free
                                                                          [array]
+  --use-vector             Whether to use Vector for query fees        [boolean]
+  --client-signer-address  Address that signs query fee receipts from a known
+                           client                                       [string]
 ```
 
 ### Indexer agent
@@ -173,18 +178,22 @@ Disputes
   --poi-disputable-epochs   The number of epochs in the past to look for
                             potential POI disputes         [number] [default: 1]
   --poi-dispute-monitoring  Monitor the network for potential POI disputes
-                                                       [boolean] [default: true]
+                                                      [boolean] [default: false]
 
-Payments
-  --vector-node                 URL of a vector node         [string] [required]
-  --vector-router               Public identifier of the vector router
-                                                             [string] [required]
-  --vector-transfer-definition  Address of the Graph transfer definition
-                                contract              [string] [default: "auto"]
-  --vector-event-server         External URL of the vector event server of the
-                                agent                        [string] [required]
-  --vector-event-server-port    Port to serve the vector event server at
+Query Fees
+  --vector-node                   URL of a vector node                  [string]
+  --vector-router                 Public identifier of the vector router[string]
+  --vector-transfer-definition    Address of the Graph transfer definition
+                                  contract            [string] [default: "auto"]
+  --vector-event-server           External URL of the vector event server of the
+                                  agent                                 [string]
+  --vector-event-server-port      Port to serve the vector event server at
                                                         [number] [default: 8001]
+  --use-vector                    Whether to use Vector for query fees [boolean]
+  --allocation-exchange-contract  Address of the contract to submit query fee
+                                  vouchers to         [string] [default: "auto"]
+  --collect-receipts-endpoint     Client endpoint for collecting receipts
+                                                                        [string]
 
 Options:
   --version             Show version number                            [boolean]
