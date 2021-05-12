@@ -122,6 +122,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           // Return all receipts for the just-closed allocation
           return this.models.allocationReceipts.findAll({
             where: { allocation: allocation.id },
+            order: ['id'],
             transaction,
           })
         },
@@ -409,6 +410,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       where: {
         allocation: closedAllocations.map(summary => summary.allocation),
       },
+      order: ['id'],
     })
 
     // Add receipts into the right batches
