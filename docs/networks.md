@@ -14,14 +14,13 @@ For mainnet:
 
 For testnet:
 
-| Component       | Release                                                                                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)                                                                                                |
-| indexer-agent   | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
-| indexer-cli     | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
-| indexer-service | [0.13.0](https://github.com/graphprotocol/indexer/releases/tag/v0.13.0)                                                                                                |
-| graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.22.0)                                                                                             |
-| vector_node     | [a340c8a4](https://hub.docker.com/layers/connextproject/vector_node/a340c8a4/images/sha256-b242d3e46c184ce07ce242d743ec16ba6453e50c694609d01104553dfa2216bd?context=explore) (commit) |
+| Component       | Release                                                                    |
+| --------------- | -------------------------------------------------------------------------- |
+| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)    |
+| indexer-agent   | [0.14.0](https://github.com/graphprotocol/indexer/releases/tag/v0.14.0)    |
+| indexer-cli     | [0.14.0](https://github.com/graphprotocol/indexer/releases/tag/v0.14.0)    |
+| indexer-service | [0.14.0](https://github.com/graphprotocol/indexer/releases/tag/v0.14.0)    |
+| graph-node      | [0.22.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.22.0) |
 
 ## Mainnet (https://network.thegraph.com)
 
@@ -79,8 +78,12 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 
 ### Registration / Funding (GRT)
 
-In order to register for the testnet and have testnet GRT distributed to you,
-please fill out the [testnet registration form](https://airtable.com/shrL1trS84Jf0aawP).
+In order to participate in the testnet, you'll need Rinkeby ETH and testnet GRT.
+To be eligable for testnet GRT, you'll need to
+
+1. join [The Graph Discord](https://thegraph.com/discord/),
+2. get the `@testnetindexer` role in the `#roles` channel,
+3. use the `#testnet-fauceet` channel to obtain testnet GRT.
 
 ### Approving And Staking
 
@@ -151,69 +154,31 @@ testnet (for now) are all mainnet subgraphs. This means:
 
 #### Indexer Agent
 
-| Environment Variable                      | CLI Argument                  | Value                                                                               |
-| ----------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider                                                   |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                                                       |
-| `INDEXER_AGENT_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer                                                 |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`   | `--indexer-geo-coordinates`   | Geo coordinates of testnet indexer infrastructure                                   |
-| `INDEXER_AGENT_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator                                              |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network`                                      |
-| `INDEXER_AGENT_DAI_CONTRACT`              | `--dai-contract`              | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                                 |
-| `INDEXER_AGENT_VECTOR_NODE`               | `--vector-node`               | Internal URL of the Vector node in the indexer's infrastructure                     |
-| `INDEXER_AGENT_VECTOR_EVENT_SERVER`       | `--vector-event-server`       | Internal URL of indexer-agent's Vector event server in the indexer's infrastructure |
-| `INDEXER_AGENT_VECTOR_EVENT_SERVER_PORT`  | `--vector-event-server-port`  | Default: `8001` (note: don't expose this to the public)                             |
-| `INDEXER_AGENT_VECTOR_ROUTER`             | `--vector-router`             | `vector8BSZxfkr62As6KZX2so4yXuex5XcpPXQ2tYZrBqpub94dAobu7`                          |
+| Environment Variable                      | CLI Argument                  | Value                                                   |
+| ----------------------------------------- | ----------------------------- | ------------------------------------------------------- |
+| `INDEXER_AGENT_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider                       |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                           |
+| `INDEXER_AGENT_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer                     |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`   | `--indexer-geo-coordinates`   | Geo coordinates of testnet indexer infrastructure       |
+| `INDEXER_AGENT_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator                  |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network`          |
+| `INDEXER_AGENT_DAI_CONTRACT`              | `--dai-contract`              | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)     |
+| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT` | `--collect-receipts-endpoint` | `https://gateway.testnet.thegraph.com/collect-receipts` |
 
 #### Indexer Service
 
-| Environment Variable                        | CLI Argument                  | Value                                                           |
-| ------------------------------------------- | ----------------------------- | --------------------------------------------------------------- |
-| `INDEXER_SERVICE_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider                               |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                                   |
-| `INDEXER_SERVICE_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer                             |
-| `INDEXER_SERVICE_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator                          |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network`                  |
-| `INDEXER_SERVICE_VECTOR_NODE`               | `--vector-node`               | Internal URL of the Vector node in the indexer's infrastructure |
-| `INDEXER_SERVICE_VECTOR_ROUTER`             | `--vector-router`             | `vector8BSZxfkr62As6KZX2so4yXuex5XcpPXQ2tYZrBqpub94dAobu7`      |
+| Environment Variable                        | CLI Argument                  | Value                                          |
+| ------------------------------------------- | ----------------------------- | ---------------------------------------------- |
+| `INDEXER_SERVICE_ETHEREUM`                  | `--ethereum`                  | An Ethereum rinkeby node/provider              |
+| `INDEXER_SERVICE_ETHEREUM_NETWORK`          | `--ethereum-network`          | `4` (rinkeby)                                  |
+| `INDEXER_SERVICE_INDEXER_ADDRESS`           | `--indexer-address`           | Ethereum address of testnet indexer            |
+| `INDEXER_SERVICE_MNEMONIC`                  | `--mnemonic`                  | Ethereum mnemonic for testnet operator         |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` | `--network-subgraph-endpoint` | `https://gateway.testnet.thegraph.com/network` |
+| `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`     | `--client-signer-address`     | `0xe1EC4339019eC9628438F8755f847e3023e4ff9c`   |
 
 #### Graph Node
 
 | Environment Variable | CLI Argument     | Value                               |
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
-| `ipfs`               | `--ipfs`         | `https://ipfs.testnet.thegraph.com` |
-
-#### Vector Node
-
-| Environment Variable | Value                                                                |
-| -------------------- | -------------------------------------------------------------------- |
-| `VECTOR_PROD`        | `true`                                                               |
-| `VECTOR_MNEMONIC`    | e.g. same as `INDEXER_SERVICE_MNEMONIC` and `INDEXER_AGENT_MNEMONIC` |
-| `VECTOR_PG_HOST`     | e.g. same as `INDEXER_SERVICE_POSTGRES_HOST`                         |
-| `VECTOR_PG_PORT`     | e.g. `5432`                                                          |
-| `VECTOR_PG_USERNAME` | e.g. same as `INDEXER_SERVICE_POSTGRES_USERNAME`                     |
-| `VECTOR_PG_PASSWORD` | e.g. same as `INDEXER_SERVICE_POSTGRES_PASSWORD`                     |
-| `VECTOR_PG_DATABASE` | e.g. `vector`                                                        |
-| `VECTOR_CONFIG`      | see below                                                            |
-
-The `VECTOR_CONFIG` variable should be a JSON string that contains the following:
-
-```json
-{
-  "adminToken": "<secret token of your choice, keep to yourself>",
-  "chainProviders": {
-    "4": "<some rinkeby Ethereum node/provider"
-  },
-  "nodeUrl": "<internal URL of the Vector node in your infrastructure>",
-  "logLevel": "info",
-  "natsUrl": "nats://nats1.connext.provide.network:4222,nats://nats2.connext.provide.network:4222,nats://nats3.connext.provide.network:4222",
-  "authUrl": "https://messaging.connext.network",
-  "messagingUrl": "https://messaging.connext.network",
-  "production": true,
-  "baseGasSubsidyPercentage": 0,
-  "allowedSwaps": [],
-  "skipCheckIn": true,
-  "mnemonic": "<the same as INDEXER_AGENT_MNEMONIC>"
-}
-```
+| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
