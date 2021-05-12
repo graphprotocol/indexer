@@ -287,7 +287,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
         // Add the voucher to the database
         await this.models.vouchers.findOrCreate({
-          where: { allocation: voucher.allocation },
+          where: { allocation: toAddress(voucher.allocation) },
           defaults: {
             allocation: toAddress(voucher.allocation),
             amount: voucher.amount,
