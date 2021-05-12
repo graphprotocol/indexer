@@ -80,12 +80,8 @@ spec:
                 secretKeyRef:
                   name: postgres-credentials
                   key: indexer_db
-            - name: INDEXER_AGENT_VECTOR_NODE
-              value: http://vector-node.default.svc.cluster.local
-            - name: INDEXER_AGENT_VECTOR_ROUTER
+            - name: INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT
               valueFrom:
                 secretKeyRef:
-                  name: vector-env
-                  key: router
-            - name: INDEXER_AGENT_VECTOR_EVENT_SERVER
-              value: http://indexer-agent.default.svc.cluster.local:8001/
+                  name: scalar
+                  key: collect_receipts_endpoint

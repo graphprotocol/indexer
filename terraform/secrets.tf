@@ -54,3 +54,16 @@ resource "kubernetes_secret" "ethereum" {
     url          = var.ethereum_provider
   }
 }
+
+#
+# Scalar configuration
+#
+resource "kubernetes_secret" "scalar" {
+  metadata {
+    name = "scalar"
+  }
+  data = {
+    collect_receipts_endpoint = var.scalar_collect_receipts_endpoint
+    client_signer_address     = var.scalar_client_signer_address
+  }
+}

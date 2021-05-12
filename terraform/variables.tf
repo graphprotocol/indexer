@@ -138,3 +138,15 @@ variable "vector_router" {
   type        = string
   description = "Public identifier of a Vector router"
 }
+
+# Scalar
+
+variable "scalar_collect_receipts_endpoint" {
+  type        = string
+  description = "Client endpoint for collecting allocation-based receipts in exchange for a query fee voucher"
+}
+
+variable "scalar_client_signer_address" {
+  type        = string
+  description = "Client signer address for allocation-based receipts"
+}

@@ -88,10 +88,8 @@ spec:
                 secretKeyRef:
                   name: free-query-auth-token
                   key: token
-            - name: INDEXER_SERVICE_VECTOR_NODE
-              value: http://vector-node.default.svc.cluster.local
-            - name: INDEXER_SERVICE_VECTOR_ROUTER
+            - name: INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS
               valueFrom:
                 secretKeyRef:
-                  name: vector-env
-                  key: router
+                  name: scalar
+                  key: client_signer_address

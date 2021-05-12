@@ -18,6 +18,5 @@ resources:
   - prometheus.yaml
   - grafana.yaml
   - ingress.yaml
-  - vector.yaml
 
 namespace: default
