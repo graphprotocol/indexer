@@ -1,5 +1,5 @@
 import { Address } from '@graphprotocol/common-ts'
-import { Contract, providers, Signer } from 'ethers'
+import { Contract, Signer } from 'ethers'
 
 const ABI = [
   {
