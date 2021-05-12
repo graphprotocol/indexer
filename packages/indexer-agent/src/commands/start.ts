@@ -656,7 +656,6 @@ export default {
         models: queryFeeModels,
         collectEndpoint: new URL(argv.collectReceiptsEndpoint),
         allocationExchange: bindAllocationExchangeContract(
-          ethereum,
           wallet,
           allocationExchangeContract,
         ),
