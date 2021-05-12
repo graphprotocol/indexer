@@ -337,6 +337,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         () =>
           this.allocationExchange.estimateGas.redeem(
             voucher.allocation,
+            voucher.amount,
             `0x${voucher.signature}`,
           ),
         async gasLimit =>
