@@ -54,9 +54,8 @@ const ABI = [
 ]
 
 export const bindAllocationExchangeContract = (
-  provider: providers.Provider,
   signer: Signer,
   address: Address,
 ): Contract => {
-  return new Contract(address, ABI, provider)
+  return new Contract(address, ABI, signer)
 }
