@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2021-05-12
+### Added
+- Add subgraph deployment ID to POI disputes
+- Add async cache from indexer-service
+- Add database models for allocation-based receipts and query fee vouchers
+
 ## [0.13.0] - 2021-04-19
 ### Changed
 - Update to latest common-ts
@@ -111,7 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.14.0...HEAD
+[0.14.0]: https://github.com/graphprotocol/indexer/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/graphprotocol/indexer/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/graphprotocol/indexer/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/graphprotocol/indexer/compare/v0.10.0...v0.11.0
