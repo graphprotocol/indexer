@@ -208,7 +208,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         resolvedTransfers: 0,
         failedTransfers: 0,
         openTransfers: 0,
-        queryFees: '0',
+        collectedFees: '0',
         withdrawnFees: '0',
       },
       transaction,
@@ -234,7 +234,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       encodedReceipts.writeHex(receipts[0].allocation)
       for (const receipt of receipts) {
         // [fee, id, signature]
-        const fee = BigNumber.from(receipt.paymentAmount).toHexString()
+        const fee = BigNumber.from(receipt.fees).toHexString()
         const feePadding = 33 - fee.length / 2
         encodedReceipts.writeZeroes(feePadding)
         encodedReceipts.writeHex(fee)
@@ -280,7 +280,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           toAddress(voucher.allocation),
           transaction,
         )
-        summary.queryFees = BigNumber.from(summary.queryFees)
+        summary.collectedFees = BigNumber.from(summary.collectedFees)
           .add(voucher.amount)
           .toString()
         await summary.save({ transaction })

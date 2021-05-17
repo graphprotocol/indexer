@@ -70,7 +70,7 @@ interface TransferToResolve {
 
 interface WithdrawableAllocation {
   allocation: Address
-  queryFees: string
+  collectedFees: string
   withdrawnFees: string
 }
 
@@ -337,7 +337,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         resolvedTransfers: 0,
         failedTransfers: 0,
         openTransfers: 0,
-        queryFees: '0',
+        collectedFees: '0',
         withdrawnFees: '0',
       },
       transaction,
@@ -460,7 +460,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         )
         summary.resolvedTransfers += 1
         summary.openTransfers -= 1
-        summary.queryFees = BigNumber.from(summary.queryFees)
+        summary.collectedFees = BigNumber.from(summary.collectedFees)
           .add(payload.transfer.balance.amount[1])
           .toString()
         await summary.save({ transaction })
@@ -475,7 +475,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
 
   private async handleWithdrawalResolved(payload: WithdrawalResolvedPayload) {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { allocation, queryFees } = payload.transfer.meta!
+    const { allocation, collectedFees } = payload.transfer.meta!
 
     let success = false
     try {
@@ -483,7 +483,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         async () => {
           this.logger.debug(`Collecting query fees via the rebate pool`, {
             allocation,
-            queryFees: formatGRT(queryFees),
+            collectedFees: formatGRT(collectedFees),
           })
 
           // Estimate gas and add some buffer (like we do in network.ts)
@@ -510,7 +510,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
     } catch (err) {
       this.logger.error(`Failed to collect query fees on chain`, {
         allocation,
-        queryFees,
+        collectedFees,
         err: indexerError(IndexerErrorCode.IE044, err),
       })
     }
@@ -537,7 +537,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         closedAt: { [Op.not]: null },
 
         // ...they must have some unwithdrawn query fees...
-        queryFees: { [Op.gt]: Sequelize.col('withdrawnFees') },
+        collectedFees: { [Op.gt]: Sequelize.col('withdrawnFees') },
 
         // ...they must have seen at least one transfer...
         createdTransfers: { [Op.gt]: 0 },
@@ -547,7 +547,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
       },
 
       // Return and start withdrawing the most valuable allocations first
-      order: [['queryFees', 'DESC']],
+      order: [['collectedFees', 'DESC']],
     })
   }
 
@@ -603,7 +603,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         transferResolver: {
           receipts: (transfer.receipts || []).map(receipt => ({
             id: receipt.id,
-            amount: receipt.paymentAmount.toString(),
+            amount: receipt.fees.toString(),
             signature: receipt.signature,
           })),
         },
@@ -656,13 +656,13 @@ export class TransferReceiptCollector implements ReceiptCollector {
     withdrawal: WithdrawableAllocation,
   ): Promise<void> {
     const withdrawnFees = BigNumber.from(withdrawal.withdrawnFees)
-    const feesToWithdraw = BigNumber.from(withdrawal.queryFees).sub(
+    const feesToWithdraw = BigNumber.from(withdrawal.collectedFees).sub(
       withdrawal.withdrawnFees,
     )
 
     this.logger.info(`Withdraw query fees for allocation`, {
       allocation: withdrawal.allocation,
-      queryFees: withdrawal.queryFees,
+      collectedFees: withdrawal.collectedFees,
       withdrawnFees: withdrawal.withdrawnFees.toString(),
       feesToWithdraw: feesToWithdraw.toString(),
     })
@@ -690,7 +690,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         initiatorSubmits: true,
         meta: {
           allocation: withdrawal.allocation,
-          queryFees: feesToWithdraw,
+          collectedFees: feesToWithdraw,
         },
       })
 
@@ -698,7 +698,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
         const err = result.getError()
         this.logger.error(`Failed to withdraw`, {
           channelAddress: this.vector.channelAddress,
-          amount: withdrawal.queryFees.toString(),
+          amount: withdrawal.collectedFees.toString(),
           callTo: '0xE5Fa88135c992A385aAa1C65A0c1b8ff3FdE1FD4',
           callData,
           err,
@@ -708,7 +708,7 @@ export class TransferReceiptCollector implements ReceiptCollector {
     } catch (err) {
       this.logger.error(`Failed to withdraw query fees for allocation`, {
         allocation: withdrawal.allocation,
-        queryFees: withdrawal.queryFees.toString(),
+        collectedFees: withdrawal.collectedFees.toString(),
         err: indexerError(IndexerErrorCode.IE048, err),
       })
     }
