@@ -28,7 +28,7 @@ export interface FreeQuery {
 }
 
 export type PaidQuery = FreeQuery & {
-  payment: string
+  receipt: string
 }
 
 export interface QueryProcessor {

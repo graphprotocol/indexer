@@ -410,7 +410,7 @@ TODO
 
 **Summary**
 
-Invalid X-Graph-Payment header provided.
+Invalid Scalar-Receipt header provided.
 
 **Solution**
 
@@ -420,7 +420,7 @@ TODO
 
 **Summary**
 
-No X-Graph-Payment header provided.
+No Scalar-Receipt header provided.
 
 **Solution**
 
@@ -430,7 +430,7 @@ TODO
 
 **Summary**
 
-Invalid X-Graph-Payment value provided.
+Invalid Scalar-Receipt value provided.
 
 **Solution**
 

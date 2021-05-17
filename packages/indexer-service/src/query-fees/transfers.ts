@@ -113,14 +113,14 @@ export class TransferReceiptManager implements ReceiptManager {
         await this._flushOutstanding()
       } catch (err) {
         logger.error(
-          `Failed to sync payment to the db. If this does not correct itself, revenue may be lost.`,
+          `Failed to sync receipt to the db. If this does not correct itself, revenue may be lost.`,
           { err },
         )
       }
     })
   }
 
-  // Saves the payment and returns the allocation for signing
+  // Saves the receipt and returns the allocation for signing
   async add(receiptData: string): Promise<Address> {
     // Security: Input validation
     if (!transferReceiptValidator.test(receiptData)) {
@@ -137,11 +137,11 @@ export class TransferReceiptManager implements ReceiptManager {
 
     const signature = await validateSignature(transfer.signatureVerifier, receiptData)
 
-    const paymentAmount = readNumber(receiptData, 64, 128)
+    const fees = readNumber(receiptData, 64, 128)
     const id = readNumber(receiptData, 128, 136).toNumber()
 
     const receipt: TransferReceiptAttributes = {
-      paymentAmount: paymentAmount.toString(),
+      fees: fees.toString(),
       id,
       signature,
       signer: transfer.signer,
@@ -153,14 +153,14 @@ export class TransferReceiptManager implements ReceiptManager {
     // the Gateway which are deferred until we can fully remove trust which requires:
     //   * A receiptID based routing solution so that some invariants can be tested
     //     in memory instead of hitting the database for performance (eg: collateral,
-    //     and that payments are increasing).
+    //     and that fees are increasing).
     //   * A ZKP to ensure all receipts can be collected without running out of gas.
     //
     // Validations include:
     //   * The address corresponds to an *unresolved* transfer.
     //   * The unresolved transfer has sufficient collateral to pay for the query.
     //   * Recovering the signature for the binary data in chars 20..56 = the specified address.
-    //   * The increase in payment amount from the last known valid state covers the cost of the query
+    //   * The increase in fee amount from the last known valid state covers the cost of the query
     //   * This receipt ID is not being "forked" by concurrent usage.
   }
 
@@ -184,7 +184,7 @@ export class TransferReceiptManager implements ReceiptManager {
 
       const transact = async () => {
         // Put this in a transaction because this has a write which is
-        // dependent on a read and must be atomic or payments could be dropped.
+        // dependent on a read and must be atomic or receipt updates could be dropped.
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
@@ -197,23 +197,21 @@ export class TransferReceiptManager implements ReceiptManager {
                 id: receipt.id,
                 signature: receipt.signature,
                 signer: receipt.signer,
-                paymentAmount: receipt.paymentAmount,
+                fees: receipt.fees,
               },
               transaction,
             })
 
             // Don't save over receipts that are already advanced
             if (!isNew) {
-              const storedPaymentAmount = BigNumber.from(
-                state.getDataValue('paymentAmount'),
-              )
-              if (storedPaymentAmount.gte(receipt.paymentAmount)) {
+              const fees = BigNumber.from(state.getDataValue('fees'))
+              if (fees.gte(receipt.fees)) {
                 return
               }
             }
 
-            // Make sure the new payment amount and signature are set
-            state.set('paymentAmount', receipt.paymentAmount)
+            // Make sure the new fee amount and signature are set
+            state.set('fees', receipt.fees)
             state.set('signature', receipt.signature)
 
             // Save the new or updated receipt to the db
@@ -256,10 +254,7 @@ export class TransferReceiptManager implements ReceiptManager {
     // This is collision resistant only because address has a fixed length.
     const qualifiedId = `${receipt.signer}${receipt.id}`
     const latest = this._cache.get(qualifiedId)
-    if (
-      latest === undefined ||
-      BigNumber.from(latest.paymentAmount).lt(receipt.paymentAmount)
-    ) {
+    if (latest === undefined || BigNumber.from(latest.fees).lt(receipt.fees)) {
       if (latest === undefined) {
         this._flushQueue.push(qualifiedId)
       }

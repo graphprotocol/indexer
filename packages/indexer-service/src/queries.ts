@@ -72,14 +72,14 @@ export class QueryProcessor implements QueryProcessorInterface {
   }
 
   async executePaidQuery(paidQuery: PaidQuery): Promise<Response<QueryResult>> {
-    const { subgraphDeploymentID, payment, query } = paidQuery
+    const { subgraphDeploymentID, receipt, query } = paidQuery
 
     this.logger.info(`Execute paid query`, {
       deployment: subgraphDeploymentID.display,
-      payment,
+      receipt,
     })
 
-    const allocationID = await this.receiptManager.add(payment)
+    const allocationID = await this.receiptManager.add(receipt)
 
     // Look up or derive a signer for the attestation for this query
     const signer = (await this.signers.value()).get(allocationID)

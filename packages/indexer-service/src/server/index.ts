@@ -67,25 +67,25 @@ export const createApp = async ({
       labelNames: ['deployment'],
     }),
 
-    queriesWithInvalidPaymentHeader: new metrics.client.Counter({
-      name: 'indexer_service_queries_with_invalid_payment_header',
+    queriesWithInvalidReceiptHeader: new metrics.client.Counter({
+      name: 'indexer_service_queries_with_invalid_receipt_header',
       help:
-        'Queries that failed executing because they came with an invalid payment header',
+        'Queries that failed executing because they came with an invalid receipt header',
       registers: [metrics.registry],
       labelNames: ['deployment'],
     }),
 
-    queriesWithInvalidPaymentValue: new metrics.client.Counter({
-      name: 'indexer_service_queries_with_invalid_payment_value',
+    queriesWithInvalidReceiptValue: new metrics.client.Counter({
+      name: 'indexer_service_queries_with_invalid_receipt_value',
       help:
-        'Queries that failed executing because they came with an invalid payment value',
+        'Queries that failed executing because they came with an invalid receipt value',
       registers: [metrics.registry],
       labelNames: ['deployment'],
     }),
 
-    queriesWithoutPayment: new metrics.client.Counter({
-      name: 'indexer_service_queries_without_payment',
-      help: 'Queries that failed executing because they came without a payment',
+    queriesWithoutReceipt: new metrics.client.Counter({
+      name: 'indexer_service_queries_without_receipt',
+      help: 'Queries that failed executing because they came without a receipt',
       registers: [metrics.registry],
       labelNames: ['deployment'],
     }),
@@ -197,14 +197,14 @@ export const createApp = async ({
       serverMetrics.queries.inc({ deployment: subgraphDeploymentID.ipfsHash })
 
       try {
-        // Extract the payment
-        const payment = req.headers['x-graph-payment']
-        if (payment !== undefined && typeof payment !== 'string') {
-          logger.info(`Query has invalid payment`, {
+        // Extract the receipt
+        const receipt = req.headers['scalar-receipt']
+        if (receipt !== undefined && typeof receipt !== 'string') {
+          logger.info(`Query has invalid receipt`, {
             deployment: subgraphDeploymentID.display,
-            payment,
+            receipt,
           })
-          serverMetrics.queriesWithInvalidPaymentHeader.inc({
+          serverMetrics.queriesWithInvalidReceiptHeader.inc({
             deployment: subgraphDeploymentID.ipfsHash,
           })
           const err = indexerError(IndexerErrorCode.IE029)
@@ -215,20 +215,20 @@ export const createApp = async ({
         }
 
         // Trusted indexer scenario: if the sender provides the free
-        // query auth token, we do not require payment
-        let paymentRequired = true
+        // query auth token, we do not require a receipt
+        let receiptRequired = true
         if (freeQueryAuthValue && req.headers['authorization'] === freeQueryAuthValue) {
-          paymentRequired = false
+          receiptRequired = false
         }
 
-        if (paymentRequired) {
-          // Regular scenario: a payment is required; fail if no
-          // state channel is specified
-          if (payment === undefined) {
-            logger.info(`Query is missing signed state`, {
+        if (receiptRequired) {
+          // Regular scenario: a receipt is required; fail if no state channel
+          // is specified
+          if (receipt === undefined) {
+            logger.info(`Query is missing a receipt`, {
               deployment: subgraphDeploymentID.display,
             })
-            serverMetrics.queriesWithoutPayment.inc({
+            serverMetrics.queriesWithoutReceipt.inc({
               deployment: subgraphDeploymentID.ipfsHash,
             })
             const err = indexerError(IndexerErrorCode.IE030)
@@ -240,13 +240,13 @@ export const createApp = async ({
 
           logger.info(`Received paid query`, {
             deployment: subgraphDeploymentID.display,
-            receipt: payment,
+            receipt: receipt,
           })
 
           try {
             const response = await queryProcessor.executePaidQuery({
               subgraphDeploymentID,
-              payment,
+              receipt,
               query,
             })
             serverMetrics.successfulQueries.inc({
