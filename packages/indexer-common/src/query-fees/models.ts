@@ -4,7 +4,7 @@ import { Address } from '@graphprotocol/common-ts'
 export interface AllocationReceiptAttributes {
   id: string
   allocation: Address
-  paymentAmount: string
+  fees: string
   signature: string
 }
 
@@ -13,7 +13,7 @@ export class AllocationReceipt
   implements AllocationReceiptAttributes {
   public id!: string
   public allocation!: Address
-  public paymentAmount!: string
+  public fees!: string
   public signature!: string
 
   public readonly createdAt!: Date
@@ -44,7 +44,7 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 export interface TransferReceiptAttributes {
   id: number
   signer: Address
-  paymentAmount: string
+  fees: string
   signature: string
 }
 
@@ -53,7 +53,7 @@ export class TransferReceipt
   implements TransferReceiptAttributes {
   public id!: number
   public signer!: Address
-  public paymentAmount!: string
+  public fees!: string
   public signature!: string
 
   public readonly createdAt!: Date
@@ -105,7 +105,7 @@ export interface AllocationSummaryAttributes {
   resolvedTransfers: number
   failedTransfers: number
   openTransfers: number
-  queryFees: string
+  collectedFees: string
   withdrawnFees: string
 }
 
@@ -118,7 +118,7 @@ export class AllocationSummary
   public resolvedTransfers!: number
   public failedTransfers!: number
   public openTransfers!: number
-  public queryFees!: string
+  public collectedFees!: string
   public withdrawnFees!: string
 
   public readonly createdAt!: Date
@@ -164,7 +164,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING(132),
         allowNull: false,
       },
-      paymentAmount: {
+      fees: {
         type: DataTypes.DECIMAL,
         allowNull: false,
         validate: {
@@ -213,7 +213,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING(132),
         allowNull: false,
       },
-      paymentAmount: {
+      fees: {
         type: DataTypes.DECIMAL,
         allowNull: false,
         validate: {
@@ -284,7 +284,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.INTEGER,
         allowNull: false,
       },
-      queryFees: {
+      collectedFees: {
         type: DataTypes.DECIMAL,
         allowNull: false,
       },

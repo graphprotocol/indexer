@@ -67,11 +67,11 @@ export class AllocationReceiptManager implements ReceiptManager {
 
   private _parseAllocationReceipt(
     receiptData: string,
-  ): { id: string; allocation: Address; paymentAmount: BigNumber } {
+  ): { id: string; allocation: Address; fees: BigNumber } {
     return {
       id: receiptData.slice(104, 134), // 15 bytes
       allocation: toAddress('0x' + receiptData.slice(0, 40)), // 20 bytes
-      paymentAmount: readNumber(receiptData, 40, 104), // 32 bytes
+      fees: readNumber(receiptData, 40, 104), // 32 bytes
     }
   }
 
@@ -91,7 +91,7 @@ export class AllocationReceiptManager implements ReceiptManager {
     this._queue({
       id: receipt.id,
       allocation: receipt.allocation,
-      paymentAmount: receipt.paymentAmount.toString(),
+      fees: receipt.fees.toString(),
       signature,
     })
 
@@ -131,23 +131,21 @@ export class AllocationReceiptManager implements ReceiptManager {
                 id: receipt.id,
                 allocation: receipt.allocation,
                 signature: receipt.signature,
-                paymentAmount: receipt.paymentAmount,
+                fees: receipt.fees,
               },
               transaction,
             })
 
             // Don't save over receipts that are already advanced
             if (!isNew) {
-              const storedPaymentAmount = BigNumber.from(
-                state.getDataValue('paymentAmount'),
-              )
-              if (storedPaymentAmount.gte(receipt.paymentAmount)) {
+              const storedPaymentAmount = BigNumber.from(state.getDataValue('fees'))
+              if (storedPaymentAmount.gte(receipt.fees)) {
                 return
               }
             }
 
             // Make sure the new payment amount and signature are set
-            state.set('paymentAmount', receipt.paymentAmount)
+            state.set('fees', receipt.fees)
             state.set('signature', receipt.signature)
 
             // Save the new or updated receipt to the db
@@ -189,10 +187,7 @@ export class AllocationReceiptManager implements ReceiptManager {
   _queue(receipt: AllocationReceiptAttributes): void {
     // This is collision resistant only because receipts have a globally unique ID.
     const latest = this._cache.get(receipt.id)
-    if (
-      latest === undefined ||
-      BigNumber.from(latest.paymentAmount).lt(receipt.paymentAmount)
-    ) {
+    if (latest === undefined || BigNumber.from(latest.fees).lt(receipt.fees)) {
       if (latest === undefined) {
         this._flushQueue.push(receipt.id)
       }
