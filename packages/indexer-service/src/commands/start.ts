@@ -256,7 +256,10 @@ export default {
     })
     const paymentModels = defineQueryFeeModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
-    await sequelize.sync()
+    // Note: Typically, you'd call `sequelize.sync()` here to sync the models
+    // to the database; however, this can cause conflicts with the migrations
+    // run by indexer agent. Hence we leave syncing and migrating entirely to
+    // the agent and assume the models are up to date in the service.
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network`)
