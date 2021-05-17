@@ -75,7 +75,7 @@ export class AllocationReceiptManager implements ReceiptManager {
     }
   }
 
-  // Saves the payment and returns the allocation for signing
+  // Saves the receipt and returns the allocation for signing
   async add(receiptData: string): Promise<Address> {
     // Security: Input validation
     if (!allocationReceiptValidator.test(receiptData)) {
@@ -118,7 +118,7 @@ export class AllocationReceiptManager implements ReceiptManager {
 
       const transact = async () => {
         // Put this in a transaction because this has a write which is
-        // dependent on a read and must be atomic or payments could be dropped.
+        // dependent on a read and must be atomic or receipt updates could be dropped.
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
@@ -138,13 +138,13 @@ export class AllocationReceiptManager implements ReceiptManager {
 
             // Don't save over receipts that are already advanced
             if (!isNew) {
-              const storedPaymentAmount = BigNumber.from(state.getDataValue('fees'))
-              if (storedPaymentAmount.gte(receipt.fees)) {
+              const storedFees = BigNumber.from(state.getDataValue('fees'))
+              if (storedFees.gte(receipt.fees)) {
                 return
               }
             }
 
-            // Make sure the new payment amount and signature are set
+            // Make sure the new receipt fee amount and signature are set
             state.set('fees', receipt.fees)
             state.set('signature', receipt.signature)
 

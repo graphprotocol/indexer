@@ -254,7 +254,7 @@ export default {
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
     })
-    const paymentModels = defineQueryFeeModels(sequelize)
+    const queryFeeModels = defineQueryFeeModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
     // Note: Typically, you'd call `sequelize.sync()` here to sync the models
     // to the database; however, this can cause conflicts with the migrations
@@ -383,7 +383,7 @@ export default {
       // Create receipt manager
       receiptManager = new TransferReceiptManager(
         sequelize,
-        paymentModels,
+        queryFeeModels,
         logger,
         vector,
         vectorTransferDefinition,
@@ -391,7 +391,7 @@ export default {
     } else {
       receiptManager = new AllocationReceiptManager(
         sequelize,
-        paymentModels,
+        queryFeeModels,
         logger,
         toAddress(argv.clientSignerAddress),
       )
