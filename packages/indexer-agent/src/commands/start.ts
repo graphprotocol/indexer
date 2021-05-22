@@ -676,7 +676,7 @@ export default {
       const allocationExchangeContract = toAddress(
         argv.allocationExchangeContract === 'auto'
           ? ethereum.network.chainId === 1
-            ? '0x0000000000000000000000000000000000000000' // mainnet
+            ? '0x4a53cf3b3EdA545dc61dee0cA21eA8996C94385f' // mainnet
             : '0x58Ce0A0f41449E349C1A91Dd9F3D9286Bf32c161' // rinkeby
           : argv.allocationExchangeContract,
       )
