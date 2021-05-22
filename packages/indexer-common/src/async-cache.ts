@@ -29,12 +29,12 @@ export class AsyncCache<K, V> {
     // By constructing the promise here, if the construction
     // fails then it never ends up in _attempts and this throws
     // right away.
-    let p = this._fn(k);
+    const p = this._fn(k)
 
     // This shares concurrent attempts, but still retries on failure.
     const attempt = (async () => {
       try {
-        return await p;
+        return await p
       } catch (e) {
         // By removing the cached attempt we ensure this is retried
         this._attempts.delete(k)
