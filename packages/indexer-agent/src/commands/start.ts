@@ -33,6 +33,7 @@ import {
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { NetworkSubgraph } from '../network-subgraph'
 import { Indexer } from '../indexer'
+import { createNetworkSubgraphServer } from '../network-subgraph-server'
 
 export default {
   command: 'start',
@@ -176,6 +177,13 @@ export default {
         description: 'Port to serve Prometheus metrics at',
         type: 'number',
         defaut: 7300,
+        required: false,
+        group: 'Indexer Infrastructure',
+      })
+      .option('network-subgraph-port', {
+        description: 'Port to serve the network subgraph from',
+        type: 'number',
+        default: 8001,
         required: false,
         group: 'Indexer Infrastructure',
       })
@@ -567,7 +575,7 @@ export default {
       client: indexerManagementClient,
       port: argv.indexerManagementPort,
     })
-    logger.info(`Launched indexer management API server`)
+    logger.info(`Successfully launched indexer management API server`)
 
     logger.info('Connect to network')
     const indexer = new Indexer(
@@ -609,6 +617,14 @@ export default {
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
     })
+
+    logger.info(`Launch network subgraph server`)
+    await createNetworkSubgraphServer({
+      logger,
+      networkSubgraph,
+      port: argv.networkSubgraphPort,
+    })
+    logger.info(`Successfully launched network subgraph server`)
 
     startCostModelAutomation({
       logger,
