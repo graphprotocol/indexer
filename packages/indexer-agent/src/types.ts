@@ -1,21 +1,15 @@
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
-import { BigNumber, providers } from 'ethers'
 import { Network } from './network'
-import { Client } from '@urql/core'
 import { ReceiptCollector } from './query-fees'
+import { Indexer } from './indexer'
+import { NetworkSubgraph } from './network-subgraph'
 
 export interface AgentConfig {
-  ethereum: providers.StaticJsonRpcProvider
-  metrics: Metrics
-  statusEndpoint: string
-  adminEndpoint: string
-  indexerManagement: IndexerManagementClient
-  network: Network
-  defaultAllocationAmount: BigNumber
   logger: Logger
-  networkSubgraph: Client | SubgraphDeploymentID
-  indexNodeIDs: string[]
+  metrics: Metrics
+  indexer: Indexer
+  network: Network
+  networkSubgraph: NetworkSubgraph
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector

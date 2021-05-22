@@ -1,7 +1,6 @@
 import path from 'path'
 
 import { Argv } from 'yargs'
-import { createClient } from '@urql/core'
 import { Umzug, SequelizeStorage } from 'umzug'
 import {
   createLogger,
@@ -32,6 +31,8 @@ import {
   TransferReceiptCollector,
 } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
+import { NetworkSubgraph } from '../network-subgraph'
+import { Indexer } from '../indexer'
 
 export default {
   command: 'start',
@@ -141,7 +142,6 @@ export default {
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
         type: 'string',
-        conflicts: 'network-subgraph-deployment',
         group: 'Network Subgraph',
       })
       .option('index-node-ids', {
@@ -279,7 +279,7 @@ export default {
           !argv['network-subgraph-endpoint'] &&
           !argv['network-subgraph-deployment']
         ) {
-          return `One of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
+          return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
         if (argv['indexer-geo-coordinates']) {
           const [geo1, geo2] = argv['indexer-geo-coordinates']
@@ -544,21 +544,57 @@ export default {
       token: contracts.token.address,
     })
 
+    const indexerAddress = toAddress(argv.indexerAddress)
+
+    logger.info('Launch indexer management API server')
+    const indexerManagementClient = await createIndexerManagementClient({
+      models: managementModels,
+      address: indexerAddress,
+      contracts,
+      logger,
+      defaults: {
+        globalIndexingRule: {
+          allocationAmount: parseGRT(argv.defaultAllocationAmount),
+          parallelAllocations: 1,
+        },
+      },
+      features: {
+        injectDai: argv.injectDai,
+      },
+    })
+    await createIndexerManagementServer({
+      logger,
+      client: indexerManagementClient,
+      port: argv.indexerManagementPort,
+    })
+    logger.info(`Launched indexer management API server`)
+
     logger.info('Connect to network')
-    const networkSubgraph = argv.networkSubgraphEndpoint
-      ? createClient({
-          url: argv.networkSubgraphEndpoint,
-          requestPolicy: 'network-only',
-        })
-      : new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+    const indexer = new Indexer(
+      logger,
+      argv.graphNodeAdminEndpoint,
+      argv.graphNodeStatusEndpoint,
+      indexerManagementClient,
+      argv.indexNodeIds,
+      parseGRT(argv.defaultAllocationAmount),
+      indexerAddress,
+    )
+    const networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      indexer,
+      graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+      endpoint: argv.networkSugraphEndpoint,
+      deployment: argv.networkSubgraphDeployment
+        ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+        : undefined,
+    })
     const network = await Network.create(
       logger,
       ethereum,
       contracts,
       wallet,
-      toAddress(argv.indexerAddress),
+      indexerAddress,
       argv.publicIndexerUrl,
-      argv.graphNodeQueryEndpoint,
       argv.indexerGeoCoordinates,
       networkSubgraph,
       argv.restakeRewards,
@@ -573,29 +609,6 @@ export default {
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
     })
-
-    logger.info('Launch indexer management API server')
-    const indexerManagementClient = await createIndexerManagementClient({
-      models: managementModels,
-      address: toAddress(network.indexerAddress),
-      contracts: network.contracts,
-      logger,
-      defaults: {
-        globalIndexingRule: {
-          allocationAmount: parseGRT(argv.defaultAllocationAmount),
-          parallelAllocations: 2,
-        },
-      },
-      features: {
-        injectDai: argv.injectDai,
-      },
-    })
-    await createIndexerManagementServer({
-      logger,
-      client: indexerManagementClient,
-      port: argv.indexerManagementPort,
-    })
-    logger.info(`Launched indexer management API server`)
 
     startCostModelAutomation({
       logger,
@@ -666,14 +679,9 @@ export default {
     await startAgent({
       logger,
       metrics,
-      ethereum,
-      adminEndpoint: argv.graphNodeAdminEndpoint,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-      indexNodeIDs: argv.indexNodeIds,
+      indexer,
       network,
       networkSubgraph,
-      indexerManagement: indexerManagementClient,
-      defaultAllocationAmount: parseGRT(argv.defaultAllocationAmount),
       registerIndexer: argv.register,
       offchainSubgraphs: argv.offchainSubgraphs.map(
         (s: string) => new SubgraphDeploymentID(s),
