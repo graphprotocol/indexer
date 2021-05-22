@@ -593,7 +593,7 @@ export default {
       logger,
       indexer,
       graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-      endpoint: argv.networkSugraphEndpoint,
+      endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment
         ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
         : undefined,
