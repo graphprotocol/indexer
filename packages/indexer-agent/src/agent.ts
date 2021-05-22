@@ -26,12 +26,8 @@ import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import { Client } from '@urql/core'
 import { ReceiptCollector } from './query-fees'
-
-const delay = async (ms: number) => {
-  await new Promise(resolve => setTimeout(resolve, ms))
-}
+import { NetworkSubgraph } from './network-subgraph'
 
 const allocationInList = (
   list: Allocation[],
@@ -54,22 +50,12 @@ const uniqueDeployments = (
   deployments: SubgraphDeploymentID[],
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
 
-const loop = async (f: () => Promise<boolean>, interval: number) => {
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    if (!(await f())) {
-      break
-    }
-    await delay(interval)
-  }
-}
-
 class Agent {
   logger: Logger
   metrics: Metrics
   indexer: Indexer
   network: Network
-  networkSubgraph: Client | SubgraphDeploymentID
+  networkSubgraph: NetworkSubgraph
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
@@ -79,7 +65,7 @@ class Agent {
     metrics: Metrics,
     indexer: Indexer,
     network: Network,
-    networkSubgraph: Client | SubgraphDeploymentID,
+    networkSubgraph: NetworkSubgraph,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
@@ -101,60 +87,6 @@ class Agent {
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
-
-    // Make sure the network subgraph is being indexed
-    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
-      await this.indexer.ensure(
-        `${this.networkSubgraph.ipfsHash.slice(
-          0,
-          23,
-        )}/${this.networkSubgraph.ipfsHash.slice(23)}`,
-        this.networkSubgraph,
-      )
-    }
-
-    // If we are indexing the network subgraph ourselves, wait until it is synced
-    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
-      await loop(async () => {
-        this.logger.info(`Waiting for network subgraph deployment to be synced`)
-
-        // Check the network subgraph status
-        const status = await this.indexer.indexingStatus(
-          this.networkSubgraph as SubgraphDeploymentID,
-        )
-
-        // Throw if the subgraph has failed
-        if (status.health !== 'healthy') {
-          throw indexerError(
-            IndexerErrorCode.IE003,
-            new Error(
-              `Failed to index network subgraph deployment '${this.networkSubgraph}': ${status.fatalError.message}`,
-            ),
-          )
-        }
-
-        if (status.synced) {
-          // The deployment has synced, we're ready to go
-          return false
-        } else {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const latestBlock = status.chains[0]!.latestBlock.number
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          const chainHeadBlock = status.chains[0]!.chainHeadBlock.number
-          const syncedPercent = (
-            (100 * (latestBlock * 1.0)) /
-            chainHeadBlock
-          ).toFixed(2)
-          this.logger.info(
-            `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
-          )
-          // The subgraph has not synced yet, keep waiting
-          return true
-        }
-      }, 5000)
-
-      this.logger.info(`Network subgraph deployment is synced`)
-    }
 
     if (this.registerIndexer) {
       await this.network.register()
@@ -511,9 +443,11 @@ class Agent {
     targetDeployments = uniqueDeployments(targetDeployments)
 
     // Ensure the network subgraph deployment is _always_ indexed
-    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
-      if (!deploymentInList(targetDeployments, this.networkSubgraph)) {
-        targetDeployments.push(this.networkSubgraph)
+    if (this.networkSubgraph.deployment) {
+      if (
+        !deploymentInList(targetDeployments, this.networkSubgraph.deployment.id)
+      ) {
+        targetDeployments.push(this.networkSubgraph.deployment.id)
       }
     }
 
@@ -911,20 +845,10 @@ class Agent {
 }
 
 export const startAgent = async (config: AgentConfig): Promise<Agent> => {
-  const indexer = new Indexer(
-    config.adminEndpoint,
-    config.statusEndpoint,
-    config.indexerManagement,
-    config.logger,
-    config.indexNodeIDs,
-    config.defaultAllocationAmount,
-    config.network.indexerAddress,
-  )
-
   const agent = new Agent(
     config.logger,
     config.metrics,
-    indexer,
+    config.indexer,
     config.network,
     config.networkSubgraph,
     config.registerIndexer,

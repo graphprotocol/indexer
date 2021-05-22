@@ -36,12 +36,11 @@ import {
   BigNumberish,
 } from 'ethers'
 import { strict as assert } from 'assert'
-import { Client, createClient } from '@urql/core'
 import gql from 'graphql-tag'
-import fetch from 'isomorphic-fetch'
 import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
 import * as ti from '@thi.ng/iterators'
+import { NetworkSubgraph } from './network-subgraph'
 
 const allocationIdProof = (
   signer: Signer,
@@ -57,7 +56,7 @@ const allocationIdProof = (
 }
 
 export class Network {
-  subgraph: Client
+  networkSubgraph: NetworkSubgraph
   contracts: NetworkContracts
   indexerAddress: Address
   indexerUrl: string
@@ -83,7 +82,7 @@ export class Network {
     indexerUrl: string,
     geoCoordinates: [string, string],
     contracts: NetworkContracts,
-    subgraph: Client,
+    networkSubgraph: NetworkSubgraph,
     ethereum: providers.StaticJsonRpcProvider,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
@@ -102,7 +101,7 @@ export class Network {
     this.indexerUrl = indexerUrl
     this.indexerGeoCoordinates = geoCoordinates
     this.contracts = contracts
-    this.subgraph = subgraph
+    this.networkSubgraph = networkSubgraph
     this.ethereum = ethereum
     this.paused = paused
     this.isOperator = isOperator
@@ -266,9 +265,8 @@ export class Network {
     wallet: Wallet,
     indexerAddress: Address,
     indexerUrl: string,
-    indexerQueryEndpoint: string,
     geoCoordinates: [string, string],
-    networkSubgraph: Client | SubgraphDeploymentID,
+    networkSubgraph: NetworkSubgraph,
     restakeRewards: boolean,
     queryFeesCollectedClaimThreshold: number,
     poiDisputeMonitoring: boolean,
@@ -278,25 +276,17 @@ export class Network {
     gasPriceMax: number,
     maxTransactionAttempts: number,
   ): Promise<Network> {
-    const subgraph =
-      networkSubgraph instanceof Client
-        ? networkSubgraph
-        : createClient({
-            url: new URL(
-              `/subgraphs/id/${networkSubgraph.ipfsHash}`,
-              indexerQueryEndpoint,
-            ).toString(),
-            fetch,
-            requestPolicy: 'network-only',
-          })
-
     const logger = parentLogger.child({
       component: 'Network',
       indexer: indexerAddress.toString(),
       operator: wallet.address,
     })
 
-    const paused = await monitorNetworkPauses(logger, contracts, subgraph)
+    const paused = await monitorNetworkPauses(
+      logger,
+      contracts,
+      networkSubgraph,
+    )
     const isOperator = await monitorIsOperator(
       logger,
       contracts,
@@ -311,7 +301,7 @@ export class Network {
       indexerUrl,
       geoCoordinates,
       contracts,
-      subgraph,
+      networkSubgraph,
       ethereum,
       paused,
       isOperator,
@@ -335,29 +325,27 @@ export class Network {
 
     try {
       // TODO: Paginate here to not miss any deployments
-      const result = await this.subgraph
-        .query(
-          gql`
-            query {
-              subgraphDeployments(first: 1000) {
-                id
-                stakedTokens
-                signalAmount
-                signalledTokens
-                indexingRewardAmount
-                queryFeesAmount
-                indexerAllocations {
-                  indexer {
-                    id
-                  }
-                  allocatedTokens
-                  queryFeesCollected
+      const result = await this.networkSubgraph.query(
+        gql`
+          query {
+            subgraphDeployments(first: 1000) {
+              id
+              stakedTokens
+              signalAmount
+              signalledTokens
+              indexingRewardAmount
+              queryFeesAmount
+              indexerAllocations {
+                indexer {
+                  id
                 }
+                allocatedTokens
+                queryFeesCollected
               }
             }
-          `,
-        )
-        .toPromise()
+          }
+        `,
+      )
 
       if (result.error) {
         throw result.error
@@ -461,36 +449,34 @@ export class Network {
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
-      const result = await this.subgraph
-        .query(
-          gql`
-            query allocations($indexer: String!, $status: AllocationStatus!) {
-              allocations(
-                where: { indexer: $indexer, status: $status }
-                first: 1000
-              ) {
+      const result = await this.networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!, $status: AllocationStatus!) {
+            allocations(
+              where: { indexer: $indexer, status: $status }
+              first: 1000
+            ) {
+              id
+              indexer {
                 id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalAmount
               }
             }
-          `,
-          {
-            indexer: this.indexerAddress.toLocaleLowerCase(),
-            status: AllocationStatus[status],
-          },
-        )
-        .toPromise()
+          }
+        `,
+        {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+          status: AllocationStatus[status],
+        },
+      )
 
       if (result.error) {
         throw result.error
@@ -508,47 +494,45 @@ export class Network {
 
   async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
     try {
-      const result = await this.subgraph
-        .query(
-          gql`
-            query allocations(
-              $indexer: String!
-              $disputableEpoch: Int!
-              $minimumQueryFeesCollected: BigInt!
+      const result = await this.networkSubgraph.query(
+        gql`
+          query allocations(
+            $indexer: String!
+            $disputableEpoch: Int!
+            $minimumQueryFeesCollected: BigInt!
+          ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                closedAtEpoch_lte: $disputableEpoch
+                queryFeesCollected_gte: $minimumQueryFeesCollected
+                status: Closed
+              }
+              first: 1000
             ) {
-              allocations(
-                where: {
-                  indexer: $indexer
-                  closedAtEpoch_lte: $disputableEpoch
-                  queryFeesCollected_gte: $minimumQueryFeesCollected
-                  status: Closed
-                }
-                first: 1000
-              ) {
+              id
+              indexer {
                 id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                closedAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              closedAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalAmount
               }
             }
-          `,
-          {
-            indexer: this.indexerAddress.toLocaleLowerCase(),
-            disputableEpoch,
-            minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold.toString(),
-          },
-        )
-        .toPromise()
+          }
+        `,
+        {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+          disputableEpoch,
+          minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold.toString(),
+        },
+      )
 
       if (result.error) {
         throw result.error
@@ -582,56 +566,54 @@ export class Network {
       const disputableEpoch = currentEpoch.toNumber() - this.poiDisputableEpochs
       let lastCreatedAt = 0
       while (dataRemaining) {
-        const result = await this.subgraph
-          .query(
-            gql`
-              query allocations(
-                $deployments: [String!]!
-                $minimumAllocation: Int!
-                $disputableEpoch: Int!
-                $zeroPOI: String!
-                $createdAt: Int!
+        const result = await this.networkSubgraph.query(
+          gql`
+            query allocations(
+              $deployments: [String!]!
+              $minimumAllocation: Int!
+              $disputableEpoch: Int!
+              $zeroPOI: String!
+              $createdAt: Int!
+            ) {
+              allocations(
+                where: {
+                  createdAt_gt: $createdAt
+                  subgraphDeployment_in: $deployments
+                  allocatedTokens_gt: $minimumAllocation
+                  closedAtEpoch_gte: $disputableEpoch
+                  status: Closed
+                  poi_not: $zeroPOI
+                }
+                first: 1000
+                orderBy: createdAt
+                orderDirection: asc
               ) {
-                allocations(
-                  where: {
-                    createdAt_gt: $createdAt
-                    subgraphDeployment_in: $deployments
-                    allocatedTokens_gt: $minimumAllocation
-                    closedAtEpoch_gte: $disputableEpoch
-                    status: Closed
-                    poi_not: $zeroPOI
-                  }
-                  first: 1000
-                  orderBy: createdAt
-                  orderDirection: asc
-                ) {
+                id
+                createdAt
+                indexer {
                   id
-                  createdAt
-                  indexer {
-                    id
-                  }
-                  poi
-                  allocatedTokens
-                  createdAtEpoch
-                  closedAtEpoch
-                  closedAtBlockHash
-                  subgraphDeployment {
-                    id
-                    stakedTokens
-                    signalAmount
-                  }
+                }
+                poi
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                closedAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
                 }
               }
-            `,
-            {
-              deployments: deployments.map(subgraph => subgraph.bytes32),
-              minimumAllocation,
-              disputableEpoch,
-              createdAt: lastCreatedAt,
-              zeroPOI,
-            },
-          )
-          .toPromise()
+            }
+          `,
+          {
+            deployments: deployments.map(subgraph => subgraph.bytes32),
+            minimumAllocation,
+            disputableEpoch,
+            createdAt: lastCreatedAt,
+            zeroPOI,
+          },
+        )
 
         if (result.error) {
           throw result.error
@@ -695,28 +677,26 @@ export class Network {
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
     try {
-      const result = await this.subgraph
-        .query(
-          gql`
-            query epochs($epochs: [Int!]!) {
-              epoches(where: { id_in: $epochs }, first: 1000) {
-                id
-                startBlock
-                endBlock
-                signalledTokens
-                stakeDeposited
-                queryFeeRebates
-                totalRewards
-                totalIndexerRewards
-                totalDelegatorRewards
-              }
+      const result = await this.networkSubgraph.query(
+        gql`
+          query epochs($epochs: [Int!]!) {
+            epoches(where: { id_in: $epochs }, first: 1000) {
+              id
+              startBlock
+              endBlock
+              signalledTokens
+              stakeDeposited
+              queryFeeRebates
+              totalRewards
+              totalIndexerRewards
+              totalDelegatorRewards
             }
-          `,
-          {
-            epochs: epochNumbers,
-          },
-        )
-        .toPromise()
+          }
+        `,
+        {
+          epochs: epochNumbers,
+        },
+      )
 
       if (result.error) {
         throw result.error
@@ -1119,22 +1099,20 @@ export class Network {
 async function monitorNetworkPauses(
   logger: Logger,
   contracts: NetworkContracts,
-  subgraph: Client,
+  networkSubgraph: NetworkSubgraph,
 ): Promise<Eventual<boolean>> {
   return timer(60_000)
     .reduce(async currentlyPaused => {
       try {
-        const result = await subgraph
-          .query(
-            gql`
-              {
-                graphNetworks {
-                  isPaused
-                }
+        const result = await networkSubgraph.query(
+          gql`
+            {
+              graphNetworks {
+                isPaused
               }
-            `,
-          )
-          .toPromise()
+            }
+          `,
+        )
 
         if (result.error) {
           throw result.error

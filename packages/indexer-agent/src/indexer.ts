@@ -63,10 +63,10 @@ export class Indexer {
   indexerAddress: string
 
   constructor(
+    logger: Logger,
     adminEndpoint: string,
     statusEndpoint: string,
     indexerManagement: IndexerManagementClient,
-    logger: Logger,
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
     indexerAddress: string,
