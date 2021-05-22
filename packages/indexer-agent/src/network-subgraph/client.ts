@@ -7,22 +7,8 @@ import {
 } from '@graphprotocol/common-ts'
 import { DocumentNode } from 'graphql'
 import { Client, OperationResult, createClient } from '@urql/core'
-import { Indexer } from './indexer'
-import { IndexingError } from './types'
-
-// const delay = async (ms: number) => {
-//   await new Promise(resolve => setTimeout(resolve, ms))
-// }
-//
-// const loop = async (f: () => Promise<boolean>, interval: number) => {
-//   // eslint-disable-next-line no-constant-condition
-//   while (true) {
-//     if (!(await f())) {
-//       break
-//     }
-//     await delay(interval)
-//   }
-// }
+import { Indexer } from '../indexer'
+import { IndexingError } from '../types'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger

@@ -4,7 +4,7 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from './network-subgraph'
+import { NetworkSubgraph } from './client'
 
 export interface CreateNetworkSubgraphServerOptions {
   logger: Logger

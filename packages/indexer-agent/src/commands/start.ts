@@ -31,9 +31,11 @@ import {
   TransferReceiptCollector,
 } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
-import { NetworkSubgraph } from '../network-subgraph'
+import {
+  NetworkSubgraph,
+  createNetworkSubgraphServer,
+} from '../network-subgraph'
 import { Indexer } from '../indexer'
-import { createNetworkSubgraphServer } from '../network-subgraph-server'
 
 export default {
   command: 'start',
