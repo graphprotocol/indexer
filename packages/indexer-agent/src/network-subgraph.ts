@@ -166,9 +166,11 @@ export class NetworkSubgraph {
         return this.endpointClient
       } else {
         // We have no endpoint and our deployment is not synced or unhealthy;
-        // we could crash here or we are more optimistic and query the deploymet
-        // for now
-        return this.deployment.client
+        // there's no way to proceed from here, so crash
+        this.logger.critical(
+          `No network subgraph deployment endpoint provided and network subgraph deployment is unhealthy`,
+        )
+        process.exit(1)
       }
     } else {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
