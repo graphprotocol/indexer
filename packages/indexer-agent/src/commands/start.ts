@@ -184,7 +184,7 @@ export default {
         description:
           'Port to serve the network subgraph and other syncing data for indexer service at',
         type: 'number',
-        default: 8001,
+        default: 8002,
         required: false,
         group: 'Indexer Infrastructure',
       })
