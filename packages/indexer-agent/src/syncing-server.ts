@@ -4,20 +4,20 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from './client'
+import { NetworkSubgraph } from './network-subgraph'
 
-export interface CreateNetworkSubgraphServerOptions {
+export interface CreateSyncingServerOptions {
   logger: Logger
   networkSubgraph: NetworkSubgraph
   port: number
 }
 
-export const createNetworkSubgraphServer = async ({
+export const createSyncingServer = async ({
   logger,
   networkSubgraph,
   port,
-}: CreateNetworkSubgraphServerOptions): Promise<express.Express> => {
-  logger = logger.child({ component: 'NetworkSubgraphServer' })
+}: CreateSyncingServerOptions): Promise<express.Express> => {
+  logger = logger.child({ component: 'SyncingServer' })
 
   const loggerStream = new Stream.Writable()
   loggerStream._write = (chunk, _, next) => {
@@ -37,8 +37,8 @@ export const createNetworkSubgraphServer = async ({
     res.status(200).send('Ready to roll!')
   })
 
-  // GraphQL endpoint
-  server.post('/', bodyParser.json(), async (req, res) => {
+  // Network subgraph endpoint
+  server.post('/network', bodyParser.json(), async (req, res) => {
     const { query, variables } = req.body
 
     if (query.startsWith('mutation') || query.startsWith('subscription')) {

@@ -7,8 +7,8 @@ import {
 } from '@graphprotocol/common-ts'
 import { DocumentNode } from 'graphql'
 import { Client, OperationResult, createClient } from '@urql/core'
-import { Indexer } from '../indexer'
-import { IndexingError } from '../types'
+import { Indexer } from './indexer'
+import { IndexingError } from './types'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger

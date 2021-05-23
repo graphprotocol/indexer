@@ -31,10 +31,8 @@ import {
   TransferReceiptCollector,
 } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
-import {
-  NetworkSubgraph,
-  createNetworkSubgraphServer,
-} from '../network-subgraph'
+import { NetworkSubgraph } from '../network-subgraph'
+import { createSyncingServer } from '../syncing-server'
 import { Indexer } from '../indexer'
 
 export default {
@@ -182,8 +180,9 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
-      .option('network-subgraph-port', {
-        description: 'Port to serve the network subgraph from',
+      .option('syncing-port', {
+        description:
+          'Port to serve the network subgraph and other syncing data for indexer service at',
         type: 'number',
         default: 8001,
         required: false,
@@ -620,13 +619,13 @@ export default {
       restakeRewards: argv.restakeRewards,
     })
 
-    logger.info(`Launch network subgraph server`)
-    await createNetworkSubgraphServer({
+    logger.info(`Launch syncing server`)
+    await createSyncingServer({
       logger,
       networkSubgraph,
-      port: argv.networkSubgraphPort,
+      port: argv.syncingPort,
     })
-    logger.info(`Successfully launched network subgraph server`)
+    logger.info(`Successfully launched syncing server`)
 
     startCostModelAutomation({
       logger,
