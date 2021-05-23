@@ -53,10 +53,7 @@ spec:
                   name: ethereum
                   key: url
             - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
-              valueFrom:
-                secretKeyRef:
-                  name: network-subgraph
-                  key: endpoint
+              value: http://index-eragent.default.svc.cluster.local:8002/network
             - name: INDEXER_SERVICE_GRAPH_NODE_QUERY_ENDPOINT
               value: http://query-node.default.svc.cluster.local/
             - name: INDEXER_SERVICE_GRAPH_NODE_STATUS_ENDPOINT

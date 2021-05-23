@@ -37,7 +37,8 @@ resource "kubernetes_secret" "network-subgraph" {
     name = "network-subgraph"
   }
   data = {
-    endpoint = var.network_subgraph_endpoint
+    endpoint   = var.network_subgraph_endpoint
+    deployment = var.network_subgraph_deployment
   }
 }
 

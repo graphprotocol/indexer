@@ -107,6 +107,12 @@ variable "network_subgraph_endpoint" {
   description = "An endpoint that serves the network subgraph deployment"
 }
 
+variable "network_subgraph_deployment" {
+  type        = string
+  description = "Network subgraph deployment to index locally"
+  default     = ""
+}
+
 variable "sizes" {
   type = object({
     query_pool   = number
@@ -125,18 +131,6 @@ variable "prometheus_disk_size" {
   type        = number
   default     = 256
   description = "The size of the disk that stores monitoring data (in GB)"
-}
-
-# Vector
-
-variable "vector_admin_token" {
-  type        = string
-  description = "Token for managing the Vector node"
-}
-
-variable "vector_router" {
-  type        = string
-  description = "Public identifier of a Vector router"
 }
 
 # Scalar

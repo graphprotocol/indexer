@@ -31,6 +31,8 @@ spec:
               containerPort: 7300
             - name: management
               containerPort: 8000
+            - name: syncing
+              containerPort: 8001
           env:
             - name: INDEXER_AGENT_MNEMONIC
               valueFrom:
@@ -85,3 +87,13 @@ spec:
                 secretKeyRef:
                   name: scalar
                   key: collect_receipts_endpoint
+            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT
+              valueFrom:
+                secretKeyRef:
+                  name: network-subgraph
+                  key: deployment
+            - name: INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: network-subgraph
+                  key: endpoint
