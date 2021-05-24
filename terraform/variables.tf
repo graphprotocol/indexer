@@ -105,6 +105,7 @@ variable "free_query_auth_token" {
 variable "network_subgraph_endpoint" {
   type        = string
   description = "An endpoint that serves the network subgraph deployment"
+  default     = ""
 }
 
 variable "network_subgraph_deployment" {
