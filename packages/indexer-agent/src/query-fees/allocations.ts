@@ -1,6 +1,5 @@
 import axios from 'axios'
 import {
-  Address,
   Logger,
   timer,
   BytesWriter,
@@ -10,16 +9,16 @@ import {
 import {
   Allocation,
   AllocationReceipt,
-  AllocationSummary,
   indexerError,
   IndexerErrorCode,
   QueryFeeModels,
   Voucher,
+  ensureAllocationSummary,
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
 import { BigNumber, Contract } from 'ethers'
-import { Op, Transaction } from 'sequelize'
+import { Op } from 'sequelize'
 import { Network } from '../network'
 
 // Receipts are collected with a delay of 20 minutes after
@@ -76,7 +75,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
           for (const allocation of allocations) {
-            const summary = await this.ensureAllocationSummary(
+            const summary = await ensureAllocationSummary(
+              this.models,
               allocation.id,
               transaction,
             )
@@ -195,27 +195,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     return this.models.vouchers.findAll()
   }
 
-  private async ensureAllocationSummary(
-    allocation: Address,
-    transaction: Transaction,
-  ): Promise<AllocationSummary> {
-    const [summary] = await this.models.allocationSummaries.findOrBuild({
-      where: { allocation },
-      defaults: {
-        allocation,
-        closedAt: null,
-        createdTransfers: 0,
-        resolvedTransfers: 0,
-        failedTransfers: 0,
-        openTransfers: 0,
-        collectedFees: '0',
-        withdrawnFees: '0',
-      },
-      transaction,
-    })
-    return summary
-  }
-
   private async obtainReceiptsVoucher(
     receipts: AllocationReceipt[],
   ): Promise<void> {
@@ -276,7 +255,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
         // Update the query fees tracked against the allocation
-        const summary = await this.ensureAllocationSummary(
+        const summary = await ensureAllocationSummary(
+          this.models,
           toAddress(voucher.allocation),
           transaction,
         )
@@ -353,7 +333,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
-          const summary = await this.ensureAllocationSummary(
+          const summary = await ensureAllocationSummary(
+            this.models,
             toAddress(voucher.allocation),
             transaction,
           )

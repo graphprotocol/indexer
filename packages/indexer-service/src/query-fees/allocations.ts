@@ -4,6 +4,7 @@ import {
   IndexerErrorCode,
   QueryFeeModels,
   AllocationReceiptAttributes,
+  ensureAllocationSummary,
 } from '@graphprotocol/indexer-common'
 import { NativeSignatureVerifier } from '@graphprotocol/indexer-native'
 import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
@@ -122,6 +123,12 @@ export class AllocationReceiptManager implements ReceiptManager {
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
+            await ensureAllocationSummary(
+              this._queryFeeModels,
+              receipt.allocation,
+              transaction,
+            )
+
             const [
               state,
               isNew,
@@ -136,7 +143,8 @@ export class AllocationReceiptManager implements ReceiptManager {
               transaction,
             })
 
-            // Don't save over receipts that are already advanced
+            // Don't save if we already have a version of the receipt
+            // with a higher amount of fees
             if (!isNew) {
               const storedFees = BigNumber.from(state.getDataValue('fees'))
               if (storedFees.gte(receipt.fees)) {
