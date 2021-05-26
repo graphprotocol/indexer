@@ -123,11 +123,14 @@ export class AllocationReceiptManager implements ReceiptManager {
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
-            await ensureAllocationSummary(
+            const [summary, isNewSummary] = await ensureAllocationSummary(
               this._queryFeeModels,
               receipt.allocation,
               transaction,
             )
+            if (isNewSummary) {
+              await summary.save()
+            }
 
             const [
               state,
