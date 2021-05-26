@@ -75,7 +75,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
           for (const allocation of allocations) {
-            const summary = await ensureAllocationSummary(
+            const [summary] = await ensureAllocationSummary(
               this.models,
               allocation.id,
               transaction,
@@ -255,7 +255,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
         // Update the query fees tracked against the allocation
-        const summary = await ensureAllocationSummary(
+        const [summary] = await ensureAllocationSummary(
           this.models,
           toAddress(voucher.allocation),
           transaction,
@@ -333,7 +333,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
-          const summary = await ensureAllocationSummary(
+          const [summary] = await ensureAllocationSummary(
             this.models,
             toAddress(voucher.allocation),
             transaction,
