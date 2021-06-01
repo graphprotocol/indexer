@@ -36,6 +36,7 @@ export interface AllocationReceiptCollectorOptions {
   models: QueryFeeModels
   collectEndpoint: URL
   allocationExchange: Contract
+  allocationClaimThreshold: BigNumber
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
@@ -45,6 +46,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private allocationExchange: Contract
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
+  private allocationClaimThreshold: BigNumber
 
   constructor({
     logger,
@@ -52,12 +54,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     models,
     collectEndpoint,
     allocationExchange,
+    allocationClaimThreshold,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.network = network
     this.models = models
     this.collectEndpoint = collectEndpoint
     this.allocationExchange = allocationExchange
+    this.allocationClaimThreshold = allocationClaimThreshold
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
@@ -291,6 +295,28 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
 
     logger.info(`Redeem query fee voucher on chain`)
+
+    if (BigNumber.from(voucher.amount).lt(this.allocationClaimThreshold)) {
+      logger.info(
+        `Query fee voucher amount is below claim threshold, discard it`,
+        {
+          allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
+        },
+      )
+
+      try {
+        await this.models.vouchers.destroy({
+          where: { allocation: voucher.allocation },
+        })
+      } catch (err) {
+        logger.warn(
+          `Failed to delete local voucher copy, will try again later`,
+          { err },
+        )
+      }
+
+      return
+    }
 
     // Check if a voucher for this allocation was already redeemed
     if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {

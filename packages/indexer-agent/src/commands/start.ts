@@ -24,7 +24,7 @@ import {
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
-import { providers, Wallet } from 'ethers'
+import { providers, Wallet, BigNumber } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import {
   bindAllocationExchangeContract,
@@ -195,7 +195,7 @@ export default {
         group: 'Indexer Infrastructure',
       })
       .option('allocation-claim-threshold', {
-        description: `Minimum query fees collected (GRT) on an allocation for it to be claimed`,
+        description: `Minimum query fees (in GRT) received for an allocation to collect and claim them on-chain`,
         type: 'number',
         default: 0,
         group: 'Indexer Infrastructure',
@@ -688,6 +688,9 @@ export default {
         allocationExchange: bindAllocationExchangeContract(
           wallet,
           allocationExchangeContract,
+        ),
+        allocationClaimThreshold: parseGRT(
+          argv.allocationClaimThreshold.toString(),
         ),
       })
       await receiptCollector.queuePendingReceiptsFromDatabase()
