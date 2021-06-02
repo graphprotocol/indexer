@@ -121,14 +121,14 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE048: 'Failed to withdraw query fees for allocation',
   IE049: 'Failed to clean up transfers for allocation',
   IE050:
-    'Transaction reverted: gas limit likely hit (cumulative gas used is near the gas limit)',
-  IE051: 'Transaction reverted: reason unknown',
+    'Transaction reverted due to gas limit being hit',
+  IE051: 'Transaction reverted for unknown reason',
   IE052: 'Transaction aborted: maximum configured gas price reached',
   IE053: 'Failed to queue receipts for collecting',
   IE054: 'Failed to collect receipts in exchange for query fee voucher',
   IE055: 'Failed to redeem query fee voucher',
   IE056: 'Failed to remember allocation for collecting receipts later',
-  IE057: 'Transaction reverted: contract requirement not met',
+  IE057: 'Transaction reverted due to failing assertion in contract',
 }
 
 export type IndexerErrorCause = unknown
