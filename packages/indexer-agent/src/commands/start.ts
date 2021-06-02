@@ -83,7 +83,7 @@ export default {
       .option('transaction-attempts', {
         description: 'The maximum number of transaction attempts',
         type: 'number',
-        default: 5,
+        default: 2,
         group: 'Ethereum',
       })
       .option('mnemonic', {
