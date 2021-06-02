@@ -138,6 +138,7 @@ export class Network {
     const estimatedGas = await gasEstimation()
     const txPromise = transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
     let tx = await txPromise
+    let txRequest: providers.TransactionRequest | undefined = undefined
 
     let txConfig: Record<string, number> = {
       attempt: 1,
@@ -163,7 +164,7 @@ export class Network {
           logger.info('Resubmitting transaction', {
             txConfig: txConfig,
           })
-          const transaction: providers.TransactionRequest = {
+          txRequest = {
             value: tx.value,
             to: tx.to,
             data: tx.data,
@@ -173,7 +174,7 @@ export class Network {
             gasPrice: Math.ceil(txConfig.gasPrice),
             gasLimit: Math.ceil(txConfig.gasLimit),
           }
-          tx = await this.wallet.sendTransaction(transaction)
+          tx = await this.wallet.sendTransaction(txRequest)
         }
 
         logger.info(`Transaction pending`, { tx: tx })
@@ -185,10 +186,17 @@ export class Network {
         )
 
         if (receipt.status == 0) {
-          if (receipt.cumulativeGasUsed.toNumber() > txConfig.gasLimit * 0.9) {
+          const revertReason = await this.getRevertReason(
+            logger,
+            txRequest as providers.TransactionRequest,
+          )
+          if (revertReason === 'out of gas') {
             throw indexerError(IndexerErrorCode.IE050)
+          } else if (revertReason === 'unknown') {
+            throw indexerError(IndexerErrorCode.IE051)
+          } else {
+            throw indexerError(IndexerErrorCode.IE057)
           }
-          throw indexerError(IndexerErrorCode.IE051)
         }
 
         logger.info(`Transaction successfully included in block`, {
@@ -204,6 +212,25 @@ export class Network {
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return output!
+  }
+
+  async getRevertReason(
+    logger: Logger,
+    txRequest: providers.TransactionRequest,
+  ): Promise<string> {
+    let revertReason = 'unknown'
+    try {
+      const code = await this.ethereum.call(txRequest)
+      revertReason = utils.toUtf8String(`0x${code.substr(138)}`)
+    } catch (e) {
+      if (e.body.includes('out of gas')) {
+        revertReason = 'out of gas'
+      } else {
+        throw indexerError(IndexerErrorCode.IE051)
+      }
+    }
+    logger.warn('Transaction reverted:', { reason: revertReason })
+    return revertReason
   }
 
   async updateTransactionConfig(
