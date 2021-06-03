@@ -459,6 +459,7 @@ export default {
       indexerManagementClient,
       release,
       operatorPublicKey: wallet.publicKey,
+      networkSubgraphEndpoint: argv.networkSubgraphEndpoint,
     })
   },
 }

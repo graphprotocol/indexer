@@ -18,6 +18,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
+import axios from 'axios'
 
 export interface ServerOptions {
   logger: Logger
@@ -32,6 +33,7 @@ export interface ServerOptions {
     dependencies: { [key: string]: string }
   }
   operatorPublicKey: string
+  networkSubgraphEndpoint: string
 }
 
 export const createApp = async ({
@@ -43,6 +45,7 @@ export const createApp = async ({
   metrics,
   release,
   operatorPublicKey,
+  networkSubgraphEndpoint,
 }: ServerOptions): Promise<express.Express> => {
   // Install metrics for incoming queries
   const serverMetrics = {
@@ -178,6 +181,32 @@ export const createApp = async ({
     freeQueryAuthValue = `Bearer ${freeQueryAuthToken}`
   }
 
+  // Endpoint for network subgraph queries
+  app.post(
+    `/network`,
+    // Accept JSON but don't parse it
+    bodyParser.raw({ type: 'application/json' }),
+    async (req, res) => {
+      try {
+        logger.info(`Handle network subgraph query`)
+
+        if (!freeQueryAuthValue || req.headers['authorization'] !== freeQueryAuthValue) {
+          throw new Error(`Invalid auth token`)
+        }
+
+        const response = await axios.post(networkSubgraphEndpoint, req.body, {
+          headers: {
+            'content-type': 'application/json',
+          },
+        })
+        return res.status(response.status).send(response.data)
+      } catch (err) {
+        logger.warn(`Failed to handle network subgraph query`, { err })
+        return res.status(200).send({ errors: [{ message: err.message }] })
+      }
+    },
+  )
+
   // Endpoint for subgraph queries
   app.post(
     '/subgraphs/id/:id',
@@ -303,6 +332,7 @@ export const createServer = async ({
   metrics,
   release,
   operatorPublicKey,
+  networkSubgraphEndpoint,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -313,6 +343,7 @@ export const createServer = async ({
     metrics,
     release,
     operatorPublicKey,
+    networkSubgraphEndpoint,
   })
 
   app.listen(port, () => {
