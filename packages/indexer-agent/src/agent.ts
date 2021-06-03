@@ -19,15 +19,15 @@ import {
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import * as ti from '@thi.ng/iterators'
-import { AgentConfig, EthereumBlock } from './types'
+import { BlockPointer, NetworkSubgraph } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
+import { AgentConfig } from './types'
 import { Network } from './network'
 import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
 import { ReceiptCollector } from './query-fees'
-import { NetworkSubgraph } from './network-subgraph'
 
 const allocationInList = (
   list: Allocation[],
@@ -509,7 +509,7 @@ class Agent {
     targetDeployments: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
-    currentEpochStartBlock: EthereumBlock,
+    currentEpochStartBlock: BlockPointer,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
@@ -580,7 +580,7 @@ class Agent {
     worthIndexing: boolean,
     rule: IndexingRuleAttributes | undefined,
     epoch: number,
-    epochStartBlock: EthereumBlock,
+    epochStartBlock: BlockPointer,
     maxAllocationEpochs: number,
   ): Promise<void> {
     const logger = this.logger.child({
@@ -808,7 +808,7 @@ class Agent {
   }
 
   private async closeAllocation(
-    epochStartBlock: EthereumBlock,
+    epochStartBlock: BlockPointer,
     allocation: Allocation,
   ): Promise<{ closed: boolean; collectingQueryFees: boolean }> {
     const poi = await this.indexer.proofOfIndexing(

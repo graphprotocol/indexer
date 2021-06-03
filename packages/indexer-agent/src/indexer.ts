@@ -11,8 +11,10 @@ import {
   indexerError,
   IndexerErrorCode,
   POIDisputeAttributes,
+  IndexingStatusFetcher,
+  BlockPointer,
+  IndexingStatus,
 } from '@graphprotocol/indexer-common'
-import { EthereumBlock, IndexingStatus } from './types'
 import pRetry from 'p-retry'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -53,7 +55,7 @@ const disputeFromGraphQL = (
   return obj as POIDisputeAttributes
 }
 
-export class Indexer {
+export class Indexer implements IndexingStatusFetcher {
   statuses: Client
   rpc: RpcClient
   indexerManagement: IndexerManagementClient
@@ -144,7 +146,7 @@ export class Indexer {
 
   async proofOfIndexing(
     deployment: SubgraphDeploymentID,
-    block: EthereumBlock,
+    block: BlockPointer,
     indexerAddress: string,
   ): Promise<string | undefined> {
     try {

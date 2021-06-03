@@ -24,6 +24,7 @@ import {
   IndexerErrorCode,
   INDEXER_ERROR_MESSAGES,
   IndexerError,
+  NetworkSubgraph,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -40,7 +41,6 @@ import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
 import * as ti from '@thi.ng/iterators'
-import { NetworkSubgraph } from './network-subgraph'
 
 const allocationIdProof = (
   signer: Signer,
