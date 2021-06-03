@@ -20,20 +20,20 @@ import {
   IndexerErrorCode,
   registerIndexerErrorMetrics,
   defineQueryFeeModels,
+  NetworkSubgraph,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
 import { Network } from '../network'
-import { providers, Wallet, BigNumber } from 'ethers'
+import { Indexer } from '../indexer'
+import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import {
   bindAllocationExchangeContract,
   TransferReceiptCollector,
 } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
-import { NetworkSubgraph } from '../network-subgraph'
 import { createSyncingServer } from '../syncing-server'
-import { Indexer } from '../indexer'
 
 export default {
   command: 'start',
@@ -588,13 +588,30 @@ export default {
       parseGRT(argv.defaultAllocationAmount),
       indexerAddress,
     )
+    const networkSubgraphDeployment = argv.networkSubgraphDeployment
+      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+      : undefined
+    if (networkSubgraphDeployment !== undefined) {
+      // Make sure the network subgraph is being indexed
+      await indexer.ensure(
+        `${networkSubgraphDeployment.ipfsHash.slice(
+          0,
+          23,
+        )}/${networkSubgraphDeployment.ipfsHash.slice(23)}`,
+        networkSubgraphDeployment,
+      )
+    }
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
-      indexer,
-      graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
       endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment
-        ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+        ? {
+            indexingStatusResolver: indexer,
+            deployment: new SubgraphDeploymentID(
+              argv.networkSubgraphDeployment,
+            ),
+            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+          }
         : undefined,
     })
     const network = await Network.create(

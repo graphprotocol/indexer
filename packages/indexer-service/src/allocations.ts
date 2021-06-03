@@ -1,7 +1,6 @@
 import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { Wallet } from 'ethers'
-import { Client } from '@urql/core'
 import { NativeAttestationSigner } from '@graphprotocol/indexer-native'
 
 import { Logger, Eventual, timer, Address } from '@graphprotocol/common-ts'
@@ -12,13 +11,14 @@ import {
   allocationSigner,
   indexerError,
   IndexerErrorCode,
+  NetworkSubgraph,
   parseGraphQLAllocation,
 } from '@graphprotocol/indexer-common'
 
 export interface MonitorActiveAllocationsOptions {
   indexer: Address
   logger: Logger
-  networkSubgraph: Client
+  networkSubgraph: NetworkSubgraph
   interval: number
 }
 
@@ -36,38 +36,32 @@ export const monitorActiveAllocations = ({
     logger.debug('Refresh active allocations')
 
     try {
-      const result = await networkSubgraph
-        .query(
-          gql`
-            query allocations($indexer: String!) {
-              indexer(id: $indexer) {
-                allocations(
-                  where: { status: Active }
-                  orderDirection: desc
-                  first: 1000
-                ) {
+      const result = await networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!) {
+            indexer(id: $indexer) {
+              allocations(where: { status: Active }, orderDirection: desc, first: 1000) {
+                id
+                indexer {
                   id
-                  indexer {
-                    id
-                  }
-                  allocatedTokens
-                  createdAtBlockHash
-                  createdAtEpoch
-                  closedAtEpoch
-                  subgraphDeployment {
-                    id
-                    stakedTokens
-                    signalAmount
-                  }
+                }
+                allocatedTokens
+                createdAtBlockHash
+                createdAtEpoch
+                closedAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
                 }
               }
             }
-          `,
-          {
-            indexer: indexer.toLowerCase(),
-          },
-        )
-        .toPromise()
+          }
+        `,
+        {
+          indexer: indexer.toLowerCase(),
+        },
+      )
 
       if (result.error) {
         throw result.error

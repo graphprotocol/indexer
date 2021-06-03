@@ -1,8 +1,6 @@
 import path from 'path'
-import fetch from 'isomorphic-fetch'
 import readPkg from 'read-pkg'
 import { Argv } from 'yargs'
-import { createClient } from '@urql/core'
 import { Wallet, providers, BigNumber } from 'ethers'
 
 import {
@@ -12,6 +10,7 @@ import {
   createMetricsServer,
   toAddress,
   connectDatabase,
+  SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
   createIndexerManagementClient,
@@ -21,6 +20,8 @@ import {
   registerIndexerErrorMetrics,
   createVectorClient,
   defineQueryFeeModels,
+  NetworkSubgraph,
+  IndexingStatusFetcher,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -263,10 +264,20 @@ export default {
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network`)
-    const networkSubgraph = createClient({
-      url: argv.networkSubgraphEndpoint,
-      fetch,
-      requestPolicy: 'network-only',
+    const indexingStatusResolver = new IndexingStatusFetcher({
+      logger,
+      statusEndpoint: argv.graphNodeStatusEndpoint,
+    })
+    const networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      endpoint: argv.networkSubgraphEndpoint,
+      deployment: argv.networkSubgraphDeployment
+        ? {
+            indexingStatusResolver,
+            deployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
+            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+          }
+        : undefined,
     })
     logger.info(`Successfully connected to network`)
 
@@ -459,7 +470,7 @@ export default {
       indexerManagementClient,
       release,
       operatorPublicKey: wallet.publicKey,
-      networkSubgraphEndpoint: argv.networkSubgraphEndpoint,
+      networkSubgraph,
     })
   },
 }

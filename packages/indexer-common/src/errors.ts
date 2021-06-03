@@ -120,8 +120,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE047: 'Failed to mark transfer as failed',
   IE048: 'Failed to withdraw query fees for allocation',
   IE049: 'Failed to clean up transfers for allocation',
-  IE050:
-    'Transaction reverted due to gas limit being hit',
+  IE050: 'Transaction reverted due to gas limit being hit',
   IE051: 'Transaction reverted for unknown reason',
   IE052: 'Transaction aborted: maximum configured gas price reached',
   IE053: 'Failed to queue receipts for collecting',

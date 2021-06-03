@@ -1,26 +1,17 @@
 import fetch from 'isomorphic-fetch'
-import {
-  Eventual,
-  Logger,
-  SubgraphDeploymentID,
-  timer,
-} from '@graphprotocol/common-ts'
+import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/common-ts'
 import { DocumentNode } from 'graphql'
 import { Client, OperationResult, createClient } from '@urql/core'
-import { Indexer } from './indexer'
-import { IndexingError } from './types'
+import { IndexingStatusResolver, BlockPointer, IndexingError } from './types'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger
-  indexer: Indexer
-  graphNodeQueryEndpoint: string
   endpoint?: string
-  deployment?: SubgraphDeploymentID
-}
-
-interface BlockPointer {
-  number: number
-  hash: string
+  deployment?: {
+    indexingStatusResolver: IndexingStatusResolver
+    graphNodeQueryEndpoint: string
+    deployment: SubgraphDeploymentID
+  }
 }
 
 interface DeploymentStatus {
@@ -33,11 +24,11 @@ interface DeploymentStatus {
 
 interface NetworkSubgraphOptions {
   logger: Logger
-  graphNodeQueryEndpoint: string
   endpoint?: string
   deployment?: {
     id: SubgraphDeploymentID
     status: Eventual<DeploymentStatus>
+    graphNodeQueryEndpoint: string
   }
 }
 
@@ -67,7 +58,7 @@ export class NetworkSubgraph {
       const client = createClient({
         url: new URL(
           `/subgraphs/id/${options.deployment.id.ipfsHash}`,
-          options.graphNodeQueryEndpoint,
+          options.deployment.graphNodeQueryEndpoint,
         ).toString(),
         fetch,
         requestPolicy: 'network-only',
@@ -84,8 +75,6 @@ export class NetworkSubgraph {
 
   public static async create({
     logger: parentLogger,
-    indexer,
-    graphNodeQueryEndpoint,
     endpoint,
     deployment,
   }: NetworkSubgraphCreateOptions): Promise<NetworkSubgraph> {
@@ -97,36 +86,34 @@ export class NetworkSubgraph {
     const logger = parentLogger.child({
       component: 'NetworkSubgraph',
       endpoint,
-      deployment: deployment?.ipfsHash,
+      deployment: deployment?.deployment.ipfsHash,
     })
 
     let deploymentInfo:
-      | { id: SubgraphDeploymentID; status: Eventual<DeploymentStatus> }
+      | {
+          id: SubgraphDeploymentID
+          status: Eventual<DeploymentStatus>
+          graphNodeQueryEndpoint: string
+        }
       | undefined
 
     if (deployment) {
-      // Make sure the network subgraph is being indexed
-      await indexer.ensure(
-        `${deployment.ipfsHash.slice(0, 23)}/${deployment.ipfsHash.slice(23)}`,
-        deployment,
-      )
-
       const status = await monitorDeployment({
         logger,
-        indexer,
-        deployment,
+        indexingStatusResolver: deployment.indexingStatusResolver,
+        deployment: deployment.deployment,
       })
 
       deploymentInfo = {
-        id: deployment,
+        id: deployment.deployment,
         status,
+        graphNodeQueryEndpoint: deployment.graphNodeQueryEndpoint,
       }
     }
 
     // Create the network subgraph instance
     const networkSubgraph = new NetworkSubgraph({
       logger,
-      graphNodeQueryEndpoint,
       endpoint,
       deployment: deploymentInfo,
     })
@@ -135,7 +122,7 @@ export class NetworkSubgraph {
     // need to wait until the deployment is synced
     if (!endpoint) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await deploymentInfo!.status.filter(status => status.synced).value()
+      await deploymentInfo!.status.filter((status) => status.synced).value()
     }
 
     return networkSubgraph
@@ -180,11 +167,11 @@ export class NetworkSubgraph {
 
 const monitorDeployment = async ({
   logger,
-  indexer,
+  indexingStatusResolver,
   deployment,
 }: {
   logger: Logger
-  indexer: Indexer
+  indexingStatusResolver: IndexingStatusResolver
   deployment: SubgraphDeploymentID
 }): Promise<Eventual<DeploymentStatus>> => {
   const initialStatus: DeploymentStatus = {
@@ -195,11 +182,11 @@ const monitorDeployment = async ({
     fatalError: undefined,
   }
 
-  return timer(10_000).reduce(async lastStatus => {
+  return timer(10_000).reduce(async (lastStatus) => {
     try {
       logger.trace(`Checking the network subgraph deployment status`)
 
-      const indexingStatus = await indexer.indexingStatus(deployment)
+      const indexingStatus = await indexingStatusResolver.indexingStatus(deployment)
 
       const status = {
         health: indexingStatus.health,
