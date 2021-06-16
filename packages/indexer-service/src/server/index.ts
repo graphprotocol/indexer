@@ -34,6 +34,8 @@ export interface ServerOptions {
   }
   operatorPublicKey: string
   networkSubgraph: NetworkSubgraph
+  networkSubgraphAuthToken: string | undefined
+  serveNetworkSubgraph: boolean
 }
 
 export const createApp = async ({
@@ -46,6 +48,8 @@ export const createApp = async ({
   release,
   operatorPublicKey,
   networkSubgraph,
+  networkSubgraphAuthToken,
+  serveNetworkSubgraph,
 }: ServerOptions): Promise<express.Express> => {
   // Install metrics for incoming queries
   const serverMetrics = {
@@ -181,30 +185,35 @@ export const createApp = async ({
     freeQueryAuthValue = `Bearer ${freeQueryAuthToken}`
   }
 
-  // Endpoint for network subgraph queries
-  app.post(`/network`, bodyParser.json(), async (req, res) => {
-    try {
-      logger.info(`Handle network subgraph query`)
+  if (serveNetworkSubgraph) {
+    // Endpoint for network subgraph queries
+    app.post(`/network`, bodyParser.json(), async (req, res) => {
+      try {
+        logger.info(`Handle network subgraph query`)
 
-      if (!freeQueryAuthValue || req.headers['authorization'] !== freeQueryAuthValue) {
-        throw new Error(`Invalid auth token`)
-      }
+        if (
+          networkSubgraphAuthToken &&
+          req.headers['authorization'] !== networkSubgraphAuthToken
+        ) {
+          throw new Error(`Invalid auth token`)
+        }
 
-      if (!req.body || !req.body.query) {
-        throw new Error(`Invalid query`)
-      }
+        if (!req.body || !req.body.query) {
+          throw new Error(`Invalid query`)
+        }
 
-      const result = await networkSubgraph.query(req.body.query, req.body.variables)
-      if (result.error) {
-        res.status(200).send({ errors: [{ message: result.error.message }] })
-      } else {
-        res.status(200).send({ data: result.data })
+        const result = await networkSubgraph.query(req.body.query, req.body.variables)
+        if (result.error) {
+          res.status(200).send({ errors: [{ message: result.error.message }] })
+        } else {
+          res.status(200).send({ data: result.data })
+        }
+      } catch (err) {
+        logger.warn(`Failed to handle network subgraph query`, { err })
+        return res.status(200).send({ errors: [{ message: err.message }] })
       }
-    } catch (err) {
-      logger.warn(`Failed to handle network subgraph query`, { err })
-      return res.status(200).send({ errors: [{ message: err.message }] })
-    }
-  })
+    })
+  }
 
   // Endpoint for subgraph queries
   app.post(
@@ -332,6 +341,8 @@ export const createServer = async ({
   release,
   operatorPublicKey,
   networkSubgraph,
+  networkSubgraphAuthToken,
+  serveNetworkSubgraph,
 }: ServerOptions): Promise<express.Express> => {
   const app = await createApp({
     logger,
@@ -343,6 +354,8 @@ export const createServer = async ({
     release,
     operatorPublicKey,
     networkSubgraph,
+    networkSubgraphAuthToken,
+    serveNetworkSubgraph,
   })
 
   app.listen(port, () => {
