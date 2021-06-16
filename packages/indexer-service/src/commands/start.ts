@@ -136,6 +136,19 @@ export default {
         required: true,
         group: 'Network Subgraph',
       })
+      .option('network-subgraph-auth-token', {
+        description: 'Bearer token to require for /network queries',
+        type: 'string',
+        required: false,
+        group: 'Network Subgraph',
+      })
+      .option('serve-network-subgraph', {
+        description: 'Whether to serve the network subgraph at /network',
+        type: 'boolean',
+        required: false,
+        default: false,
+        group: 'Network Subgraph',
+      })
       .option('log-level', {
         description: 'Log level',
         type: 'string',
@@ -471,6 +484,8 @@ export default {
       release,
       operatorPublicKey: wallet.publicKey,
       networkSubgraph,
+      networkSubgraphAuthToken: argv.networkSubgraphAuthToken,
+      serveNetworkSubgraph: argv.serveNetworkSubgraph,
     })
   },
 }
