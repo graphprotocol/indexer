@@ -665,7 +665,7 @@ class Agent {
 
     const lifetime = Math.max(1, maxAllocationEpochs - 1)
 
-    // Close expired allocations
+    // For allocations that have expired, let's reallocate in one transaction (closeAndAllocate)
     let expiredAllocations = activeAllocations.filter(
       allocation => epoch >= allocation.createdAtEpoch + lifetime,
     )
@@ -696,86 +696,28 @@ class Agent {
     )
 
     if (expiredAllocations.length > 0) {
-      logger.info(`Settling expired allocations`, {
+      logger.info(`Reallocating expired allocations`, {
         number: expiredAllocations.length,
         expiredAllocations: expiredAllocations.map(allocation => allocation.id),
       })
 
-      activeAllocations = await pFilter(
-        activeAllocations,
-        async (allocation: Allocation) => {
-          if (allocationInList(expiredAllocations, allocation)) {
-            const { closed } = await this.closeAllocation(
-              epochStartBlock,
-              allocation,
-            )
-            return !closed
-          } else {
-            return true
+      // We do a synchronous for-loop and await each iteration so that we can patch the contents
+      // of activeAllocations with new allocations as they are made. This is important so that each
+      // iteration gets an up to date copy of activeAllocations
+      for(let i = 0; i <= activeAllocations.length; i++) {
+        const oldAllocation = activeAllocations[i];
+        if (allocationInList(expiredAllocations, oldAllocation)) {
+          const { newAllocation, reallocated } = await this.reallocate(
+            epochStartBlock,
+            oldAllocation,
+            allocationAmount,
+            activeAllocations
+          )
+          if (reallocated) {
+            // Patch existing index with new allocation
+            activeAllocations[i] = newAllocation as Allocation;
           }
-        },
-        { concurrency: 1 },
-      )
-    }
-
-    const halftime = Math.ceil((lifetime * 1.0) / 2)
-
-    if (
-      !ti.some(
-        (allocation: Allocation) => allocation.createdAtEpoch === epoch,
-        activeAllocations,
-      )
-    ) {
-      // Identify half-expired allocations
-      let halfExpired = activeAllocations.filter(
-        allocation => epoch >= allocation.createdAtEpoch + halftime,
-      )
-
-      // Sort half-expired allocations so that those with earlier
-      // creation epochs come first
-      halfExpired.sort((a, b) => a.createdAtEpoch - b.createdAtEpoch)
-
-      // Close the first half of the half-expired allocations;
-      // Never close more than half of the active allocations though!
-      halfExpired = [
-        ...ti.take(
-          Math.min(
-            // Close half of the half-expired allocations,
-            // leaving about 50% of the existing allocations active;
-            // could be less, hence the second value below
-            Math.ceil((halfExpired.length * 1.0) / 2),
-
-            // Guarantee that we're never settling more than 50% of the existing
-            // allocations
-            Math.floor(activeAllocations.length / 2),
-          ),
-          halfExpired,
-        ),
-      ]
-      if (halfExpired.length > 0) {
-        logger.info(
-          `Close half-expired allocations to allow creating new ones early and avoid gaps`,
-          {
-            number: halfExpired.length,
-            allocations: halfExpired.map(allocation => allocation.id),
-          },
-        )
-
-        activeAllocations = await pFilter(
-          activeAllocations,
-          async (allocation: Allocation) => {
-            if (allocationInList(halfExpired, allocation)) {
-              const { closed } = await this.closeAllocation(
-                epochStartBlock,
-                allocation,
-              )
-              return !closed
-            } else {
-              return true
-            }
-          },
-          { concurrency: 1 },
-        )
+        }
       }
     }
 
@@ -841,6 +783,50 @@ class Agent {
     )
 
     return { closed, collectingQueryFees }
+  }
+
+  private async reallocate(
+    epochStartBlock: BlockPointer,
+    existingAllocation: Allocation,
+    allocationAmount: BigNumber,
+    activeAllocations: Allocation[]
+  ): Promise<{ reallocated: boolean; collectingQueryFees: boolean, newAllocation: Allocation | undefined }> {
+    const poi = await this.indexer.proofOfIndexing(
+      existingAllocation.subgraphDeployment.id,
+      epochStartBlock,
+      this.indexer.indexerAddress,
+    )
+
+    // Don't proceed if the POI is 0x0 or null
+    if (
+      poi === undefined ||
+      poi === null ||
+      poi === utils.hexlify(Array(32).fill(0))
+    ) {
+      this.logger.error(`Received a null or zero POI for deployment`, {
+        deployment: existingAllocation.subgraphDeployment.id.display,
+        allocation: existingAllocation.id,
+        epochStartBlock,
+      })
+
+      return { reallocated: false, collectingQueryFees: false, newAllocation: undefined }
+    }
+
+    // closeAndAllocate for the deployment
+    const newAllocation = await this.network.closeAndAllocate(
+      existingAllocation,
+      poi,
+      existingAllocation.subgraphDeployment.id,
+      allocationAmount,
+      activeAllocations
+    )
+
+    // Collect query fees for the old allocation
+    const collectingQueryFees = await this.receiptCollector.collectReceipts(
+      existingAllocation,
+    )
+
+    return { reallocated: newAllocation !== undefined, collectingQueryFees, newAllocation }
   }
 }
 
