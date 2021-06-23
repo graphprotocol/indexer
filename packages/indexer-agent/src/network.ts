@@ -1065,6 +1065,215 @@ export class Network {
     }
   }
 
+  async closeAndAllocate(
+    // close fields
+    existingAllocation: Allocation,
+    poi: string,
+    // allocate fields
+    deployment: SubgraphDeploymentID,
+    amount: BigNumber,
+    activeAllocations: Allocation[],
+  ): Promise<Allocation | undefined> {
+    const logger = this.logger.child({
+      allocation: existingAllocation.id,
+      deployment: existingAllocation.subgraphDeployment.id.display,
+      createdAtEpoch: existingAllocation.createdAtEpoch,
+      poi: poi,
+      createdAtBlockHash: existingAllocation.createdAtBlockHash,
+    })
+    try {
+      logger.info(`closeAndAllocate`)
+      // Double-check whether the allocation is still active on chain, to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const existingState = await this.contracts.staking.getAllocationState(
+        existingAllocation.id,
+      )
+      if (existingState !== 1) {
+        logger.info(`Existing allocation has already been closed`)
+        return
+      }
+
+      if (amount.lt('0')) {
+        logger.warn(
+          'Cannot reallocate a negative amount of GRT, skipping this allocation',
+          {
+            amount: amount.toString(),
+          },
+        )
+        return
+      }
+
+      if (amount.eq('0')) {
+        logger.warn('Cannot reallocate zero GRT, skipping this allocation', {
+          amount: amount.toString(),
+        })
+        return
+      }
+
+      const currentEpoch = await this.contracts.epochManager.currentEpoch()
+
+      logger.info(`Close and allocate for subgraph deployment`, {
+        amountGRT: formatGRT(amount),
+        epoch: currentEpoch.toString(),
+      })
+
+      // Identify how many GRT the indexer has staked
+      const freeStake = await this.contracts.staking.getIndexerCapacity(
+        this.indexerAddress,
+      )
+
+      // If there isn't enough left for allocating, abort
+      if (freeStake.lt(amount)) {
+        throw indexerError(
+          IndexerErrorCode.IE013,
+          new Error(
+            `Unable to allocate ${formatGRT(
+              amount,
+            )} GRT: indexer only has a free stake amount of ${formatGRT(
+              freeStake,
+            )} GRT`,
+          ),
+        )
+      }
+
+      logger.debug('Obtain a unique Allocation ID')
+
+      // Obtain a unique allocation ID
+      const {
+        allocationSigner,
+        allocationId: newAllocationId,
+      } = uniqueAllocationID(
+        this.wallet.mnemonic.phrase,
+        currentEpoch.toNumber(),
+        deployment,
+        activeAllocations.map(allocation => allocation.id),
+      )
+
+      // Double-check whether the allocationID already exists on chain, to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const newAllocationState = await this.contracts.staking.getAllocationState(
+        newAllocationId,
+      )
+      if (newAllocationState !== 0) {
+        logger.warn(`Skipping Allocation as it already exists onchain`, {
+          indexer: this.indexerAddress,
+          allocation: newAllocationId,
+          newAllocationState,
+        })
+        return
+      }
+
+      const proof = await allocationIdProof(
+        allocationSigner,
+        this.indexerAddress,
+        newAllocationId,
+      )
+
+      logger.info(`Executing reallocate transaction`, {
+        indexer: this.indexerAddress,
+        amount: formatGRT(amount),
+        oldAllocation: existingAllocation.id,
+        newAllocation: newAllocationId,
+        deployment,
+        poi,
+        proof
+      })
+
+      const receipt = await this.executeTransaction(
+        async () =>
+          this.contracts.staking.estimateGas.closeAndAllocate(
+            existingAllocation.id,
+            poi,
+            this.indexerAddress,
+            deployment.bytes32,
+            amount,
+            newAllocationId,
+            utils.hexlify(Array(32).fill(0)), // metadata
+            proof
+          ),
+        async gasLimit =>
+          this.contracts.staking.closeAndAllocate(
+            existingAllocation.id,
+            poi,
+            this.indexerAddress,
+            deployment.bytes32,
+            amount,
+            newAllocationId,
+            utils.hexlify(Array(32).fill(0)), // metadata
+            proof,
+            { gasLimit },
+          ),
+        logger.child({ action: 'closeAndAllocate' }),
+      )
+
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        return
+      }
+
+      const event =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        receipt.events?.find((event: any) =>
+          event.topics.includes(
+            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+          ),
+        ) ||
+        receipt.logs?.find((log: providers.Log) =>
+          log.topics.includes(
+            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
+          ),
+        )
+      if (!event) {
+        throw indexerError(
+          IndexerErrorCode.IE014,
+          new Error(`Allocation was never mined`),
+        )
+      }
+
+      const eventInputs = this.contracts.staking.interface.decodeEventLog(
+        'AllocationCreated',
+        event.data,
+        event.topics,
+      )
+
+      logger.info(`Successfully close and allocated to subgraph deployment`, {
+        amountGRT: formatGRT(eventInputs.tokens),
+        allocation: eventInputs.allocationID,
+        epoch: eventInputs.epoch.toString(),
+      })
+
+      return {
+        id: newAllocationId,
+        subgraphDeployment: {
+          id: deployment,
+          stakedTokens: BigNumber.from(0),
+          signalAmount: BigNumber.from(0),
+        },
+        allocatedTokens: BigNumber.from(eventInputs.tokens),
+        createdAtBlockHash: '0x0',
+        createdAtEpoch: eventInputs.epoch,
+        closedAtEpoch: 0,
+        closedAtBlockHash: '0x0',
+        closedAtEpochStartBlockHash: '0x0',
+        poi: undefined,
+      } as Allocation
+    } catch (err) {
+      logger.error(`Failed to closeAndAllocate`, {
+        amount: formatGRT(amount),
+        err,
+      })
+    }
+  }
+
   async claim(allocation: Allocation): Promise<boolean> {
     const logger = this.logger.child({
       allocation: allocation.id,
