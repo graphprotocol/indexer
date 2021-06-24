@@ -187,32 +187,28 @@ export const createApp = async ({
 
   if (serveNetworkSubgraph) {
     // Endpoint for network subgraph queries
-    app.post(`/network`, bodyParser.json(), async (req, res) => {
-      try {
-        logger.info(`Handle network subgraph query`)
+    app.post(
+      `/network`,
+      bodyParser.raw({ type: 'application/json' }),
+      async (req, res) => {
+        try {
+          logger.info(`Handle network subgraph query`)
 
-        if (
-          networkSubgraphAuthToken &&
-          req.headers['authorization'] !== networkSubgraphAuthToken
-        ) {
-          throw new Error(`Invalid auth token`)
-        }
+          if (
+            networkSubgraphAuthToken &&
+            req.headers['authorization'] !== networkSubgraphAuthToken
+          ) {
+            throw new Error(`Invalid auth token`)
+          }
 
-        if (!req.body || !req.body.query) {
-          throw new Error(`Invalid query`)
-        }
-
-        const result = await networkSubgraph.query(req.body.query, req.body.variables)
-        if (result.error) {
-          res.status(200).send({ errors: [{ message: result.error.message }] })
-        } else {
+          const result = await networkSubgraph.queryRaw(req.body)
           res.status(200).send({ data: result.data })
+        } catch (err) {
+          logger.warn(`Failed to handle network subgraph query`, { err })
+          return res.status(200).send({ errors: [{ message: err.message }] })
         }
-      } catch (err) {
-        logger.warn(`Failed to handle network subgraph query`, { err })
-        return res.status(200).send({ errors: [{ message: err.message }] })
-      }
-    })
+      },
+    )
   }
 
   // Endpoint for subgraph queries
