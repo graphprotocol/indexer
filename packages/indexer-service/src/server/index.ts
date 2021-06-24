@@ -202,7 +202,7 @@ export const createApp = async ({
           }
 
           const result = await networkSubgraph.queryRaw(req.body)
-          res.status(200).send({ data: result.data })
+          res.status(200).send(result.data)
         } catch (err) {
           logger.warn(`Failed to handle network subgraph query`, { err })
           return res.status(200).send({ errors: [{ message: err.message }] })
