@@ -178,7 +178,7 @@ export class NetworkSubgraph {
 
   async queryRaw(body: string): Promise<AxiosResponse> {
     const client = await this.getClient()
-    return client.post('', body)
+    return await client.post('', body)
   }
 }
 
