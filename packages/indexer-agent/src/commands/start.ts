@@ -206,10 +206,16 @@ export default {
         default: true,
         group: 'Indexer Infrastructure',
       })
-      .option('allocation-claim-threshold', {
-        description: `Minimum query fees (in GRT) received for an allocation to collect and claim them on-chain`,
-        type: 'number',
-        default: 0,
+      .option('rebate-claim-threshold', {
+        description: `Minimum value of query fees for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
+        type: 'string',
+        default: '0',
+        group: 'Indexer Infrastructure',
+      })
+      .option('rebate-claim-batch-threshold', {
+        description: `Minimum total value of query fees in an allocation batch (in GRT) before rebates are claimed on-chain`,
+        type: 'string',
+        default: '0',
         group: 'Indexer Infrastructure',
       })
       .option('inject-dai', {
@@ -411,6 +417,18 @@ export default {
       logger.warn(
         `Gas increase factor is set to > 1.5. This may lead to high gas usage`,
         { gasIncreaseFactor: argv.gasIncreaseFactor },
+      )
+    }
+
+    if (argv.rebateClaimThreshold < argv.voucherRedeemMinSingleValue) {
+      logger.warn(
+        `Rebate single minimum claim value is less than voucher minimum redemption value, but claims depend on redemptions`,
+      )
+    }
+
+    if (argv.rebateClaimThreshold === 0) {
+      logger.warn(
+        `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
       )
     }
 
@@ -669,7 +687,8 @@ export default {
       argv.indexerGeoCoordinates,
       networkSubgraph,
       argv.restakeRewards,
-      argv.allocationClaimThreshold,
+      parseGRT(argv.rebateClaimThreshold),
+      parseGRT(argv.rebateClaimBatchThreshold),
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
       argv.gasIncreaseTimeout,
@@ -751,9 +770,7 @@ export default {
           wallet,
           allocationExchangeContract,
         ),
-        allocationClaimThreshold: parseGRT(
-          argv.allocationClaimThreshold.toString(),
-        ),
+        allocationClaimThreshold: parseGRT(argv.rebateClaimThreshold),
         voucherExpiration: argv.voucherExpiration,
       })
       await receiptCollector.queuePendingReceiptsFromDatabase()
