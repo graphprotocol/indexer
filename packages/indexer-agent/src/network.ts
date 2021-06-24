@@ -41,6 +41,7 @@ import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
 import * as ti from '@thi.ng/iterators'
+import pFilter from 'p-filter'
 
 const allocationIdProof = (
   signer: Signer,
@@ -1060,6 +1061,73 @@ export class Network {
     } catch (err) {
       logger.warn(`Failed to close allocation`, {
         err: indexerError(IndexerErrorCode.IE015, err),
+      })
+      return false
+    }
+  }
+
+  async claimMany(allocations: Allocation[]): Promise<boolean> {
+    const logger = this.logger.child({
+      allocations: allocations.map(allocation => {
+        return {
+          allocation: allocation.id,
+          deployment: allocation.subgraphDeployment.id.display,
+          createdAtEpoch: allocation.createdAtEpoch,
+          closedAtEpoch: allocation.closedAtEpoch,
+          createdAtBlockHash: allocation.createdAtBlockHash
+        }
+      }),
+      restakeRewards: this.restakeRewards,
+    })
+    try {
+      logger.info(`Claim tokens from the rebate pool for many allocations`)
+
+      // Filter out already-claimed and still-active allocations
+      allocations = await pFilter(allocations, async (allocation: Allocation) => {
+        // Double-check whether the allocation is claimed to
+        // avoid unnecessary transactions.
+        // Note: We're checking the allocation state here, which is defined as
+        //
+        //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+        //
+        // in the contracts.
+        const state = await this.contracts.staking.getAllocationState(
+          allocation.id,
+        )
+        if (state === 4) {
+          logger.info(`Allocation rebate rewards already claimed, ignoring ${allocation.id}.`)
+          return false
+        }
+        if (state === 1) {
+          logger.info(`Allocation still active, ignoring ${allocation.id}.`)
+          return false
+        }
+        return true
+      })
+
+      const allocationIds = allocations.map(allocation => allocation.id)
+
+      // Claim the earned value from the rebate pool, returning it to the indexers stake
+      const receipt = await this.executeTransaction(
+        () =>
+          this.contracts.staking.estimateGas.claimMany(
+            allocationIds,
+            this.restakeRewards,
+          ),
+        gasLimit =>
+          this.contracts.staking.claimMany(allocationIds, this.restakeRewards, {
+            gasLimit,
+          }),
+        logger.child({ action: 'claimMany' }),
+      )
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        return false
+      }
+      logger.info(`Successfully claimed allocations`, { claimedAllocations: allocationIds })
+      return true
+    } catch (err) {
+      logger.warn(`Failed to claim allocations`, {
+        err: indexerError(IndexerErrorCode.IE016, err),
       })
       return false
     }

@@ -308,13 +308,14 @@ class Agent {
         createdAtEpoch: allocation.createdAtEpoch,
       })),
     })
-    await pMap(
-      allocations,
-      async allocation => {
-        await this.network.claim(allocation)
-      },
-      { concurrency: 1 },
-    )
+    // await pMap(
+    //   allocations,
+    //   async allocation => {
+    //     await this.network.claim(allocation)
+    //   },
+    //   { concurrency: 1 },
+    // )
+    await this.network.claimMany(allocations)
   }
 
   async identifyPotentialDisputes(
