@@ -1,7 +1,7 @@
-import fetch from 'isomorphic-fetch'
+import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/common-ts'
-import { DocumentNode } from 'graphql'
-import { Client, OperationResult, createClient } from '@urql/core'
+import { DocumentNode, print } from 'graphql'
+import { OperationResult } from '@urql/core'
 import { IndexingStatusResolver, BlockPointer, IndexingError } from './types'
 
 export interface NetworkSubgraphCreateOptions {
@@ -35,11 +35,11 @@ interface NetworkSubgraphOptions {
 export class NetworkSubgraph {
   logger: Logger
 
-  endpointClient?: Client
+  endpointClient?: AxiosInstance
 
   public readonly deployment?: {
     id: SubgraphDeploymentID
-    client: Client
+    client: AxiosInstance
     status: Eventual<DeploymentStatus>
   }
 
@@ -47,21 +47,32 @@ export class NetworkSubgraph {
     this.logger = options.logger
 
     if (options.endpoint) {
-      this.endpointClient = createClient({
-        url: options.endpoint,
-        fetch,
-        requestPolicy: 'network-only',
+      this.endpointClient = axios.create({
+        baseURL: options.endpoint,
+        headers: { 'content-type': 'application/json' },
+
+        // Don't parse responses as JSON
+        responseType: 'text',
+
+        // Don't transform responses
+        transformResponse: (data) => data,
       })
     }
 
     if (options.deployment) {
-      const client = createClient({
-        url: new URL(
+      const client = axios.create({
+        baseURL: new URL(
           `/subgraphs/id/${options.deployment.id.ipfsHash}`,
           options.deployment.graphNodeQueryEndpoint,
         ).toString(),
-        fetch,
-        requestPolicy: 'network-only',
+
+        headers: { 'content-type': 'application/json' },
+
+        // Don't parse responses as JSON
+        responseType: 'text',
+
+        // Don't transform responses
+        transformResponse: (data) => data,
       })
       const status = options.deployment.status
 
@@ -128,7 +139,7 @@ export class NetworkSubgraph {
     return networkSubgraph
   }
 
-  private async getClient(): Promise<Client> {
+  private async getClient(): Promise<AxiosInstance> {
     if (this.deployment) {
       const status = await this.deployment.status.value()
       const healthy = status.synced && status.health === 'healthy'
@@ -161,7 +172,13 @@ export class NetworkSubgraph {
     variables?: Record<string, any>,
   ): Promise<OperationResult<Data>> {
     const client = await this.getClient()
-    return client.query(query, variables).toPromise()
+    const response = await client.post('', { query: print(query), variables })
+    return JSON.parse(response.data)
+  }
+
+  async queryRaw(body: string): Promise<AxiosResponse> {
+    const client = await this.getClient()
+    return client.post('', body)
   }
 }
 
