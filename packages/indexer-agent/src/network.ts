@@ -579,7 +579,7 @@ export class Network {
       const parsedAllocs: Allocation[] = result.data.allocations.map(parseGraphQLAllocation)
 
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
-      if (totalFees.gt(0) && totalFees.lt(this.rebateClaimMinBatchValue)) {
+      if (parsedAllocs.length > 0 && totalFees.lt(this.rebateClaimMinBatchValue)) {
         this.logger.info(`Allocation rebate batch value does not meet minimum for claiming`, {
           totalBatchFees: formatGRT(totalFees),
           minBatchFees: formatGRT(this.rebateClaimMinBatchValue),
@@ -1136,6 +1136,11 @@ export class Network {
       })
 
       const allocationIds = allocations.map(allocation => allocation.id)
+
+      if (allocationIds.length === 0) {
+        logger.info(`No allocation rebates to claim`)
+        return true
+      }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
       const receipt = await this.executeTransaction(
