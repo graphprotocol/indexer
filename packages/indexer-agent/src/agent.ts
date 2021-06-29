@@ -264,10 +264,7 @@ class Agent {
 
         // Claim rebate pool rewards from finalized allocations
         try {
-          // There are claimable allocations meeting our criteria
-          if (claimableAllocations.length > 0) {
-            await this.claimRebateRewards(claimableAllocations)
-          }
+          await this.claimRebateRewards(claimableAllocations)
         } catch (err) {
           this.logger.warn(`Failed to claim rebate rewards`, { err })
         }
@@ -311,7 +308,9 @@ class Agent {
         createdAtEpoch: allocation.createdAtEpoch,
       })),
     })
-    await this.network.claimMany(allocations)
+    if (allocations.length > 0) {
+      await this.network.claimMany(allocations)
+    }
   }
 
   async identifyPotentialDisputes(
