@@ -573,7 +573,7 @@ export class Network {
       }
 
       const totalFees: BigNumber = result.data.allocations.reduce((total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
-        return total.add(parseGRT(rawAlloc.queryFeesCollected))
+        return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
       }, BigNumber.from(0))
 
       const parsedAllocs: Allocation[] = result.data.allocations.map(parseGraphQLAllocation)
