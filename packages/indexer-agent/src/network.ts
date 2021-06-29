@@ -68,7 +68,8 @@ export class Network {
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   restakeRewards: boolean
-  queryFeesCollectedClaimThreshold: BigNumber
+  rebateClaimMinSingleValue: BigNumber
+  rebateClaimMinBatchValue: BigNumber
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
@@ -88,7 +89,8 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
-    queryFeesCollectedClaimThreshold: BigNumber,
+    rebateClaimMinSingleValue: BigNumber,
+    rebateClaimMinBatchValue: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -107,7 +109,8 @@ export class Network {
     this.paused = paused
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
-    this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
+    this.rebateClaimMinSingleValue = rebateClaimMinSingleValue
+    this.rebateClaimMinBatchValue = rebateClaimMinBatchValue
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
@@ -296,7 +299,8 @@ export class Network {
     geoCoordinates: [string, string],
     networkSubgraph: NetworkSubgraph,
     restakeRewards: boolean,
-    queryFeesCollectedClaimThreshold: number,
+    rebateClaimMinSingleValue: number,
+    rebateClaimMinBatchValue: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -334,7 +338,8 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
-      parseGRT(queryFeesCollectedClaimThreshold.toString()),
+      parseGRT(rebateClaimMinSingleValue.toString()),
+      parseGRT(rebateClaimMinBatchValue.toString()),
       poiDisputeMonitoring,
       poiDisputableEpochs,
       gasIncreaseTimeout,
@@ -542,6 +547,7 @@ export class Network {
               indexer {
                 id
               }
+              queryFeesCollected
               allocatedTokens
               createdAtEpoch
               closedAtEpoch
@@ -558,7 +564,7 @@ export class Network {
         {
           indexer: this.indexerAddress.toLocaleLowerCase(),
           disputableEpoch,
-          minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold.toString(),
+          minimumQueryFeesCollected: this.rebateClaimMinSingleValue.toString(),
         },
       )
 
@@ -566,7 +572,31 @@ export class Network {
         throw result.error
       }
 
-      return result.data.allocations.map(parseGraphQLAllocation)
+      const totalFees: BigNumber = result.data.allocations.reduce((total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
+        return total.add(parseGRT(rawAlloc.queryFeesCollected))
+      }, BigNumber.from(0))
+
+      const parsedAllocs: Allocation[] = result.data.allocations.map(parseGraphQLAllocation)
+
+      // If the total fees claimable do not meet the minimum required for batching, return an empty array
+      if (totalFees.lt(this.rebateClaimMinBatchValue)) {
+        this.logger.info(`Allocation rebate batch value does not meet minimum for claiming`, {
+          totalBatchFees: formatGRT(totalFees),
+          minBatchFees: formatGRT(this.rebateClaimMinBatchValue),
+          allocations: parsedAllocs.map(allocation => {
+            return {
+              allocation: allocation.id,
+              deployment: allocation.subgraphDeployment.id.display,
+              createdAtEpoch: allocation.createdAtEpoch,
+              closedAtEpoch: allocation.closedAtEpoch,
+              createdAtBlockHash: allocation.createdAtBlockHash
+            }
+          }),
+        })
+        return []
+      }
+      // Otherwise return the allocs for claiming since the batch meets the minimum
+      return parsedAllocs
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE011, error)
       this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
