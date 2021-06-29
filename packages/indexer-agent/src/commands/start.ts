@@ -196,20 +196,20 @@ export default {
       })
       .option('rebate-claim-min-single-value', {
         description: `Minimum value of query fees for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
-        type: 'number',
-        default: 0,
+        type: 'string',
+        default: '0',
         group: 'Indexer Infrastructure',
       })
       .option('rebate-claim-min-batch-value', {
         description: `Minimum total value of query fees in an allocation batch (in GRT) before rebates are claimed on-chain`,
-        type: 'number',
-        default: 0,
+        type: 'string',
+        default: '0',
         group: 'Indexer Infrastructure',
       })
       .option('voucher-redeem-min-single-value', {
         description: `Minimum value of query fees for an allocation (in GRT) for voucher to be redeemed`,
-        type: 'number',
-        default: 0,
+        type: 'string',
+        default: '0',
         group: 'Indexer Infrastructure',
       })
       .option('inject-dai', {
@@ -644,8 +644,8 @@ export default {
       argv.indexerGeoCoordinates,
       networkSubgraph,
       argv.restakeRewards,
-      argv.rebateClaimMinSingleValue,
-      argv.rebateClaimMinBatchValue,
+      parseGRT(argv.rebateClaimMinSingleValue),
+      parseGRT(argv.rebateClaimMinBatchValue),
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
       argv.gasIncreaseTimeout,
@@ -728,7 +728,7 @@ export default {
           allocationExchangeContract,
         ),
         allocationClaimThreshold: parseGRT(
-          argv.voucherRedeemMinSingleValue.toString(),
+          argv.voucherRedeemMinSingleValue,
         ),
       })
       await receiptCollector.queuePendingReceiptsFromDatabase()

@@ -299,8 +299,8 @@ export class Network {
     geoCoordinates: [string, string],
     networkSubgraph: NetworkSubgraph,
     restakeRewards: boolean,
-    rebateClaimMinSingleValue: number,
-    rebateClaimMinBatchValue: number,
+    rebateClaimMinSingleValue: BigNumber,
+    rebateClaimMinBatchValue: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -338,8 +338,8 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
-      parseGRT(rebateClaimMinSingleValue.toString()),
-      parseGRT(rebateClaimMinBatchValue.toString()),
+      rebateClaimMinSingleValue,
+      rebateClaimMinBatchValue,
       poiDisputeMonitoring,
       poiDisputableEpochs,
       gasIncreaseTimeout,
@@ -579,7 +579,7 @@ export class Network {
       const parsedAllocs: Allocation[] = result.data.allocations.map(parseGraphQLAllocation)
 
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
-      if (totalFees.lt(this.rebateClaimMinBatchValue)) {
+      if (totalFees.gt(0) && totalFees.lt(this.rebateClaimMinBatchValue)) {
         this.logger.info(`Allocation rebate batch value does not meet minimum for claiming`, {
           totalBatchFees: formatGRT(totalFees),
           minBatchFees: formatGRT(this.rebateClaimMinBatchValue),
