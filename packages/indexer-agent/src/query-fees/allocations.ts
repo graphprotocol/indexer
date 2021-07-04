@@ -37,6 +37,7 @@ export interface AllocationReceiptCollectorOptions {
   collectEndpoint: URL
   allocationExchange: Contract
   allocationClaimThreshold: BigNumber
+  voucherExpiration: number
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
@@ -47,6 +48,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
   private allocationClaimThreshold: BigNumber
+  private voucherExpiration: number
 
   constructor({
     logger,
@@ -55,6 +57,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collectEndpoint,
     allocationExchange,
     allocationClaimThreshold,
+    voucherExpiration,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.network = network
@@ -62,6 +65,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.collectEndpoint = collectEndpoint
     this.allocationExchange = allocationExchange
     this.allocationClaimThreshold = allocationClaimThreshold
+    this.voucherExpiration = voucherExpiration
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
@@ -297,24 +301,31 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     logger.info(`Redeem query fee voucher on chain`)
 
     if (BigNumber.from(voucher.amount).lt(this.allocationClaimThreshold)) {
-      logger.info(
-        `Query fee voucher amount is below claim threshold, discard it`,
-        {
-          allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
-        },
-      )
-
-      try {
-        await this.models.vouchers.destroy({
-          where: { allocation: voucher.allocation },
-        })
-      } catch (err) {
-        logger.warn(
-          `Failed to delete local voucher copy, will try again later`,
-          { err },
+      if (
+        voucher.createdAt.valueOf() / 1000 + this.voucherExpiration * 3600 >=
+        Date.now() / 1000
+      ) {
+        logger.info(
+          `Query fee voucher is below claim threshold and is past the configured expiration time, delete it`,
+          {
+            hint:
+              'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
+            allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
+          },
+        )
+      } else {
+        logger.info(
+          `Query fee voucher amount is below claim threshold, skip it for now`,
+          {
+            hint:
+              'If you would like to redeem this voucher, reduce the allocation claim threshold',
+            tryingAgainUntil: new Date(
+              voucher.createdAt.valueOf() + this.voucherExpiration * 3600,
+            ),
+            allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
+          },
         )
       }
-
       return
     }
 

@@ -367,6 +367,16 @@ export default {
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
+      .option('voucher-expiration', {
+        description:
+          'Time (in hours) after which a low query fee voucher expires and is deleted (default: 90 days)',
+        type: 'number',
+        default: 2160,
+        required: false,
+        conflicts: ['use-vector'],
+        implies: ['allocation-exchange-contract'],
+        group: 'Query Fees',
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -712,6 +722,7 @@ export default {
         allocationClaimThreshold: parseGRT(
           argv.allocationClaimThreshold.toString(),
         ),
+        voucherExpiration: argv.voucherExpiration,
       })
       await receiptCollector.queuePendingReceiptsFromDatabase()
     }
