@@ -1082,7 +1082,6 @@ export class Network {
       createdAtBlockHash: existingAllocation.createdAtBlockHash,
     })
     try {
-      logger.info(`closeAndAllocate`)
       // Double-check whether the allocation is still active on chain, to
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
@@ -1117,7 +1116,7 @@ export class Network {
 
       const currentEpoch = await this.contracts.epochManager.currentEpoch()
 
-      logger.info(`Close and allocate for subgraph deployment`, {
+      logger.info(`Reallocate to subgraph deployment`, {
         amountGRT: formatGRT(amount),
         epoch: currentEpoch.toString(),
       })
@@ -1245,7 +1244,8 @@ export class Network {
         event.topics,
       )
 
-      logger.info(`Successfully close and allocated to subgraph deployment`, {
+      logger.info(`Successfully reallocated to subgraph deployment`, {
+        deployment: deployment.display,
         amountGRT: formatGRT(eventInputs.tokens),
         allocation: eventInputs.allocationID,
         epoch: eventInputs.epoch.toString(),
@@ -1259,7 +1259,7 @@ export class Network {
           signalAmount: BigNumber.from(0),
         },
         allocatedTokens: BigNumber.from(eventInputs.tokens),
-        createdAtBlockHash: '0x0',
+        createdAtBlockHash: receipt.blockHash,
         createdAtEpoch: eventInputs.epoch,
         closedAtEpoch: 0,
         closedAtBlockHash: '0x0',
