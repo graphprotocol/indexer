@@ -6,7 +6,7 @@ metadata:
     cloud.google.com/neg: '{"ingress": true, "exposed_ports": {"80":{}}}'
     beta.cloud.google.com/backend-config: '{"ports": {"80":"indexer-service-backend-config"}}'
 spec:
-  type: LoadBalancer
+  type: ClusterIP
   selector:
     app: indexer-service
   ports:
