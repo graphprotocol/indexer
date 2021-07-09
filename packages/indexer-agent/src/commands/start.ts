@@ -265,10 +265,13 @@ export default {
         array: true,
         default: [],
         coerce: arg =>
-          arg.reduce(
-            (acc: string[], value: string) => [...acc, ...value.split(',')],
-            [],
-          )).map((id: string) => id.trim()).filter((id: string) => id.length > 0),
+          arg
+            .reduce(
+              (acc: string[], value: string) => [...acc, ...value.split(',')],
+              [],
+            )
+            .map((id: string) => id.trim())
+            .filter((id: string) => id.length > 0),
       })
       .option('poi-disputable-epochs', {
         description:
