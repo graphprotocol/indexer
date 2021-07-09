@@ -41,6 +41,7 @@ import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
 import * as ti from '@thi.ng/iterators'
+import pFilter from 'p-filter'
 
 const allocationIdProof = (
   signer: Signer,
@@ -67,7 +68,8 @@ export class Network {
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   restakeRewards: boolean
-  queryFeesCollectedClaimThreshold: BigNumber
+  rebateClaimMinSingleValue: BigNumber
+  rebateClaimMinBatchValue: BigNumber
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
@@ -87,7 +89,8 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
-    queryFeesCollectedClaimThreshold: BigNumber,
+    rebateClaimMinSingleValue: BigNumber,
+    rebateClaimMinBatchValue: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -106,7 +109,8 @@ export class Network {
     this.paused = paused
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
-    this.queryFeesCollectedClaimThreshold = queryFeesCollectedClaimThreshold
+    this.rebateClaimMinSingleValue = rebateClaimMinSingleValue
+    this.rebateClaimMinBatchValue = rebateClaimMinBatchValue
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
@@ -295,7 +299,8 @@ export class Network {
     geoCoordinates: [string, string],
     networkSubgraph: NetworkSubgraph,
     restakeRewards: boolean,
-    queryFeesCollectedClaimThreshold: number,
+    rebateClaimMinSingleValue: BigNumber,
+    rebateClaimMinBatchValue: BigNumber,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -333,7 +338,8 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
-      parseGRT(queryFeesCollectedClaimThreshold.toString()),
+      rebateClaimMinSingleValue,
+      rebateClaimMinBatchValue,
       poiDisputeMonitoring,
       poiDisputableEpochs,
       gasIncreaseTimeout,
@@ -541,6 +547,7 @@ export class Network {
               indexer {
                 id
               }
+              queryFeesCollected
               allocatedTokens
               createdAtEpoch
               closedAtEpoch
@@ -557,7 +564,7 @@ export class Network {
         {
           indexer: this.indexerAddress.toLocaleLowerCase(),
           disputableEpoch,
-          minimumQueryFeesCollected: this.queryFeesCollectedClaimThreshold.toString(),
+          minimumQueryFeesCollected: this.rebateClaimMinSingleValue.toString(),
         },
       )
 
@@ -565,7 +572,31 @@ export class Network {
         throw result.error
       }
 
-      return result.data.allocations.map(parseGraphQLAllocation)
+      const totalFees: BigNumber = result.data.allocations.reduce((total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
+        return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+      }, BigNumber.from(0))
+
+      const parsedAllocs: Allocation[] = result.data.allocations.map(parseGraphQLAllocation)
+
+      // If the total fees claimable do not meet the minimum required for batching, return an empty array
+      if (parsedAllocs.length > 0 && totalFees.lt(this.rebateClaimMinBatchValue)) {
+        this.logger.info(`Allocation rebate batch value does not meet minimum for claiming`, {
+          totalBatchFees: formatGRT(totalFees),
+          minBatchFees: formatGRT(this.rebateClaimMinBatchValue),
+          allocations: parsedAllocs.map(allocation => {
+            return {
+              allocation: allocation.id,
+              deployment: allocation.subgraphDeployment.id.display,
+              createdAtEpoch: allocation.createdAtEpoch,
+              closedAtEpoch: allocation.closedAtEpoch,
+              createdAtBlockHash: allocation.createdAtBlockHash
+            }
+          }),
+        })
+        return []
+      }
+      // Otherwise return the allocs for claiming since the batch meets the minimum
+      return parsedAllocs
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE011, error)
       this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
@@ -1060,6 +1091,78 @@ export class Network {
     } catch (err) {
       logger.warn(`Failed to close allocation`, {
         err: indexerError(IndexerErrorCode.IE015, err),
+      })
+      return false
+    }
+  }
+
+  async claimMany(allocations: Allocation[]): Promise<boolean> {
+    const logger = this.logger.child({
+      allocations: allocations.map(allocation => {
+        return {
+          allocation: allocation.id,
+          deployment: allocation.subgraphDeployment.id.display,
+          createdAtEpoch: allocation.createdAtEpoch,
+          closedAtEpoch: allocation.closedAtEpoch,
+          createdAtBlockHash: allocation.createdAtBlockHash
+        }
+      }),
+      restakeRewards: this.restakeRewards,
+    })
+    try {
+      logger.info(`Claim tokens from the rebate pool for many allocations`)
+
+      // Filter out already-claimed and still-active allocations
+      allocations = await pFilter(allocations, async (allocation: Allocation) => {
+        // Double-check whether the allocation is claimed to
+        // avoid unnecessary transactions.
+        // Note: We're checking the allocation state here, which is defined as
+        //
+        //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+        //
+        // in the contracts.
+        const state = await this.contracts.staking.getAllocationState(
+          allocation.id,
+        )
+        if (state === 4) {
+          logger.info(`Allocation rebate rewards already claimed, ignoring ${allocation.id}.`)
+          return false
+        }
+        if (state === 1) {
+          logger.info(`Allocation still active, ignoring ${allocation.id}.`)
+          return false
+        }
+        return true
+      })
+
+      const allocationIds = allocations.map(allocation => allocation.id)
+
+      if (allocationIds.length === 0) {
+        logger.info(`No allocation rebates to claim`)
+        return true
+      }
+
+      // Claim the earned value from the rebate pool, returning it to the indexers stake
+      const receipt = await this.executeTransaction(
+        () =>
+          this.contracts.staking.estimateGas.claimMany(
+            allocationIds,
+            this.restakeRewards,
+          ),
+        gasLimit =>
+          this.contracts.staking.claimMany(allocationIds, this.restakeRewards, {
+            gasLimit,
+          }),
+        logger.child({ action: 'claimMany' }),
+      )
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        return false
+      }
+      logger.info(`Successfully claimed allocations`, { claimedAllocations: allocationIds })
+      return true
+    } catch (err) {
+      logger.warn(`Failed to claim allocations`, {
+        err: indexerError(IndexerErrorCode.IE016, err),
       })
       return false
     }
