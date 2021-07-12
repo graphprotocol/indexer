@@ -146,7 +146,7 @@ class Agent {
     )
 
     const activeDeployments = timer(60_000).tryMap(
-      () => this.indexer.subgraphDeployments(),
+      () => this.indexer.healthySubgraphDeployments(),
       {
         onError: () =>
           this.logger.warn(
@@ -270,12 +270,19 @@ class Agent {
         }
 
         try {
-          await this.reconcileDeployments(activeDeployments, targetDeployments)
+          await this.reconcileDeployments(
+            activeDeployments,
+            targetDeployments,
+            activeAllocations,
+          )
+          // Note: Deployments reconciled in the above function will not have their allocations reconciled below
+          // The activeDeployments set will be updated before the next reconciliation loop and corresponding allocations
+          // will be reconciled then.
 
           // Reconcile allocations
           await this.reconcileAllocations(
             activeAllocations,
-            targetDeployments,
+            activeDeployments,
             indexingRules,
             currentEpoch.toNumber(),
             currentEpochStartBlock,
@@ -438,9 +445,13 @@ class Agent {
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
+    activeAllocations: Allocation[],
   ): Promise<void> {
     activeDeployments = uniqueDeployments(activeDeployments)
     targetDeployments = uniqueDeployments(targetDeployments)
+    const activeAllocationDeployments = uniqueDeployments(
+      activeAllocations.map(allocation => allocation.subgraphDeployment.id),
+    )
 
     // Ensure the network subgraph deployment is _always_ indexed
     if (this.networkSubgraph.deployment) {
@@ -468,7 +479,9 @@ class Agent {
       deployment => !deploymentInList(activeDeployments, deployment),
     )
     const remove = activeDeployments.filter(
-      deployment => !deploymentInList(targetDeployments, deployment),
+      deployment =>
+        !deploymentInList(targetDeployments, deployment) &&
+        !deploymentInList(activeAllocationDeployments, deployment),
     )
 
     this.logger.info('Deployment changes', {
@@ -506,7 +519,7 @@ class Agent {
 
   async reconcileAllocations(
     activeAllocations: Allocation[],
-    targetDeployments: SubgraphDeploymentID[],
+    activeDeployments: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
     currentEpochStartBlock: BlockPointer,
@@ -525,16 +538,16 @@ class Agent {
       })),
     })
 
-    // Calculate the union of active deployments and target deployments
+    // Calculate the union of active deployments and active Allocation deployments
     const deployments = uniqueDeployments([
-      ...targetDeployments,
+      ...activeDeployments,
       ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
     ])
 
     // Ensure the network subgraph is never allocated towards
     if (this.networkSubgraph instanceof SubgraphDeploymentID) {
       const networkSubgraphDeployment = this.networkSubgraph
-      targetDeployments = targetDeployments.filter(
+      activeDeployments = activeDeployments.filter(
         deployment => deployment.bytes32 !== networkSubgraphDeployment.bytes32,
       )
     }
@@ -557,7 +570,7 @@ class Agent {
           ),
 
           // Whether the deployment is worth indexing
-          targetDeployments.find(
+          activeDeployments.find(
             target => target.bytes32 === deployment.bytes32,
           ) !== undefined,
 

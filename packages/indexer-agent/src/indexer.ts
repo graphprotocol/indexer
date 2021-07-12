@@ -96,7 +96,7 @@ export class Indexer implements IndexingStatusFetcher {
   async connect(): Promise<void> {
     try {
       this.logger.info(`Check if indexing status API is available`)
-      const currentDeployments = await this.subgraphDeployments()
+      const currentDeployments = await this.healthySubgraphDeployments()
       this.logger.info(`Successfully connected to indexing status API`, {
         currentDeployments: currentDeployments.map(
           deployment => deployment.display,
@@ -111,7 +111,7 @@ export class Indexer implements IndexingStatusFetcher {
     }
   }
 
-  async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
+  async healthySubgraphDeployments(): Promise<SubgraphDeploymentID[]> {
     try {
       const result = await this.statuses
         .query(
@@ -120,6 +120,7 @@ export class Indexer implements IndexingStatusFetcher {
               indexingStatuses {
                 subgraphDeployment: subgraph
                 node
+                health
               }
             }
           `,
@@ -131,9 +132,15 @@ export class Indexer implements IndexingStatusFetcher {
       }
 
       return result.data.indexingStatuses
-        .filter((status: { subgraphDeployment: string; node: string }) => {
-          return status.node !== 'removed'
-        })
+        .filter(
+          (status: {
+            subgraphDeployment: string
+            node: string
+            health: string
+          }) => {
+            return status.node !== 'removed' && status.health == 'healthy'
+          },
+        )
         .map((status: { subgraphDeployment: string; node: string }) => {
           return new SubgraphDeploymentID(status.subgraphDeployment)
         })
