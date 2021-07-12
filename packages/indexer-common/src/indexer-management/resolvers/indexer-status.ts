@@ -95,11 +95,6 @@ export default {
         healthy: false,
         tests: [] as TestResult[],
       },
-      channels: {
-        url: null as string | null,
-        healthy: false,
-        tests: [] as TestResult[],
-      },
     }
 
     try {
@@ -171,45 +166,6 @@ export default {
           endpoints.status.url = url
           endpoints.status.healthy = ok
           endpoints.status.tests = tests
-        }
-
-        {
-          const channelsURL = endpoints.service.url.endsWith('/')
-            ? endpoints.service.url.substring(0, endpoints.service.url.length - 1) +
-              '/channel-messages-inbox'
-            : endpoints.service.url + '/channel-messages-inbox'
-
-          const { url, tests, ok } = await testURL(channelsURL, [
-            URL_VALIDATION_TEST,
-            {
-              test: (url) => `echo '{}' | http post ${url}`,
-              run: async (url) => {
-                const response = await fetch(url, {
-                  method: 'POST',
-                  headers: { 'content-type': 'application/json' },
-                  body: JSON.stringify({ query: '{ indexingStatuses { subgraph } }' }),
-                })
-
-                // This message is expected to fail, but it shouldn't return a 404
-                // or 401 or anything like that
-                if (response.status !== 500) {
-                  throw new Error(
-                    `Expected response with status 500, got ${response.status}`,
-                  )
-                }
-              },
-              possibleActions: (url) => [
-                `Make sure ${url} can be reached from this machine`,
-                `Make sure the port of ${url} is set up correctly`,
-                `Make sure ${url} is the /channel-messages-inbox endpoint of indexer-service`,
-                `Make sure the test command returns an HTTP status code 500 (yes, that's right)`,
-              ],
-            },
-          ])
-
-          endpoints.channels.url = url
-          endpoints.channels.healthy = ok
-          endpoints.channels.tests = tests
         }
       }
     } catch (err) {

@@ -78,15 +78,6 @@ module.exports = {
                     possibleActions
                   }
                 }
-                channels {
-                  url
-                  healthy
-                  tests {
-                    test
-                    error
-                    possibleActions
-                  }
-                }
               }
 
               indexingRules(merged: true) {

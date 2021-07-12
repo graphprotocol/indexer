@@ -128,7 +128,6 @@ const SCHEMA_SDL = gql`
   type IndexerEndpoints {
     service: IndexerEndpoint!
     status: IndexerEndpoint!
-    channels: IndexerEndpoint!
   }
 
   type CostModel {
