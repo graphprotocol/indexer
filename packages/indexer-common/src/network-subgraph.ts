@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/common-ts'
 import { DocumentNode, print } from 'graphql'
-import { OperationResult } from '@urql/core'
+import { OperationResult, CombinedError } from '@urql/core'
 import { IndexingStatusResolver, BlockPointer, IndexingError } from './types'
 
 export interface NetworkSubgraphCreateOptions {
@@ -31,6 +31,11 @@ interface NetworkSubgraphOptions {
     graphNodeQueryEndpoint: string
   }
 }
+
+export type QueryResult<Data> = Pick<
+  OperationResult<Data>,
+  'error' | 'data' | 'extensions'
+>
 
 export class NetworkSubgraph {
   logger: Logger
@@ -170,10 +175,14 @@ export class NetworkSubgraph {
     query: DocumentNode,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     variables?: Record<string, any>,
-  ): Promise<OperationResult<Data>> {
+  ): Promise<QueryResult<Data>> {
     const client = await this.getClient()
     const response = await client.post('', { query: print(query), variables })
-    return JSON.parse(response.data)
+    const data = JSON.parse(response.data)
+    if (data.errors) {
+      return { error: new CombinedError({ graphQLErrors: data.errors }) }
+    }
+    return data
   }
 
   async queryRaw(body: string): Promise<AxiosResponse> {
