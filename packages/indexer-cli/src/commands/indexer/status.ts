@@ -136,15 +136,16 @@ module.exports = {
       const keys = Object.keys(pickFields(result.data.indexerEndpoints, []))
       keys.sort()
 
+      const statusUp = outputFormat == 'table' ? chalk.green('up') : 'up'
+      const statusDown = outputFormat == 'table' ? chalk.red('down') : 'down'
+
       data.endpoints = keys.reduce(
         (out, key) => [
           ...out,
           {
             name: key,
             url: result.data.indexerEndpoints[key].url,
-            status: result.data.indexerEndpoints[key].healthy
-              ? chalk.green('up')
-              : chalk.red('down'),
+            status: result.data.indexerEndpoints[key].healthy ? statusUp : statusDown,
             tests: result.data.indexerEndpoints[key].tests,
           },
         ],
