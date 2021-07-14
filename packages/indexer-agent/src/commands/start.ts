@@ -497,11 +497,22 @@ export default {
       )
     }
 
+    // Prevent passing empty basicAuth info
+    let username;
+    let password;
+    if (providerUrl.username == "" && providerUrl.password == "") {
+      username = undefined;
+      password = undefined;
+    } else {
+      username = providerUrl.username;
+      password = providerUrl.password;
+    }
+
     const ethereum = new providers.StaticJsonRpcProvider(
       {
         url: providerUrl.toString(),
-        user: providerUrl.username,
-        password: providerUrl.password,
+        user: username,
+        password: password,
         allowInsecureAuthentication: true,
       },
       argv.ethereumNetwork,
