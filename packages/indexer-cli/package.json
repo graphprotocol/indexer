@@ -7,7 +7,7 @@
   "author": "The Graph Foundation",
   "license": "MIT",
   "scripts": {
-    "format": "prettier --write src/**/*.ts src/**/**/*.ts",
+    "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
     "prepare": "rm -rf dist && yarn format && yarn lint && tsc",
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get"
