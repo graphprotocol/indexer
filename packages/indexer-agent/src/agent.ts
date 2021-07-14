@@ -18,7 +18,6 @@ import {
   IndexerErrorCode,
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
-import * as ti from '@thi.ng/iterators'
 import { BlockPointer, NetworkSubgraph } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { AgentConfig } from './types'
@@ -704,18 +703,18 @@ class Agent {
       // We do a synchronous for-loop and await each iteration so that we can patch the contents
       // of activeAllocations with new allocations as they are made. This is important so that each
       // iteration gets an up to date copy of activeAllocations
-      for(let i = 0; i <= activeAllocations.length; i++) {
-        const oldAllocation = activeAllocations[i];
+      for (let i = 0; i <= activeAllocations.length; i++) {
+        const oldAllocation = activeAllocations[i]
         if (allocationInList(expiredAllocations, oldAllocation)) {
           const { newAllocation, reallocated } = await this.reallocate(
             epochStartBlock,
             oldAllocation,
             allocationAmount,
-            activeAllocations
+            activeAllocations,
           )
           if (reallocated) {
             // Patch existing index with new allocation
-            activeAllocations[i] = newAllocation as Allocation;
+            activeAllocations[i] = newAllocation as Allocation
           }
         }
       }
@@ -789,8 +788,12 @@ class Agent {
     epochStartBlock: BlockPointer,
     existingAllocation: Allocation,
     allocationAmount: BigNumber,
-    activeAllocations: Allocation[]
-  ): Promise<{ reallocated: boolean; collectingQueryFees: boolean, newAllocation: Allocation | undefined }> {
+    activeAllocations: Allocation[],
+  ): Promise<{
+    reallocated: boolean
+    collectingQueryFees: boolean
+    newAllocation: Allocation | undefined
+  }> {
     const poi = await this.indexer.proofOfIndexing(
       existingAllocation.subgraphDeployment.id,
       epochStartBlock,
@@ -809,7 +812,11 @@ class Agent {
         epochStartBlock,
       })
 
-      return { reallocated: false, collectingQueryFees: false, newAllocation: undefined }
+      return {
+        reallocated: false,
+        collectingQueryFees: false,
+        newAllocation: undefined,
+      }
     }
 
     // closeAndAllocate for the deployment
@@ -818,7 +825,7 @@ class Agent {
       poi,
       existingAllocation.subgraphDeployment.id,
       allocationAmount,
-      activeAllocations
+      activeAllocations,
     )
 
     // Collect query fees for the old allocation
@@ -826,7 +833,11 @@ class Agent {
       existingAllocation,
     )
 
-    return { reallocated: newAllocation !== undefined, collectingQueryFees, newAllocation }
+    return {
+      reallocated: newAllocation !== undefined,
+      collectingQueryFees,
+      newAllocation,
+    }
   }
 }
 
