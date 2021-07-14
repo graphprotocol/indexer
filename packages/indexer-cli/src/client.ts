@@ -1,6 +1,6 @@
 import { createClient } from '@urql/core'
 import fetch from 'isomorphic-fetch'
-import {IndexerManagementClient} from "@graphprotocol/indexer-common";
+import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 
 export const createIndexerManagementClient = async ({
   url,
