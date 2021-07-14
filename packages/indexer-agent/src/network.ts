@@ -1185,7 +1185,7 @@ export class Network {
         newAllocation: newAllocationId,
         deployment,
         poi,
-        proof
+        proof,
       })
 
       const receipt = await this.executeTransaction(
@@ -1198,7 +1198,7 @@ export class Network {
             amount,
             newAllocationId,
             utils.hexlify(Array(32).fill(0)), // metadata
-            proof
+            proof,
           ),
         async gasLimit =>
           this.contracts.staking.closeAndAllocate(
