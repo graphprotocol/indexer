@@ -40,6 +40,7 @@ import { strict as assert } from 'assert'
 import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import pReduce from 'p-reduce'
+import delay from 'delay'
 import * as ti from '@thi.ng/iterators'
 
 const allocationIdProof = (
@@ -135,8 +136,10 @@ export class Network {
     let pending = true
     let output: providers.TransactionReceipt | undefined = undefined
 
-    const estimatedGas = await gasEstimation()
-    const txPromise = transaction(Math.ceil(estimatedGas.toNumber() * 1.5))
+    await this.waitForGasPricesBelowThreshold(logger)
+    const paddedGasLimit = Math.ceil((await gasEstimation()).toNumber() * 1.5)
+
+    const txPromise = transaction(paddedGasLimit)
     let tx = await txPromise
     let txRequest: providers.TransactionRequest | undefined = undefined
 
@@ -154,7 +157,7 @@ export class Network {
     while (pending) {
       if (txConfig.attempt >= this.maxTransactionAttempts) {
         logger.warn('Transaction retry limit reached, giving up', {
-          attempts: txConfig.attempt,
+          txConfig,
         })
         break
       }
@@ -162,7 +165,7 @@ export class Network {
       try {
         if (txConfig.attempt > 1) {
           logger.info('Resubmitting transaction', {
-            txConfig: txConfig,
+            txConfig,
           })
           txRequest = {
             value: tx.value,
@@ -177,7 +180,7 @@ export class Network {
           tx = await this.wallet.sendTransaction(txRequest)
         }
 
-        logger.info(`Transaction pending`, { tx: tx })
+        logger.info(`Transaction pending`, { tx: tx, txConfig })
 
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
@@ -238,6 +241,10 @@ export class Network {
     txConfig: Record<string, number>,
     error: Error | IndexerError,
   ): Promise<Record<string, number>> {
+    logger.warning('Failed to send transaction, retrying', {
+      txConfig,
+      error: error.message,
+    })
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
         txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
@@ -269,7 +276,7 @@ export class Network {
         error.message?.includes('timeout exceeded')
       ) {
         if (txConfig.gasPrice >= this.gasPriceMax) {
-          throw indexerError(IndexerErrorCode.IE052)
+          txConfig.gasPrice = await this.waitForGasPricesBelowThreshold(logger)
         } else {
           txConfig.gasPrice = Math.min(
             this.gasPriceMax,
@@ -278,11 +285,40 @@ export class Network {
         }
       }
     }
-    logger.warning('Failed to send transaction, retrying', {
-      error: error.message,
-    })
     txConfig.attempt += 1
     return txConfig
+  }
+
+  async waitForGasPricesBelowThreshold(logger: Logger): Promise<number> {
+    let attempt = 1
+    let aboveThreshold = true
+    let currentGasPriceEstimate = this.gasPriceMax
+
+    while (aboveThreshold) {
+      currentGasPriceEstimate = Math.ceil(
+        (await this.ethereum.getGasPrice()).toNumber(),
+      )
+
+      if (currentGasPriceEstimate >= this.gasPriceMax) {
+        if (attempt == 1) {
+          logger.warning(
+            `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
+            { gasPriceMax: this.gasPriceMax, currentGasPriceEstimate },
+          )
+        } else {
+          logger.info(`Gas price estimation still above max threshold`, {
+            gasPriceMax: this.gasPriceMax,
+            currentGasPriceEstimate,
+            priceEstimateAttempt: attempt,
+          })
+        }
+        await delay(30000)
+        attempt++
+      } else {
+        aboveThreshold = false
+      }
+    }
+    return currentGasPriceEstimate
   }
 
   static async create(
@@ -1165,7 +1201,9 @@ export class Network {
 
       // When reallocating, we will first close the old allocation and free up the GRT in that allocation
       // This GRT will be available in addition to freeStake for the new allocation
-      const postCloseFreeStake = freeStake.add(existingAllocation.allocatedTokens)
+      const postCloseFreeStake = freeStake.add(
+        existingAllocation.allocatedTokens,
+      )
 
       // If there isn't enough left for allocating, abort
       if (postCloseFreeStake.lt(amount)) {
