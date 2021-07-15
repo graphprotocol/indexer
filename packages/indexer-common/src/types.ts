@@ -25,7 +25,3 @@ export interface IndexingError {
   handler: string
   message: string
 }
-
-export interface IndexingStatusResolver {
-  indexingStatus(deployment: SubgraphDeploymentID): Promise<IndexingStatus>
-}

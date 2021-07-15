@@ -2,7 +2,7 @@ import fetch from 'isomorphic-fetch'
 import gql from 'graphql-tag'
 import { Client, createClient } from '@urql/core'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { IndexingStatus, IndexingStatusResolver } from './types'
+import { IndexingStatus } from './types'
 import { indexerError, IndexerErrorCode } from './errors'
 
 export interface IndexingStatusFetcherOptions {
@@ -10,7 +10,7 @@ export interface IndexingStatusFetcherOptions {
   statusEndpoint: string
 }
 
-export class IndexingStatusFetcher implements IndexingStatusResolver {
+export class IndexingStatusResolver {
   logger: Logger
   statuses: Client
 

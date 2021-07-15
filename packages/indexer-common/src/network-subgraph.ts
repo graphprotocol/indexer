@@ -2,7 +2,8 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/common-ts'
 import { DocumentNode, print } from 'graphql'
 import { OperationResult, CombinedError } from '@urql/core'
-import { IndexingStatusResolver, BlockPointer, IndexingError } from './types'
+import { BlockPointer, IndexingError } from './types'
+import { IndexingStatusResolver } from './indexing-status'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger

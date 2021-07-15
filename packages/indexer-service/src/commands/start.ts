@@ -21,7 +21,7 @@ import {
   createVectorClient,
   defineQueryFeeModels,
   NetworkSubgraph,
-  IndexingStatusFetcher,
+  IndexingStatusResolver,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -277,7 +277,7 @@ export default {
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network`)
-    const indexingStatusResolver = new IndexingStatusFetcher({
+    const indexingStatusResolver = new IndexingStatusResolver({
       logger,
       statusEndpoint: argv.graphNodeStatusEndpoint,
     })
@@ -459,6 +459,7 @@ export default {
       models,
       address,
       contracts,
+      indexingStatusResolver,
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management
