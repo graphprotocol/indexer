@@ -77,8 +77,9 @@ export default {
       .option('gas-price-max', {
         description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
-        default: 2000000000,
+        default: 50,
         group: 'Ethereum',
+        coerce: arg => arg * 10 ** 9,
       })
       .option('transaction-attempts', {
         description: 'The maximum number of transaction attempts',
