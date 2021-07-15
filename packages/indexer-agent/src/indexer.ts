@@ -11,7 +11,7 @@ import {
   indexerError,
   IndexerErrorCode,
   POIDisputeAttributes,
-  IndexingStatusFetcher,
+  IndexingStatusResolver,
   BlockPointer,
   IndexingStatus,
 } from '@graphprotocol/indexer-common'
@@ -55,8 +55,8 @@ const disputeFromGraphQL = (
   return obj as POIDisputeAttributes
 }
 
-export class Indexer implements IndexingStatusFetcher {
-  statuses: Client
+export class Indexer {
+  statusResolver: IndexingStatusResolver
   rpc: RpcClient
   indexerManagement: IndexerManagementClient
   logger: Logger
@@ -67,18 +67,14 @@ export class Indexer implements IndexingStatusFetcher {
   constructor(
     logger: Logger,
     adminEndpoint: string,
-    statusEndpoint: string,
+    statusResolver: IndexingStatusResolver,
     indexerManagement: IndexerManagementClient,
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
     indexerAddress: string,
   ) {
     this.indexerManagement = indexerManagement
-    this.statuses = createClient({
-      url: statusEndpoint,
-      fetch,
-      requestPolicy: 'network-only',
-    })
+    this.statusResolver = statusResolver
     this.logger = logger
     this.indexerAddress = indexerAddress
 
@@ -113,7 +109,7 @@ export class Indexer implements IndexingStatusFetcher {
 
   async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
     try {
-      const result = await this.statuses
+      const result = await this.statusResolver.statuses
         .query(
           gql`
             {
@@ -152,7 +148,7 @@ export class Indexer implements IndexingStatusFetcher {
     try {
       return await pRetry(
         async attempt => {
-          const result = await this.statuses
+          const result = await this.statusResolver.statuses
             .query(
               gql`
                 query proofOfIndexing(
@@ -420,7 +416,7 @@ export class Indexer implements IndexingStatusFetcher {
     deployment: SubgraphDeploymentID,
   ): Promise<IndexingStatus> {
     try {
-      const result = await this.statuses
+      const result = await this.statusResolver.statuses
         .query(
           gql`
             query indexingStatus($deployments: [String!]!) {

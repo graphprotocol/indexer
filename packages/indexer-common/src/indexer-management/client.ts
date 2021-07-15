@@ -19,6 +19,7 @@ import costModelResolvers from './resolvers/cost-models'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
+import { IndexingStatusResolver } from '../indexing-status'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -179,6 +180,7 @@ export interface IndexerManagementClientOptions {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
+  indexingStatusResolver: IndexingStatusResolver
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -231,7 +233,15 @@ export class IndexerManagementClient extends Client {
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, address, contracts, logger, defaults, features } = options
+  const {
+    models,
+    address,
+    contracts,
+    indexingStatusResolver,
+    logger,
+    defaults,
+    features,
+  } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -249,6 +259,7 @@ export const createIndexerManagementClient = async (
       models,
       address,
       contracts,
+      indexingStatusResolver,
       logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
       defaults,
       features,

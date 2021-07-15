@@ -21,6 +21,7 @@ import {
   registerIndexerErrorMetrics,
   defineQueryFeeModels,
   NetworkSubgraph,
+  IndexingStatusResolver,
 } from '@graphprotocol/indexer-common'
 
 import { startAgent } from '../agent'
@@ -580,11 +581,17 @@ export default {
 
     const indexerAddress = toAddress(argv.indexerAddress)
 
+    const indexingStatusResolver = new IndexingStatusResolver({
+      logger: logger,
+      statusEndpoint: argv.graphNodeStatusEndpoint,
+    })
+
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
       address: indexerAddress,
       contracts,
+      indexingStatusResolver,
       logger,
       defaults: {
         globalIndexingRule: {
@@ -607,7 +614,7 @@ export default {
     const indexer = new Indexer(
       logger,
       argv.graphNodeAdminEndpoint,
-      argv.graphNodeStatusEndpoint,
+      indexingStatusResolver,
       indexerManagementClient,
       argv.indexNodeIds,
       parseGRT(argv.defaultAllocationAmount),
@@ -631,7 +638,7 @@ export default {
       endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment
         ? {
-            indexingStatusResolver: indexer,
+            indexingStatusResolver: indexingStatusResolver,
             deployment: new SubgraphDeploymentID(
               argv.networkSubgraphDeployment,
             ),
