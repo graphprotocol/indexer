@@ -350,128 +350,161 @@ export class Network {
       rule => rule.deployment === INDEXING_RULE_GLOBAL,
     )
 
-    try {
-      // TODO: Paginate here to not miss any deployments
-      const result = await this.networkSubgraph.query(
-        gql`
-          query {
-            subgraphDeployments(first: 1000) {
-              id
-              stakedTokens
-              signalAmount
-              signalledTokens
-              indexingRewardAmount
-              queryFeesAmount
-              indexerAllocations {
-                indexer {
-                  id
+    const deployments = []
+    const queryProgress = {
+      lastId: '',
+      first: 10,
+      fetched: 0,
+      exhausted: false,
+      retriesRemaining: 10,
+    }
+
+    while (!queryProgress.exhausted) {
+      this.logger.debug(`Query subgraph deployments`, {
+        queryProgress: queryProgress,
+      })
+      try {
+        const result = await this.networkSubgraph.query(
+          gql`
+            query subgraphDeployments($first: Int!, $lastId: String!) {
+              subgraphDeployments(
+                where: { id_gt: $lastId }
+                orderBy: id
+                orderDirection: asc
+                first: $first
+              ) {
+                id
+                stakedTokens
+                signalAmount
+                queryFeesAmount
+                indexerAllocations {
+                  indexer {
+                    id
+                  }
                 }
-                allocatedTokens
-                queryFeesCollected
               }
             }
-          }
-        `,
-      )
+          `,
+          { first: queryProgress.first, lastId: queryProgress.lastId },
+        )
 
-      if (result.error) {
-        throw result.error
-      }
+        if (result.error) {
+          throw result.error
+        }
 
-      return (
-        result.data.subgraphDeployments
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter((deployment: any) => {
-            const deploymentRule =
-              rules.find(rule => rule.deployment === deployment.id) ||
-              globalRule
+        const results = result.data.subgraphDeployments
 
-            // The deployment is not eligible for deployment if it doesn't have an allocation amount
-            if (!deploymentRule?.allocationAmount) {
-              this.logger.debug(
-                `Could not find matching rule with non-zero 'allocationAmount':`,
-                {
-                  deployment: deployment.display,
-                },
-              )
-              return false
-            }
+        queryProgress.exhausted = results.length < queryProgress.first
+        queryProgress.fetched += results.length
+        queryProgress.lastId = results[results.length - 1].id
 
-            // Skip the indexing rules checks if the decision basis is 'always' or 'never'
-            if (
-              deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
-            ) {
-              return true
-            } else if (
-              deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER
-            ) {
-              return false
-            }
+        deployments.push(
+          ...results
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .filter((deployment: any) => {
+              const deploymentRule =
+                rules.find(rule => rule.deployment === deployment.id) ||
+                globalRule
 
-            if (deploymentRule) {
-              const stakedTokens = BigNumber.from(deployment.stakedTokens)
-              const signalAmount = BigNumber.from(deployment.signalAmount)
-              const avgQueryFees = BigNumber.from(
-                deployment.queryFeesAmount,
-              ).div(
-                BigNumber.from(
-                  Math.max(1, deployment.indexerAllocations.length),
-                ),
-              )
+              // The deployment is not eligible for deployment if it doesn't have an allocation amount
+              if (!deploymentRule?.allocationAmount) {
+                this.logger.debug(
+                  `Could not find matching rule with non-zero 'allocationAmount':`,
+                  {
+                    deployment: deployment.display,
+                  },
+                )
+                return false
+              }
 
-              this.logger.trace('Deciding whether to allocate and index', {
-                deployment: {
-                  id: deployment.id.display,
-                  stakedTokens: stakedTokens.toString(),
-                  signalAmount: signalAmount.toString(),
-                  avgQueryFees: avgQueryFees.toString(),
-                },
-                indexingRule: {
-                  deployment: deploymentRule.deployment,
-                  minStake: deploymentRule.minStake
-                    ? BigNumber.from(deploymentRule.minStake).toString()
-                    : null,
-                  minSignal: deploymentRule.minSignal
-                    ? BigNumber.from(deploymentRule.minSignal).toString()
-                    : null,
-                  maxSignal: deploymentRule.maxSignal
-                    ? BigNumber.from(deploymentRule.maxSignal).toString()
-                    : null,
-                  minAverageQueryFees: deploymentRule.minAverageQueryFees
-                    ? BigNumber.from(
+              // Skip the indexing rules checks if the decision basis is 'always' or 'never'
+              if (
+                deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
+              ) {
+                return true
+              } else if (
+                deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER
+              ) {
+                return false
+              }
+
+              if (deploymentRule) {
+                const stakedTokens = BigNumber.from(deployment.stakedTokens)
+                const signalAmount = BigNumber.from(deployment.signalAmount)
+                const avgQueryFees = BigNumber.from(
+                  deployment.queryFeesAmount,
+                ).div(
+                  BigNumber.from(
+                    Math.max(1, deployment.indexerAllocations.length),
+                  ),
+                )
+
+                this.logger.trace('Deciding whether to allocate and index', {
+                  deployment: {
+                    id: deployment.id.display,
+                    stakedTokens: stakedTokens.toString(),
+                    signalAmount: signalAmount.toString(),
+                    avgQueryFees: avgQueryFees.toString(),
+                  },
+                  indexingRule: {
+                    deployment: deploymentRule.deployment,
+                    minStake: deploymentRule.minStake
+                      ? BigNumber.from(deploymentRule.minStake).toString()
+                      : null,
+                    minSignal: deploymentRule.minSignal
+                      ? BigNumber.from(deploymentRule.minSignal).toString()
+                      : null,
+                    maxSignal: deploymentRule.maxSignal
+                      ? BigNumber.from(deploymentRule.maxSignal).toString()
+                      : null,
+                    minAverageQueryFees: deploymentRule.minAverageQueryFees
+                      ? BigNumber.from(
                         deploymentRule.minAverageQueryFees,
                       ).toString()
-                    : null,
-                },
-              })
+                      : null,
+                  },
+                })
 
-              return (
-                // stake >= minStake?
-                (deploymentRule.minStake &&
-                  stakedTokens.gte(deploymentRule.minStake)) ||
-                // signal >= minSignal && signal <= maxSignal?
-                (deploymentRule.minSignal &&
-                  signalAmount.gte(deploymentRule.minSignal)) ||
-                (deploymentRule.maxSignal &&
-                  signalAmount.lte(deploymentRule.maxSignal)) ||
-                // avgQueryFees >= minAvgQueryFees?
-                (deploymentRule.minAverageQueryFees &&
-                  avgQueryFees.gte(deploymentRule.minAverageQueryFees))
-              )
-            } else {
-              return false
-            }
-          })
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((deployment: any) => new SubgraphDeploymentID(deployment.id))
-      )
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE009, error)
-      this.logger.error(`Failed to query subgraph deployments worth indexing`, {
-        err,
-      })
-      throw err
+                return (
+                  // stake >= minStake?
+                  (deploymentRule.minStake &&
+                    stakedTokens.gte(deploymentRule.minStake)) ||
+                  // signal >= minSignal && signal <= maxSignal?
+                  (deploymentRule.minSignal &&
+                    signalAmount.gte(deploymentRule.minSignal)) ||
+                  (deploymentRule.maxSignal &&
+                    signalAmount.lte(deploymentRule.maxSignal)) ||
+                  // avgQueryFees >= minAvgQueryFees?
+                  (deploymentRule.minAverageQueryFees &&
+                    avgQueryFees.gte(deploymentRule.minAverageQueryFees))
+                )
+              } else {
+                return false
+              }
+            })
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .map((deployment: any) => new SubgraphDeploymentID(deployment.id)),
+        )
+      } catch (error) {
+        queryProgress.retriesRemaining--
+        this.logger.error(`Failed to query subgraph deployments`, {
+          retriesRemaining: queryProgress.retriesRemaining,
+          error: error,
+        })
+        if (queryProgress.retriesRemaining <= 0) {
+          const err = indexerError(IndexerErrorCode.IE009, error)
+          this.logger.error(
+            `Failed to query subgraph deployments worth indexing`,
+            {
+              err,
+            },
+          )
+          throw err
+        }
+      }
     }
+
+    return deployments
   }
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
