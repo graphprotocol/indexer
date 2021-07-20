@@ -703,7 +703,7 @@ class Agent {
       // We do a synchronous for-loop and await each iteration so that we can patch the contents
       // of activeAllocations with new allocations as they are made. This is important so that each
       // iteration gets an up to date copy of activeAllocations
-      for (let i = 0; i <= activeAllocations.length; i++) {
+      for (let i = 0; i <= activeAllocations.length - 1; i++) {
         const oldAllocation = activeAllocations[i]
         if (allocationInList(expiredAllocations, oldAllocation)) {
           const { newAllocation, reallocated } = await this.reallocate(
