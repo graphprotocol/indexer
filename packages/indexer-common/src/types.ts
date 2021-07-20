@@ -9,6 +9,7 @@ export interface EthereumIndexingStatus {
   network: string
   latestBlock: BlockPointer
   chainHeadBlock: BlockPointer
+  earliestBlock: BlockPointer
 }
 
 export type ChainIndexingStatus = EthereumIndexingStatus
@@ -18,6 +19,7 @@ export interface IndexingStatus {
   health: string
   synced: boolean
   fatalError: IndexingError
+  node: string
   chains: ChainIndexingStatus[]
 }
 
