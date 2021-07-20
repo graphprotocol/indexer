@@ -358,6 +358,9 @@ export class Network {
       exhausted: false,
       retriesRemaining: 10,
     }
+    this.logger.info(
+      `Query subgraph deployments in batches of ${queryProgress.first}`,
+    )
 
     while (!queryProgress.exhausted) {
       this.logger.debug(`Query subgraph deployments`, {
@@ -459,8 +462,8 @@ export class Network {
                       : null,
                     minAverageQueryFees: deploymentRule.minAverageQueryFees
                       ? BigNumber.from(
-                        deploymentRule.minAverageQueryFees,
-                      ).toString()
+                          deploymentRule.minAverageQueryFees,
+                        ).toString()
                       : null,
                   },
                 })

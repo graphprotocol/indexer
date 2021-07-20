@@ -150,10 +150,10 @@ export class NetworkSubgraph {
       const healthy = status.synced && status.health === 'healthy'
 
       if (healthy) {
-        this.logger.debug('Use own deployment for network subgraph query')
+        this.logger.trace('Use own deployment for network subgraph query')
         return this.deployment.client
       } else if (this.endpointClient) {
-        this.logger.debug('Use provided endpoint for network subgraph query')
+        this.logger.trace('Use provided endpoint for network subgraph query')
         return this.endpointClient
       } else {
         // We have no endpoint and our deployment is not synced or unhealthy;
@@ -164,7 +164,7 @@ export class NetworkSubgraph {
         process.exit(1)
       }
     } else {
-      this.logger.debug('Use provided endpoint for network subgraph query')
+      this.logger.trace('Use provided endpoint for network subgraph query')
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.endpointClient!
     }
@@ -208,7 +208,7 @@ const monitorDeployment = async ({
     fatalError: undefined,
   }
 
-  return timer(10_000).reduce(async (lastStatus) => {
+  return timer(60_000).reduce(async (lastStatus) => {
     try {
       logger.trace(`Checking the network subgraph deployment status`)
 
