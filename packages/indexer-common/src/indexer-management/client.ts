@@ -29,6 +29,7 @@ export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
+  indexingStatusResolver: IndexingStatusResolver
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -114,6 +115,18 @@ const SCHEMA_SDL = gql`
     location: GeoLocation
   }
 
+  type IndexerDeployment {
+    deployment: String!
+    synced: Boolean!
+    health: String!
+    fatalError: [String]
+    node: String
+    network: String
+    latestBlockNumber: Int
+    chainHeadBlockNumber: Int
+    earliestBlockNumber: Int
+  }
+
   type IndexerEndpointTest {
     test: String!
     error: String
@@ -147,6 +160,7 @@ const SCHEMA_SDL = gql`
     indexingRule(deployment: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
     indexerRegistration: IndexerRegistration!
+    indexerDeployments: [IndexerDeployment]!
     indexerEndpoints: IndexerEndpoints!
 
     costModels(deployments: [String!]): [CostModel!]!

@@ -59,6 +59,18 @@ module.exports = {
                 }
               }
 
+              indexerDeployments {
+                deployment
+                synced
+                health
+                fatalError
+                node
+                network
+                latestBlockNumber
+                chainHeadBlockNumber
+                earliestBlockNumber
+              }
+
               indexerEndpoints {
                 service {
                   url
@@ -148,6 +160,8 @@ module.exports = {
           'Indexer endpoints unknown. Make sure to run `indexer-agent` and register on chain',
       }
     }
+
+    print.debug(result.data.indexerDeployments)
 
     if (result.data.indexingRules) {
       if (result.data.indexingRules.length === 0) {
