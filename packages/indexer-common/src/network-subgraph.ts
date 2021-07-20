@@ -213,7 +213,11 @@ const monitorDeployment = async ({
     try {
       logger.trace(`Checking the network subgraph deployment status`)
 
-      const indexingStatus = await indexingStatusResolver.indexingStatus(deployment)
+      const indexingStatuses = await indexingStatusResolver.indexingStatus([deployment])
+      const indexingStatus = indexingStatuses.pop()
+      if (!indexingStatus) {
+        throw `No indexing status found`
+      }
 
       const status = {
         health: indexingStatus.health,

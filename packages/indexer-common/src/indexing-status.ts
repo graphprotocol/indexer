@@ -1,5 +1,4 @@
 import fetch from 'isomorphic-fetch'
-import gql from 'graphql-tag'
 import { Client, createClient } from '@urql/core'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { IndexingStatus } from './types'
@@ -23,38 +22,51 @@ export class IndexingStatusResolver {
     })
   }
 
-  public async indexingStatus(deployment: SubgraphDeploymentID): Promise<IndexingStatus> {
+  public async indexingStatus(
+    deployments: SubgraphDeploymentID[],
+  ): Promise<IndexingStatus[]> {
+    const indexingStatusesQueryBody = `
+      subgraphDeployment: subgraph
+      synced
+      health
+      fatalError {
+        handler
+        message
+      }
+      node
+      chains {
+        network
+        ... on EthereumIndexingStatus {
+          latestBlock {
+            number
+            hash
+          }
+          chainHeadBlock {
+            number
+            hash
+          }
+          earliestBlock {
+            number
+            hash
+          }
+        }
+      }`
+    const query =
+      deployments.length > 0
+        ? `query indexingStatus($deployments: [String!]!) {
+            indexingStatuses(subgraphs: $deployments) {
+              ${indexingStatusesQueryBody}
+            }
+          }`
+        : `query indexingStatus {
+            indexingStatuses {
+              ${indexingStatusesQueryBody}
+            }
+          }`
+
     try {
       const result = await this.statuses
-        .query(
-          gql`
-            query indexingStatus($deployments: [String!]!) {
-              indexingStatuses(subgraphs: $deployments) {
-                subgraphDeployment: subgraph
-                synced
-                health
-                fatalError {
-                  handler
-                  message
-                }
-                chains {
-                  network
-                  ... on EthereumIndexingStatus {
-                    latestBlock {
-                      number
-                      hash
-                    }
-                    chainHeadBlock {
-                      number
-                      hash
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          { deployments: [deployment.ipfsHash] },
-        )
+        .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
         .toPromise()
       return (
         result.data.indexingStatuses
@@ -63,7 +75,6 @@ export class IndexingStatusResolver {
             ...status,
             subgraphDeployment: new SubgraphDeploymentID(status.subgraphDeployment),
           }))
-          .pop()
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)

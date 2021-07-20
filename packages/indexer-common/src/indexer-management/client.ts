@@ -115,16 +115,30 @@ const SCHEMA_SDL = gql`
     location: GeoLocation
   }
 
+  type IndexingError {
+    handler: String!
+    message: String!
+  }
+
+  type BlockPointer {
+    number: Int!
+    hash: String!
+  }
+
+  type ChainIndexingStatus {
+    network: String!
+    latestBlock: BlockPointer!
+    chainHeadBlock: BlockPointer!
+    earliestBlock: BlockPointer!
+  }
+
   type IndexerDeployment {
-    deployment: String!
+    subgraphDeployment: String!
     synced: Boolean!
     health: String!
-    fatalError: [String]
-    node: String
-    network: String
-    latestBlockNumber: Int
-    chainHeadBlockNumber: Int
-    earliestBlockNumber: Int
+    fatalError: IndexingError
+    node: String!
+    chains: [ChainIndexingStatus]
   }
 
   type IndexerEndpointTest {

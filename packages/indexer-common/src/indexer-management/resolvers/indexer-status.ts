@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import geohash from 'ngeohash'
-import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 
 interface Test {
@@ -84,63 +83,11 @@ export default {
     _: {},
     { indexingStatusResolver }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    // TOOD: indexingStatusResolver.indexingStatus([]) to query all
-    const result = await indexingStatusResolver.statuses
-      .query(
-        gql`
-          {
-            indexingStatuses {
-              subgraphDeployment: subgraph
-              node
-              synced
-              health
-              fatalError {
-                handler
-                message
-              }
-              chains {
-                network
-                ... on EthereumIndexingStatus {
-                  latestBlock {
-                    number
-                    hash
-                  }
-                  chainHeadBlock {
-                    number
-                    hash
-                  }
-                  earliestBlock {
-                    number
-                    hash
-                  }
-                }
-              }
-            }
-          }
-        `,
-      )
-      .toPromise()
-
-    if (result.error) {
-      throw result.error
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return result.data.indexingStatuses.map((stat: any) => {
-      return {
-        deployment: stat.subgraphDeployment,
-        synced: stat.synced,
-        health: stat.health,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        fatalError: stat.fatalError?.map((e: any) => e.message),
-        node: stat.node,
-        network: stat.chains[0]?.network,
-        latestBlockNumber: stat.chains[0]?.latestBlock.number,
-        chainHeadBlockNumber: stat.chains[0]?.chainHeadBlock.number,
-        earliestBlockNumber: stat.chains[0]?.earliestBlock.number,
-        __typename: 'IndexerDeployment',
-      }
-    })
+    const result = await indexingStatusResolver.indexingStatus([])
+    return result.map((status) => ({
+      ...status,
+      subgraphDeployment: status.subgraphDeployment.ipfsHash,
+    }))
   },
 
   indexerEndpoints: async (

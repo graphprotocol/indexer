@@ -60,15 +60,26 @@ module.exports = {
               }
 
               indexerDeployments {
-                deployment
+                subgraphDeployment
                 synced
                 health
-                fatalError
+                fatalError {
+                  handler
+                  message
+                }
                 node
-                network
-                latestBlockNumber
-                chainHeadBlockNumber
-                earliestBlockNumber
+                chains {
+                  network
+                  latestBlock {
+                    number
+                  }
+                  chainHeadBlock {
+                    number
+                  }
+                  earliestBlock {
+                    number
+                  }
+                }
               }
 
               indexerEndpoints {
