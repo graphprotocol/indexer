@@ -1159,8 +1159,15 @@ export class Network {
         this.indexerAddress,
       )
 
+      // When reallocating, we will first close the old allocation and free up the GRT in that allocation
+      // This GRT will be available in addition to freeStake for the new allocation
+
+      // Fetch the existing allocation amount and add it to the freeStake for comparison
+      const { tokens: existingAllocationStake } = await this.contracts.staking.getAllocation(existingAllocation.id)
+      const postCloseFreeStake = freeStake.add(existingAllocationStake)
+
       // If there isn't enough left for allocating, abort
-      if (freeStake.lt(amount)) {
+      if (postCloseFreeStake.lt(amount)) {
         throw indexerError(
           IndexerErrorCode.IE013,
           new Error(
@@ -1168,7 +1175,9 @@ export class Network {
               amount,
             )} GRT: indexer only has a free stake amount of ${formatGRT(
               freeStake,
-            )} GRT`,
+            )} GRT, plus ${formatGRT(
+              amount,
+            )} GRT from the existing allocation`,
           ),
         )
       }
