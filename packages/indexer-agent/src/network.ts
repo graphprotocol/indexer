@@ -1157,12 +1157,10 @@ export class Network {
       // When reallocating, we will first close the old allocation and free up the GRT in that allocation
       // This GRT will be available in addition to freeStake for the new allocation
 
-      // Fetch the existing allocation amount and add it to the freeStake for comparison
-      const { tokens: existingAllocationStake } = await this.contracts.staking.getAllocation(existingAllocation.id)
-      const postCloseFreeStake = freeStake.add(existingAllocationStake)
+      const postCloseFreeStake = freeStake.add(existingAllocation.allocatedTokens)
 
       logger.info(`Reallocate to subgraph deployment`, {
-        existingAllocationAmount: formatGRT(existingAllocationStake),
+        existingAllocationAmount: formatGRT(existingAllocation.allocatedTokens),
         newAllocationAmount: formatGRT(amount),
         epoch: currentEpoch.toString(),
       })
@@ -1177,7 +1175,7 @@ export class Network {
             )} GRT: indexer only has a free stake amount of ${formatGRT(
               freeStake,
             )} GRT, plus ${formatGRT(
-              amount,
+              existingAllocation.allocatedTokens,
             )} GRT from the existing allocation`,
           ),
         )
