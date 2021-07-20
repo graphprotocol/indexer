@@ -133,6 +133,7 @@ module.exports = {
     const data: any = {
       registration: null,
       endpoints: null,
+      indexerDeployments: null,
       indexingRules: null,
     }
 
@@ -172,7 +173,9 @@ module.exports = {
       }
     }
 
-    print.debug(result.data.indexerDeployments)
+    if (result.data.indexerDeployments) {
+      data.indexerDeployments = result.data.indexerDeployments
+    }
 
     if (result.data.indexingRules) {
       if (result.data.indexingRules.length === 0) {
@@ -227,6 +230,28 @@ module.exports = {
             }
           }
         }
+      }
+      print.info('')
+      print.info('Indexer Deployments')
+      if (data.indexerDeployments) {
+        print.info(
+          formatData(
+            data.indexerDeployments.flatMap((deployment: any) =>
+              deployment.chains.map((chain: any) => ({
+                deployment: deployment.subgraphDeployment,
+                synced: deployment.synced,
+                health: deployment.health,
+                fatalError: deployment.fatalError ? deployment.fatalError : '-',
+                node: deployment.node,
+                network: chain.network,
+                latestBlockNumber: chain.latestBlock.number,
+                chainHeadBlockNumber: chain.chainHeadBlock.number,
+                earliestBlockNumber: chain.earliestBlock.number,
+              })),
+            ),
+            outputFormat,
+          ),
+        )
       }
       print.info('')
       print.info('Indexing Rules')
