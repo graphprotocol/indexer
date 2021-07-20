@@ -1149,11 +1149,6 @@ export class Network {
 
       const currentEpoch = await this.contracts.epochManager.currentEpoch()
 
-      logger.info(`Reallocate to subgraph deployment`, {
-        amountGRT: formatGRT(amount),
-        epoch: currentEpoch.toString(),
-      })
-
       // Identify how many GRT the indexer has staked
       const freeStake = await this.contracts.staking.getIndexerCapacity(
         this.indexerAddress,
@@ -1165,6 +1160,12 @@ export class Network {
       // Fetch the existing allocation amount and add it to the freeStake for comparison
       const { tokens: existingAllocationStake } = await this.contracts.staking.getAllocation(existingAllocation.id)
       const postCloseFreeStake = freeStake.add(existingAllocationStake)
+
+      logger.info(`Reallocate to subgraph deployment`, {
+        existingAllocationAmount: formatGRT(existingAllocationStake),
+        newAllocationAmount: formatGRT(amount),
+        epoch: currentEpoch.toString(),
+      })
 
       // If there isn't enough left for allocating, abort
       if (postCloseFreeStake.lt(amount)) {
