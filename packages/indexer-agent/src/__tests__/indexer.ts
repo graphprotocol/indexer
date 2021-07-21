@@ -140,10 +140,10 @@ const setup = async () => {
   })
 
   indexer = new Indexer(
+    logger,
     'test',
     'test',
     indexerManagementClient,
-    logger,
     ['test'],
     parseGRT('1000'),
     address,
