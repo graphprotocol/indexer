@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2021-07-21
+### Fixed
+- Fix build for Node v16 by upgrading neon-sys dependency.
+
 ## [0.14.0] - 2021-05-12
 ### Changed
 - Use verify instead of recover for signatures when possible
@@ -18,5 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add package for native attestation signing and receipt signature verification
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.14.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.14.0...v0.17.0
 [0.14.0]: https://github.com/graphprotocol/indexer/compare/v0.13.0...v0.14.0

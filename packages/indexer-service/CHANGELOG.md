@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.17.0] - 2021-07-21
+### Changed
+- Make the `/network` endpoint optional by default and introduce a dedicated (optional) auth token for `/network` requests.
+- Optimize `/network` execution by switching to a simpler HTTP client (doesn't need to be GraphQL aware).
+- Use `ClusterIP` in the k8s indexer service service rather than a `LoadBalalancer` since `LoadBalancer` services have been
+  shown to introduce extra latency.
+
 ## [0.16.0] - 2021-06-09
 ### Added
 - Add auth-protected `/network` endpoint, disabled by default
@@ -211,7 +218,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.16.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.16.0...v0.17.0
 [0.16.0]: https://github.com/graphprotocol/indexer/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/graphprotocol/indexer/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/graphprotocol/indexer/compare/v0.14.0...v0.15.0
