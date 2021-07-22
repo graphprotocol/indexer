@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import geohash from 'ngeohash'
+import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
+import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 interface Test {
   test: (url: string) => string
@@ -87,6 +89,43 @@ export default {
     return result.map((status) => ({
       ...status,
       subgraphDeployment: status.subgraphDeployment.ipfsHash,
+    }))
+  },
+
+  indexerAllocations: async (
+    _: {},
+    { address, networkSubgraph }: IndexerManagementResolverContext,
+  ): Promise<object | null> => {
+    const result = await networkSubgraph.query(
+      gql`
+        query allocations($indexer: String!) {
+          indexer(id: $indexer) {
+            allocations(where: { status: Active }, orderDirection: desc) {
+              id
+              allocatedTokens
+              createdAtBlockHash
+              createdAtEpoch
+              closedAtEpoch
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalAmount
+              }
+            }
+          }
+        }
+      `,
+      { indexer: address.toLowerCase() },
+    )
+    if (result.error) {
+      throw new Error(`Falied to query allocations: ${result.error}`)
+    }
+    return result.data.indexer.allocations.map((allocation: any) => ({
+      ...allocation,
+      subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
+        .ipfsHash,
+      signalAmount: allocation.subgraphDeployment.signalAmount,
+      stakedTokens: allocation.subgraphDeployment.stakedTokens,
     }))
   },
 
