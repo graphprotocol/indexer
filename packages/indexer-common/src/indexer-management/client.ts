@@ -10,6 +10,7 @@ import {
   NetworkContracts,
   WritableEventual,
 } from '@graphprotocol/common-ts'
+import { NetworkSubgraph } from '../network-subgraph'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
@@ -30,6 +31,7 @@ export interface IndexerManagementResolverContext {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
+  networkSubgraph: NetworkSubgraph
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -209,6 +211,7 @@ export interface IndexerManagementClientOptions {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
+  networkSubgraph: NetworkSubgraph
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
@@ -266,6 +269,7 @@ export const createIndexerManagementClient = async (
     address,
     contracts,
     indexingStatusResolver,
+    networkSubgraph,
     logger,
     defaults,
     features,
@@ -288,6 +292,7 @@ export const createIndexerManagementClient = async (
       address,
       contracts,
       indexingStatusResolver,
+      networkSubgraph,
       logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
       defaults,
       features,
