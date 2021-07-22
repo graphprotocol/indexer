@@ -460,6 +460,7 @@ export default {
       address,
       contracts,
       indexingStatusResolver,
+      networkSubgraph,
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management

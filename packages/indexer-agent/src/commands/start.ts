@@ -586,12 +586,27 @@ export default {
       statusEndpoint: argv.graphNodeStatusEndpoint,
     })
 
+    const networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      endpoint: argv.networkSubgraphEndpoint,
+      deployment: argv.networkSubgraphDeployment
+        ? {
+            indexingStatusResolver: indexingStatusResolver,
+            deployment: new SubgraphDeploymentID(
+              argv.networkSubgraphDeployment,
+            ),
+            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+          }
+        : undefined,
+    })
+
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
       address: indexerAddress,
       contracts,
       indexingStatusResolver,
+      networkSubgraph,
       logger,
       defaults: {
         globalIndexingRule: {
@@ -633,19 +648,6 @@ export default {
         networkSubgraphDeployment,
       )
     }
-    const networkSubgraph = await NetworkSubgraph.create({
-      logger,
-      endpoint: argv.networkSubgraphEndpoint,
-      deployment: argv.networkSubgraphDeployment
-        ? {
-            indexingStatusResolver: indexingStatusResolver,
-            deployment: new SubgraphDeploymentID(
-              argv.networkSubgraphDeployment,
-            ),
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-          }
-        : undefined,
-    })
     const network = await Network.create(
       logger,
       ethereum,
