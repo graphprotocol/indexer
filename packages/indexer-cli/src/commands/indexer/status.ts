@@ -82,6 +82,16 @@ module.exports = {
                 }
               }
 
+              indexerAllocations {
+                id
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                subgraphDeployment
+                signalAmount
+                stakedTokens
+              }
+
               indexerEndpoints {
                 service {
                   url
@@ -134,6 +144,7 @@ module.exports = {
       registration: null,
       endpoints: null,
       indexerDeployments: null,
+      indexerAllocations: null,
       indexingRules: null,
     }
 
@@ -175,6 +186,10 @@ module.exports = {
 
     if (result.data.indexerDeployments) {
       data.indexerDeployments = result.data.indexerDeployments
+    }
+
+    if (result.data.indexerAllocations) {
+      data.indexerAllocations = result.data.indexerAllocations
     }
 
     if (result.data.indexingRules) {
@@ -248,6 +263,26 @@ module.exports = {
                 chainHeadBlockNumber: chain.chainHeadBlock.number,
                 earliestBlockNumber: chain.earliestBlock.number,
               })),
+            ),
+            outputFormat,
+          ),
+        )
+      }
+      print.info('')
+      print.info('Indexer Allocations')
+      if (data.indexerAllocations) {
+        print.info(
+          formatData(
+            data.indexerAllocations.map((allocation: any) =>
+              pickFields(allocation, [
+                'id',
+                'allocatedTokens',
+                'createdAtEpoch',
+                'closedAtEpoch',
+                'subgraphDeployment',
+                'signalAmount',
+                'stakedTokens',
+              ]),
             ),
             outputFormat,
           ),

@@ -143,6 +143,16 @@ const SCHEMA_SDL = gql`
     chains: [ChainIndexingStatus]
   }
 
+  type IndexerAllocation {
+    id: String!
+    allocatedTokens: BigInt!
+    createdAtEpoch: Int!
+    closedAtEpoch: Int
+    subgraphDeployment: String!
+    signalAmount: BigInt!
+    stakedTokens: BigInt!
+  }
+
   type IndexerEndpointTest {
     test: String!
     error: String
@@ -177,6 +187,7 @@ const SCHEMA_SDL = gql`
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
     indexerRegistration: IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
+    indexerAllocations: [IndexerAllocation]!
     indexerEndpoints: IndexerEndpoints!
 
     costModels(deployments: [String!]): [CostModel!]!
