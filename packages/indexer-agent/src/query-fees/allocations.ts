@@ -229,10 +229,18 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         encodedReceipts.writeHex(receipt.signature)
       }
 
+      const buffer = encodedReceipts.unwrap().buffer
+
+      if (logger.inner.isLevelEnabled('debug')) {
+        logger.debug('Attempting to collect receipts', {
+          data: Buffer.from(buffer).toString('hex'),
+        })
+      }
+
       // Exchange the receipts for a voucher signed by the counterparty (aka the client)
       const response = await axios.post(
         this.collectEndpoint.toString(),
-        encodedReceipts.unwrap().buffer,
+        buffer,
         { headers: { 'Content-Type': 'application/octet-stream' } },
       )
       const voucher = response.data as {
