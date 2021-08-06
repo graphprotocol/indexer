@@ -50,7 +50,7 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 | Environment Variable                        | CLI Argument                    | Value                                                   |
 | ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
 | `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `1`                                                     |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`                                               |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                  |
@@ -72,7 +72,7 @@ option can be used.
 | Environment Variable                          | CLI Argument                    | Value                                            |
 | --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
 | `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `1`                                              |
+| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`                                        |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer              |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator           |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `Qmf5XXWA8zhHbdvWqtPcR3jFkmb5FLR4MAefEYx8E3pHfr` |
@@ -169,7 +169,7 @@ testnet (for now) are all mainnet subgraphs. This means:
 | Environment Variable                        | CLI Argument                    | Value                                                   |
 | ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
 | `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum rinkeby node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `4` (rinkeby)                                           |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `rinkeby`                                               |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                  |
@@ -191,7 +191,7 @@ option can be used.
 | Environment Variable                          | CLI Argument                    | Value                                            |
 | --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
 | `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum rinkeby node/provider                |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `4` (rinkeby)                                    |
+| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `rinkeby`                                        |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer              |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator           |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmYnGeUXVNZd3MupWqPwZekCriF2CVkpoXZbuSZB9t7eQS` |
