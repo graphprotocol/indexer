@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Common library for Graph Protocol indexer components",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,14 +10,13 @@
   "scripts": {
     "format": "./node_modules/.bin/prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "./node_modules/.bin/eslint . --ext .ts,.tsx",
-    "prepare": "yarn format && yarn lint && ./node_modules/.bin/tsc",
+    "compile": "./node_modules/.bin/tsc",
+    "prepare": "yarn format && yarn lint && yarn compile",
     "test": "jest --runInBand --detectOpenHandles --passWithNoTests --verbose",
     "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose"
   },
   "dependencies": {
-    "@connext/vector-types": "0.2.1",
-    "@connext/vector-utils": "0.2.1",
-    "@graphprotocol/common-ts": "1.5.1",
+    "@graphprotocol/common-ts": "1.7.0",
     "@graphprotocol/cost-model": "0.1.5",
     "@thi.ng/heaps": "1.2.38",
     "@types/cors": "2.8.8",
@@ -33,7 +32,7 @@
     "body-parser": "1.19.0",
     "cors": "2.8.5",
     "eslint": "7.12.1",
-    "ethers": "5.1.0",
+    "ethers": "5.4.4",
     "evt": "1.9.12",
     "express": "4.17.1",
     "fastify": "3.13.0",
@@ -65,7 +64,8 @@
     "typescript": "4.0.5"
   },
   "resolutions": {
-    "ethers": "5.1.0",
+    "ethers": "5.4.4",
+    "@ethersproject/bignumber": "5.4.1",
     "@urql/exchange-execute/@urql/core": "1.13.1",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
