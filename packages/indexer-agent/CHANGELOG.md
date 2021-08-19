@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update Ethers dependencies
 
+### Added
+- Support type 0x2 transactions
+
 ## [0.17.0] - 2021-07-21
 ### Added
 - Reallocate to subgraph deployment in one transaction using closeAndAllocate.

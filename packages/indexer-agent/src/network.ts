@@ -56,6 +56,12 @@ const allocationIdProof = (
   return signer.signMessage(messageHashBytes)
 }
 
+interface TransactionConfig extends providers.TransactionRequest {
+  attempt: number
+  nonceOffset: number
+  gasBump: number
+}
+
 export class Network {
   networkSubgraph: NetworkSubgraph
   contracts: NetworkContracts
@@ -143,13 +149,15 @@ export class Network {
     let tx = await txPromise
     let txRequest: providers.TransactionRequest | undefined = undefined
 
-    let txConfig: Record<string, number> = {
+    let txConfig: TransactionConfig = {
       attempt: 1,
       nonceOffset: 0,
       gasBump: this.gasIncreaseFactor,
       nonce: tx.nonce,
-      gasPrice: tx.gasPrice.toNumber(),
-      gasLimit: tx.gasLimit.toNumber(),
+      maxFeePerGas: tx.maxFeePerGas,
+      maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
+      gasPrice: tx.gasPrice,
+      gasLimit: tx.gasLimit,
     }
 
     logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
@@ -178,8 +186,10 @@ export class Network {
             chainId: tx.chainId,
             from: tx.from,
             nonce: txConfig.nonce,
-            gasPrice: Math.ceil(txConfig.gasPrice),
-            gasLimit: Math.ceil(txConfig.gasLimit),
+            gasPrice: txConfig.gasPrice,
+            maxPriorityFeePerGas: txConfig.maxPriorityFeePerGas,
+            maxFeePerGas: txConfig.maxFeePerGas,
+            gasLimit: txConfig.gasLimit,
           }
           tx = await this.wallet.sendTransaction(txRequest)
         }
@@ -242,17 +252,19 @@ export class Network {
 
   async updateTransactionConfig(
     logger: Logger,
-    txConfig: Record<string, number>,
+    txConfig: TransactionConfig,
     error: Error | IndexerError,
-  ): Promise<Record<string, number>> {
+  ): Promise<TransactionConfig> {
     logger.warning('Failed to send transaction, retrying', {
       txConfig,
       error: error.message,
     })
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
-        txConfig.gasLimit = txConfig.gasLimit * txConfig.gasBump
-        txConfig.nonce += 1
+        txConfig.gasLimit = BigNumber.from(txConfig.gasLimit).mul(
+          txConfig.gasBump,
+        )
+        txConfig.nonce = BigNumber.from(txConfig.nonce).add(1)
       } else if (error.code == IndexerErrorCode.IE051) {
         throw error
       }
@@ -273,56 +285,88 @@ export class Network {
           'Transaction nonce is too low. Try incrementing the nonce.',
         )
       ) {
-        txConfig.nonce += 1
+        txConfig.nonce = BigNumber.from(txConfig.nonce).add(1)
       } else if (
         error.message.includes('Try increasing the fee') ||
         error.message.includes('gas price supplied is too low') ||
         error.message?.includes('timeout exceeded')
       ) {
-        if (txConfig.gasPrice >= this.gasPriceMax) {
-          txConfig.gasPrice = await this.waitForGasPricesBelowThreshold(logger)
-        } else {
-          txConfig.gasPrice = Math.min(
-            this.gasPriceMax,
-            txConfig.gasPrice * txConfig.gasBump,
-          )
-        }
+        const currentFeeData = await this.waitForGasPricesBelowThreshold(logger)
+        txConfig.maxFeePerGas = currentFeeData.maxFeePerGas ?? undefined
+        txConfig.maxPriorityFeePerGas =
+          currentFeeData.maxPriorityFeePerGas ?? undefined
+        txConfig.gasPrice = currentFeeData.gasPrice ?? undefined
       }
     }
     txConfig.attempt += 1
     return txConfig
   }
 
-  async waitForGasPricesBelowThreshold(logger: Logger): Promise<number> {
+  async waitForGasPricesBelowThreshold(
+    logger: Logger,
+  ): Promise<providers.FeeData> {
     let attempt = 1
     let aboveThreshold = true
-    let currentGasPriceEstimate = this.gasPriceMax
+    let feeData = {
+      gasPrice: BigNumber.from(this.gasPriceMax),
+      maxFeePerGas: null,
+      maxPriorityFeePerGas: null,
+    } as providers.FeeData
 
     while (aboveThreshold) {
-      currentGasPriceEstimate = Math.ceil(
-        (await this.ethereum.getGasPrice()).toNumber(),
-      )
-
-      if (currentGasPriceEstimate >= this.gasPriceMax) {
-        if (attempt == 1) {
-          logger.warning(
-            `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
-            { gasPriceMax: this.gasPriceMax, currentGasPriceEstimate },
-          )
+      feeData = await this.ethereum.getFeeData()
+      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+        // Type 0x02 transaction
+        const baseFeePerGas = feeData.maxFeePerGas
+          .sub(feeData.maxPriorityFeePerGas)
+          .div(2)
+        if (baseFeePerGas.toNumber() >= this.gasPriceMax) {
+          if (attempt == 1) {
+            logger.warning(
+              `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
+              { maxBaseFeePerGas: this.gasPriceMax, baseFeePerGas },
+            )
+          } else {
+            logger.info(
+              `Base gas fee per gas estimation still above max threshold`,
+              {
+                maxBaseFeePerGas: this.gasPriceMax,
+                baseFeePerGas,
+                priceEstimateAttempt: attempt,
+              },
+            )
+          }
+          await delay(30000)
+          attempt++
         } else {
-          logger.info(`Gas price estimation still above max threshold`, {
-            gasPriceMax: this.gasPriceMax,
-            currentGasPriceEstimate,
-            priceEstimateAttempt: attempt,
-          })
+          aboveThreshold = false
         }
-        await delay(30000)
-        attempt++
-      } else {
-        aboveThreshold = false
+      } else if (feeData.gasPrice) {
+        // Legacy transaction type
+        if (feeData.gasPrice.toNumber() >= this.gasPriceMax) {
+          if (attempt == 1) {
+            logger.warning(
+              `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
+              {
+                gasPriceMax: this.gasPriceMax,
+                currentGasPriceEstimate: feeData.gasPrice,
+              },
+            )
+          } else {
+            logger.info(`Gas price estimation still above max threshold`, {
+              gasPriceMax: this.gasPriceMax,
+              currentGasPriceEstimate: feeData.gasPrice,
+              priceEstimateAttempt: attempt,
+            })
+          }
+          await delay(30000)
+          attempt++
+        } else {
+          aboveThreshold = false
+        }
       }
     }
-    return currentGasPriceEstimate
+    return feeData
   }
 
   static async create(
