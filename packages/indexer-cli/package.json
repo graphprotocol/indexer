@@ -9,18 +9,19 @@
   "scripts": {
     "format": "prettier --write src/*.ts src/**/*.ts src/**/**/*.ts",
     "lint": "eslint . --ext .ts,.tsx",
-    "prepare": "rm -rf dist && yarn format && yarn lint && tsc",
+    "compile": "./node_modules/.bin/tsc",
+    "prepare": "rm -rf dist && yarn format && yarn lint && yarn compile",
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.5.1",
-    "@graphprotocol/indexer-common": "^0.17.0",
+    "@graphprotocol/common-ts": "1.7.0",
+    "@graphprotocol/indexer-common": "0.18.0",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.40",
     "@urql/core": "1.13.1",
     "chalk": "4.1.0",
     "env-paths": "2.2.0",
-    "ethers": "5.1.0",
+    "ethers": "5.4.4",
     "gluegun": "4.5.0",
     "graphql-tag": "2.11.0",
     "isomorphic-fetch": "3.0.0",
@@ -36,7 +37,7 @@
     "typescript": "4.0.5"
   },
   "resolutions": {
-    "ethers": "5.1.0",
+    "ethers": "5.4.4",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "gitHead": "c2b8b34c86248c30c80978ecd5ae175601a18588"
