@@ -116,7 +116,7 @@ const SCHEMA_SDL = gql`
   }
 
   type IndexingError {
-    handler: String!
+    handler: String
     message: String!
   }
 
