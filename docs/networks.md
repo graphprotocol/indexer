@@ -58,7 +58,7 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.thegraph.com/network`                  |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)     |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts` |
-| `INDEXER_AGENT_GAS_COST_MAX`                | `--gas-cost-max`                | `50`                                                    |
+| `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`                | `50`                                                    |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
