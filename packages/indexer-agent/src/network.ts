@@ -155,7 +155,10 @@ export class Network {
     logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
 
     while (pending) {
-      if (txConfig.attempt >= this.maxTransactionAttempts) {
+      if (
+        this.maxTransactionAttempts !== 0 &&
+        txConfig.attempt > this.maxTransactionAttempts
+      ) {
         logger.warn('Transaction retry limit reached, giving up', {
           txConfig,
         })
