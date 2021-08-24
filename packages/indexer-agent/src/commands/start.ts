@@ -83,9 +83,10 @@ export default {
         coerce: arg => arg * 10 ** 9,
       })
       .option('transaction-attempts', {
-        description: 'The maximum number of transaction attempts',
+        description:
+          'The maximum number of transaction attempts (Use 0 for unlimited)',
         type: 'number',
-        default: 2,
+        default: 0,
         group: 'Ethereum',
       })
       .option('mnemonic', {
