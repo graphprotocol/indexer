@@ -114,10 +114,9 @@ to be reported. Make sure that
 - Indexer agent can connect and deploy to the graph/index node or nodes fine.
 - The indexer has sufficient ETH.
 - The indexer has sufficient free stake to create new allocations. If this is
-  the case, reduce the allocation amount and/or parallel allocations on some
-  of the deployments in the indexing rules and wait until some of the existing
-  allocations have been closed and have released the allocated GRT again. In
-  this case, the situation should resolve automatically.
+  the case, reduce the allocation amount until some of the existing 
+  allocations have been closed and have released the allocated GRT again. 
+  In this case, the situation should resolve automatically.
 
 ## IE006
 
@@ -230,10 +229,10 @@ for creating new allocations
 **Solution**
 
 The indexer has sufficient free stake to create new allocations. If this is
-the case, reduce the allocation amount and/or parallel allocations on some of
-the deployments in the indexing rules and wait until some of the existing
-allocations have been closed and have released the allocated GRT again. In
-this case, the situation should resolve automatically.
+the case, reduce the allocation amount on some of the deployments in the 
+indexing rules and wait until some of the existing allocations have been 
+closed and have released the allocated GRT again. In this case, the 
+situation should resolve automatically.
 
 ## IE014
 

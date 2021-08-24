@@ -74,6 +74,10 @@ module.exports = {
       deployment,
     })
 
+    if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
+      throw Error ('Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules')
+    }
+
     // Update the indexing rule according to the key/value pairs
     try {
       const client = await createIndexerManagementClient({ url: config.api })

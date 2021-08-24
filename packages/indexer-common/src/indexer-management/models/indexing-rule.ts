@@ -140,6 +140,13 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         validate: {
           min: 0,
           max: 20,
+          emitDeprecationWarning: (value: number) => {
+            if (value > 1) {
+              throw new Error(
+                'Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules',
+              )
+            }
+          },
         },
       },
       maxAllocationPercentage: {

@@ -120,6 +120,7 @@ export default {
     if (result.error) {
       throw new Error(`Falied to query allocations: ${result.error}`)
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return result.data.indexer.allocations.map((allocation: any) => ({
       ...allocation,
       subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
