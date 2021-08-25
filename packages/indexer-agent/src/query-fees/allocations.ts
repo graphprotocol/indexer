@@ -302,7 +302,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     if (BigNumber.from(voucher.amount).lt(this.allocationClaimThreshold)) {
       if (
-        voucher.createdAt.valueOf() / 1000 + this.voucherExpiration * 3600 >=
+        voucher.createdAt.valueOf() / 1000 + this.voucherExpiration * 3600 <=
         Date.now() / 1000
       ) {
         logger.info(
