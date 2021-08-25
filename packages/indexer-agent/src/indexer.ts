@@ -126,7 +126,7 @@ export class Indexer {
 
       return result.data.indexingStatuses
         .filter((status: { subgraphDeployment: string; node: string }) => {
-          return status.node !== 'removed'
+          return status.node && status.node !== 'removed'
         })
         .map((status: { subgraphDeployment: string; node: string }) => {
           return new SubgraphDeploymentID(status.subgraphDeployment)
