@@ -10,10 +10,10 @@ export interface POIDisputeAttributes {
   allocationAmount: string
   allocationProof: string
   closedEpoch: number
-  closedEpochReferenceProof: string
+  closedEpochReferenceProof: string | null
   closedEpochStartBlockHash: string
   closedEpochStartBlockNumber: number
-  previousEpochReferenceProof: string
+  previousEpochReferenceProof: string | null
   previousEpochStartBlockHash: string
   previousEpochStartBlockNumber: number
   status: string
@@ -46,10 +46,10 @@ export class POIDispute
   public allocationAmount!: string
   public allocationProof!: string
   public closedEpoch!: number
-  public closedEpochReferenceProof!: string
+  public closedEpochReferenceProof!: string | null
   public closedEpochStartBlockHash!: string
   public closedEpochStartBlockNumber!: number
-  public previousEpochReferenceProof!: string
+  public previousEpochReferenceProof!: string | null
   public previousEpochStartBlockHash!: string
   public previousEpochStartBlockNumber!: number
   public status!: string
@@ -74,6 +74,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
         type: DataTypes.STRING,
         allowNull: false,
         primaryKey: true,
+        unique: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isHex: (value: any) => {
@@ -156,7 +157,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
       },
       closedEpochReferenceProof: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isHex: (value: any) => {
@@ -198,7 +199,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
       },
       previousEpochReferenceProof: {
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isHex: (value: any) => {

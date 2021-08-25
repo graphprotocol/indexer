@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import {
   formatGRT,
   join,
@@ -353,19 +354,16 @@ class Agent {
         .filter(pool => pool.closedAtEpochStartBlockHash)
         .map(async pool => {
           const closedAtEpochStartBlock = await this.network.ethereum.getBlock(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             pool.closedAtEpochStartBlockHash!,
           )
 
           // Todo: Lazily fetch this, only if the first reference POI doesn't match
           const previousEpochStartBlock = await this.network.ethereum.getBlock(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             pool.previousEpochStartBlockHash!,
           )
           pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
           pool.referencePOI = await this.indexer.proofOfIndexing(
             pool.subgraphDeployment,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             {
               number: closedAtEpochStartBlock.number,
               hash: closedAtEpochStartBlock.hash,
@@ -376,7 +374,6 @@ class Agent {
           pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
           pool.referencePreviousPOI = await this.indexer.proofOfIndexing(
             pool.subgraphDeployment,
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             {
               number: previousEpochStartBlock.number,
               hash: previousEpochStartBlock.hash,
@@ -394,35 +391,42 @@ class Agent {
             pool.subgraphDeployment == allocation.subgraphDeployment.id &&
             pool.closedAtEpoch == allocation.closedAtEpoch,
         )
+        if (!rewardsPool) {
+          throw Error(
+            `No rewards pool found for deployment ${allocation.subgraphDeployment.id}`,
+          )
+        }
+
+        let status =
+          rewardsPool!.referencePOI == allocation.poi ||
+          rewardsPool!.referencePreviousPOI == allocation.poi
+            ? 'valid'
+            : 'potential'
+
+        if (
+          status === 'potential' &&
+          (!rewardsPool.referencePOI || !rewardsPool.referencePreviousPOI)
+        ) {
+          status = 'reference_unavailable'
+        }
 
         return {
           allocationID: allocation.id,
           subgraphDeploymentID: allocation.subgraphDeployment.id.ipfsHash,
           allocationIndexer: allocation.indexer,
           allocationAmount: allocation.allocatedTokens.toString(),
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           allocationProof: allocation.poi!,
           closedEpoch: allocation.closedAtEpoch,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          closedEpochReferenceProof: rewardsPool!.referencePOI!,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          closedEpochReferenceProof: rewardsPool!.referencePOI,
           closedEpochStartBlockHash: allocation.closedAtEpochStartBlockHash!,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           closedEpochStartBlockNumber: rewardsPool!
             .closedAtEpochStartBlockNumber!,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          previousEpochReferenceProof: rewardsPool!.referencePreviousPOI!,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          previousEpochReferenceProof: rewardsPool!.referencePreviousPOI,
           previousEpochStartBlockHash: rewardsPool!
             .previousEpochStartBlockHash!,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           previousEpochStartBlockNumber: rewardsPool!
             .previousEpochStartBlockNumber!,
-          status:
-            rewardsPool?.referencePOI !== allocation.poi &&
-            rewardsPool?.referencePreviousPOI !== allocation.poi
-              ? 'potential'
-              : 'valid',
+          status,
         } as POIDisputeAttributes
       },
     )

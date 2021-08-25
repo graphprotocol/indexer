@@ -42,7 +42,11 @@ export default {
     const createdDisputes = await models.POIDispute.bulkCreate(disputes, {
       returning: true,
       validate: true,
-      ignoreDuplicates: true,
+      updateOnDuplicate: [
+        'closedEpochReferenceProof',
+        'previousEpochReferenceProof',
+        'status',
+      ],
     })
     return createdDisputes.map((dispute: POIDispute) => dispute.toGraphQL())
   },
