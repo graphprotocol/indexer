@@ -79,7 +79,7 @@ export class Network {
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
   gasIncreaseFactor: number
-  gasPriceMax: number
+  baseFeePerGasMax: number
   maxTransactionAttempts: number
 
   private constructor(
@@ -99,7 +99,7 @@ export class Network {
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
     gasIncreaseFactor: number,
-    gasPriceMax: number,
+    baseFeePerGasMax: number,
     maxTransactionAttempts: number,
   ) {
     this.logger = logger
@@ -118,7 +118,7 @@ export class Network {
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
     this.gasIncreaseFactor = gasIncreaseFactor
-    this.gasPriceMax = gasPriceMax
+    this.baseFeePerGasMax = baseFeePerGasMax
     this.maxTransactionAttempts = maxTransactionAttempts
   }
 
@@ -308,7 +308,7 @@ export class Network {
     let attempt = 1
     let aboveThreshold = true
     let feeData = {
-      gasPrice: BigNumber.from(this.gasPriceMax),
+      gasPrice: BigNumber.from(this.baseFeePerGasMax),
       maxFeePerGas: null,
       maxPriorityFeePerGas: null,
     } as providers.FeeData
@@ -320,17 +320,17 @@ export class Network {
         const baseFeePerGas = feeData.maxFeePerGas
           .sub(feeData.maxPriorityFeePerGas)
           .div(2)
-        if (baseFeePerGas.toNumber() >= this.gasPriceMax) {
+        if (baseFeePerGas.toNumber() >= this.baseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
-              { maxBaseFeePerGas: this.gasPriceMax, baseFeePerGas },
+              { maxBaseFeePerGas: this.baseFeePerGasMax, baseFeePerGas },
             )
           } else {
             logger.info(
               `Base gas fee per gas estimation still above max threshold`,
               {
-                maxBaseFeePerGas: this.gasPriceMax,
+                maxBaseFeePerGas: this.baseFeePerGasMax,
                 baseFeePerGas,
                 priceEstimateAttempt: attempt,
               },
@@ -343,18 +343,18 @@ export class Network {
         }
       } else if (feeData.gasPrice) {
         // Legacy transaction type
-        if (feeData.gasPrice.toNumber() >= this.gasPriceMax) {
+        if (feeData.gasPrice.toNumber() >= this.baseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
               {
-                gasPriceMax: this.gasPriceMax,
+                baseFeePerGasMax: this.baseFeePerGasMax,
                 currentGasPriceEstimate: feeData.gasPrice,
               },
             )
           } else {
             logger.info(`Gas price estimation still above max threshold`, {
-              gasPriceMax: this.gasPriceMax,
+              baseFeePerGasMax: this.baseFeePerGasMax,
               currentGasPriceEstimate: feeData.gasPrice,
               priceEstimateAttempt: attempt,
             })
@@ -384,7 +384,7 @@ export class Network {
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
     gasIncreaseFactor: number,
-    gasPriceMax: number,
+    baseFeePerGasMax: number,
     maxTransactionAttempts: number,
   ): Promise<Network> {
     const logger = parentLogger.child({
@@ -422,7 +422,7 @@ export class Network {
       poiDisputableEpochs,
       gasIncreaseTimeout,
       gasIncreaseFactor,
-      gasPriceMax,
+      baseFeePerGasMax,
       maxTransactionAttempts,
     )
   }

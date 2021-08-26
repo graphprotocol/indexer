@@ -78,7 +78,16 @@ export default {
       .option('gas-price-max', {
         description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
-        default: 50,
+        default: 100,
+        deprecated: true,
+        group: 'Ethereum',
+        coerce: arg => arg * 10 ** 9,
+      })
+      .option('base-fee-per-gas-max', {
+        description:
+          'The maximum base fee per gas (gwei) to use for transactions, for legacy transactions this will be treated as the max gas price',
+        type: 'number',
+        required: false,
         group: 'Ethereum',
         coerce: arg => arg * 10 ** 9,
       })
@@ -649,6 +658,7 @@ export default {
         networkSubgraphDeployment,
       )
     }
+    const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
       logger,
       ethereum,
@@ -664,7 +674,7 @@ export default {
       argv.poiDisputableEpochs,
       argv.gasIncreaseTimeout,
       argv.gasIncreaseFactor,
-      argv.gasPriceMax,
+      maxGasFee,
       argv.transactionAttempts,
     )
     logger.info('Successfully connected to network', {
