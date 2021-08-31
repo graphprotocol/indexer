@@ -10,7 +10,7 @@ For mainnet:
 | indexer-agent   | [0.17.0](https://github.com/graphprotocol/indexer/releases/tag/v0.17.0)    |
 | indexer-cli     | [0.17.0](https://github.com/graphprotocol/indexer/releases/tag/v0.17.0)    |
 | indexer-service | [0.17.0](https://github.com/graphprotocol/indexer/releases/tag/v0.17.0)    |
-| graph-node      | [0.23.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.23.1) |
+| graph-node      | [0.24.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.24.0) |
 
 For testnet:
 
@@ -20,7 +20,7 @@ For testnet:
 | indexer-agent   | [0.16.0](https://github.com/graphprotocol/indexer/releases/tag/v0.16.0)    |
 | indexer-cli     | [0.16.0](https://github.com/graphprotocol/indexer/releases/tag/v0.16.0)    |
 | indexer-service | [0.16.0](https://github.com/graphprotocol/indexer/releases/tag/v0.16.0)    |
-| graph-node      | [0.23.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.23.1) |
+| graph-node      | [0.24.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.24.0) |
 
 ## Mainnet (https://network.thegraph.com)
 
