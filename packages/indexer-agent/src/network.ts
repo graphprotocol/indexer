@@ -706,10 +706,15 @@ export class Network {
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
+    const logger = this.logger.child({ component: 'PoI Monitor' })
     if (!this.poiDisputeMonitoring) {
-      this.logger.info('POI monitoring disabled, skipping')
+      logger.debug('PoI monitoring disabled, skipping')
       return Promise.resolve([])
     }
+
+    logger.debug(
+      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference PoIs',
+    )
 
     let dataRemaining = true
     let allocations: Allocation[] = []
@@ -821,7 +826,7 @@ export class Network {
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE037, error)
-      this.logger.error(INDEXER_ERROR_MESSAGES.IE037, {
+      logger.error(INDEXER_ERROR_MESSAGES.IE037, {
         err,
       })
       throw err

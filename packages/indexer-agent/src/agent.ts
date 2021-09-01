@@ -270,6 +270,18 @@ class Agent {
         }
 
         try {
+          const disputableEpoch =
+            currentEpoch.toNumber() - this.network.poiDisputableEpochs
+          // Find disputable allocations
+          await this.identifyPotentialDisputes(
+            disputableAllocations,
+            disputableEpoch,
+          )
+        } catch (err) {
+          this.logger.warn(`Failed PoI dispute monitoring`, { err })
+        }
+
+        try {
           await this.reconcileDeployments(
             activeDeployments,
             targetDeployments,
@@ -284,14 +296,6 @@ class Agent {
             currentEpoch.toNumber(),
             currentEpochStartBlock,
             maxAllocationEpochs,
-          )
-
-          const disputableEpoch =
-            currentEpoch.toNumber() - this.network.poiDisputableEpochs
-          // Find disputable allocations
-          await this.identifyPotentialDisputes(
-            disputableAllocations,
-            disputableEpoch,
           )
         } catch (err) {
           this.logger.warn(`Failed to reconcile indexer and network`, {
@@ -342,6 +346,10 @@ class Agent {
       )
       return
     }
+
+    this.logger.debug(
+      `Found new allocations onchain for subgraphs we have indexed. Let's compare PoIs to identify any potential indexing disputes`,
+    )
 
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
       [
@@ -436,7 +444,7 @@ class Agent {
     ).length
     const stored = await this.indexer.storePoiDisputes(disputes)
 
-    this.logger.info(`Disputable allocations' POIs validated`, {
+    this.logger.info(`Disputable allocations' PoIs validated`, {
       potentialDisputes: potentialDisputes,
       validAllocations: stored.length - potentialDisputes,
     })
