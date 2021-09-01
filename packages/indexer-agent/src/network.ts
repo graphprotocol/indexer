@@ -317,6 +317,8 @@ export class Network {
       feeData = await this.ethereum.getFeeData()
       if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
         // Type 0x02 transaction
+        // This baseFeePerGas calculation is based off how maxFeePerGas is calculated in getFeeData()
+        // https://github.com/ethers-io/ethers.js/blob/68229ac0aff790b083717dc73cd84f38d32a3926/packages/abstract-provider/src.ts/index.ts#L247
         const baseFeePerGas = feeData.maxFeePerGas
           .sub(feeData.maxPriorityFeePerGas)
           .div(2)
