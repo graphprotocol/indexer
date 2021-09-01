@@ -162,6 +162,7 @@ export class Network {
         logger.warn('Transaction retry limit reached, giving up', {
           txConfig,
         })
+        await delay(30000)
         break
       }
 
