@@ -175,7 +175,7 @@ export class Indexer {
           if (result.error) {
             throw result.error
           }
-          this.logger.trace('Reference POI generated', {
+          this.logger.trace('Reference PoI generated', {
             indexer: this.indexerAddress,
             subgraph: deployment.ipfsHash,
             block: block,
@@ -351,7 +351,7 @@ export class Indexer {
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE039, error)
-      this.logger.error('Failed to store potential POI disputes', {
+      this.logger.error('Failed to store potential PoI disputes', {
         err,
       })
       throw err
