@@ -256,7 +256,9 @@ module.exports = {
                 deployment: deployment.subgraphDeployment,
                 synced: deployment.synced,
                 health: deployment.health,
-                fatalError: deployment.fatalError ? deployment.fatalError.message : '-',
+                fatalError: deployment.fatalError
+                  ? JSON.stringify(deployment.fatalError.message)
+                  : '-',
                 node: deployment.node,
                 network: chain.network,
                 latestBlockNumber: chain.latestBlock.number,
