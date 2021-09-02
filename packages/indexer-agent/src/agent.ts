@@ -654,22 +654,48 @@ class Agent {
       return
     }
 
-    // If there are no allocations at all yet, create as many as
-    // is desired and return early
+    // If there are no allocations at all yet, create a new allocation
     if (activeAllocations.length === 0) {
       logger.info(`No active allocations for deployment, creating some now`, {
         desiredNumberOfAllocations,
         allocationAmount: formatGRT(allocationAmount),
       })
-      const allocationsCreated = await this.network.allocateMultiple(
+      const allocationsCreated = await this.network.allocate(
         deployment,
         allocationAmount,
         activeAllocations,
-        desiredNumberOfAllocations,
       )
-      await this.receiptCollector.rememberAllocations(allocationsCreated)
-
+      if (allocationsCreated) {
+        await this.receiptCollector.rememberAllocations([allocationsCreated])
+      }
       return
+    }
+
+    // Remove any parallel allocations (deprecated)
+    const allocationsToRemove =
+      activeAllocations.length - desiredNumberOfAllocations
+    if (allocationsToRemove > 0) {
+      logger.info(
+        `Close allocations to maintain desired number of allocations`,
+        {
+          desiredNumberOfAllocations,
+          activeAllocations: activeAllocations.length,
+          allocationsToRemove: allocationsToRemove,
+          allocationAmount: formatGRT(allocationAmount),
+        },
+      )
+      await pMap(
+        // We can only close allocations that are at least one epoch old; try the others again later
+        // Close the oldest allocations first
+        activeAllocations
+          .filter(allocation => allocation.createdAtEpoch < epoch)
+          .sort((a, b) => a.createdAtEpoch - b.closedAtEpoch)
+          .splice(0, allocationsToRemove),
+        async allocation => {
+          await this.closeAllocation(epochStartBlock, allocation)
+        },
+        { concurrency: 1 },
+      )
     }
 
     const lifetime = Math.max(1, maxAllocationEpochs - 1)
@@ -728,33 +754,6 @@ class Agent {
           }
         }
       }
-    }
-
-    // We're now left with all still active allocations; however, these
-    // may be fewer than the desired parallel allocations; create the
-    // ones we're still missing
-    const allocationsToCreate =
-      desiredNumberOfAllocations - activeAllocations.length
-    if (allocationsToCreate > 0) {
-      logger.info(
-        `Create allocations to maintain desired parallel allocations`,
-        {
-          desiredNumberOfAllocations,
-          activeAllocations: activeAllocations.length,
-          allocationsToCreate:
-            desiredNumberOfAllocations - activeAllocations.length,
-          allocationAmount: formatGRT(allocationAmount),
-        },
-      )
-
-      const allocationsCreated = await this.network.allocateMultiple(
-        deployment,
-        allocationAmount,
-        activeAllocations,
-        allocationsToCreate,
-      )
-
-      await this.receiptCollector.rememberAllocations(allocationsCreated)
     }
   }
 
