@@ -12,8 +12,8 @@ import {
 
 import {
   createIndexerManagementClient,
+  IndexerManagementClient,
   IndexerManagementDefaults,
-  IndexerManagementFeatures,
 } from '../client'
 import {
   defineIndexerManagementModels,
@@ -21,6 +21,7 @@ import {
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../models'
+import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,16 +98,15 @@ let models: IndexerManagementModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
+let indexingStatusResolver: IndexingStatusResolver
+let networkSubgraph: NetworkSubgraph
+let client: IndexerManagementClient
 
 const defaults: IndexerManagementDefaults = {
   globalIndexingRule: {
     allocationAmount: parseGRT('100'),
-    parallelAllocations: 2,
+    parallelAllocations: 1,
   },
-}
-
-const features: IndexerManagementFeatures = {
-  injectDai: false,
 }
 
 describe('Indexing rules', () => {
@@ -118,6 +118,27 @@ describe('Indexing rules', () => {
     contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
     await sequelize.sync({ force: true })
     logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+    indexingStatusResolver = new IndexingStatusResolver({
+      logger: logger,
+      statusEndpoint: 'http://localhost:8030/graphql',
+    })
+    networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      endpoint: 'https://gateway.testnet.thegraph.com/network',
+      deployment: undefined,
+    })
+    client = await createIndexerManagementClient({
+      models,
+      address,
+      contracts,
+      indexingStatusResolver,
+      networkSubgraph,
+      logger,
+      defaults,
+      features: {
+        injectDai: true,
+      },
+    })
   })
 
   afterEach(async () => {
@@ -142,15 +163,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     // Update the rule and ensure the right data is returned
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
@@ -168,7 +180,7 @@ describe('Indexing rules', () => {
     const input = {
       deployment: INDEXING_RULE_GLOBAL,
       allocationAmount: '1',
-      parallelAllocations: 5,
+      parallelAllocations: 1,
       maxAllocationPercentage: 0.5,
       minSignal: '2',
       maxSignal: '3',
@@ -181,15 +193,6 @@ describe('Indexing rules', () => {
     const expected = {
       ...input,
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     // Update the rule
     await expect(
@@ -222,16 +225,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
-    // Write the orginal
+    // Write the original
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
@@ -277,14 +271,6 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
 
     // Write the orginal
     await expect(
@@ -355,14 +341,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
-
     // Write the orginals
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise(),
@@ -416,14 +394,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
-
     // Write the rule
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
@@ -464,14 +434,6 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
 
     // Write the rule
     await expect(
@@ -550,14 +512,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
-
     // Write the orginals
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise(),
@@ -610,14 +564,6 @@ describe('Indexing rules', () => {
       minAverageQueryFees: '1',
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
-
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
 
     await expect(
@@ -660,14 +606,6 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      defaults,
-      features,
-    })
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
     await client
