@@ -39,9 +39,7 @@ import {
 import { strict as assert } from 'assert'
 import gql from 'graphql-tag'
 import geohash from 'ngeohash'
-import pReduce from 'p-reduce'
 import delay from 'delay'
-import * as ti from '@thi.ng/iterators'
 
 const allocationIdProof = (
   signer: Signer,
@@ -947,30 +945,7 @@ export class Network {
     }
   }
 
-  async allocateMultiple(
-    deployment: SubgraphDeploymentID,
-    amount: BigNumber,
-    activeAllocations: Allocation[],
-    numAllocations: number,
-  ): Promise<Allocation[]> {
-    return await pReduce(
-      ti.repeat(amount, numAllocations),
-      async (allocations, allocationAmount) => {
-        const newAllocation = await this.allocate(
-          deployment,
-          allocationAmount,
-          allocations,
-        )
-        if (newAllocation) {
-          allocations.push(newAllocation)
-        }
-        return allocations
-      },
-      activeAllocations,
-    )
-  }
-
-  private async allocate(
+  async allocate(
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
     activeAllocations: Allocation[],
