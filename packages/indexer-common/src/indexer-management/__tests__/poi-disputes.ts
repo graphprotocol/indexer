@@ -12,14 +12,15 @@ import {
 
 import {
   createIndexerManagementClient,
+  IndexerManagementClient,
   IndexerManagementDefaults,
-  IndexerManagementFeatures,
 } from '../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
   POIDisputeAttributes,
 } from '../models'
+import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -174,16 +175,15 @@ let models: IndexerManagementModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
+let indexingStatusResolver: IndexingStatusResolver
+let networkSubgraph: NetworkSubgraph
+let client: IndexerManagementClient
 
 const defaults = {
   globalIndexingRule: {
     allocationAmount: parseGRT('100'),
   },
 } as IndexerManagementDefaults
-
-const features: IndexerManagementFeatures = {
-  injectDai: true,
-}
 
 const setup = async () => {
   // Spin up db
@@ -193,6 +193,27 @@ const setup = async () => {
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
   logger = createLogger({ name: 'POI dispute tests', level: 'trace' })
+  indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint: 'http://localhost:8030/graphql',
+  })
+  networkSubgraph = await NetworkSubgraph.create({
+    logger,
+    endpoint: 'https://gateway.testnet.thegraph.com/network',
+    deployment: undefined,
+  })
+  client = await createIndexerManagementClient({
+    models,
+    address,
+    contracts,
+    indexingStatusResolver,
+    networkSubgraph,
+    logger,
+    defaults,
+    features: {
+      injectDai: true,
+    },
+  })
 }
 
 const teardown = async () => {
@@ -207,15 +228,6 @@ describe('POI disputes', () => {
     const disputes = TEST_DISPUTES_ARRAY
     const expected = toObjectArray(disputes)
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await expect(
       client
         .mutation(STORE_POI_DISPUTES_MUTATION, {
@@ -226,15 +238,6 @@ describe('POI disputes', () => {
   })
 
   test('Get non-existent dispute', async () => {
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await expect(
       client
         .query(GET_POI_DISPUTE_QUERY, {
@@ -246,15 +249,6 @@ describe('POI disputes', () => {
 
   test('Get one dispute at a time', async () => {
     const disputes = TEST_DISPUTES_ARRAY
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
@@ -270,15 +264,6 @@ describe('POI disputes', () => {
   test('Get all potential disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
     await expect(
@@ -291,15 +276,6 @@ describe('POI disputes', () => {
   test('Get disputes with closed epoch greater than', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
     await expect(
@@ -311,15 +287,6 @@ describe('POI disputes', () => {
 
   test('Remove dispute from store', async () => {
     const disputes = TEST_DISPUTES_ARRAY
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
@@ -341,15 +308,6 @@ describe('POI disputes', () => {
 
   test('Remove multiple disputes from store', async () => {
     const disputes = [TEST_DISPUTE_1, TEST_DISPUTE_2, TEST_DISPUTE_3]
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 

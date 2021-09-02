@@ -12,12 +12,13 @@ import {
 
 import {
   createIndexerManagementClient,
+  IndexerManagementClient,
   IndexerManagementDefaults,
-  IndexerManagementFeatures,
 } from '../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
+import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,16 +59,15 @@ let models: IndexerManagementModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
+let indexingStatusResolver: IndexingStatusResolver
+let networkSubgraph: NetworkSubgraph
+let client: IndexerManagementClient
 
 const defaults: IndexerManagementDefaults = {
   globalIndexingRule: {
     allocationAmount: parseGRT('100'),
-    parallelAllocations: 2,
+    parallelAllocations: 1,
   },
-}
-
-const features: IndexerManagementFeatures = {
-  injectDai: true,
 }
 
 const setup = async () => {
@@ -78,6 +78,28 @@ const setup = async () => {
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
   logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+  indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint: 'http://localhost:8030/graphql',
+  })
+  networkSubgraph = await NetworkSubgraph.create({
+    logger,
+    endpoint: 'https://gateway.testnet.thegraph.com/network',
+    deployment: undefined,
+  })
+
+  client = await createIndexerManagementClient({
+    models,
+    address,
+    contracts,
+    indexingStatusResolver,
+    networkSubgraph,
+    logger,
+    defaults,
+    features: {
+      injectDai: true,
+    },
+  })
 }
 
 const teardown = async () => {
@@ -96,15 +118,6 @@ describe('Cost models', () => {
     }
 
     const expected = { ...input }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await expect(
       client
@@ -127,15 +140,6 @@ describe('Cost models', () => {
       variables: null,
     }
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await expect(
       client
         .mutation(SET_COST_MODEL_MUTATION, {
@@ -156,15 +160,6 @@ describe('Cost models', () => {
       model: null,
       variables: `{"baz":5,"foo":"bar"}`,
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await expect(
       client
@@ -224,14 +219,6 @@ describe('Cost models', () => {
         },
       },
     ]
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     for (const update of updates) {
       await expect(
@@ -245,15 +232,6 @@ describe('Cost models', () => {
   })
 
   test('Get non-existent model', async () => {
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     await expect(
       client
         .query(GET_COST_MODEL_QUERY, {
@@ -277,15 +255,6 @@ describe('Cost models', () => {
         variables: JSON.stringify({ n: 10 }),
       },
     ]
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     for (const input of inputs) {
       await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
@@ -312,15 +281,6 @@ describe('Cost models', () => {
       },
     ]
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     for (const input of inputs) {
       await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
     }
@@ -337,15 +297,6 @@ describe('Cost models', () => {
       model: 'query { votes } => 10 * $n',
       variables: JSON.stringify({ n: 100 }),
     }
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
 
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
 
@@ -368,15 +319,6 @@ describe('Feature: Inject $DAI variable', () => {
   afterEach(teardown)
 
   test('$DAI variable is preserved when clearing variables', async () => {
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
-
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: 'query { votes } => 10 * $n;',
@@ -402,14 +344,6 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features,
-    })
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -435,17 +369,6 @@ describe('Feature: Inject $DAI variable', () => {
         variables: JSON.stringify({ n: 10 }),
       },
     ]
-
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: true,
-      },
-    })
 
     for (const input of inputs) {
       await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
@@ -484,17 +407,6 @@ describe('Feature: Inject $DAI variable', () => {
       },
     ]
 
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: true,
-      },
-    })
-
     // This time, set the DAI value first
     await client.setDai('15.3')
 
@@ -526,16 +438,7 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ n: 5, DAI: '10.0' }),
     }
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: true,
-      },
-    })
+
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -563,6 +466,8 @@ describe('Feature: Inject $DAI variable', () => {
     const client = await createIndexerManagementClient({
       models,
       address,
+      indexingStatusResolver,
+      networkSubgraph,
       contracts,
       logger,
       defaults,
@@ -585,17 +490,6 @@ describe('Feature: Inject $DAI variable', () => {
 
 describe('Cost model validation', () => {
   test('Invalid cost models are rejected', async () => {
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: false,
-      },
-    })
-
     const costModel = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: 'default => 1.0', // semicolon missing
@@ -617,17 +511,6 @@ describe('Cost model validation', () => {
   })
 
   test('Invalid cost model variables are rejected', async () => {
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: false,
-      },
-    })
-
     const costModel = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: 'default => 1.0;',

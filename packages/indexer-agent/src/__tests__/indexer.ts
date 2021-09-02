@@ -12,6 +12,8 @@ import {
   defineIndexerManagementModels,
   IndexerManagementClient,
   IndexerManagementModels,
+  IndexingStatusResolver,
+  NetworkSubgraph,
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import { BigNumber, Wallet } from 'ethers'
@@ -123,15 +125,28 @@ const setup = async () => {
 
   wallet = Wallet.createRandom()
 
+  const indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint: 'http://localhost:8030/graphql',
+  })
+
+  const networkSubgraph = await NetworkSubgraph.create({
+    logger,
+    endpoint: 'https://gateway.testnet.thegraph.com/network',
+    deployment: undefined,
+  })
+
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
+    indexingStatusResolver,
+    networkSubgraph,
     logger,
     defaults: {
       globalIndexingRule: {
         allocationAmount: parseGRT('1000'),
-        parallelAllocations: 2,
+        parallelAllocations: 1,
       },
     },
     features: {
@@ -142,7 +157,7 @@ const setup = async () => {
   indexer = new Indexer(
     logger,
     'test',
-    'test',
+    indexingStatusResolver,
     indexerManagementClient,
     ['test'],
     parseGRT('1000'),
