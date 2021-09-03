@@ -255,10 +255,13 @@ export class Network {
     txConfig: TransactionConfig,
     error: Error | IndexerError,
   ): Promise<TransactionConfig> {
-    logger.warning('Failed to send transaction, retrying', {
-      txConfig,
-      error: error.message,
-    })
+    logger.warning(
+      'Failed to send transaction, evaluating retry possibilities',
+      {
+        txConfig,
+        error: error.message,
+      },
+    )
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
         txConfig.gasLimit = BigNumber.from(txConfig.gasLimit).mul(
@@ -275,11 +278,11 @@ export class Network {
         ) ||
         error.message.includes('nonce has already been used')
       ) {
-        txConfig.nonceOffset += 1
-        txConfig.nonce =
-          (await this.wallet.getTransactionCount('pending')) -
-          txConfig.nonceOffset +
-          1
+        // This case typically indicates a successful transaction being retried.
+        // Let's introduce a 30 second delay to ensure the previous transaction has
+        // a chance to be mined and return to the reconciliation loop so the agent can reevaluate.
+        delay(30000)
+        throw error
       } else if (
         error.message.includes(
           'Transaction nonce is too low. Try incrementing the nonce.',
@@ -342,6 +345,7 @@ export class Network {
           attempt++
         } else {
           aboveThreshold = false
+          feeData.gasPrice = null
         }
       } else if (feeData.gasPrice) {
         // Legacy transaction type
