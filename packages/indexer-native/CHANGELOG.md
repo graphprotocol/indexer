@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.18.0] - 2021-09-07
 ### Changed
 - Update Ethers dependencies
 
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add package for native attestation signing and receipt signature verification
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.14.0...v0.17.0
 [0.14.0]: https://github.com/graphprotocol/indexer/compare/v0.13.0...v0.14.0

@@ -21,7 +21,7 @@
   "dependencies": {
     "@graphprotocol/common-ts": "v1.7.0",
     "@graphprotocol/contracts": "v1.6.0",
-    "@graphprotocol/indexer-common": "0.18.0",
+    "@graphprotocol/indexer-common": "0.17.0",
     "@thi.ng/heaps": "^1.2.36",
     "@thi.ng/iterators": "5.1.40",
     "@uniswap/sdk": "3.0.3",
