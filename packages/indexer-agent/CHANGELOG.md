@@ -8,36 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.18.0] - 2021-09-07
 ### Added
-- Support type 0x2 transactions (EIP-1559).
-- Close all parallel allocations and only renew a single allocation per deployment.
-- Include an additional state for indexing dispute monitoring, references_unavailable, for the case where the indexer does not have a reference PoI available. Typically this case occurs when an indexer's deployment is not synced far enough.
+- Support type 0x2 transactions (EIP-1559)
+- Close all parallel allocations and only renew a single allocation per deployment
+- Include an additional state for indexing dispute monitoring, references_unavailable, for the case where the indexer does not have a reference PoI available. Typically this case occurs when an indexer's deployment is not synced far enough
 
 ### Changed
-- Update Ethers dependencies.
-- Simplify transaction retry logic on nonce collisions; agent now introduces a delay and returns to reconciliation step to re-evaluate.
-- Deprecate the parallel allocations feature.
+- Update Ethers dependencies
+- Simplify transaction retry logic on nonce collisions; agent now introduces a delay and returns to reconciliation step to re-evaluate
+- Deprecate the parallel allocations feature
 
 ### Fixed
-- Update max-transaction-attempts default to unlimited to avoid orphaned transactions.
-- Treat deployments assigned to node = null or undefined as removed, so they are filtered out of the activeDeployments array.
-- Fix delete query fee vouchers logic, so they are actually removed after the expiration time.
-- Update tests to use the latest version of the Indexer class constructor.
+- Update max-transaction-attempts default to unlimited to avoid orphaned transactions
+- Treat deployments assigned to node = null or undefined as removed, so they are filtered out of the activeDeployments array
+- Fix delete query fee vouchers logic, so they are actually removed after the expiration time
+- Update tests to use the latest version of the Indexer class constructor
 
 ## [0.17.0] - 2021-07-21
 ### Added
-- Reallocate to subgraph deployment in one transaction using closeAndAllocate.
-- Wait for gas prices below the `gas-price-max` (gwei) before proceeding with transaction execution.
+- Reallocate to subgraph deployment in one transaction using closeAndAllocate
+- Wait for gas prices below the `gas-price-max` (gwei) before proceeding with transaction execution
 
 ### Changed
-- Show subgraph query error reason in logs.
+- Show subgraph query error reason in logs
 - Use `ClusterIP` in the k8s indexer agent service rather than a `LoadBalalancer` since `LoadBalancer` services have been
-  shown to introduce extra latency.
-- Use undefined for auth user and password if none specified.
-- Update `gas-price-max` units to be gwei instead of wei for improved human readability.
-- Default `gas-price-max` changed from 20 gwei to 50 gwei.
+  shown to introduce extra latency
+- Use undefined for auth user and password if none specified
+- Update `gas-price-max` units to be gwei instead of wei for improved human readability
+- Default `gas-price-max` changed from 20 gwei to 50 gwei
 
 ### Fixed
-- Improve robustness of subgraph deployments query by querying batches of only 10 deployments at a time.
+- Improve robustness of subgraph deployments query by querying batches of only 10 deployments at a time
 
 ## [0.16.0] - 2021-06-09
 ### Changed

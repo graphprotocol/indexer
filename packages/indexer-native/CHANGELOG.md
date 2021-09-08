@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.17.0] - 2021-07-21
 ### Fixed
-- Fix build for Node v16 by upgrading neon-sys dependency.
+- Fix build for Node v16 by upgrading neon-sys dependency
 
 ## [0.14.0] - 2021-05-12
 ### Changed
