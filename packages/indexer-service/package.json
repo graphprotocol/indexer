@@ -26,8 +26,6 @@
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "dependencies": {
-    "@connext/vector-types": "0.2.1",
-    "@connext/vector-utils": "0.2.1",
     "@google-cloud/profiler": "4.1.1",
     "@graphprotocol/common-ts": "1.7.0",
     "@graphprotocol/indexer-common": "^0.18.0",
@@ -77,5 +75,5 @@
     "ts-jest": "26.4.3",
     "typescript": "4.0.5"
   },
-  "gitHead": "c2b8b34c86248c30c80978ecd5ae175601a18588"
+  "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }
