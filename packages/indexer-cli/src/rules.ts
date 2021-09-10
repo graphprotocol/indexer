@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { BigNumber } from 'ethers'
+import { BigNumber, utils } from 'ethers'
 import { pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
@@ -54,13 +54,13 @@ const INDEXING_RULE_FORMATTERS: Record<
 > = {
   id: nullPassThrough(x => x),
   deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
-  allocationAmount: nullPassThrough(formatGRT),
+  allocationAmount: nullPassThrough(x => utils.commify(formatGRT(x))),
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
-  minSignal: nullPassThrough(formatGRT),
-  maxSignal: nullPassThrough(formatGRT),
-  minStake: nullPassThrough(formatGRT),
+  minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
+  maxSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
+  minStake: nullPassThrough(x => utils.commify(formatGRT(x))),
   maxAllocationPercentage: nullPassThrough((x: number) => x.toPrecision(2)),
-  minAverageQueryFees: nullPassThrough(formatGRT),
+  minAverageQueryFees: nullPassThrough(x => utils.commify(formatGRT(x))),
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
 }
