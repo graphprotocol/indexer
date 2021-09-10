@@ -54,10 +54,14 @@ const allocationIdProof = (
   return signer.signMessage(messageHashBytes)
 }
 
+enum TransactionType {
+  ONE,
+  TWO,
+}
 interface TransactionConfig extends providers.TransactionRequest {
   attempt: number
-  nonceOffset: number
   gasBump: number
+  type: TransactionType
 }
 
 export class Network {
@@ -140,7 +144,7 @@ export class Network {
     let pending = true
     let output: providers.TransactionReceipt | undefined = undefined
 
-    await this.waitForGasPricesBelowThreshold(logger)
+    const feeData = await this.waitForGasPricesBelowThreshold(logger)
     const paddedGasLimit = Math.ceil((await gasEstimation()).toNumber() * 1.5)
 
     const txPromise = transaction(paddedGasLimit)
@@ -149,7 +153,7 @@ export class Network {
 
     let txConfig: TransactionConfig = {
       attempt: 1,
-      nonceOffset: 0,
+      type: await this.transactionType(feeData),
       gasBump: this.gasIncreaseFactor,
       nonce: tx.nonce,
       maxFeePerGas: tx.maxFeePerGas,
@@ -292,17 +296,49 @@ export class Network {
         error.message.includes('gas price supplied is too low') ||
         error.message?.includes('timeout exceeded')
       ) {
-        const currentFeeData = await this.waitForGasPricesBelowThreshold(logger)
-        txConfig.maxFeePerGas = currentFeeData.maxFeePerGas ?? undefined
-        txConfig.maxPriorityFeePerGas =
-          currentFeeData.maxPriorityFeePerGas ?? undefined
-        txConfig.gasPrice = currentFeeData.gasPrice ?? undefined
+        // Transaction timed out or failed due to a low gas price estimation, bump gas price and retry
+        if (txConfig.type === TransactionType.ONE) {
+          txConfig.gasPrice = BigNumber.from(txConfig.gasPrice).mul(
+            txConfig.gasBump,
+          )
+        } else if (txConfig.type == TransactionType.TWO) {
+          const previousMaxPriorityFeePerGas = BigNumber.from(
+            txConfig.maxPriorityFeePerGas,
+          )
+          const currentFeeData = await this.waitForGasPricesBelowThreshold(
+            logger,
+          )
+          if (
+            (await this.transactionType(currentFeeData)) !== TransactionType.TWO
+          ) {
+            throw new Error(
+              `Network fee data failed validation: gasPrice: ${currentFeeData.gasPrice}, maxPriorityFeePerGas: ${currentFeeData.maxPriorityFeePerGas}, maxFeePerGass: ${currentFeeData.maxFeePerGas}`,
+            )
+          }
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          txConfig.maxFeePerGas = currentFeeData.maxFeePerGas!
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          txConfig.maxPriorityFeePerGas = previousMaxPriorityFeePerGas!.mul(
+            txConfig.gasBump,
+          )
+        }
       }
     }
     txConfig.attempt += 1
     return txConfig
   }
-
+  async transactionType(data: providers.FeeData): Promise<TransactionType> {
+    if (data.gasPrice) {
+      return TransactionType.ONE
+    } else if (data.maxPriorityFeePerGas && data.maxFeePerGas) {
+      return TransactionType.TWO
+    } else {
+      throw new Error(
+        `Network fee data failed validation: gasPrice: ${data.gasPrice}, maxPriorityFeePerGas: ${data.maxPriorityFeePerGas}, maxFeePerGass: ${data.maxFeePerGas}`,
+      )
+    }
+    return 0
+  }
   async waitForGasPricesBelowThreshold(
     logger: Logger,
   ): Promise<providers.FeeData> {
@@ -316,12 +352,15 @@ export class Network {
 
     while (aboveThreshold) {
       feeData = await this.ethereum.getFeeData()
-      if (feeData.maxFeePerGas && feeData.maxPriorityFeePerGas) {
+      const type = await this.transactionType(feeData)
+      if (type === TransactionType.TWO) {
         // Type 0x02 transaction
         // This baseFeePerGas calculation is based off how maxFeePerGas is calculated in getFeeData()
         // https://github.com/ethers-io/ethers.js/blob/68229ac0aff790b083717dc73cd84f38d32a3926/packages/abstract-provider/src.ts/index.ts#L247
-        const baseFeePerGas = feeData.maxFeePerGas
-          .sub(feeData.maxPriorityFeePerGas)
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        const baseFeePerGas = feeData
+          .maxFeePerGas! // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          .sub(feeData.maxPriorityFeePerGas!)
           .div(2)
         if (baseFeePerGas.toNumber() >= this.baseFeePerGasMax) {
           if (attempt == 1) {
@@ -345,9 +384,10 @@ export class Network {
           aboveThreshold = false
           feeData.gasPrice = null
         }
-      } else if (feeData.gasPrice) {
+      } else if (type === TransactionType.ONE) {
         // Legacy transaction type
-        if (feeData.gasPrice.toNumber() >= this.baseFeePerGasMax) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        if (feeData.gasPrice!.toNumber() >= this.baseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
