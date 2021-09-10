@@ -267,7 +267,7 @@ export class Indexer {
         const defaults = {
           deployment: INDEXING_RULE_GLOBAL,
           allocationAmount: this.defaultAllocationAmount.toString(),
-          parallelAllocations: 2,
+          parallelAllocations: 1,
           decisionBasis: 'rules',
         }
 
