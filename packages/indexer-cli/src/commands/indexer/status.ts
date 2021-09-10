@@ -6,6 +6,7 @@ import { loadValidatedConfig } from '../../config'
 import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
 import { printIndexingRules, indexingRuleFromGraphQL } from '../../rules'
+import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
 import { formatData, pickFields } from '../../command-helpers'
 
 const HELP = `
@@ -189,7 +190,9 @@ module.exports = {
     }
 
     if (result.data.indexerAllocations) {
-      data.indexerAllocations = result.data.indexerAllocations
+      data.indexerAllocations = result.data.indexerAllocations.map(
+        indexerAllocationFromGraphQL,
+      )
     }
 
     if (result.data.indexingRules) {
@@ -273,22 +276,14 @@ module.exports = {
       print.info('')
       print.info('Indexer Allocations')
       if (data.indexerAllocations) {
-        print.info(
-          formatData(
-            data.indexerAllocations.map((allocation: any) =>
-              pickFields(allocation, [
-                'id',
-                'allocatedTokens',
-                'createdAtEpoch',
-                'closedAtEpoch',
-                'subgraphDeployment',
-                'signalAmount',
-                'stakedTokens',
-              ]),
-            ),
-            outputFormat,
-          ),
-        )
+        printIndexerAllocations(print, outputFormat, data.indexerAllocations, [
+          'id',
+          'subgraphDeployment',
+          'allocatedTokens',
+          'createdAtEpoch',
+          'signalAmount',
+          'stakedTokens',
+        ])
       }
       print.info('')
       print.info('Indexing Rules')

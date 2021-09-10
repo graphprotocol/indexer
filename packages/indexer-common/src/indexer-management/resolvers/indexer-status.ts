@@ -4,6 +4,7 @@ import geohash from 'ngeohash'
 import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 
 interface Test {
   test: (url: string) => string
@@ -94,16 +95,19 @@ export default {
 
   indexerAllocations: async (
     _: {},
-    { address, networkSubgraph }: IndexerManagementResolverContext,
+    { address, networkSubgraph, logger }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    const result = await networkSubgraph.query(
-      gql`
-        query allocations($indexer: String!) {
-          indexer(id: $indexer) {
-            allocations(where: { status: Active }, orderDirection: desc) {
+    try {
+      const result = await networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!) {
+            allocations(
+              where: { indexer: $indexer, status: Active }
+              first: 1000
+              orderDirection: desc
+            ) {
               id
               allocatedTokens
-              createdAtBlockHash
               createdAtEpoch
               closedAtEpoch
               subgraphDeployment {
@@ -113,21 +117,27 @@ export default {
               }
             }
           }
-        }
-      `,
-      { indexer: address.toLowerCase() },
-    )
-    if (result.error) {
-      throw new Error(`Falied to query allocations: ${result.error}`)
+        `,
+        { indexer: address.toLocaleLowerCase() },
+      )
+      if (result.error) {
+        throw result.error
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return result.data.allocations.map((allocation: any) => ({
+        ...allocation,
+        subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
+          .ipfsHash,
+        signalAmount: allocation.subgraphDeployment.signalAmount,
+        stakedTokens: allocation.subgraphDeployment.stakedTokens,
+      }))
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE010, error)
+      logger?.error(`Failed to query indexer allocations`, {
+        err,
+      })
+      throw err
     }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return result.data.indexer.allocations.map((allocation: any) => ({
-      ...allocation,
-      subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
-        .ipfsHash,
-      signalAmount: allocation.subgraphDeployment.signalAmount,
-      stakedTokens: allocation.subgraphDeployment.stakedTokens,
-    }))
   },
 
   indexerEndpoints: async (
