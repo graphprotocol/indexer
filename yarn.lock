@@ -1088,15 +1088,97 @@
     prom-client "12.0.0"
     sequelize "6.3.5"
 
-"@graphprotocol/common-ts@1.7.0", "@graphprotocol/common-ts@v1.7.0":
+"@graphprotocol/common-ts@file:packages/indexer-agent/.yalc/@graphprotocol/common-ts":
   version "1.7.0"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.7.0.tgz#9630f01fb2d0eb890e34e2d79be22a3854614aef"
-  integrity sha512-JvwDkBkJ1EzbDbzlJaTVaqsqIVJQ16uKwE01jdB395Q8NM7sD/RxS3QKCDp3Yw4z7hKSrMQxWt9aXVFqkDyGRQ==
   dependencies:
     "@ethersproject/bignumber" "5.4.1"
     "@ethersproject/contracts" "5.4.1"
     "@ethersproject/transactions" "5.4.0"
-    "@graphprotocol/contracts" "1.6.0"
+    "@graphprotocol/contracts" "file:../../../Library/Caches/Yarn/v6/npm-@graphprotocol-common-ts-1.7.0-3f4ebaa3-4bc3-4405-b091-75ee7071eea3-1633125050690/node_modules/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts"
+    "@graphprotocol/pino-sentry-simple" "0.7.1"
+    "@urql/core" "1.13.1"
+    "@urql/exchange-execute" "1.0.1"
+    body-parser "1.19.0"
+    bs58 "4.0.1"
+    cors "2.8.5"
+    cross-fetch "3.0.6"
+    ethers "5.4.4"
+    express "4.17.1"
+    graphql "15.4.0"
+    graphql-tag "2.11.0"
+    helmet "4.1.1"
+    morgan "1.10.0"
+    ngeohash "0.6.3"
+    pg "8.4.2"
+    pg-hstore "2.3.3"
+    pino "6.7.0"
+    pino-multi-stream "5.1.1"
+    prom-client "12.0.0"
+    sequelize "6.3.5"
+
+"@graphprotocol/common-ts@file:packages/indexer-cli/.yalc/@graphprotocol/common-ts":
+  version "1.7.0"
+  dependencies:
+    "@ethersproject/bignumber" "5.4.1"
+    "@ethersproject/contracts" "5.4.1"
+    "@ethersproject/transactions" "5.4.0"
+    "@graphprotocol/contracts" "file:../../../Library/Caches/Yarn/v6/npm-@graphprotocol-common-ts-1.7.0-3c6a7148-5f19-4853-a43c-c75b594cb319-1633125050698/node_modules/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts"
+    "@graphprotocol/pino-sentry-simple" "0.7.1"
+    "@urql/core" "1.13.1"
+    "@urql/exchange-execute" "1.0.1"
+    body-parser "1.19.0"
+    bs58 "4.0.1"
+    cors "2.8.5"
+    cross-fetch "3.0.6"
+    ethers "5.4.4"
+    express "4.17.1"
+    graphql "15.4.0"
+    graphql-tag "2.11.0"
+    helmet "4.1.1"
+    morgan "1.10.0"
+    ngeohash "0.6.3"
+    pg "8.4.2"
+    pg-hstore "2.3.3"
+    pino "6.7.0"
+    pino-multi-stream "5.1.1"
+    prom-client "12.0.0"
+    sequelize "6.3.5"
+
+"@graphprotocol/common-ts@file:packages/indexer-common/.yalc/@graphprotocol/common-ts":
+  version "1.7.0"
+  dependencies:
+    "@ethersproject/bignumber" "5.4.1"
+    "@ethersproject/contracts" "5.4.1"
+    "@ethersproject/transactions" "5.4.0"
+    "@graphprotocol/contracts" "file:../../../Library/Caches/Yarn/v6/npm-@graphprotocol-common-ts-1.7.0-7514f4f3-fd92-45de-9a86-04875c79948a-1633125050687/node_modules/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts"
+    "@graphprotocol/pino-sentry-simple" "0.7.1"
+    "@urql/core" "1.13.1"
+    "@urql/exchange-execute" "1.0.1"
+    body-parser "1.19.0"
+    bs58 "4.0.1"
+    cors "2.8.5"
+    cross-fetch "3.0.6"
+    ethers "5.4.4"
+    express "4.17.1"
+    graphql "15.4.0"
+    graphql-tag "2.11.0"
+    helmet "4.1.1"
+    morgan "1.10.0"
+    ngeohash "0.6.3"
+    pg "8.4.2"
+    pg-hstore "2.3.3"
+    pino "6.7.0"
+    pino-multi-stream "5.1.1"
+    prom-client "12.0.0"
+    sequelize "6.3.5"
+
+"@graphprotocol/common-ts@file:packages/indexer-service/.yalc/@graphprotocol/common-ts":
+  version "1.7.0"
+  dependencies:
+    "@ethersproject/bignumber" "5.4.1"
+    "@ethersproject/contracts" "5.4.1"
+    "@ethersproject/transactions" "5.4.0"
+    "@graphprotocol/contracts" "file:../../../Library/Caches/Yarn/v6/npm-@graphprotocol-common-ts-1.7.0-04458e4a-2d3f-4f33-8efa-38a973e89b38-1633125050695/node_modules/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
     "@urql/core" "1.13.1"
     "@urql/exchange-execute" "1.0.1"
@@ -1126,10 +1208,28 @@
     "@ethersproject/contracts" "^5.0.3"
     ethers "^5.0.9"
 
-"@graphprotocol/contracts@1.6.0", "@graphprotocol/contracts@v1.6.0":
-  version "1.6.0"
-  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-1.6.0.tgz#cbdd7bd57b6294b69a871abbf312106db55d1243"
-  integrity sha512-j/kb3TShy7kAPPK30O2XlpVLyhmut1te/uWpWXmnCrzCQ21twiko0FrxXlOaGxgYs8+CItkbPAuaxkxcwTV1eg==
+"@graphprotocol/contracts@file:packages/indexer-agent/.yalc/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts":
+  version "1.8.0"
+  dependencies:
+    ethers "^5.4.4"
+
+"@graphprotocol/contracts@file:packages/indexer-agent/.yalc/@graphprotocol/contracts":
+  version "1.8.0"
+  dependencies:
+    ethers "^5.4.4"
+
+"@graphprotocol/contracts@file:packages/indexer-cli/.yalc/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts":
+  version "1.8.0"
+  dependencies:
+    ethers "^5.4.4"
+
+"@graphprotocol/contracts@file:packages/indexer-common/.yalc/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts":
+  version "1.8.0"
+  dependencies:
+    ethers "^5.4.4"
+
+"@graphprotocol/contracts@file:packages/indexer-service/.yalc/@graphprotocol/common-ts/.yalc/@graphprotocol/contracts":
+  version "1.8.0"
   dependencies:
     ethers "^5.4.4"
 

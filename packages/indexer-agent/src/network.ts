@@ -193,10 +193,13 @@ export class Network {
         }
 
         logger.info(`Transaction pending`, { tx: tx, txConfig })
-
+        let confirmations = 3
+        if (this.ethereum.network.chainId === 1337) {
+          confirmations = 1
+        }
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
-          3,
+          confirmations,
           this.gasIncreaseTimeout,
         )
 
@@ -478,12 +481,17 @@ export class Network {
           `,
           { first: queryProgress.first, lastId: queryProgress.lastId },
         )
+        // this.logger.debug(`SubgraphDeployments query returned:`, { result })
 
         if (result.error) {
           throw result.error
         }
 
         const results = result.data.subgraphDeployments
+
+        if (results.length == 0) {
+          return []
+        }
 
         queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
@@ -926,7 +934,10 @@ export class Network {
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return
       }
-      const event = receipt.events?.find(event =>
+      logger.info('Receipt!', { receipt })
+
+      const events = receipt.events || receipt.logs
+      const event = events.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
             'ServiceRegistered',
@@ -1066,15 +1077,11 @@ export class Network {
         return
       }
 
+      const events = receipt.events || receipt.logs
       const event =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        receipt.events?.find((event: any) =>
+        events?.find((event: any) =>
           event.topics.includes(
-            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        ) ||
-        receipt.logs?.find((log: providers.Log) =>
-          log.topics.includes(
             this.contracts.staking.interface.getEventTopic('AllocationCreated'),
           ),
         )
@@ -1334,15 +1341,11 @@ export class Network {
         return
       }
 
+      const events = receipt.events || receipt.logs
       const event =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        receipt.events?.find((event: any) =>
+        events?.find((event: any) =>
           event.topics.includes(
-            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        ) ||
-        receipt.logs?.find((log: providers.Log) =>
-          log.topics.includes(
             this.contracts.staking.interface.getEventTopic('AllocationCreated'),
           ),
         )

@@ -11,10 +11,13 @@
     "lint": "eslint . --ext .ts,.tsx",
     "compile": "./node_modules/.bin/tsc",
     "prepare": "rm -rf dist && yarn format && yarn lint && yarn compile",
-    "disputes": "yarn prepare && ./dist/cli.js indexer disputes get"
+    "connect": "./bin/graph-indexer indexer connect http://localhost:18000",
+    "status": "./bin/graph-indexer indexer status",
+    "setGlobal": "./bin/graph-indexer indexer rules set global decisionBasis rules minSignal 500 allocationAmount 500000",
+    "disputes": "./bin/graph-indexer indexer disputes get"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.7.0",
+    "@graphprotocol/common-ts": "file:.yalc/@graphprotocol/common-ts",
     "@graphprotocol/indexer-common": "^0.18.1",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.40",

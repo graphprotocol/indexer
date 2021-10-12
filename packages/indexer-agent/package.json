@@ -19,8 +19,8 @@
     "graph-indexer-agent": "bin/graph-indexer-agent"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "v1.7.0",
-    "@graphprotocol/contracts": "v1.6.0",
+    "@graphprotocol/common-ts": "file:.yalc/@graphprotocol/common-ts",
+    "@graphprotocol/contracts": "file:.yalc/@graphprotocol/contracts",
     "@graphprotocol/indexer-common": "^0.18.1",
     "@thi.ng/heaps": "^1.2.36",
     "@thi.ng/iterators": "5.1.40",
@@ -62,6 +62,7 @@
   "resolutions": {
     "ethers": "5.4.4",
     "@ethersproject/bignumber": "5.4.1",
+    "@ethersproject/contracts": "5.4.1",
     "scrypt": "https://registry.yarnpkg.com/@favware/skip-dependency/-/skip-dependency-1.0.2.tgz"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
