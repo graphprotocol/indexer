@@ -57,7 +57,7 @@ export const monitorEligibleAllocations = ({
 
       const result = await networkSubgraph.query(
         gql`
-          query allocations($indexer: String!) {
+          query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
               activeAllocations: allocations(where: { status: Active }, orderDirection: desc, first: 1000) {
                 id
@@ -74,7 +74,7 @@ export const monitorEligibleAllocations = ({
                   signalAmount
                 }
               }
-              recentlyClosedAllocations: allocations(where: { status: Closed, closedAtEpoch_gt: ${currentEpoch} }, orderDirection: desc, first: 1000) {
+              recentlyClosedAllocations: allocations(where: { status: Closed, closedAtEpoch_gt: $closedAtEpochThreshold }, orderDirection: desc, first: 1000) {
                 id
                 indexer {
                   id
@@ -94,6 +94,7 @@ export const monitorEligibleAllocations = ({
         `,
         {
           indexer: indexer.toLowerCase(),
+          closedAtEpochThreshold: (currentEpoch - 1)
         },
       )
 
