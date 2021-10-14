@@ -26,7 +26,7 @@ import {
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { ensureAttestationSigners, monitorActiveAllocations } from '../allocations'
+import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
 import { AllocationReceiptManager, TransferReceiptManager } from '../query-fees'
 
 export default {
@@ -429,8 +429,8 @@ export default {
       operator: address.toString(),
     })
 
-    // Monitor active indexer allocations
-    const allocations = monitorActiveAllocations({
+    // Monitor indexer allocations that we may receive traffic for
+    const allocations = monitorEligibleAllocations({
       indexer: indexerAddress,
       logger,
       networkSubgraph,

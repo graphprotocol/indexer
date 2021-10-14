@@ -15,32 +15,66 @@ import {
   parseGraphQLAllocation,
 } from '@graphprotocol/indexer-common'
 
-export interface MonitorActiveAllocationsOptions {
+export interface MonitorEligibleAllocationsOptions {
   indexer: Address
   logger: Logger
   networkSubgraph: NetworkSubgraph
   interval: number
 }
 
-export const monitorActiveAllocations = ({
+export const monitorEligibleAllocations = ({
   indexer,
   logger: parentLogger,
   networkSubgraph,
   interval,
-}: MonitorActiveAllocationsOptions): Eventual<Allocation[]> => {
+}: MonitorEligibleAllocationsOptions): Eventual<Allocation[]> => {
   const logger = parentLogger.child({ component: 'AllocationMonitor' })
 
   const refreshAllocations = async (
     currentAllocations: Allocation[],
   ): Promise<Allocation[]> => {
-    logger.debug('Refresh active allocations')
+    logger.debug('Refresh eligible allocations')
 
     try {
+      const currentEpochResult = await networkSubgraph.query(
+        gql`
+          query {
+            graphNetwork(id: "1") {
+              currentEpoch
+            }
+          }
+        `
+      )
+      if (currentEpochResult.error) {
+        throw currentEpochResult.error
+      }
+
+      if (!currentEpochResult.data || !currentEpochResult.data.graphNetwork || !currentEpochResult.data.graphNetwork.currentEpoch) {
+        throw new Error(`Failed to fetch current epoch from network subgraph`)
+      }
+
+      const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch;
+
       const result = await networkSubgraph.query(
         gql`
           query allocations($indexer: String!) {
             indexer(id: $indexer) {
-              allocations(where: { status: Active }, orderDirection: desc, first: 1000) {
+              activeAllocations: allocations(where: { status: Active }, orderDirection: desc, first: 1000) {
+                id
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtBlockHash
+                createdAtEpoch
+                closedAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
+              }
+              recentlyClosedAllocations: allocations(where: { status: Closed, closedAtEpoch_gt: ${currentEpoch} }, orderDirection: desc, first: 1000) {
                 id
                 indexer {
                   id
@@ -76,7 +110,7 @@ export const monitorActiveAllocations = ({
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+      return [...result.data.indexer.activeAllocations, ...result.data.indexer.recentlyClosedAllocations].map(parseGraphQLAllocation)
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
@@ -89,10 +123,11 @@ export const monitorActiveAllocations = ({
   const allocations = timer(interval).reduce(refreshAllocations, [])
 
   allocations.pipe(allocations => {
-    logger.info(`Active allocations`, {
+    logger.info(`Eligible allocations`, {
       allocations: allocations.map(allocation => ({
         allocation: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
+        closedAtEpoch: allocation.closedAtEpoch,
       })),
     })
   })
