@@ -64,8 +64,8 @@ export const monitorEligibleAllocations = ({
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
               activeAllocations: totalAllocations(
-                where: { status: Active },
-                orderDirection: desc,
+                where: { status: Active }
+                orderDirection: desc
                 first: 1000
               ) {
                 id
@@ -83,8 +83,8 @@ export const monitorEligibleAllocations = ({
                 }
               }
               recentlyClosedAllocations: totalAllocations(
-                where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold },
-                orderDirection: desc,
+                where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold }
+                orderDirection: desc
                 first: 1000
               ) {
                 id
@@ -125,7 +125,7 @@ export const monitorEligibleAllocations = ({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return [
         ...result.data.indexer.activeAllocations,
-        ...result.data.indexer.recentlyClosedAllocations
+        ...result.data.indexer.recentlyClosedAllocations,
       ].map(parseGraphQLAllocation)
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
