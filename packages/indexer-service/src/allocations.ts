@@ -59,7 +59,7 @@ export const monitorEligibleAllocations = ({
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
-              activeAllocations: allocations(where: { status: Active }, orderDirection: desc, first: 1000) {
+              activeAllocations: totalAllocations(where: { status: Active }, orderDirection: desc, first: 1000) {
                 id
                 indexer {
                   id
@@ -74,7 +74,7 @@ export const monitorEligibleAllocations = ({
                   signalAmount
                 }
               }
-              recentlyClosedAllocations: allocations(where: { status: Closed, closedAtEpoch_gt: $closedAtEpochThreshold }, orderDirection: desc, first: 1000) {
+              recentlyClosedAllocations: totalAllocations(where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold }, orderDirection: desc, first: 1000) {
                 id
                 indexer {
                   id
