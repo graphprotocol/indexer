@@ -43,23 +43,31 @@ export const monitorEligibleAllocations = ({
               currentEpoch
             }
           }
-        `
+        `,
       )
       if (currentEpochResult.error) {
         throw currentEpochResult.error
       }
 
-      if (!currentEpochResult.data || !currentEpochResult.data.graphNetwork || !currentEpochResult.data.graphNetwork.currentEpoch) {
+      if (
+        !currentEpochResult.data ||
+        !currentEpochResult.data.graphNetwork ||
+        !currentEpochResult.data.graphNetwork.currentEpoch
+      ) {
         throw new Error(`Failed to fetch current epoch from network subgraph`)
       }
 
-      const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch;
+      const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
       const result = await networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
-              activeAllocations: totalAllocations(where: { status: Active }, orderDirection: desc, first: 1000) {
+              activeAllocations: totalAllocations(
+                where: { status: Active },
+                orderDirection: desc,
+                first: 1000
+              ) {
                 id
                 indexer {
                   id
@@ -74,7 +82,11 @@ export const monitorEligibleAllocations = ({
                   signalAmount
                 }
               }
-              recentlyClosedAllocations: totalAllocations(where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold }, orderDirection: desc, first: 1000) {
+              recentlyClosedAllocations: totalAllocations(
+                where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold },
+                orderDirection: desc,
+                first: 1000
+              ) {
                 id
                 indexer {
                   id
@@ -94,7 +106,7 @@ export const monitorEligibleAllocations = ({
         `,
         {
           indexer: indexer.toLowerCase(),
-          closedAtEpochThreshold: (currentEpoch - 1)
+          closedAtEpochThreshold: currentEpoch - 1, // allocation can be closed within the last epoch or later
         },
       )
 
@@ -111,7 +123,10 @@ export const monitorEligibleAllocations = ({
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return [...result.data.indexer.activeAllocations, ...result.data.indexer.recentlyClosedAllocations].map(parseGraphQLAllocation)
+      return [
+        ...result.data.indexer.activeAllocations,
+        ...result.data.indexer.recentlyClosedAllocations
+      ].map(parseGraphQLAllocation)
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
