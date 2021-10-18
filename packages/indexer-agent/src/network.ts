@@ -55,7 +55,7 @@ const allocationIdProof = (
 }
 
 enum TransactionType {
-  ONE,
+  ZERO,
   TWO,
 }
 interface TransactionConfig extends providers.TransactionRequest {
@@ -297,7 +297,7 @@ export class Network {
         error.message?.includes('timeout exceeded')
       ) {
         // Transaction timed out or failed due to a low gas price estimation, bump gas price and retry
-        if (txConfig.type === TransactionType.ONE) {
+        if (txConfig.type === TransactionType.ZERO) {
           txConfig.gasPrice = BigNumber.from(txConfig.gasPrice).mul(
             txConfig.gasBump,
           )
@@ -329,7 +329,7 @@ export class Network {
   }
   async transactionType(data: providers.FeeData): Promise<TransactionType> {
     if (data.gasPrice) {
-      return TransactionType.ONE
+      return TransactionType.ZERO
     } else if (data.maxPriorityFeePerGas && data.maxFeePerGas) {
       return TransactionType.TWO
     } else {
@@ -384,7 +384,7 @@ export class Network {
           aboveThreshold = false
           feeData.gasPrice = null
         }
-      } else if (type === TransactionType.ONE) {
+      } else if (type === TransactionType.ZERO) {
         // Legacy transaction type
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         if (feeData.gasPrice!.toNumber() >= this.baseFeePerGasMax) {
@@ -966,7 +966,8 @@ export class Network {
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return
       }
-      const event = receipt.events?.find(event =>
+      const events = receipt.events || receipt.logs
+      const event = events.find(event =>
         event.topics.includes(
           this.contracts.serviceRegistry.interface.getEventTopic(
             'ServiceRegistered',
@@ -1106,15 +1107,11 @@ export class Network {
         return
       }
 
+      const events = receipt.events || receipt.logs
       const event =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        receipt.events?.find((event: any) =>
+        events.find((event: any) =>
           event.topics.includes(
-            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        ) ||
-        receipt.logs?.find((log: providers.Log) =>
-          log.topics.includes(
             this.contracts.staking.interface.getEventTopic('AllocationCreated'),
           ),
         )
@@ -1374,15 +1371,11 @@ export class Network {
         return
       }
 
+      const events = receipt.events || receipt.logs
       const event =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        receipt.events?.find((event: any) =>
+        events.find((event: any) =>
           event.topics.includes(
-            this.contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        ) ||
-        receipt.logs?.find((log: providers.Log) =>
-          log.topics.includes(
             this.contracts.staking.interface.getEventTopic('AllocationCreated'),
           ),
         )
