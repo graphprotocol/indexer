@@ -110,3 +110,10 @@ dist
 
 # Etherlime (added by server wallet)
 .etherlime-store
+
+# Yalc
+yalc.lock
+.yalc/
+
+# IDE
+.idea/
