@@ -288,6 +288,7 @@ export const createApp = async ({
             res
               .status(response.status || 200)
               .contentType('application/json')
+              .header('Graph-Attestable', String(response.result.attestation != null))
               .send(response.result)
           } catch (error) {
             const err = indexerError(IndexerErrorCode.IE032, error)

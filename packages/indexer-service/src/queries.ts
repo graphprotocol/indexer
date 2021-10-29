@@ -103,7 +103,10 @@ export class QueryProcessor implements QueryProcessorInterface {
       throw error
     }
 
-    const attestation = await signer.createAttestation(query, response.data)
+    let attestation = null
+    if (response.headers['graph-attestable'] == 'true') {
+      attestation = await signer.createAttestation(query, response.data)
+    }
 
     return {
       status: 200,
