@@ -10,7 +10,7 @@ export interface Signature {
 
 export interface QueryResult {
   graphQLResponse: string
-  attestation: Signature
+  attestation: Signature | null
 }
 
 export interface UnattestedQueryResult {
