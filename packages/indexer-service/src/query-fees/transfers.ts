@@ -188,19 +188,17 @@ export class TransferReceiptManager implements ReceiptManager {
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
-            const [
-              state,
-              isNew,
-            ] = await this._queryFeeModels.transferReceipts.findOrBuild({
-              where: { id: receipt.id, signer: receipt.signer },
-              defaults: {
-                id: receipt.id,
-                signature: receipt.signature,
-                signer: receipt.signer,
-                fees: receipt.fees,
-              },
-              transaction,
-            })
+            const [state, isNew] =
+              await this._queryFeeModels.transferReceipts.findOrBuild({
+                where: { id: receipt.id, signer: receipt.signer },
+                defaults: {
+                  id: receipt.id,
+                  signature: receipt.signature,
+                  signer: receipt.signer,
+                  fees: receipt.fees,
+                },
+                transaction,
+              })
 
             // Don't save over receipts that are already advanced
             if (!isNew) {

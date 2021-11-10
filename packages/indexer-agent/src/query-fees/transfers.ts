@@ -205,38 +205,39 @@ export class TransferReceiptCollector implements ReceiptCollector {
     try {
       const now = new Date()
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const unresolvedTransfers = await this.models.transfers.sequelize!.transaction(
-        async transaction => {
-          // Mark all transfers for the allocation as closed
-          await this.models.transfers.update(
-            {
-              status: TransferStatus.ALLOCATION_CLOSED,
-              allocationClosedAt: now,
-            },
-            {
-              where: {
-                allocation: allocation.id,
-                status: [TransferStatus.OPEN],
+      const unresolvedTransfers =
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await this.models.transfers.sequelize!.transaction(
+          async transaction => {
+            // Mark all transfers for the allocation as closed
+            await this.models.transfers.update(
+              {
+                status: TransferStatus.ALLOCATION_CLOSED,
+                allocationClosedAt: now,
               },
+              {
+                where: {
+                  allocation: allocation.id,
+                  status: [TransferStatus.OPEN],
+                },
+                transaction,
+              },
+            )
+
+            // Update the allocation summary
+            await this.models.allocationSummaries.update(
+              { closedAt: now },
+              { where: { allocation: allocation.id }, transaction },
+            )
+
+            // Fetch all transfers for the allocation that have the status
+            // OPEN or ALLOCATION_CLOSED and still need to be resolved
+            return await this.unresolvedTransfersWithReceipts(
+              allocation,
               transaction,
-            },
-          )
-
-          // Update the allocation summary
-          await this.models.allocationSummaries.update(
-            { closedAt: now },
-            { where: { allocation: allocation.id }, transaction },
-          )
-
-          // Fetch all transfers for the allocation that have the status
-          // OPEN or ALLOCATION_CLOSED and still need to be resolved
-          return await this.unresolvedTransfersWithReceipts(
-            allocation,
-            transaction,
-          )
-        },
-      )
+            )
+          },
+        )
 
       // Resolve transfers with a delay
       for (const transfer of unresolvedTransfers) {

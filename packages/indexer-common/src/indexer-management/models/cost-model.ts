@@ -42,7 +42,8 @@ export interface CostModelCreationAttributes
 
 export class CostModel
   extends Model<CostModelAttributes, CostModelCreationAttributes>
-  implements CostModelAttributes {
+  implements CostModelAttributes
+{
   public id!: number
   public deployment!: string
   public model!: string | null

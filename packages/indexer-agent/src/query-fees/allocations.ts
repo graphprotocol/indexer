@@ -115,26 +115,27 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       const now = new Date()
 
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const receipts = await this.models.allocationReceipts.sequelize!.transaction(
-        async transaction => {
-          // Update the allocation summary
-          await this.models.allocationSummaries.update(
-            { closedAt: now },
-            {
-              where: { allocation: allocation.id },
-              transaction,
-            },
-          )
+      const receipts =
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        await this.models.allocationReceipts.sequelize!.transaction(
+          async transaction => {
+            // Update the allocation summary
+            await this.models.allocationSummaries.update(
+              { closedAt: now },
+              {
+                where: { allocation: allocation.id },
+                transaction,
+              },
+            )
 
-          // Return all receipts for the just-closed allocation
-          return this.models.allocationReceipts.findAll({
-            where: { allocation: allocation.id },
-            order: ['id'],
-            transaction,
-          })
-        },
-      )
+            // Return all receipts for the just-closed allocation
+            return this.models.allocationReceipts.findAll({
+              where: { allocation: allocation.id },
+              order: ['id'],
+              transaction,
+            })
+          },
+        )
 
       if (receipts.length <= 0) {
         logger.info(`No receipts to collect for allocation`)
@@ -308,8 +309,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(
           `Query fee voucher is below claim threshold and is past the configured expiration time, delete it`,
           {
-            hint:
-              'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
+            hint: 'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
             allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
           },
         )
@@ -317,8 +317,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(
           `Query fee voucher amount is below claim threshold, skip it for now`,
           {
-            hint:
-              'If you would like to redeem this voucher, reduce the allocation claim threshold',
+            hint: 'If you would like to redeem this voucher, reduce the allocation claim threshold',
             tryingAgainUntil: new Date(
               voucher.createdAt.valueOf() + this.voucherExpiration * 3600,
             ),

@@ -66,9 +66,11 @@ export class AllocationReceiptManager implements ReceiptManager {
     })
   }
 
-  private _parseAllocationReceipt(
-    receiptData: string,
-  ): { id: string; allocation: Address; fees: BigNumber } {
+  private _parseAllocationReceipt(receiptData: string): {
+    id: string
+    allocation: Address
+    fees: BigNumber
+  } {
     return {
       id: receiptData.slice(104, 134), // 15 bytes
       allocation: toAddress('0x' + receiptData.slice(0, 40)), // 20 bytes
@@ -132,19 +134,17 @@ export class AllocationReceiptManager implements ReceiptManager {
               await summary.save()
             }
 
-            const [
-              state,
-              isNew,
-            ] = await this._queryFeeModels.allocationReceipts.findOrBuild({
-              where: { id: receipt.id },
-              defaults: {
-                id: receipt.id,
-                allocation: receipt.allocation,
-                signature: receipt.signature,
-                fees: receipt.fees,
-              },
-              transaction,
-            })
+            const [state, isNew] =
+              await this._queryFeeModels.allocationReceipts.findOrBuild({
+                where: { id: receipt.id },
+                defaults: {
+                  id: receipt.id,
+                  allocation: receipt.allocation,
+                  signature: receipt.signature,
+                  fees: receipt.fees,
+                },
+                transaction,
+              })
 
             // Don't save if we already have a version of the receipt
             // with a higher amount of fees

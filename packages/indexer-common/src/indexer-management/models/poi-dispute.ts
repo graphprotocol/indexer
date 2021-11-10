@@ -39,7 +39,8 @@ export interface POIDisputeCreationAttributes
 
 export class POIDispute
   extends Model<POIDisputeAttributes, POIDisputeCreationAttributes>
-  implements POIDisputeAttributes {
+  implements POIDisputeAttributes
+{
   public allocationID!: string
   public subgraphDeploymentID!: string
   public allocationIndexer!: string
