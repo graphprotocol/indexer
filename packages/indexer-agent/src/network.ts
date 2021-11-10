@@ -643,6 +643,71 @@ export class Network {
     return deployments
   }
 
+  async recentlyClosedAllocations(
+    currentEpoch: number,
+    range: number,
+  ): Promise<Allocation[]> {
+    try {
+      const result = await this.networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
+            indexer(id: $indexer) {
+              allocations: totalAllocations(
+                where: {
+                  indexer: $indexer
+                  status: Closed
+                  closedAtEpoch_gte: $closedAtEpochThreshold
+                }
+                first: 1000
+              ) {
+                id
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalAmount
+                }
+              }
+            }
+          }
+        `,
+        {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+          closedAtEpochThreshold: currentEpoch - range,
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      if (!result.data) {
+        throw new Error(`No data / indexer not found on chain`)
+      }
+
+      if (!result.data.indexer) {
+        throw new Error(`Indexer not found on chain`)
+      }
+
+      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE010, error)
+      this.logger.error(
+        `Failed to query indexer's recently closed allocations`,
+        {
+          err,
+        },
+      )
+      throw err
+    }
+  }
+
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       const result = await this.networkSubgraph.query(
@@ -683,6 +748,7 @@ export class Network {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer allocations`, {
         err,
+        status,
       })
       throw err
     }

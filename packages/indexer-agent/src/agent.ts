@@ -184,6 +184,24 @@ class Agent {
       },
     )
 
+    const recentlyClosedAllocations = join({
+      activeAllocations,
+      currentEpoch,
+    }).tryMap(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      ({ activeAllocations, currentEpoch }) =>
+        this.network.recentlyClosedAllocations(
+          currentEpoch.toNumber(),
+          1, //TODO: Parameterize with a user provided value
+        ),
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain active allocations, trying again later`,
+          ),
+      },
+    )
+
     const claimableAllocations = join({
       currentEpoch,
       channelDisputeEpochs,
@@ -226,6 +244,7 @@ class Agent {
       activeDeployments,
       targetDeployments,
       activeAllocations,
+      recentlyClosedAllocations,
       claimableAllocations,
       disputableAllocations,
     }).pipe(
@@ -239,6 +258,7 @@ class Agent {
         activeDeployments,
         targetDeployments,
         activeAllocations,
+        recentlyClosedAllocations,
         claimableAllocations,
         disputableAllocations,
       }) => {
@@ -286,7 +306,7 @@ class Agent {
           await this.reconcileDeployments(
             activeDeployments,
             targetDeployments,
-            activeAllocations,
+            [...recentlyClosedAllocations, ...activeAllocations],
           )
 
           // Reconcile allocations
@@ -450,12 +470,13 @@ class Agent {
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
-    activeAllocations: Allocation[],
+    eligibleAllocations: Allocation[],
   ): Promise<void> {
     activeDeployments = uniqueDeployments(activeDeployments)
     targetDeployments = uniqueDeployments(targetDeployments)
-    const activeAllocationDeployments = uniqueDeployments(
-      activeAllocations.map(allocation => allocation.subgraphDeployment.id),
+    // Note eligibleAllocations are active or recently closed allocations still eligible for queries from the gateway
+    const eligibleAllocationDeployments = uniqueDeployments(
+      eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
     )
 
     // Ensure the network subgraph deployment is _always_ indexed
@@ -486,7 +507,7 @@ class Agent {
     const remove = activeDeployments.filter(
       deployment =>
         !deploymentInList(targetDeployments, deployment) &&
-        !deploymentInList(activeAllocationDeployments, deployment),
+        !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
     this.logger.info('Deployment changes', {
@@ -536,6 +557,7 @@ class Agent {
       currentEpoch,
       maxAllocationEpochs,
       allocationLifetime,
+      targetDeployments,
       active: activeAllocations.map(allocation => ({
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
