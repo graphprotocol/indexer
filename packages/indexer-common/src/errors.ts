@@ -68,6 +68,7 @@ export enum IndexerErrorCode {
   IE055 = 'IE055',
   IE056 = 'IE056',
   IE057 = 'IE057',
+  IE058 = 'IE058',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -128,6 +129,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE055: 'Failed to redeem query fee voucher',
   IE056: 'Failed to remember allocation for collecting receipts later',
   IE057: 'Transaction reverted due to failing assertion in contract',
+  IE058: 'Transaction failed because nonce has already been used',
 }
 
 export type IndexerErrorCause = unknown
