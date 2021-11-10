@@ -577,9 +577,8 @@ export class Indexer {
       // Pick a random index node to assign the deployment too; TODO: Improve
       // this to assign based on load (i.e. always pick the index node with the
       // least amount of deployments assigned)
-      const targetNode = this.indexNodeIDs[
-        Math.floor(Math.random() * this.indexNodeIDs.length)
-      ]
+      const targetNode =
+        this.indexNodeIDs[Math.floor(Math.random() * this.indexNodeIDs.length)]
 
       await this.create(name)
       await this.deploy(name, deployment, targetNode)

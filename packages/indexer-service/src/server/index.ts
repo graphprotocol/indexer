@@ -76,16 +76,14 @@ export const createApp = async ({
 
     queriesWithInvalidReceiptHeader: new metrics.client.Counter({
       name: 'indexer_service_queries_with_invalid_receipt_header',
-      help:
-        'Queries that failed executing because they came with an invalid receipt header',
+      help: 'Queries that failed executing because they came with an invalid receipt header',
       registers: [metrics.registry],
       labelNames: ['deployment'],
     }),
 
     queriesWithInvalidReceiptValue: new metrics.client.Counter({
       name: 'indexer_service_queries_with_invalid_receipt_value',
-      help:
-        'Queries that failed executing because they came with an invalid receipt value',
+      help: 'Queries that failed executing because they came with an invalid receipt value',
       registers: [metrics.registry],
       labelNames: ['deployment'],
     }),

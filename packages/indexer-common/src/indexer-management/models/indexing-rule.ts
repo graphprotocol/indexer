@@ -42,7 +42,8 @@ export interface IndexingRuleCreationAttributes
 
 export class IndexingRule
   extends Model<IndexingRuleAttributes, IndexingRuleCreationAttributes>
-  implements IndexingRuleAttributes {
+  implements IndexingRuleAttributes
+{
   public id!: number
   public deployment!: string
   public allocationAmount!: string | null

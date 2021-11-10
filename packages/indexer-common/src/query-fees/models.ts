@@ -10,7 +10,8 @@ export interface AllocationReceiptAttributes {
 
 export class AllocationReceipt
   extends Model<AllocationReceiptAttributes>
-  implements AllocationReceiptAttributes {
+  implements AllocationReceiptAttributes
+{
   public id!: string
   public allocation!: Address
   public fees!: string
@@ -50,7 +51,8 @@ export interface TransferReceiptAttributes {
 
 export class TransferReceipt
   extends Model<TransferReceiptAttributes>
-  implements TransferReceiptAttributes {
+  implements TransferReceiptAttributes
+{
   public id!: number
   public signer!: Address
   public fees!: string
@@ -111,7 +113,8 @@ export interface AllocationSummaryAttributes {
 
 export class AllocationSummary
   extends Model<AllocationSummaryAttributes>
-  implements AllocationSummaryAttributes {
+  implements AllocationSummaryAttributes
+{
   public allocation!: Address
   public closedAt!: Date
   public createdTransfers!: number
