@@ -40,6 +40,7 @@ import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import delay from 'delay'
 import pFilter from 'p-filter'
+import pRetry from 'p-retry'
 
 const allocationIdProof = (
   signer: Signer,
@@ -60,7 +61,7 @@ enum TransactionType {
 }
 interface TransactionConfig extends providers.TransactionRequest {
   attempt: number
-  gasBump: number
+  gasBump: BigNumber
   type: TransactionType
 }
 
@@ -81,7 +82,7 @@ export class Network {
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
-  gasIncreaseFactor: number
+  gasIncreaseFactor: BigNumber
   baseFeePerGasMax: number
   maxTransactionAttempts: number
 
@@ -122,7 +123,7 @@ export class Network {
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
-    this.gasIncreaseFactor = gasIncreaseFactor
+    this.gasIncreaseFactor = utils.parseUnits(gasIncreaseFactor.toString(), 3)
     this.baseFeePerGasMax = baseFeePerGasMax
     this.maxTransactionAttempts = maxTransactionAttempts
   }
@@ -165,7 +166,7 @@ export class Network {
       gasLimit: tx.gasLimit,
     }
 
-    logger.info(`Sending transaction`, { tx: tx, attempt: txConfig.attempt })
+    logger.info(`Sending transaction`, { txConfig })
 
     while (pending) {
       if (
@@ -199,7 +200,7 @@ export class Network {
           tx = await this.wallet.sendTransaction(txRequest)
         }
 
-        logger.info(`Transaction pending`, { tx: tx, txConfig })
+        logger.info(`Transaction pending`, { tx: tx })
 
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
@@ -263,15 +264,14 @@ export class Network {
     logger.warning(
       'Failed to send transaction, evaluating retry possibilities',
       {
-        txConfig,
         error: error.message,
       },
     )
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
-        txConfig.gasLimit = BigNumber.from(txConfig.gasLimit).mul(
-          txConfig.gasBump,
-        )
+        txConfig.gasLimit = BigNumber.from(txConfig.gasLimit)
+          .mul(txConfig.gasBump)
+          .div(1000)
         txConfig.nonce = BigNumber.from(txConfig.nonce).add(1)
       } else if (error.code == IndexerErrorCode.IE051) {
         throw error
@@ -287,7 +287,10 @@ export class Network {
         // Let's introduce a 30 second delay to ensure the previous transaction has
         // a chance to be mined and return to the reconciliation loop so the agent can reevaluate.
         delay(30000)
-        throw error
+        throw indexerError(
+          IndexerErrorCode.IE058,
+          `Original transaction was not confirmed though it may have been successful`,
+        )
       } else if (
         error.message.includes(
           'Transaction nonce is too low. Try incrementing the nonce.',
@@ -301,29 +304,19 @@ export class Network {
       ) {
         // Transaction timed out or failed due to a low gas price estimation, bump gas price and retry
         if (txConfig.type === TransactionType.ZERO) {
-          txConfig.gasPrice = BigNumber.from(txConfig.gasPrice).mul(
-            txConfig.gasBump,
-          )
+          txConfig.gasPrice = BigNumber.from(txConfig.gasPrice)
+            .mul(txConfig.gasBump)
+            .div(1000)
         } else if (txConfig.type == TransactionType.TWO) {
-          const previousMaxPriorityFeePerGas = BigNumber.from(
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          txConfig.maxFeePerGas = BigNumber.from(txConfig.maxFeePerGas)
+            .mul(txConfig.gasBump)
+            .div(1000)
+          txConfig.maxPriorityFeePerGas = BigNumber.from(
             txConfig.maxPriorityFeePerGas,
           )
-          const currentFeeData = await this.waitForGasPricesBelowThreshold(
-            logger,
-          )
-          if (
-            (await this.transactionType(currentFeeData)) !== TransactionType.TWO
-          ) {
-            throw new Error(
-              `Network fee data failed validation: gasPrice: ${currentFeeData.gasPrice}, maxPriorityFeePerGas: ${currentFeeData.maxPriorityFeePerGas}, maxFeePerGass: ${currentFeeData.maxFeePerGas}`,
-            )
-          }
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          txConfig.maxFeePerGas = currentFeeData.maxFeePerGas!
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          txConfig.maxPriorityFeePerGas = previousMaxPriorityFeePerGas!.mul(
-            txConfig.gasBump,
-          )
+            .mul(txConfig.gasBump)
+            .div(1000)
         }
       }
     }
@@ -331,16 +324,15 @@ export class Network {
     return txConfig
   }
   async transactionType(data: providers.FeeData): Promise<TransactionType> {
-    if (data.gasPrice) {
-      return TransactionType.ZERO
-    } else if (data.maxPriorityFeePerGas && data.maxFeePerGas) {
+    if (data.maxPriorityFeePerGas && data.maxFeePerGas) {
       return TransactionType.TWO
+    } else if (data.gasPrice) {
+      return TransactionType.ZERO
     } else {
       throw new Error(
         `Network fee data failed validation: gasPrice: ${data.gasPrice}, maxPriorityFeePerGas: ${data.maxPriorityFeePerGas}, maxFeePerGass: ${data.maxFeePerGas}`,
       )
     }
-    return 0
   }
   async waitForGasPricesBelowThreshold(
     logger: Logger,
@@ -348,7 +340,7 @@ export class Network {
     let attempt = 1
     let aboveThreshold = true
     let feeData = {
-      gasPrice: BigNumber.from(this.baseFeePerGasMax),
+      gasPrice: null,
       maxFeePerGas: null,
       maxPriorityFeePerGas: null,
     } as providers.FeeData
@@ -529,6 +521,11 @@ export class Network {
         }
 
         const results = result.data.subgraphDeployments
+
+        // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
+        if (results.length == 0) {
+          return []
+        }
 
         queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
@@ -1025,70 +1022,79 @@ export class Network {
       geoHash,
     })
 
-    try {
-      logger.info(`Register indexer`)
+    await pRetry(
+      async () => {
+        try {
+          logger.info(`Register indexer`)
 
-      // Register the indexer (only if it hasn't been registered yet or
-      // if its URL is different from what is registered on chain)
-      const isRegistered = await this.contracts.serviceRegistry.isRegistered(
-        this.indexerAddress,
-      )
-      if (isRegistered) {
-        const service = await this.contracts.serviceRegistry.services(
-          this.indexerAddress,
-        )
-        if (service.url === this.indexerUrl && service.geohash === geoHash) {
-          if (await this.isOperator.value()) {
-            logger.info(
-              `Indexer already registered, operator status already granted`,
+          // Register the indexer (only if it hasn't been registered yet or
+          // if its URL is different from what is registered on chain)
+          const isRegistered =
+            await this.contracts.serviceRegistry.isRegistered(
+              this.indexerAddress,
             )
-            return
-          } else {
-            logger.info(
-              `Indexer already registered, operator status not yet granted`,
+          if (isRegistered) {
+            const service = await this.contracts.serviceRegistry.services(
+              this.indexerAddress,
             )
+            if (
+              service.url === this.indexerUrl &&
+              service.geohash === geoHash
+            ) {
+              if (await this.isOperator.value()) {
+                logger.info(
+                  `Indexer already registered, operator status already granted`,
+                )
+                return
+              } else {
+                logger.info(
+                  `Indexer already registered, operator status not yet granted`,
+                )
+              }
+            }
           }
-        }
-      }
-      const receipt = await this.executeTransaction(
-        () =>
-          this.contracts.serviceRegistry.estimateGas.registerFor(
-            this.indexerAddress,
-            this.indexerUrl,
-            geoHash,
-          ),
-        gasLimit =>
-          this.contracts.serviceRegistry.registerFor(
-            this.indexerAddress,
-            this.indexerUrl,
-            geoHash,
-            {
-              gasLimit,
-            },
-          ),
-        logger.child({ action: 'register' }),
-      )
-      if (receipt === 'paused' || receipt === 'unauthorized') {
-        return
-      }
-      const events = receipt.events || receipt.logs
-      const event = events.find(event =>
-        event.topics.includes(
-          this.contracts.serviceRegistry.interface.getEventTopic(
-            'ServiceRegistered',
-          ),
-        ),
-      )
-      assert.ok(event)
+          const receipt = await this.executeTransaction(
+            () =>
+              this.contracts.serviceRegistry.estimateGas.registerFor(
+                this.indexerAddress,
+                this.indexerUrl,
+                geoHash,
+              ),
+            gasLimit =>
+              this.contracts.serviceRegistry.registerFor(
+                this.indexerAddress,
+                this.indexerUrl,
+                geoHash,
+                {
+                  gasLimit,
+                },
+              ),
+            logger.child({ action: 'register' }),
+          )
+          if (receipt === 'paused' || receipt === 'unauthorized') {
+            return
+          }
+          const events = receipt.events || receipt.logs
+          const event = events.find(event =>
+            event.topics.includes(
+              this.contracts.serviceRegistry.interface.getEventTopic(
+                'ServiceRegistered',
+              ),
+            ),
+          )
+          assert.ok(event)
 
-      logger.info(`Successfully registered indexer`)
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE012, error)
-      logger.error(`Failed to register indexer`, {
-        err,
-      })
-      throw err
-    }
+          logger.info(`Successfully registered indexer`)
+        } catch (error) {
+          const err = indexerError(IndexerErrorCode.IE012, error)
+          logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE012], {
+            err,
+          })
+          throw error
+        }
+      },
+      { retries: 5 },
+    )
   }
 
   async allocate(
