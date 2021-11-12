@@ -609,10 +609,7 @@ class Agent {
     const allocationAmount = rule?.allocationAmount
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
-    const desiredNumberOfAllocations = Math.max(
-      1,
-      rule?.parallelAllocations || 1,
-    )
+    const desiredNumberOfAllocations = 1
 
     logger.info(`Reconcile deployment allocations`, {
       allocationAmount: formatGRT(allocationAmount),
@@ -665,8 +662,7 @@ class Agent {
 
     // If there are no allocations at all yet, create a new allocation
     if (activeAllocations.length === 0) {
-      logger.info(`No active allocations for deployment, creating some now`, {
-        desiredNumberOfAllocations,
+      logger.info(`No active allocation for deployment, creating one now`, {
         allocationAmount: formatGRT(allocationAmount),
       })
       const allocationsCreated = await this.network.allocate(
