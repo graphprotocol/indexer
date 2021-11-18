@@ -64,4 +64,4 @@ ENV ETHEREUM ""
 
 # Run the indexer-service
 WORKDIR /opt/indexer/packages/indexer-service
-CMD ["node", "dist/index.js", "start"]
+ENTRYPOINT ["node", "dist/index.js", "start"]
