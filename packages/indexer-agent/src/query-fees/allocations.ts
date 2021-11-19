@@ -348,13 +348,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       return
     }
 
+    const hexPrefix = (bytes: string): string =>
+      bytes.startsWith('0x') ? bytes : `0x${bytes}`
+
     try {
       const onchainVoucher = {
-        allocationID: voucher.allocation,
+        allocationID: hexPrefix(voucher.allocation),
         amount: voucher.amount,
-        signature: `0x${voucher.signature}`,
+        signature: hexPrefix(voucher.signature),
       }
-
       // Submit the voucher on chain
       const txReceipt = await this.network.executeTransaction(
         () => this.allocationExchange.estimateGas.redeem(onchainVoucher),
