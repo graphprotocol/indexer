@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 2021-11-23
+### Added
+- Support unattestable query responses
+
+### Fixed
+- Use ENTRYPOINT instead of CMD in dockerfile so users can specify command line arguments in docker run command
+
 ## [0.18.2] - 2021-10-19
 ### Changed
 - Broaden scope of allocations eligible for receiving traffic to include those recently closed
@@ -226,7 +233,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/graphprotocol/indexer/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/graphprotocol/indexer/compare/v0.18.0...v0.18.2
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.16.0...v0.17.0

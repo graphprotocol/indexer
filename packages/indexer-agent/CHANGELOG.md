@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.18.3] - 2021-11-23
+### Fixed
+- Only add prefix to voucher address if not present
+- Bump type 2 transaction gas fee configs on retry after timeout
+
+### Changed
+- Keep deployment indexing for 1 day after allocation close
+- Reducing transaction logging redundancy to improve readability
+
 ## [0.18.2] - 2021-10-19
 ### Changed
 - Bump priority gas fee on gas price too low retry
@@ -315,7 +324,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.3...HEAD
+[0.18.3]: https://github.com/graphprotocol/indexer/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/graphprotocol/indexer/compare/v0.18.0...v0.18.2
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.16.0...v0.17.0
