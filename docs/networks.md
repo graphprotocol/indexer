@@ -33,8 +33,7 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 
 | Parameter                   | Value |
 | --------------------------- | ----- |
-| Epoch length                | ~ 
-h |
+| Epoch length                | ~ 24h |
 | Maximum allocation lifetime | ~ 28d |
 
 ### Contracts
