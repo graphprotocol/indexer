@@ -4,13 +4,14 @@ import fs from 'fs'
 
 import { loadValidatedConfig } from '../../../../config'
 import { createIndexerManagementClient } from '../../../../client'
-import { fixParameters, validateDeploymentID } from '../../../../command-helpers'
+import { fixParameters } from '../../../../command-helpers'
 import {
   parseCostModel,
   parseDeploymentID,
   printCostModels,
   setCostModel,
 } from '../../../../cost'
+import { validateDeploymentID } from "@graphprotocol/indexer-common";
 
 const HELP = `
 ${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <file>
@@ -44,7 +45,7 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(deployment, { all: false, global: false })
+      validateDeploymentID(deployment)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

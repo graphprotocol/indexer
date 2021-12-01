@@ -9,17 +9,20 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
-  allocationRewardsPool,
   Allocation,
+  allocationRewardsPool,
   AllocationStatus,
-  INDEXING_RULE_GLOBAL,
-  IndexingRuleAttributes,
-  RewardsPool,
+  BlockPointer,
   indexerError,
   IndexerErrorCode,
+  INDEXING_RULE_GLOBAL,
+  IndexingRuleAttributes,
+  NetworkSubgraph,
   POIDisputeAttributes,
+  RewardsPool,
+  Subgraph,
+  SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
-import { BlockPointer, NetworkSubgraph } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { AgentConfig } from './types'
 import { Network } from './network'
@@ -40,6 +43,16 @@ const deploymentInList = (
 ): boolean =>
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
+const deploymentRuleInList = (
+  list: IndexingRuleAttributes[],
+  deployment: SubgraphDeploymentID,
+): boolean =>
+  list.find(
+    rule =>
+      rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
+      rule.identifier == deployment.ipfsHash,
+  ) !== undefined
+
 const uniqueDeploymentsOnly = (
   value: SubgraphDeploymentID,
   index: number,
@@ -49,6 +62,54 @@ const uniqueDeploymentsOnly = (
 const uniqueDeployments = (
   deployments: SubgraphDeploymentID[],
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
+
+const convertSubgraphBasedRulesToDeploymentBased = (
+  rules: IndexingRuleAttributes[],
+  subgraphs: Subgraph[],
+  previousVersionBuffer: number,
+): IndexingRuleAttributes[] => {
+  const toAdd: IndexingRuleAttributes[] = []
+  rules.map(rule => {
+    const ruleSubgraph = subgraphs.find(
+      subgraph => subgraph.id == rule.identifier,
+    )
+    if (ruleSubgraph) {
+      const latestVersion = ruleSubgraph.versionCount - 1
+      const latestDeploymentVersion = ruleSubgraph.versions.find(
+        version => version.version == latestVersion,
+      )
+      if (latestDeploymentVersion) {
+        if (!deploymentRuleInList(rules, latestDeploymentVersion!.deployment)) {
+          rule.identifier = latestDeploymentVersion!.deployment.toString()
+          rule.identifierType = SubgraphIdentifierType.DEPLOYMENT
+        }
+
+        const currentTimestamp = Math.floor(Date.now() / 1000)
+        if (
+          latestDeploymentVersion.createdAt >
+          currentTimestamp - previousVersionBuffer
+        ) {
+          const previousDeploymentVersion = ruleSubgraph.versions.find(
+            version => version.version == latestVersion - 1,
+          )
+          if (
+            previousDeploymentVersion &&
+            !deploymentRuleInList(rules, previousDeploymentVersion.deployment)
+          ) {
+            const previousDeploymentRule = { ...rule }
+            previousDeploymentRule.identifier =
+              previousDeploymentVersion!.deployment.toString()
+            previousDeploymentRule.identifierType =
+              SubgraphIdentifierType.DEPLOYMENT
+            toAdd.push(previousDeploymentRule)
+          }
+        }
+      }
+    }
+  })
+  rules.push(...toAdd)
+  return rules
+}
 
 const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
   new Set(deployments.map(id => id.display.bytes32))
@@ -143,11 +204,34 @@ class Agent {
     )
 
     const indexingRules = timer(60_000).tryMap(
-      () => this.indexer.indexingRules(true),
+      async () => {
+        let rules = await this.indexer.indexingRules(true)
+        const subgraphRuleIds = rules
+          .filter(
+            rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
+          )
+          .map(rule => rule.identifier!)
+        const subgraphsMatchingRules = await this.network.subgraphs(
+          subgraphRuleIds,
+        )
+        if (subgraphsMatchingRules.length >= 1) {
+          const epochLength =
+            await this.network.contracts.epochManager.epochLength()
+          const blockPeriod = 15
+          const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+          rules = convertSubgraphBasedRulesToDeploymentBased(
+            rules,
+            subgraphsMatchingRules,
+            bufferPeriod,
+          )
+        }
+        return rules
+      },
       {
-        onError: () =>
+        onError: error =>
           this.logger.warn(
             `Failed to obtain indexing rules, trying again later`,
+            { error },
           ),
       },
     )
@@ -616,8 +700,8 @@ class Agent {
           deploymentInList(targetDeployments, deployment),
 
           // Indexing rule for the deployment (if any)
-          rules.find(rule => rule.deployment === deployment.bytes32) ||
-            rules.find(rule => rule.deployment === INDEXING_RULE_GLOBAL),
+          rules.find(rule => rule.identifier === deployment.bytes32) ||
+            rules.find(rule => rule.identifier === INDEXING_RULE_GLOBAL),
 
           currentEpoch,
           currentEpochStartBlock,

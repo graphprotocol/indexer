@@ -47,6 +47,12 @@ const SCHEMA_SDL = gql`
     always
   }
 
+  enum IdentifierType {
+    deployment
+    subgraph
+    group
+  }
+
   type POIDispute {
     allocationID: String!
     subgraphDeploymentID: String!
@@ -80,7 +86,8 @@ const SCHEMA_SDL = gql`
   }
 
   type IndexingRule {
-    deployment: String!
+    identifier: String!
+    identifierType: IdentifierType!
     allocationAmount: BigInt
     parallelAllocations: Int
     maxAllocationPercentage: Float
@@ -93,7 +100,8 @@ const SCHEMA_SDL = gql`
   }
 
   input IndexingRuleInput {
-    deployment: String!
+    identifier: String!
+    identifierType: IdentifierType!
     allocationAmount: BigInt
     parallelAllocations: Int
     maxAllocationPercentage: Float
@@ -183,7 +191,7 @@ const SCHEMA_SDL = gql`
   }
 
   type Query {
-    indexingRule(deployment: String!, merged: Boolean! = false): IndexingRule
+    indexingRule(identifier: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
     indexerRegistration: IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
@@ -200,8 +208,8 @@ const SCHEMA_SDL = gql`
 
   type Mutation {
     setIndexingRule(rule: IndexingRuleInput!): IndexingRule!
-    deleteIndexingRule(deployment: String!): Boolean!
-    deleteIndexingRules(deployments: [String!]!): Boolean!
+    deleteIndexingRule(identifier: String!): Boolean!
+    deleteIndexingRules(identifiers: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
 
@@ -213,7 +221,7 @@ const SCHEMA_SDL = gql`
 export interface IndexerManagementDefaults {
   globalIndexingRule: Omit<
     IndexingRuleCreationAttributes,
-    'deployment' | 'allocationAmount'
+    'identifier' | 'allocationAmount'
   > & { allocationAmount: BigNumber }
 }
 

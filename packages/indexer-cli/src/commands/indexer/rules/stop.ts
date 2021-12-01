@@ -3,12 +3,11 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
-import { IndexingDecisionBasis } from '@graphprotocol/indexer-common'
+import { fixParameters } from '../../../command-helpers'
+import {IndexingDecisionBasis, processIdentifier} from '@graphprotocol/indexer-common'
 import {
   setIndexingRule,
   printIndexingRules,
-  parseDeploymentID,
   parseIndexingRule,
 } from '../../../rules'
 
@@ -32,7 +31,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [deployment] = fixParameters(parameters, { h, help }) || []
+    const [id] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -49,23 +48,17 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      validateDeploymentID(deployment, { all: false, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
+      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
 
-    const inputRule = parseIndexingRule({
-      deployment,
-      decisionBasis: IndexingDecisionBasis.NEVER,
-    })
+      const inputRule = parseIndexingRule({
+        identifier,
+        identifierType,
+        decisionBasis: IndexingDecisionBasis.NEVER,
+      })
 
-    // Update the indexing rule according to the key/value pairs
-    try {
       const client = await createIndexerManagementClient({ url: config.api })
       const rule = await setIndexingRule(client, inputRule)
-      printIndexingRules(print, outputFormat, parseDeploymentID(deployment), rule, [])
+      printIndexingRules(print, outputFormat, identifier, rule, [])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

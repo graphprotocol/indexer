@@ -42,7 +42,7 @@ let sockets: Socket[] = []
 
 export const setup = async () => {
   logger = createLogger({
-    name: 'IndexerAgent',
+    name: 'Indexer CLI tester',
     async: false,
     level: __LOG_LEVEL__,
   })
@@ -99,6 +99,27 @@ export const setup = async () => {
   process.setMaxListeners(20)
   process.on('SIGTERM', await shutdownIndexerManagementServer)
   process.on('SIGINT', await shutdownIndexerManagementServer)
+
+  // Set global, deployment, and subgraph based test rules
+  const commands: string[][] = [
+    ['indexer', 'connect', 'http://localhost:18000'],
+    ['indexer', 'rules', 'set', 'global', 'minSignal', '500', 'allocationAmount', '.01'],
+    ['indexer', 'rules', 'set', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
+    [
+      'indexer',
+      'rules',
+      'set',
+      '0x0000000000000000000000000000000000000000-0',
+      'allocationAmount',
+      '1000',
+    ],
+  ]
+  for (const command of commands) {
+    const { exitCode } = await runIndexerCli(command, process.cwd())
+    if (exitCode == 1) {
+      throw Error(`Setup failed: indexer rules set command failed: ${command}`)
+    }
+  }
 }
 
 export const shutdownIndexerManagementServer = async () => {

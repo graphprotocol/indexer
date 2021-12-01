@@ -4,19 +4,19 @@ import { partition } from '@thi.ng/iterators'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { fixParameters } from '../../../command-helpers'
 import {
   setIndexingRule,
   printIndexingRules,
-  parseDeploymentID,
   parseIndexingRule,
 } from '../../../rules'
+import { processIdentifier } from "@graphprotocol/indexer-common"
 
 const HELP = `
 ${chalk.bold('graph indexer rules clear')} [options] global          [<key1> ...]
-${chalk.bold('graph indexer rules clear')} [options] <deployment-id> [<key1> ...]
+${chalk.bold('graph indexer rules clear')} [options] <subgraph-identifier> [<key1> ...]
 ${chalk.bold('graph indexer rules reset')} [options] global          [<key1> ...]
-${chalk.bold('graph indexer rules reset')} [options] <deployment-id> [<key1> ...]
+${chalk.bold('graph indexer rules reset')} [options] <subgraph-identifier> [<key1> ...]
 
 ${chalk.dim('Options:')}
 
@@ -36,7 +36,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [deployment, ...keys] = fixParameters(parameters, { h, help }) || []
+    const [id, ...keys] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -68,31 +68,26 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      validateDeploymentID(deployment, { all: false, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
 
-    // Turn the array into an object, add a `deployment` key
-    const inputRule = parseIndexingRule({
-      ...Object.fromEntries(
-        partition(
-          2,
-          2,
-          // indexing decisions cannot be null
-          keys.map(key => [key, key === 'decisionBasis' ? 'rules' : null]).flat(),
+      // Turn the array into an object, add an `identifier` key
+      const inputRule = parseIndexingRule({
+        ...Object.fromEntries(
+          partition(
+            2,
+            2,
+            // indexing decisions cannot be null
+            keys.map(key => [key, key === 'decisionBasis' ? 'rules' : null]).flat(),
+          ),
         ),
-      ),
-      deployment,
-    })
+        identifier,
+        identifierType
+      })
 
-    // Update the indexing rule according to the key/value pairs
-    try {
       const client = await createIndexerManagementClient({ url: config.api })
       const rule = await setIndexingRule(client, inputRule)
-      printIndexingRules(print, outputFormat, parseDeploymentID(deployment), rule, [])
+      printIndexingRules(print, outputFormat, identifier, rule, [])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

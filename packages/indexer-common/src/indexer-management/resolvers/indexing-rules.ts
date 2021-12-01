@@ -9,7 +9,7 @@ import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../
 import { Transaction } from 'sequelize/types'
 
 const resetGlobalRule = async (
-  deployment: string,
+  identifier: string,
   defaults: IndexerManagementDefaults['globalIndexingRule'],
   models: IndexerManagementModels,
   transaction: Transaction,
@@ -18,7 +18,7 @@ const resetGlobalRule = async (
     {
       ...defaults,
       allocationAmount: defaults.allocationAmount.toString(),
-      deployment,
+      identifier,
     },
     { transaction },
   )
@@ -26,16 +26,16 @@ const resetGlobalRule = async (
 
 export default {
   indexingRule: async (
-    { deployment, merged }: { deployment: string; merged: boolean },
+    { identifier, merged }: { identifier: string; merged: boolean },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const rule = await models.IndexingRule.findOne({
-      where: { deployment },
+      where: { identifier },
     })
     if (rule && merged) {
       return rule.mergeToGraphQL(
         await models.IndexingRule.findOne({
-          where: { deployment: INDEXING_RULE_GLOBAL },
+          where: { identifier: INDEXING_RULE_GLOBAL },
         }),
       )
     } else {
@@ -48,11 +48,11 @@ export default {
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     const rules = await models.IndexingRule.findAll({
-      order: [['deployment', 'DESC']],
+      order: [['identifier', 'DESC']],
     })
     if (merged) {
       const global = await models.IndexingRule.findOne({
-        where: { deployment: INDEXING_RULE_GLOBAL },
+        where: { identifier: INDEXING_RULE_GLOBAL },
       })
       return rules.map((rule) => rule.mergeToGraphQL(global))
     } else {
@@ -68,29 +68,29 @@ export default {
 
     // Since upsert succeeded, we _must_ have a rule
     const updatedRule = await models.IndexingRule.findOne({
-      where: { deployment: rule.deployment },
+      where: { identifier: rule.identifier },
     })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return updatedRule!.toGraphQL()
   },
 
   deleteIndexingRule: async (
-    { deployment }: { deployment: string },
+    { identifier }: { identifier: string },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
         where: {
-          deployment,
+          identifier,
         },
         transaction,
       })
 
       // Reset the global rule
-      if (deployment === 'global') {
+      if (identifier === 'global') {
         await resetGlobalRule(
-          deployment,
+          identifier,
           defaults.globalIndexingRule,
           models,
           transaction,
@@ -102,19 +102,19 @@ export default {
   },
 
   deleteIndexingRules: async (
-    { deployments }: { deployments: string[] },
+    { identifiers }: { identifiers: string[] },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
         where: {
-          deployment: deployments,
+          identifier: identifiers,
         },
         transaction,
       })
 
-      if (deployments.includes('global')) {
+      if (identifiers.includes('global')) {
         await resetGlobalRule('global', defaults.globalIndexingRule, models, transaction)
       }
 

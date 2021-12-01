@@ -20,14 +20,14 @@ export async function up({ context }: Context): Promise<void> {
 
     if (tables.includes('allocation_receipts')) {
       const table = await queryInterface.describeTable('allocation_receipts')
-      if(table.paymentAmount) {
+      if (table.paymentAmount) {
         await queryInterface.renameColumn(
           'allocation_receipts',
           'paymentAmount',
           'fees',
-          {transaction},
+          { transaction },
         )
-      } else if (table.fees){
+      } else if (table.fees) {
         logger.info(
           `Fees column already exists in the allocation_receipts table, column rename not necessary`,
         )
@@ -36,18 +36,18 @@ export async function up({ context }: Context): Promise<void> {
 
     if (tables.includes('allocation_summaries')) {
       const table = await queryInterface.describeTable('allocation_summaries')
-      if(table.queryFees) {
+      if (table.queryFees) {
         await queryInterface.renameColumn(
           'allocation_summaries',
           'queryFees',
           'collectedFees',
-          {transaction},
+          { transaction },
         )
       } else if (table.collectedFees)
         logger.info(
           `collectedFees column already exists in the allocation_receipts table, column rename not necessary`,
         )
-        return
+      return
     }
 
     if (tables.includes('transfer_receipts')) {
@@ -57,7 +57,7 @@ export async function up({ context }: Context): Promise<void> {
           'transfer_receipts',
           'paymentAmount',
           'fees',
-          {transaction},
+          { transaction },
         )
       } else if (table.fees) {
         logger.info(
@@ -78,14 +78,14 @@ export async function down({ context }: Context): Promise<void> {
 
     if (tables.includes('allocation_receipts')) {
       const table = await queryInterface.describeTable('allocation_receipts')
-      if(table.fees) {
+      if (table.fees) {
         await queryInterface.renameColumn(
           'allocation_receipts',
           'fees',
           'paymentAmount',
-          {transaction},
+          { transaction },
         )
-      } else if (table.paymentAmount){
+      } else if (table.paymentAmount) {
         logger.info(
           `paymentAmount column already exists in the allocation_receipts table, column rename not necessary`,
         )
@@ -94,12 +94,12 @@ export async function down({ context }: Context): Promise<void> {
 
     if (tables.includes('allocation_summaries')) {
       const table = await queryInterface.describeTable('allocation_summaries')
-      if(table.collectedFees) {
+      if (table.collectedFees) {
         await queryInterface.renameColumn(
           'allocation_summaries',
           'collectedFees',
           'queryFees',
-          {transaction},
+          { transaction },
         )
       } else if (table.queryFees)
         logger.info(
@@ -115,7 +115,7 @@ export async function down({ context }: Context): Promise<void> {
           'transfer_receipts',
           'fees',
           'paymentAmount',
-          {transaction},
+          { transaction },
         )
       } else if (table.paymentAmount) {
         logger.info(

@@ -4,13 +4,13 @@ import { partition } from '@thi.ng/iterators'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { fixParameters } from '../../../command-helpers'
 import {
   parseIndexingRule,
   setIndexingRule,
   printIndexingRules,
-  parseDeploymentID,
 } from '../../../rules'
+import { processIdentifier } from "@graphprotocol/indexer-common";
 
 const HELP = `
 ${chalk.bold('graph indexer rules set')} [options] global          <key1> <value1> ...
@@ -30,7 +30,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [deployment, ...keyValues] = fixParameters(parameters, { h, help }) || []
+    const [id, ...keyValues] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -45,44 +45,38 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(deployment, { all: false, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
+      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const config = loadValidatedConfig()
 
-    const config = loadValidatedConfig()
+      //// Parse key/value pairs
 
-    //// Parse key/value pairs
+      // 1. Convert all `null` strings to real nulls, and other values
+      //    to regular JS strings (which for some reason they are not...)
+      const kvs = keyValues.map(param => (param === 'null' ? null : param.toString()))
 
-    // 1. Convert all `null` strings to real nulls, and other values
-    //    to regular JS strings (which for some reason they are not...)
-    const kvs = keyValues.map(param => (param === 'null' ? null : param.toString()))
+      // 2. Check that all key/value pairs are complete and
+      // there's no value missing at the end
+      if (kvs.length % 2 !== 0) {
+        print.error(`An uneven number of key/value pairs was passed in: ${kvs.join(' ')}`)
+        process.exitCode = 1
+        return
+      }
 
-    // 2. Check that all key/value pairs are complete and
-    // there's no value missing at the end
-    if (kvs.length % 2 !== 0) {
-      print.error(`An uneven number of key/value pairs was passed in: ${kvs.join(' ')}`)
-      process.exitCode = 1
-      return
-    }
+      // Turn the array into an object, add `identifier` and `identifierType` keys
+      const inputRule = parseIndexingRule({
+        ...Object.fromEntries([...partition(2, 2, kvs)]),
+        identifier,
+        identifierType
+      })
 
-    // Turn the array into an object, add a `deployment` key
-    const inputRule = parseIndexingRule({
-      ...Object.fromEntries([...partition(2, 2, kvs)]),
-      deployment,
-    })
+      if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
+        print.error('Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules')
+        process.exitCode = 1
+      }
 
-    if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
-      throw Error ('Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules')
-    }
-
-    // Update the indexing rule according to the key/value pairs
-    try {
       const client = await createIndexerManagementClient({ url: config.api })
       const rule = await setIndexingRule(client, inputRule)
-      printIndexingRules(print, outputFormat, parseDeploymentID(deployment), rule, [])
+      printIndexingRules(print, outputFormat, identifier, rule, [])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

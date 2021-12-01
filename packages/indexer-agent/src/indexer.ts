@@ -12,6 +12,7 @@ import {
   IndexingStatusResolver,
   BlockPointer,
   IndexingStatus,
+  SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
 import pRetry from 'p-retry'
 
@@ -215,7 +216,8 @@ export class Indexer {
           gql`
             query indexingRules($merged: Boolean!) {
               indexingRules(merged: $merged) {
-                deployment
+                identifier
+                identifierType
                 allocationAmount
                 parallelAllocations
                 maxAllocationPercentage
@@ -239,7 +241,8 @@ export class Indexer {
         count: result.data.indexingRules.length,
         rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
           return {
-            identifier: rule.deployment,
+            identifier: rule.identifier,
+            identifierType: rule.identifierType,
             decisionBasis: rule.decisionBasis,
           }
         }),
@@ -257,15 +260,16 @@ export class Indexer {
       const globalRule = await this.indexerManagement
         .query(
           gql`
-            query indexingRule($deployment: String!) {
-              indexingRule(deployment: $deployment, merged: false) {
-                deployment
+            query indexingRule($identifier: String!) {
+              indexingRule(identifier: $identifier, merged: false) {
+                identifier
+                identifierType
                 allocationAmount
                 decisionBasis
               }
             }
           `,
-          { deployment: INDEXING_RULE_GLOBAL },
+          { identifier: INDEXING_RULE_GLOBAL },
         )
         .toPromise()
 
@@ -273,7 +277,8 @@ export class Indexer {
         this.logger.info(`Creating default "global" indexing rule`)
 
         const defaults = {
-          deployment: INDEXING_RULE_GLOBAL,
+          identifier: INDEXING_RULE_GLOBAL,
+          identifierType: SubgraphIdentifierType.GROUP,
           allocationAmount: this.defaultAllocationAmount.toString(),
           parallelAllocations: 1,
           decisionBasis: 'rules',
@@ -284,7 +289,8 @@ export class Indexer {
             gql`
               mutation setIndexingRule($rule: IndexingRuleInput!) {
                 setIndexingRule(rule: $rule) {
-                  deployment
+                  identifier
+                  identifierType
                   allocationAmount
                   parallelAllocations
                   maxAllocationPercentage
