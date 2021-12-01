@@ -46,16 +46,5 @@ describe('Indexer cli tests', () => {
         timeout: 10000,
       },
     )
-    // TODO: Add successful status test - requires graph-node or mock status/ endpoint
-    cliTest(
-      'Indexer status - connected to incorrect port',
-      ['indexer', 'status'],
-      'references/indexer-status-connected-to-incorrect-port',
-      {
-        expectedExitCode: 1,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
   })
 })

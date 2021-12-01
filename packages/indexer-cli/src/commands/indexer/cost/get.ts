@@ -3,8 +3,9 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { fixParameters } from '../../../command-helpers'
 import { costModel, costModels, parseDeploymentID, printCostModels } from '../../../cost'
+import { validateDeploymentID } from "@graphprotocol/indexer-common";
 
 const HELP = `
 ${chalk.bold('graph indexer cost get')} [options] all
@@ -50,7 +51,7 @@ module.exports = {
     const rawDeployment = ['model', 'variables'].includes(first) ? second : first
 
     try {
-      validateDeploymentID(rawDeployment, { all: true, global: false })
+      validateDeploymentID(rawDeployment)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

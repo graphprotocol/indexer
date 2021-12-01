@@ -3,14 +3,13 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { fixParameters } from '../../../command-helpers'
 import {
   indexingRule,
   indexingRules,
-  parseDeploymentID,
   printIndexingRules,
 } from '../../../rules'
-import { IndexingRuleAttributes } from '@graphprotocol/indexer-common'
+import {IndexingRuleAttributes, processIdentifier} from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules get')} [options] all             [<key1> ...]
@@ -32,7 +31,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, merged, o, output } = parameters.options
-    const [rawDeployment, ...keys] = fixParameters(parameters, { h, help, merged }) || []
+    const [id, ...keys] = fixParameters(parameters, { h, help, merged }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -47,28 +46,23 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(rawDeployment, { all: true, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [identifier, identifierType] = await processIdentifier(id, { all: true, global: true })
 
     const config = loadValidatedConfig()
-    const deployment = parseDeploymentID(rawDeployment)
 
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
-    try {
+
       const ruleOrRules =
-        deployment === 'all'
+        identifier === 'all'
           ? await indexingRules(client, !!merged)
-          : await indexingRule(client, deployment, !!merged)
+          : await indexingRule(client, identifier, !!merged)
 
       printIndexingRules(
         print,
         outputFormat,
-        deployment,
+        identifier,
         ruleOrRules,
         keys as (keyof IndexingRuleAttributes)[],
       )

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
-import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
+import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -13,7 +13,8 @@ export const INDEXING_RULE_GLOBAL = 'global'
 
 export interface IndexingRuleAttributes {
   id: number
-  deployment: string
+  identifier: string
+  identifierType: SubgraphIdentifierType
   allocationAmount: string | null
   parallelAllocations: number | null
   maxAllocationPercentage: number | null
@@ -29,6 +30,8 @@ export interface IndexingRuleCreationAttributes
   extends Optional<
     IndexingRuleAttributes,
     | 'id'
+    | 'identifier'
+    | 'identifierType'
     | 'allocationAmount'
     | 'parallelAllocations'
     | 'maxAllocationPercentage'
@@ -45,7 +48,8 @@ export class IndexingRule
   implements IndexingRuleAttributes
 {
   public id!: number
-  public deployment!: string
+  public identifier!: string
+  public identifierType!: SubgraphIdentifierType
   public allocationAmount!: string | null
   public parallelAllocations!: number | null
   public maxAllocationPercentage!: number | null
@@ -101,32 +105,21 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         autoIncrement: true,
         unique: true,
       },
-      deployment: {
+      identifier: {
         type: DataTypes.STRING,
-        allowNull: true,
         primaryKey: true,
+        unique: true,
+        allowNull: false,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          isDeploymentID: (value: any) => {
-            if (typeof value !== 'string') {
-              throw new Error('Deployment ID must be a string')
-            }
-
-            // "global" is ok
-            if (value === 'global') {
-              return
-            }
-
-            // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
-              return
-            }
-
-            throw new Error(
-              `Deployment ID must be "global" or a valid subgraph deployment ID`,
-            )
+          isSubgraphIdentifier: async (value: any) => {
+            await processIdentifier(value, { all: false, global: true })
           },
         },
+      },
+      identifierType: {
+        type: DataTypes.ENUM('deployment', 'subgraph', 'group'),
+        defaultValue: 'group',
       },
       allocationAmount: {
         type: DataTypes.DECIMAL,

@@ -7,18 +7,6 @@ describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
     beforeEach(setup)
     afterEach(teardown)
-
-    cliTest(
-      'Indexer connect - success',
-      ['indexer', 'connect', 'http://localhost:18000'],
-      'references/indexer-connect',
-      {
-        expectedExitCode: 0,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
-
     describe('Rules help', () => {
       cliTest('Indexer rules', ['indexer', 'rules'], 'references/indexer-rules', {
         expectedExitCode: 255,
@@ -41,7 +29,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules start - success',
         ['indexer', 'rules', 'start', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-        'references/indexer-rule-always',
+        'references/indexer-rule-deployment-always',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -61,7 +49,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules start - invalid deployment ID ',
         ['indexer', 'rules', 'start', 'Qmemememememe'],
-        'references/invalid-deployment-id-arg',
+        'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -74,7 +62,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules stop - success',
         ['indexer', 'rules', 'stop', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-        'references/indexer-rule-never',
+        'references/indexer-rule-deployment-never',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -94,7 +82,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules stop - invalid deployment ID',
         ['indexer', 'rules', 'stop', 'Qmemememememe'],
-        'references/invalid-deployment-id-arg',
+        'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -107,7 +95,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules maybe - success',
         ['indexer', 'rules', 'maybe', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-        'references/indexer-rule-rules',
+        'references/indexer-rule-deployment-rules',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -127,7 +115,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules maybe - invalid deployment ID ',
         ['indexer', 'rules', 'maybe', 'Qmemememememe'],
-        'references/invalid-deployment-id-arg',
+        'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -140,7 +128,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules clear - success',
         ['indexer', 'rules', 'clear', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-        'references/indexer-rule-rules',
+        'references/indexer-rule-deployment-rules',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -160,7 +148,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules clear - invalid deployment ID ',
         ['indexer', 'rules', 'clear', 'Qmemememememe'],
-        'references/invalid-deployment-id-arg',
+        'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -173,7 +161,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules delete - success',
         ['indexer', 'rules', 'delete', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-        'references/indexer-rule-deleted-success',
+        'references/indexer-rule-deployment-deleted-success',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -183,7 +171,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules delete - no args',
         ['indexer', 'rules', 'delete'],
-        'references/indexer-rules-command-no-args-including-all',
+        'references/indexer-rules-command-no-args',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -193,7 +181,129 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules delete - invalid deployment ID ',
         ['indexer', 'rules', 'delete', 'Qmemememememe'],
-        'references/invalid-deployment-id-arg',
+        'references/indexer-rules-invalid-identifier-arg',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+    })
+
+    describe('Rules set...', () => {
+      cliTest(
+        'Indexer rules set subgraph id - success',
+        [
+          'indexer',
+          'rules',
+          'set',
+          '0x0000000000000000000000000000000000000000-0',
+          'allocationAmount',
+          '1000',
+        ],
+        'references/indexer-rule-subgraph-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set deployment id - success',
+        ['indexer', 'rules', 'set', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
+        'references/indexer-rule-deployment-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set global - success',
+        [
+          'indexer',
+          'rules',
+          'set',
+          'global',
+          'minSignal',
+          '500',
+          'allocationAmount',
+          '.01',
+        ],
+        'references/indexer-rule-global-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set - no args',
+        ['indexer', 'rules', 'set'],
+        'references/indexer-rules-command-no-args',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set - invalid deployment ID ',
+        ['indexer', 'rules', 'set', 'Qmemememememe'],
+        'references/indexer-rules-invalid-identifier-arg',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+    })
+
+    describe('Rules get...', () => {
+      cliTest(
+        'Indexer rules get deployment - success',
+        ['indexer', 'rules', 'get', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
+        'references/indexer-rule-deployment-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get subgraph - success',
+        ['indexer', 'rules', 'get', '0x0000000000000000000000000000000000000000-0'],
+        'references/indexer-rule-subgraph-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get global - success',
+        ['indexer', 'rules', 'get', 'global'],
+        'references/indexer-rule-global-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 15000,
+        },
+      )
+      cliTest(
+        'Indexer rules get - no args',
+        ['indexer', 'rules', 'get'],
+        'references/indexer-rules-command-no-args',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get - invalid deployment ID ',
+        ['indexer', 'rules', 'get', 'Qmemememememe'],
+        'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -237,7 +347,7 @@ describe('Indexer rules tests', () => {
     cliTest(
       'Indexer rules get - no args',
       ['indexer', 'rules', 'get'],
-      'references/indexer-rules-command-no-args-including-all',
+      'references/indexer-rules-command-no-args',
       {
         expectedExitCode: 1,
         cwd: baseDir,

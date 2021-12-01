@@ -10,7 +10,7 @@
     "sourceMap": false,
     "esModuleInterop": true,
     "strict": true,
-    "lib": ["esnext", "es2015", "es6", "esnext.asynciterable", "dom"]
+    "lib": ["esnext", "es2015", "es6", "esnext.asynciterable", "dom", "ES2020.Promise"]
   },
   "include": [
     "src/*.ts",

@@ -9,6 +9,7 @@ module.exports = {
   // The glob patterns Jest uses to detect test files
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
+  testTimeout: 60000,
   globals: {
     __DATABASE__: {
       host: process.env.POSTGRES_TEST_HOST || bail('POSTGRES_TEST_HOST is not defined'),

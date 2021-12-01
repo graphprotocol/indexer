@@ -115,7 +115,8 @@ module.exports = {
               }
 
               indexingRules(merged: true) {
-                deployment
+                identifier
+                identifierType
                 allocationAmount
                 parallelAllocations
                 maxAllocationPercentage
@@ -205,7 +206,7 @@ module.exports = {
         ]
       } else {
         result.data.indexingRules.sort((a: any, b: any) =>
-          a.deployment.localeCompare(b.deployment),
+          a.identifier.localeCompare(b.deployment),
         )
         data.indexingRules = result.data.indexingRules.map(indexingRuleFromGraphQL)
       }
@@ -290,7 +291,7 @@ module.exports = {
       if (data.indexingRules.length === 1 && data.indexingRules[0].error) {
         print.info(formatData(data.indexingRules[0], outputFormat))
       } else {
-        printIndexingRules(print, outputFormat, null, data.indexingRules, [])
+        printIndexingRules(print, outputFormat, 'all', data.indexingRules, [])
       }
     } else {
       print.info(formatData(data, outputFormat))

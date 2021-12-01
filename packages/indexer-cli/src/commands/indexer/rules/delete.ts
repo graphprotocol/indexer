@@ -3,9 +3,10 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
-import { parseDeploymentID, indexingRules, deleteIndexingRules } from '../../../rules'
+import { fixParameters } from '../../../command-helpers'
+import { indexingRules, deleteIndexingRules } from '../../../rules'
 import { SubgraphDeploymentIDIsh } from 'indexer-cli/src/cost'
+import { processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules delete')} [options] all
@@ -25,7 +26,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [deployment] = fixParameters(parameters, { h, help }) || []
+    const [id] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -42,31 +43,23 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      validateDeploymentID(deployment, { all: true, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
+      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
 
-    // Update the indexing rule according to the key/value pairs
-    try {
       const client = await createIndexerManagementClient({ url: config.api })
-      const id = parseDeploymentID(deployment)
-      if (id === 'all') {
+
+      if (identifier === 'all') {
         const rules = await indexingRules(client, false)
         await deleteIndexingRules(
           client,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          rules.map(rule => rule.deployment as SubgraphDeploymentIDIsh),
+          rules.map(rule => rule.identifier as SubgraphDeploymentIDIsh),
         )
         print.info(`Deleted all indexing rules`)
-      } else if (id === 'global') {
+      } else if (identifier === 'global') {
         await deleteIndexingRules(client, ['global'])
         print.info(`Reset global indexing rules (the global rules cannot be deleted)`)
       } else {
-        await deleteIndexingRules(client, [id])
-        print.info(`Deleted indexing rules for deployment "${id.ipfsHash}`)
+        await deleteIndexingRules(client, [identifier as SubgraphDeploymentIDIsh])
+        print.info(`Deleted indexing rules for "${identifier}" (${identifierType})`)
       }
     } catch (error) {
       print.error(error.toString())

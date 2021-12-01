@@ -1,1 +1,1 @@
-Error: No deployment ID provided. Must be a valid deployment ID or "global"
+Error: Invalid subgraph identifier "undefined". Subgraph identifier should match 1 type of [deployment ID, subgraph ID, group identifier].
