@@ -26,6 +26,7 @@ export interface IndexingRuleAttributes {
   minAverageQueryFees: string | null
   custom: string | null
   decisionBasis: IndexingDecisionBasis
+  requireSupported: boolean
 }
 
 export interface IndexingRuleCreationAttributes
@@ -44,6 +45,7 @@ export interface IndexingRuleCreationAttributes
     | 'minAverageQueryFees'
     | 'custom'
     | 'decisionBasis'
+    | 'requireSupported'
   > {}
 
 export class IndexingRule
@@ -63,6 +65,7 @@ export class IndexingRule
   public minAverageQueryFees!: string | null
   public custom!: string | null
   public decisionBasis!: IndexingDecisionBasis
+  public requireSupported!: boolean
 
   public createdAt!: Date
   public updatedAt!: Date
@@ -200,6 +203,11 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         type: DataTypes.ENUM('rules', 'never', 'always', 'offchain'),
         allowNull: false,
         defaultValue: 'rules',
+      },
+      requireSupported: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
       },
     },
     {
