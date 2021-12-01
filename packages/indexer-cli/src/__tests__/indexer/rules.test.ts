@@ -298,7 +298,24 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules set deployment lifetime - success',
+        'Indexer rules set deployment id supported - success',
+        [
+          'indexer',
+          'rules',
+          'set',
+          'QmVEV7RA2U6BJT9Ssjxcfyrk4YQUnVqSRNX4TvYagjzh9h',
+          'requireSupported',
+          'false',
+        ],
+        'references/indexer-rule-deployment-supported',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set deployment id - success - offchain',
         [
           'indexer',
           'rules',

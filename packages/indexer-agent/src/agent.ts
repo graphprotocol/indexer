@@ -12,6 +12,7 @@ import {
   Allocation,
   allocationRewardsPool,
   AllocationStatus,
+  RewardsPool,
   BlockPointer,
   IndexingDecisionBasis,
   indexerError,
@@ -20,7 +21,6 @@ import {
   IndexingRuleAttributes,
   NetworkSubgraph,
   POIDisputeAttributes,
-  RewardsPool,
   Subgraph,
   SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
