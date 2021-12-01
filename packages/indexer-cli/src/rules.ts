@@ -36,7 +36,8 @@ function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => any> = {
   id: x => x,
-  deployment: parseDeploymentID,
+  identifier: x => x,
+  identifierType: x => x,
   allocationAmount: nullPassThrough(parseGRT),
   parallelAllocations: nullPassThrough(parseInt),
   minSignal: nullPassThrough(parseGRT),
@@ -53,7 +54,9 @@ const INDEXING_RULE_FORMATTERS: Record<
   (x: never) => string | null
 > = {
   id: nullPassThrough(x => x),
-  deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
+  //deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
+  identifier: x => x,
+  identifierType: x => x,
   allocationAmount: nullPassThrough(x => utils.commify(formatGRT(x))),
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
   minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
@@ -71,7 +74,8 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   (x: never) => any
 > = {
   id: x => x,
-  deployment: parseDeploymentID,
+  identifier: x => x,
+  identifierType: x => x,
   allocationAmount: nullPassThrough((x: string) => BigNumber.from(x)),
   parallelAllocations: nullPassThrough((x: string) => parseInt(x)),
   minSignal: nullPassThrough((x: string) => BigNumber.from(x)),
@@ -89,7 +93,8 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   (x: never) => any
 > = {
   id: x => x,
-  deployment: (x: SubgraphDeploymentIDIsh) => x.toString(),
+  identifier: x => x,
+  identifierType: x => x,
   allocationAmount: nullPassThrough((x: BigNumber) => x.toString()),
   parallelAllocations: nullPassThrough((x: number) => x),
   minSignal: nullPassThrough((x: BigNumber) => x.toString()),
@@ -192,7 +197,7 @@ export const displayIndexingRule = (
 export const printIndexingRules = (
   print: GluegunPrint,
   outputFormat: 'table' | 'json' | 'yaml',
-  deployment: SubgraphDeploymentIDIsh | null,
+  identifier: string,
   ruleOrRules: Partial<IndexingRuleAttributes> | Partial<IndexingRuleAttributes>[] | null,
   keys: (keyof IndexingRuleAttributes)[],
 ): void => {
@@ -203,8 +208,8 @@ export const printIndexingRules = (
   } else if (ruleOrRules) {
     const rule = formatIndexingRule(pickFields(ruleOrRules, keys))
     print.info(displayIndexingRule(outputFormat, rule))
-  } else if (deployment) {
-    print.error(`No rule found for "${deployment}"`)
+  } else if (identifier) {
+    print.error(`No rule found for subgraph identifier "${identifier}"`)
   } else {
     print.error(`No indexing rules found`)
   }
@@ -219,7 +224,8 @@ export const indexingRules = async (
       gql`
         query indexingRules($merged: Boolean!) {
           indexingRules(merged: $merged) {
-            deployment
+            identifier
+            identifierType
             allocationAmount
             parallelAllocations
             maxAllocationPercentage
@@ -245,15 +251,16 @@ export const indexingRules = async (
 
 export const indexingRule = async (
   client: IndexerManagementClient,
-  deployment: SubgraphDeploymentID | 'global',
+  identifier: string,
   merged: boolean,
 ): Promise<Partial<IndexingRuleAttributes> | null> => {
   const result = await client
     .query(
       gql`
-        query indexingRule($deployment: String!, $merged: Boolean!) {
-          indexingRule(deployment: $deployment, merged: $merged) {
-            deployment
+        query indexingRule($identifier: String!, $merged: Boolean!) {
+          indexingRule(identifier: $deployment, merged: $merged) {
+            identifier
+            identifierType
             allocationAmount
             parallelAllocations
             maxAllocationPercentage
@@ -266,7 +273,7 @@ export const indexingRule = async (
           }
         }
       `,
-      { deployment: deployment.toString(), merged },
+      { identifier, merged },
     )
     .toPromise()
 
@@ -290,7 +297,8 @@ export const setIndexingRule = async (
       gql`
         mutation setIndexingRule($rule: IndexingRuleInput!) {
           setIndexingRule(rule: $rule) {
-            deployment
+            identifier
+            identifierType
             allocationAmount
             parallelAllocations
             maxAllocationPercentage
@@ -316,16 +324,16 @@ export const setIndexingRule = async (
 
 export const deleteIndexingRules = async (
   client: IndexerManagementClient,
-  deployments: SubgraphDeploymentIDIsh[],
+  identifiers: SubgraphDeploymentIDIsh[],
 ): Promise<void> => {
   const result = await client
     .mutation(
       gql`
         mutation deleteIndexingRules($deployments: [String!]!) {
-          deleteIndexingRules(deployments: $deployments)
+          deleteIndexingRules(identifiers: $deployments)
         }
       `,
-      { deployments: deployments.map(deployment => deployment.toString()) },
+      { deployments: identifiers.map(identifier => identifier.toString()) },
     )
     .toPromise()
 

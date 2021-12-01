@@ -21,7 +21,11 @@ import {
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../models'
-import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
+import {
+  IndexingStatusResolver,
+  NetworkSubgraph,
+  SubgraphIdentifierType,
+} from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,7 +34,8 @@ declare const __DATABASE__: any
 const SET_INDEXING_RULE_MUTATION = gql`
   mutation setIndexingRule($rule: IndexingRuleInput!) {
     setIndexingRule(rule: $rule) {
-      deployment
+      identifier
+      identifierType
       allocationAmount
       parallelAllocations
       maxAllocationPercentage
@@ -45,21 +50,22 @@ const SET_INDEXING_RULE_MUTATION = gql`
 `
 
 const DELETE_INDEXING_RULE_MUTATION = gql`
-  mutation deleteIndexingRule($deployment: String!) {
-    deleteIndexingRule(deployment: $deployment)
+  mutation deleteIndexingRule($identifier: String!) {
+    deleteIndexingRule(identifier: $identifier)
   }
 `
 
 const DELETE_INDEXING_RULES_MUTATION = gql`
-  mutation deleteIndexingRules($deployments: [String!]!) {
-    deleteIndexingRules(deployments: $deployments)
+  mutation deleteIndexingRules($identifiers: [String!]!) {
+    deleteIndexingRules(identifiers: $identifiers)
   }
 `
 
 const INDEXING_RULE_QUERY = gql`
-  query indexingRule($deployment: String!, $merged: Boolean!) {
-    indexingRule(deployment: $deployment, merged: $merged) {
-      deployment
+  query indexingRule($identifier: String!, $merged: Boolean!) {
+    indexingRule(identifier: $identifier, merged: $merged) {
+      identifier
+      identifierType
       allocationAmount
       parallelAllocations
       maxAllocationPercentage
@@ -76,7 +82,8 @@ const INDEXING_RULE_QUERY = gql`
 const INDEXING_RULES_QUERY = gql`
   query indexingRuls($merged: Boolean!) {
     indexingRules(merged: $merged) {
-      deployment
+      identifier
+      identifierType
       allocationAmount
       parallelAllocations
       maxAllocationPercentage
@@ -144,7 +151,8 @@ describe('Indexing rules', () => {
 
   test('Set and get global rule (partial)', async () => {
     const input = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1000',
     }
 
@@ -168,14 +176,15 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { deployment: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
   test('Set and get global rule (complete)', async () => {
     const input = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       parallelAllocations: 1,
       maxAllocationPercentage: 0.5,
@@ -199,14 +208,15 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { deployment: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
   test('Set and get global rule (partial update)', async () => {
     const originalInput = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -228,7 +238,8 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: null,
       maxSignal: '3',
     }
@@ -246,14 +257,15 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { deployment: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
   test('Set and get deployment rule (partial update)', async () => {
     const originalInput = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -275,7 +287,8 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: null,
       maxSignal: '3',
     }
@@ -294,7 +307,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          deployment:
+          identifier:
             '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
           merged: false,
         })
@@ -304,14 +317,16 @@ describe('Indexing rules', () => {
 
   test('Set and get global and deployment rule', async () => {
     const globalInput = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
     }
 
     const deploymentInput = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -350,7 +365,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          deployment: INDEXING_RULE_GLOBAL,
+          identifier: INDEXING_RULE_GLOBAL,
           merged: false,
         })
         .toPromise(),
@@ -360,7 +375,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          deployment:
+          identifier:
             '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
           merged: false,
         })
@@ -375,7 +390,8 @@ describe('Indexing rules', () => {
 
   test('Set, delete and get rule', async () => {
     const input = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -404,7 +420,7 @@ describe('Indexing rules', () => {
     // Delete the rule
     await expect(
       client
-        .mutation(DELETE_INDEXING_RULE_MUTATION, { deployment: expected.deployment })
+        .mutation(DELETE_INDEXING_RULE_MUTATION, { identifier: expected.identifier })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
 
@@ -416,7 +432,8 @@ describe('Indexing rules', () => {
 
   test('Clear a parameter', async () => {
     const input = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
     }
 
@@ -464,7 +481,8 @@ describe('Indexing rules', () => {
 
   test('Set and get global and deployment rule (merged)', async () => {
     const globalInput = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
@@ -472,7 +490,8 @@ describe('Indexing rules', () => {
     }
 
     const deploymentInput = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -521,7 +540,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          deployment: INDEXING_RULE_GLOBAL,
+          identifier: INDEXING_RULE_GLOBAL,
           merged: false,
         })
         .toPromise(),
@@ -531,7 +550,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          deployment:
+          identifier:
             '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
           merged: true,
         })
@@ -554,7 +573,8 @@ describe('Indexing rules', () => {
 
   test('Delete global rules (which should reset)', async () => {
     const globalInput = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
@@ -566,7 +586,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .mutation(DELETE_INDEXING_RULE_MUTATION, {
-          deployment: 'global',
+          identifier: 'global',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
@@ -579,7 +599,8 @@ describe('Indexing rules', () => {
         allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
-        deployment: 'global',
+        identifier: 'global',
+        identifierType: SubgraphIdentifierType.GROUP,
         maxAllocationPercentage: null,
         maxSignal: null,
         minAverageQueryFees: null,
@@ -591,7 +612,8 @@ describe('Indexing rules', () => {
 
   test('Delete multiple rules, including global (which should reset)', async () => {
     const globalInput = {
-      deployment: INDEXING_RULE_GLOBAL,
+      identifier: INDEXING_RULE_GLOBAL,
+      identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
@@ -599,7 +621,8 @@ describe('Indexing rules', () => {
     }
 
     const deploymentInput = {
-      deployment: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
     }
@@ -612,7 +635,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .mutation(DELETE_INDEXING_RULES_MUTATION, {
-          deployments: [
+          identifiers: [
             'global',
             '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
           ],
@@ -628,7 +651,8 @@ describe('Indexing rules', () => {
         allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
-        deployment: 'global',
+        identifier: 'global',
+        identifierType: SubgraphIdentifierType.GROUP,
         maxAllocationPercentage: null,
         maxSignal: null,
         minAverageQueryFees: null,

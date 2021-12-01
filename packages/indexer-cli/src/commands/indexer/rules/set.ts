@@ -4,13 +4,13 @@ import { partition } from '@thi.ng/iterators'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, validateDeploymentID } from '../../../command-helpers'
+import { fixParameters } from '../../../command-helpers'
 import {
   parseIndexingRule,
   setIndexingRule,
   printIndexingRules,
-  parseDeploymentID,
 } from '../../../rules'
+import { processIdentifier } from "@graphprotocol/indexer-common";
 
 const HELP = `
 ${chalk.bold('graph indexer rules set')} [options] global          <key1> <value1> ...
@@ -30,7 +30,7 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [deployment, ...keyValues] = fixParameters(parameters, { h, help }) || []
+    const [id, ...keyValues] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -44,14 +44,8 @@ module.exports = {
       return
     }
 
-    try {
-      validateDeploymentID(deployment, { all: false, global: true })
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
-    }
-
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
     const config = loadValidatedConfig()
 
     //// Parse key/value pairs
@@ -68,10 +62,11 @@ module.exports = {
       return
     }
 
-    // Turn the array into an object, add a `deployment` key
+    // Turn the array into an object, add `identifier` and `identifierType` keys
     const inputRule = parseIndexingRule({
       ...Object.fromEntries([...partition(2, 2, kvs)]),
-      deployment,
+      identifier,
+      identifierType
     })
 
     if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
@@ -82,7 +77,7 @@ module.exports = {
     try {
       const client = await createIndexerManagementClient({ url: config.api })
       const rule = await setIndexingRule(client, inputRule)
-      printIndexingRules(print, outputFormat, parseDeploymentID(deployment), rule, [])
+      printIndexingRules(print, outputFormat, identifier, rule, [])
     } catch (error) {
       print.error(error.toString())
     }

@@ -29,7 +29,6 @@
 import { table, getBorderCharacters } from 'table'
 import yaml from 'yaml'
 import { GluegunParameters } from 'gluegun'
-import { arrayify, base58 } from 'ethers/lib/utils'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -74,56 +73,6 @@ export const formatData = (
     : table([Object.keys(data), Object.values(data)], {
         border: getBorderCharacters('norc'),
       }).trim()
-
-export const validateDeploymentID = (
-  s: string | undefined,
-  { all, global }: { all?: boolean; global?: boolean },
-): void => {
-  // Case 1: undefined
-  if (s === undefined) {
-    throw new Error(
-      `No deployment ID provided. Must be a valid deployment ID${
-        global ? ' or "global"' : ''
-      }${all ? ' or "all"' : ''}`,
-    )
-  }
-
-  // Case 2: 'global'
-  if (global && s === 'global') {
-    return
-  }
-
-  // Case 3 (only if permitted): 'all'
-  if (all && s === 'all') {
-    return
-  }
-
-  // Case 4: 'Qm...'
-  try {
-    // This will throw if it's not valid
-    base58.decode(s)
-
-    if (s.length === 46) {
-      return
-    }
-  } catch {
-    // no-op
-  }
-
-  // Case 5: '0x...' (32 bytes)
-  try {
-    // This will throw if it's not valid
-    arrayify(s)
-
-    if (s.length == 64 + 2 && s.startsWith('0x')) {
-      return
-    }
-  } catch {
-    // no-op
-  }
-
-  throw new Error(`Invalid subgraph deployment ID "${s}"`)
-}
 
 export function pickFields(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

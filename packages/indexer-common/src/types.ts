@@ -27,3 +27,15 @@ export interface IndexingError {
   handler: string
   message: string
 }
+
+export interface SubgraphVersion {
+  version: number
+  createdAt: number
+  deployment: SubgraphDeploymentID
+}
+
+export interface Subgraph {
+  id: string
+  versionCount: number
+  versions: SubgraphVersion[]
+}

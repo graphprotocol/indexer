@@ -24,6 +24,8 @@ import {
   INDEXER_ERROR_MESSAGES,
   IndexerError,
   NetworkSubgraph,
+  Subgraph,
+  SubgraphVersion,
 } from '@graphprotocol/indexer-common'
 import {
   ContractTransaction,
@@ -468,11 +470,113 @@ export class Network {
     )
   }
 
+  async subgraphs(ids: string[]): Promise<Subgraph[]> {
+    if (ids.length == 0) {
+      return []
+    }
+    let subgraphs: Subgraph[] = []
+    const queryProgress = {
+      lastId: '',
+      first: 20,
+      fetched: 0,
+      exhausted: false,
+      retriesRemaining: 10,
+    }
+    this.logger.info(`Query subgraphs in batches of ${queryProgress.first}`)
+
+    while (!queryProgress.exhausted) {
+      this.logger.debug(`Query subgraphs by id`, {
+        queryProgress: queryProgress,
+        subgraphIds: ids,
+      })
+      try {
+        const result = await this.networkSubgraph.query(
+          gql`
+            query subgraphs(
+              $first: Int!
+              $lastId: String!
+              $subgraphs: [String!]!
+            ) {
+              subgraphs(
+                where: { id_gt: $lastId, id_in: $subgraphs }
+                orderBy: id
+                orderDirection: asc
+                first: $first
+              ) {
+                id
+                versionCount
+                versions {
+                  version
+                  createdAt
+                  subgraphDeployment {
+                    id
+                  }
+                }
+              }
+            }
+          `,
+          {
+            first: queryProgress.first,
+            lastId: queryProgress.lastId,
+            subgraphs: ids,
+          },
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+
+        // Convert return object to Subgraph interface
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const results = result.data.subgraphs.map((subgraph: any) => {
+          subgraph.versions = subgraph.versions.map(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (versionItem: any) => {
+              return {
+                version: versionItem.version,
+                createdAt: versionItem.createdAt,
+                deployment: new SubgraphDeploymentID(
+                  versionItem.subgraphDeployment.id,
+                ),
+              } as SubgraphVersion
+            },
+          )
+          return subgraph
+        })
+
+        // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
+        if (results.length == 0) {
+          return []
+        }
+
+        queryProgress.exhausted = results.length < queryProgress.first
+        queryProgress.fetched += results.length
+        queryProgress.lastId = results[results.length - 1].id
+
+        subgraphs = subgraphs.concat(results)
+      } catch (error) {
+        queryProgress.retriesRemaining--
+        this.logger.error(`Failed to query subgraphs by id`, {
+          retriesRemaining: queryProgress.retriesRemaining,
+          error: error,
+        })
+        if (queryProgress.retriesRemaining <= 0) {
+          const err = indexerError(IndexerErrorCode.IE009, error)
+          this.logger.error(`Failed to query subgraphs`, {
+            err,
+          })
+          throw err
+        }
+      }
+    }
+    this.logger.debug(`Found ${subgraphs.length} matching subgraphs`)
+    return subgraphs
+  }
   async subgraphDeploymentsWorthIndexing(
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     const globalRule = rules.find(
-      rule => rule.deployment === INDEXING_RULE_GLOBAL,
+      rule => rule.identifier === INDEXING_RULE_GLOBAL,
     )
 
     const deployments = []
@@ -538,7 +642,7 @@ export class Network {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .filter((deployment: any) => {
               const deploymentRule =
-                rules.find(rule => rule.deployment === deployment.id) ||
+                rules.find(rule => rule.identifier === deployment.id) ||
                 globalRule
 
               // The deployment is not eligible for deployment if it doesn't have an allocation amount
@@ -582,7 +686,7 @@ export class Network {
                     avgQueryFees: avgQueryFees.toString(),
                   },
                   indexingRule: {
-                    deployment: deploymentRule.deployment,
+                    deployment: deploymentRule.identifier,
                     minStake: deploymentRule.minStake
                       ? BigNumber.from(deploymentRule.minStake).toString()
                       : null,
