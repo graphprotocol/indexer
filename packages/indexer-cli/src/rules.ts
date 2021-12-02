@@ -41,6 +41,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   identifier: x => x,
   identifierType: x => x,
   allocationAmount: nullPassThrough(parseGRT),
+  allocationLifetime: nullPassThrough(parseInt),
   parallelAllocations: nullPassThrough(parseInt),
   minSignal: nullPassThrough(parseGRT),
   maxSignal: nullPassThrough(parseGRT),
@@ -60,9 +61,10 @@ const INDEXING_RULE_FORMATTERS: Record<
   identifier: x => x,
   identifierType: x => x,
   allocationAmount: nullPassThrough(x => utils.commify(formatGRT(x))),
+  allocationLifetime: nullPassThrough((x: number) => x.toString()),
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
-  minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
   maxSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
+  minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
   minStake: nullPassThrough(x => utils.commify(formatGRT(x))),
   maxAllocationPercentage: nullPassThrough((x: number) => x.toPrecision(2)),
   minAverageQueryFees: nullPassThrough(x => utils.commify(formatGRT(x))),
@@ -79,6 +81,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   identifier: x => x,
   identifierType: x => x,
   allocationAmount: nullPassThrough((x: string) => BigNumber.from(x)),
+  allocationLifetime: nullPassThrough((x: string) => parseInt(x)),
   parallelAllocations: nullPassThrough((x: string) => parseInt(x)),
   minSignal: nullPassThrough((x: string) => BigNumber.from(x)),
   maxSignal: nullPassThrough((x: string) => BigNumber.from(x)),
@@ -98,6 +101,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   identifier: x => x,
   identifierType: x => x,
   allocationAmount: nullPassThrough((x: BigNumber) => x.toString()),
+  allocationLifetime: nullPassThrough((x: number) => x),
   parallelAllocations: nullPassThrough((x: number) => x),
   minSignal: nullPassThrough((x: BigNumber) => x.toString()),
   maxSignal: nullPassThrough((x: BigNumber) => x.toString()),
@@ -243,6 +247,7 @@ export const indexingRules = async (
             identifier
             identifierType
             allocationAmount
+            allocationLifetime
             parallelAllocations
             maxAllocationPercentage
             minSignal
@@ -278,6 +283,7 @@ export const indexingRule = async (
             identifier
             identifierType
             allocationAmount
+            allocationLifetime
             parallelAllocations
             maxAllocationPercentage
             minSignal
@@ -316,6 +322,7 @@ export const setIndexingRule = async (
             identifier
             identifierType
             allocationAmount
+            allocationLifetime
             parallelAllocations
             maxAllocationPercentage
             minSignal

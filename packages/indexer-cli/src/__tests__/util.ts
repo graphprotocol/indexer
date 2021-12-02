@@ -115,6 +115,18 @@ export const setup = async () => {
       '1000',
     ],
     ['indexer', 'rules', 'offchain', '0x0000000000000000000000000000000000000000-1'],
+    [
+      'indexer',
+      'rules',
+      'set',
+      '0x0000000000000000000000000000000000000000-2',
+      'allocationAmount',
+      '1000',
+      'decisionBasis',
+      'offchain',
+      'allocationLifetime',
+      '12',
+    ],
   ]
   for (const command of commands) {
     const { exitCode } = await runIndexerCli(command, process.cwd())

@@ -17,6 +17,7 @@ export interface IndexingRuleAttributes {
   identifier: string
   identifierType: SubgraphIdentifierType
   allocationAmount: string | null
+  allocationLifetime: number | null
   parallelAllocations: number | null
   maxAllocationPercentage: number | null
   minSignal: string | null
@@ -34,6 +35,7 @@ export interface IndexingRuleCreationAttributes
     | 'identifier'
     | 'identifierType'
     | 'allocationAmount'
+    | 'allocationLifetime'
     | 'parallelAllocations'
     | 'maxAllocationPercentage'
     | 'minSignal'
@@ -52,6 +54,7 @@ export class IndexingRule
   public identifier!: string
   public identifierType!: SubgraphIdentifierType
   public allocationAmount!: string | null
+  public allocationLifetime!: number | null
   public parallelAllocations!: number | null
   public maxAllocationPercentage!: number | null
   public minSignal!: string | null
@@ -127,6 +130,14 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: true,
         validate: {
           min: 0.0,
+        },
+      },
+      allocationLifetime: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        defaultValue: null,
+        validate: {
+          min: 1,
         },
       },
       parallelAllocations: {
