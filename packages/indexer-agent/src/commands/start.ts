@@ -207,15 +207,15 @@ export default {
         group: 'Indexer Infrastructure',
       })
       .option('rebate-claim-threshold', {
-        description: `Minimum value of query fees for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
+        description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
         type: 'string',
-        default: '0',
+        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Indexer Infrastructure',
       })
       .option('rebate-claim-batch-threshold', {
-        description: `Minimum total value of query fees in an allocation batch (in GRT) before rebates are claimed on-chain`,
+        description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
-        default: '0',
+        default: '2000',
         group: 'Indexer Infrastructure',
       })
       .option('inject-dai', {
