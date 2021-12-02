@@ -627,9 +627,6 @@ export class Network {
                     id
                   }
                 }
-                subgraph {
-                  id
-                }
               }
             }
           `,
