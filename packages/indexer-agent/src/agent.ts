@@ -209,7 +209,7 @@ class Agent {
       },
     )
 
-    const indexingRules = timer(60_000).tryMap(
+    const indexingRules = timer(20_000).tryMap(
       async () => {
         let rules = await this.indexer.indexingRules(true)
         const subgraphRuleIds = rules
@@ -252,7 +252,10 @@ class Agent {
       },
     )
 
-    const targetAllocations = timer(120_000).tryMap(
+    const targetAllocations = join({
+      ticker: timer(120_000),
+      indexingRules,
+    }).tryMap(
       async () => {
         const rules = await indexingRules.value()
 
@@ -274,6 +277,7 @@ class Agent {
     // and offchain subgraphs.
     const targetDeployments = join({
       ticker: timer(120_000),
+      indexingRules,
       targetAllocations,
     }).tryMap(
       async target => {
@@ -616,7 +620,7 @@ class Agent {
       }
     }
 
-    // Ensure that all subgraphs in offchain subgraphs list are _always_ indexed
+    // Ensure all subgraphs in offchain subgraphs list are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
         targetDeployments.push(offchainSubgraph)
