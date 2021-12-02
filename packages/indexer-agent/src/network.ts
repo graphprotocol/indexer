@@ -942,13 +942,15 @@ export class Network {
       ])
 
       disputableEpochs = await Promise.all(
-        disputableEpochs.map(async (epoch: Epoch): Promise<Epoch> => {
-          // TODO: May need to retry or skip epochs where obtaining start block fails
-          epoch.startBlockHash = (
-            await this.ethereum.getBlock(epoch?.startBlock)
-          )?.hash
-          return epoch
-        }),
+        disputableEpochs.map(
+          async (epoch: Epoch): Promise<Epoch> => {
+            // TODO: May need to retry or skip epochs where obtaining start block fails
+            epoch.startBlockHash = (
+              await this.ethereum.getBlock(epoch?.startBlock)
+            )?.hash
+            return epoch
+          },
+        ),
       )
 
       return await Promise.all(
@@ -1029,10 +1031,9 @@ export class Network {
 
           // Register the indexer (only if it hasn't been registered yet or
           // if its URL is different from what is registered on chain)
-          const isRegistered =
-            await this.contracts.serviceRegistry.isRegistered(
-              this.indexerAddress,
-            )
+          const isRegistered = await this.contracts.serviceRegistry.isRegistered(
+            this.indexerAddress,
+          )
           if (isRegistered) {
             const service = await this.contracts.serviceRegistry.services(
               this.indexerAddress,
@@ -1324,18 +1325,21 @@ export class Network {
       action: 'ClaimMany',
     })
     try {
-      logger.info(`${allocations.length} allocations are eligible for rebate pool claims`, {
-        allocations: allocations.map(allocation => {
-          return {
-            allocation: allocation.id,
-            deployment: allocation.subgraphDeployment.id.display,
-            createdAtEpoch: allocation.createdAtEpoch,
-            closedAtEpoch: allocation.closedAtEpoch,
-            createdAtBlockHash: allocation.createdAtBlockHash,
-          }
-        }),
-        restakeRewards: this.restakeRewards,
-      })
+      logger.info(
+        `${allocations.length} allocations are eligible for rebate pool claims`,
+        {
+          allocations: allocations.map(allocation => {
+            return {
+              allocation: allocation.id,
+              deployment: allocation.subgraphDeployment.id.display,
+              createdAtEpoch: allocation.createdAtEpoch,
+              closedAtEpoch: allocation.closedAtEpoch,
+              createdAtBlockHash: allocation.createdAtBlockHash,
+            }
+          }),
+          restakeRewards: this.restakeRewards,
+        },
+      )
 
       // Filter out already-claimed and still-active allocations
       allocations = await pFilter(
@@ -1370,13 +1374,18 @@ export class Network {
       // If we add a 30k gas buffer (for 150k estimated gas per claim)
       // Then we could fit a maximum of a 100 claim batch in a block
       const MAX_CLAIMS_PER_BATCH = 100
-      const allocationIds = allocations.map(allocation => allocation.id).slice(0, MAX_CLAIMS_PER_BATCH)
+      const allocationIds = allocations
+        .map(allocation => allocation.id)
+        .slice(0, MAX_CLAIMS_PER_BATCH)
 
       if (allocationIds.length === 0) {
         logger.info(`No allocation rebates to claim`)
         return true
       } else {
-        logger.info(`Claim tokens from the rebate pool for ${allocationIds.length} allocations`, { allocationIds });
+        logger.info(
+          `Claim tokens from the rebate pool for ${allocationIds.length} allocations`,
+          { allocationIds },
+        )
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
@@ -1494,13 +1503,15 @@ export class Network {
       logger.debug('Obtain a unique Allocation ID')
 
       // Obtain a unique allocation ID
-      const { allocationSigner, allocationId: newAllocationId } =
-        uniqueAllocationID(
-          this.wallet.mnemonic.phrase,
-          currentEpoch.toNumber(),
-          deployment,
-          activeAllocations.map(allocation => allocation.id),
-        )
+      const {
+        allocationSigner,
+        allocationId: newAllocationId,
+      } = uniqueAllocationID(
+        this.wallet.mnemonic.phrase,
+        currentEpoch.toNumber(),
+        deployment,
+        activeAllocations.map(allocation => allocation.id),
+      )
 
       // Double-check whether the allocationID already exists on chain, to
       // avoid unnecessary transactions.
@@ -1509,8 +1520,9 @@ export class Network {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const newAllocationState =
-        await this.contracts.staking.getAllocationState(newAllocationId)
+      const newAllocationState = await this.contracts.staking.getAllocationState(
+        newAllocationId,
+      )
       if (newAllocationState !== 0) {
         logger.warn(`Skipping Allocation as it already exists onchain`, {
           indexer: this.indexerAddress,
