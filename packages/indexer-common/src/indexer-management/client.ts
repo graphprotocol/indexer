@@ -90,6 +90,7 @@ const SCHEMA_SDL = gql`
     identifier: String!
     identifierType: IdentifierType!
     allocationAmount: BigInt
+    allocationLifetime: Int
     parallelAllocations: Int
     maxAllocationPercentage: Float
     minSignal: BigInt
@@ -104,6 +105,7 @@ const SCHEMA_SDL = gql`
     identifier: String!
     identifierType: IdentifierType!
     allocationAmount: BigInt
+    allocationLifetime: Int
     parallelAllocations: Int
     maxAllocationPercentage: Float
     minSignal: BigInt

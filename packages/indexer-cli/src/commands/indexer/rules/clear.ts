@@ -54,6 +54,7 @@ module.exports = {
     if (keys.length === 0) {
       keys.push(
         'allocationAmount',
+        'allocationLifetime',
         'parallelAllocations',
         'minSignal',
         'maxSignal',
@@ -82,7 +83,7 @@ module.exports = {
           ),
         ),
         identifier,
-        identifierType
+        identifierType,
       })
 
       const client = await createIndexerManagementClient({ url: config.api })

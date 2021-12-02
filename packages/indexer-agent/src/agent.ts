@@ -693,12 +693,9 @@ class Agent {
     currentEpochStartBlock: BlockPointer,
     maxAllocationEpochs: number,
   ): Promise<void> {
-    const allocationLifetime = Math.max(1, maxAllocationEpochs - 1)
-
     this.logger.info(`Reconcile allocations`, {
       currentEpoch,
       maxAllocationEpochs,
-      allocationLifetime,
       targetAllocations: targetAllocations.map(
         deployment => deployment.display,
       ),
@@ -782,33 +779,32 @@ class Agent {
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
     const desiredNumberOfAllocations = 1
+    const desiredAllocationLifetime = rule?.allocationLifetime
+      ? rule.allocationLifetime
+      : Math.max(1, maxAllocationEpochs - 1)
     const activeAllocationAmount = activeAllocations.reduce(
       (sum, allocation) => sum.add(allocation.allocatedTokens),
       BigNumber.from('0'),
     )
 
-    if (
-      desiredAllocationAmount !== activeAllocationAmount ||
-      desiredNumberOfAllocations !== activeAllocations.length
-    ) {
-      logger.info(
-        `Reconcile deployment allocations for deployment '${deployment.ipfsHash}'`,
-        {
-          desiredAllocationAmount: formatGRT(desiredAllocationAmount),
+    logger.debug(
+      `Reconcile deployment allocations for deployment '${deployment.ipfsHash}'`,
+      {
+        desiredAllocationAmount: formatGRT(desiredAllocationAmount),
+        desiredAllocationLifetime,
 
-          totalActiveAllocationAmount: formatGRT(activeAllocationAmount),
+        totalActiveAllocationAmount: formatGRT(activeAllocationAmount),
 
-          desiredNumberOfAllocations,
-          activeNumberOfAllocations: activeAllocations.length,
+        desiredNumberOfAllocations,
+        activeNumberOfAllocations: activeAllocations.length,
 
-          activeAllocations: activeAllocations.map(allocation => ({
-            id: allocation.id,
-            createdAtEpoch: allocation.createdAtEpoch,
-            amount: formatGRT(allocation.allocatedTokens),
-          })),
-        },
-      )
-    }
+        activeAllocations: activeAllocations.map(allocation => ({
+          id: allocation.id,
+          createdAtEpoch: allocation.createdAtEpoch,
+          amount: formatGRT(allocation.allocatedTokens),
+        })),
+      },
+    )
 
     // Return early if the deployment is not (or no longer) worth allocating towards
     if (!worthAllocating) {
@@ -881,11 +877,10 @@ class Agent {
       )
     }
 
-    const lifetime = Math.max(1, maxAllocationEpochs - 1)
-
     // For allocations that have expired, let's reallocate in one transaction (closeAndAllocate)
     let expiredAllocations = activeAllocations.filter(
-      allocation => epoch >= allocation.createdAtEpoch + lifetime,
+      allocation =>
+        epoch >= allocation.createdAtEpoch + desiredAllocationLifetime,
     )
     // The allocations come from the network subgraph; due to short indexing
     // latencies, this data may be slightly outdated. Cross-check with the

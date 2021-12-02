@@ -267,7 +267,7 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules set subgraph id - success - offchain',
+        'Indexer rules set subgraph options - success',
         [
           'indexer',
           'rules',
@@ -277,6 +277,8 @@ describe('Indexer rules tests', () => {
           '1000',
           'decisionBasis',
           'offchain',
+          'allocationLifetime',
+          '12',
         ],
         'references/indexer-rule-subgraph-offchain',
         {
@@ -296,7 +298,7 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules set deployment id - success - offchain',
+        'Indexer rules set deployment lifetime - success',
         [
           'indexer',
           'rules',
@@ -304,8 +306,10 @@ describe('Indexer rules tests', () => {
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
           'decisionBasis',
           'offchain',
+          'allocationLifetime',
+          '21',
         ],
-        'references/indexer-rule-deployment-offchain',
+        'references/indexer-rule-deployment-lifetime',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -378,6 +382,16 @@ describe('Indexer rules tests', () => {
         'Indexer rules get subgraph - success',
         ['indexer', 'rules', 'get', '0x0000000000000000000000000000000000000000-0'],
         'references/indexer-rule-subgraph-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get subgraph - success - options',
+        ['indexer', 'rules', 'get', '0x0000000000000000000000000000000000000000-2'],
+        'references/indexer-rule-subgraph-options',
         {
           expectedExitCode: 0,
           cwd: baseDir,

@@ -219,6 +219,7 @@ export class Indexer {
                 identifier
                 identifierType
                 allocationAmount
+                allocationLifetime
                 parallelAllocations
                 maxAllocationPercentage
                 minSignal
@@ -292,6 +293,7 @@ export class Indexer {
                   identifier
                   identifierType
                   allocationAmount
+                  allocationLifetime
                   parallelAllocations
                   maxAllocationPercentage
                   minSignal
