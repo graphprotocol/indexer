@@ -22,8 +22,10 @@ export const parseDeploymentID = (s: string): SubgraphDeploymentIDIsh => {
 }
 
 export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
-  if (!['always', 'never', 'rules'].includes(s)) {
-    throw new Error(`Unknown decision basis "${s}". Supported: always, never, rules`)
+  if (!['always', 'never', 'rules', 'offchain'].includes(s)) {
+    throw new Error(
+      `Unknown decision basis "${s}". Supported: always, never, rules, offchain`,
+    )
   } else {
     return s as IndexingDecisionBasis
   }
@@ -204,7 +206,21 @@ export const printIndexingRules = (
   if (Array.isArray(ruleOrRules)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rules = ruleOrRules.map(rule => formatIndexingRule(pickFields(rule, keys)))
-    print.info(displayIndexingRules(outputFormat, rules))
+
+    const onchainRules = rules.filter(
+      rule => rule?.decisionBasis !== IndexingDecisionBasis.OFFCHAIN,
+    )
+    const offchainRules = rules.filter(
+      rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+    )
+
+    print.info(displayIndexingRules(outputFormat, onchainRules))
+    if (offchainRules) {
+      print.info('Offchain syncing subgraphs')
+      print.info(displayIndexingRules(outputFormat, offchainRules))
+    } else {
+      print.info(`Not syncing any subgraphs offchain`)
+    }
   } else if (ruleOrRules) {
     const rule = formatIndexingRule(pickFields(ruleOrRules, keys))
     print.info(displayIndexingRule(outputFormat, rule))

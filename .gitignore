@@ -117,3 +117,4 @@ yalc.lock
 
 # IDE
 .idea/
+.envrc

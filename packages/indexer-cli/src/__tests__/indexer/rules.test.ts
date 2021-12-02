@@ -58,6 +58,54 @@ describe('Indexer rules tests', () => {
       )
     })
 
+    describe('Rules prepare...', () => {
+      cliTest(
+        'Indexer rules prepare - success',
+        ['indexer', 'rules', 'prepare', 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK'],
+        'references/indexer-rule-deployment-offchain',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules offchain - success',
+        [
+          'indexer',
+          'rules',
+          'offchain',
+          'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
+        ],
+        'references/indexer-rule-deployment-offchain',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules prepare - no args',
+        ['indexer', 'rules', 'prepare'],
+        'references/indexer-rules-command-no-args',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules prepare - invalid deployment ID ',
+        ['indexer', 'rules', 'prepare', 'Qmemememememe'],
+        'references/indexer-rules-invalid-identifier-arg',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+    })
+
     describe('Rules stop...', () => {
       cliTest(
         'Indexer rules stop - success',
@@ -169,6 +217,16 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
+        'Indexer rules delete - success',
+        ['indexer', 'rules', 'delete', 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK'],
+        'references/indexer-rule-deployment-deleted-offchain-success',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
         'Indexer rules delete - no args',
         ['indexer', 'rules', 'delete'],
         'references/indexer-rules-command-no-args',
@@ -209,9 +267,45 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
+        'Indexer rules set subgraph id - success - offchain',
+        [
+          'indexer',
+          'rules',
+          'set',
+          '0x0000000000000000000000000000000000000000-1',
+          'allocationAmount',
+          '1000',
+          'decisionBasis',
+          'offchain',
+        ],
+        'references/indexer-rule-subgraph-offchain',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
         'Indexer rules set deployment id - success',
         ['indexer', 'rules', 'set', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
         'references/indexer-rule-deployment-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules set deployment id - success - offchain',
+        [
+          'indexer',
+          'rules',
+          'set',
+          'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
+          'decisionBasis',
+          'offchain',
+        ],
+        'references/indexer-rule-deployment-offchain',
         {
           expectedExitCode: 0,
           cwd: baseDir,
@@ -264,6 +358,16 @@ describe('Indexer rules tests', () => {
         'Indexer rules get deployment - success',
         ['indexer', 'rules', 'get', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
         'references/indexer-rule-deployment-rules',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get deployment - success - offchain',
+        ['indexer', 'rules', 'get', 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK'],
+        'references/indexer-rule-deployment-offchain',
         {
           expectedExitCode: 0,
           cwd: baseDir,

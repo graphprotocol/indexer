@@ -212,23 +212,24 @@ simply by running `graph indexer`.
 $ graph --help
 
   ...
-  indexer status                 Check the status of an indexer
-  indexer rules                  Configure indexing rules
-  indexer rules stop (never)     Never index a deployment (and stop indexing it if necessary)
-  indexer rules start (always)   Always index a deployment (and start indexing it if necessary)
-  indexer rules set              Set one or more indexing rules
-  indexer rules maybe            Index a deployment based on rules
-  indexer rules get              Get one or more indexing rules
-  indexer rules delete           Remove one or many indexing rules
-  indexer rules clear (reset)    Clear one or more indexing rules
-  indexer disputes               POI monitoring
-  indexer disputes get           Cross-check POIs submitted in the network
-  indexer cost                   Manage costing for subgraphs
-  indexer cost set variables     Update cost model variables
-  indexer cost set model         Update a cost model
-  indexer cost get               Get cost models and/or variables for one or all subgraphs
-  indexer connect                Connect to indexer management API
-  indexer                        Manage indexer configuration
+  indexer status                      Check the status of an indexer
+  indexer rules                       Configure indexing rules
+  indexer rules stop (never)          Never index a deployment (and stop indexing it if necessary)
+  indexer rules start (always)        Always index a deployment (and start indexing it if necessary)
+  indexer rules prepare (offchain)    Offchain index a deployment (good practice to prepare indexing)
+  indexer rules set                   Set one or more indexing rules
+  indexer rules maybe                 Index a deployment based on rules
+  indexer rules get                   Get one or more indexing rules
+  indexer rules delete                Remove one or many indexing rules
+  indexer rules clear (reset)         Clear one or more indexing rules
+  indexer disputes                    POI monitoring
+  indexer disputes get                Cross-check POIs submitted in the network
+  indexer cost                        Manage costing for subgraphs
+  indexer cost set variables          Update cost model variables
+  indexer cost set model              Update a cost model
+  indexer cost get                    Get cost models and/or variables for one or all subgraphs
+  indexer connect                     Connect to indexer management API
+  indexer                             Manage indexer configuration
 ```
 
 ## Running from source

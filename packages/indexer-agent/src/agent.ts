@@ -13,6 +13,7 @@ import {
   allocationRewardsPool,
   AllocationStatus,
   BlockPointer,
+  IndexingDecisionBasis,
   indexerError,
   IndexerErrorCode,
   INDEXING_RULE_GLOBAL,
@@ -251,7 +252,7 @@ class Agent {
       },
     )
 
-    const targetDeployments = timer(120_000).tryMap(
+    const targetAllocations = timer(120_000).tryMap(
       async () => {
         const rules = await indexingRules.value()
 
@@ -259,7 +260,37 @@ class Agent {
         // these may overlap with the ones we're already indexing
         return rules.length === 0
           ? []
-          : await this.network.subgraphDeploymentsWorthIndexing(rules)
+          : await this.network.deploymentsWorthAllocatingTowards(rules)
+      },
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain target allocations, trying again later`,
+          ),
+      },
+    )
+
+    // let targetDeployments be an union of targetAllocations
+    // and offchain subgraphs.
+    const targetDeployments = join({
+      ticker: timer(120_000),
+      targetAllocations,
+    }).tryMap(
+      async target => {
+        const rules = await indexingRules.value()
+        const targetDeploymentIDs = new Set(target.targetAllocations)
+
+        // add offchain subgraphs to the deployment list
+        rules
+          .filter(
+            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+          )
+          .map(rule => {
+            targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
+          })
+        return rules.length === 0
+          ? []
+          : [...targetDeploymentIDs, ...this.offchainSubgraphs]
       },
       {
         onError: () =>
@@ -339,6 +370,7 @@ class Agent {
       activeDeployments,
       targetDeployments,
       activeAllocations,
+      targetAllocations,
       recentlyClosedAllocations,
       claimableAllocations,
       disputableAllocations,
@@ -353,6 +385,7 @@ class Agent {
         activeDeployments,
         targetDeployments,
         activeAllocations,
+        targetAllocations,
         recentlyClosedAllocations,
         claimableAllocations,
         disputableAllocations,
@@ -396,7 +429,6 @@ class Agent {
         } catch (err) {
           this.logger.warn(`Failed PoI dispute monitoring`, { err })
         }
-
         try {
           await this.reconcileDeployments(
             activeDeployments,
@@ -407,7 +439,7 @@ class Agent {
           // Reconcile allocations
           await this.reconcileAllocations(
             activeAllocations,
-            targetDeployments,
+            targetAllocations,
             indexingRules,
             currentEpoch.toNumber(),
             currentEpochStartBlock,
@@ -584,7 +616,7 @@ class Agent {
       }
     }
 
-    // Ensure all offchain subgraphs are _always_ indexed
+    // Ensure that all subgraphs in offchain subgraphs list are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
         targetDeployments.push(offchainSubgraph)
@@ -614,10 +646,12 @@ class Agent {
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
-    this.logger.info('Deployment changes', {
-      deploy: deploy.map(id => id.display),
-      remove: remove.map(id => id.display),
-    })
+    if (deploy.length + remove.length !== 0) {
+      this.logger.info('Deployment changes', {
+        deploy: deploy.map(id => id.display),
+        remove: remove.map(id => id.display),
+      })
+    }
 
     // Deploy/remove up to 10 subgraphs in parallel
     const queue = new PQueue({ concurrency: 10 })
@@ -649,7 +683,7 @@ class Agent {
 
   async reconcileAllocations(
     activeAllocations: Allocation[],
-    targetDeployments: SubgraphDeploymentID[],
+    targetAllocations: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
     currentEpochStartBlock: BlockPointer,
@@ -661,7 +695,7 @@ class Agent {
       currentEpoch,
       maxAllocationEpochs,
       allocationLifetime,
-      targetDeployments: targetDeployments.map(
+      targetAllocations: targetAllocations.map(
         deployment => deployment.display,
       ),
       activeAllocations: activeAllocations.map(allocation => ({
@@ -673,17 +707,17 @@ class Agent {
 
     // Calculate the union of active deployments and target deployments
     const deployments = uniqueDeployments([
-      ...targetDeployments,
+      ...targetAllocations,
       ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
     ])
 
-    // Ensure the network subgraph is never allocated towards unless explicitly allowed
+    // Ensure the network subgraph is never allocated towards
     if (
       !this.allocateOnNetworkSubgraph &&
       this.networkSubgraph.deployment?.id.bytes32
     ) {
       const networkSubgraphDeploymentId = this.networkSubgraph.deployment.id
-      targetDeployments = targetDeployments.filter(
+      targetAllocations = targetAllocations.filter(
         deployment =>
           deployment.bytes32 !== networkSubgraphDeploymentId.bytes32,
       )
@@ -707,7 +741,7 @@ class Agent {
           ),
 
           // Whether the deployment is worth allocating towards
-          deploymentInList(targetDeployments, deployment),
+          deploymentInList(targetAllocations, deployment),
 
           // Indexing rule for the deployment (if any)
           rules.find(
@@ -921,26 +955,24 @@ class Agent {
       const indexingStatus = await this.indexer.indexingStatus(
         allocation.subgraphDeployment.id,
       )
-      const fatalError = indexingStatus.fatalError
-      if (!fatalError) {
+      if (!indexingStatus) {
         this.logger.error(
-          `Received a null or zero POI for deployment, no fatal errors`,
+          `Received a null or zero POI for deployment and cannot find indexing status`,
           {
             deployment: allocation.subgraphDeployment.id.display,
             allocation: allocation.id,
-            block: indexingStatus.chains[0].latestBlock,
           },
         )
       } else {
         const latestValidPoi = await this.indexer.proofOfIndexing(
           allocation.subgraphDeployment.id,
-          indexingStatus.chains[0].latestBlock,
+          indexingStatus?.chains[0].latestBlock,
           this.indexer.indexerAddress,
         )
         this.logger.error(`Received a null or zero POI for deployment`, {
           deployment: allocation.subgraphDeployment.id.display,
           allocation: allocation.id,
-          fatalError,
+          fatalError: indexingStatus.fatalError,
           latestValidPoi,
         })
       }

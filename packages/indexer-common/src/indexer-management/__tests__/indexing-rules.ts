@@ -242,6 +242,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: null,
       maxSignal: '3',
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     const expected = {
@@ -268,6 +269,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     const original = {
@@ -278,7 +280,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     // Write the orginal
@@ -291,6 +293,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: null,
       maxSignal: '3',
+      decisionBasis: IndexingDecisionBasis.ALWAYS,
     }
 
     const expected = {
@@ -313,6 +316,34 @@ describe('Indexing rules', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
+
+    const updateAgain = {
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      decisionBasis: IndexingDecisionBasis.NEVER,
+    }
+
+    const expectedAgain = {
+      ...original,
+      ...update,
+      ...updateAgain,
+    }
+
+    // Update the rule
+    await expect(
+      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: updateAgain }).toPromise(),
+    ).resolves.toHaveProperty('data.setIndexingRule', expectedAgain)
+
+    // Query the rule to make sure it's updated in the db
+    await expect(
+      client
+        .query(INDEXING_RULE_QUERY, {
+          identifier:
+            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          merged: false,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.indexingRule', expectedAgain)
   })
 
   test('Set and get global and deployment rule', async () => {
@@ -329,6 +360,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     const globalExpected = {
@@ -350,7 +382,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     // Write the orginals
@@ -494,6 +526,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     const globalExpected = {
@@ -514,7 +547,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     const deploymentMergedExpected = {
@@ -525,7 +558,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: '1',
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     }
 
     // Write the orginals
