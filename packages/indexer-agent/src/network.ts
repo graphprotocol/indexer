@@ -579,10 +579,12 @@ export class Network {
         }
       }
     }
-    this.logger.debug(`Found ${subgraphs.length} matching subgraphs`)
+    this.logger.debug(`Found ${subgraphs.length} matching subgraphs`, {
+      subgraphs,
+    })
     return subgraphs
   }
-  async subgraphDeploymentsWorthIndexing(
+  async deploymentsWorthAllocatingTowards(
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     const globalRule = rules.find(
@@ -616,6 +618,7 @@ export class Network {
                 first: $first
               ) {
                 id
+                ipfsHash
                 stakedTokens
                 signalAmount
                 queryFeesAmount
@@ -623,6 +626,9 @@ export class Network {
                   indexer {
                     id
                   }
+                }
+                subgraph {
+                  id
                 }
               }
             }

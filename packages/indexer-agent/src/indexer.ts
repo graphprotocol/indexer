@@ -459,6 +459,10 @@ export class Indexer {
           { deployments: [deployment.ipfsHash] },
         )
         .toPromise()
+      this.logger.debug(`Query indexing status`, {
+        deployment,
+        statuses: result.data,
+      })
       return (
         result.data.indexingStatuses
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

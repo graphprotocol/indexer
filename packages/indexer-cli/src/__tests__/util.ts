@@ -105,6 +105,7 @@ export const setup = async () => {
     ['indexer', 'connect', 'http://localhost:18000'],
     ['indexer', 'rules', 'set', 'global', 'minSignal', '500', 'allocationAmount', '.01'],
     ['indexer', 'rules', 'set', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
+    ['indexer', 'rules', 'prepare', 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK'],
     [
       'indexer',
       'rules',
@@ -113,6 +114,7 @@ export const setup = async () => {
       'allocationAmount',
       '1000',
     ],
+    ['indexer', 'rules', 'offchain', '0x0000000000000000000000000000000000000000-1'],
   ]
   for (const command of commands) {
     const { exitCode } = await runIndexerCli(command, process.cwd())
