@@ -309,7 +309,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(
           `Query fee voucher is below claim threshold and is past the configured expiration time, delete it`,
           {
-            hint: 'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
+            hint:
+              'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
             allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
           },
         )
@@ -317,7 +318,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(
           `Query fee voucher amount is below claim threshold, skip it for now`,
           {
-            hint: 'If you would like to redeem this voucher, reduce the allocation claim threshold',
+            hint:
+              'If you would like to redeem this voucher, reduce the allocation claim threshold',
             tryingAgainUntil: new Date(
               voucher.createdAt.valueOf() + this.voucherExpiration * 3600,
             ),
