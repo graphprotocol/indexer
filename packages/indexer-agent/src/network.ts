@@ -1324,18 +1324,21 @@ export class Network {
       action: 'ClaimMany',
     })
     try {
-      logger.info(`${allocations.length} allocations are eligible for rebate pool claims`, {
-        allocations: allocations.map(allocation => {
-          return {
-            allocation: allocation.id,
-            deployment: allocation.subgraphDeployment.id.display,
-            createdAtEpoch: allocation.createdAtEpoch,
-            closedAtEpoch: allocation.closedAtEpoch,
-            createdAtBlockHash: allocation.createdAtBlockHash,
-          }
-        }),
-        restakeRewards: this.restakeRewards,
-      })
+      logger.info(
+        `${allocations.length} allocations are eligible for rebate pool claims`,
+        {
+          allocations: allocations.map(allocation => {
+            return {
+              allocation: allocation.id,
+              deployment: allocation.subgraphDeployment.id.display,
+              createdAtEpoch: allocation.createdAtEpoch,
+              closedAtEpoch: allocation.closedAtEpoch,
+              createdAtBlockHash: allocation.createdAtBlockHash,
+            }
+          }),
+          restakeRewards: this.restakeRewards,
+        },
+      )
 
       // Filter out already-claimed and still-active allocations
       allocations = await pFilter(
@@ -1370,13 +1373,18 @@ export class Network {
       // If we add a 30k gas buffer (for 150k estimated gas per claim)
       // Then we could fit a maximum of a 100 claim batch in a block
       const MAX_CLAIMS_PER_BATCH = 100
-      const allocationIds = allocations.map(allocation => allocation.id).slice(0, MAX_CLAIMS_PER_BATCH)
+      const allocationIds = allocations
+        .map(allocation => allocation.id)
+        .slice(0, MAX_CLAIMS_PER_BATCH)
 
       if (allocationIds.length === 0) {
         logger.info(`No allocation rebates to claim`)
         return true
       } else {
-        logger.info(`Claim tokens from the rebate pool for ${allocationIds.length} allocations`, { allocationIds });
+        logger.info(
+          `Claim tokens from the rebate pool for ${allocationIds.length} allocations`,
+          { allocationIds },
+        )
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
