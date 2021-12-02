@@ -1324,7 +1324,7 @@ export class Network {
       action: 'ClaimMany',
     })
     try {
-      logger.info(`Claim tokens from the rebate pool for many allocations`, {
+      logger.info(`${allocations.length} allocations are eligible for rebate pool claims`, {
         allocations: allocations.map(allocation => {
           return {
             allocation: allocation.id,
@@ -1365,11 +1365,18 @@ export class Network {
         },
       )
 
-      const allocationIds = allocations.map(allocation => allocation.id)
+      // Max claims per batch should roughly be equal to average gas per claim / block gas limit
+      // On-chain data shows an average of 120k gas per claim and the block gas limit is 15M
+      // If we add a 30k gas buffer (for 150k estimated gas per claim)
+      // Then we could fit a maximum of a 100 claim batch in a block
+      const MAX_CLAIMS_PER_BATCH = 100
+      const allocationIds = allocations.map(allocation => allocation.id).slice(0, MAX_CLAIMS_PER_BATCH)
 
       if (allocationIds.length === 0) {
         logger.info(`No allocation rebates to claim`)
         return true
+      } else {
+        logger.info(`Claim tokens from the rebate pool for ${allocationIds.length} allocations`, { allocationIds });
       }
 
       // Claim the earned value from the rebate pool, returning it to the indexers stake
