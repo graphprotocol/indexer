@@ -572,8 +572,8 @@ class Agent {
     ])
 
     // Ensure the network subgraph is never allocated towards
-    if (this.networkSubgraph instanceof SubgraphDeploymentID) {
-      const networkSubgraphDeployment = this.networkSubgraph
+    if (this.networkSubgraph.deployment) {
+      const networkSubgraphDeployment = this.networkSubgraph.deployment
       targetDeployments = targetDeployments.filter(
         deployment => deployment.bytes32 !== networkSubgraphDeployment.bytes32,
       )
