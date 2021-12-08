@@ -102,7 +102,8 @@ class Agent {
 
     const currentEpochStartBlock = currentEpoch.tryMap(
       async () => {
-        const startBlockNumber = await this.network.contracts.epochManager.currentEpochBlock()
+        const startBlockNumber =
+          await this.network.contracts.epochManager.currentEpochBlock()
         const startBlock = await this.network.ethereum.getBlock(
           startBlockNumber.toNumber(),
         )
@@ -443,13 +444,13 @@ class Agent {
           closedEpoch: allocation.closedAtEpoch,
           closedEpochReferenceProof: rewardsPool!.referencePOI,
           closedEpochStartBlockHash: allocation.closedAtEpochStartBlockHash!,
-          closedEpochStartBlockNumber: rewardsPool!
-            .closedAtEpochStartBlockNumber!,
+          closedEpochStartBlockNumber:
+            rewardsPool!.closedAtEpochStartBlockNumber!,
           previousEpochReferenceProof: rewardsPool!.referencePreviousPOI,
-          previousEpochStartBlockHash: rewardsPool!
-            .previousEpochStartBlockHash!,
-          previousEpochStartBlockNumber: rewardsPool!
-            .previousEpochStartBlockNumber!,
+          previousEpochStartBlockHash:
+            rewardsPool!.previousEpochStartBlockHash!,
+          previousEpochStartBlockNumber:
+            rewardsPool!.previousEpochStartBlockNumber!,
           status,
         } as POIDisputeAttributes
       },
@@ -739,9 +740,8 @@ class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          const onChainAllocation = await this.network.contracts.staking.getAllocation(
-            allocation.id,
-          )
+          const onChainAllocation =
+            await this.network.contracts.staking.getAllocation(allocation.id)
           return onChainAllocation.closedAtEpoch.eq('0')
         } catch (err) {
           this.logger.warn(
