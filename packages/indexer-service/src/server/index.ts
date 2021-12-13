@@ -19,6 +19,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
+import rateLimit from 'express-rate-limit'
 
 export interface ServerOptions {
   logger: Logger
@@ -139,6 +140,18 @@ export const createApp = async ({
 
   const app = express()
 
+  // Limit status requests to 9000/30min (5/s)
+  const slowLimiter = rateLimit({
+    windowMs: 30 * 60 * 1000, // 1 minutes
+    max: 9000,
+  })
+
+  // Limit network requests to 90000/30min (50/s)
+  const networkLimiter = rateLimit({
+    windowMs: 30 * 60 * 1000, // 1 minutes
+    max: 90000,
+  })
+
   // Log requests to the logger stream
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   app.use(morgan('tiny', { stream: loggerStream }) as any)
@@ -160,6 +173,7 @@ export const createApp = async ({
   // Endpoint for the public status API
   app.use(
     '/status',
+    networkLimiter,
     bodyParser.json(),
     await createStatusServer({ graphNodeStatusEndpoint }),
   )
@@ -167,6 +181,7 @@ export const createApp = async ({
   // Endpoint for the public cost API
   app.use(
     '/cost',
+    slowLimiter,
     bodyParser.json(),
     await createCostServer({ indexerManagementClient, metrics }),
   )
@@ -174,6 +189,7 @@ export const createApp = async ({
   // Endpoint for operator information
   app.use(
     '/operator',
+    slowLimiter,
     bodyParser.json(),
     await createOperatorServer({ operatorPublicKey }),
   )
@@ -187,6 +203,7 @@ export const createApp = async ({
     // Endpoint for network subgraph queries
     app.post(
       `/network`,
+      networkLimiter,
       bodyParser.raw({ type: 'application/json' }),
       async (req, res) => {
         try {
