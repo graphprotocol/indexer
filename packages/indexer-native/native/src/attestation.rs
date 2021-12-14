@@ -2,7 +2,7 @@ use super::*;
 use eip_712_derive::{
     sign_typed, Bytes32, DomainSeparator, Eip712Domain, MemberVisitor, StructType, U256,
 };
-use native_utils::{
+use neon_utils::{
     errors::SafeJsResult,
     js_object,
     marshalling::{codecs::decode, IntoHandle},

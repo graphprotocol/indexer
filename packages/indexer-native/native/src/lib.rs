@@ -1,13 +1,13 @@
 use arc_swap::ArcSwap;
 use keccak_hash::keccak;
 use lazy_static::lazy_static;
-use native_utils::{
+use neon::prelude::*;
+use neon_utils::{
     errors::{SafeResult, Terminal},
     marshalling::Arg,
     proxy::{Proxy, ProxyTerminal},
     task::run_async,
 };
-use neon::prelude::*;
 use never::Never;
 use secp256k1::{recovery::RecoverableSignature, Message, PublicKey, Secp256k1, VerifyOnly};
 use std::sync::Arc;
