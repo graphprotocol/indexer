@@ -1,12 +1,9 @@
-import graphqlHTTP from 'express-graphql'
+import { graphqlHTTP } from 'express-graphql'
 import fetch from 'cross-fetch'
-import { HttpLink } from 'apollo-link-http'
-import {
-  introspectSchema,
-  makeRemoteExecutableSchema,
-  transformSchema,
-  FilterRootFields,
-} from 'graphql-tools'
+import { loadSchema } from '@graphql-tools/load'
+import { UrlLoader } from '@graphql-tools/url-loader'
+import { wrapSchema, FilterRootFields } from '@graphql-tools/wrap'
+import { Request, Response } from 'express'
 
 export interface StatusServerOptions {
   graphNodeStatusEndpoint: string
@@ -14,19 +11,30 @@ export interface StatusServerOptions {
 
 export const createStatusServer = async ({
   graphNodeStatusEndpoint,
-}: StatusServerOptions): Promise<graphqlHTTP.Middleware> => {
-  const nodeLink = new HttpLink({ uri: graphNodeStatusEndpoint, fetch })
-  const nodeSchema = await introspectSchema(nodeLink)
-  const schema = transformSchema(nodeSchema, [
-    new FilterRootFields((_operation, fieldName) => fieldName === 'indexingStatuses'),
-  ])
-  const executableSchema = makeRemoteExecutableSchema({
-    schema: schema,
-    link: nodeLink,
+}: StatusServerOptions): Promise<
+  (request: Request, response: Response) => Promise<void>
+> => {
+  const schema = await loadSchema(graphNodeStatusEndpoint, {
+    loaders: [new UrlLoader()],
+    headers: {
+      Accept: 'application/json',
+    },
+    method: 'POST',
+    fetch,
+  })
+
+  const filteredSchema = wrapSchema({
+    schema,
+    transforms: [
+      new FilterRootFields(
+        (_operation: 'Query' | 'Mutation' | 'Subscription', rootFieldName: string) =>
+          rootFieldName === 'indexingStatuses',
+      ),
+    ],
   })
 
   return graphqlHTTP({
-    schema: executableSchema,
+    schema: filteredSchema,
     graphiql: true,
   })
 }
