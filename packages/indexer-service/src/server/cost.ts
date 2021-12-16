@@ -1,5 +1,6 @@
-import graphqlHTTP from 'express-graphql'
-import { makeExecutableSchema } from 'graphql-tools'
+import { graphqlHTTP } from 'express-graphql'
+import { Request, Response } from 'express'
+import { makeExecutableSchema } from '@graphql-tools/schema'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import { Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
@@ -24,7 +25,9 @@ interface CostModelArgs {
 export const createCostServer = async ({
   indexerManagementClient,
   metrics,
-}: GraphQLServerOptions): Promise<graphqlHTTP.Middleware> => {
+}: GraphQLServerOptions): Promise<
+  (request: Request, response: Response) => Promise<void>
+> => {
   const resolverMetrics = {
     costModelQueries: new metrics.client.Counter({
       name: 'indexer_service_cost_model_queries_total',

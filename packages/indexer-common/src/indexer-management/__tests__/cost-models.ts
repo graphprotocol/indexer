@@ -1,4 +1,4 @@
-import { Sequelize } from 'sequelize/types'
+import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
 import { ethers } from 'ethers'
 import {
