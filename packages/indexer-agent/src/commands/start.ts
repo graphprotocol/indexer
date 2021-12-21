@@ -29,10 +29,7 @@ import { Network } from '../network'
 import { Indexer } from '../indexer'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
-import {
-  bindAllocationExchangeContract,
-  TransferReceiptCollector,
-} from '../query-fees'
+import { bindAllocationExchangeContract } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
 
@@ -355,25 +352,11 @@ export default {
         default: 8001,
         group: 'Query Fees',
       })
-      .option('use-vector', {
-        description: 'Whether to use Vector for query fees',
-        type: 'boolean',
-        required: false,
-        implies: [
-          'vector-node',
-          'vector-router',
-          'vector-transfer-definition',
-          'vector-event-server',
-          'vector-event-server-port',
-        ],
-        group: 'Query Fees',
-      })
       .option('allocation-exchange-contract', {
         description: 'Address of the contract to submit query fee vouchers to',
         type: 'string',
         required: false,
         default: 'auto',
-        conflicts: ['use-vector'],
         implies: ['collect-receipts-endpoint'],
         group: 'Query Fees',
       })
@@ -381,7 +364,6 @@ export default {
         description: 'Client endpoint for collecting receipts',
         type: 'string',
         required: false,
-        conflicts: ['use-vector'],
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
@@ -391,7 +373,6 @@ export default {
         type: 'number',
         default: 2160,
         required: false,
-        conflicts: ['use-vector'],
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
@@ -718,63 +699,29 @@ export default {
       metrics,
     })
 
-    let receiptCollector
+    // Identify the allocation exchange contract address
+    // TODO: Pick it from the `contracts`
+    const allocationExchangeContract = toAddress(
+      argv.allocationExchangeContract === 'auto'
+        ? ethereum.network.chainId === 1
+          ? '0x4a53cf3b3EdA545dc61dee0cA21eA8996C94385f' // mainnet
+          : '0x58Ce0A0f41449E349C1A91Dd9F3D9286Bf32c161' // rinkeby
+        : argv.allocationExchangeContract,
+    )
 
-    if (argv.useVector) {
-      // Identify the Graph transfer definition address
-      // TODO: Pick it from the `contracts`
-      const vectorTransferDefinition = toAddress(
-        argv.vectorTransferDefinition === 'auto'
-          ? ethereum.network.chainId === 1
-            ? '0x0000000000000000000000000000000000000000'
-            : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
-          : argv.vectorTransferDefinition,
-      )
-
-      // Automatically sync the status of receipt transfers to the db
-      receiptCollector = await TransferReceiptCollector.create({
-        logger,
-        ethereum,
-        metrics,
+    const receiptCollector = new AllocationReceiptCollector({
+      logger,
+      network,
+      models: queryFeeModels,
+      collectEndpoint: new URL(argv.collectReceiptsEndpoint),
+      allocationExchange: bindAllocationExchangeContract(
         wallet,
-        contracts,
-        vector: {
-          nodeUrl: argv.vectorNode,
-          routerIdentifier: argv.vectorRouter,
-          transferDefinition: vectorTransferDefinition,
-          eventServer: {
-            url: argv.vectorEventServer,
-            port: argv.vectorEventServerPort,
-          },
-        },
-        models: queryFeeModels,
-      })
-      await receiptCollector.queuePendingTransfersFromDatabase()
-    } else {
-      // Identify the allocation exchange contract address
-      // TODO: Pick it from the `contracts`
-      const allocationExchangeContract = toAddress(
-        argv.allocationExchangeContract === 'auto'
-          ? ethereum.network.chainId === 1
-            ? '0x4a53cf3b3EdA545dc61dee0cA21eA8996C94385f' // mainnet
-            : '0x58Ce0A0f41449E349C1A91Dd9F3D9286Bf32c161' // rinkeby
-          : argv.allocationExchangeContract,
-      )
-
-      receiptCollector = new AllocationReceiptCollector({
-        logger,
-        network,
-        models: queryFeeModels,
-        collectEndpoint: new URL(argv.collectReceiptsEndpoint),
-        allocationExchange: bindAllocationExchangeContract(
-          wallet,
-          allocationExchangeContract,
-        ),
-        allocationClaimThreshold: parseGRT(argv.rebateClaimThreshold),
-        voucherExpiration: argv.voucherExpiration,
-      })
-      await receiptCollector.queuePendingReceiptsFromDatabase()
-    }
+        allocationExchangeContract,
+      ),
+      allocationClaimThreshold: parseGRT(argv.rebateClaimThreshold),
+      voucherExpiration: argv.voucherExpiration,
+    })
+    await receiptCollector.queuePendingReceiptsFromDatabase()
 
     await startAgent({
       logger,

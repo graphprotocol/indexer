@@ -18,7 +18,6 @@ import {
   indexerError,
   IndexerErrorCode,
   registerIndexerErrorMetrics,
-  createVectorClient,
   defineQueryFeeModels,
   NetworkSubgraph,
   IndexingStatusResolver,
@@ -27,7 +26,7 @@ import {
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
-import { AllocationReceiptManager, TransferReceiptManager } from '../query-fees'
+import { AllocationReceiptManager } from '../query-fees'
 
 export default {
   command: 'start',
@@ -179,16 +178,10 @@ export default {
         default: 120_000,
         group: 'Network Subgraph',
       })
-      .option('use-vector', {
-        description: 'Whether to use Vector for query fees',
-        type: 'boolean',
-        implies: ['vector-node', 'vector-router'],
-      })
       .option('client-signer-address', {
         description: 'Address that signs query fee receipts from a known client',
         type: 'string',
         required: false,
-        conflicts: ['use-vector'],
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -380,46 +373,12 @@ export default {
 
     logger.info('Successfully connected to contracts')
 
-    let receiptManager
-
-    if (argv.useVector) {
-      // Identify the Graph transfer definition address
-      // TODO: Pick it from the `contracts`
-      const vectorTransferDefinition = toAddress(
-        argv.vectorTransferDefinition === 'auto'
-          ? network.chainId === 1
-            ? '0x0000000000000000000000000000000000000000'
-            : '0x87b1A09EfE2DA4022fc4a152D10dd2Df36c67544'
-          : argv.vectorTransferDefinition,
-      )
-
-      // Create vector client
-      const vector = await createVectorClient({
-        logger,
-        ethereum: ethereumProvider,
-        wallet,
-        contracts,
-        metrics,
-        nodeUrl: argv.vectorNode,
-        routerIdentifier: argv.vectorRouter,
-      })
-
-      // Create receipt manager
-      receiptManager = new TransferReceiptManager(
-        sequelize,
-        queryFeeModels,
-        logger,
-        vector,
-        vectorTransferDefinition,
-      )
-    } else {
-      receiptManager = new AllocationReceiptManager(
-        sequelize,
-        queryFeeModels,
-        logger,
-        toAddress(argv.clientSignerAddress),
-      )
-    }
+    const receiptManager = new AllocationReceiptManager(
+      sequelize,
+      queryFeeModels,
+      logger,
+      toAddress(argv.clientSignerAddress),
+    )
 
     // Ensure the address is checksummed
     const address = toAddress(wallet.address)

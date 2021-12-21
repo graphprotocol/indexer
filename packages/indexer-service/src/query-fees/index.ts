@@ -1,6 +1,5 @@
 import { Address } from '@graphprotocol/common-ts'
 
-export * from './transfers'
 export * from './allocations'
 
 export interface ReceiptManager {
