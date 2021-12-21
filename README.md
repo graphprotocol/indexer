@@ -96,7 +96,6 @@ Options:
                                                       [boolean] [default: false]
   --free-query-auth-token  Auth token that clients can use to query for free
                                                                          [array]
-  --use-vector             Whether to use Vector for query fees        [boolean]
   --client-signer-address  Address that signs query fee receipts from a known
                            client                                       [string]
 ```
@@ -189,7 +188,6 @@ Query Fees
                                   agent                                 [string]
   --vector-event-server-port      Port to serve the vector event server at
                                                         [number] [default: 8001]
-  --use-vector                    Whether to use Vector for query fees [boolean]
   --allocation-exchange-contract  Address of the contract to submit query fee
                                   vouchers to         [string] [default: "auto"]
   --collect-receipts-endpoint     Client endpoint for collecting receipts
