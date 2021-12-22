@@ -14,12 +14,12 @@ import {
   QueryFeeModels,
   Voucher,
   ensureAllocationSummary,
+  TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
-import { BigNumber } from 'ethers'
+import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
-import { Network } from '../network'
 import pReduce from 'p-reduce'
 
 // Receipts are collected with a delay of 20 minutes after
@@ -33,7 +33,8 @@ interface AllocationReceiptsBatch {
 
 export interface AllocationReceiptCollectorOptions {
   logger: Logger
-  network: Network
+  transactionManager: TransactionManager
+  allocationExchange: Contract
   models: QueryFeeModels
   collectEndpoint: URL
   voucherRedemptionThreshold: BigNumber
@@ -45,7 +46,8 @@ export interface AllocationReceiptCollectorOptions {
 export class AllocationReceiptCollector implements ReceiptCollector {
   private logger: Logger
   private models: QueryFeeModels
-  private network: Network
+  private transactionManager: TransactionManager
+  private allocationExchange: Contract
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
   private voucherRedemptionThreshold: BigNumber
@@ -55,18 +57,20 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   constructor({
     logger,
-    network,
+    transactionManager,
     models,
     collectEndpoint,
+    allocationExchange,
     voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize,
     voucherExpiration,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
-    this.network = network
+    this.transactionManager = transactionManager
     this.models = models
     this.collectEndpoint = collectEndpoint
+    this.allocationExchange = allocationExchange
     this.voucherRedemptionThreshold = voucherRedemptionThreshold
     this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
@@ -206,7 +210,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         pendingVouchers,
         async (results, voucher) => {
           if (
-            await this.network.contracts.allocationExchange.allocationsRedeemed(
+            await this.allocationExchange.allocationsRedeemed(
               voucher.allocation,
             )
           ) {
@@ -411,18 +415,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     try {
       // Submit the voucher on chain
-      const txReceipt = await this.network.executeTransaction(
-        () =>
-          this.network.contracts.allocationExchange.estimateGas.redeemMany(
-            onchainVouchers,
-          ),
-        async gasLimit =>
-          this.network.contracts.allocationExchange.redeemMany(
-            onchainVouchers,
-            {
-              gasLimit,
-            },
-          ),
+      const txReceipt = await this.transactionManager.executeTransaction(
+        () => this.allocationExchange.estimateGas.redeemMany(onchainVouchers),
+        async (gasLimit: BigNumberish) =>
+          this.allocationExchange.redeemMany(onchainVouchers, {
+            gasLimit,
+          }),
         logger.child({ action: 'redeemMany' }),
       )
 

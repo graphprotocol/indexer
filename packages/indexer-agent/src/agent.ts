@@ -19,6 +19,7 @@ import {
   IndexerErrorCode,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
+  Network,
   NetworkSubgraph,
   POIDisputeAttributes,
   Subgraph,
@@ -26,7 +27,6 @@ import {
 } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { AgentConfig } from './types'
-import { Network } from './network'
 import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
@@ -365,8 +365,8 @@ class Agent {
 
     join({
       ticker: timer(120_000),
-      paused: this.network.paused,
-      isOperator: this.network.isOperator,
+      paused: this.network.transactionManager.paused,
+      isOperator: this.network.transactionManager.isOperator,
       currentEpoch,
       currentEpochStartBlock,
       maxAllocationEpochs,
@@ -410,7 +410,9 @@ class Agent {
             {
               err: indexerError(IndexerErrorCode.IE034),
               indexer: toAddress(this.network.indexerAddress),
-              operator: toAddress(this.network.wallet.address),
+              operator: toAddress(
+                this.network.transactionManager.wallet.address,
+              ),
             },
           )
         }
@@ -424,7 +426,8 @@ class Agent {
 
         try {
           const disputableEpoch =
-            currentEpoch.toNumber() - this.network.poiDisputableEpochs
+            currentEpoch.toNumber() -
+            this.network.indexerConfigs.poiDisputableEpochs
           // Find disputable allocations
           await this.identifyPotentialDisputes(
             disputableAllocations,
@@ -519,7 +522,7 @@ class Agent {
             pool.previousEpochStartBlockHash!,
           )
           pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
-          pool.referencePOI = await this.indexer.proofOfIndexing(
+          pool.referencePOI = await this.indexer.statusResolver.proofOfIndexing(
             pool.subgraphDeployment,
             {
               number: closedAtEpochStartBlock.number,
@@ -529,14 +532,15 @@ class Agent {
           )
           pool.previousEpochStartBlockHash = previousEpochStartBlock.hash
           pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
-          pool.referencePreviousPOI = await this.indexer.proofOfIndexing(
-            pool.subgraphDeployment,
-            {
-              number: previousEpochStartBlock.number,
-              hash: previousEpochStartBlock.hash,
-            },
-            pool.allocationIndexer,
-          )
+          pool.referencePreviousPOI =
+            await this.indexer.statusResolver.proofOfIndexing(
+              pool.subgraphDeployment,
+              {
+                number: previousEpochStartBlock.number,
+                hash: previousEpochStartBlock.hash,
+              },
+              pool.allocationIndexer,
+            )
           return pool
         }),
     )
@@ -971,7 +975,7 @@ class Agent {
     epochStartBlock: BlockPointer,
     allocation: Allocation,
   ): Promise<{ closed: boolean; collectingQueryFees: boolean }> {
-    const poi = await this.indexer.proofOfIndexing(
+    const poi = await this.indexer.statusResolver.proofOfIndexing(
       allocation.subgraphDeployment.id,
       epochStartBlock,
       this.indexer.indexerAddress,
@@ -996,20 +1000,12 @@ class Agent {
           },
         )
       } else {
-        const previousEpochStartBlockNumber =
-          epochStartBlock.number -
-          (await this.network.contracts.epochManager.epochLength()).toNumber()
-        const failureBlock = indexingStatus.chains[0].latestBlock
-
-        // latest valid block (earliest possible is at previous epoch start
-        const validBlock = await this.network.ethereum.getBlock(
-          Math.min(previousEpochStartBlockNumber, failureBlock.number - 1),
-        )
-        const latestValidPoi = await this.indexer.proofOfIndexing(
-          allocation.subgraphDeployment.id,
-          validBlock,
-          this.indexer.indexerAddress,
-        )
+        const latestValidPoi =
+          await this.indexer.statusResolver.proofOfIndexing(
+            allocation.subgraphDeployment.id,
+            indexingStatus?.chains[0].latestBlock,
+            this.indexer.indexerAddress,
+          )
         this.logger.error(`Received a null or zero POI for deployment`, {
           deployment: allocation.subgraphDeployment.id.display,
           allocation: allocation.id,
@@ -1042,7 +1038,7 @@ class Agent {
     collectingQueryFees: boolean
     newAllocation: Allocation | undefined
   }> {
-    const poi = await this.indexer.proofOfIndexing(
+    const poi = await this.indexer.statusResolver.proofOfIndexing(
       existingAllocation.subgraphDeployment.id,
       epochStartBlock,
       this.indexer.indexerAddress,
