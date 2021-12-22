@@ -1,4 +1,4 @@
-import { Sequelize } from 'sequelize/types'
+import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
 import { ethers } from 'ethers'
 import {
@@ -30,7 +30,6 @@ declare const __DATABASE__: any
 const SET_INDEXING_RULE_MUTATION = gql`
   mutation setIndexingRule($rule: IndexingRuleInput!) {
     setIndexingRule(rule: $rule) {
-      id
       deployment
       allocationAmount
       parallelAllocations
@@ -60,7 +59,6 @@ const DELETE_INDEXING_RULES_MUTATION = gql`
 const INDEXING_RULE_QUERY = gql`
   query indexingRule($deployment: String!, $merged: Boolean!) {
     indexingRule(deployment: $deployment, merged: $merged) {
-      id
       deployment
       allocationAmount
       parallelAllocations
@@ -78,7 +76,6 @@ const INDEXING_RULE_QUERY = gql`
 const INDEXING_RULES_QUERY = gql`
   query indexingRuls($merged: Boolean!) {
     indexingRules(merged: $merged) {
-      id
       deployment
       allocationAmount
       parallelAllocations

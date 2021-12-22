@@ -17,7 +17,7 @@ import {
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import { BigNumber, Wallet } from 'ethers'
-import { Sequelize } from 'sequelize/types'
+import { Sequelize } from 'sequelize'
 import { Indexer } from '../indexer'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
