@@ -1,6 +1,5 @@
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from '@graphprotocol/indexer-common'
-import { Network } from './network'
+import { Network, NetworkSubgraph } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { ReceiptCollector } from './query-fees'
 

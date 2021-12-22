@@ -3,6 +3,7 @@ import {
   connectDatabase,
   createLogger,
   Logger,
+  mutable,
   NetworkContracts,
   parseGRT,
   toAddress,
@@ -15,8 +16,9 @@ import {
   IndexingStatusResolver,
   NetworkSubgraph,
   POIDisputeAttributes,
+  TransactionManager,
 } from '@graphprotocol/indexer-common'
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber, providers, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
 import { Indexer } from '../indexer'
 
@@ -116,14 +118,13 @@ const setup = async () => {
     async: false,
     level: 'trace',
   })
+  wallet = Wallet.createRandom()
 
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55'
   contracts = await connectContracts(wallet, 4)
   await sequelize.sync({ force: true })
-
-  wallet = Wallet.createRandom()
 
   const indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
@@ -135,6 +136,27 @@ const setup = async () => {
     endpoint: 'https://gateway.testnet.thegraph.com/network',
     deployment: undefined,
   })
+
+  const ethereum = new providers.StaticJsonRpcProvider(
+    {
+      url: providerUrl.toString(),
+      user: username,
+      password: password,
+      allowInsecureAuthentication: true,
+    },
+    '4',
+  )
+
+  const transactionManager = new TransactionManager(
+    ethereum,
+    wallet,
+    mutable(false),
+    mutable(true),
+    240,
+    1.2,
+    500,
+    10,
+  )
 
   indexerManagementClient = await createIndexerManagementClient({
     models,
@@ -152,6 +174,7 @@ const setup = async () => {
     features: {
       injectDai: false,
     },
+    transactionManager,
   })
 
   indexer = new Indexer(

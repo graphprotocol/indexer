@@ -21,6 +21,7 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
+import { TransactionManager } from '../transactions'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -32,10 +33,11 @@ export interface IndexerManagementResolverContext {
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
   networkSubgraph: NetworkSubgraph
-  logger?: Logger
+  logger: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   dai: Eventual<string>
+  transactionManager: TransactionManager
 }
 
 const SCHEMA_SDL = gql`
@@ -241,6 +243,7 @@ export interface IndexerManagementClientOptions {
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
+  transactionManager?: TransactionManager
 }
 
 export class IndexerManagementClient extends Client {
@@ -299,6 +302,7 @@ export const createIndexerManagementClient = async (
     logger,
     defaults,
     features,
+    transactionManager,
   } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
@@ -323,6 +327,7 @@ export const createIndexerManagementClient = async (
       defaults,
       features,
       dai,
+      transactionManager,
     },
   })
 

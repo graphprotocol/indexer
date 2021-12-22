@@ -13,19 +13,18 @@ import {
   connectContracts,
 } from '@graphprotocol/common-ts'
 import {
-  defineIndexerManagementModels,
   createIndexerManagementServer,
   createIndexerManagementClient,
+  defineIndexerManagementModels,
+  defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
-  registerIndexerErrorMetrics,
-  defineQueryFeeModels,
-  NetworkSubgraph,
   IndexingStatusResolver,
+  registerIndexerErrorMetrics,
+  Network,
+  NetworkSubgraph,
 } from '@graphprotocol/indexer-common'
-
 import { startAgent } from '../agent'
-import { Network } from '../network'
 import { Indexer } from '../indexer'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
@@ -676,54 +675,7 @@ export default {
         : undefined,
     })
 
-    logger.info('Launch indexer management API server')
-    const indexerManagementClient = await createIndexerManagementClient({
-      models: managementModels,
-      address: indexerAddress,
-      contracts,
-      indexingStatusResolver,
-      networkSubgraph,
-      logger,
-      defaults: {
-        globalIndexingRule: {
-          allocationAmount: argv.defaultAllocationAmount,
-          parallelAllocations: 1,
-        },
-      },
-      features: {
-        injectDai: argv.injectDai,
-      },
-    })
-    await createIndexerManagementServer({
-      logger,
-      client: indexerManagementClient,
-      port: argv.indexerManagementPort,
-    })
-    logger.info(`Successfully launched indexer management API server`)
-
     logger.info('Connect to network')
-    const indexer = new Indexer(
-      logger,
-      argv.graphNodeAdminEndpoint,
-      indexingStatusResolver,
-      indexerManagementClient,
-      argv.indexNodeIds,
-      argv.defaultAllocationAmount,
-      indexerAddress,
-    )
-    const networkSubgraphDeployment = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
-      : undefined
-    if (networkSubgraphDeployment !== undefined) {
-      // Make sure the network subgraph is being indexed
-      await indexer.ensure(
-        `${networkSubgraphDeployment.ipfsHash.slice(
-          0,
-          23,
-        )}/${networkSubgraphDeployment.ipfsHash.slice(23)}`,
-        networkSubgraphDeployment,
-      )
-    }
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
       logger,
@@ -749,6 +701,55 @@ export default {
       restakeRewards: argv.restakeRewards,
     })
 
+    logger.info('Launch indexer management API server')
+    const indexerManagementClient = await createIndexerManagementClient({
+      models: managementModels,
+      address: indexerAddress,
+      contracts,
+      indexingStatusResolver,
+      networkSubgraph,
+      logger,
+      defaults: {
+        globalIndexingRule: {
+          allocationAmount: argv.defaultAllocationAmount,
+          parallelAllocations: 1,
+        },
+      },
+      features: {
+        injectDai: argv.injectDai,
+      },
+      transactionManager: network.transactionManager,
+    })
+    await createIndexerManagementServer({
+      logger,
+      client: indexerManagementClient,
+      port: argv.indexerManagementPort,
+    })
+    logger.info(`Successfully launched indexer management API server`)
+
+    const indexer = new Indexer(
+      logger,
+      argv.graphNodeAdminEndpoint,
+      indexingStatusResolver,
+      indexerManagementClient,
+      argv.indexNodeIds,
+      argv.defaultAllocationAmount,
+      indexerAddress,
+    )
+    const networkSubgraphDeployment = argv.networkSubgraphDeployment
+      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+      : undefined
+    if (networkSubgraphDeployment !== undefined) {
+      // Make sure the network subgraph is being indexed
+      await indexer.ensure(
+        `${networkSubgraphDeployment.ipfsHash.slice(
+          0,
+          23,
+        )}/${networkSubgraphDeployment.ipfsHash.slice(23)}`,
+        networkSubgraphDeployment,
+      )
+    }
+
     // Monitor ETH balance of the operator and write the latest value to a metric
     await monitorEthBalance(logger, wallet, metrics)
 
@@ -772,8 +773,9 @@ export default {
 
     const receiptCollector = new AllocationReceiptCollector({
       logger,
-      network,
+      transactionManager: network.transactionManager,
       models: queryFeeModels,
+      allocationExchange: network.contracts.allocationExchange,
       collectEndpoint: new URL(argv.collectReceiptsEndpoint),
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
