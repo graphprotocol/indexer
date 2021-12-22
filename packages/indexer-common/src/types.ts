@@ -1,4 +1,5 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { BigNumber, providers } from 'ethers'
 
 export interface BlockPointer {
   number: number
@@ -38,4 +39,15 @@ export interface Subgraph {
   id: string
   versionCount: number
   versions: SubgraphVersion[]
+}
+
+export enum TransactionType {
+  ZERO,
+  TWO,
+}
+
+export interface TransactionConfig extends providers.TransactionRequest {
+  attempt: number
+  gasBump: BigNumber
+  type: TransactionType
 }

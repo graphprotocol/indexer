@@ -772,8 +772,9 @@ export default {
 
     const receiptCollector = new AllocationReceiptCollector({
       logger,
-      network,
+      transactionManager: network.transactionManager,
       models: queryFeeModels,
+      allocationExchange: network.contracts.allocationExchange,
       collectEndpoint: new URL(argv.collectReceiptsEndpoint),
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
