@@ -59,6 +59,7 @@ class Agent {
   indexer: Indexer
   network: Network
   networkSubgraph: NetworkSubgraph
+  allocateOnNetworkSubgraph: boolean
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
@@ -69,6 +70,7 @@ class Agent {
     indexer: Indexer,
     network: Network,
     networkSubgraph: NetworkSubgraph,
+    allocateOnNetworkSubgraph: boolean,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
@@ -78,6 +80,7 @@ class Agent {
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
+    this.allocateOnNetworkSubgraph = allocateOnNetworkSubgraph
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
@@ -580,8 +583,11 @@ class Agent {
       ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
     ])
 
-    // Ensure the network subgraph is never allocated towards
-    if (this.networkSubgraph.deployment?.id.bytes32) {
+    // Ensure the network subgraph is never allocated towards unless explicitly allowed
+    if (
+      !this.allocateOnNetworkSubgraph &&
+      this.networkSubgraph.deployment?.id.bytes32
+    ) {
       const networkSubgraphDeploymentId = this.networkSubgraph.deployment.id
       targetDeployments = targetDeployments.filter(
         deployment =>
@@ -919,6 +925,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexer,
     config.network,
     config.networkSubgraph,
+    config.allocateOnNetworkSubgraph,
     config.registerIndexer,
     config.offchainSubgraphs,
     config.receiptCollector,
