@@ -154,6 +154,12 @@ export default {
         type: 'string',
         group: 'Network Subgraph',
       })
+      .option('allocate-on-network-subgraph', {
+        description: 'Whether to allocate to the network subgraph',
+        type: 'boolean',
+        default: false,
+        group: 'Network Subgraph',
+      })
       .option('index-node-ids', {
         description:
           'Node IDs of Graph nodes to use for indexing (separated by commas)',
@@ -729,6 +735,7 @@ export default {
       indexer,
       network,
       networkSubgraph,
+      allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
       registerIndexer: argv.register,
       offchainSubgraphs: argv.offchainSubgraphs.map(
         (s: string) => new SubgraphDeploymentID(s),
