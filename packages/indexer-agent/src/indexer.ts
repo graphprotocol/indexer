@@ -235,7 +235,20 @@ export class Indexer {
       if (result.error) {
         throw result.error
       }
-
+      this.logger.debug(
+        'Fetched indexing rules',
+        {
+          count: result.data.indexingRules.length,
+          rules: result.data.indexingRules.map(
+            (rule: IndexingRuleAttributes) => {
+              return {
+                identifier: rule.deployment,
+                decisionBasis: rule.decisionBasis,
+              }
+            },
+          ),
+        },
+      )
       return result.data.indexingRules
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE025, error)

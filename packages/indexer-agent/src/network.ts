@@ -488,7 +488,7 @@ export class Network {
     )
 
     while (!queryProgress.exhausted) {
-      this.logger.debug(`Query subgraph deployments`, {
+      this.logger.trace(`Query subgraph deployments`, {
         queryProgress: queryProgress,
       })
       try {
@@ -524,6 +524,7 @@ export class Network {
 
         // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
         if (results.length == 0) {
+          this.logger.warn('No subgraph deployments returned')
           return []
         }
 
@@ -637,6 +638,10 @@ export class Network {
       }
     }
 
+    this.logger.debug(`Fetched subgraph deployments published to network`, {
+      publishedSubgraphs: queryProgress.fetched,
+      worthIndexing: deployments.length,
+    })
     return deployments
   }
 
