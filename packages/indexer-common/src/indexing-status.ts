@@ -1,8 +1,10 @@
 import fetch from 'isomorphic-fetch'
+import gql from 'graphql-tag'
 import { Client, createClient } from '@urql/core'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { IndexingStatus } from './types'
+import { BlockPointer, IndexingStatus } from './types'
 import { indexerError, IndexerErrorCode } from './errors'
+import pRetry from 'p-retry'
 
 export interface IndexingStatusFetcherOptions {
   logger: Logger
@@ -82,6 +84,76 @@ export class IndexingStatusResolver {
         err,
       })
       throw err
+    }
+  }
+
+  public async proofOfIndexing(
+    deployment: SubgraphDeploymentID,
+    block: BlockPointer,
+    indexerAddress: string,
+  ): Promise<string | undefined> {
+    try {
+      return await pRetry(
+        async (attempt) => {
+          const result = await this.statuses
+            .query(
+              gql`
+                query proofOfIndexing(
+                  $subgraph: String!
+                  $blockNumber: Int!
+                  $blockHash: String!
+                  $indexer: String!
+                ) {
+                  proofOfIndexing(
+                    subgraph: $subgraph
+                    blockNumber: $blockNumber
+                    blockHash: $blockHash
+                    indexer: $indexer
+                  )
+                }
+              `,
+              {
+                subgraph: deployment.ipfsHash,
+                blockNumber: block.number,
+                blockHash: block.hash,
+                indexer: indexerAddress,
+              },
+            )
+            .toPromise()
+
+          if (result.error) {
+            throw result.error
+          }
+          this.logger.trace('Reference PoI generated', {
+            indexer: indexerAddress,
+            subgraph: deployment.ipfsHash,
+            block: block,
+            proof: result.data.proofOfIndexing,
+            attempt,
+          })
+
+          return result.data.proofOfIndexing
+        },
+        {
+          retries: 10,
+          onFailedAttempt: (err) => {
+            this.logger.warn(`Proof of indexing could not be queried`, {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
+          },
+        },
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE019, error)
+      this.logger.error(`Failed to query proof of indexing`, {
+        subgraph: deployment.ipfsHash,
+        blockHash: block,
+        indexer: indexerAddress,
+        err: err,
+      })
+      return undefined
     }
   }
 }

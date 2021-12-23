@@ -4,6 +4,8 @@ import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
 import { pickFields } from './command-helpers'
+import { IndexerManagementClient } from '@graphprotocol/indexer-common'
+import gql from 'graphql-tag'
 
 interface IndexerAllocation {
   id: number
@@ -132,4 +134,71 @@ export const displayIndexerAllocation = (
 
 function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
   return (x: T | null) => (x === null ? null : fn(x))
+}
+
+export const createAllocation = async (
+  client: IndexerManagementClient,
+  deploymentID: string,
+  amount: BigNumber,
+): Promise<object> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation createAllocation(
+          $deploymentID: String!
+          $amount: String
+          $rule: Boolean
+        ) {
+          createAllocation(deploymentID: $deploymentID, amount: $amount) {
+            deploymentID
+            amount
+            success
+            failureReason
+          }
+        }
+      `,
+      {
+        deploymentID,
+        amount: amount.toString(),
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.closeAllocation
+}
+
+export const closeAllocation = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  poi: string | undefined,
+  force: boolean,
+): Promise<object> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation closeAllocation($id: String!, $poi: String, $force: Boolean) {
+          closeAllocation(id: $id, poi: $poi, force: $force) {
+            id
+            success
+            indexerRewards
+          }
+        }
+      `,
+      {
+        id: allocationID,
+        poi: poi,
+        force: force,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.closeAllocation
 }

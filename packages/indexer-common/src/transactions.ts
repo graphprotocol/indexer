@@ -7,10 +7,20 @@ import {
   utils,
   Wallet,
 } from 'ethers'
-import { Eventual, Logger } from '@graphprotocol/common-ts'
+import {
+  Address,
+  Eventual,
+  Logger,
+  mutable,
+  NetworkContracts,
+  timer,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import delay from 'delay'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'
+import { NetworkSubgraph } from './network-subgraph'
+import gql from 'graphql-tag'
 
 export class TransactionManager {
   ethereum: providers.BaseProvider
@@ -306,5 +316,81 @@ export class TransactionManager {
       }
     }
     return feeData
+  }
+
+  async monitorNetworkPauses(
+    logger: Logger,
+    contracts: NetworkContracts,
+    networkSubgraph: NetworkSubgraph,
+  ): Promise<Eventual<boolean>> {
+    return timer(60_000)
+      .reduce(async (currentlyPaused) => {
+        try {
+          const result = await networkSubgraph.query(
+            gql`
+              {
+                graphNetworks {
+                  isPaused
+                }
+              }
+            `,
+          )
+
+          if (result.error) {
+            throw result.error
+          }
+
+          if (!result.data || result.data.length === 0) {
+            throw new Error(`No data returned by network subgraph`)
+          }
+
+          return result.data.graphNetworks[0].isPaused
+        } catch (err) {
+          logger.warn(`Failed to check for network pause, assuming it has not changed`, {
+            err: indexerError(IndexerErrorCode.IE007, err),
+            paused: currentlyPaused,
+          })
+          return currentlyPaused
+        }
+      }, await contracts.controller.paused())
+      .map((paused) => {
+        logger.info(paused ? `Network paused` : `Network active`)
+        return paused
+      })
+  }
+
+  async monitorIsOperator(
+    logger: Logger,
+    contracts: NetworkContracts,
+    indexerAddress: Address,
+    wallet: Wallet,
+  ): Promise<Eventual<boolean>> {
+    // If indexer and operator address are identical, operator status is
+    // implicitly granted => we'll never have to check again
+    if (indexerAddress === toAddress(wallet.address)) {
+      logger.info(`Indexer and operator are identical, operator status granted`)
+      return mutable(true)
+    }
+
+    return timer(60_000)
+      .reduce(async (isOperator) => {
+        try {
+          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+        } catch (err) {
+          logger.warn(
+            `Failed to check operator status for indexer, assuming it has not changed`,
+            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+          )
+          return isOperator
+        }
+      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      .map((isOperator) => {
+        logger.info(
+          isOperator
+            ? `Have operator status for indexer`
+            : `No operator status for indexer`,
+        )
+        return isOperator
+      })
   }
 }

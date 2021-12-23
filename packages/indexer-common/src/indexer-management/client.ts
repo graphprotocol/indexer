@@ -14,13 +14,15 @@ import { NetworkSubgraph } from '../network-subgraph'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
-import indexingRuleResolvers from './resolvers/indexing-rules'
-import statusResolvers from './resolvers/indexer-status'
+import allocationResolvers from './resolvers/allocations'
 import costModelResolvers from './resolvers/cost-models'
+import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
+import statusResolvers from './resolvers/indexer-status'
 import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
+import { TransactionManager } from '../transactions'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -32,10 +34,11 @@ export interface IndexerManagementResolverContext {
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
   networkSubgraph: NetworkSubgraph
-  logger?: Logger
+  logger: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   dai: Eventual<string>
+  transactionManager: TransactionManager
 }
 
 const SCHEMA_SDL = gql`
@@ -52,6 +55,43 @@ const SCHEMA_SDL = gql`
     deployment
     subgraph
     group
+  }
+
+  input AllocationFilter {
+    active: Boolean!
+    claimable: Boolean!
+    allocations: [String!]
+  }
+  enum AllocationStatus {
+    ACTIVE
+    CLAIMABLE
+  }
+
+  type Allocation {
+    id: String!
+    deployment: String!
+    allocatedTokens: String!
+    stakedTokens: String!
+    createdAtEpoch: Int!
+    ageInEpochs: Int!
+    closedAtEpoch: Int
+    indexingRewards: String!
+    queryFees: String!
+    status: AllocationStatus!
+    deniedAt: BigInt!
+  }
+
+  type CreateAllocationResult {
+    deploymentID: String!
+    amount: String!
+    success: Boolean!
+    failureReason: String
+  }
+
+  type CloseAllocationResult {
+    id: String!
+    success: Boolean!
+    indexerRewards: String!
   }
 
   type POIDispute {
@@ -110,6 +150,7 @@ const SCHEMA_SDL = gql`
     allocationLifetime: Int
     autoRenewal: Boolean
     parallelAllocations: Int
+
     maxAllocationPercentage: Float
     minSignal: BigInt
     maxSignal: BigInt
@@ -211,6 +252,8 @@ const SCHEMA_SDL = gql`
     dispute(allocationID: String!): POIDispute
     disputes(status: String!, minClosedEpoch: Int!): [POIDispute]!
     disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
+
+    allocations(filter: AllocationFilter!): [Allocation!]!
   }
 
   type Mutation {
@@ -222,6 +265,13 @@ const SCHEMA_SDL = gql`
 
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!
+
+    createAllocation(
+      deploymentID: String!
+      amount: String!
+      rule: Boolean!
+    ): CreateAllocationResult!
+    closeAllocation(id: String!, poi: String, force: Boolean): CloseAllocationResult!
   }
 `
 
@@ -241,6 +291,7 @@ export interface IndexerManagementClientOptions {
   logger?: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
+  transactionManager?: TransactionManager
 }
 
 export class IndexerManagementClient extends Client {
@@ -299,6 +350,7 @@ export const createIndexerManagementClient = async (
     logger,
     defaults,
     features,
+    transactionManager,
   } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
@@ -306,6 +358,7 @@ export const createIndexerManagementClient = async (
     ...statusResolvers,
     ...costModelResolvers,
     ...poiDisputeResolvers,
+    ...allocationResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()
@@ -323,6 +376,7 @@ export const createIndexerManagementClient = async (
       defaults,
       features,
       dai,
+      transactionManager,
     },
   })
 
