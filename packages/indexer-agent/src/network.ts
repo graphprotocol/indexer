@@ -523,9 +523,11 @@ export class Network {
         const results = result.data.subgraphDeployments
 
         // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
-        if (results.length == 0) {
-          this.logger.warn('No subgraph deployments returned')
-          return []
+        if (results.length == 0 && queryProgress.fetched == 0) {
+          this.logger.warn('No subgraph deployments returned', {
+            retriesRemaining: queryProgress.retriesRemaining,
+          })
+          throw new Error('No subgraph deployments returned')
         }
 
         queryProgress.exhausted = results.length < queryProgress.first
@@ -619,21 +621,21 @@ export class Network {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .map((deployment: any) => new SubgraphDeploymentID(deployment.id)),
         )
-      } catch (error) {
+      } catch (err) {
         queryProgress.retriesRemaining--
-        this.logger.error(`Failed to query subgraph deployments`, {
+        this.logger.warn(`Failed to query subgraph deployments`, {
           retriesRemaining: queryProgress.retriesRemaining,
-          error: error,
+          error: err,
         })
         if (queryProgress.retriesRemaining <= 0) {
-          const err = indexerError(IndexerErrorCode.IE009, error)
+          const error = indexerError(IndexerErrorCode.IE009, err.message)
           this.logger.error(
             `Failed to query subgraph deployments worth indexing`,
             {
-              err,
+              error,
             },
           )
-          throw err
+          throw error
         }
       }
     }
@@ -860,7 +862,7 @@ export class Network {
     }
 
     logger.debug(
-      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference PoIs',
+      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference PoIs)',
     )
 
     let dataRemaining = true
