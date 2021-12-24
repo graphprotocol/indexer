@@ -597,7 +597,7 @@ class Agent {
               allocation.subgraphDeployment.id.bytes32 === deployment.bytes32,
           ),
 
-          // Whether the deployment is worth indexing
+          // Whether the deployment is worth allocating towards
           targetDeployments.find(
             target => target.bytes32 === deployment.bytes32,
           ) !== undefined,
@@ -618,7 +618,7 @@ class Agent {
   async reconcileDeploymentAllocations(
     deployment: SubgraphDeploymentID,
     activeAllocations: Allocation[],
-    worthIndexing: boolean,
+    worthAllocating: boolean,
     rule: IndexingRuleAttributes | undefined,
     epoch: number,
     epochStartBlock: BlockPointer,
@@ -652,12 +652,14 @@ class Agent {
         createdAtEpoch: allocation.createdAtEpoch,
         amount: formatGRT(allocation.allocatedTokens),
       })),
+
+      worthAllocating,
     })
 
-    // Return early if the deployment is not (or no longer) worth indexing
-    if (!worthIndexing) {
+    // Return early if the deployment is not (or no longer) worth allocating towards
+    if (!worthAllocating) {
       logger.info(
-        `Deployment is not (or no longer) worth indexing, close all active allocations that are at least one epoch old`,
+        `Deployment is not (or no longer) worth allocating towards, close all active allocations that are at least one epoch old`,
         {
           activeAllocations: activeAllocations.map(allocation => allocation.id),
           eligibleForClose: activeAllocations
