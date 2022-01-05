@@ -12,10 +12,10 @@ import {
 } from '../../../rules'
 
 const HELP = `
-${chalk.bold('graph indexer rules start')}  [options] global
-${chalk.bold('graph indexer rules start')}  [options] <deployment-id>
-${chalk.bold('graph indexer rules always')} [options] global
-${chalk.bold('graph indexer rules always')} [options] <deployment-id>
+${chalk.bold('graph indexer rules offchain')}  [options] global
+${chalk.bold('graph indexer rules offchain')}  [options] <subgraph-identifier>
+${chalk.bold('graph indexer rules prepare')}   [options] global
+${chalk.bold('graph indexer rules prepare')}   [options] <subgraph-identifier>
 
 ${chalk.dim('Options:')}
 
@@ -24,9 +24,9 @@ ${chalk.dim('Options:')}
 `
 
 module.exports = {
-  name: 'start',
-  alias: ['always'],
-  description: 'Always index a deployment (and start indexing it if necessary)',
+  name: 'prepare',
+  alias: ['offchain'],
+  description: 'Offchain index a deployment (and start indexing it if necessary)',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -53,7 +53,7 @@ module.exports = {
     const inputRule = parseIndexingRule({
       identifier,
       identifierType,
-      decisionBasis: IndexingDecisionBasis.ALWAYS,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     })
 
     // Update the indexing rule according to the key/value pairs

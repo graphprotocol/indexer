@@ -81,6 +81,7 @@ module.exports = {
         ),
       ),
       identifier,
+      identifierType,
     })
 
     // Update the indexing rule according to the key/value pairs
