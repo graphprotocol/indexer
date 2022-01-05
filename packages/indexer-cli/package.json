@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-cli",
-  "version": "0.18.5",
+  "version": "0.18.6",
   "description": "Indexer CLI for The Graph Network",
   "main": "dist/index.js",
   "repository": "https://github.com/graphprotocol/cli",
