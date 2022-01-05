@@ -66,7 +66,7 @@ module.exports = {
     const inputRule = parseIndexingRule({
       ...Object.fromEntries([...partition(2, 2, kvs)]),
       identifier,
-      identifierType
+      identifierType,
     })
 
     if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {

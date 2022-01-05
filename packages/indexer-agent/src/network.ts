@@ -572,7 +572,7 @@ export class Network {
     this.logger.debug(`Found ${subgraphs.length} matching subgraphs`)
     return subgraphs
   }
-  async subgraphDeploymentsWorthIndexing(
+  async deploymentsWorthAllocatingTowards(
     rules: IndexingRuleAttributes[],
   ): Promise<SubgraphDeploymentID[]> {
     const globalRule = rules.find(
@@ -641,11 +641,15 @@ export class Network {
           ...results
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .filter((deployment: any) => {
+              rules = rules.filter(rule => rule.identifier !== 'global')
               const deploymentRule =
-                rules.find(rule => rule.identifier === deployment.id) ||
-                globalRule
+                rules.find(
+                  rule =>
+                    new SubgraphDeploymentID(rule.identifier).bytes32 ===
+                    deployment.id,
+                ) || globalRule
 
-              // The deployment is not eligible for deployment if it doesn't have an allocation amount
+              // The deployment rule is not eligible for deployment if it doesn't have an allocation amount
               if (!deploymentRule?.allocationAmount) {
                 this.logger.debug(
                   `Could not find matching rule with non-zero 'allocationAmount':`,
@@ -656,13 +660,14 @@ export class Network {
                 return false
               }
 
-              // Skip the indexing rules checks if the decision basis is 'always' or 'never'
+              // Skip the indexing rules checks if the decision basis is 'always', 'never', and 'offchain'
               if (
                 deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
               ) {
                 return true
               } else if (
-                deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER
+                deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER ||
+                deploymentRule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN
               ) {
                 return false
               }

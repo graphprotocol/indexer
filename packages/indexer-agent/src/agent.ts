@@ -13,13 +13,14 @@ import {
   allocationRewardsPool,
   AllocationStatus,
   BlockPointer,
+  IndexingDecisionBasis,
+  RewardsPool,
   indexerError,
   IndexerErrorCode,
   INDEXING_RULE_GLOBAL,
   IndexingRuleAttributes,
   NetworkSubgraph,
   POIDisputeAttributes,
-  RewardsPool,
   Subgraph,
   SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
@@ -104,7 +105,6 @@ class Agent {
   indexer: Indexer
   network: Network
   networkSubgraph: NetworkSubgraph
-  allocateOnNetworkSubgraph: boolean
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
@@ -115,7 +115,6 @@ class Agent {
     indexer: Indexer,
     network: Network,
     networkSubgraph: NetworkSubgraph,
-    allocateOnNetworkSubgraph: boolean,
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
@@ -125,7 +124,6 @@ class Agent {
     this.indexer = indexer
     this.network = network
     this.networkSubgraph = networkSubgraph
-    this.allocateOnNetworkSubgraph = allocateOnNetworkSubgraph
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
@@ -230,7 +228,8 @@ class Agent {
       },
     )
 
-    const targetDeployments = timer(120_000).tryMap(
+    // join indexingRules and timer to trigger targetDeployments and targetAllocation
+    const targetAllocations = timer(120_000).tryMap(
       async () => {
         const rules = await indexingRules.value()
 
@@ -238,7 +237,37 @@ class Agent {
         // these may overlap with the ones we're already indexing
         return rules.length === 0
           ? []
-          : await this.network.subgraphDeploymentsWorthIndexing(rules)
+          : await this.network.deploymentsWorthAllocatingTowards(rules)
+      },
+      {
+        onError: () =>
+          this.logger.warn(
+            `Failed to obtain target allocations, trying again later`,
+          ),
+      },
+    )
+
+    // let targetDeployments be an union of targetAllocations
+    // and offchain subgraphs.
+    const targetDeployments = join({
+      ticker: timer(10_000),
+      targetAllocations,
+    }).tryMap(
+      async target => {
+        const rules = await indexingRules.value()
+        const targetDeploymentIDs = new Set(target.targetAllocations)
+
+        // add offchain subgraphs to the deployment list
+        rules
+          .filter(
+            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+          )
+          .map(rule => {
+            targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
+          })
+        return rules.length === 0
+          ? []
+          : [...targetDeploymentIDs, ...this.offchainSubgraphs]
       },
       {
         onError: () =>
@@ -318,6 +347,7 @@ class Agent {
       activeDeployments,
       targetDeployments,
       activeAllocations,
+      targetAllocations,
       recentlyClosedAllocations,
       claimableAllocations,
       disputableAllocations,
@@ -332,6 +362,7 @@ class Agent {
         activeDeployments,
         targetDeployments,
         activeAllocations,
+        targetAllocations,
         recentlyClosedAllocations,
         claimableAllocations,
         disputableAllocations,
@@ -375,7 +406,6 @@ class Agent {
         } catch (err) {
           this.logger.warn(`Failed PoI dispute monitoring`, { err })
         }
-
         try {
           await this.reconcileDeployments(
             activeDeployments,
@@ -386,7 +416,7 @@ class Agent {
           // Reconcile allocations
           await this.reconcileAllocations(
             activeAllocations,
-            targetDeployments,
+            targetAllocations,
             indexingRules,
             currentEpoch.toNumber(),
             currentEpochStartBlock,
@@ -563,6 +593,7 @@ class Agent {
       }
     }
 
+    // leaving this for now. I will remove during testing
     // Ensure all offchain subgraphs are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
@@ -590,10 +621,12 @@ class Agent {
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
-    this.logger.info('Deployment changes', {
-      deploy: deploy.map(id => id.display),
-      remove: remove.map(id => id.display),
-    })
+    if (deploy.length + remove.length !== 0) {
+      this.logger.info('Deployment changes', {
+        deploy: deploy.map(id => id.display),
+        remove: remove.map(id => id.display),
+      })
+    }
 
     // Deploy/remove up to 10 subgraphs in parallel
     const queue = new PQueue({ concurrency: 10 })
@@ -625,7 +658,7 @@ class Agent {
 
   async reconcileAllocations(
     activeAllocations: Allocation[],
-    targetDeployments: SubgraphDeploymentID[],
+    targetAllocations: SubgraphDeploymentID[],
     rules: IndexingRuleAttributes[],
     currentEpoch: number,
     currentEpochStartBlock: BlockPointer,
@@ -637,27 +670,25 @@ class Agent {
       currentEpoch,
       maxAllocationEpochs,
       allocationLifetime,
-      targetDeployments,
-      active: activeAllocations.map(allocation => ({
+      targetAllocations,
+      activeAllocations: activeAllocations.map(allocation => ({
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
       })),
     })
 
+    // naming targetAllocations is a bit iffy because it is actually a list of deployment id
     // Calculate the union of active deployments and target deployments
     const deployments = uniqueDeployments([
-      ...targetDeployments,
+      ...targetAllocations,
       ...activeAllocations.map(allocation => allocation.subgraphDeployment.id),
     ])
 
-    // Ensure the network subgraph is never allocated towards unless explicitly allowed
-    if (
-      !this.allocateOnNetworkSubgraph &&
-      this.networkSubgraph.deployment?.id.bytes32
-    ) {
+    // Ensure the network subgraph is never allocated towards
+    if (this.networkSubgraph.deployment?.id.bytes32) {
       const networkSubgraphDeploymentId = this.networkSubgraph.deployment.id
-      targetDeployments = targetDeployments.filter(
+      targetAllocations = targetAllocations.filter(
         deployment =>
           deployment.bytes32 !== networkSubgraphDeploymentId.bytes32,
       )
@@ -681,7 +712,7 @@ class Agent {
           ),
 
           // Whether the deployment is worth allocating towards
-          deploymentInList(targetDeployments, deployment),
+          deploymentInList(targetAllocations, deployment),
 
           // Indexing rule for the deployment (if any)
           rules.find(rule => rule.identifier === deployment.bytes32) ||
@@ -696,6 +727,7 @@ class Agent {
     )
   }
 
+  // i don't think this needs to be changed?
   async reconcileDeploymentAllocations(
     deployment: SubgraphDeploymentID,
     activeAllocations: Allocation[],
@@ -993,7 +1025,6 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.indexer,
     config.network,
     config.networkSubgraph,
-    config.allocateOnNetworkSubgraph,
     config.registerIndexer,
     config.offchainSubgraphs,
     config.receiptCollector,

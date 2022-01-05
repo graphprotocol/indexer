@@ -52,6 +52,7 @@ module.exports = {
 
     const inputRule = parseIndexingRule({
       identifier,
+      identifierType,
       decisionBasis: IndexingDecisionBasis.NEVER,
     })
 

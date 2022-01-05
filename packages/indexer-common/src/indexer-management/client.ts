@@ -45,6 +45,7 @@ const SCHEMA_SDL = gql`
     rules
     never
     always
+    offchain
   }
 
   enum IdentifierType {
