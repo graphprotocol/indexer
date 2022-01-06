@@ -222,6 +222,12 @@ export default {
         default: '2000',
         group: 'Indexer Infrastructure',
       })
+      .option('rebate-claim-max-batch-size', {
+        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
+        type: 'number',
+        default: 80,
+        group: 'Indexer Infrastructure',
+      })
       .option('inject-dai', {
         description:
           'Inject the GRT to DAI/USDC conversion rate into cost model variables',
@@ -328,6 +334,9 @@ export default {
         }
         if (argv['gas-increase-factor'] <= 1.0) {
           return 'Invalid --gas-increase-factor provided. Must be > 1.0'
+        }
+        if (!Number.isInteger(argv['rebate-claim-max-batch-size']) || argv['rebate-claim-max-batch-size'] <= 0) {
+          return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
         return true
       })
@@ -688,6 +697,7 @@ export default {
       argv.restakeRewards,
       parseGRT(argv.rebateClaimThreshold),
       parseGRT(argv.rebateClaimBatchThreshold),
+      argv.rebateClaimMaxBatchSize,
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
       argv.gasIncreaseTimeout,
