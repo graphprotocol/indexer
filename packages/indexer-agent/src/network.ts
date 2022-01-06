@@ -82,6 +82,7 @@ export class Network {
   restakeRewards: boolean
   rebateClaimMinSingleValue: BigNumber
   rebateClaimMinBatchValue: BigNumber
+  rebateClaimMaxBatchSize: number
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
   gasIncreaseTimeout: number
@@ -103,6 +104,7 @@ export class Network {
     restakeRewards: boolean,
     rebateClaimMinSingleValue: BigNumber,
     rebateClaimMinBatchValue: BigNumber,
+    rebateClaimMaxBatchSize: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -123,6 +125,7 @@ export class Network {
     this.restakeRewards = restakeRewards
     this.rebateClaimMinSingleValue = rebateClaimMinSingleValue
     this.rebateClaimMinBatchValue = rebateClaimMinBatchValue
+    this.rebateClaimMaxBatchSize = rebateClaimMaxBatchSize
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
     this.gasIncreaseTimeout = gasIncreaseTimeout
@@ -423,6 +426,7 @@ export class Network {
     restakeRewards: boolean,
     rebateClaimMinSingleValue: BigNumber,
     rebateClaimMinBatchValue: BigNumber,
+    rebateClaimMaxBatchSize: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
     gasIncreaseTimeout: number,
@@ -462,6 +466,7 @@ export class Network {
       restakeRewards,
       rebateClaimMinSingleValue,
       rebateClaimMinBatchValue,
+      rebateClaimMaxBatchSize,
       poiDisputeMonitoring,
       poiDisputableEpochs,
       gasIncreaseTimeout,
@@ -1501,12 +1506,13 @@ export class Network {
 
       // Max claims per batch should roughly be equal to average gas per claim / block gas limit
       // On-chain data shows an average of 120k gas per claim and the block gas limit is 15M
-      // If we add a 30k gas buffer (for 150k estimated gas per claim)
-      // Then we could fit a maximum of a 100 claim batch in a block
-      const MAX_CLAIMS_PER_BATCH = 100
+      // We get at least 21k gas savings per inclusion of a claim in a batch
+      // A reasonable upper bound for this value is 200 assuming the system has the memory
+      // requirements to construct the transaction
+      const maxClaimsPerBatch = this.rebateClaimMaxBatchSize
       const allocationIds = allocations
         .map(allocation => allocation.id)
-        .slice(0, MAX_CLAIMS_PER_BATCH)
+        .slice(0, maxClaimsPerBatch)
 
       if (allocationIds.length === 0) {
         logger.info(`No allocation rebates to claim`)
