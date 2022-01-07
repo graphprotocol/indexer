@@ -50,6 +50,9 @@ const uniqueDeployments = (
   deployments: SubgraphDeploymentID[],
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
 
+const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
+  new Set(deployments.map(id => id.display.bytes32))
+
 class Agent {
   logger: Logger
   metrics: Metrics
@@ -335,6 +338,7 @@ class Agent {
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
+        amount: allocation.queryFeeRebates,
       })),
     })
     if (allocations.length > 0) {
@@ -495,10 +499,15 @@ class Agent {
       }
     }
 
-    this.logger.info('Reconcile deployments', {
-      active: activeDeployments.map(id => id.display),
-      target: targetDeployments.map(id => id.display),
-    })
+    // only show Reconcile when active ids != target ids
+    if (
+      deploymentIDSet(activeDeployments) != deploymentIDSet(targetDeployments)
+    ) {
+      this.logger.info('Reconcile deployments', {
+        active: activeDeployments.map(id => id.display),
+        target: targetDeployments.map(id => id.display),
+      })
+    }
 
     // Identify which subgraphs to deploy and which to remove
     const deploy = targetDeployments.filter(
@@ -598,9 +607,7 @@ class Agent {
           ),
 
           // Whether the deployment is worth allocating towards
-          targetDeployments.find(
-            target => target.bytes32 === deployment.bytes32,
-          ) !== undefined,
+          deploymentInList(targetDeployments, deployment),
 
           // Indexing rule for the deployment (if any)
           rules.find(rule => rule.deployment === deployment.bytes32) ||
@@ -629,39 +636,43 @@ class Agent {
       epoch,
     })
 
-    const allocationAmount = rule?.allocationAmount
+    const desiredAllocationAmount = rule?.allocationAmount
       ? BigNumber.from(rule.allocationAmount)
       : this.indexer.defaultAllocationAmount
     const desiredNumberOfAllocations = 1
+    const activeAllocationAmount = activeAllocations.reduce(
+      (sum, allocation) => sum.add(allocation.allocatedTokens),
+      BigNumber.from('0'),
+    )
 
-    logger.info(`Reconcile deployment allocations`, {
-      allocationAmount: formatGRT(allocationAmount),
+    if (
+      desiredAllocationAmount !== activeAllocationAmount ||
+      desiredNumberOfAllocations !== activeAllocations.length
+    ) {
+      logger.info(
+        `Reconcile deployment allocations for deployment '${deployment.ipfsHash}'`,
+        {
+          desiredAllocationAmount: formatGRT(desiredAllocationAmount),
 
-      totalActiveAllocationAmount: formatGRT(
-        activeAllocations.reduce(
-          (sum, allocation) => sum.add(allocation.allocatedTokens),
-          BigNumber.from('0'),
-        ),
-      ),
+          totalActiveAllocationAmount: formatGRT(activeAllocationAmount),
 
-      desiredNumberOfAllocations,
-      activeNumberOfAllocations: activeAllocations.length,
+          desiredNumberOfAllocations,
+          activeNumberOfAllocations: activeAllocations.length,
 
-      activeAllocations: activeAllocations.map(allocation => ({
-        id: allocation.id,
-        createdAtEpoch: allocation.createdAtEpoch,
-        amount: formatGRT(allocation.allocatedTokens),
-      })),
-
-      worthAllocating,
-    })
+          activeAllocations: activeAllocations.map(allocation => ({
+            id: allocation.id,
+            createdAtEpoch: allocation.createdAtEpoch,
+            amount: formatGRT(allocation.allocatedTokens),
+          })),
+        },
+      )
+    }
 
     // Return early if the deployment is not (or no longer) worth allocating towards
     if (!worthAllocating) {
       logger.info(
-        `Deployment is not (or no longer) worth allocating towards, close all active allocations that are at least one epoch old`,
+        `Deployment is not (or no longer) worth allocating towards, close allocation if it is from a previous epoch`,
         {
-          activeAllocations: activeAllocations.map(allocation => allocation.id),
           eligibleForClose: activeAllocations
             .filter(allocation => allocation.createdAtEpoch < epoch)
             .map(allocation => allocation.id),
@@ -671,7 +682,7 @@ class Agent {
       // Make sure to close all active allocations on the way out
       if (activeAllocations.length > 0) {
         await pMap(
-          // We can only close allocations that are at least one epoch old;
+          // We can only close allocations from a previous epoch;
           // try the others again later
           activeAllocations.filter(
             allocation => allocation.createdAtEpoch < epoch,
@@ -688,11 +699,11 @@ class Agent {
     // If there are no allocations at all yet, create a new allocation
     if (activeAllocations.length === 0) {
       logger.info(`No active allocation for deployment, creating one now`, {
-        allocationAmount: formatGRT(allocationAmount),
+        allocationAmount: formatGRT(desiredAllocationAmount),
       })
       const allocationsCreated = await this.network.allocate(
         deployment,
-        allocationAmount,
+        desiredAllocationAmount,
         activeAllocations,
       )
       if (allocationsCreated) {
@@ -711,7 +722,7 @@ class Agent {
           desiredNumberOfAllocations,
           activeAllocations: activeAllocations.length,
           allocationsToRemove: allocationsToRemove,
-          allocationAmount: formatGRT(allocationAmount),
+          allocationAmount: formatGRT(desiredAllocationAmount),
         },
       )
       await pMap(
@@ -774,7 +785,7 @@ class Agent {
           const { newAllocation, reallocated } = await this.reallocate(
             epochStartBlock,
             oldAllocation,
-            allocationAmount,
+            desiredAllocationAmount,
             activeAllocations,
           )
           if (reallocated) {
@@ -797,16 +808,38 @@ class Agent {
     )
 
     // Don't proceed if the POI is 0x0 or null
+    // as deployment is either not fully synced or experienced a fatal undeterministic error
     if (
       poi === undefined ||
       poi === null ||
       poi === utils.hexlify(Array(32).fill(0))
     ) {
-      this.logger.error(`Received a null or zero POI for deployment`, {
-        deployment: allocation.subgraphDeployment.id.display,
-        allocation: allocation.id,
-        epochStartBlock,
-      })
+      const indexingStatus = await this.indexer.indexingStatus(
+        allocation.subgraphDeployment.id,
+      )
+      const fatalError = indexingStatus.fatalError
+      if (!fatalError) {
+        this.logger.error(
+          `Received a null or zero POI for deployment, no fatal errors`,
+          {
+            deployment: allocation.subgraphDeployment.id.display,
+            allocation: allocation.id,
+            block: indexingStatus.chains[0].latestBlock,
+          },
+        )
+      } else {
+        const latestValidPoi = await this.indexer.proofOfIndexing(
+          allocation.subgraphDeployment.id,
+          indexingStatus.chains[0].latestBlock,
+          this.indexer.indexerAddress,
+        )
+        this.logger.error(`Received a null or zero POI for deployment`, {
+          deployment: allocation.subgraphDeployment.id.display,
+          allocation: allocation.id,
+          fatalError,
+          latestValidPoi,
+        })
+      }
 
       return { closed: false, collectingQueryFees: false }
     }

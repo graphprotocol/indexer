@@ -21,6 +21,7 @@ export interface Allocation {
   previousEpochStartBlockHash: string | undefined
   closedAtBlockHash: string
   poi: string | undefined
+  queryFeeRebates: BigNumber | undefined
 }
 
 export enum AllocationStatus {
@@ -49,6 +50,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   previousEpochStartBlockHash: undefined,
   closedAtBlockHash: allocation.closedAtBlockHash,
   poi: allocation.poi,
+  queryFeeRebates: allocation.queryFeeRebates,
 })
 
 export interface RewardsPool {

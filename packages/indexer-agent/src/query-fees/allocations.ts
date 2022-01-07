@@ -20,6 +20,7 @@ import { ReceiptCollector } from '.'
 import { BigNumber, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import { Network } from '../network'
+import pRetry from 'p-retry'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
