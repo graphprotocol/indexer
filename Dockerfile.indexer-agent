@@ -1,7 +1,7 @@
 ########################################################################
 # Build image
 
-FROM node:12.16.0-slim as build
+FROM node:16.13.1-slim as build
 
 ENV NODE_ENV production
 
