@@ -533,7 +533,6 @@ export class Network {
         queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
         queryProgress.lastId = results[results.length - 1].id
-
         deployments.push(
           ...results
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1362,13 +1361,13 @@ export class Network {
             allocation.id,
           )
           if (state === 4) {
-            logger.info(
+            logger.trace(
               `Allocation rebate rewards already claimed, ignoring ${allocation.id}.`,
             )
             return false
           }
           if (state === 1) {
-            logger.info(`Allocation still active, ignoring ${allocation.id}.`)
+            logger.trace(`Allocation still active, ignoring ${allocation.id}.`)
             return false
           }
           return true
@@ -1643,7 +1642,11 @@ export class Network {
       restakeRewards: this.restakeRewards,
     })
     try {
-      logger.info(`Claim tokens from the rebate pool for allocation`)
+      logger.info(`Claim tokens from the rebate pool for allocation`, {
+        deployment: allocation.subgraphDeployment.id.display,
+        allocation: allocation.id,
+        claimAmount: this.restakeRewards,
+      })
 
       // Double-check whether the allocation is claimed to
       // avoid unnecessary transactions.
@@ -1656,7 +1659,7 @@ export class Network {
         allocation.id,
       )
       if (state === 4) {
-        logger.info(`Allocation rebate rewards already claimed`)
+        logger.trace(`Allocation rebate rewards already claimed`)
         return true
       }
       if (state === 1) {
@@ -1680,7 +1683,9 @@ export class Network {
       if (receipt === 'paused' || receipt === 'unauthorized') {
         return false
       }
-      logger.info(`Successfully claimed allocation`)
+      logger.info(`Successfully claimed allocation`, {
+        logs: receipt.logs,
+      })
       return true
     } catch (err) {
       logger.warn(`Failed to claim allocation`, {

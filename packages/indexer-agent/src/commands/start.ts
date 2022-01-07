@@ -564,7 +564,7 @@ export default {
     wallet = wallet.connect(ethereum)
     logger.info(`Connected wallet`)
 
-    logger.info(`Connecting to contracts`)
+    logger.info(`Connect to contracts`)
     let contracts = undefined
     try {
       contracts = await connectContracts(wallet, ethereum.network.chainId)
