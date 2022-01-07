@@ -11,8 +11,9 @@
   },
   "scripts": {
     "compile": "neon build --release",
+    "prepare": "yarn compile",
     "test": "jest --detectOpenHandles --verbose",
-    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
+    "clean": "rm -rf ./node_modules /native/target /native/artifacts.json /native/index.node"
   },
   "devDependencies": {
     "bs58": "4.0.1",
