@@ -5,6 +5,7 @@ import morgan from 'morgan'
 import { Stream } from 'stream'
 import { QueryProcessor } from '../types'
 import { createStatusServer } from './status'
+import { createDeploymentHealthServer } from './deployment-health'
 import {
   Logger,
   Metrics,
@@ -176,6 +177,13 @@ export const createApp = async ({
     networkLimiter,
     bodyParser.json(),
     await createStatusServer({ graphNodeStatusEndpoint }),
+  )
+
+  // Endpoint for subgraph health checks
+  app.use(
+    '/subgraphs/health',
+    slowLimiter,
+    createDeploymentHealthServer({ graphNodeStatusEndpoint }),
   )
 
   // Endpoint for the public cost API
