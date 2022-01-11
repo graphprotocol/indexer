@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added automatic batching of query voucher redemptions
+- Added `--voucher-redemption-threshold`, `--voucher-redemption-batch-threshold` and `--voucher-redemption-max-batch-size` for controlling voucher batching behaviour
+
+### Fixed
+- Added `--rebate-claim-max-batch-size` to make max batch size configurable. For users in low-RAM environments, the primary constraint is not block space but the RAM required to construct large transactions.
+- Improved validation of rebate batch claim parameters
+
+
 ## [0.18.6] - 2021-12-23
 ### Fixed
 - Fix subgraphDeploymentsWorthIndexing batch query mangagement

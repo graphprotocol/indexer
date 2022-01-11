@@ -20,6 +20,7 @@ import { ReceiptCollector } from '.'
 import { BigNumber, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import { Network } from '../network'
+import pReduce from 'p-reduce'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
@@ -36,7 +37,9 @@ export interface AllocationReceiptCollectorOptions {
   models: QueryFeeModels
   collectEndpoint: URL
   allocationExchange: Contract
-  allocationClaimThreshold: BigNumber
+  voucherRedemptionThreshold: BigNumber
+  voucherRedemptionBatchThreshold: BigNumber
+  voucherRedemptionMaxBatchSize: number
   voucherExpiration: number
 }
 
@@ -47,7 +50,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private allocationExchange: Contract
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
-  private allocationClaimThreshold: BigNumber
+  private voucherRedemptionThreshold: BigNumber
+  private voucherRedemptionBatchThreshold: BigNumber
+  private voucherRedemptionMaxBatchSize: number
   private voucherExpiration: number
 
   constructor({
@@ -56,7 +61,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     models,
     collectEndpoint,
     allocationExchange,
-    allocationClaimThreshold,
+    voucherRedemptionThreshold,
+    voucherRedemptionBatchThreshold,
+    voucherRedemptionMaxBatchSize,
     voucherExpiration,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
@@ -64,7 +71,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.models = models
     this.collectEndpoint = collectEndpoint
     this.allocationExchange = allocationExchange
-    this.allocationClaimThreshold = allocationClaimThreshold
+    this.voucherRedemptionThreshold = voucherRedemptionThreshold
+    this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
+    this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
     this.voucherExpiration = voucherExpiration
 
     this.startReceiptCollecting()
@@ -194,14 +203,81 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private startVoucherProcessing() {
     timer(30_000).pipe(async () => {
       const pendingVouchers = await this.pendingVouchers()
-      for (const voucher of pendingVouchers) {
-        await this.submitVoucher(voucher)
+
+      const logger = this.logger.child({})
+
+      const vouchers = await pReduce(pendingVouchers, async (results, voucher) => {
+        if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
+          logger.warn(
+            `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
+            { allocation: voucher.allocation },
+          )
+          try {
+            await this.models.vouchers.destroy({
+              where: { allocation: voucher.allocation },
+            })
+          } catch (err) {
+            logger.warn(
+              `Failed to delete local vouchers copy, will try again later`,
+              { err, allocation: voucher.allocation },
+            )
+          }
+          return results
+        }
+        if (BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)) {
+          results.belowThreshold.push(voucher)
+        } else {
+          results.eligible.push(voucher)
+        }
+        return results
+      }, { belowThreshold: <Voucher[]>[], eligible: <Voucher[]>[] })
+
+      if (vouchers.belowThreshold.length > 0) {
+        logger.info(
+          `Query vouchers below the redemption threshold`,
+          {
+            hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
+            voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
+            belowThresholdCount: vouchers.belowThreshold.length,
+            totalValueGRT: formatGRT(vouchers.belowThreshold.reduce((total, voucher) => total.add(BigNumber.from(voucher.amount)), BigNumber.from(0))),
+            allocations: vouchers.belowThreshold.map(voucher => voucher.allocation),
+          },
+        )
+      }
+
+      const voucherBatch = vouchers.eligible.slice(0, this.voucherRedemptionMaxBatchSize),
+            batchValueGRT = voucherBatch.reduce((total, voucher) => total.add(BigNumber.from(voucher.amount)), BigNumber.from(0));
+
+      if (batchValueGRT.gt(this.voucherRedemptionBatchThreshold)) {
+        logger.info(
+          `Query voucher batch is ready for redemption`,
+          {
+            batchSize: voucherBatch.length,
+            voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+            voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+            batchValueGRT: formatGRT(batchValueGRT),
+          },
+        )
+        await this.submitVouchers(voucherBatch);
+      } else {
+        logger.info(
+          `Query voucher batch value too low for redemption`,
+          {
+            batchSize: voucherBatch.length,
+            voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+            voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+            batchValueGRT: formatGRT(batchValueGRT),
+          },
+        )
       }
     })
   }
 
   private async pendingVouchers(): Promise<Voucher[]> {
-    return this.models.vouchers.findAll()
+    return this.models.vouchers.findAll({
+      order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
+      limit: this.voucherRedemptionMaxBatchSize // limit the number of vouchers to the max batch size
+    })
   }
 
   private async obtainReceiptsVoucher(
@@ -293,75 +369,31 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
   }
 
-  private async submitVoucher(voucher: Voucher): Promise<void> {
+  private async submitVouchers(vouchers: Voucher[]): Promise<void> {
     const logger = this.logger.child({
-      allocation: voucher.allocation,
-      amount: formatGRT(voucher.amount),
+      voucherBatchSize: vouchers.length,
     })
 
-    logger.info(`Redeem query fee voucher on chain`)
-
-    if (BigNumber.from(voucher.amount).lt(this.allocationClaimThreshold)) {
-      if (
-        voucher.createdAt.valueOf() / 1000 + this.voucherExpiration * 3600 <=
-        Date.now() / 1000
-      ) {
-        logger.info(
-          `Query fee voucher is below claim threshold and is past the configured expiration time, delete it`,
-          {
-            hint: 'If you would like to redeem vouchers like this, reduce the allocation claim threshold',
-            allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
-          },
-        )
-      } else {
-        logger.info(
-          `Query fee voucher amount is below claim threshold, skip it for now`,
-          {
-            hint: 'If you would like to redeem this voucher, reduce the allocation claim threshold',
-            tryingAgainUntil: new Date(
-              voucher.createdAt.valueOf() + this.voucherExpiration * 3600,
-            ),
-            allocationClaimThreshold: formatGRT(this.allocationClaimThreshold),
-          },
-        )
-      }
-      return
-    }
-
-    // Check if a voucher for this allocation was already redeemed
-    if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
-      logger.warn(
-        `Query fee voucher for allocation already redeemed, delete local voucher copy`,
-      )
-
-      try {
-        await this.models.vouchers.destroy({
-          where: { allocation: voucher.allocation },
-        })
-      } catch (err) {
-        logger.warn(
-          `Failed to delete local voucher copy, will try again later`,
-          { err },
-        )
-      }
-      return
-    }
+    logger.info(`Redeem query voucher batch on chain`, { allocations: vouchers.map(voucher => voucher.allocation) })
 
     const hexPrefix = (bytes: string): string =>
       bytes.startsWith('0x') ? bytes : `0x${bytes}`
 
-    try {
-      const onchainVoucher = {
+    const onchainVouchers = vouchers.map(voucher => {
+      return {
         allocationID: hexPrefix(voucher.allocation),
         amount: voucher.amount,
         signature: hexPrefix(voucher.signature),
       }
+    })
+
+    try {
       // Submit the voucher on chain
       const txReceipt = await this.network.executeTransaction(
-        () => this.allocationExchange.estimateGas.redeem(onchainVoucher),
+        () => this.allocationExchange.estimateGas.redeemMany(onchainVouchers),
         async gasLimit =>
-          this.allocationExchange.redeem(onchainVoucher, { gasLimit }),
-        logger.child({ action: 'redeem' }),
+          this.allocationExchange.redeemMany(onchainVouchers, { gasLimit }),
+        logger.child({ action: 'redeemMany' }),
       )
 
       if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
@@ -371,15 +403,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
         async transaction => {
-          const [summary] = await ensureAllocationSummary(
-            this.models,
-            toAddress(voucher.allocation),
-            transaction,
-          )
-          summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
-            .add(voucher.amount)
-            .toString()
-          await summary.save()
+          for (const voucher of vouchers) {
+            const [summary] = await ensureAllocationSummary(
+              this.models,
+              toAddress(voucher.allocation),
+              transaction,
+            )
+            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
+              .add(voucher.amount)
+              .toString()
+            await summary.save()
+          }
         },
       )
     } catch (err) {
@@ -393,7 +427,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     logger.info(`Successfully redeemed query fee voucher, delete local copy`)
     try {
       await this.models.vouchers.destroy({
-        where: { allocation: voucher.allocation },
+        where: { allocation: vouchers.map(voucher => voucher.allocation) },
       })
       logger.info(`Successfully deleted local voucher copy`)
     } catch (err) {
