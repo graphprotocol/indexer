@@ -1511,7 +1511,7 @@ export class Network {
       // requirements to construct the transaction
       const maxClaimsPerBatch = this.rebateClaimMaxBatchSize
       const allocationIds = allocations
-        .map(allocation => allocation.id)
+        .map(allocation => allocation.id) // TODO add sorting by allocation value
         .slice(0, maxClaimsPerBatch)
 
       if (allocationIds.length === 0) {

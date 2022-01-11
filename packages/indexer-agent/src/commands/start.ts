@@ -181,6 +181,7 @@ export default {
         default: '0.01',
         required: false,
         group: 'Protocol',
+        coerce: (arg) => parseGRT(arg),
       })
       .option('indexer-management-port', {
         description: 'Port to serve the indexer management API at',
@@ -215,17 +216,39 @@ export default {
         type: 'string',
         default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Indexer Infrastructure',
+        coerce: (arg) => parseGRT(arg),
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
         default: '2000',
         group: 'Indexer Infrastructure',
+        coerce: (arg) => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
         type: 'number',
-        default: 80,
+        default: 80, // TODO justify reduction in docs
+        group: 'Indexer Infrastructure',
+      })
+      .option('voucher-redemption-threshold', {
+        description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
+        type: 'string',
+        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        group: 'Indexer Infrastructure',
+        coerce: (arg) => parseGRT(arg),
+      })
+      .option('voucher-redemption-batch-threshold', {
+        description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
+        type: 'string',
+        default: '2000',
+        group: 'Indexer Infrastructure',
+        coerce: (arg) => parseGRT(arg),
+      })
+      .option('voucher-redemption-max-batch-size', {
+        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
+        type: 'number',
+        default: 80, // TODO what is the right number here?
         group: 'Indexer Infrastructure',
       })
       .option('inject-dai', {
@@ -383,15 +406,6 @@ export default {
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
-      .option('voucher-expiration', {
-        description:
-          'Time (in hours) after which a low query fee voucher expires and is deleted (default: 90 days)',
-        type: 'number',
-        default: 2160,
-        required: false,
-        implies: ['allocation-exchange-contract'],
-        group: 'Query Fees',
-      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -417,15 +431,40 @@ export default {
       )
     }
 
-    if (argv.rebateClaimThreshold < argv.voucherRedeemMinSingleValue) {
+    if (argv.rebateClaimThreshold.lt(argv.voucherRedemptionThreshold)) {
       logger.warn(
         `Rebate single minimum claim value is less than voucher minimum redemption value, but claims depend on redemptions`,
+        {
+          voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+          rebateClaimThreshold: argv.rebateClaimThreshold,
+        },
       )
     }
 
-    if (argv.rebateClaimThreshold === 0) {
+    if (argv.rebateClaimThreshold.eq(0)) {
       logger.warn(
         `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
+      )
+    }
+
+    if (argv.rebateClaimMaxBatchSize > 200) {
+      logger.warn(
+        `Setting the max batch size for rebate claims to more than 200 may result in batches that are too large to fit into a block`,
+        { rebateClaimMaxBatchSize: argv.rebateClaimMaxBatchSize },
+      )
+    }
+
+    if (argv.voucherClaimThreshold.eq(0)) {
+      logger.warn(
+        `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
+      )
+    }
+
+    // TODO add batch size checks for voucher redemptions
+    if (argv.voucherRedemptionMaxBatchSize > 200) {
+      logger.warn(
+        `Setting the max batch size for voucher redemptions to more than 200 may result in batches that are too large to fit into a block`,
+        { voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize },
       )
     }
 
@@ -646,7 +685,7 @@ export default {
       logger,
       defaults: {
         globalIndexingRule: {
-          allocationAmount: parseGRT(argv.defaultAllocationAmount),
+          allocationAmount: argv.defaultAllocationAmount,
           parallelAllocations: 1,
         },
       },
@@ -668,7 +707,7 @@ export default {
       indexingStatusResolver,
       indexerManagementClient,
       argv.indexNodeIds,
-      parseGRT(argv.defaultAllocationAmount),
+      argv.defaultAllocationAmount,
       indexerAddress,
     )
     const networkSubgraphDeployment = argv.networkSubgraphDeployment
@@ -695,8 +734,8 @@ export default {
       argv.indexerGeoCoordinates,
       networkSubgraph,
       argv.restakeRewards,
-      parseGRT(argv.rebateClaimThreshold),
-      parseGRT(argv.rebateClaimBatchThreshold),
+      argv.rebateClaimThreshold,
+      argv.rebateClaimBatchThreshold,
       argv.rebateClaimMaxBatchSize,
       argv.poiDisputeMonitoring,
       argv.poiDisputableEpochs,
@@ -749,7 +788,9 @@ export default {
         wallet,
         allocationExchangeContract,
       ),
-      allocationClaimThreshold: parseGRT(argv.rebateClaimThreshold),
+      voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+      voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
+      voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
       voucherExpiration: argv.voucherExpiration,
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
