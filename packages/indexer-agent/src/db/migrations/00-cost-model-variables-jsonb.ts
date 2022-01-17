@@ -29,7 +29,7 @@ export async function up({ context }: Context): Promise<void> {
     return
   }
   if (variablesColumn.type === 'JSONB') {
-    logger.info(`Variables column is already JSONB, migration not necesary`)
+    logger.info(`Variables column is already JSONB, migration not necessary`)
     return
   }
 
