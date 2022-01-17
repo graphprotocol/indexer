@@ -14,7 +14,11 @@
     "prepare": "yarn format && yarn lint && yarn compile",
     "start": "yarn prepare && node ./dist/index.js start",
     "test": "jest --runInBand --detectOpenHandles --passWithNoTests --verbose",
-    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
+    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
+    "migrator:pending": "node src/db/cli/migrator pending",
+    "migrator:executed": "node src/db/cli/migrator executed",
+    "migrator:up": "node src/db/cli/migrator up",
+    "migrator:down": "node src/db/cli/migrator down"
   },
   "bin": {
     "graph-indexer-agent": "bin/graph-indexer-agent"
@@ -41,7 +45,7 @@
     "p-queue": "6.6.2",
     "p-reduce": "2.1.0",
     "p-retry": "4.6.1",
-    "umzug": "3.0.0-beta.6",
+    "umzug": "3.0.0",
     "yargs": "17.3.1"
   },
   "devDependencies": {
@@ -56,6 +60,7 @@
     "eslint": "8.5.0",
     "jest": "27.4.5",
     "ts-jest": "27.1.2",
+    "ts-node": "^10.4.0",
     "typechain": "6.0.5",
     "typescript": "4.1.6"
   },
