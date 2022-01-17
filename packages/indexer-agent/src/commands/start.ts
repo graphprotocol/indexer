@@ -461,16 +461,27 @@ export default {
 
     // Automatic database migrations
     logger.info(`Run database migrations`)
+
+    // If the application is being executed using ts-node __dirname may be in /src rather than /dist, handle here
+    const migrations_path = __dirname.includes('dist')
+      ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
+      : path.join(__dirname, '..', '..', 'dist', 'db', 'migrations', '*.js')
+
     try {
       const umzug = new Umzug({
-        migrations: { glob: path.join(__dirname, '..', 'migrations', '*.js') },
+        migrations: {
+          glob: migrations_path,
+        },
         context: {
           queryInterface: sequelize.getQueryInterface(),
           logger,
         },
         storage: new SequelizeStorage({ sequelize }),
-        logger,
+        logger: console,
       })
+      const pending = await umzug.pending()
+      const executed = await umzug.executed()
+      logger.debug(`Migrations status`, { pending, executed })
       await umzug.up()
     } catch (err) {
       logger.fatal(`Failed to run database migrations`, {
