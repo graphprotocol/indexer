@@ -228,7 +228,7 @@ export default {
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
         type: 'number',
-        default: 80, // TODO justify reduction in docs
+        default: 100,
         group: 'Indexer Infrastructure',
       })
       .option('voucher-redemption-threshold', {
@@ -248,7 +248,7 @@ export default {
       .option('voucher-redemption-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
         type: 'number',
-        default: 80, // TODO what is the right number here?
+        default: 100,
         group: 'Indexer Infrastructure',
       })
       .option('inject-dai', {
@@ -460,7 +460,6 @@ export default {
       )
     }
 
-    // TODO add batch size checks for voucher redemptions
     if (argv.voucherRedemptionMaxBatchSize > 200) {
       logger.warn(
         `Setting the max batch size for voucher redemptions to more than 200 may result in batches that are too large to fit into a block`,

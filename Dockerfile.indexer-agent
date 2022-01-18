@@ -32,6 +32,11 @@ RUN yarn --frozen-lockfile --non-interactive --production=false
 FROM node:16.13.1-slim
 
 ENV NODE_ENV production
+# When simulating large transactions, sometimes indexer-agent runs out of memory.
+# This flag seems force node into GC earlier, preventing the crash
+# 1536mb is 1.5GB, which is appropriate for an environment with 2GB RAM
+ENV NODE_OPTIONS="--max-old-space-size=1536"
+
 
 RUN apt-get update && apt-get install -y python build-essential git curl
 
