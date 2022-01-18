@@ -181,7 +181,7 @@ export default {
         default: '0.01',
         required: false,
         group: 'Protocol',
-        coerce: (arg) => parseGRT(arg),
+        coerce: arg => parseGRT(arg),
       })
       .option('indexer-management-port', {
         description: 'Port to serve the indexer management API at',
@@ -216,14 +216,14 @@ export default {
         type: 'string',
         default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Indexer Infrastructure',
-        coerce: (arg) => parseGRT(arg),
+        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
         default: '2000',
         group: 'Indexer Infrastructure',
-        coerce: (arg) => parseGRT(arg),
+        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
@@ -236,14 +236,14 @@ export default {
         type: 'string',
         default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Indexer Infrastructure',
-        coerce: (arg) => parseGRT(arg),
+        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
         default: '2000',
         group: 'Indexer Infrastructure',
-        coerce: (arg) => parseGRT(arg),
+        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
@@ -358,7 +358,10 @@ export default {
         if (argv['gas-increase-factor'] <= 1.0) {
           return 'Invalid --gas-increase-factor provided. Must be > 1.0'
         }
-        if (!Number.isInteger(argv['rebate-claim-max-batch-size']) || argv['rebate-claim-max-batch-size'] <= 0) {
+        if (
+          !Number.isInteger(argv['rebate-claim-max-batch-size']) ||
+          argv['rebate-claim-max-batch-size'] <= 0
+        ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
         return true
