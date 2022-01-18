@@ -22,6 +22,7 @@ export interface Allocation {
   closedAtBlockHash: string
   poi: string | undefined
   queryFeeRebates: BigNumber | undefined
+  queryFeesCollected: BigNumber | undefined
 }
 
 export enum AllocationStatus {
@@ -51,6 +52,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   closedAtBlockHash: allocation.closedAtBlockHash,
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
+  queryFeesCollected: allocation.queryFeesCollected,
 })
 
 export interface RewardsPool {
