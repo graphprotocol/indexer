@@ -206,69 +206,85 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       const logger = this.logger.child({})
 
-      const vouchers = await pReduce(pendingVouchers, async (results, voucher) => {
-        if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
-          logger.warn(
-            `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
-            { allocation: voucher.allocation },
-          )
-          try {
-            await this.models.vouchers.destroy({
-              where: { allocation: voucher.allocation },
-            })
-          } catch (err) {
-            logger.warn(
-              `Failed to delete local vouchers copy, will try again later`,
-              { err, allocation: voucher.allocation },
+      const vouchers = await pReduce(
+        pendingVouchers,
+        async (results, voucher) => {
+          if (
+            await this.allocationExchange.allocationsRedeemed(
+              voucher.allocation,
             )
+          ) {
+            logger.warn(
+              `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
+              { allocation: voucher.allocation },
+            )
+            try {
+              await this.models.vouchers.destroy({
+                where: { allocation: voucher.allocation },
+              })
+            } catch (err) {
+              logger.warn(
+                `Failed to delete local vouchers copy, will try again later`,
+                { err, allocation: voucher.allocation },
+              )
+            }
+            return results
+          }
+          if (
+            BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)
+          ) {
+            results.belowThreshold.push(voucher)
+          } else {
+            results.eligible.push(voucher)
           }
           return results
-        }
-        if (BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)) {
-          results.belowThreshold.push(voucher)
-        } else {
-          results.eligible.push(voucher)
-        }
-        return results
-      }, { belowThreshold: <Voucher[]>[], eligible: <Voucher[]>[] })
+        },
+        { belowThreshold: <Voucher[]>[], eligible: <Voucher[]>[] },
+      )
 
       if (vouchers.belowThreshold.length > 0) {
-        logger.info(
-          `Query vouchers below the redemption threshold`,
-          {
-            hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
-            voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
-            belowThresholdCount: vouchers.belowThreshold.length,
-            totalValueGRT: formatGRT(vouchers.belowThreshold.reduce((total, voucher) => total.add(BigNumber.from(voucher.amount)), BigNumber.from(0))),
-            allocations: vouchers.belowThreshold.map(voucher => voucher.allocation),
-          },
-        )
+        logger.info(`Query vouchers below the redemption threshold`, {
+          hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
+          voucherRedemptionThreshold: formatGRT(
+            this.voucherRedemptionThreshold,
+          ),
+          belowThresholdCount: vouchers.belowThreshold.length,
+          totalValueGRT: formatGRT(
+            vouchers.belowThreshold.reduce(
+              (total, voucher) => total.add(BigNumber.from(voucher.amount)),
+              BigNumber.from(0),
+            ),
+          ),
+          allocations: vouchers.belowThreshold.map(
+            voucher => voucher.allocation,
+          ),
+        })
       }
 
-      const voucherBatch = vouchers.eligible.slice(0, this.voucherRedemptionMaxBatchSize),
-            batchValueGRT = voucherBatch.reduce((total, voucher) => total.add(BigNumber.from(voucher.amount)), BigNumber.from(0));
+      const voucherBatch = vouchers.eligible.slice(
+          0,
+          this.voucherRedemptionMaxBatchSize,
+        ),
+        batchValueGRT = voucherBatch.reduce(
+          (total, voucher) => total.add(BigNumber.from(voucher.amount)),
+          BigNumber.from(0),
+        )
 
       if (batchValueGRT.gt(this.voucherRedemptionBatchThreshold)) {
-        logger.info(
-          `Query voucher batch is ready for redemption`,
-          {
-            batchSize: voucherBatch.length,
-            voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-            voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
-            batchValueGRT: formatGRT(batchValueGRT),
-          },
-        )
-        await this.submitVouchers(voucherBatch);
+        logger.info(`Query voucher batch is ready for redemption`, {
+          batchSize: voucherBatch.length,
+          voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+          voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+          batchValueGRT: formatGRT(batchValueGRT),
+        })
+        await this.submitVouchers(voucherBatch)
       } else {
-        logger.info(
-          `Query voucher batch value too low for redemption`,
-          {
-            batchSize: voucherBatch.length,
-            voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-            voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
-            batchValueGRT: formatGRT(batchValueGRT),
-          },
-        )
+        logger.info(`Query voucher batch value too low for redemption`, {
+          batchSize: voucherBatch.length,
+          voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+          voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+          batchValueGRT: formatGRT(batchValueGRT),
+        })
       }
     })
   }
@@ -276,7 +292,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private async pendingVouchers(): Promise<Voucher[]> {
     return this.models.vouchers.findAll({
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
-      limit: this.voucherRedemptionMaxBatchSize // limit the number of vouchers to the max batch size
+      limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
     })
   }
 
@@ -374,7 +390,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       voucherBatchSize: vouchers.length,
     })
 
-    logger.info(`Redeem query voucher batch on chain`, { allocations: vouchers.map(voucher => voucher.allocation) })
+    logger.info(`Redeem query voucher batch on chain`, {
+      allocations: vouchers.map(voucher => voucher.allocation),
+    })
 
     const hexPrefix = (bytes: string): string =>
       bytes.startsWith('0x') ? bytes : `0x${bytes}`
