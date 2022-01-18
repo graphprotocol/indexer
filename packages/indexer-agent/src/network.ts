@@ -1510,8 +1510,12 @@ export class Network {
       // A reasonable upper bound for this value is 200 assuming the system has the memory
       // requirements to construct the transaction
       const maxClaimsPerBatch = this.rebateClaimMaxBatchSize
+
+      // When we construct the batch, we sort desc by query fees collected
+      // in order to maximise the value of the truncated batch
+      // more query fees collected should mean higher value rebates
       const allocationIds = allocations
-        .sort((x, y) => (y.queryFeesCollected?.gt(x.queryFeesCollected || 0)? 0 : -1)) // sort desc by query fee development
+        .sort((x, y) => (y.queryFeesCollected?.gt(x.queryFeesCollected || 0)? 0 : -1))
         .map(allocation => allocation.id)
         .slice(0, maxClaimsPerBatch)
 
