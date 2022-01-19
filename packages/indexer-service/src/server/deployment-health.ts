@@ -75,10 +75,7 @@ export const createDeploymentHealthServer = ({
     const headBlock = status.chains[0]?.chainHeadBlock
 
     // Check whether the subgraph is caught up with the chain head
-    if (
-      latestBlock?.number === headBlock?.number &&
-      latestBlock?.hash === headBlock?.hash
-    ) {
+    if (latestBlock?.number > headBlock?.number - 5) {
       return res.status(200).send('Subgraph deployment is up to date')
     } else {
       return res.status(500).send('Subgraph deployment is lagging behind')
