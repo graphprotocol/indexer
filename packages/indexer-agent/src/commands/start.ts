@@ -32,6 +32,7 @@ import { startCostModelAutomation } from '../cost'
 import { bindAllocationExchangeContract } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
+import { monitorEthBalance } from '../utils'
 
 export default {
   command: 'start',
@@ -686,6 +687,9 @@ export default {
     logger.info('Successfully connected to network', {
       restakeRewards: argv.restakeRewards,
     })
+
+    // Monitor ETH balance of the operator and write the latest value to a metric
+    await monitorEthBalance(logger, wallet, metrics)
 
     logger.info(`Launch syncing server`)
     await createSyncingServer({
