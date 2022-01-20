@@ -1,14 +1,9 @@
-import { Gauge } from 'prom-client'
 import { Wallet, utils } from 'ethers'
 
 import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 
-interface EthBalanceMetrics {
-  operatorEthBalance: Gauge<string>
-}
-
-const registerMetrics = (metrics: Metrics): EthBalanceMetrics => ({
+const registerMetrics = (metrics: Metrics) => ({
   operatorEthBalance: new metrics.client.Gauge({
     name: 'indexer_agent_operator_eth_balance',
     help: 'Amount of ETH in the operatow wallet; a low amount could cause transactions to fail',
