@@ -6,7 +6,7 @@ import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 const registerMetrics = (metrics: Metrics) => ({
   operatorEthBalance: new metrics.client.Gauge({
     name: 'indexer_agent_operator_eth_balance',
-    help: 'Amount of ETH in the operatow wallet; a low amount could cause transactions to fail',
+    help: 'Amount of ETH in the operator wallet; a low amount could cause transactions to fail',
     registers: [metrics.registry],
   }),
 })
