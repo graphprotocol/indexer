@@ -16,6 +16,8 @@ export async function monitorEthBalance(
   wallet: Wallet,
   metrics: Metrics,
 ): Promise<void> {
+  const logger = logger.child({ component: 'ETHBalanceMonitor' })
+
   logger.info('Monitor operator ETH balance (refreshes every 120s)')
 
   const balanceMetrics = registerMetrics(metrics)
@@ -25,6 +27,9 @@ export async function monitorEthBalance(
       const balance = await wallet.getBalance()
       const eth = parseFloat(utils.formatEther(balance))
       balanceMetrics.operatorEthBalance.set(eth)
+      logger.info('Current operator ETH balance', {
+        balance: eth,
+      })
     } catch (error) {
       logger.warn(`Failed to check latest ETH balance`, {
         err: indexerError(IndexerErrorCode.IE059),
