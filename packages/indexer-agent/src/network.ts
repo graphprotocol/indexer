@@ -41,7 +41,6 @@ import geohash from 'ngeohash'
 import delay from 'delay'
 import pFilter from 'p-filter'
 import pRetry from 'p-retry'
-import { formatEther } from 'ethers/lib/utils'
 
 const allocationIdProof = (
   signer: Signer,
