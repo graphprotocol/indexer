@@ -749,10 +749,10 @@
   dependencies:
     ethers "^5.4.4"
 
-"@graphprotocol/cost-model@0.1.7":
-  version "0.1.7"
-  resolved "https://registry.npmjs.org/@graphprotocol/cost-model/-/cost-model-0.1.7.tgz#0178704cc6f44601af71e03a2b789b467d1f3f8a"
-  integrity sha512-8vh7iTNe4zDQKmveHpFlqQ8LrHyLHOWXYyK4xvN2CVQ4uepk6z2z8iHY8l+bQ3HRqdtRK7ecdPTI7vgld2sKdA==
+"@graphprotocol/cost-model@0.1.8":
+  version "0.1.8"
+  resolved "https://registry.npmjs.org/@graphprotocol/cost-model/-/cost-model-0.1.8.tgz#edf0151379159ed75a8706dc01a556808bcd7de3"
+  integrity sha512-sCbq1Ri98tmDY5ZNHHSaJf05upX4zOGsKIh915hJHA7oniD3pRoyEZYiEvtV/ae6OQrWe665roKP9q+yc58K2w==
   dependencies:
     neon-cli "^0.4.0"
 
