@@ -16,7 +16,7 @@ export async function monitorEthBalance(
   wallet: Wallet,
   metrics: Metrics,
 ): Promise<void> {
-  const logger = logger.child({ component: 'ETHBalanceMonitor' })
+  logger = logger.child({ component: 'ETHBalanceMonitor' })
 
   logger.info('Monitor operator ETH balance (refreshes every 120s)')
 
