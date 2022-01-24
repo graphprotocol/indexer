@@ -3,9 +3,11 @@ name: Indexer Agent Image
 on:
   push:
     branches:
-    - main
+      - main
     tags:
-    - v*.*.*
+      - v*.*.*
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
