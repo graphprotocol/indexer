@@ -22,7 +22,6 @@ export const createDeploymentHealthServer = ({
       },
       body: JSON.stringify({
         query: `query indexingStatus($subgraphs: [String!]!) {
-{
   indexingStatuses(subgraphs: $subgraphs) {
     health
     chains {
