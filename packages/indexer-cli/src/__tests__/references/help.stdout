@@ -1,0 +1,22 @@
+graph-indexer version 0.18.6
+
+  graph-indexer                  -                                                              
+  version (v)                    Output the version number                                      
+  indexer status                 Check the status of an indexer                                 
+  indexer rules stop (never)     Never index a deployment (and stop indexing it if necessary)   
+  indexer rules start (always)   Always index a deployment (and start indexing it if necessary) 
+  indexer rules set              Set one or more indexing rules                                 
+  indexer rules maybe            Index a deployment based on rules                              
+  indexer rules get              Get one or more indexing rules                                 
+  indexer rules delete           Remove one or many indexing rules                              
+  indexer rules clear (reset)    Clear one or more indexing rules                               
+  indexer rules                  Configure indexing rules                                       
+  indexer disputes get           Cross-check POIs submitted in the network                      
+  indexer disputes               Configure allocation POI monitoring                            
+  indexer cost set variables     Update cost model variables                                    
+  indexer cost set model         Update a cost model                                            
+  indexer cost get               Get cost models and/or variables for one or all subgraphs      
+  indexer cost                   Manage costing for subgraphs                                   
+  indexer connect                Connect to indexer management API                              
+  indexer                        Manage indexer configuration                                   
+  help (h)                       -                                                              

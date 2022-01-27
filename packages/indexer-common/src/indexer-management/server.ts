@@ -6,6 +6,7 @@ import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
 
 import { IndexerManagementClient } from './client'
+import http from 'http'
 
 export interface CreateIndexerManagementServerOptions {
   logger: Logger
@@ -17,7 +18,7 @@ export const createIndexerManagementServer = async ({
   logger,
   client,
   port,
-}: CreateIndexerManagementServerOptions): Promise<express.Express> => {
+}: CreateIndexerManagementServerOptions): Promise<http.Server> => {
   logger = logger.child({ component: 'IndexerManagementServer' })
 
   const loggerStream = new Stream.Writable()
@@ -26,20 +27,20 @@ export const createIndexerManagementServer = async ({
     next()
   }
 
-  const server = express()
+  const app = express()
 
   // Log requests to the logger stream
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  server.use(morgan('tiny', { stream: loggerStream }) as any)
-  server.use(cors())
+  app.use(morgan('tiny', { stream: loggerStream }) as any)
+  app.use(cors())
 
   // Endpoint for health checks
-  server.get('/', (_, res) => {
+  app.get('/', (_, res) => {
     res.status(200).send('Ready to roll!')
   })
 
   // GraphQL endpoint
-  server.post('/', bodyParser.json(), async (req, res) => {
+  app.post('/', bodyParser.json(), async (req, res) => {
     const { query, variables } = req.body
 
     const result = query.startsWith('mutation')
@@ -53,7 +54,7 @@ export const createIndexerManagementServer = async ({
     })
   })
 
-  server.listen(port, () => {
+  const server = app.listen(port, () => {
     logger.debug(`Listening on port ${port}`)
   })
 

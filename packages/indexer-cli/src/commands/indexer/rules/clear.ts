@@ -95,6 +95,7 @@ module.exports = {
       printIndexingRules(print, outputFormat, parseDeploymentID(deployment), rule, [])
     } catch (error) {
       print.error(error.toString())
+      process.exitCode = 1
     }
   },
 }
