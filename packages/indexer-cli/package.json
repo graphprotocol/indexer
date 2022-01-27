@@ -12,7 +12,10 @@
     "compile": "./node_modules/.bin/tsc",
     "prepare": "rm -rf dist && yarn format && yarn lint && yarn compile",
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get",
-    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
+    "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
+    "test": "jest --colors --verbose --detectOpenHandles",
+    "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose --forceExit",
+    "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
     "@graphprotocol/common-ts": "1.8.1",

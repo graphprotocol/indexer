@@ -70,7 +70,7 @@ module.exports = {
       }
     } catch (error) {
       print.error(error.toString())
-      console.log(error)
+      process.exitCode = 1
     }
   },
 }

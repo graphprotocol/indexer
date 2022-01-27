@@ -17,6 +17,21 @@ jobs:
       matrix:
         node-version: [12, 14, 16]
 
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_DB: indexer_tests
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpass
+        ports:
+          - 5432:5432
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
@@ -28,3 +43,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
       - run: yarn test
+        env:
+          POSTGRES_TEST_HOST: localhost
+          POSTGRES_TEST_DATABASE: indexer_tests
+          POSTGRES_TEST_USERNAME: testuser
+          POSTGRES_TEST_PASSWORD: testpass

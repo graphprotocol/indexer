@@ -1,0 +1,1 @@
+Error fetching status information: [GraphQL] missing provider (operation="call", code=UNSUPPORTED_OPERATION, version=abstract-signer/5.5.0)
