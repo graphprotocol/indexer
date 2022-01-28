@@ -21,6 +21,7 @@ import {
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
 import rateLimit from 'express-rate-limit'
+import http from 'http'
 
 export interface ServerOptions {
   logger: Logger
@@ -362,7 +363,7 @@ export const createServer = async ({
   networkSubgraph,
   networkSubgraphAuthToken,
   serveNetworkSubgraph,
-}: ServerOptions): Promise<express.Express> => {
+}: ServerOptions): Promise<http.Server> => {
   const app = await createApp({
     logger,
     queryProcessor,
@@ -377,9 +378,7 @@ export const createServer = async ({
     serveNetworkSubgraph,
   })
 
-  app.listen(port, () => {
+  return app.listen(port, () => {
     logger.debug(`Listening on port ${port}`)
   })
-
-  return app
 }
