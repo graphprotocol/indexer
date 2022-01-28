@@ -14,7 +14,7 @@
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
     "release": "./scripts/release.sh",
-    "test": "lerna --concurrency 1 run test --stream",
+    "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service",
     "update-common-ts": "./scripts/update-common-ts.sh 1.8.1",
     "clean": "lerna run clean",
     "compile": "lerna run compile"
