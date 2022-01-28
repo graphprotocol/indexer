@@ -29,7 +29,6 @@ import { Network } from '../network'
 import { Indexer } from '../indexer'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
-import { bindAllocationExchangeContract } from '../query-fees'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
@@ -771,25 +770,11 @@ export default {
       metrics,
     })
 
-    // Identify the allocation exchange contract address
-    // TODO: Pick it from the `contracts`
-    const allocationExchangeContract = toAddress(
-      argv.allocationExchangeContract === 'auto'
-        ? ethereum.network.chainId === 1
-          ? '0x4a53cf3b3EdA545dc61dee0cA21eA8996C94385f' // mainnet
-          : '0x58Ce0A0f41449E349C1A91Dd9F3D9286Bf32c161' // rinkeby
-        : argv.allocationExchangeContract,
-    )
-
     const receiptCollector = new AllocationReceiptCollector({
       logger,
       network,
       models: queryFeeModels,
       collectEndpoint: new URL(argv.collectReceiptsEndpoint),
-      allocationExchange: bindAllocationExchangeContract(
-        wallet,
-        allocationExchangeContract,
-      ),
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,

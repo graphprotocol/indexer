@@ -17,7 +17,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
 import { ReceiptCollector } from '.'
-import { BigNumber, Contract } from 'ethers'
+import { BigNumber } from 'ethers'
 import { Op } from 'sequelize'
 import { Network } from '../network'
 import pReduce from 'p-reduce'
@@ -36,7 +36,6 @@ export interface AllocationReceiptCollectorOptions {
   network: Network
   models: QueryFeeModels
   collectEndpoint: URL
-  allocationExchange: Contract
   voucherRedemptionThreshold: BigNumber
   voucherRedemptionBatchThreshold: BigNumber
   voucherRedemptionMaxBatchSize: number
@@ -47,7 +46,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private logger: Logger
   private models: QueryFeeModels
   private network: Network
-  private allocationExchange: Contract
   private collectEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
   private voucherRedemptionThreshold: BigNumber
@@ -60,7 +58,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     network,
     models,
     collectEndpoint,
-    allocationExchange,
     voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize,
@@ -70,7 +67,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.network = network
     this.models = models
     this.collectEndpoint = collectEndpoint
-    this.allocationExchange = allocationExchange
     this.voucherRedemptionThreshold = voucherRedemptionThreshold
     this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
@@ -210,7 +206,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         pendingVouchers,
         async (results, voucher) => {
           if (
-            await this.allocationExchange.allocationsRedeemed(
+            await this.network.contracts.allocationExchange.allocationsRedeemed(
               voucher.allocation,
             )
           ) {
@@ -416,9 +412,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     try {
       // Submit the voucher on chain
       const txReceipt = await this.network.executeTransaction(
-        () => this.allocationExchange.estimateGas.redeemMany(onchainVouchers),
+        () =>
+          this.network.contracts.allocationExchange.estimateGas.redeemMany(
+            onchainVouchers,
+          ),
         async gasLimit =>
-          this.allocationExchange.redeemMany(onchainVouchers, { gasLimit }),
+          this.network.contracts.allocationExchange.redeemMany(
+            onchainVouchers,
+            {
+              gasLimit,
+            },
+          ),
         logger.child({ action: 'redeemMany' }),
       )
 

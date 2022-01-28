@@ -754,6 +754,33 @@
     prom-client "14.0.1"
     sequelize "6.12.0"
 
+"@graphprotocol/common-ts@1.8.2":
+  version "1.8.2"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.8.2.tgz#f6d8dd2b27ea2f99804d5805e4eab022e41b0bb9"
+  integrity sha512-nqtOHNi5vHPiiBv0Dxq7/ZGa/Nch2UVu5hbbwo6BqVh4KaEq6Z9MeofyU5Ew538txNdTliXFZ135i0dsBhVRIA==
+  dependencies:
+    "@graphprotocol/contracts" "1.9.0"
+    "@graphprotocol/pino-sentry-simple" "0.7.1"
+    "@urql/core" "2.3.6"
+    "@urql/exchange-execute" "1.2.2"
+    body-parser "1.19.1"
+    bs58 "4.0.1"
+    cors "2.8.5"
+    cross-fetch "3.1.4"
+    ethers "5.5.2"
+    express "4.17.2"
+    graphql "16.2.0"
+    graphql-tag "2.12.6"
+    helmet "4.6.0"
+    morgan "1.10.0"
+    ngeohash "0.6.3"
+    pg "8.7.1"
+    pg-hstore "2.3.4"
+    pino "7.6.0"
+    pino-multi-stream "6.0.0"
+    prom-client "14.0.1"
+    sequelize "6.12.0"
+
 "@graphprotocol/contracts@1.9.0", "@graphprotocol/contracts@v1.9.0":
   version "1.9.0"
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-1.9.0.tgz#1ebf3336e07263036092826e1297c31d4d266ba9"
