@@ -227,6 +227,7 @@ export class Indexer {
                 minAverageQueryFees
                 custom
                 decisionBasis
+                requireSupported
               }
             }
           `,
@@ -265,6 +266,7 @@ export class Indexer {
                 identifierType
                 allocationAmount
                 decisionBasis
+                requireSupported
               }
             }
           `,
@@ -281,6 +283,7 @@ export class Indexer {
           allocationAmount: this.defaultAllocationAmount.toString(),
           parallelAllocations: 1,
           decisionBasis: 'rules',
+          requireSupported: true,
         }
 
         const defaultGlobalRule = await this.indexerManagement
@@ -299,6 +302,7 @@ export class Indexer {
                   minAverageQueryFees
                   custom
                   decisionBasis
+                  requireSupported
                 }
               }
             `,

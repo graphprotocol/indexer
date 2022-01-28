@@ -104,6 +104,7 @@ dist
 .tern-port
 .npmrc
 .yarnrc
+.envrc
 
 # Terraform state files
 *.tfstate*

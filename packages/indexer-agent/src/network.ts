@@ -606,6 +606,7 @@ export class Network {
                 first: $first
               ) {
                 id
+                deniedAt
                 stakedTokens
                 signalAmount
                 queryFeesAmount
@@ -649,7 +650,7 @@ export class Network {
                     deployment.id,
                 ) || globalRule
 
-              // The deployment rule is not eligible for deployment if it doesn't have an allocation amount
+              // The deployment rule is not eligible for allocation if it doesn't have an allocation amount
               if (!deploymentRule?.allocationAmount) {
                 this.logger.debug(
                   `Could not find matching rule with non-zero 'allocationAmount':`,
@@ -664,6 +665,13 @@ export class Network {
               if (
                 deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
               ) {
+                // cannot allocate to unsupported subgraph by default
+                if (
+                  deployment.deniedAt > 0 &&
+                  deploymentRule.requireSupported
+                ) {
+                  return false
+                }
                 return true
               } else if (
                 deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER ||
@@ -686,6 +694,7 @@ export class Network {
                 this.logger.trace('Deciding whether to allocate and index', {
                   deployment: {
                     id: deployment.id.display,
+                    deniedAt: deployment.deniedAt,
                     stakedTokens: stakedTokens.toString(),
                     signalAmount: signalAmount.toString(),
                     avgQueryFees: avgQueryFees.toString(),
@@ -706,6 +715,7 @@ export class Network {
                           deploymentRule.minAverageQueryFees,
                         ).toString()
                       : null,
+                    requireSupported: deploymentRule.requireSupported,
                   },
                 })
 

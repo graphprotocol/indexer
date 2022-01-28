@@ -235,9 +235,6 @@ class Agent {
 
         // Identify subgraph deployments on the network that are worth picking up;
         // these may overlap with the ones we're already indexing
-        this.logger.info('targetAllocation is ', {
-          allocations: this.network.deploymentsWorthAllocatingTowards(rules),
-        })
         return rules.length === 0
           ? []
           : await this.network.deploymentsWorthAllocatingTowards(rules)
@@ -926,20 +923,20 @@ class Agent {
       const indexingStatus = await this.indexer.indexingStatus(
         allocation.subgraphDeployment.id,
       )
-      const fatalError = indexingStatus.fatalError
+      const fatalError = indexingStatus?.fatalError
       if (!fatalError) {
         this.logger.error(
           `Received a null or zero POI for deployment, no fatal errors`,
           {
             deployment: allocation.subgraphDeployment.id.display,
             allocation: allocation.id,
-            block: indexingStatus.chains[0].latestBlock,
+            block: indexingStatus?.chains[0].latestBlock,
           },
         )
       } else {
         const latestValidPoi = await this.indexer.proofOfIndexing(
           allocation.subgraphDeployment.id,
-          indexingStatus.chains[0].latestBlock,
+          indexingStatus?.chains[0].latestBlock,
           this.indexer.indexerAddress,
         )
         this.logger.error(`Received a null or zero POI for deployment`, {

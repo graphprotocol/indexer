@@ -98,6 +98,7 @@ const SCHEMA_SDL = gql`
     minAverageQueryFees: BigInt
     custom: String
     decisionBasis: IndexingDecisionBasis!
+    requireSupported: Boolean!
   }
 
   input IndexingRuleInput {
@@ -112,6 +113,7 @@ const SCHEMA_SDL = gql`
     minAverageQueryFees: BigInt
     custom: String
     decisionBasis: IndexingDecisionBasis
+    requireSupported: Boolean
   }
 
   type GeoLocation {

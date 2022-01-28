@@ -126,6 +126,7 @@ module.exports = {
                 minAverageQueryFees
                 custom
                 decisionBasis
+                requireSupported
               }
             }
           `,
