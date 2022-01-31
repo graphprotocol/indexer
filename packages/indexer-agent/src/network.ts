@@ -1,41 +1,42 @@
 import {
+  Address,
+  Eventual,
+  formatGRT,
   Logger,
+  mutable,
   NetworkContracts,
   SubgraphDeploymentID,
-  formatGRT,
   timer,
-  Eventual,
-  Address,
   toAddress,
-  mutable,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
   AllocationStatus,
   Epoch,
-  IndexingRuleAttributes,
-  IndexingDecisionBasis,
+  INDEXER_ERROR_MESSAGES,
+  indexerError,
+  IndexerError,
+  IndexerErrorCode,
   INDEXING_RULE_GLOBAL,
+  IndexingDecisionBasis,
+  IndexingRuleAttributes,
+  NetworkSubgraph,
   parseGraphQLAllocation,
   parseGraphQLEpochs,
-  uniqueAllocationID,
-  indexerError,
-  IndexerErrorCode,
-  INDEXER_ERROR_MESSAGES,
-  IndexerError,
-  NetworkSubgraph,
   Subgraph,
+  SubgraphIdentifierType,
   SubgraphVersion,
+  uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 import {
-  ContractTransaction,
-  ContractReceipt,
   BigNumber,
-  providers,
-  Wallet,
-  utils,
-  Signer,
   BigNumberish,
+  ContractReceipt,
+  ContractTransaction,
+  providers,
+  Signer,
+  utils,
+  Wallet,
 } from 'ethers'
 import { strict as assert } from 'assert'
 import gql from 'graphql-tag'
@@ -651,9 +652,16 @@ export class Network {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .filter((deployment: any) => {
               const deploymentRule =
-                rules.find(rule => rule.identifier === deployment.id) ||
-                globalRule
-
+                rules
+                  .filter(
+                    rule =>
+                      rule.identifierType == SubgraphIdentifierType.DEPLOYMENT,
+                  )
+                  .find(
+                    rule =>
+                      new SubgraphDeploymentID(rule.identifier).toString() ===
+                      deployment.id,
+                  ) || globalRule
               // The deployment is not eligible for deployment if it doesn't have an allocation amount
               if (!deploymentRule?.allocationAmount) {
                 this.logger.debug(
@@ -662,17 +670,6 @@ export class Network {
                     deployment: deployment.display,
                   },
                 )
-                return false
-              }
-
-              // Skip the indexing rules checks if the decision basis is 'always' or 'never'
-              if (
-                deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS
-              ) {
-                return true
-              } else if (
-                deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER
-              ) {
                 return false
               }
 
@@ -689,12 +686,13 @@ export class Network {
 
                 this.logger.trace('Deciding whether to allocate and index', {
                   deployment: {
-                    id: deployment.id.display,
+                    id: deployment.id,
                     stakedTokens: stakedTokens.toString(),
                     signalAmount: signalAmount.toString(),
                     avgQueryFees: avgQueryFees.toString(),
                   },
                   indexingRule: {
+                    decisionBasis: deploymentRule.decisionBasis,
                     deployment: deploymentRule.identifier,
                     minStake: deploymentRule.minStake
                       ? BigNumber.from(deploymentRule.minStake).toString()
@@ -712,6 +710,17 @@ export class Network {
                       : null,
                   },
                 })
+
+                // Skip the indexing rules checks if the decision basis is 'always' or 'never'
+                if (
+                  deploymentRule.decisionBasis === IndexingDecisionBasis.ALWAYS
+                ) {
+                  return true
+                } else if (
+                  deploymentRule.decisionBasis === IndexingDecisionBasis.NEVER
+                ) {
+                  return false
+                }
 
                 return (
                   // stake >= minStake?

@@ -50,7 +50,8 @@ const deploymentRuleInList = (
   list.find(
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
-      rule.identifier == deployment.ipfsHash,
+      new SubgraphDeploymentID(rule.identifier).toString() ==
+        deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -63,13 +64,16 @@ const uniqueDeployments = (
   deployments: SubgraphDeploymentID[],
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
 
-const convertSubgraphBasedRulesToDeploymentBased = (
+export const convertSubgraphBasedRulesToDeploymentBased = (
   rules: IndexingRuleAttributes[],
   subgraphs: Subgraph[],
   previousVersionBuffer: number,
 ): IndexingRuleAttributes[] => {
   const toAdd: IndexingRuleAttributes[] = []
   rules.map(rule => {
+    if (rule.identifierType !== SubgraphIdentifierType.SUBGRAPH) {
+      return rule
+    }
     const ruleSubgraph = subgraphs.find(
       subgraph => subgraph.id == rule.identifier,
     )
@@ -106,6 +110,7 @@ const convertSubgraphBasedRulesToDeploymentBased = (
         }
       }
     }
+    return rule
   })
   rules.push(...toAdd)
   return rules
@@ -591,8 +596,11 @@ class Agent {
       deploymentIDSet(activeDeployments) != deploymentIDSet(targetDeployments)
     ) {
       this.logger.info('Reconcile deployments', {
-        active: activeDeployments.map(id => id.display),
+        syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
+        withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
+          id => id.display,
+        ),
       })
     }
 
@@ -653,8 +661,10 @@ class Agent {
       currentEpoch,
       maxAllocationEpochs,
       allocationLifetime,
-      targetDeployments,
-      active: activeAllocations.map(allocation => ({
+      targetDeployments: targetDeployments.map(
+        deployment => deployment.display,
+      ),
+      activeAllocations: activeAllocations.map(allocation => ({
         id: allocation.id,
         deployment: allocation.subgraphDeployment.id.display,
         createdAtEpoch: allocation.createdAtEpoch,
@@ -700,8 +710,12 @@ class Agent {
           deploymentInList(targetDeployments, deployment),
 
           // Indexing rule for the deployment (if any)
-          rules.find(rule => rule.identifier === deployment.bytes32) ||
-            rules.find(rule => rule.identifier === INDEXING_RULE_GLOBAL),
+          rules.find(
+            rule =>
+              rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
+              new SubgraphDeploymentID(rule.identifier).toString() ===
+                deployment.toString(),
+          ) || rules.find(rule => rule.identifier === INDEXING_RULE_GLOBAL),
 
           currentEpoch,
           currentEpochStartBlock,
