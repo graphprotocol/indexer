@@ -806,6 +806,7 @@ class Agent {
             createdAtEpoch: allocation.createdAtEpoch,
             amount: formatGRT(allocation.allocatedTokens),
           })),
+          poi: await this.resolvePOI(epochStartBlock, activeAllocations[0]),
         },
       )
     }
@@ -939,48 +940,78 @@ class Agent {
     }
   }
 
+  async resolvePOI(
+    currentEpochStartBlock: BlockPointer,
+    allocation: Allocation,
+  ): Promise<string> {
+    const null_poi = utils.hexlify(Array(32).fill(0))
+    try {
+      const indexingStatus = await this.indexer.indexingStatus(
+        allocation.subgraphDeployment.id,
+      )
+      const previousEpochStartBlockNumber =
+        currentEpochStartBlock.number -
+        (await this.network.contracts.epochManager.epochLength()).toNumber()
+      const failureBlock = indexingStatus.chains[0].latestBlock
+      // latest valid block floor down to epoch start block if they exists
+      const latestValidBlockNumber =
+        failureBlock.number > currentEpochStartBlock.number
+          ? currentEpochStartBlock.number
+          : failureBlock.number > previousEpochStartBlockNumber
+          ? previousEpochStartBlockNumber
+          : failureBlock.number - 1
+
+      const validBlock = await this.network.ethereum.getBlock(
+        latestValidBlockNumber,
+      )
+      const validBlockPOI = await this.indexer.proofOfIndexing(
+        allocation.subgraphDeployment.id,
+        validBlock,
+        this.indexer.indexerAddress,
+      )
+
+      // don't close syncing subgraphs (or still has null POI)
+      if (
+        !indexingStatus.fatalError ||
+        validBlockPOI == undefined ||
+        validBlockPOI == null
+      ) {
+        return null_poi
+      }
+
+      this.logger.info(
+        `Received a null or zero POI for current epoch, use latest valid block POI instead`,
+        {
+          deployment: allocation.subgraphDeployment.id.display,
+          allocation: allocation.id,
+          currentEpochStartBlock: currentEpochStartBlock.number,
+          previousEpochStartBlockNumber,
+          failureBlock,
+          fatalError: indexingStatus.fatalError,
+          validBlock: validBlock.number,
+          validBlockPOI,
+        },
+      )
+      return validBlockPOI
+    } catch {
+      return null_poi
+    }
+  }
+
   private async closeAllocation(
     epochStartBlock: BlockPointer,
     allocation: Allocation,
   ): Promise<{ closed: boolean; collectingQueryFees: boolean }> {
-    const poi = await this.indexer.proofOfIndexing(
-      allocation.subgraphDeployment.id,
-      epochStartBlock,
-      this.indexer.indexerAddress,
-    )
+    const poi = await this.resolvePOI(epochStartBlock, allocation)
 
-    // Don't proceed if the POI is 0x0 or null
-    // as deployment is either not fully synced or experienced a fatal undeterministic error
-    if (
-      poi === undefined ||
-      poi === null ||
-      poi === utils.hexlify(Array(32).fill(0))
-    ) {
-      const indexingStatus = await this.indexer.indexingStatus(
-        allocation.subgraphDeployment.id,
-      )
-      if (!indexingStatus) {
-        this.logger.error(
-          `Received a null or zero POI for deployment and cannot find indexing status`,
-          {
-            deployment: allocation.subgraphDeployment.id.display,
-            allocation: allocation.id,
-          },
-        )
-      } else {
-        const latestValidPoi = await this.indexer.proofOfIndexing(
-          allocation.subgraphDeployment.id,
-          indexingStatus?.chains[0].latestBlock,
-          this.indexer.indexerAddress,
-        )
-        this.logger.error(`Received a null or zero POI for deployment`, {
+    if (poi === utils.hexlify(Array(32).fill(0))) {
+      this.logger.error(
+        `Received a null or zero POI for deployment (syncing deployment or failed to query indexing status)`,
+        {
           deployment: allocation.subgraphDeployment.id.display,
           allocation: allocation.id,
-          fatalError: indexingStatus.fatalError,
-          latestValidPoi,
-        })
-      }
-
+        },
+      )
       return { closed: false, collectingQueryFees: false }
     }
 
@@ -1010,6 +1041,7 @@ class Agent {
       epochStartBlock,
       this.indexer.indexerAddress,
     )
+    const tempPoi = await this.resolvePOI(epochStartBlock, existingAllocation)
 
     // Don't proceed if the POI is 0x0 or null
     if (
@@ -1021,6 +1053,7 @@ class Agent {
         deployment: existingAllocation.subgraphDeployment.id.display,
         allocation: existingAllocation.id,
         epochStartBlock,
+        tempPoi,
       })
 
       return {
