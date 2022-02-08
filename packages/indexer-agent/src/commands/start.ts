@@ -457,7 +457,7 @@ export default {
       )
     }
 
-    if (argv.voucherClaimThreshold.eq(0)) {
+    if (argv.voucherRedemptionThreshold.eq(0)) {
       logger.warn(
         `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
       )
