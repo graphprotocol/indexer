@@ -80,8 +80,8 @@ export class Network {
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   restakeRewards: boolean
-  rebateClaimMinSingleValue: BigNumber
-  rebateClaimMinBatchValue: BigNumber
+  rebateClaimThreshold: BigNumber
+  rebateClaimBatchThreshold: BigNumber
   rebateClaimMaxBatchSize: number
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
@@ -102,8 +102,8 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     restakeRewards: boolean,
-    rebateClaimMinSingleValue: BigNumber,
-    rebateClaimMinBatchValue: BigNumber,
+    rebateClaimThreshold: BigNumber,
+    rebateClaimBatchThreshold: BigNumber,
     rebateClaimMaxBatchSize: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
@@ -123,8 +123,8 @@ export class Network {
     this.paused = paused
     this.isOperator = isOperator
     this.restakeRewards = restakeRewards
-    this.rebateClaimMinSingleValue = rebateClaimMinSingleValue
-    this.rebateClaimMinBatchValue = rebateClaimMinBatchValue
+    this.rebateClaimThreshold = rebateClaimThreshold
+    this.rebateClaimBatchThreshold = rebateClaimBatchThreshold
     this.rebateClaimMaxBatchSize = rebateClaimMaxBatchSize
     this.poiDisputeMonitoring = poiDisputeMonitoring
     this.poiDisputableEpochs = poiDisputableEpochs
@@ -424,8 +424,8 @@ export class Network {
     geoCoordinates: [string, string],
     networkSubgraph: NetworkSubgraph,
     restakeRewards: boolean,
-    rebateClaimMinSingleValue: BigNumber,
-    rebateClaimMinBatchValue: BigNumber,
+    rebateClaimThreshold: BigNumber,
+    rebateClaimBatchThreshold: BigNumber,
     rebateClaimMaxBatchSize: number,
     poiDisputeMonitoring: boolean,
     poiDisputableEpochs: number,
@@ -464,8 +464,8 @@ export class Network {
       paused,
       isOperator,
       restakeRewards,
-      rebateClaimMinSingleValue,
-      rebateClaimMinBatchValue,
+      rebateClaimThreshold,
+      rebateClaimBatchThreshold,
       rebateClaimMaxBatchSize,
       poiDisputeMonitoring,
       poiDisputableEpochs,
@@ -926,7 +926,7 @@ export class Network {
         {
           indexer: this.indexerAddress.toLocaleLowerCase(),
           disputableEpoch,
-          minimumQueryFeesCollected: this.rebateClaimMinSingleValue.toString(),
+          minimumQueryFeesCollected: this.rebateClaimThreshold.toString(),
         },
       )
 
@@ -948,13 +948,15 @@ export class Network {
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
       if (
         parsedAllocs.length > 0 &&
-        totalFees.lt(this.rebateClaimMinBatchValue)
+        totalFees.lt(this.rebateClaimBatchThreshold)
       ) {
         this.logger.info(
           `Allocation rebate batch value does not meet minimum for claiming`,
           {
-            totalBatchFees: formatGRT(totalFees),
-            minBatchFees: formatGRT(this.rebateClaimMinBatchValue),
+            batchValueGRT: formatGRT(totalFees),
+            rebateClaimBatchThreshold: formatGRT(this.rebateClaimBatchThreshold),
+            rebateClaimMaxBatchSize: this.rebateClaimMaxBatchSize,
+            batchSize: parsedAllocs.length,
             allocations: parsedAllocs.map(allocation => {
               return {
                 allocation: allocation.id,
