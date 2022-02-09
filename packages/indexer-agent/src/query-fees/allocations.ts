@@ -274,7 +274,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(`Query voucher batch is ready for redemption`, {
           batchSize: voucherBatch.length,
           voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-          voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+          voucherRedemptionBatchThreshold: formatGRT(this.voucherRedemptionBatchThreshold),
           batchValueGRT: formatGRT(batchValueGRT),
         })
         await this.submitVouchers(voucherBatch)
@@ -282,7 +282,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(`Query voucher batch value too low for redemption`, {
           batchSize: voucherBatch.length,
           voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-          voucherRedemptionBatchThreshold: this.voucherRedemptionBatchThreshold,
+          voucherRedemptionBatchThreshold: formatGRT(this.voucherRedemptionBatchThreshold),
           batchValueGRT: formatGRT(batchValueGRT),
         })
       }
