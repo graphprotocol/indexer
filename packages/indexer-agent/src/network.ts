@@ -954,7 +954,9 @@ export class Network {
           `Allocation rebate batch value does not meet minimum for claiming`,
           {
             batchValueGRT: formatGRT(totalFees),
-            rebateClaimBatchThreshold: formatGRT(this.rebateClaimBatchThreshold),
+            rebateClaimBatchThreshold: formatGRT(
+              this.rebateClaimBatchThreshold,
+            ),
             rebateClaimMaxBatchSize: this.rebateClaimMaxBatchSize,
             batchSize: parsedAllocs.length,
             allocations: parsedAllocs.map(allocation => {
