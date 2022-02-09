@@ -261,6 +261,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         })
       }
 
+      // If there are no eligible vouchers then bail
+      if (vouchers.eligible.length === 0) return
+
       const voucherBatch = vouchers.eligible.slice(
           0,
           this.voucherRedemptionMaxBatchSize,
@@ -274,7 +277,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(`Query voucher batch is ready for redemption`, {
           batchSize: voucherBatch.length,
           voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-          voucherRedemptionBatchThreshold: formatGRT(this.voucherRedemptionBatchThreshold),
+          voucherRedemptionBatchThreshold: formatGRT(
+            this.voucherRedemptionBatchThreshold,
+          ),
           batchValueGRT: formatGRT(batchValueGRT),
         })
         await this.submitVouchers(voucherBatch)
@@ -282,7 +287,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         logger.info(`Query voucher batch value too low for redemption`, {
           batchSize: voucherBatch.length,
           voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
-          voucherRedemptionBatchThreshold: formatGRT(this.voucherRedemptionBatchThreshold),
+          voucherRedemptionBatchThreshold: formatGRT(
+            this.voucherRedemptionBatchThreshold,
+          ),
           batchValueGRT: formatGRT(batchValueGRT),
         })
       }
