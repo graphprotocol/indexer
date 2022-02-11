@@ -1520,7 +1520,7 @@ export class Network {
       // more query fees collected should mean higher value rebates
       const allocationIds = allocations
         .sort((x, y) =>
-          y.queryFeesCollected?.gt(x.queryFeesCollected || 0) ? 0 : -1,
+          y.queryFeesCollected?.gt(x.queryFeesCollected || 0) ? 1 : -1,
         )
         .map(allocation => allocation.id)
         .slice(0, maxClaimsPerBatch)

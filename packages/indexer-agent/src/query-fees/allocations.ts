@@ -202,7 +202,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private startVoucherProcessing() {
     timer(30_000).pipe(async () => {
-      const pendingVouchers = await this.pendingVouchers()
+      const pendingVouchers = await this.pendingVouchers() // Ordered by value
 
       const logger = this.logger.child({})
 
@@ -214,14 +214,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               voucher.allocation,
             )
           ) {
-            logger.warn(
-              `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
-              { allocation: voucher.allocation },
-            )
             try {
               await this.models.vouchers.destroy({
                 where: { allocation: voucher.allocation },
               })
+              logger.warn(
+                `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
+                { allocation: voucher.allocation },
+              )
             } catch (err) {
               logger.warn(
                 `Failed to delete local vouchers copy, will try again later`,
@@ -264,6 +264,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // If there are no eligible vouchers then bail
       if (vouchers.eligible.length === 0) return
 
+      // Already ordered by value
       const voucherBatch = vouchers.eligible.slice(
           0,
           this.voucherRedemptionMaxBatchSize,
