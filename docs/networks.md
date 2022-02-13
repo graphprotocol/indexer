@@ -54,19 +54,21 @@ indexer. The only requirement is a minimum stake of 100k GRT.
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                  |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `Qmf5XXWA8zhHbdvWqtPcR3jFkmb5FLR4MAefEYx8E3pHfr`        |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXpGqkUZLLZ9T2xPERs8dCgCAWfTgagbnTY4wxRrXXzZa`        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.thegraph.com/network`                  |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)     |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts` |
-| `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`                | `50`                                                    |
+| `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                    |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
 option can be used.
 
-| Environment Variable                       | CLI Argument                   | Value                                                                            |
-| ------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_ALLOCATION_CLAIM_THRESHOLD` | `--allocation-claim-threshold` | Minimum query fees (in GRT) received for an allocation to collect and claim them |
+| Environment Variable                         | CLI Argument                      | Value                                                                                     |
+| -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 250)                |
+| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold	` | Minimum total rebates (in GRT) before a batched claim is processed (Default: 1000)        |
+| `INDEXER_AGENT_VOUCHER_EXPIRATION	`          | `--voucher-expiration	`           | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
 
 #### Indexer Service
 
@@ -183,9 +185,11 @@ In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
 option can be used.
 
-| Environment Variable                       | CLI Argument                   | Value                                                                            |
-| ------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_ALLOCATION_CLAIM_THRESHOLD` | `--allocation-claim-threshold` | Minimum query fees (in GRT) received for an allocation to collect and claim them |
+| Environment Variable                         | CLI Argument                      | Value                                                                                     |
+| -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
+| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate  (in GRT) received for an allocation to claim (Default: 250)               |
+| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold	` | Minimum total rebates (in GRT) before a batched claim is processed (Default: 1000)        |
+| `INDEXER_AGENT_VOUCHER_EXPIRATION	`          | `--voucher-expiration	`           | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |
 
 #### Indexer Service
 
