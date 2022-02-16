@@ -202,3 +202,42 @@ export const closeAllocation = async (
 
   return result.data.closeAllocation
 }
+
+export const refreshAllocation = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  poi: string | undefined,
+  amount: string,
+  force: boolean,
+): Promise<object> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation refreshAllocation(
+          $id: String!
+          $poi: String
+          $amount: String!
+          $force: Boolean
+        ) {
+          refreshAllocation(id: $id, poi: $poi, amount: $amount, force: $force) {
+            id
+            success
+            indexerRewards
+          }
+        }
+      `,
+      {
+        id: allocationID,
+        poi: poi,
+        amount,
+        force: force,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.closeAllocation
+}

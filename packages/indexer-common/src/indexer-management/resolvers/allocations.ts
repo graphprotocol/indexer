@@ -221,8 +221,8 @@ async function resolvePOI(
   poi: string | undefined,
   force: boolean,
 ): Promise<string> {
-  // poi = undefined, force=true -- submit even if poi is 0x0
-  // poi = defined,   force=true ---> no generatedPOI needed, just submit the POI supplied (with some sanitation?)
+  // poi = undefined, force=true  -- submit even if poi is 0x0
+  // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
   // poi = undefined, force=false -- submit with generated POI if one available
   // poi = defined,   force=false -- submit user defined POI only if generated POI matches
   switch (force) {
@@ -396,19 +396,19 @@ export default {
     logger.info('activeAllos', {
       activeAllocations,
     })
-    const existingAllocation = activeAllocations.find(
-      (allocation) => allocation.subgraphDeployment.id.value,
+    const allocation = activeAllocations.find(
+      (allocation) => allocation.subgraphDeployment.id.value == deploymentID,
     )
-    if (existingAllocation) {
+    if (allocation) {
       logger.warn('Already allocated to deployment', {
-        deployment: existingAllocation.subgraphDeployment.id,
-        activeAllocation: existingAllocation.id,
+        deployment: allocation.subgraphDeployment.id,
+        activeAllocation: allocation.id,
       })
       return {
         deploymentID,
         amount: allocationAmount.toString(),
         success: false,
-        failureReason: `An active allocation already exists for deployment '${existingAllocation.subgraphDeployment.id.display}'.`,
+        failureReason: `An active allocation already exists for deployment '${allocation.subgraphDeployment.id.display}'.`,
       }
     }
 
@@ -717,6 +717,305 @@ export default {
       )
 
       logger.info(`Successfully closed allocation`, {
+        deployment: eventLogs.subgraphDeploymentID,
+        allocation: eventLogs.allocationID,
+        indexer: eventLogs.indexer,
+        amountGRT: formatGRT(eventLogs.tokens),
+        effectiveAllocation: eventLogs.effectiveAllocation.toString(),
+        poi: eventLogs.poi,
+        epoch: eventLogs.epoch.toString(),
+        transaction: receipt.transactionHash,
+      })
+
+      logger.info(
+        `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
+      )
+      const offchainIndexingRule = {
+        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      } as Partial<IndexingRuleAttributes>
+
+      await models.IndexingRule.upsert(offchainIndexingRule)
+
+      // Since upsert succeeded, we _must_ have a rule
+      const updatedRule = await models.IndexingRule.findOne({
+        where: { identifier: offchainIndexingRule.identifier },
+      })
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      logger.info(`Offchain rule merged into indexing rules`, { rule: updatedRule })
+
+      return {
+        id: eventLogs.allocationID,
+        indexerRewards: formatGRT(eventLogs.tokens),
+        success: true,
+      }
+    } catch (error) {
+      logger.error(error.toString())
+      throw error
+    }
+  },
+
+  refreshAllocation: async (
+    {
+      id,
+      poi,
+      amount,
+      force,
+    }: { id: string; poi: string | undefined; amount: string; force: boolean },
+    {
+      address,
+      contracts,
+      indexingStatusResolver,
+      logger,
+      models,
+      networkSubgraph,
+      transactionManager,
+    }: IndexerManagementResolverContext,
+  ): Promise<object> => {
+    logger.info('Refresh allocation request received', {
+      allocationID: id,
+      poi,
+      amount,
+      force,
+    })
+
+    const allocationAmount = parseGRT(amount)
+    const activeAllocations: Allocation[] = []
+    // Fetch active allocations
+    try {
+      const result = await networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!, $status: AllocationStatus!) {
+            allocations(where: { indexer: $indexer, status: $status }, first: 1000) {
+              id
+              indexer {
+                id
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalAmount
+              }
+            }
+          }
+        `,
+        {
+          indexer: address.toLocaleLowerCase(),
+          status: AllocationStatus[AllocationStatus.Active],
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      activeAllocations.concat(result.data.allocations.map(parseGraphQLAllocation))
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE010, error)
+      logger.error(`Failed to query active indexer allocations`, {
+        err,
+      })
+      throw err
+    }
+
+    logger.info('activeAllos', {
+      activeAllocations,
+    })
+    const allocation = activeAllocations.find((allocation) => allocation.id == id)
+    if (!allocation) {
+      logger.error(`No existing `)
+      throw new Error(
+        `Allocation cannot be refreshed. No allocation with id '${id}' found onchain.`,
+      )
+    }
+
+    logger.info('zlog2', {
+      allocation,
+      deployment: allocation.subgraphDeployment.id.display,
+    })
+
+    try {
+      // Ensure allocation is old enough to close
+      const currentEpoch = await contracts.epochManager.currentEpoch()
+      if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
+        throw new Error(
+          `Allocation '${allocation.id}' cannot be closed until epoch ${currentEpoch.add(
+            1,
+          )}. (Allocations cannot be closed in the same epoch they were created).`,
+        )
+      }
+
+      const allocationPOI = await resolvePOI(
+        contracts,
+        transactionManager,
+        indexingStatusResolver,
+        allocation,
+        poi,
+        force,
+      )
+
+      // Double-check whether the allocation is still active on chain, to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const state = await contracts.staking.getAllocationState(allocation.id)
+      if (state !== 1) {
+        logger.warn(`Allocation has already been closed`)
+        throw new Error(`Allocation has already been closed`)
+      }
+
+      if (allocationAmount.lt('0')) {
+        logger.warn('Cannot reallocate a negative amount of GRT', {
+          amount: allocationAmount.toString(),
+        })
+        throw new Error('Cannot reallocate a negative amount of GRT')
+      }
+
+      if (allocationAmount.eq('0')) {
+        logger.warn('Cannot reallocate zero GRT, skipping this allocation', {
+          amount: allocationAmount.toString(),
+        })
+        throw new Error(`Cannot reallocate zero GRT`)
+      }
+
+      logger.info(`Reallocate to subgraph deployment`, {
+        existingAllocationAmount: formatGRT(allocation.allocatedTokens),
+        newAllocationAmount: formatGRT(amount),
+        epoch: currentEpoch.toString(),
+      })
+
+      // Identify how many GRT the indexer has staked
+      const freeStake = await contracts.staking.getIndexerCapacity(address)
+
+      // When reallocating, we will first close the old allocation and free up the GRT in that allocation
+      // This GRT will be available in addition to freeStake for the new allocation
+      const postCloseFreeStake = freeStake.add(allocation.allocatedTokens)
+
+      // If there isn't enough left for allocating, abort
+      if (postCloseFreeStake.lt(amount)) {
+        throw indexerError(
+          IndexerErrorCode.IE013,
+          new Error(
+            `Unable to allocate ${formatGRT(
+              amount,
+            )} GRT: indexer only has a free stake amount of ${formatGRT(
+              freeStake,
+            )} GRT, plus ${formatGRT(
+              allocation.allocatedTokens,
+            )} GRT from the existing allocation`,
+          ),
+        )
+      }
+
+      logger.debug('Obtain a unique Allocation ID')
+
+      // Obtain a unique allocation ID
+      const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
+        transactionManager.wallet.mnemonic.phrase,
+        currentEpoch.toNumber(),
+        allocation.subgraphDeployment.id,
+        activeAllocations.map((allocation) => allocation.id),
+      )
+
+      // Double-check whether the allocationID already exists on chain, to
+      // avoid unnecessary transactions.
+      // Note: We're checking the allocation state here, which is defined as
+      //
+      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //
+      // in the contracts.
+      const newAllocationState = await contracts.staking.getAllocationState(
+        newAllocationId,
+      )
+      if (newAllocationState !== 0) {
+        logger.warn(`Skipping Allocation as it already exists onchain`, {
+          indexer: address,
+          allocation: newAllocationId,
+          newAllocationState,
+        })
+        throw new Error('AllocationID already exists')
+      }
+
+      const proof = await allocationIdProof(allocationSigner, address, newAllocationId)
+
+      logger.info(`Executing reallocate transaction`, {
+        indexer: address,
+        amount: formatGRT(amount),
+        oldAllocation: allocation.id,
+        newAllocation: newAllocationId,
+        deployment: allocation.subgraphDeployment.id.toString(),
+        poi: allocationPOI,
+        proof,
+      })
+
+      const receipt = await transactionManager.executeTransaction(
+        async () =>
+          contracts.staking.estimateGas.closeAndAllocate(
+            allocation.id,
+            allocationPOI,
+            address,
+            allocation.subgraphDeployment.id.bytes32,
+            amount,
+            newAllocationId,
+            utils.hexlify(Array(32).fill(0)), // metadata
+            proof,
+          ),
+        async (gasLimit) =>
+          contracts.staking.closeAndAllocate(
+            allocation.id,
+            allocationPOI,
+            address,
+            allocation.subgraphDeployment.id.bytes32,
+            amount,
+            newAllocationId,
+            utils.hexlify(Array(32).fill(0)), // metadata
+            proof,
+            { gasLimit },
+          ),
+        logger.child({ action: 'closeAndAllocate' }),
+      )
+
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        throw new Error(`Allocation '${newAllocationId}' could not be closed: ${receipt}`)
+      }
+
+      const events = receipt.events || receipt.logs
+      const event =
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        events.find((event: any) =>
+          event.topics.includes(
+            contracts.staking.interface.getEventTopic('AllocationCreated'),
+          ),
+        )
+      if (!event) {
+        throw indexerError(
+          IndexerErrorCode.IE014,
+          new Error(`Allocation was never mined`),
+        )
+      }
+
+      const eventLogs = contracts.staking.interface.decodeEventLog(
+        'AllocationCreated',
+        event.data,
+        event.topics,
+      )
+
+      // logger.info(`Successfully reallocated to subgraph deployment`, {
+      //   deployment: deployment.display,
+      //   amountGRT: formatGRT(eventInputs.tokens),
+      //   allocation: eventInputs.allocationID,
+      //   epoch: eventInputs.epoch.toString(),
+      // })
+
+      logger.info(`Successfully refreshed allocation`, {
         deployment: eventLogs.subgraphDeploymentID,
         allocation: eventLogs.allocationID,
         indexer: eventLogs.indexer,
