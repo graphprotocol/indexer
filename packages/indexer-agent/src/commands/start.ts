@@ -1,28 +1,28 @@
 import path from 'path'
 
 import { Argv } from 'yargs'
-import { Umzug, SequelizeStorage } from 'umzug'
+import { SequelizeStorage, Umzug } from 'umzug'
 import {
-  createLogger,
-  SubgraphDeploymentID,
+  connectContracts,
   connectDatabase,
-  parseGRT,
+  createLogger,
   createMetrics,
   createMetricsServer,
+  parseGRT,
+  SubgraphDeploymentID,
   toAddress,
-  connectContracts,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementServer,
   createIndexerManagementClient,
+  createIndexerManagementServer,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
   IndexingStatusResolver,
-  registerIndexerErrorMetrics,
   Network,
   NetworkSubgraph,
+  registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -31,6 +31,7 @@ import { startCostModelAutomation } from '../cost'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
+import { AllocationManagementMode } from '../types'
 
 export default {
   command: 'start',
@@ -406,6 +407,14 @@ export default {
         required: false,
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
+      })
+      .option('allocation-management', {
+        description:
+          'Indexer agent allocation management automation mode (auto|manual) ',
+        type: 'string',
+        required: false,
+        default: 'auto',
+        group: 'Indexer Infrastructure',
       })
   },
   handler: async (
@@ -784,6 +793,10 @@ export default {
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
+    const allocationManagementMode: AllocationManagementMode =
+      AllocationManagementMode[
+        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+      ]
     await startAgent({
       logger,
       metrics,
@@ -796,6 +809,7 @@ export default {
         (s: string) => new SubgraphDeploymentID(s),
       ),
       receiptCollector,
+      allocationManagementMode,
     })
   },
 }
