@@ -1,28 +1,28 @@
 import path from 'path'
 
 import { Argv } from 'yargs'
-import { Umzug, SequelizeStorage } from 'umzug'
+import { SequelizeStorage, Umzug } from 'umzug'
 import {
-  createLogger,
-  SubgraphDeploymentID,
+  connectContracts,
   connectDatabase,
-  parseGRT,
+  createLogger,
   createMetrics,
   createMetricsServer,
+  parseGRT,
+  SubgraphDeploymentID,
   toAddress,
-  connectContracts,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementServer,
   createIndexerManagementClient,
+  createIndexerManagementServer,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
   IndexingStatusResolver,
-  registerIndexerErrorMetrics,
   Network,
   NetworkSubgraph,
+  registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -31,6 +31,7 @@ import { startCostModelAutomation } from '../cost'
 import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
+import { AllocationManagementMode } from '../types'
 
 export default {
   command: 'start',
@@ -407,6 +408,14 @@ export default {
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
+      .option('allocation-management', {
+        description:
+          'Indexer agent allocation management automation mode (auto|manual) ',
+        type: 'string',
+        required: false,
+        default: 'auto',
+        group: 'Indexer Infrastructure',
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -546,7 +555,11 @@ export default {
     await sequelize.sync()
     logger.info(`Successfully synced database models`)
 
-    logger.info(`Connect to Ethereum`)
+    logger.info(`Connect to Ethereum`, {
+      provider: argv.ethereum,
+      network: argv.ethereumNetwork,
+    })
+
     let providerUrl
     try {
       providerUrl = new URL(argv.ethereum)
@@ -585,7 +598,7 @@ export default {
       password = providerUrl.password
     }
 
-    const ethereum = new providers.StaticJsonRpcProvider(
+    const ethereumProvider = new providers.StaticJsonRpcProvider(
       {
         url: providerUrl.toString(),
         user: username,
@@ -594,9 +607,9 @@ export default {
       },
       argv.ethereumNetwork,
     )
-    ethereum.pollingInterval = argv.ethereumPollingInterval
+    ethereumProvider.pollingInterval = argv.ethereumPollingInterval
 
-    ethereum.on('debug', info => {
+    ethereumProvider.on('debug', info => {
       if (info.action === 'response') {
         ethProviderMetrics.requests.inc({
           method: info.request.method,
@@ -610,30 +623,39 @@ export default {
       }
     })
 
-    ethereum.on('network', (newNetwork, oldNetwork) => {
+    ethereumProvider.on('network', (newNetwork, oldNetwork) => {
       logger.trace('Ethereum network change', {
         oldNetwork: oldNetwork,
         newNetwork: newNetwork,
       })
     })
 
+    const networkMeta = await ethereumProvider.getNetwork()
     logger.info(`Connected to Ethereum`, {
-      pollingInterval: ethereum.pollingInterval,
-      network: await ethereum.detectNetwork(),
+      provider: ethereumProvider.connection.url,
+      pollingInterval: ethereumProvider.pollingInterval,
+      network: await ethereumProvider.detectNetwork(),
     })
 
     logger.info(`Connect wallet`, {
-      network: ethereum.network.name,
-      chainId: ethereum.network.chainId,
+      network: ethereumProvider.network.name,
+      chainId: ethereumProvider.network.chainId,
     })
     let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(ethereum)
+    wallet = wallet.connect(ethereumProvider)
     logger.info(`Connected wallet`)
 
-    logger.info(`Connect to contracts`)
+    logger.info(`Connect to contracts`, {
+      network: networkMeta.name,
+      chainId: networkMeta.chainId,
+      providerNetworkChainID: ethereumProvider.network.chainId,
+    })
     let contracts = undefined
     try {
-      contracts = await connectContracts(wallet, ethereum.network.chainId)
+      contracts = await connectContracts(
+        wallet,
+        ethereumProvider.network.chainId,
+      )
     } catch (err) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
@@ -679,7 +701,7 @@ export default {
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
       logger,
-      ethereum,
+      ethereumProvider,
       contracts,
       wallet,
       indexerAddress,
@@ -763,7 +785,7 @@ export default {
 
     startCostModelAutomation({
       logger,
-      ethereum,
+      ethereum: ethereumProvider,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
       injectDai: argv.injectDai,
@@ -784,6 +806,10 @@ export default {
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
+    const allocationManagementMode: AllocationManagementMode =
+      AllocationManagementMode[
+        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+      ]
     await startAgent({
       logger,
       metrics,
@@ -796,6 +822,7 @@ export default {
         (s: string) => new SubgraphDeploymentID(s),
       ),
       receiptCollector,
+      allocationManagementMode,
     })
   },
 }

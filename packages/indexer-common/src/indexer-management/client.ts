@@ -14,10 +14,11 @@ import { NetworkSubgraph } from '../network-subgraph'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
-import indexingRuleResolvers from './resolvers/indexing-rules'
-import statusResolvers from './resolvers/indexer-status'
+import allocationResolvers from './resolvers/allocations'
 import costModelResolvers from './resolvers/cost-models'
+import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
+import statusResolvers from './resolvers/indexer-status'
 import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
@@ -54,6 +55,53 @@ const SCHEMA_SDL = gql`
     deployment
     subgraph
     group
+  }
+
+  input AllocationFilter {
+    status: String
+    allocation: String
+    subgraphDeployment: String
+  }
+
+  enum AllocationStatus {
+    Null # == indexer == address(0)
+    Active # == not Null && tokens > 0 #
+    Closed # == Active && closedAtEpoch != 0. Still can collect, while you are waiting to be finalized. a.k.a settling
+    Finalized # == Closing && closedAtEpoch + channelDisputeEpochs > now(). Note, the subgraph has no way to return this value. it is implied
+    Claimed # == not Null && tokens == 0 - i.e. finalized, and all tokens withdrawn
+  }
+
+  type Allocation {
+    id: String!
+    indexer: String!
+    subgraphDeployment: String!
+    allocatedTokens: String!
+    createdAtEpoch: Int!
+    closedAtEpoch: Int
+    ageInEpochs: Int!
+    indexingRewards: String!
+    queryFeesCollected: String!
+    signalledTokens: BigInt!
+    stakedTokens: BigInt!
+    status: AllocationStatus!
+  }
+
+  type CreateAllocationResult {
+    deploymentID: String!
+    amount: String!
+  }
+
+  type CloseAllocationResult {
+    id: String!
+    allocatedTokens: String!
+    indexingRewards: String!
+  }
+
+  type reallocateAllocationResult {
+    closedAllocationID: String!
+    indexingRewardsCollected: String!
+    createdAllocationID: String!
+    createdAllocationStake: String!
   }
 
   type POIDispute {
@@ -213,6 +261,8 @@ const SCHEMA_SDL = gql`
     dispute(allocationID: String!): POIDispute
     disputes(status: String!, minClosedEpoch: Int!): [POIDispute]!
     disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
+
+    allocations(filter: AllocationFilter!): [Allocation!]!
   }
 
   type Mutation {
@@ -224,6 +274,15 @@ const SCHEMA_SDL = gql`
 
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!
+
+    createAllocation(deploymentID: String!, amount: String!): CreateAllocationResult!
+    closeAllocation(id: String!, poi: String, force: Boolean): CloseAllocationResult!
+    reallocateAllocation(
+      id: String!
+      poi: String
+      amount: String!
+      force: Boolean
+    ): reallocateAllocationResult!
   }
 `
 
@@ -310,6 +369,7 @@ export const createIndexerManagementClient = async (
     ...statusResolvers,
     ...costModelResolvers,
     ...poiDisputeResolvers,
+    ...allocationResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()

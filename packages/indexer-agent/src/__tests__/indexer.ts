@@ -83,7 +83,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
 }
 
 /**
- * Parses a POI dispute returned from the indexer management GraphQL
+ * Parses a PoI dispute returned from the indexer management GraphQL
  * API into normalized form.
  */
 const disputeFromGraphQL = (
@@ -197,7 +197,7 @@ describe('Indexer tests', () => {
   afterEach(teardown)
 
   // test('Parse Dispute from GraphQL', async () => {})
-  test('Store POI Disputes rejects invalid indexer address', async () => {
+  test('Store PoI Disputes rejects invalid indexer address', async () => {
     const badDispute: POIDisputeAttributes = {
       allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
       subgraphDeploymentID: 'QmRhYzT8HEZ9LziQhP6JfNfd4co9A7muUYQhPMJsMUojSF',
@@ -222,11 +222,11 @@ describe('Indexer tests', () => {
     const disputes = [badDispute]
 
     await expect(indexer.storePoiDisputes(disputes)).rejects.toThrow(
-      'Failed to store potential POI disputes',
+      'Failed to store potential PoI disputes',
     )
   })
 
-  test('Store POI Disputes is idempotent', async () => {
+  test('Store PoI Disputes is idempotent', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -244,7 +244,7 @@ describe('Indexer tests', () => {
     )
   })
 
-  test('Fetch POI Disputes', async () => {
+  test('Fetch PoIDisputes', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

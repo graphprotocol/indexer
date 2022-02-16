@@ -35,7 +35,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
 }
 
 /**
- * Parses a POI dispute returned from the indexer management GraphQL
+ * Parses a PoI dispute returned from the indexer management GraphQL
  * API into normalized form.
  */
 const disputeFromGraphQL = (
@@ -220,7 +220,7 @@ export class Indexer {
       if (result.error) {
         throw result.error
       }
-      this.logger.debug('Fetched indexing rules', {
+      this.logger.trace('Fetched indexing rules', {
         count: result.data.indexingRules.length,
         rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
           return {
@@ -405,7 +405,7 @@ export class Indexer {
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE039, error)
-      this.logger.error('Failed to store potential POI disputes', {
+      this.logger.error('Failed to store potential PoI disputes', {
         err,
       })
       throw err

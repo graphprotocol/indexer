@@ -148,6 +148,12 @@ export class IndexingStatusResolver {
             .toPromise()
 
           if (result.error) {
+            if (
+              result.error.message &&
+              result.error.message.includes('DeploymentNotFound')
+            ) {
+              return undefined
+            }
             throw result.error
           }
           this.logger.trace('Reference PoI generated', {
@@ -161,7 +167,8 @@ export class IndexingStatusResolver {
           return result.data.proofOfIndexing
         },
         {
-          retries: 10,
+          retries: 5,
+          maxTimeout: 10000,
           onFailedAttempt: (err) => {
             this.logger.warn(`Proof of indexing could not be queried`, {
               attempt: err.attemptNumber,

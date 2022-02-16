@@ -287,10 +287,13 @@ export default {
     })
     logger.info(`Successfully connected to network`)
 
-    logger.info('Connecting to Ethereum', { provider: argv.ethereum })
-    let ethereum
+    logger.info('Connecting to Ethereum', {
+      provider: argv.ethereum,
+      network: argv.ethereumNetwork,
+    })
+    let providerUrl
     try {
-      ethereum = new URL(argv.ethereum)
+      providerUrl = new URL(argv.ethereum)
     } catch (err) {
       logger.critical(`Invalid Ethereum URL`, {
         err: indexerError(IndexerErrorCode.IE002, err),
@@ -299,6 +302,7 @@ export default {
       process.exit(1)
       return
     }
+
     const web3ProviderMetrics = {
       requests: new metrics.client.Counter({
         name: 'eth_provider_requests',
@@ -308,17 +312,28 @@ export default {
       }),
     }
 
-    if (ethereum.password && ethereum.protocol == 'http:') {
+    if (providerUrl.password && providerUrl.protocol == 'http:') {
       logger.warn(
         'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
       )
     }
 
+    // Prevent passing empty basicAuth info
+    let username
+    let password
+    if (providerUrl.username == '' && providerUrl.password == '') {
+      username = undefined
+      password = undefined
+    } else {
+      username = providerUrl.username
+      password = providerUrl.password
+    }
+
     const ethereumProvider = new providers.StaticJsonRpcProvider(
       {
-        url: ethereum.toString(),
-        user: ethereum.username,
-        password: ethereum.password,
+        url: providerUrl.toString(),
+        user: username,
+        password: password,
         allowInsecureAuthentication: true,
       },
       argv.ethereumNetwork,
@@ -371,7 +386,16 @@ export default {
       throw error
     }
 
-    logger.info('Successfully connected to contracts')
+    logger.info('Successfully connected to contracts', {
+      curation: contracts.curation.address,
+      disputeManager: contracts.disputeManager.address,
+      epochManager: contracts.epochManager.address,
+      gns: contracts.gns.address,
+      rewardsManager: contracts.rewardsManager.address,
+      serviceRegistry: contracts.serviceRegistry.address,
+      staking: contracts.staking.address,
+      token: contracts.token.address,
+    })
 
     const receiptManager = new AllocationReceiptManager(
       sequelize,
