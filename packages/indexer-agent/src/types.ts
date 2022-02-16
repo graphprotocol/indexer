@@ -3,6 +3,11 @@ import { Network, NetworkSubgraph } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { ReceiptCollector } from './query-fees'
 
+export enum AllocationManagementMode {
+  AUTO,
+  MANUAL,
+}
+
 export interface AgentConfig {
   logger: Logger
   metrics: Metrics
@@ -13,4 +18,5 @@ export interface AgentConfig {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
+  allocationManagementMode: AllocationManagementMode
 }

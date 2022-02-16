@@ -26,7 +26,7 @@ import {
   SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
-import { AgentConfig } from './types'
+import { AgentConfig, AllocationManagementMode } from './types'
 import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
@@ -130,6 +130,7 @@ class Agent {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
+  allocationManagementMode: AllocationManagementMode
 
   constructor(
     logger: Logger,
@@ -141,6 +142,7 @@ class Agent {
     registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
+    allocationManagementMode: AllocationManagementMode,
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
@@ -151,6 +153,7 @@ class Agent {
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
+    this.allocationManagementMode = allocationManagementMode
   }
 
   async start(): Promise<Agent> {
@@ -444,14 +447,26 @@ class Agent {
           )
 
           // Reconcile allocations
-          await this.reconcileAllocations(
-            activeAllocations,
-            targetAllocations,
-            indexingRules,
-            currentEpoch.toNumber(),
-            currentEpochStartBlock,
-            maxAllocationEpochs,
-          )
+          if (this.allocationManagementMode == AllocationManagementMode.AUTO) {
+            await this.reconcileAllocations(
+              activeAllocations,
+              targetAllocations,
+              indexingRules,
+              currentEpoch.toNumber(),
+              currentEpochStartBlock,
+              maxAllocationEpochs,
+            )
+          } else if (
+            this.allocationManagementMode == AllocationManagementMode.MANUAL
+          ) {
+            this.logger.trace(
+              `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+              {
+                activeAllocations,
+                targetAllocations,
+              },
+            )
+          }
         } catch (err) {
           this.logger.warn(`Failed to reconcile indexer and network`, {
             err: indexerError(IndexerErrorCode.IE005, err),
@@ -517,7 +532,7 @@ class Agent {
             pool.closedAtEpochStartBlockHash!,
           )
 
-          // Todo: Lazily fetch this, only if the first reference POI doesn't match
+          // Todo: Lazily fetch this, only if the first reference PoI doesn't match
           const previousEpochStartBlock = await this.network.ethereum.getBlock(
             pool.previousEpochStartBlockHash!,
           )
@@ -1096,6 +1111,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.registerIndexer,
     config.offchainSubgraphs,
     config.receiptCollector,
+    config.allocationManagementMode,
   )
   return await agent.start()
 }

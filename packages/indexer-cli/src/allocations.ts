@@ -4,15 +4,30 @@ import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
 import { pickFields } from './command-helpers'
+import { IndexerManagementClient } from '@graphprotocol/indexer-common'
+import gql from 'graphql-tag'
+import {
+  CloseAllocationResult,
+  CreateAllocationResult,
+  ReallocateAllocationResult,
+} from '@graphprotocol/indexer-common/dist/indexer-management/resolvers/allocations'
 
-interface IndexerAllocation {
+export interface IndexerAllocation {
   id: number
-  allocatedTokens: BigNumber
-  createdAtEpoch: number
-  closedAtEpoch: number | null
+  indexer: string
   subgraphDeployment: string
+  allocatedTokens: BigNumber
   signalledTokens: BigNumber
   stakedTokens: BigNumber
+  createdAtEpoch: number
+  closedAtEpoch: number | null
+  ageInEpochs: number
+  closeDeadlineEpoch: number
+  closeDeadlineBlocksRemaining: number
+  closeDeadlineTimeRemaining: number
+  indexingRewards: BigNumber
+  queryFeesCollected: BigNumber
+  status: string
 }
 
 const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
@@ -21,13 +36,21 @@ const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
   (x: never) => any
 > = {
   id: x => x,
+  indexer: x => x,
   subgraphDeployment: (d: SubgraphDeploymentID) =>
     typeof d === 'string' ? d : d.ipfsHash,
   allocatedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
-  createdAtEpoch: nullPassThrough((x: string) => parseInt(x)),
-  closedAtEpoch: nullPassThrough((x: string) => parseInt(x)),
   signalledTokens: nullPassThrough((x: string) => BigNumber.from(x)),
   stakedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
+  createdAtEpoch: nullPassThrough((x: string) => parseInt(x)),
+  closedAtEpoch: nullPassThrough((x: string) => parseInt(x)),
+  ageInEpochs: nullPassThrough((x: string) => parseInt(x)),
+  closeDeadlineEpoch: nullPassThrough((x: string) => parseInt(x)),
+  closeDeadlineBlocksRemaining: nullPassThrough((x: string) => parseInt(x)),
+  closeDeadlineTimeRemaining: nullPassThrough((x: string) => parseInt(x)),
+  indexingRewards: nullPassThrough((x: string) => BigNumber.from(x)),
+  queryFeesCollected: nullPassThrough((x: string) => BigNumber.from(x)),
+  status: x => x,
 }
 
 const ALLOCATION_FORMATTERS: Record<
@@ -35,13 +58,21 @@ const ALLOCATION_FORMATTERS: Record<
   (x: never) => string | null
 > = {
   id: nullPassThrough(x => x),
+  indexer: nullPassThrough(x => x),
   subgraphDeployment: (d: SubgraphDeploymentID) =>
     typeof d === 'string' ? d : d.ipfsHash,
   allocatedTokens: x => utils.commify(formatGRT(x)),
-  createdAtEpoch: x => x,
-  closedAtEpoch: x => x,
   signalledTokens: x => utils.commify(formatGRT(x)),
   stakedTokens: x => utils.commify(formatGRT(x)),
+  createdAtEpoch: x => x,
+  closedAtEpoch: x => x,
+  ageInEpochs: x => x,
+  closeDeadlineEpoch: x => x,
+  closeDeadlineBlocksRemaining: x => x,
+  closeDeadlineTimeRemaining: x => x,
+  indexingRewards: x => utils.commify(formatGRT(x)),
+  queryFeesCollected: x => utils.commify(formatGRT(x)),
+  status: x => x,
 }
 
 /**
@@ -107,7 +138,7 @@ export const displayIndexerAllocations = (
     : outputFormat === 'yaml'
     ? yaml.stringify(allocations).trim()
     : allocations.length === 0
-    ? 'No data'
+    ? 'No allocations found'
     : table(
         [
           Object.keys(allocations[0]),
@@ -132,4 +163,105 @@ export const displayIndexerAllocation = (
 
 function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
   return (x: T | null) => (x === null ? null : fn(x))
+}
+
+export const createAllocation = async (
+  client: IndexerManagementClient,
+  deploymentID: string,
+  amount: BigNumber,
+): Promise<CreateAllocationResult> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation createAllocation($deploymentID: String!, $amount: String!) {
+          createAllocation(deploymentID: $deploymentID, amount: $amount) {
+            deploymentID
+            amount
+          }
+        }
+      `,
+      {
+        deploymentID,
+        amount: amount.toString(),
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.createAllocation
+}
+
+export const closeAllocation = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  poi: string | undefined,
+  force: boolean,
+): Promise<CloseAllocationResult> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation closeAllocation($id: String!, $poi: String, $force: Boolean) {
+          closeAllocation(id: $id, poi: $poi, force: $force) {
+            id
+            allocatedTokens
+            indexingRewards
+          }
+        }
+      `,
+      {
+        id: allocationID,
+        poi: poi,
+        force: force,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.closeAllocation
+}
+
+export const reallocateAllocation = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  poi: string | undefined,
+  amount: BigNumber,
+  force: boolean,
+): Promise<ReallocateAllocationResult> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation reallocateAllocation(
+          $id: String!
+          $poi: String
+          $amount: String!
+          $force: Boolean
+        ) {
+          reallocateAllocation(id: $id, poi: $poi, amount: $amount, force: $force) {
+            closedAllocationID
+            indexingRewardsCollected
+            createdAllocationID
+            createdAllocationStake
+          }
+        }
+      `,
+      {
+        id: allocationID,
+        poi: poi,
+        amount: amount.toString(),
+        force: force,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.reallocateAllocation
 }
