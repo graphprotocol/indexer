@@ -51,11 +51,6 @@ export async function down({ context }: Context): Promise<void> {
         'allocationLifetime',
         { transaction },
       )
-
-      logger.info(`Remove 'int_IndexingRules_allocationLifetime' custom type`)
-      await queryInterface.sequelize.query(
-        `delete  from pg_type where typname = 'int_IndexingRules_allocationLifetime'`,
-      )
     }
   })
 }
