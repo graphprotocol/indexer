@@ -66,9 +66,9 @@ option can be used.
 
 | Environment Variable                         | CLI Argument                      | Value                                                                                     |
 | -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 250)                |
-| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold	` | Minimum total rebates (in GRT) before a batched claim is processed (Default: 1000)        |
-| `INDEXER_AGENT_VOUCHER_EXPIRATION	`          | `--voucher-expiration	`           | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
+| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 200)                |
+| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 2000)        |
+| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
 
 #### Indexer Service
 
@@ -187,9 +187,9 @@ option can be used.
 
 | Environment Variable                         | CLI Argument                      | Value                                                                                     |
 | -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate  (in GRT) received for an allocation to claim (Default: 250)               |
-| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold	` | Minimum total rebates (in GRT) before a batched claim is processed (Default: 1000)        |
-| `INDEXER_AGENT_VOUCHER_EXPIRATION	`          | `--voucher-expiration	`           | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |
+| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 200)                |
+| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 2000)        |
+| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |
 
 #### Indexer Service
 
