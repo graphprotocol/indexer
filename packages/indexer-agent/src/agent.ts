@@ -908,28 +908,42 @@ class Agent {
     )
 
     if (expiredAllocations.length > 0) {
-      logger.info(`Reallocating expired allocations`, {
-        number: expiredAllocations.length,
-        expiredAllocations: expiredAllocations.map(allocation => allocation.id),
-      })
+      if (rule?.autoRenewal) {
+        logger.info(`Reallocating expired allocations`, {
+          number: expiredAllocations.length,
+          expiredAllocations: expiredAllocations.map(
+            allocation => allocation.id,
+          ),
+        })
 
-      // We do a synchronous for-loop and await each iteration so that we can patch the contents
-      // of activeAllocations with new allocations as they are made. This is important so that each
-      // iteration gets an up to date copy of activeAllocations
-      for (let i = 0; i <= activeAllocations.length - 1; i++) {
-        const oldAllocation = activeAllocations[i]
-        if (allocationInList(expiredAllocations, oldAllocation)) {
-          const { newAllocation, reallocated } = await this.reallocate(
-            epochStartBlock,
-            oldAllocation,
-            desiredAllocationAmount,
-            activeAllocations,
-          )
-          if (reallocated) {
-            // Patch existing index with new allocation
-            activeAllocations[i] = newAllocation as Allocation
+        // We do a synchronous for-loop and await each iteration so that we can patch the contents
+        // of activeAllocations with new allocations as they are made. This is important so that each
+        // iteration gets an up to date copy of activeAllocations
+        for (let i = 0; i <= activeAllocations.length - 1; i++) {
+          const oldAllocation = activeAllocations[i]
+          if (allocationInList(expiredAllocations, oldAllocation)) {
+            const { newAllocation, reallocated } = await this.reallocate(
+              epochStartBlock,
+              oldAllocation,
+              desiredAllocationAmount,
+              activeAllocations,
+            )
+            if (reallocated) {
+              // Patch existing index with new allocation
+              activeAllocations[i] = newAllocation as Allocation
+            }
           }
         }
+      } else {
+        logger.info(
+          `Skipping reallocating of expired allocations since the corresponding rule has 'autoRenewal' = False`,
+          {
+            number: expiredAllocations.length,
+            expiredAllocations: expiredAllocations.map(
+              allocation => allocation.id,
+            ),
+          },
+        )
       }
     }
   }

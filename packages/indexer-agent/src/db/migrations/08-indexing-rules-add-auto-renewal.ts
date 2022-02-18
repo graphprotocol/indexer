@@ -22,18 +22,17 @@ export async function up({ context }: Context): Promise<void> {
 
   logger.debug(`Checking if 'IndexingRules' table needs to be migrated`)
   const table = await queryInterface.describeTable('IndexingRules')
-  const requireSupportedColumn = table.requireSupported
-  if (requireSupportedColumn) {
-    logger.info(
-      `'requireSupported' columns already exist, migration not necessary`,
-    )
+  const autoRenewal = table.autoRenewal
+  if (autoRenewal) {
+    logger.info(`'autoRenewal' columns already exist, migration not necessary`)
     return
   }
 
-  logger.info(`Add 'requireSupported' column to 'IndexingRules' table`)
-  await queryInterface.addColumn('IndexingRules', 'requireSupported', {
+  logger.info(`Add 'autoRenewal' column to 'IndexingRules' table`)
+  await queryInterface.addColumn('IndexingRules', 'autoRenewal', {
     type: DataTypes.BOOLEAN,
-    defaultValue: false,
+    allowNull: false,
+    defaultValue: true,
   })
 }
 
@@ -44,10 +43,10 @@ export async function down({ context }: Context): Promise<void> {
     const tables = await queryInterface.showAllTables()
 
     if (tables.includes('IndexingRules')) {
-      logger.info(`Remove 'requireSupported' column`)
+      logger.info(`Remove 'autoRenewal' column`)
       await context.queryInterface.removeColumn(
         'IndexingRules',
-        'requireSupported',
+        'autoRenewal',
         { transaction },
       )
     }

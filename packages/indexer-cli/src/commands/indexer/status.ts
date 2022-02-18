@@ -119,6 +119,7 @@ module.exports = {
                 identifierType
                 allocationAmount
                 allocationLifetime
+                autoRenewal
                 parallelAllocations
                 maxAllocationPercentage
                 minSignal

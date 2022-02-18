@@ -30,12 +30,14 @@ export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
     return s as IndexingDecisionBasis
   }
 }
+
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
 ): boolean => {
   const s = val && val.toString().toLowerCase().trim()
   return s != 'false' && s != 'f' && s != '0'
 }
+
 function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
   return (x: T | null) => (x === null ? null : fn(x))
 }
@@ -47,6 +49,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   identifierType: x => x,
   allocationAmount: nullPassThrough(parseGRT),
   allocationLifetime: nullPassThrough(parseInt),
+  autoRenewal: nullPassThrough(parseBoolean),
   parallelAllocations: nullPassThrough(parseInt),
   minSignal: nullPassThrough(parseGRT),
   maxSignal: nullPassThrough(parseGRT),
@@ -68,6 +71,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   identifierType: x => x,
   allocationAmount: nullPassThrough(x => utils.commify(formatGRT(x))),
   allocationLifetime: nullPassThrough((x: number) => x.toString()),
+  autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
   maxSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
   minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
@@ -89,6 +93,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   identifierType: x => x,
   allocationAmount: nullPassThrough((x: string) => BigNumber.from(x)),
   allocationLifetime: nullPassThrough((x: string) => parseInt(x)),
+  autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: string) => parseInt(x)),
   minSignal: nullPassThrough((x: string) => BigNumber.from(x)),
   maxSignal: nullPassThrough((x: string) => BigNumber.from(x)),
@@ -110,6 +115,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   identifierType: x => x,
   allocationAmount: nullPassThrough((x: BigNumber) => x.toString()),
   allocationLifetime: nullPassThrough((x: number) => x),
+  autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: number) => x),
   minSignal: nullPassThrough((x: BigNumber) => x.toString()),
   maxSignal: nullPassThrough((x: BigNumber) => x.toString()),
@@ -257,6 +263,7 @@ export const indexingRules = async (
             identifierType
             allocationAmount
             allocationLifetime
+            autoRenewal
             parallelAllocations
             maxAllocationPercentage
             minSignal
@@ -294,6 +301,7 @@ export const indexingRule = async (
             identifierType
             allocationAmount
             allocationLifetime
+            autoRenewal
             parallelAllocations
             maxAllocationPercentage
             minSignal
@@ -334,6 +342,7 @@ export const setIndexingRule = async (
             identifierType
             allocationAmount
             allocationLifetime
+            autoRenewal
             parallelAllocations
             maxAllocationPercentage
             minSignal

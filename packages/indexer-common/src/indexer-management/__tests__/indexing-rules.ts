@@ -38,6 +38,7 @@ const SET_INDEXING_RULE_MUTATION = gql`
       identifierType
       allocationAmount
       allocationLifetime
+      autoRenewal
       parallelAllocations
       maxAllocationPercentage
       minSignal
@@ -70,6 +71,7 @@ const INDEXING_RULE_QUERY = gql`
       identifierType
       allocationAmount
       allocationLifetime
+      autoRenewal
       parallelAllocations
       maxAllocationPercentage
       minSignal
@@ -90,6 +92,7 @@ const INDEXING_RULES_QUERY = gql`
       identifierType
       allocationAmount
       allocationLifetime
+      autoRenewal
       parallelAllocations
       maxAllocationPercentage
       minSignal
@@ -166,6 +169,7 @@ describe('Indexing rules', () => {
     const expected = {
       ...input,
       allocationLifetime: null,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       minSignal: null,
@@ -195,7 +199,8 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
-      allocationLifetime: 2,
+      allocationLifetime: 10,
+      autoRenewal: true,
       parallelAllocations: 1,
       maxAllocationPercentage: 0.5,
       minSignal: '2',
@@ -235,6 +240,7 @@ describe('Indexing rules', () => {
     const original = {
       ...originalInput,
       allocationLifetime: null,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -256,7 +262,7 @@ describe('Indexing rules', () => {
       allocationAmount: null,
       maxSignal: '3',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      allocationLifetime: 7,
+      autoRenewal: true,
     }
 
     const expected = {
@@ -289,6 +295,7 @@ describe('Indexing rules', () => {
     const original = {
       ...originalInput,
       allocationLifetime: null,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -311,6 +318,7 @@ describe('Indexing rules', () => {
       maxSignal: '3',
       decisionBasis: IndexingDecisionBasis.ALWAYS,
       allocationLifetime: 2,
+      autoRenewal: false,
       requireSupported: false,
     }
 
@@ -338,7 +346,9 @@ describe('Indexing rules', () => {
     const updateAgain = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      allocationLifetime: null,
       decisionBasis: IndexingDecisionBasis.NEVER,
+      autoRenewal: true,
     }
 
     const expectedAgain = {
@@ -380,11 +390,13 @@ describe('Indexing rules', () => {
       minSignal: '2',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
+      autoRenewal: false,
     }
 
     const globalExpected = {
       ...globalInput,
       allocationLifetime: null,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -398,6 +410,7 @@ describe('Indexing rules', () => {
     const deploymentExpected = {
       ...deploymentInput,
       allocationLifetime: null,
+      autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -449,12 +462,14 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
-      allocationLifetime: 13,
+      allocationLifetime: 20,
+      autoRenewal: false,
     }
 
     const expected = {
       ...input,
-      allocationLifetime: 13,
+      allocationLifetime: 20,
+      autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -499,6 +514,7 @@ describe('Indexing rules', () => {
     const expectedBefore = {
       ...input,
       allocationLifetime: null,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       minSignal: null,
@@ -549,6 +565,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: '1',
       allocationLifetime: 15,
       requireSupported: true,
+      autoRenewal: true,
     }
 
     const deploymentInput = {
@@ -557,12 +574,15 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      allocationLifetime: 10,
+      autoRenewal: false,
       requireSupported: false,
     }
 
     const globalExpected = {
       ...globalInput,
       allocationLifetime: 15,
+      autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -574,7 +594,8 @@ describe('Indexing rules', () => {
 
     const deploymentExpected = {
       ...deploymentInput,
-      allocationLifetime: null,
+      allocationLifetime: 10,
+      autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -587,7 +608,8 @@ describe('Indexing rules', () => {
 
     const deploymentMergedExpected = {
       ...deploymentInput,
-      allocationLifetime: 15,
+      allocationLifetime: 10,
+      autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
       maxSignal: null,
@@ -672,6 +694,7 @@ describe('Indexing rules', () => {
         identifier: 'global',
         identifierType: SubgraphIdentifierType.GROUP,
         allocationLifetime: null,
+        autoRenewal: true,
         maxAllocationPercentage: null,
         maxSignal: null,
         minAverageQueryFees: null,
@@ -727,6 +750,7 @@ describe('Indexing rules', () => {
         identifier: 'global',
         identifierType: SubgraphIdentifierType.GROUP,
         allocationLifetime: null,
+        autoRenewal: true,
         maxAllocationPercentage: null,
         maxSignal: null,
         minAverageQueryFees: null,

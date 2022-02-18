@@ -325,6 +325,8 @@ describe('Indexer rules tests', () => {
           'offchain',
           'allocationLifetime',
           '21',
+          'autoRenewal',
+          'false',
         ],
         'references/indexer-rule-deployment-lifetime',
         {
