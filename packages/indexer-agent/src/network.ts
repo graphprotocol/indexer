@@ -620,7 +620,7 @@ export class Network {
                 id
                 ipfsHash
                 stakedTokens
-                signalAmount
+                signalledTokens
                 queryFeesAmount
                 indexerAllocations {
                   indexer {
@@ -678,7 +678,9 @@ export class Network {
 
               if (deploymentRule) {
                 const stakedTokens = BigNumber.from(deployment.stakedTokens)
-                const signalAmount = BigNumber.from(deployment.signalAmount)
+                const signalledTokens = BigNumber.from(
+                  deployment.signalledTokens,
+                )
                 const avgQueryFees = BigNumber.from(
                   deployment.queryFeesAmount,
                 ).div(
@@ -691,7 +693,7 @@ export class Network {
                   deployment: {
                     id: deployment.id,
                     stakedTokens: stakedTokens.toString(),
-                    signalAmount: signalAmount.toString(),
+                    signalledTokens: signalledTokens.toString(),
                     avgQueryFees: avgQueryFees.toString(),
                   },
                   indexingRule: {
@@ -731,9 +733,9 @@ export class Network {
                     stakedTokens.gte(deploymentRule.minStake)) ||
                   // signal >= minSignal && signal <= maxSignal?
                   (deploymentRule.minSignal &&
-                    signalAmount.gte(deploymentRule.minSignal)) ||
+                    signalledTokens.gte(deploymentRule.minSignal)) ||
                   (deploymentRule.maxSignal &&
-                    signalAmount.lte(deploymentRule.maxSignal)) ||
+                    signalledTokens.lte(deploymentRule.maxSignal)) ||
                   // avgQueryFees >= minAvgQueryFees?
                   (deploymentRule.minAverageQueryFees &&
                     avgQueryFees.gte(deploymentRule.minAverageQueryFees))
@@ -799,7 +801,7 @@ export class Network {
                 subgraphDeployment {
                   id
                   stakedTokens
-                  signalAmount
+                  signalledTokens
                 }
               }
             }
@@ -856,7 +858,7 @@ export class Network {
               subgraphDeployment {
                 id
                 stakedTokens
-                signalAmount
+                signalledTokens
               }
             }
           }
@@ -913,7 +915,7 @@ export class Network {
               subgraphDeployment {
                 id
                 stakedTokens
-                signalAmount
+                signalledTokens
               }
             }
           }
@@ -1032,7 +1034,7 @@ export class Network {
                 subgraphDeployment {
                   id
                   stakedTokens
-                  signalAmount
+                  signalledTokens
                 }
               }
             }
@@ -1381,7 +1383,7 @@ export class Network {
         subgraphDeployment: {
           id: deployment,
           stakedTokens: BigNumber.from(0),
-          signalAmount: BigNumber.from(0),
+          signalledTokens: BigNumber.from(0),
         },
         allocatedTokens: BigNumber.from(eventInputs.tokens),
         createdAtBlockHash: '0x0',
@@ -1739,7 +1741,7 @@ export class Network {
         subgraphDeployment: {
           id: deployment,
           stakedTokens: BigNumber.from(0),
-          signalAmount: BigNumber.from(0),
+          signalledTokens: BigNumber.from(0),
         },
         allocatedTokens: BigNumber.from(eventInputs.tokens),
         createdAtBlockHash: receipt.blockHash,

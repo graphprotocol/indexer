@@ -6,7 +6,7 @@ import { BigNumber } from 'ethers'
 export interface SubgraphDeployment {
   id: SubgraphDeploymentID
   stakedTokens: BigNumber
-  signalAmount: BigNumber
+  signalledTokens: BigNumber
 }
 
 export interface Allocation {
@@ -39,7 +39,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   subgraphDeployment: {
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
-    signalAmount: BigNumber.from(allocation.subgraphDeployment.signalAmount),
+    signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),

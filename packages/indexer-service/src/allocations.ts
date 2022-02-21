@@ -79,7 +79,7 @@ export const monitorEligibleAllocations = ({
                 subgraphDeployment {
                   id
                   stakedTokens
-                  signalAmount
+                  signalledTokens
                 }
               }
               recentlyClosedAllocations: totalAllocations(
@@ -98,7 +98,7 @@ export const monitorEligibleAllocations = ({
                 subgraphDeployment {
                   id
                   stakedTokens
-                  signalAmount
+                  signalledTokens
                 }
               }
             }

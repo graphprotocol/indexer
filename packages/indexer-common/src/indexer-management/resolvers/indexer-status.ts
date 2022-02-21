@@ -113,7 +113,7 @@ export default {
               subgraphDeployment {
                 id
                 stakedTokens
-                signalAmount
+                signalledTokens
               }
             }
           }
@@ -128,7 +128,7 @@ export default {
         ...allocation,
         subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
           .ipfsHash,
-        signalAmount: allocation.subgraphDeployment.signalAmount,
+        signalledTokens: allocation.subgraphDeployment.signalledTokens,
         stakedTokens: allocation.subgraphDeployment.stakedTokens,
       }))
     } catch (error) {
