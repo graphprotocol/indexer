@@ -164,7 +164,7 @@ const SCHEMA_SDL = gql`
     createdAtEpoch: Int!
     closedAtEpoch: Int
     subgraphDeployment: String!
-    signalAmount: BigInt!
+    signalledTokens: BigInt!
     stakedTokens: BigInt!
   }
 

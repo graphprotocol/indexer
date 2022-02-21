@@ -11,7 +11,7 @@ interface IndexerAllocation {
   createdAtEpoch: number
   closedAtEpoch: number | null
   subgraphDeployment: string
-  signalAmount: BigNumber
+  signalledTokens: BigNumber
   stakedTokens: BigNumber
 }
 
@@ -26,7 +26,7 @@ const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
   allocatedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
   createdAtEpoch: nullPassThrough((x: string) => parseInt(x)),
   closedAtEpoch: nullPassThrough((x: string) => parseInt(x)),
-  signalAmount: nullPassThrough((x: string) => BigNumber.from(x)),
+  signalledTokens: nullPassThrough((x: string) => BigNumber.from(x)),
   stakedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
 }
 
@@ -40,7 +40,7 @@ const ALLOCATION_FORMATTERS: Record<
   allocatedTokens: x => utils.commify(formatGRT(x)),
   createdAtEpoch: x => x,
   closedAtEpoch: x => x,
-  signalAmount: x => utils.commify(formatGRT(x)),
+  signalledTokens: x => utils.commify(formatGRT(x)),
   stakedTokens: x => utils.commify(formatGRT(x)),
 }
 

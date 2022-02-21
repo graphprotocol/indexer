@@ -7,7 +7,7 @@ export interface SubgraphDeployment {
   id: SubgraphDeploymentID
   deniedAt: number
   stakedTokens: BigNumber
-  signalAmount: BigNumber
+  signalledTokens: BigNumber
 }
 
 export interface Allocation {
@@ -42,7 +42,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     deniedAt: allocation.subgraphDeployment.deniedAt,
     stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
-    signalAmount: BigNumber.from(allocation.subgraphDeployment.signalAmount),
+    signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),

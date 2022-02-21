@@ -89,7 +89,7 @@ module.exports = {
                 createdAtEpoch
                 closedAtEpoch
                 subgraphDeployment
-                signalAmount
+                signalledTokens
                 stakedTokens
               }
 
@@ -285,7 +285,7 @@ module.exports = {
           'subgraphDeployment',
           'allocatedTokens',
           'createdAtEpoch',
-          'signalAmount',
+          'signalledTokens',
           'stakedTokens',
         ])
       }
