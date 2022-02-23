@@ -35,11 +35,16 @@ export async function up({ context }: Context): Promise<void> {
   await queryInterface.addColumn('IndexingRules', 'identifierType', {
     type: DataTypes.ENUM('deployment', 'subgraph', 'group'),
     primaryKey: true,
-    defaultValue: 'group',
+    defaultValue: 'deployment',
   })
 
   logger.info(`Rename 'deployment' column to 'identifier'`)
   await queryInterface.renameColumn('IndexingRules', 'deployment', 'identifier')
+
+  logger.info(`Update identifierType value for existing rules`)
+  await queryInterface.sequelize.query(
+    `update  "IndexingRules" set "identifierType" = 'group' where "identifier" = 'global'`,
+  )
 }
 
 export async function down({ context }: Context): Promise<void> {
