@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2022-02-24
+### Added
+- Rate limiting for exposed server routes
+- Add /subgraphs/health/:deployment route
+
+### Changed
+- Upgrade dependencies
+- Consider subgraph up to date if <5 blocks behind
+
+### Fixed
+- Fix tests
+
 ## 0.18.6 - 2022-01-05
 
 ## [0.18.3] - 2021-11-23
@@ -235,7 +247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.3]: https://github.com/graphprotocol/indexer/compare/v0.18.2...v0.18.3
 [0.18.2]: https://github.com/graphprotocol/indexer/compare/v0.18.0...v0.18.2
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0

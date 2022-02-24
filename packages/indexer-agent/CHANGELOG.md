@@ -6,14 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2022-02-24
 ### Added
 - Added automatic batching of query voucher redemptions
 - Added `--voucher-redemption-threshold`, `--voucher-redemption-batch-threshold` and `--voucher-redemption-max-batch-size` for controlling voucher batching behaviour
+- Expose option to allocate to network subgraph
+- Live metric for operator ETH balance
+- DB migration CLI tool for testing and management of migrations
+- Support indexer rules defined by subgraph id
+- Support offchain subgraph management via indexing rules / CLI
+- Agent immediately reconciles after rule update
+- Manage allocation lifetimes via rules/CLI
+- Reject unsupported subgraphs by default
+- Optional autorenewal of allocations
 
 ### Fixed
 - Added `--rebate-claim-max-batch-size` to make max batch size configurable. For users in low-RAM environments, the primary constraint is not block space but the RAM required to construct large transactions.
 - Improved validation of rebate batch claim parameters
 
+### Changed
+- Upgrade dependencies
+- Improve log messages readability
+- Use signallTokens instead of signalAmount for minSignal threshold
+- Use AllocationExchange contract from common-ts
 
 ## [0.18.6] - 2021-12-23
 ### Fixed
@@ -344,7 +359,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.6]: https://github.com/graphprotocol/indexer/compare/v0.18.4...v0.18.6
 [0.18.4]: https://github.com/graphprotocol/indexer/compare/v0.18.3...v0.18.4
 [0.18.3]: https://github.com/graphprotocol/indexer/compare/v0.18.2...v0.18.3

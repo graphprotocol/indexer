@@ -6,6 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.0] - 2022-02-24
+### Changed
+- Upgrade dependencies
+
+### Added
+- Reusable CLI test harness
+- CLI tests for all rules commands
+- Support indexer rules defined by subgraph id
+- Support offchain subgraph management via indexing rules / CLI
+- Manage allocation lifetimes via rules/CLI
+- Support rejecting unsupported subgraphs
+- Optional autorenewal of allocations
+
 ## 0.18.6 - 2022-01-05
 
 ## [0.18.0] - 2021-09-07
@@ -125,7 +138,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.18.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.15.0...v0.17.0
 [0.15.0]: https://github.com/graphprotocol/indexer/compare/v0.14.0...v0.15.0
