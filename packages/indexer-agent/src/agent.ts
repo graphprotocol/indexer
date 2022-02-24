@@ -304,15 +304,15 @@ class Agent {
       },
     )
 
-    const activeAllocations = timer(120_000).tryMap(
-      () => this.network.allocations(AllocationStatus.Active),
-      {
-        onError: () =>
-          this.logger.warn(
-            `Failed to obtain active allocations, trying again later`,
-          ),
-      },
-    )
+    const activeAllocations = join({
+      ticker: timer(120_000),
+      indexingRules,
+    }).tryMap(() => this.network.allocations(AllocationStatus.Active), {
+      onError: () =>
+        this.logger.warn(
+          `Failed to obtain active allocations, trying again later`,
+        ),
+    })
 
     const recentlyClosedAllocations = join({
       activeAllocations,
