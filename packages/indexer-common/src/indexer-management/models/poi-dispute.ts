@@ -161,13 +161,13 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
         allowNull: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          isHex: (value: any) => {
-            if (typeof value !== 'string') {
-              throw new Error('Allocation POI must be a string')
+          isHexOrNull: (value: any) => {
+            if (value && typeof value !== 'string') {
+              throw new Error('Allocation POI must be a string or null')
             }
 
-            // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            // null or "0x..." is ok
+            if (!value || utils.isHexString(value, 32)) {
               return
             }
 
@@ -203,13 +203,13 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
         allowNull: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          isHex: (value: any) => {
-            if (typeof value !== 'string') {
-              throw new Error('Allocation POI must be a string')
+          isHexOrNull: (value: any) => {
+            if (value && typeof value !== 'string') {
+              throw new Error('Allocation POI must be a string or null')
             }
 
-            // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            // null or "0x..." is ok
+            if (!value || utils.isHexString(value, 32)) {
               return
             }
 
