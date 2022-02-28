@@ -46,7 +46,7 @@ module.exports = {
     }
 
     try {
-      validateDeploymentID(deployment)
+      await validateDeploymentID(deployment)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
@@ -81,6 +81,7 @@ module.exports = {
       printCostModels(print, outputFormat, parseDeploymentID(deployment), costModel, [])
     } catch (error) {
       print.error(error.toString())
+      process.exitCode = 1
     }
   },
 }
