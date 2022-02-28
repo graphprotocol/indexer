@@ -64,7 +64,9 @@ export async function validateDeploymentID(
     // no-op
   }
 
-  throw new Error(`Invalid deployment ID "${s}"`)
+  throw new Error(
+    `Invalid deployment ID "${s}". Cost models currently must use deployment identifiers, please provide a valid deployment ID.`,
+  )
 }
 
 export async function validateSubgraphGroupID(

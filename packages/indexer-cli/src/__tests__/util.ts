@@ -100,7 +100,7 @@ export const setup = async () => {
   process.on('SIGTERM', await shutdownIndexerManagementServer)
   process.on('SIGINT', await shutdownIndexerManagementServer)
 
-  // Set global, deployment, and subgraph based test rules
+  // Set global, deployment, and subgraph based test rules and cost model
   const commands: string[][] = [
     ['indexer', 'connect', 'http://localhost:18000'],
     ['indexer', 'rules', 'set', 'global', 'minSignal', '500', 'allocationAmount', '.01'],
@@ -127,11 +127,27 @@ export const setup = async () => {
       'allocationLifetime',
       '12',
     ],
+    [
+      'indexer',
+      'cost',
+      'set',
+      'model',
+      'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
+      'src/__tests__/references/basic.agora',
+    ],
+    [
+      'indexer',
+      'cost',
+      'set',
+      'variables',
+      'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
+      `'{"DAI": "0.5"}'`,
+    ],
   ]
   for (const command of commands) {
     const { exitCode } = await runIndexerCli(command, process.cwd())
     if (exitCode == 1) {
-      throw Error(`Setup failed: indexer rules set command failed: ${command}`)
+      throw Error(`Setup failed: indexer rules or cost set command failed: ${command}`)
     }
   }
 }

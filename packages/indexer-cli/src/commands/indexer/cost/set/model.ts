@@ -44,14 +44,14 @@ module.exports = {
       return
     }
 
-    try {
-      validateDeploymentID(deployment)
+    try{
+      await validateDeploymentID(deployment)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1
       return
     }
-
+    
     let model = null
     try {
       model = fs.readFileSync(filename, 'utf8').trim()
@@ -74,6 +74,7 @@ module.exports = {
       printCostModels(print, outputFormat, parseDeploymentID(deployment), costModel, [])
     } catch (error) {
       print.error(error.toString())
+      process.exitCode = 1
     }
   },
 }
