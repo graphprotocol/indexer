@@ -1698,9 +1698,20 @@ export class Network {
         newAllocationId,
       )
 
+      // If there's enough free stake at hand to easily compound rewards, do so
+      const indexingRewards = await this.contracts.rewardsManager.getRewards(
+        existingAllocation.id,
+      )
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const compoundedAmount = indexingRewards.lt(freeStake)
+        ? amount.add(indexingRewards)
+        : amount
+
       logger.info(`Executing reallocate transaction`, {
         indexer: this.indexerAddress,
         amount: formatGRT(amount),
+        indexingRewards,
+        compoundedAmount: formatGRT(compoundedAmount),
         oldAllocation: existingAllocation.id,
         newAllocation: newAllocationId,
         deployment,
