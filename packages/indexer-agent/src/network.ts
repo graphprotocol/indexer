@@ -752,8 +752,8 @@ export class Network {
                     stakedTokens.gte(deploymentRule.minStake)) ||
                   // signal >= minSignal && signal <= maxSignal?
                   (deploymentRule.minSignal &&
-                    signalledTokens.gte(deploymentRule.minSignal)) ||
-                  (deploymentRule.maxSignal &&
+                    signalledTokens.gte(deploymentRule.minSignal) &&
+                    deploymentRule.maxSignal &&
                     signalledTokens.lte(deploymentRule.maxSignal)) ||
                   // avgQueryFees >= minAvgQueryFees?
                   (deploymentRule.minAverageQueryFees &&
