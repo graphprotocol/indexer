@@ -31,12 +31,20 @@ interface AllocationReceiptsBatch {
   timeout: number
 }
 
+interface PartialVoucher {
+  allocation: string // (0x-prefixed hex)
+  fees: string // (0x-prefixed hex)
+  signature: string // (0x-prefixed hex)
+  receipt_id_min: string // (0x-prefixed hex)
+  receipt_id_max: string // (0x-prefixed hex)
+}
+
 export interface AllocationReceiptCollectorOptions {
   logger: Logger
   transactionManager: TransactionManager
   allocationExchange: Contract
   models: QueryFeeModels
-  collectEndpoint: URL
+  collectEndpoint: string
   voucherRedemptionThreshold: BigNumber
   voucherRedemptionBatchThreshold: BigNumber
   voucherRedemptionMaxBatchSize: number
@@ -53,6 +61,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private transactionManager: TransactionManager
   private allocationExchange: Contract
   private collectEndpoint: URL
+  private partialVoucherEndpoint: URL
+  private voucherEndpoint: URL
   private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
   private voucherRedemptionThreshold: BigNumber
   private voucherRedemptionBatchThreshold: BigNumber
@@ -71,8 +81,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.transactionManager = transactionManager
     this.models = models
-    this.collectEndpoint = collectEndpoint
+    this.collectEndpoint = new URL(collectEndpoint)
     this.allocationExchange = allocationExchange
+    this.partialVoucherEndpoint = new URL(
+      collectEndpoint.replace('/collect-receipts', '/partial-voucher'),
+    )
+    this.voucherEndpoint = new URL(
+      collectEndpoint.replace('/collect-receipts', '/voucher'),
+    )
+
     this.voucherRedemptionThreshold = voucherRedemptionThreshold
     this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
@@ -295,36 +312,101 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
   }
 
+  private encodeReceiptBatch(receipts: AllocationReceipt[]): BytesWriter {
+    // Encode the receipt batch to a buffer
+    // [allocationId, receipts[]] (in bytes)
+    const encodedReceipts = new BytesWriter(20 + receipts.length * 112)
+    encodedReceipts.writeHex(receipts[0].allocation)
+    for (const receipt of receipts) {
+      // [fee, id, signature]
+      const fee = BigNumber.from(receipt.fees).toHexString()
+      const feePadding = 33 - fee.length / 2
+      encodedReceipts.writeZeroes(feePadding)
+      encodedReceipts.writeHex(fee)
+      encodedReceipts.writeHex(receipt.id)
+      encodedReceipts.writeHex(receipt.signature)
+    }
+    return encodedReceipts
+  }
+
+  private encodePartialVouchers(partialVouchers: PartialVoucher[]): BytesWriter {
+    // Take the partial vouchers and request for a full voucher
+    // [allocationId, partialVouchers[]] (in bytes)
+    // A voucher request needs allocation id which all partial vouchers shares,
+    // and a list of attributes (fees, signature, receipt id min, and receipt id max)
+    // from each partial voucher, all in form of 0x-prefixed hex string (32bytes)
+    const encodedPartialVouchers = new BytesWriter(20 + 128 * partialVouchers.length)
+    encodedPartialVouchers.writeHex(partialVouchers[0].allocation)
+    for (const partialVoucher of partialVouchers) {
+      // [fees, signature, receipt_id_min, receipt_id_max] as 0x-prefixed string list
+      const fee = BigNumber.from(partialVoucher.fees).toHexString()
+      const feePadding = 33 - fee.length / 2
+      encodedPartialVouchers.writeZeroes(feePadding)
+      encodedPartialVouchers.writeHex(fee)
+      encodedPartialVouchers.writeHex(partialVoucher.signature)
+      encodedPartialVouchers.writeHex(partialVoucher.receipt_id_min)
+      encodedPartialVouchers.writeHex(partialVoucher.receipt_id_max)
+    }
+    return encodedPartialVouchers
+  }
+
   private async obtainReceiptsVoucher(receipts: AllocationReceipt[]): Promise<void> {
     const logger = this.logger.child({
       allocation: receipts[0].allocation,
     })
-
+    // Gross underestimated number of receipts the gateway take at once
+    const receiptsThreshold = 25_000
+    let response
     try {
       logger.info(`Collect receipts for allocation`, {
         receipts: receipts.length,
       })
 
-      // Encode the receipt batch to a buffer
-      // [allocationId, receipts[]] (in bytes)
-      const encodedReceipts = new BytesWriter(20 + receipts.length * 112)
-      encodedReceipts.writeHex(receipts[0].allocation)
-      for (const receipt of receipts) {
-        // [fee, id, signature]
-        const fee = BigNumber.from(receipt.fees).toHexString()
-        const feePadding = 33 - fee.length / 2
-        encodedReceipts.writeZeroes(feePadding)
-        encodedReceipts.writeHex(fee)
-        encodedReceipts.writeHex(receipt.id)
-        encodedReceipts.writeHex(receipt.signature)
+      // All receipts can fit the gateway, make a single-shot collection
+      if (receipts.length <= receiptsThreshold) {
+        const encodedReceipts = this.encodeReceiptBatch(receipts)
+
+        // Exchange the receipts for a voucher signed by the counterparty (aka the client)
+        response = await axios.post(
+          this.collectEndpoint.toString(),
+          encodedReceipts.unwrap().buffer,
+          { headers: { 'Content-Type': 'application/octet-stream' } },
+        )
+      } else {
+        // Split receipts in batches and collect partial vouchers
+        const partialVouchers: Array<PartialVoucher> = []
+        for (let i = 0; i < receipts.length; i += receiptsThreshold) {
+          const partialReceipts = receipts.slice(
+            i,
+            Math.min(i + receiptsThreshold, receipts.length),
+          )
+          const encodedReceipts = this.encodeReceiptBatch(partialReceipts)
+
+          // Exchange the receipts for a partial voucher signed by the counterparty (aka the client)
+          response = await axios.post(
+            this.partialVoucherEndpoint.toString(),
+            encodedReceipts.unwrap().buffer,
+            { headers: { 'Content-Type': 'application/octet-stream' } },
+          )
+          const partialVoucher = response.data as PartialVoucher
+          partialVouchers.push(partialVoucher)
+        }
+
+        logger.debug(`obtainReceiptVoucher: For debugging`, {
+          partialVouchers,
+          hexStringLength: partialVouchers[0].allocation,
+        })
+
+        const encodedPartialVouchers = this.encodePartialVouchers(partialVouchers)
+
+        // Exchange the partial vouchers for a voucher
+        response = await axios.post(
+          this.voucherEndpoint.toString(),
+          encodedPartialVouchers.unwrap().buffer,
+          { headers: { 'Content-Type': 'application/octet-stream' } },
+        )
       }
 
-      // Exchange the receipts for a voucher signed by the counterparty (aka the client)
-      const response = await axios.post(
-        this.collectEndpoint.toString(),
-        encodedReceipts.unwrap().buffer,
-        { headers: { 'Content-Type': 'application/octet-stream' } },
-      )
       const voucher = response.data as {
         allocation: string
         amount: string

@@ -748,7 +748,7 @@ export default {
       transactionManager: network.transactionManager,
       models: queryFeeModels,
       allocationExchange: network.contracts.allocationExchange,
-      collectEndpoint: new URL(argv.collectReceiptsEndpoint),
+      collectEndpoint: argv.collectReceiptsEndpoint,
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,

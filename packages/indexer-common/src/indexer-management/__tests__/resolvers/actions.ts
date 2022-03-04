@@ -275,7 +275,7 @@ const setup = async () => {
     transactionManager: transactionManager,
     models: queryFeeModels,
     allocationExchange: contracts.allocationExchange,
-    collectEndpoint: new URL('http://localhost:8030/'),
+    collectEndpoint: 'http://localhost:8030/',
     voucherRedemptionThreshold: BigNumber.from(200),
     voucherRedemptionBatchThreshold: BigNumber.from(2000),
     voucherRedemptionMaxBatchSize: 100,
