@@ -146,7 +146,7 @@ const SCHEMA_SDL = gql`
     network: String!
     latestBlock: BlockPointer!
     chainHeadBlock: BlockPointer!
-    earliestBlock: BlockPointer!
+    earliestBlock: BlockPointer
   }
 
   type IndexerDeployment {
