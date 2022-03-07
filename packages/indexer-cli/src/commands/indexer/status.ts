@@ -270,7 +270,7 @@ module.exports = {
                 network: chain.network,
                 latestBlockNumber: chain.latestBlock.number,
                 chainHeadBlockNumber: chain.chainHeadBlock.number,
-                earliestBlockNumber: chain.earliestBlock.number,
+                earliestBlockNumber: chain.earliestBlock?.number,
               })),
             ),
             outputFormat,
