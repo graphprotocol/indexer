@@ -44,12 +44,14 @@ module.exports = {
       return
     }
 
-    try {
-      await validateDeploymentID(deployment)
-    } catch (error) {
-      print.error(error.toString())
-      process.exitCode = 1
-      return
+    if (deployment != 'global') {
+      try {
+        await validateDeploymentID(deployment)
+      } catch (error) {
+        print.error(error.toString())
+        process.exitCode = 1
+        return
+      }
     }
 
     let model = null

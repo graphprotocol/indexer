@@ -13,7 +13,10 @@ import {
   IndexingStatus,
   SubgraphIdentifierType,
   parseGraphQLIndexingStatus,
+  COST_MODEL_GLOBAL,
+  CostModelAttributes,
 } from '@graphprotocol/indexer-common'
+import fs from 'fs'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
@@ -309,6 +312,97 @@ export class Indexer {
         err,
       })
       throw err
+    }
+  }
+
+  async costModels(): Promise<CostModelAttributes[]> {
+    try {
+      const result = await this.indexerManagement
+        .query(
+          gql`
+            query costModels {
+              costModels {
+                deployment
+                model
+                variables
+              }
+            }
+          `,
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      return result.data.costModels
+    } catch (error) {
+      this.logger.error(`Failed to query indexer management API`, { error })
+      throw error
+    }
+  }
+
+  async ensureGlobalCostModel(): Promise<void> {
+    try {
+      const globalCostModel = await this.indexerManagement
+        .query(
+          gql`
+            query costModel($deployment: String!) {
+              costModel(deployment: $deployment) {
+                deployment
+                model
+                variables
+              }
+            }
+          `,
+          {
+            deployment: COST_MODEL_GLOBAL,
+          },
+        )
+        .toPromise()
+
+      if (!globalCostModel.data.costModel) {
+        this.logger.info(
+          `Looking for a cost model defined at 'default.agora', if it exists then create a default "global" cost model`,
+        )
+
+        let defaults = null
+        try {
+          defaults = {
+            deployment: COST_MODEL_GLOBAL,
+            model: fs.readFileSync('default.agora', 'utf8').trim(),
+            variables: null,
+          }
+        } catch (err) {
+          this.logger.error(
+            `Failed to load default cost model": ${err.message}`,
+          )
+        }
+
+        const defaultGlobalCostModel = await this.indexerManagement
+          .mutation(
+            gql`
+              mutation setCostModel($costModel: CostModelInput!) {
+                setCostModel(costModel: $costModel) {
+                  deployment
+                  model
+                  variables
+                }
+              }
+            `,
+            { costModel: defaults },
+          )
+          .toPromise()
+
+        if (defaultGlobalCostModel.error) {
+          throw defaultGlobalCostModel.error
+        }
+
+        this.logger.info(`Created default "global" cost model`, {
+          costModel: defaultGlobalCostModel.data.setCostModel,
+        })
+      }
+    } catch (error) {
+      this.logger.error(`Failed to ensure default "global" cost model`)
     }
   }
 

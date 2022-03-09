@@ -130,6 +130,7 @@ export const setup = async () => {
       'allocationLifetime',
       '12',
     ],
+    ['indexer', 'cost', 'set', 'model', 'global', 'src/__tests__/references/basic.agora'],
     [
       'indexer',
       'cost',
