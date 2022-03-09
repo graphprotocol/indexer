@@ -1,6 +1,8 @@
+import fs from 'fs'
 import path from 'path'
 
 import { Argv } from 'yargs'
+import { parse as yaml_parse } from 'yaml'
 import { Umzug, SequelizeStorage } from 'umzug'
 import {
   createLogger,
@@ -408,11 +410,20 @@ export default {
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
+      .config({
+        key: 'cfg-file',
+        description: 'Indexer agent configuration file (YAML format)',
+        parseFn: function (cfgFilePath: string) {
+          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
+        },
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
+    console.log('ARGV arguments:')
+    //console.log(argv)
     const logger = createLogger({
       name: 'IndexerAgent',
       async: false,
