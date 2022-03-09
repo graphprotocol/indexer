@@ -51,7 +51,7 @@ module.exports = {
     const rawDeployment = ['model', 'variables'].includes(first) ? second : first
 
     try {
-      if (rawDeployment !== 'all') {
+      if (rawDeployment !== 'all' && rawDeployment !== 'global') {
         await validateDeploymentID(rawDeployment)
       }
     } catch (error) {

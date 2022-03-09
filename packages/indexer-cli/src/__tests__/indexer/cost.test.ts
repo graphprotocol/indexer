@@ -149,6 +149,16 @@ describe('Indexer cost tests', () => {
         },
       )
       cliTest(
+        'Indexer cost get non-existing cost model - fallback success',
+        ['indexer', 'cost', 'get', 'QmVqMeQUwvQ3XjzCYiMhRvQjRiQLGpVt8C3oHgvDi3agJ2'],
+        'references/indexer-cost-fallback-global',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 15000,
+        },
+      )
+      cliTest(
         'Indexer cost get - no args',
         ['indexer', 'cost', 'get'],
         'references/indexer-cost-get-no-arg',

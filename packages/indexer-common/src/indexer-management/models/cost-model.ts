@@ -27,6 +27,8 @@ export const parseGraphQLCostModel = (
   }
 }
 
+export const COST_MODEL_GLOBAL = 'global'
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type CostModelVariables = { [key: string]: any }
 
@@ -86,12 +88,14 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
               throw new Error('Deployment ID must be a string')
             }
 
-            // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            // "0x..." and "global" is ok
+            if (utils.isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
               return
             }
 
-            throw new Error(`Deployment ID must be a valid subgraph deployment ID`)
+            throw new Error(
+              `Deployment ID must be a valid subgraph deployment ID or "global"`,
+            )
           },
         },
       },

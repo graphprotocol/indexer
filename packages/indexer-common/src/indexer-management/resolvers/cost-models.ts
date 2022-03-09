@@ -1,7 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
-import { CostModelVariables, GraphQLCostModel, parseGraphQLCostModel } from '../models'
+import {
+  CostModelVariables,
+  COST_MODEL_GLOBAL,
+  GraphQLCostModel,
+  parseGraphQLCostModel,
+} from '../models'
 import { IndexerManagementResolverContext } from '../client'
 import { compileAsync } from '@graphprotocol/cost-model'
 
@@ -48,7 +53,19 @@ export default {
     const model = await models.CostModel.findOne({
       where: { deployment },
     })
-    return model?.toGraphQL() || null
+    if (model) {
+      return model.toGraphQL()
+    }
+
+    const globalModel = await models.CostModel.findOne({
+      where: { deployment: COST_MODEL_GLOBAL },
+    })
+    if (globalModel) {
+      globalModel.setDataValue('deployment', deployment)
+      return globalModel.toGraphQL()
+    }
+
+    return null
   },
 
   costModels: async (

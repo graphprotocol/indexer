@@ -10,10 +10,10 @@ import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { outputColors, pickFields } from './command-helpers'
 
-export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all'
+export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all' | 'global'
 
 export const parseDeploymentID = (s: string): SubgraphDeploymentIDIsh => {
-  if (s === 'all') {
+  if (s === 'all' || s === 'global') {
     return s
   } else {
     return new SubgraphDeploymentID(s)
@@ -216,7 +216,7 @@ export const costModels = async (
 
 export const costModel = async (
   client: IndexerManagementClient,
-  deployment: SubgraphDeploymentID,
+  deployment: SubgraphDeploymentIDIsh,
 ): Promise<Partial<CostModelAttributes> | null> => {
   const result = await client
     .query(
