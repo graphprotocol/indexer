@@ -1,5 +1,7 @@
+import fs from 'fs'
 import path from 'path'
 import { Argv } from 'yargs'
+import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
   connectContracts,
@@ -414,6 +416,13 @@ export default {
         required: false,
         default: 'auto',
         group: 'Indexer Infrastructure',
+      })
+      .config({
+        key: 'config-file',
+        description: 'Indexer agent configuration file (YAML format)',
+        parseFn: function (cfgFilePath: string) {
+          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
+        },
       })
   },
   handler: async (
