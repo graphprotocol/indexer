@@ -2,11 +2,12 @@
 
 import {
   IndexerManagementModels,
-  IndexingRuleCreationAttributes,
   INDEXING_RULE_GLOBAL,
+  IndexingRuleCreationAttributes,
 } from '../models'
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
 import { Transaction } from 'sequelize/types'
+import { processIdentifier } from '@graphprotocol/indexer-common'
 
 const resetGlobalRule = async (
   identifier: string,
@@ -29,6 +30,7 @@ export default {
     { identifier, merged }: { identifier: string; merged: boolean },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    ;[identifier] = await processIdentifier(identifier, { all: false, global: true })
     const rule = await models.IndexingRule.findOne({
       where: { identifier },
     })
@@ -48,7 +50,10 @@ export default {
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     const rules = await models.IndexingRule.findAll({
-      order: [['identifier', 'DESC']],
+      order: [
+        ['identifierType', 'DESC'],
+        ['identifier', 'ASC'],
+      ],
     })
     if (merged) {
       const global = await models.IndexingRule.findOne({
@@ -64,6 +69,16 @@ export default {
     { rule }: { rule: IndexingRuleCreationAttributes },
     { models }: IndexerManagementResolverContext,
   ): Promise<object> => {
+    if (!rule.identifier) {
+      throw Error('Cannot set indexingRule without identifier')
+    }
+
+    const [identifier] = await processIdentifier(rule.identifier, {
+      all: false,
+      global: true,
+    })
+    rule.identifier = identifier
+
     await models.IndexingRule.upsert(rule)
 
     // Since upsert succeeded, we _must_ have a rule
@@ -78,6 +93,7 @@ export default {
     { identifier }: { identifier: string },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
+    ;[identifier] = await processIdentifier(identifier, { all: false, global: true })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
@@ -105,6 +121,15 @@ export default {
     { identifiers }: { identifiers: string[] },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
+    identifiers = await Promise.all(
+      identifiers.map(
+        async (identifier) =>
+          (
+            await processIdentifier(identifier, { all: false, global: true })
+          )[0],
+      ),
+    )
+
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
