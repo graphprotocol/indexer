@@ -74,7 +74,7 @@
     "@types/yargs": "15.0.9",
     "@typescript-eslint/eslint-plugin": "5.8.0",
     "@typescript-eslint/parser": "5.8.0",
-    "eslint": "8.5.0",
+    "eslint": "8.10.0",
     "jest": "27.4.5",
     "lerna": "4.0.0",
     "nock": "13.2.1",

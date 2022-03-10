@@ -49,10 +49,10 @@ module.exports = {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [identifier, identifierType] = await processIdentifier(id, { all: true, global: true })
 
-    const config = loadValidatedConfig()
+      const config = loadValidatedConfig()
 
-    // Create indexer API client
-    const client = await createIndexerManagementClient({ url: config.api })
+      // Create indexer API client
+      const client = await createIndexerManagementClient({ url: config.api })
 
       const ruleOrRules =
         identifier === 'all'
