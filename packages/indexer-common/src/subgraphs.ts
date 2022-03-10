@@ -1,5 +1,6 @@
 import { base58 } from 'ethers/lib/utils'
 import { utils } from 'ethers'
+import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -119,5 +120,11 @@ export async function processIdentifier(
     )
   }
   type = fulfilled[0].value
-  return [identifier, type]
+
+  return [
+    type == SubgraphIdentifierType.DEPLOYMENT
+      ? new SubgraphDeploymentID(identifier).ipfsHash
+      : identifier,
+    type,
+  ]
 }

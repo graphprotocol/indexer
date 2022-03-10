@@ -86,7 +86,7 @@ const INDEXING_RULE_QUERY = gql`
 `
 
 const INDEXING_RULES_QUERY = gql`
-  query indexingRuls($merged: Boolean!) {
+  query indexingRules($merged: Boolean!) {
     indexingRules(merged: $merged) {
       identifier
       identifierType
@@ -285,7 +285,7 @@ describe('Indexing rules', () => {
 
   test('Set and get deployment rule (partial update)', async () => {
     const originalInput = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
@@ -306,13 +306,13 @@ describe('Indexing rules', () => {
       requireSupported: true,
     }
 
-    // Write the orginal
+    // Write the original
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: null,
       maxSignal: '3',
@@ -336,8 +336,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier:
-            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
           merged: false,
         })
         .toPromise(),
@@ -356,6 +355,7 @@ describe('Indexing rules', () => {
       ...update,
       ...updateAgain,
     }
+    expectedAgain.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
     // Update the rule
     await expect(
@@ -366,8 +366,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier:
-            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
           merged: false,
         })
         .toPromise(),
@@ -420,6 +419,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
     }
+    deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
     // Write the orginals
     await expect(
@@ -458,7 +458,7 @@ describe('Indexing rules', () => {
 
   test('Set, delete and get rule', async () => {
     const input = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
@@ -505,7 +505,7 @@ describe('Indexing rules', () => {
 
   test('Clear a parameter', async () => {
     const input = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       requireSupported: true,
@@ -569,7 +569,7 @@ describe('Indexing rules', () => {
     }
 
     const deploymentInput = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
@@ -642,8 +642,7 @@ describe('Indexing rules', () => {
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier:
-            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
           merged: true,
         })
         .toPromise(),
@@ -716,7 +715,7 @@ describe('Indexing rules', () => {
     }
 
     const deploymentInput = {
-      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',

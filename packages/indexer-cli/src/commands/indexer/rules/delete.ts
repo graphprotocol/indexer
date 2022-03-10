@@ -5,7 +5,6 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
 import { indexingRules, deleteIndexingRules } from '../../../rules'
-import { SubgraphDeploymentIDIsh } from 'indexer-cli/src/cost'
 import { processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
@@ -43,7 +42,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, { all: true, global: true })
 
       const client = await createIndexerManagementClient({ url: config.api })
 
@@ -51,14 +50,15 @@ module.exports = {
         const rules = await indexingRules(client, false)
         await deleteIndexingRules(
           client,
-          rules.map(rule => rule.identifier as SubgraphDeploymentIDIsh),
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          await Promise.all(rules.map(async rule => (await processIdentifier(rule.identifier!, { all: true, global: true }))[0])),
         )
         print.info(`Deleted all indexing rules`)
       } else if (identifier === 'global') {
         await deleteIndexingRules(client, ['global'])
         print.info(`Reset global indexing rules (the global rules cannot be deleted)`)
       } else {
-        await deleteIndexingRules(client, [identifier as SubgraphDeploymentIDIsh])
+        await deleteIndexingRules(client, [identifier])
         print.info(`Deleted indexing rules for "${identifier}" (${identifierType})`)
       }
     } catch (error) {

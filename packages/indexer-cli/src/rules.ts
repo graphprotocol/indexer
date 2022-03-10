@@ -368,7 +368,7 @@ export const setIndexingRule = async (
 
 export const deleteIndexingRules = async (
   client: IndexerManagementClient,
-  identifiers: SubgraphDeploymentIDIsh[],
+  identifiers: string[],
 ): Promise<void> => {
   const result = await client
     .mutation(
