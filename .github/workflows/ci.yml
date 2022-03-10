@@ -11,7 +11,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
 
     strategy:
       matrix:
@@ -19,7 +19,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:latest
+        image: postgres:13
         env:
           POSTGRES_DB: indexer_tests
           POSTGRES_USER: testuser
