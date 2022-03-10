@@ -11,7 +11,7 @@ import {
   printCostModels,
   setCostModel,
 } from '../../../../cost'
-import { validateDeploymentID } from "@graphprotocol/indexer-common";
+import { validateDeploymentID } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <file>

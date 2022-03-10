@@ -5,7 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
 import { costModel, costModels, parseDeploymentID, printCostModels } from '../../../cost'
-import { validateDeploymentID } from "@graphprotocol/indexer-common";
+import { validateDeploymentID } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer cost get')} [options] all
