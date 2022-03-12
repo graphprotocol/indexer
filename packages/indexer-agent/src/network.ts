@@ -857,6 +857,72 @@ export class Network {
     }
   }
 
+  async closedAllocations(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<Allocation[]> {
+    try {
+      const result = await this.networkSubgraph.query(
+        gql`
+          query allocations($indexer: String!, $subgraphDeploymentId: String!) {
+            indexer(id: $indexer) {
+              allocations: totalAllocations(
+                where: {
+                  indexer: $indexer
+                  status: Closed
+                  subgraphDeployment: $subgraphDeploymentId
+                }
+                first: 5
+                orderBy: closedAtBlockNumber
+                orderDirection: desc
+              ) {
+                id
+                poi
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                }
+              }
+            }
+          }
+        `,
+        {
+          indexer: this.indexerAddress.toLocaleLowerCase(),
+          subgraphDeploymentId: subgraphDeploymentId.display.bytes32,
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      if (!result.data) {
+        throw new Error(`No data / indexer not found on chain`)
+      }
+
+      if (!result.data.indexer) {
+        throw new Error(`Indexer not found on chain`)
+      }
+
+      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+    } catch (error) {
+      this.logger.error(
+        `Failed to query indexer's previously closed allocation for the deployment`,
+        {
+          error,
+        },
+      )
+      throw error
+    }
+  }
+
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       const result = await this.networkSubgraph.query(
