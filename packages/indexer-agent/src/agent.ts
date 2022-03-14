@@ -977,9 +977,18 @@ class Agent {
           },
         )
       } else {
+        const previousEpochStartBlockNumber =
+          epochStartBlock.number -
+          (await this.network.contracts.epochManager.epochLength()).toNumber()
+        const failureBlock = indexingStatus.chains[0].latestBlock
+
+        // latest valid block (earliest possible is at previous epoch start
+        const validBlock = await this.network.ethereum.getBlock(
+          Math.min(previousEpochStartBlockNumber, failureBlock.number - 1),
+        )
         const latestValidPoi = await this.indexer.proofOfIndexing(
           allocation.subgraphDeployment.id,
-          indexingStatus?.chains[0].latestBlock,
+          validBlock,
           this.indexer.indexerAddress,
         )
         this.logger.error(`Received a null or zero POI for deployment`, {

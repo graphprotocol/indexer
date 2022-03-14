@@ -13,6 +13,7 @@ import {
   BlockPointer,
   IndexingStatus,
   SubgraphIdentifierType,
+  parseGraphQLIndexingStatus,
 } from '@graphprotocol/indexer-common'
 import pRetry from 'p-retry'
 
@@ -474,12 +475,7 @@ export class Indexer {
       return (
         result.data.indexingStatuses
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((status: any) => ({
-            ...status,
-            subgraphDeployment: new SubgraphDeploymentID(
-              status.subgraphDeployment,
-            ),
-          }))
+          .map((status: any) => parseGraphQLIndexingStatus(status))
           .pop()
       )
     } catch (error) {
