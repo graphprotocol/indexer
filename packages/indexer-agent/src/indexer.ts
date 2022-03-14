@@ -168,7 +168,7 @@ export class Indexer {
       if (result.error) {
         throw result.error
       }
-      this.logger.debug('Fetched indexing rules', {
+      this.logger.trace('Fetched indexing rules', {
         count: result.data.indexingRules.length,
         rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
           return {

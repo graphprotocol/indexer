@@ -40,8 +40,9 @@ interface IndexerConfig {
   url: string
   geoCoordinates: [string, string]
   restakeRewards: boolean
-  rebateClaimMinSingleValue: BigNumber
-  rebateClaimMinBatchValue: BigNumber
+  rebateClaimThreshold: BigNumber
+  rebateClaimBatchThreshold: BigNumber
+  rebateClaimMaxBatchSize: number
   poiDisputeMonitoring: boolean
   poiDisputableEpochs: number
 }
@@ -1203,7 +1204,7 @@ export class Network {
       // We get at least 21k gas savings per inclusion of a claim in a batch
       // A reasonable upper bound for this value is 200 assuming the system has the memory
       // requirements to construct the transaction
-      const maxClaimsPerBatch = this.rebateClaimMaxBatchSize
+      const maxClaimsPerBatch = this.indexerConfigs.rebateClaimMaxBatchSize
 
       // When we construct the batch, we sort desc by query fees collected
       // in order to maximise the value of the truncated batch

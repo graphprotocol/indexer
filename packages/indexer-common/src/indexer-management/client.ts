@@ -61,6 +61,7 @@ const SCHEMA_SDL = gql`
     active: Boolean!
     claimable: Boolean!
     allocations: [String!]
+    subgraphDeployment: String
   }
   enum AllocationStatus {
     ACTIVE
@@ -69,16 +70,14 @@ const SCHEMA_SDL = gql`
 
   type Allocation {
     id: String!
-    deployment: String!
+    subgraphDeployment: String!
     allocatedTokens: String!
-    stakedTokens: String!
     createdAtEpoch: Int!
     ageInEpochs: Int!
     closedAtEpoch: Int
     indexingRewards: String!
-    queryFees: String!
+    queryFeesCollected: String!
     status: AllocationStatus!
-    deniedAt: BigInt!
   }
 
   type CreateAllocationResult {
@@ -266,11 +265,7 @@ const SCHEMA_SDL = gql`
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!
 
-    createAllocation(
-      deploymentID: String!
-      amount: String!
-      rule: Boolean!
-    ): CreateAllocationResult!
+    createAllocation(deploymentID: String!, amount: String!): CreateAllocationResult!
     closeAllocation(id: String!, poi: String, force: Boolean): CloseAllocationResult!
   }
 `

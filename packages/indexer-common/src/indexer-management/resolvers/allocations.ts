@@ -42,7 +42,7 @@ enum QueryAllocationMode {
 
 export interface AllocationInfo {
   id: Address
-  deployment: string
+  subgraphDeployment: string
   allocatedTokens: string
   createdAtEpoch: number
   closedAtEpoch: number | null
@@ -51,7 +51,7 @@ export interface AllocationInfo {
   closeDeadlineBlocksRemaining: number
   closeDeadlineTimeRemaining: number
   indexingRewards: string
-  queryFees: string
+  queryFeesCollected: string
   status: 'ACTIVE' | 'CLAIMABLE'
 }
 
@@ -72,10 +72,15 @@ const ALLOCATION_QUERIES = {
       query allocations($indexer: String!) {
         allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
           id
+          subgraphDeployment {
+            id
+          }
           allocatedTokens
           createdAtEpoch
           closedAtEpoch
-          deployment
+          indexingRewards
+          queryFeesCollected
+          status
         }
       }
     `,
@@ -86,10 +91,15 @@ const ALLOCATION_QUERIES = {
           first: 1000
         ) {
           id
+          subgraphDeployment {
+            id
+          }
           allocatedTokens
           createdAtEpoch
           closedAtEpoch
-          deployment
+          indexingRewards
+          queryFeesCollected
+          status
         }
       }
     `,
@@ -107,10 +117,15 @@ const ALLOCATION_QUERIES = {
           first: 1000
         ) {
           id
+          subgraphDeployment {
+            id
+          }
           allocatedTokens
           createdAtEpoch
           closedAtEpoch
-          deployment
+          indexingRewards
+          queryFeesCollected
+          status
         }
       }
     `,
@@ -130,10 +145,15 @@ const ALLOCATION_QUERIES = {
           first: 1000
         ) {
           id
+          subgraphDeployment {
+            id
+          }
           allocatedTokens
           createdAtEpoch
           closedAtEpoch
-          deployment
+          indexingRewards
+          queryFeesCollected
+          status
         }
       }
     `,
@@ -154,6 +174,10 @@ async function queryAllocations(
     avgBlockTime: number
   },
 ): Promise<AllocationInfo[]> {
+  console.log('Fetching allocations')
+  console.log('variables', variables)
+  console.log('mode', mode)
+
   const result = await networkSubgraph.query(
     variables.allocations === null
       ? ALLOCATION_QUERIES[mode]['all']
@@ -175,7 +199,9 @@ async function queryAllocations(
   if (result.error) {
     throw result.error
   }
-
+  // console.log(result.data.allocations)
+  console.log(result.data.allocations[0])
+  console.log(result.data.allocations[0].subgraphDeployment.id)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return pMap(
     result.data.allocations,
@@ -188,10 +214,10 @@ async function queryAllocations(
         context.currentEpochElapsedBlocks +
         // blocks in the remaining epochs after this one
         context.blocksPerEpoch * (deadlineEpoch - context.currentEpoch - 1)
-
       return {
         id: allocation.id,
-        deployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id).ipfsHash,
+        subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
+          .ipfsHash,
         allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
         createdAtEpoch: allocation.createdAtEpoch,
         closedAtEpoch: allocation.closedAtEpoch,
@@ -201,12 +227,8 @@ async function queryAllocations(
         closeDeadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
         closeDeadlineBlocksRemaining: remainingBlocks,
         closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
-        indexingRewards: (
-          await contracts.rewardsManager.getRewards(allocation.id)
-        ).toString(),
-        queryFees: (
-          await contracts.staking.getAllocation(allocation.id)
-        ).collectedFees.toString(),
+        indexingRewards: allocation.indexingRewards,
+        queryFeesCollected: allocation.queryFeesCollected,
         status: mode === QueryAllocationMode.Active ? 'ACTIVE' : 'CLAIMABLE',
       }
     },
@@ -333,7 +355,8 @@ export default {
         )),
       )
     }
-
+    console.log('allocations resolver result 1: ')
+    console.log(allocations[0])
     return allocations
   },
 
@@ -369,7 +392,7 @@ export default {
               subgraphDeployment {
                 id
                 stakedTokens
-                signalAmount
+                signalledTokens
               }
             }
           }
@@ -383,8 +406,10 @@ export default {
       if (result.error) {
         throw result.error
       }
-
-      activeAllocations.concat(result.data.allocations.map(parseGraphQLAllocation))
+      logger.info('Results', { result })
+      if (result.data.allocations.length > 0) {
+        activeAllocations.concat(result.data.allocations.map(parseGraphQLAllocation))
+      }
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       logger.error(`Failed to query active indexer allocations`, {
@@ -1007,13 +1032,6 @@ export default {
         event.data,
         event.topics,
       )
-
-      // logger.info(`Successfully reallocated to subgraph deployment`, {
-      //   deployment: deployment.display,
-      //   amountGRT: formatGRT(eventInputs.tokens),
-      //   allocation: eventInputs.allocationID,
-      //   epoch: eventInputs.epoch.toString(),
-      // })
 
       logger.info(`Successfully refreshed allocation`, {
         deployment: eventLogs.subgraphDeploymentID,

@@ -144,11 +144,7 @@ export const createAllocation = async (
   const result = await client
     .mutation(
       gql`
-        mutation createAllocation(
-          $deploymentID: String!
-          $amount: String
-          $rule: Boolean
-        ) {
+        mutation createAllocation($deploymentID: String!, $amount: String) {
           createAllocation(deploymentID: $deploymentID, amount: $amount) {
             deploymentID
             amount
@@ -168,7 +164,7 @@ export const createAllocation = async (
     throw result.error
   }
 
-  return result.data.closeAllocation
+  return result.data.createAllocation
 }
 
 export const closeAllocation = async (

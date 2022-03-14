@@ -6,7 +6,7 @@ import {createIndexerManagementClient} from '../../../client'
 import {fixParameters} from '../../../command-helpers'
 import gql from 'graphql-tag'
 import {printIndexerAllocations} from '../../../allocations'
-import {SubgraphDeploymentID, toAddress} from '@graphprotocol/common-ts'
+import {SubgraphDeploymentID} from '@graphprotocol/common-ts'
 import {processIdentifier, SubgraphIdentifierType} from "@graphprotocol/indexer-common";
 
 const HELP = `
@@ -42,6 +42,7 @@ module.exports = {
       } = parameters.options
 
       const [id] = fixParameters(parameters, { h, help, active, claimable, deployment, indexers }) || []
+      print.info('ID PARAM INPUT: ' + id)
       const outputFormat = o || output || 'table'
 
       if (help || h) {
@@ -61,58 +62,55 @@ module.exports = {
       try {
         if (deployment) {
             [deploymentString, type] = await processIdentifier(deployment, { all: true, global: false })
-            if(type == SubgraphIdentifierType.GROUP) {
+            if(type !== SubgraphIdentifierType.DEPLOYMENT) {
               throw Error(`Invalid '--deployment' must be a deployment ID (bytes32 or base58 formatted)`)
             }
         }
 
         const config = loadValidatedConfig()
         const client = await createIndexerManagementClient({ url: config.api })
-
+        print.info('CLAIMABLE: ' + claimable)
+        print.info('CLAIMABLE TYPE: ' + typeof claimable)
+        print.info('ACTIVE: ' + active)
         const result = await client
           .query(
             gql`
               query allocations($filter: AllocationFilter!) {
                 allocations(filter: $filter) {
                   id
-                  subgraphDeployment {
-                    id
-                  }
+                  subgraphDeployment
                   allocatedTokens
-                  stakedTokens
                   createdAtEpoch
                   closedAtEpoch
                   indexingRewards
-                  queryFees
+                  queryFeesCollected
                   status
-                  deniedAt
                 }
               }
             `,
             {
               filter: {
-                active: active,
-                claimable: claimable ,
-                allocations: id === 'all' || !id ? null : [toAddress(id)],
+                active: active == 'true',
+                claimable: claimable == 'true',
+                allocations: null,
                 subgraphDeployment: deploymentString
               },
             },
           )
           .toPromise()
-
+        print.debug(result.data.allocations[0])
         if (result.error) {
           throw result.error
         }
 
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const allocations = result.data.allocations.filter((allocation: any) => deployment === 'all' || new SubgraphDeploymentID(allocation.deployment) === new SubgraphDeploymentID(deployment))
+        const allocations = deployment ? result.data.allocations.filter((allocation: any) => deployment === 'all' || new SubgraphDeploymentID(allocation.deployment) === new SubgraphDeploymentID(deployment)) : result.data.allocations
         printIndexerAllocations(print, outputFormat, allocations, [
           'id',
           'subgraphDeployment',
           'allocatedTokens',
           'createdAtEpoch',
-          'signalAmount',
-          'stakedTokens',
+          'closedAtEpoch',
         ])
       } catch (error) {
         print.error(error.toString())

@@ -130,6 +130,7 @@ class Agent {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
+  allocationManagementMode: AllocationManagementMode
 
   constructor(
     logger: Logger,
@@ -152,6 +153,7 @@ class Agent {
     this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
+    this.allocationManagementMode = allocationManagementMode
   }
 
   async start(): Promise<Agent> {
@@ -445,7 +447,7 @@ class Agent {
           )
 
           // Reconcile allocations
-          if (AllocationManagementMode.AUTO) {
+          if (this.allocationManagementMode == AllocationManagementMode.AUTO) {
             await this.reconcileAllocations(
               activeAllocations,
               targetAllocations,
@@ -454,7 +456,9 @@ class Agent {
               currentEpochStartBlock,
               maxAllocationEpochs,
             )
-          } else if (AllocationManagementMode.MANUAL) {
+          } else if (
+            this.allocationManagementMode == AllocationManagementMode.MANUAL
+          ) {
             this.logger.info(
               `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
               {

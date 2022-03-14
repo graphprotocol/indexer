@@ -793,9 +793,11 @@ export default {
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
+    const managementModeString = argv.allocationManagement.toUpperCase()
+    logger.info('Management mode', { managementModeString })
     const allocationManagementMode: AllocationManagementMode =
       AllocationManagementMode[
-        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+        'MANUAL' as keyof typeof AllocationManagementMode
       ]
     await startAgent({
       logger,

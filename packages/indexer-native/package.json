@@ -6,7 +6,7 @@
   "author": "Zac Burns <That3Percent@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@graphprotocol/common-ts": "1.8.1",
+    "@graphprotocol/common-ts": "file:.yalc/@graphprotocol/common-ts",
     "neon-cli": "^0.9.0"
   },
   "scripts": {
