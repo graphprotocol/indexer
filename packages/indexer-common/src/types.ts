@@ -9,7 +9,7 @@ export interface EthereumIndexingStatus {
   network: string
   latestBlock: BlockPointer
   chainHeadBlock: BlockPointer
-  earliestBlock: BlockPointer
+  earliestBlock: BlockPointer | null
 }
 
 export type ChainIndexingStatus = EthereumIndexingStatus
