@@ -364,17 +364,20 @@ export class Network {
           .sub(feeData.maxPriorityFeePerGas!)
           .div(2)
         if (baseFeePerGas.toNumber() >= this.baseFeePerGasMax) {
-          if (attempt == 1) {
+          if (attempt === 1) {
             logger.warning(
               `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
-              { maxBaseFeePerGas: this.baseFeePerGasMax, baseFeePerGas },
+              {
+                maxBaseFeePerGas: this.baseFeePerGasMax,
+                baseFeePerGas: baseFeePerGas.toNumber(),
+              },
             )
           } else {
             logger.info(
               `Base gas fee per gas estimation still above max threshold`,
               {
                 maxBaseFeePerGas: this.baseFeePerGasMax,
-                baseFeePerGas,
+                baseFeePerGas: baseFeePerGas.toNumber(),
                 priceEstimateAttempt: attempt,
               },
             )
