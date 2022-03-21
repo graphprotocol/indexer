@@ -55,6 +55,11 @@ const disputeFromGraphQL = (
   return obj as POIDisputeAttributes
 }
 
+interface indexNode {
+  id: string
+  deployments: string[]
+}
+
 export class Indexer {
   statusResolver: IndexingStatusResolver
   rpc: RpcClient
@@ -136,6 +141,52 @@ export class Indexer {
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, { err })
+      throw err
+    }
+  }
+
+  async indexNodes(): Promise<indexNode[]> {
+    try {
+      const result = await this.statusResolver.statuses
+        .query(
+          gql`
+            {
+              indexingStatuses {
+                subgraphDeployment: subgraph
+                node
+              }
+            }
+          `,
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      const indexNodes: indexNode[] = []
+      result.data.indexingStatuses.map(
+        (status: { subgraphDeployment: string; node: string }) => {
+          const node = indexNodes.find(node => node.id === status.node)
+          node
+            ? node.deployments.push(status.subgraphDeployment)
+            : indexNodes.push({
+                id: status.node,
+                deployments: [status.subgraphDeployment],
+              })
+        },
+      )
+
+      this.logger.info(`Queried index nodes`, {
+        indexNodes,
+      })
+      return indexNodes
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(
+        `Failed to query index nodes API (Should get a different IE?)`,
+        { err },
+      )
       throw err
     }
   }
@@ -596,12 +647,23 @@ export class Indexer {
 
   async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      // Pick a random index node to assign the deployment too; TODO: Improve
-      // this to assign based on load (i.e. always pick the index node with the
-      // least amount of deployments assigned)
-      const targetNode =
-        this.indexNodeIDs[Math.floor(Math.random() * this.indexNodeIDs.length)]
+      // Randomly assign to unused nodes if they exist,
+      // otherwise use the node with lowest deployments assigned
+      const indexNodes = (await this.indexNodes()).filter(
+        (node: { id: string; deployments: Array<string> }) => {
+          return node.id && node.id !== 'removed'
+        },
+      )
+      const usedIndexNodeIDs = indexNodes.map(node => node.id)
+      const unusedNodes = this.indexNodeIDs.filter(
+        nodeID => !(nodeID in usedIndexNodeIDs),
+      )
 
+      const targetNode = unusedNodes
+        ? unusedNodes[Math.floor(Math.random() * unusedNodes.length)]
+        : indexNodes.sort((nodeA, nodeB) => {
+            return nodeA.deployments.length - nodeB.deployments.length
+          })[0].id
       await this.create(name)
       await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
