@@ -40,12 +40,6 @@ export default {
   describe: 'Start the agent',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .config(
-        'config',
-        'Indexer agent configuration file (YAML format)',
-        (cfgPath: string): Argv =>
-          yaml_parse(fs.readFileSync(cfgPath, 'utf-8')),
-      )
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
         type: 'string',
@@ -80,24 +74,19 @@ export default {
         default: 1.2,
         group: 'Ethereum',
       })
-      // TODO: Remove this option and its usage point in a release or two (see other TODO item)
       .option('gas-price-max', {
         description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
         default: 100,
+        deprecated: true,
         group: 'Ethereum',
         coerce: arg => arg * 10 ** 9,
       })
-      .deprecateOption(
-        'gas-price-max',
-        'use --base-fee-per-gas-max'
-      )
       .option('base-fee-per-gas-max', {
         description:
           'The maximum base fee per gas (gwei) to use for transactions, for legacy transactions this will be treated as the max gas price',
         type: 'number',
         required: false,
-        default: 100,
         group: 'Ethereum',
         coerce: arg => arg * 10 ** 9,
       })
@@ -179,11 +168,11 @@ export default {
         type: 'string',
         array: true,
         required: true,
-        default: [],
-        coerce: arg => arg.reduce(
-          (acc: string[], value: string) => [...acc, ...value.split(',')],
-          [],
-        ),
+        coerce: arg =>
+          arg.reduce(
+            (acc: string[], value: string) => [...acc, ...value.split(',')],
+            [],
+          ),
         group: 'Indexer Infrastructure',
       })
       .option('default-allocation-amount', {
@@ -421,11 +410,20 @@ export default {
         implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
+      .config({
+        key: 'cfg-file',
+        description: 'Indexer agent configuration file (YAML format)',
+        parseFn: function (cfgFilePath: string) {
+          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
+        },
+      })
   },
   handler: async (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
+    console.log('ARGV arguments:')
+    //console.log(argv)
     const logger = createLogger({
       name: 'IndexerAgent',
       async: false,
@@ -737,8 +735,7 @@ export default {
         networkSubgraphDeployment,
       )
     }
-    // TODO: Remove baseFeePerGasMax in a release or two
-    const maxGasFee = argv.baseFeePerGasMax || argv.gasPriceMax
+    const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
       logger,
       ethereum,

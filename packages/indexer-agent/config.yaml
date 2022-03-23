@@ -1,4 +1,1 @@
 ethereum-network: "mainnet"
-network-subgraph-endpoint: 'https://gateway.thegraph.com/network'
-network-subgraph-deployment: "QmXpGqkUZLLZ9T2xPERs8dCgCAWfTgagbnTY4wxRrXXzZa"
-collect-receipts-endpoint: "https://gateway.network.thegraph.com/collect-receipts"
