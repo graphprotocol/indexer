@@ -729,6 +729,8 @@ export default {
       address: indexerAddress,
       contracts,
       indexingStatusResolver,
+      deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
+      indexNodeIDs: argv.indexNodeIds,
       networkSubgraph,
       logger,
       defaults: {

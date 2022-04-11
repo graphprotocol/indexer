@@ -62,21 +62,24 @@ const setup = async () => {
   address = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
+  const statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
-    statusEndpoint: 'http://localhost:8030/graphql',
+    statusEndpoint,
   })
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint: 'https://gateway.testnet.thegraph.com/network',
     deployment: undefined,
   })
-
+  const indexNodeIDs = ['node_1']
   client = await createIndexerManagementClient({
     models,
     address,
     contracts,
     indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
     defaults: {
