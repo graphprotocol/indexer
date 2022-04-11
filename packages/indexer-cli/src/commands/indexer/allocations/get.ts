@@ -5,19 +5,10 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
-// import { printIndexerAllocations } from '../../../allocations'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  parseGraphQLAllocation,
-  processIdentifier,
-  SubgraphIdentifierType,
-} from '@graphprotocol/indexer-common'
-import {
-  displayIndexerAllocations,
-  IndexerAllocation,
-  printIndexerAllocations,
-} from '../../../allocations'
-import { BigNumber } from 'ethers'
+import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
+import { utils } from 'ethers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
@@ -57,6 +48,10 @@ module.exports = {
 
       if (status && !['active', 'closed', 'claimable'].includes(status)) {
         throw Error(`Invalid '--status' must be one of 'active', 'closed' or 'claimable'`)
+      }
+
+      if (allocation && !utils.isHexString(allocation, 20)) {
+        throw Error(`Invalid 'allocation-id', '${allocation}', must be a bytes20 string`)
       }
 
       let deploymentString: string | undefined = undefined
@@ -114,11 +109,12 @@ module.exports = {
         throw result.error
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allocations = deploymentString
-        ? result.data.allocations.filter((allocation: any) => {
+        ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          result.data.allocations.filter((allocation: any) => {
             return (
               new SubgraphDeploymentID(allocation.subgraphDeployment).toString() ===
+              // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
               new SubgraphDeploymentID(deploymentString!).toString()
             )
           })
