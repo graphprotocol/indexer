@@ -155,7 +155,11 @@ module.exports = {
 
     if (result.data.indexerRegistration) {
       data.registration = pickFields(result.data.indexerRegistration, [])
-      data.registration.location = `${data.registration.location.latitude},${data.registration.location.longitude}`
+      if (data.registration.location) {
+        data.registration.location = `${data.registration.location.latitude},${data.registration.location.longitude}`
+      } else {
+        data.registration.location = 'No location specified'
+      }
     } else {
       data.registration = {
         error:
