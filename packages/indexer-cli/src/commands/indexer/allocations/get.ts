@@ -71,6 +71,10 @@ module.exports = {
         }
       }
 
+      if (allocation && !utils.isHexString(allocation, 20)) {
+        throw Error(`Invalid 'allocation-id', '${allocation}', must be a bytes20 string`)
+      }
+
       let deploymentString: string | undefined = undefined
       let type: SubgraphIdentifierType
 
