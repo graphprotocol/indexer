@@ -1,5 +1,4 @@
 import path from 'path'
-
 import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
