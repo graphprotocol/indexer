@@ -424,6 +424,7 @@ export default {
     {
       address,
       contracts,
+      subgraphManager,
       logger,
       models,
       networkSubgraph,
@@ -543,7 +544,15 @@ export default {
         )
       }
 
-      //TODO: Deploy subgraph to infra to ensure it is syncing
+      // Ensure subgraph is deployed before allocating
+      await subgraphManager.ensure(
+        logger,
+        models,
+        `${subgraphDeployment.ipfsHash.slice(0, 23)}/${subgraphDeployment.ipfsHash.slice(
+          23,
+        )}`,
+        subgraphDeployment,
+      )
 
       logger.debug('Obtain a unique Allocation ID')
 

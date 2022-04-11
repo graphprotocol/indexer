@@ -55,9 +55,10 @@ export const setup = async () => {
 
   wallet = Wallet.createRandom()
 
+  const statusEndpoint = 'http://localhost:8030/graphql'
   const indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
-    statusEndpoint: 'http://localhost:8030/graphql',
+    statusEndpoint,
   })
 
   const networkSubgraph = await NetworkSubgraph.create({
@@ -65,12 +66,14 @@ export const setup = async () => {
     endpoint: 'https://gateway.testnet.thegraph.com/network',
     deployment: undefined,
   })
-
+  const indexNodeIDs = ['node_1']
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
     indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
     defaults: {

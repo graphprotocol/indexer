@@ -23,6 +23,7 @@ import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
 import { TransactionManager } from '../transactions'
+import { SubraphManager } from './subgraphs'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -33,6 +34,7 @@ export interface IndexerManagementResolverContext {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
+  subgraphManager: SubraphManager
   networkSubgraph: NetworkSubgraph
   logger: Logger
   defaults: IndexerManagementDefaults
@@ -298,6 +300,8 @@ export interface IndexerManagementClientOptions {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
+  indexNodeIDs: string[]
+  deploymentManagementEndpoint: string
   networkSubgraph: NetworkSubgraph
   logger?: Logger
   defaults: IndexerManagementDefaults
@@ -357,6 +361,8 @@ export const createIndexerManagementClient = async (
     address,
     contracts,
     indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint,
     networkSubgraph,
     logger,
     defaults,
@@ -374,6 +380,8 @@ export const createIndexerManagementClient = async (
 
   const dai: WritableEventual<string> = mutable()
 
+  const subgraphManager = new SubraphManager(deploymentManagementEndpoint, indexNodeIDs)
+
   const exchange = executeExchange({
     schema,
     rootValue: resolvers,
@@ -382,6 +390,7 @@ export const createIndexerManagementClient = async (
       address,
       contracts,
       indexingStatusResolver,
+      subgraphManager,
       networkSubgraph,
       logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
       defaults,

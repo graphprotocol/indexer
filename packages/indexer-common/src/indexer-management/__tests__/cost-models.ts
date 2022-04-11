@@ -78,21 +78,24 @@ const setup = async () => {
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
   logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+  const statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
-    statusEndpoint: 'http://localhost:8030/graphql',
+    statusEndpoint,
   })
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint: 'https://gateway.testnet.thegraph.com/network',
     deployment: undefined,
   })
-
+  const indexNodeIDs = ['node_1']
   client = await createIndexerManagementClient({
     models,
     address,
     contracts,
     indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
     defaults,
@@ -466,18 +469,6 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
-    const client = await createIndexerManagementClient({
-      models,
-      address,
-      indexingStatusResolver,
-      networkSubgraph,
-      contracts,
-      logger,
-      defaults,
-      features: {
-        injectDai: false,
-      },
-    })
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
