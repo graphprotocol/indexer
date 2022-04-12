@@ -13,6 +13,7 @@ import { utils } from 'ethers'
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
 ${chalk.bold('graph indexer allocations get')} [options] <allocation-id>
+${chalk.bold('graph indexer allocations get')} [options] all
 
 ${chalk.dim('Options:')}
 
@@ -47,11 +48,25 @@ module.exports = {
       }
 
       if (status && !['active', 'closed', 'claimable'].includes(status)) {
-        throw Error(`Invalid '--status' must be one of 'active', 'closed' or 'claimable'`)
+        throw Error(
+          `Invalid '--status' provided, must be one of 'active', 'closed' or 'claimable'`,
+        )
       }
 
-      if (allocation && !utils.isHexString(allocation, 20)) {
-        throw Error(`Invalid 'allocation-id', '${allocation}', must be a bytes20 string`)
+      if (allocation) {
+        if (allocation !== 'all' && !utils.isHexString(allocation, 20)) {
+          throw Error(
+            `Invalid 'allocation-id' provided ('${allocation}'), must be a bytes20 string or 'all'`,
+          )
+        }
+
+        if (allocation == 'all') {
+          if (status || deployment) {
+            throw Error(
+              `Invalid query, cannot specify '--status' or '--deployment' filters in addition to 'allocation = all'`,
+            )
+          }
+        }
       }
 
       let deploymentString: string | undefined = undefined
@@ -134,7 +149,8 @@ module.exports = {
         'queryFeesCollected',
         'status',
       ]
-      if (!allocation) {
+      if (!allocation || allocation == 'all') {
+        print.info('allocation: ' + allocation)
         displayProperties = displayProperties.filter(property => property !== 'indexer')
       }
       if (status == 'active') {

@@ -393,7 +393,11 @@ export default {
     const variables = {
       indexer: toAddress(address),
       disputableEpoch: currentEpoch.sub(disputeEpochs).toNumber(),
-      allocation: filter.allocation ? toAddress(filter.allocation) : null,
+      allocation: filter.allocation
+        ? filter.allocation === 'all'
+          ? null
+          : toAddress(filter.allocation)
+        : null,
       status: filter.status,
     }
     const context = {
