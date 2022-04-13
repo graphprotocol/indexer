@@ -1,5 +1,5 @@
 import path from 'path'
-import readPkg from 'read-pkg'
+import { readPackage } from 'read-pkg'
 import { Argv } from 'yargs'
 import { Wallet, providers, BigNumber } from 'ethers'
 
@@ -204,7 +204,7 @@ export default {
       })
     })
 
-    const pkg = await readPkg({ cwd: path.join(__dirname, '..', '..') })
+    const pkg = await readPackage({ cwd: path.join(__dirname, '..', '..') })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const dependencies = pkg.dependencies!
     const release = {

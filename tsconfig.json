@@ -4,6 +4,7 @@
     "paths": {
       "@graphprotocol/*": ["./*/src"]
     },
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "useUnknownInCatchVariables": false
   }
 }

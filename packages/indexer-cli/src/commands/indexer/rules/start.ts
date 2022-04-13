@@ -4,12 +4,8 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
-import {IndexingDecisionBasis, processIdentifier} from '@graphprotocol/indexer-common'
-import {
-  setIndexingRule,
-  printIndexingRules,
-  parseIndexingRule,
-} from '../../../rules'
+import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
+import { setIndexingRule, printIndexingRules, parseIndexingRule } from '../../../rules'
 
 const HELP = `
 ${chalk.bold('graph indexer rules start')}  [options] global
@@ -48,7 +44,10 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: false,
+        global: true,
+      })
 
       const inputRule = parseIndexingRule({
         identifier,
@@ -56,7 +55,7 @@ module.exports = {
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       })
 
-    // Update the indexing rule according to the key/value pairs
+      // Update the indexing rule according to the key/value pairs
       const client = await createIndexerManagementClient({ url: config.api })
       const rule = await setIndexingRule(client, inputRule)
       printIndexingRules(print, outputFormat, identifier, rule, [])

@@ -5,11 +5,7 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
-import {
-  parseIndexingRule,
-  setIndexingRule,
-  printIndexingRules,
-} from '../../../rules'
+import { parseIndexingRule, setIndexingRule, printIndexingRules } from '../../../rules'
 import { processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
@@ -45,7 +41,10 @@ module.exports = {
     }
 
     try {
-      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: false,
+        global: true,
+      })
       const config = loadValidatedConfig()
 
       //// Parse key/value pairs
@@ -66,11 +65,13 @@ module.exports = {
       const inputRule = parseIndexingRule({
         ...Object.fromEntries([...partition(2, 2, kvs)]),
         identifier,
-        identifierType
+        identifierType,
       })
 
       if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
-        print.error('Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules')
+        print.error(
+          'Parallel allocations are soon to be fully deprecated. Please set parallel allocations to 1 for all your indexing rules',
+        )
         process.exitCode = 1
       }
 

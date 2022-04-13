@@ -5,12 +5,8 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
-import {
-  setIndexingRule,
-  printIndexingRules,
-  parseIndexingRule,
-} from '../../../rules'
-import { processIdentifier } from "@graphprotocol/indexer-common"
+import { setIndexingRule, printIndexingRules, parseIndexingRule } from '../../../rules'
+import { processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules clear')} [options] global          [<key1> ...]
@@ -72,7 +68,10 @@ module.exports = {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: false,
+        global: true,
+      })
 
       // Turn the array into an object, add an `identifier` key
       const inputRule = parseIndexingRule({

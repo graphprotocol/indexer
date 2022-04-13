@@ -42,17 +42,29 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const [identifier, identifierType] = await processIdentifier(id, { all: true, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: true,
+        global: true,
+      })
 
       const client = await createIndexerManagementClient({ url: config.api })
 
       if (identifier === 'all') {
         const rules = await indexingRules(client, false)
+
+        /* eslint-disable @typescript-eslint/no-non-null-assertion */
         await deleteIndexingRules(
           client,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          await Promise.all(rules.map(async rule => (await processIdentifier(rule.identifier!, { all: true, global: true }))[0])),
+          await Promise.all(
+            rules.map(
+              async rule =>
+                (
+                  await processIdentifier(rule.identifier!, { all: true, global: true })
+                )[0],
+            ),
+          ),
         )
+        /* eslint-enable @typescript-eslint/no-non-null-assertion */
         print.info(`Deleted all indexing rules`)
       } else if (identifier === 'global') {
         await deleteIndexingRules(client, ['global'])
