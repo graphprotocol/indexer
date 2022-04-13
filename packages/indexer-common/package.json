@@ -33,6 +33,7 @@
     "fastify": "3.25.0",
     "graphql": "16.3.0",
     "graphql-tag": "2.12.6",
+    "jayson": "3.6.6",
     "morgan": "1.10.0",
     "ngeohash": "0.6.3",
     "p-filter": "2.1.0",

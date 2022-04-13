@@ -99,7 +99,7 @@ export const setup = async () => {
   })
 
   defaultMaxEventListeners = process.getMaxListeners()
-  process.setMaxListeners(20)
+  process.setMaxListeners(100)
   process.on('SIGTERM', await shutdownIndexerManagementServer)
   process.on('SIGINT', await shutdownIndexerManagementServer)
 

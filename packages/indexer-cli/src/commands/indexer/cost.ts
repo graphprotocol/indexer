@@ -9,7 +9,7 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print } = toolbox
     print.info(toolbox.command?.description)
-    print.printCommands(toolbox, ['cost'])
+    print.printCommands(toolbox, ['indexer', 'cost'])
     process.exitCode = -1
   },
 }

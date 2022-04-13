@@ -1,3 +1,11 @@
 Configure indexing rules
 
-
+  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)     
+  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)   
+  indexer rules set                  Set one or more indexing rules                                   
+  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary) 
+  indexer rules maybe                Index a deployment based on rules                                
+  indexer rules get                  Get one or more indexing rules                                   
+  indexer rules delete               Remove one or many indexing rules                                
+  indexer rules clear (reset)        Clear one or more indexing rules                                 
+  indexer rules                      Configure indexing rules                                         
