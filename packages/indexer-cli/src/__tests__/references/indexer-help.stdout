@@ -17,4 +17,9 @@ Manage indexer configuration
   indexer cost get                   Get cost models and/or variables for one or all subgraphs        
   indexer cost                       Manage costing for subgraphs                                     
   indexer connect                    Connect to indexer management API                                
+  indexer allocations reallocate     Reallocate to subgraph deployment                                
+  indexer allocations get            List one or more allocations                                     
+  indexer allocations create         Create an allocation                                             
+  indexer allocations close          Close an allocation                                              
+  indexer allocations                Manage indexer allocations                                       
   indexer                            Manage indexer configuration                                     

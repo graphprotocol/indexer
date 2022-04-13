@@ -3,7 +3,6 @@ import {
   connectDatabase,
   createLogger,
   Logger,
-  mutable,
   NetworkContracts,
   parseGRT,
   toAddress,
@@ -16,9 +15,8 @@ import {
   IndexingStatusResolver,
   NetworkSubgraph,
   POIDisputeAttributes,
-  TransactionManager,
 } from '@graphprotocol/indexer-common'
-import { BigNumber, providers, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
 import { Indexer } from '../indexer'
 
@@ -126,9 +124,10 @@ const setup = async () => {
   contracts = await connectContracts(wallet, 4)
   await sequelize.sync({ force: true })
 
+  const statusEndpoint = 'http://localhost:8030/graphql'
   const indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
-    statusEndpoint: 'http://localhost:8030/graphql',
+    statusEndpoint: 'statusEndpoint',
   })
 
   const networkSubgraph = await NetworkSubgraph.create({
@@ -137,32 +136,14 @@ const setup = async () => {
     deployment: undefined,
   })
 
-  const ethereum = new providers.StaticJsonRpcProvider(
-    {
-      url: providerUrl.toString(),
-      user: username,
-      password: password,
-      allowInsecureAuthentication: true,
-    },
-    '4',
-  )
-
-  const transactionManager = new TransactionManager(
-    ethereum,
-    wallet,
-    mutable(false),
-    mutable(true),
-    240,
-    1.2,
-    500,
-    10,
-  )
-
+  const indexNodeIDs = ['node_1']
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
     indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
     defaults: {
@@ -174,7 +155,6 @@ const setup = async () => {
     features: {
       injectDai: false,
     },
-    transactionManager,
   })
 
   indexer = new Indexer(

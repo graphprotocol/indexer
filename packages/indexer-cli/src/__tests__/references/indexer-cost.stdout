@@ -1,3 +1,6 @@
 Manage costing for subgraphs
 
-
+  indexer cost set variables    Update cost model variables                               
+  indexer cost set model        Update a cost model                                       
+  indexer cost get              Get cost models and/or variables for one or all subgraphs 
+  indexer cost                  Manage costing for subgraphs                              
