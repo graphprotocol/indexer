@@ -4,12 +4,8 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
-import {IndexingDecisionBasis, processIdentifier} from '@graphprotocol/indexer-common'
-import {
-  setIndexingRule,
-  printIndexingRules,
-  parseIndexingRule,
-} from '../../../rules'
+import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
+import { setIndexingRule, printIndexingRules, parseIndexingRule } from '../../../rules'
 
 const HELP = `
 ${chalk.bold('graph indexer rules maybe')} [options] global
@@ -46,7 +42,10 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const [identifier, identifierType] = await processIdentifier(id, { all: false, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: false,
+        global: true,
+      })
 
       const inputRule = parseIndexingRule({
         identifier,

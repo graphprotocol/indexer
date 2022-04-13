@@ -4,12 +4,8 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
-import {
-  indexingRule,
-  indexingRules,
-  printIndexingRules,
-} from '../../../rules'
-import {IndexingRuleAttributes, processIdentifier} from '@graphprotocol/indexer-common'
+import { indexingRule, indexingRules, printIndexingRules } from '../../../rules'
+import { IndexingRuleAttributes, processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules get')} [options] all             [<key1> ...]
@@ -47,7 +43,10 @@ module.exports = {
 
     try {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [identifier, identifierType] = await processIdentifier(id, { all: true, global: true })
+      const [identifier, identifierType] = await processIdentifier(id, {
+        all: true,
+        global: true,
+      })
 
       const config = loadValidatedConfig()
 

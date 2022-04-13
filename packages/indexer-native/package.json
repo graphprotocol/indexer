@@ -6,8 +6,8 @@
   "author": "Zac Burns <That3Percent@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "@graphprotocol/common-ts": "1.8.2",
-    "neon-cli": "^0.8.0"
+    "@graphprotocol/common-ts": "1.8.3",
+    "neon-cli": "0.10.0"
   },
   "scripts": {
     "compile": "neon build --release",
@@ -16,10 +16,10 @@
     "clean": "rm -rf ./node_modules /native/target /native/artifacts.json /native/index.node"
   },
   "devDependencies": {
-    "bs58": "4.0.1",
-    "ethers": "5.5.2",
-    "jest": "27.4.5",
-    "ts-jest": "27.1.2"
+    "bs58": "5.0.0",
+    "ethers": "5.6.2",
+    "jest": "27.5.1",
+    "ts-jest": "27.1.4"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }
