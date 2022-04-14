@@ -12,7 +12,7 @@ ${chalk.bold('graph indexer allocations close')} [options] <id> <poi>
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass PoIaccuracy checks and submit transaction with provided data 
+  -f, --force                   Bypass POIaccuracy checks and submit transaction with provided data 
 `
 
 module.exports = {
@@ -47,13 +47,13 @@ module.exports = {
         poi = utils.hexlify(Array(32).fill(0))
       }
       try {
-        // Ensure user provided PoI is formatted properly - '0x...' (32 bytes)
+        // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
         const isHex = utils.isHexString(poi, 32)
         if (!isHex) {
           throw new Error('Must be a 32 byte length hex string')
         }
       } catch (error) {
-        print.error(`Invalid PoI provided, '${poi}'. ` + error.toString())
+        print.error(`Invalid POI provided, '${poi}'. ` + error.toString())
         process.exitCode = 1
         return
       }

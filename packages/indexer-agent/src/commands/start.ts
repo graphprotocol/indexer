@@ -324,13 +324,13 @@ export default {
       })
       .option('poi-disputable-epochs', {
         description:
-          'The number of epochs in the past to look for potential PoI disputes',
+          'The number of epochs in the past to look for potential POI disputes',
         type: 'number',
         default: 1,
         group: 'Disputes',
       })
       .option('poi-dispute-monitoring', {
-        description: 'Monitor the network for potential PoI disputes',
+        description: 'Monitor the network for potential POI disputes',
         type: 'boolean',
         default: false,
         group: 'Disputes',

@@ -13,7 +13,7 @@ ${chalk.bold('graph indexer allocations create')} [options] <deployment-id> <amo
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass PoI accuracy checks and submit transaction with provided data 
+  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data 
 `
 
 module.exports = {

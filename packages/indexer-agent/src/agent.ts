@@ -437,7 +437,7 @@ class Agent {
             disputableEpoch,
           )
         } catch (err) {
-          this.logger.warn(`Failed PoI dispute monitoring`, { err })
+          this.logger.warn(`Failed POI dispute monitoring`, { err })
         }
         try {
           await this.reconcileDeployments(
@@ -515,7 +515,7 @@ class Agent {
     }
 
     this.logger.debug(
-      `Found new allocations onchain for subgraphs we have indexed. Let's compare PoIs to identify any potential indexing disputes`,
+      `Found new allocations onchain for subgraphs we have indexed. Let's compare POIs to identify any potential indexing disputes`,
     )
 
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
@@ -532,7 +532,7 @@ class Agent {
             pool.closedAtEpochStartBlockHash!,
           )
 
-          // Todo: Lazily fetch this, only if the first reference PoI doesn't match
+          // Todo: Lazily fetch this, only if the first reference POI doesn't match
           const previousEpochStartBlock = await this.network.ethereum.getBlock(
             pool.previousEpochStartBlockHash!,
           )
@@ -612,7 +612,7 @@ class Agent {
     ).length
     const stored = await this.indexer.storePoiDisputes(disputes)
 
-    this.logger.info(`Disputable allocations' PoIs validated`, {
+    this.logger.info(`Disputable allocations' POIs validated`, {
       potentialDisputes: potentialDisputes,
       validAllocations: stored.length - potentialDisputes,
     })
@@ -859,7 +859,7 @@ class Agent {
         allocationAmount: formatGRT(desiredAllocationAmount),
       })
 
-      // Skip allocating if the previous allocation for this deployment was closed with a null or 0x00 PoI
+      // Skip allocating if the previous allocation for this deployment was closed with a null or 0x00 POI
       const closedAllocation = (
         await this.network.closedAllocations(deployment)
       )[0]

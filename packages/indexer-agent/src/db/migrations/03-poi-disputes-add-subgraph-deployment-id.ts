@@ -13,14 +13,14 @@ interface Context {
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
 
-  logger.info(`Checking if PoI disputes table exists`)
+  logger.info(`Checking if POI disputes table exists`)
   const tables = await queryInterface.showAllTables()
   if (!tables.includes('POIDisputes')) {
-    logger.info(`PoI disputes table does not exist, migration not necessary`)
+    logger.info(`POI disputes table does not exist, migration not necessary`)
     return
   }
 
-  logger.info(`Checking if PoI disputes table needs to be migrated`)
+  logger.info(`Checking if POI disputes table needs to be migrated`)
   const table = await queryInterface.describeTable('POIDisputes')
   const subgraphDeploymentIDColumn = table.subgraphDeploymentID
   if (subgraphDeploymentIDColumn) {

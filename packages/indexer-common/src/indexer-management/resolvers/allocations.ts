@@ -369,7 +369,7 @@ async function resolvePOI(
           } else if (poi !== undefined && generatedPOI == undefined) {
             return poi
           }
-          throw new Error(`User provided PoI does not match reference fetched from the graph-node. Use '--force' to bypass this PoI accuracy check. 
+          throw new Error(`User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
             POI: ${poi}, 
             referencePOI: ${generatedPOI}`)
       }
@@ -989,7 +989,7 @@ export default {
         )
       }
 
-      logger.debug('Resolving PoI')
+      logger.debug('Resolving POI')
       const allocationPOI = await resolvePOI(
         contracts,
         transactionManager,
@@ -998,8 +998,8 @@ export default {
         poi,
         force,
       )
-      logger.debug('PoI resolved', {
-        userProvidedPoI: poi,
+      logger.debug('POI resolved', {
+        userProvidedPOI: poi,
         poi: allocationPOI,
       })
 
@@ -1205,7 +1205,7 @@ export default {
         deployment: createAllocationEventLogs.subgraphDeploymentID,
         closedAllocation: closeAllocationEventLogs.allocationID,
         closedAllocationStakeGRT: formatGRT(closeAllocationEventLogs.tokens),
-        closedAllocationPoI: closeAllocationEventLogs.poi,
+        closedAllocationPOI: closeAllocationEventLogs.poi,
         closedAllocationEpoch: closeAllocationEventLogs.epoch.toString(),
         indexingRewardsCollected: rewardsAssigned,
         createdAllocation: createAllocationEventLogs.allocationID,
