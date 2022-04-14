@@ -156,7 +156,7 @@ export class IndexingStatusResolver {
             }
             throw result.error
           }
-          this.logger.trace('Reference PoI generated', {
+          this.logger.trace('Reference POI generated', {
             indexer: indexerAddress,
             subgraph: deployment.ipfsHash,
             block: block,

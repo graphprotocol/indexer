@@ -54,7 +54,7 @@ module.exports = {
         poi = utils.hexlify(Array(32).fill(0))
       }
       try {
-        // Ensure user provided PoI is formatted properly - '0x...' (32 bytes)
+        // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
         const isHex = utils.isHexString(poi, 32)
         if (!isHex) {
           throw new Error('Must be a 32 byte length hex string')

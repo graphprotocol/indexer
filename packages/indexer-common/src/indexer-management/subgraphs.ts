@@ -10,7 +10,7 @@ import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import jayson, { Client as RpcClient } from 'jayson/promise'
 import pTimeout from 'p-timeout'
 
-export class SubraphManager {
+export class SubgraphManager {
   client: RpcClient
   indexNodeIds: string[]
 

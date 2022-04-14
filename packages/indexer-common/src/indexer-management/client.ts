@@ -23,7 +23,7 @@ import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
 import { TransactionManager } from '../transactions'
-import { SubraphManager } from './subgraphs'
+import { SubgraphManager } from './subgraphs'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -34,7 +34,7 @@ export interface IndexerManagementResolverContext {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
-  subgraphManager: SubraphManager
+  subgraphManager: SubgraphManager
   networkSubgraph: NetworkSubgraph
   logger: Logger
   defaults: IndexerManagementDefaults
@@ -380,7 +380,7 @@ export const createIndexerManagementClient = async (
 
   const dai: WritableEventual<string> = mutable()
 
-  const subgraphManager = new SubraphManager(deploymentManagementEndpoint, indexNodeIDs)
+  const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
 
   const exchange = executeExchange({
     schema,
