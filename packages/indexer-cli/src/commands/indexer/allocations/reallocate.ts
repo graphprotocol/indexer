@@ -79,11 +79,11 @@ module.exports = {
       )
 
       print.info('Allocation reallocated successfully')
-      print.info('Old allocation ID: ' + reallocateResult.closedAllocationID)
+      print.info('Old allocation ID: ' + reallocateResult.closedAllocation)
       print.info(
         'Indexing rewards collected: ' + reallocateResult.indexingRewardsCollected,
       )
-      print.info('New allocation ID: ' + reallocateResult.createdAllocationID)
+      print.info('New allocation ID: ' + reallocateResult.createdAllocation)
       print.info('New allocation stake: ' + reallocateResult.createdAllocationStake)
     } catch (error) {
       print.error(error.toString())

@@ -89,20 +89,21 @@ const SCHEMA_SDL = gql`
   }
 
   type CreateAllocationResult {
-    deploymentID: String!
-    amount: String!
+    allocation: String!
+    deployment: String!
+    allocatedTokens: String!
   }
 
   type CloseAllocationResult {
-    id: String!
+    allocation: String!
     allocatedTokens: String!
     indexingRewards: String!
   }
 
   type reallocateAllocationResult {
-    closedAllocationID: String!
+    closedAllocation: String!
     indexingRewardsCollected: String!
-    createdAllocationID: String!
+    createdAllocation: String!
     createdAllocationStake: String!
   }
 
@@ -277,10 +278,18 @@ const SCHEMA_SDL = gql`
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!
 
-    createAllocation(deploymentID: String!, amount: String!): CreateAllocationResult!
-    closeAllocation(id: String!, poi: String, force: Boolean): CloseAllocationResult!
+    createAllocation(
+      deployment: String!
+      amount: String!
+      indexNode: String
+    ): CreateAllocationResult!
+    closeAllocation(
+      allocation: String!
+      poi: String
+      force: Boolean
+    ): CloseAllocationResult!
     reallocateAllocation(
-      id: String!
+      allocation: String!
       poi: String
       amount: String!
       force: Boolean

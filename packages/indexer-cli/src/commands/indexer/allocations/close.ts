@@ -65,7 +65,7 @@ module.exports = {
       const closeResult = await closeAllocation(client, id, poi, toForce)
 
       print.info('Allocation closed successfully')
-      print.info('ID: ' + closeResult.id)
+      print.info('ID: ' + closeResult.allocation)
       print.info('Tokens allocated: ' + closeResult.allocatedTokens)
       print.info('Indexing rewards collected: ' + closeResult.indexingRewards)
     } catch (error) {
