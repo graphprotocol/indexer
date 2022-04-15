@@ -36,7 +36,7 @@ interface AllocationFilter {
   subgraphDeployment: string | null
 }
 
-enum QueryFilterType {
+enum AllocationQuery {
   all = 'all',
   active = 'active',
   closed = 'closed',
@@ -63,25 +63,26 @@ export interface AllocationInfo {
 }
 
 export interface CreateAllocationResult {
-  deploymentID: string
-  amount: string
+  allocation: string
+  deployment: string
+  allocatedTokens: string
 }
 
 export interface CloseAllocationResult {
-  id: string
+  allocation: string
   allocatedTokens: string
   indexingRewards: string
 }
 
 export interface ReallocateAllocationResult {
-  closedAllocationID: string
+  closedAllocation: string
   indexingRewardsCollected: string
-  createdAllocationID: string
+  createdAllocation: string
   createdAllocationStake: string
 }
 
 const ALLOCATION_QUERIES = {
-  [QueryFilterType.all]: gql`
+  [AllocationQuery.all]: gql`
     query allocations($indexer: String!) {
       allocations(where: { indexer: $indexer }, first: 1000) {
         id
@@ -102,7 +103,7 @@ const ALLOCATION_QUERIES = {
       }
     }
   `,
-  [QueryFilterType.active]: gql`
+  [AllocationQuery.active]: gql`
     query allocations($indexer: String!) {
       allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
         id
@@ -123,7 +124,7 @@ const ALLOCATION_QUERIES = {
       }
     }
   `,
-  [QueryFilterType.claimable]: gql`
+  [AllocationQuery.claimable]: gql`
     query allocations($indexer: String!, $disputableEpoch: Int!) {
       allocations(
         where: { indexer: $indexer, closedAtEpoch_lte: $disputableEpoch, status: Closed }
@@ -147,7 +148,7 @@ const ALLOCATION_QUERIES = {
       }
     }
   `,
-  [QueryFilterType.closed]: gql`
+  [AllocationQuery.closed]: gql`
     query allocations($indexer: String!) {
       allocations(where: { indexer: $indexer, status: Closed }, first: 1000) {
         id
@@ -168,7 +169,7 @@ const ALLOCATION_QUERIES = {
       }
     }
   `,
-  [QueryFilterType.allocation]: gql`
+  [AllocationQuery.allocation]: gql`
     query allocations($allocation: String!) {
       allocations(where: { id: $allocation }, first: 1000) {
         id
@@ -215,31 +216,31 @@ async function queryAllocations(
     context,
   })
 
-  let filterType: QueryFilterType
+  let filterType: AllocationQuery
   let filterVars: object
   if (variables.allocation) {
-    filterType = QueryFilterType.allocation
+    filterType = AllocationQuery.allocation
     filterVars = {
       allocation: variables.allocation.toLowerCase(),
     }
   } else if (variables.status == null && variables.allocation == null) {
-    filterType = QueryFilterType.all
+    filterType = AllocationQuery.all
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
     }
   } else if (variables.status == 'claimable') {
-    filterType = QueryFilterType.claimable
+    filterType = AllocationQuery.claimable
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
       disputableEpoch: variables.disputableEpoch,
     }
   } else if (variables.status == 'active') {
-    filterType = QueryFilterType.active
+    filterType = AllocationQuery.active
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
     }
   } else if (variables.status == 'closed') {
-    filterType = QueryFilterType.closed
+    filterType = AllocationQuery.closed
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
     }
@@ -424,7 +425,11 @@ export default {
   },
 
   createAllocation: async (
-    { deploymentID, amount }: { deploymentID: string; amount: string },
+    {
+      deployment,
+      amount,
+      indexNode,
+    }: { deployment: string; amount: string; indexNode: string | undefined },
     {
       address,
       contracts,
@@ -435,10 +440,10 @@ export default {
       transactionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
-    logger.info('Creating allocation', { deploymentID, amount })
+    logger.info('Creating allocation', { deployment, amount })
 
     const allocationAmount = parseGRT(amount)
-    const subgraphDeployment = new SubgraphDeploymentID(deploymentID)
+    const subgraphDeployment = new SubgraphDeploymentID(deployment)
     let activeAllocations: Allocation[] = []
 
     // Fetch active allocations
@@ -556,6 +561,7 @@ export default {
           23,
         )}`,
         subgraphDeployment,
+        indexNode,
       )
 
       logger.debug('Obtain a unique Allocation ID')
@@ -685,8 +691,9 @@ export default {
       })
 
       return {
-        deploymentID,
-        amount: allocationAmount.toString(),
+        deployment,
+        allocation: createEvent.allocationID,
+        allocatedTokens: allocationAmount.toString(),
       }
     } catch (error) {
       logger.error(`Failed to allocate`, {
@@ -698,7 +705,11 @@ export default {
   },
 
   closeAllocation: async (
-    { id, poi, force }: { id: string; poi: string | undefined; force: boolean },
+    {
+      allocation,
+      poi,
+      force,
+    }: { allocation: string; poi: string | undefined; force: boolean },
     {
       contracts,
       indexingStatusResolver,
@@ -708,7 +719,7 @@ export default {
       transactionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
-    logger.info('Closing allocation', { allocationID: id, poi })
+    logger.info('Closing allocation', { allocationID: allocation, poi })
 
     const result = await networkSubgraph.query(
       gql`
@@ -731,7 +742,7 @@ export default {
           }
         }
       `,
-      { id },
+      { allocation },
     )
     if (result.error) {
       throw result.error
@@ -739,17 +750,19 @@ export default {
 
     if (result.data.length == 0) {
       throw new Error(
-        `Allocation cannot be closed. No active allocation with id '${id}' found.`,
+        `Allocation cannot be closed. No active allocation with id '${allocation}' found.`,
       )
     }
-    const allocation = parseGraphQLAllocation(result.data.allocation)
+    const allocationData = parseGraphQLAllocation(result.data.allocation)
 
     try {
       // Ensure allocation is old enough to close
       const currentEpoch = await contracts.epochManager.currentEpoch()
-      if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
+      if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
         throw new Error(
-          `Allocation '${allocation.id}' cannot be closed until epoch ${currentEpoch.add(
+          `Allocation '${
+            allocationData.id
+          }' cannot be closed until epoch ${currentEpoch.add(
             1,
           )}. (Allocations cannot be closed in the same epoch they were created).`,
         )
@@ -759,7 +772,7 @@ export default {
         contracts,
         transactionManager,
         indexingStatusResolver,
-        allocation,
+        allocationData,
         poi,
         force,
       )
@@ -771,7 +784,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocation.id)
+      const state = await contracts.staking.getAllocationState(allocationData.id)
       if (state !== 1) {
         throw new Error('Allocation has already been closed')
       }
@@ -779,17 +792,19 @@ export default {
       logger.info('Submitting allocation close tx')
       const receipt = await transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () => contracts.staking.estimateGas.closeAllocation(allocation.id, poi!),
+        () => contracts.staking.estimateGas.closeAllocation(allocationData.id, poi!),
         (gasLimit) =>
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          contracts.staking.closeAllocation(allocation.id, poi!, {
+          contracts.staking.closeAllocation(allocationData.id, poi!, {
             gasLimit,
           }),
         logger,
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
-        throw new Error(`Allocation '${allocation.id}' could not be closed: ${receipt}`)
+        throw new Error(
+          `Allocation '${allocationData.id}' could not be closed: ${receipt}`,
+        )
       }
 
       const events = receipt.events || receipt.logs
@@ -857,7 +872,7 @@ export default {
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
       )
       const offchainIndexingRule = {
-        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        identifier: allocationData.subgraphDeployment.id.ipfsHash,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       } as Partial<IndexingRuleAttributes>
@@ -873,17 +888,11 @@ export default {
         rule: updatedRule,
       })
 
-      const closeAllocationResult = {
-        id: closeAllocationEventLogs.allocationID,
+      return {
+        allocation: closeAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
       }
-
-      logger.debug('Result to return', {
-        closeAllocationResult,
-      })
-
-      return closeAllocationResult
     } catch (error) {
       logger.error(error.toString())
       throw error
@@ -892,11 +901,11 @@ export default {
 
   reallocateAllocation: async (
     {
-      id,
+      allocation,
       poi,
       amount,
       force,
-    }: { id: string; poi: string | undefined; amount: string; force: boolean },
+    }: { allocation: string; poi: string | undefined; amount: string; force: boolean },
     {
       address,
       contracts,
@@ -912,7 +921,7 @@ export default {
     })
 
     logger.info('Refreshing allocation', {
-      allocationID: id,
+      allocation: allocation,
       poi: poi || 'none provided',
       amount,
       force,
@@ -966,24 +975,26 @@ export default {
     logger.info('activeAllos', {
       activeAllocations,
     })
-    const allocationID = toAddress(id)
-    const allocation = activeAllocations.find((allocation) => {
-      return allocation.id === allocationID
+    const allocationAddress = toAddress(allocation)
+    const allocationData = activeAllocations.find((allocation) => {
+      return allocation.id === allocationAddress
     })
 
-    if (!allocation) {
+    if (!allocationData) {
       logger.error(`No existing `)
       throw new Error(
-        `Allocation cannot be refreshed. No actvie allocation with id '${id}' found.`,
+        `Allocation cannot be refreshed. No actvie allocation with id '${allocation}' found.`,
       )
     }
 
     try {
       // Ensure allocation is old enough to close
       const currentEpoch = await contracts.epochManager.currentEpoch()
-      if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
+      if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
         throw new Error(
-          `Allocation '${allocation.id}' cannot be closed until epoch ${currentEpoch.add(
+          `Allocation '${
+            allocationData.id
+          }' cannot be closed until epoch ${currentEpoch.add(
             1,
           )}. (Allocations cannot be closed in the same epoch they were created).`,
         )
@@ -994,7 +1005,7 @@ export default {
         contracts,
         transactionManager,
         indexingStatusResolver,
-        allocation,
+        allocationData,
         poi,
         force,
       )
@@ -1010,7 +1021,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocation.id)
+      const state = await contracts.staking.getAllocationState(allocationData.id)
       if (state !== 1) {
         logger.warn(`Allocation has already been closed`)
         throw new Error(`Allocation has already been closed`)
@@ -1031,7 +1042,7 @@ export default {
       }
 
       logger.info(`Reallocate to subgraph deployment`, {
-        existingAllocationAmount: formatGRT(allocation.allocatedTokens),
+        existingAllocationAmount: formatGRT(allocationData.allocatedTokens),
         newAllocationAmount: formatGRT(allocationAmount),
         epoch: currentEpoch.toString(),
       })
@@ -1041,7 +1052,7 @@ export default {
 
       // When reallocating, we will first close the old allocation and free up the GRT in that allocation
       // This GRT will be available in addition to freeStake for the new allocation
-      const postCloseFreeStake = freeStake.add(allocation.allocatedTokens)
+      const postCloseFreeStake = freeStake.add(allocationData.allocatedTokens)
 
       // If there isn't enough left for allocating, abort
       if (postCloseFreeStake.lt(allocationAmount)) {
@@ -1053,7 +1064,7 @@ export default {
             )} GRT: indexer only has a free stake amount of ${formatGRT(
               freeStake,
             )} GRT, plus ${formatGRT(
-              allocation.allocatedTokens,
+              allocationData.allocatedTokens,
             )} GRT from the existing allocation`,
           ),
         )
@@ -1063,12 +1074,12 @@ export default {
       const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
         transactionManager.wallet.mnemonic.phrase,
         currentEpoch.toNumber(),
-        allocation.subgraphDeployment.id,
+        allocationData.subgraphDeployment.id,
         activeAllocations.map((allocation) => allocation.id),
       )
 
       logger.debug('New unique Allocation ID generated', {
-        newAllocationID: allocationID,
+        newAllocationID: newAllocationId,
         newAllocationSigner: allocationSigner,
       })
 
@@ -1093,7 +1104,7 @@ export default {
 
       logger.debug('Generating new allocation ID proof', {
         newAllocationSigner: allocationSigner,
-        newAllocationID: allocationID,
+        newAllocationID: newAllocationId,
         indexerAddress: address,
       })
       const proof = await allocationIdProof(allocationSigner, address, newAllocationId)
@@ -1104,9 +1115,9 @@ export default {
       logger.info(`Executing reallocate transaction`, {
         indexer: address,
         amount: formatGRT(allocationAmount),
-        oldAllocation: allocation.id,
+        oldAllocation: allocationData.id,
         newAllocation: newAllocationId,
-        deployment: allocation.subgraphDeployment.id.toString(),
+        deployment: allocationData.subgraphDeployment.id.toString(),
         poi: allocationPOI,
         proof,
       })
@@ -1114,10 +1125,10 @@ export default {
       const receipt = await transactionManager.executeTransaction(
         async () =>
           contracts.staking.estimateGas.closeAndAllocate(
-            allocation.id,
+            allocationData.id,
             allocationPOI,
             address,
-            allocation.subgraphDeployment.id.bytes32,
+            allocationData.subgraphDeployment.id.bytes32,
             allocationAmount,
             newAllocationId,
             utils.hexlify(Array(32).fill(0)), // metadata
@@ -1125,10 +1136,10 @@ export default {
           ),
         async (gasLimit) =>
           contracts.staking.closeAndAllocate(
-            allocation.id,
+            allocationData.id,
             allocationPOI,
             address,
-            allocation.subgraphDeployment.id.bytes32,
+            allocationData.subgraphDeployment.id.bytes32,
             allocationAmount,
             newAllocationId,
             utils.hexlify(Array(32).fill(0)), // metadata
@@ -1219,7 +1230,7 @@ export default {
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
       const indexingRule = {
-        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        identifier: allocationData.subgraphDeployment.id.ipfsHash,
         allocationAmount: allocationAmount.toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
@@ -1237,9 +1248,9 @@ export default {
       })
 
       return {
-        closedAllocationID: closeAllocationEventLogs.allocationID,
+        closedAllocation: closeAllocationEventLogs.allocationID,
         indexingRewardsCollected: formatGRT(rewardsAssigned),
-        createdAllocationID: createAllocationEventLogs.allocationID,
+        createdAllocation: createAllocationEventLogs.allocationID,
         createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
       }
     } catch (error) {

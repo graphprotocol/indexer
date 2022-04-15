@@ -8,7 +8,9 @@ import { createAllocation } from '../../../allocations'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 
 const HELP = `
-${chalk.bold('graph indexer allocations create')} [options] <deployment-id> <amount>
+${chalk.bold(
+  'graph indexer allocations create',
+)} [options] <deployment-id> <amount> <index-node>
 
 ${chalk.dim('Options:')}
 
@@ -32,7 +34,7 @@ module.exports = {
       return
     }
 
-    const [deploymentID, amount] = parameters.array || []
+    const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
       if (!deploymentID || !amount) {
@@ -58,11 +60,13 @@ module.exports = {
         client,
         deploymentString,
         allocationAmount,
+        indexNode,
       )
 
       print.info('Allocation created successfully')
-      print.info('Deployment: ' + allocateResult.deploymentID)
-      print.info('Tokens allocated: ' + allocateResult.amount)
+      print.info('Allocation: ' + allocateResult.allocation)
+      print.info('Deployment: ' + allocateResult.deployment)
+      print.info('Tokens allocated: ' + allocateResult.allocatedTokens)
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

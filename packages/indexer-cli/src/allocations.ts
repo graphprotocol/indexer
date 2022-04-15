@@ -167,22 +167,33 @@ function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
 
 export const createAllocation = async (
   client: IndexerManagementClient,
-  deploymentID: string,
+  deployment: string,
   amount: BigNumber,
+  indexNode: string | undefined,
 ): Promise<CreateAllocationResult> => {
   const result = await client
     .mutation(
       gql`
-        mutation createAllocation($deploymentID: String!, $amount: String!) {
-          createAllocation(deploymentID: $deploymentID, amount: $amount) {
-            deploymentID
+        mutation createAllocation(
+          $deployment: String!
+          $amount: String!
+          $indexNode: String
+        ) {
+          createAllocation(
+            deployment: $deployment
+            amount: $amount
+            indexNode: $indexNode
+          ) {
+            allocation
+            deployment
             amount
           }
         }
       `,
       {
-        deploymentID,
+        deployment,
         amount: amount.toString(),
+        indexNode,
       },
     )
     .toPromise()
@@ -203,8 +214,8 @@ export const closeAllocation = async (
   const result = await client
     .mutation(
       gql`
-        mutation closeAllocation($id: String!, $poi: String, $force: Boolean) {
-          closeAllocation(id: $id, poi: $poi, force: $force) {
+        mutation closeAllocation($allocation: String!, $poi: String, $force: Boolean) {
+          closeAllocation(allocation: $allocation, poi: $poi, force: $force) {
             id
             allocatedTokens
             indexingRewards
@@ -212,7 +223,7 @@ export const closeAllocation = async (
         }
       `,
       {
-        id: allocationID,
+        allocation: allocationID,
         poi: poi,
         force: force,
       },
@@ -237,12 +248,17 @@ export const reallocateAllocation = async (
     .mutation(
       gql`
         mutation reallocateAllocation(
-          $id: String!
+          $allocation: String!
           $poi: String
           $amount: String!
           $force: Boolean
         ) {
-          reallocateAllocation(id: $id, poi: $poi, amount: $amount, force: $force) {
+          reallocateAllocation(
+            allocation: $allocation
+            poi: $poi
+            amount: $amount
+            force: $force
+          ) {
             closedAllocationID
             indexingRewardsCollected
             createdAllocationID
@@ -251,7 +267,7 @@ export const reallocateAllocation = async (
         }
       `,
       {
-        id: allocationID,
+        allocation: allocationID,
         poi: poi,
         amount: amount.toString(),
         force: force,
