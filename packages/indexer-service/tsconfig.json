@@ -3,10 +3,8 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "target": "es2015",
     "module": "commonjs",
     "declaration": true,
-    "sourceMap": true,
     "esModuleInterop": true,
     "strict": true,
     "composite": true,

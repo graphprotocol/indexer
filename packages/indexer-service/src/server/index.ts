@@ -303,7 +303,7 @@ export const createApp = async ({
           try {
             const response = await queryProcessor.executePaidQuery({
               subgraphDeploymentID,
-              receipt,
+              receipt: receipt as string,
               query,
             })
             serverMetrics.successfulQueries.inc({

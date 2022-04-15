@@ -5,6 +5,8 @@
       "@graphprotocol/*": ["./*/src"]
     },
     "skipLibCheck": true,
+    "sourceMap": false,
+    "target": "es2020",
     "useUnknownInCatchVariables": false
   }
 }
