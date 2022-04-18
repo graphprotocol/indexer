@@ -17,7 +17,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'maybe',
   alias: [],
   description: 'Index a deployment based on rules',

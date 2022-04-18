@@ -10,7 +10,7 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
 `
 
-module.exports = {
+export default {
   name: 'connect',
   alias: [],
   description: 'Connect to indexer management API',

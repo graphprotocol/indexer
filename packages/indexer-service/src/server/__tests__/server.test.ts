@@ -2,8 +2,8 @@
  * Assumes a graph-node is running
  */
 
-import http from 'http'
-import supertest from 'supertest'
+import * as http from 'http'
+import * as supertest from 'supertest'
 import { BigNumber, ethers, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
 import { Socket } from 'net'

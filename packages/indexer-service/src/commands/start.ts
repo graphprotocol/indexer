@@ -28,11 +28,10 @@ import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
 
-export default {
-  command: 'start',
-  describe: 'Start the service',
-  builder: (yargs: Argv): Argv => {
-    return yargs
+export const command = 'start'
+export const describe = 'Start the indexer-service'
+
+export const builder = (yargs: Argv): Argv => yargs
       .option('ethereum', {
         description: 'Ethereum node or provider URL',
         type: 'string',
@@ -183,9 +182,9 @@ export default {
         type: 'string',
         required: false,
       })
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const  handler = async (argv: { [key: string]: any } & Argv['argv']): Promise<void> => {
     let logger = createLogger({
       name: 'IndexerService',
       async: false,
@@ -448,5 +447,4 @@ export default {
       networkSubgraphAuthToken: argv.networkSubgraphAuthToken,
       serveNetworkSubgraph: argv.serveNetworkSubgraph,
     })
-  },
-}
+  }

@@ -40,73 +40,71 @@ const setVariable = (
   }
 }
 
-export default {
-  costModel: async (
-    { deployment }: { deployment: string },
-    { models }: IndexerManagementResolverContext,
-  ): Promise<object | null> => {
-    const model = await models.CostModel.findOne({
-      where: { deployment },
-    })
-    return model?.toGraphQL() || null
-  },
+export const costModel = async (
+  { deployment }: { deployment: string },
+  { models }: IndexerManagementResolverContext,
+): Promise<object | null> => {
+  const model = await models.CostModel.findOne({
+    where: { deployment },
+  })
+  return model?.toGraphQL() || null
+}
 
-  costModels: async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { deployments }: { deployments: string[] | null | undefined },
-    { models }: IndexerManagementResolverContext,
-  ): Promise<object[]> => {
-    const costModels = await models.CostModel.findAll({
-      where: deployments ? { deployment: deployments } : undefined,
-      order: [['deployment', 'ASC']],
-    })
-    return costModels.map((model) => model.toGraphQL())
-  },
+export const costModels = async (
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  { deployments }: { deployments: string[] | null | undefined },
+  { models }: IndexerManagementResolverContext,
+): Promise<object[]> => {
+  const costModels = await models.CostModel.findAll({
+    where: deployments ? { deployment: deployments } : undefined,
+    order: [['deployment', 'ASC']],
+  })
+  return costModels.map((model) => model.toGraphQL())
+}
 
-  setCostModel: async (
-    { costModel }: { deployment: string; costModel: GraphQLCostModel },
-    { models, features, dai }: IndexerManagementResolverContext,
-  ): Promise<object> => {
-    const update = parseGraphQLCostModel(costModel)
+export const setCostModel = async (
+  { costModel }: { deployment: string; costModel: GraphQLCostModel },
+  { models, features, dai }: IndexerManagementResolverContext,
+): Promise<object> => {
+  const update = parseGraphQLCostModel(costModel)
 
-    // Validate cost model
-    try {
-      const modelForValidation = update.model || 'default => 1;'
-      const variablesForValidation = JSON.stringify(update.variables || {})
-      await compileAsync(modelForValidation, variablesForValidation)
-    } catch (err) {
-      throw new Error(`Invalid cost model or variables: ${err.message}`)
+  // Validate cost model
+  try {
+    const modelForValidation = update.model || 'default => 1;'
+    const variablesForValidation = JSON.stringify(update.variables || {})
+    await compileAsync(modelForValidation, variablesForValidation)
+  } catch (err) {
+    throw new Error(`Invalid cost model or variables: ${err.message}`)
+  }
+
+  const [model] = await models.CostModel.findOrBuild({
+    where: { deployment: update.deployment },
+  })
+  model.deployment = costModel.deployment || model.deployment
+  model.model =
+    costModel.model !== null && costModel.model !== undefined
+      ? costModel.model
+      : model.model
+
+  // Update the model variables (fall back to current value if unchanged)
+  let variables = update.variables || model.variables
+
+  if (features.injectDai) {
+    const oldDai = getVariable(model.variables, 'DAI')
+    const newDai = getVariable(update.variables, 'DAI')
+
+    // Inject the latest DAI value if available
+    if (dai.valueReady) {
+      variables = setVariable(variables, 'DAI', await dai.value())
+    } else if (newDai === undefined && oldDai !== undefined) {
+      // Otherwise preserve the old DAI value if there is one;
+      // this ensures it's never dropped
+      variables = setVariable(variables, 'DAI', oldDai)
     }
+  }
 
-    const [model] = await models.CostModel.findOrBuild({
-      where: { deployment: update.deployment },
-    })
-    model.deployment = costModel.deployment || model.deployment
-    model.model =
-      costModel.model !== null && costModel.model !== undefined
-        ? costModel.model
-        : model.model
+  // Apply new variables
+  model.variables = variables
 
-    // Update the model variables (fall back to current value if unchanged)
-    let variables = update.variables || model.variables
-
-    if (features.injectDai) {
-      const oldDai = getVariable(model.variables, 'DAI')
-      const newDai = getVariable(update.variables, 'DAI')
-
-      // Inject the latest DAI value if available
-      if (dai.valueReady) {
-        variables = setVariable(variables, 'DAI', await dai.value())
-      } else if (newDai === undefined && oldDai !== undefined) {
-        // Otherwise preserve the old DAI value if there is one;
-        // this ensures it's never dropped
-        variables = setVariable(variables, 'DAI', oldDai)
-      }
-    }
-
-    // Apply new variables
-    model.variables = variables
-
-    return (await model.save()).toGraphQL()
-  },
+  return (await model.save()).toGraphQL()
 }

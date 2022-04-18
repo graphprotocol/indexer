@@ -1,5 +1,5 @@
 import { cliTest, setup, teardown } from './util'
-import path from 'path'
+import * as path from 'path'
 
 const baseDir = path.join(__dirname)
 

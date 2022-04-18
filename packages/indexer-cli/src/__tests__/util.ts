@@ -1,10 +1,10 @@
 import { exec, ExecOptions } from 'child_process'
 import { Wallet } from 'ethers'
-import fs from 'fs'
-import http from 'http'
+import * as fs from 'fs'
+import * as http from 'http'
 import { Socket } from 'net'
 import { URL } from 'url'
-import path from 'path'
+import * as path from 'path'
 import { Sequelize } from 'sequelize'
 import stripAnsi from 'strip-ansi'
 import {

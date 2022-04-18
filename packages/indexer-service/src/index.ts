@@ -1,10 +1,12 @@
-import * as yargs from 'yargs'
+#!/usr/bin/env node
 
-import start from './commands/start'
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers';
+import * as startCommand from './commands/start'
 
-yargs
+yargs(hideBin(process.argv))
   .scriptName('indexer-service')
   .env('INDEXER_SERVICE')
-  .command(start)
+  .command(startCommand)
   .demandCommand(1, 'Choose a command from the above list')
   .help().argv

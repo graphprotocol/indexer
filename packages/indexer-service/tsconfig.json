@@ -3,9 +3,10 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "module": "commonjs",
     "declaration": true,
     "esModuleInterop": true,
+    "importHelpers": false,
+    "module": "ES2020",
     "strict": true,
     "composite": true,
     "lib": ["es2015", "es6", "esnext.asynciterable", "dom"],

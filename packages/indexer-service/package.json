@@ -5,14 +5,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "repository": "https://github.com/graphprotocol/indexer",
+  "type": "module",
   "author": "Graph Protocol",
   "private": false,
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "start": "node --experimental-modules ./dist/index.js start",
+    "start": "node --experimental-modules --es-module-specifier-resolution=node ./dist/index.js start",
     "start:ts": "ts-node ./src/index.ts start",
     "test": "jest --passWithNoTests --detectOpenHandles --verbose --forceExit",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose",
@@ -74,6 +78,7 @@
     "@typescript-eslint/parser": "5.19.0",
     "eslint": "8.13.0",
     "eslint-config-prettier": "8.5.0",
+    "eslint-plugin-import": "2.26.0",
     "jest": "27.5.1",
     "nock": "13.2.4",
     "prettier": "2.6.2",

@@ -23,7 +23,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'get',
   alias: [],
   description: 'Get cost models and/or variables for one or all subgraphs',

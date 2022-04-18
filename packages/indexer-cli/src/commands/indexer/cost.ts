@@ -1,6 +1,6 @@
 import { GluegunToolbox } from 'gluegun'
 
-module.exports = {
+export default {
   name: 'cost',
   alias: [],
   description: 'Manage costing for subgraphs',

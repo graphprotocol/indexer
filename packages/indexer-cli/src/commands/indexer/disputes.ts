@@ -1,6 +1,6 @@
 import { GluegunToolbox } from 'gluegun'
 
-module.exports = {
+export default {
   name: 'disputes',
   alias: [],
   description: 'Configure allocation POI monitoring',

@@ -17,7 +17,7 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
 `
 
-module.exports = {
+export default {
   name: 'status',
   alias: [],
   description: 'Check the status of an indexer',

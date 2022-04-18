@@ -13,4 +13,4 @@ const run = async (argv: any) => {
   return await cli.run(argv)
 }
 
-module.exports = { run }
+export default { run }

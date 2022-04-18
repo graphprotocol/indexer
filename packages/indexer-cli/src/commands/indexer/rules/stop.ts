@@ -19,7 +19,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'stop',
   alias: ['never'],
   description: 'Never index a deployment (and stop indexing it if necessary)',

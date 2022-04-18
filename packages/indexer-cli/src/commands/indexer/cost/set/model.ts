@@ -22,7 +22,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'model',
   alias: [],
   description: 'Update a cost model',

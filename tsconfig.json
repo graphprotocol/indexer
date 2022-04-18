@@ -7,6 +7,9 @@
     "skipLibCheck": true,
     "sourceMap": false,
     "target": "es2020",
-    "useUnknownInCatchVariables": false
+    "module": "es2020",
+    "moduleResolution": "Node",
+    "useUnknownInCatchVariables": false,
+    "allowSyntheticDefaultImports": true
   }
 }

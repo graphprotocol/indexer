@@ -19,7 +19,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'start',
   alias: ['always'],
   description: 'Always index a deployment (and start indexing it if necessary)',

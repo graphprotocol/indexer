@@ -18,7 +18,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
-module.exports = {
+export default {
   name: 'delete',
   description: 'Remove one or many indexing rules',
   run: async (toolbox: GluegunToolbox) => {

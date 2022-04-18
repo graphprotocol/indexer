@@ -1,6 +1,6 @@
 import { GluegunToolbox } from 'gluegun'
 
-module.exports = {
+export default {
   name: 'indexer',
   alias: [],
   description: 'Manage indexer configuration',

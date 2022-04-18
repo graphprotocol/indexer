@@ -1,7 +1,11 @@
 {
   "root": true,
   "parser": "@typescript-eslint/parser",
-  "plugins": ["@typescript-eslint"],
+  "plugins": ["@typescript-eslint", "import"],
+  "rules": {
+    "import/no-unresolved": 1,
+    "import/no-commonjs": 2
+  },
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",

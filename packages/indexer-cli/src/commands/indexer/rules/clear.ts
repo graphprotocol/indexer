@@ -24,7 +24,7 @@ ${chalk.dim('Hints:')}
   * If no keys are provided, all keys are reset.
 `
 
-module.exports = {
+export default {
   name: 'clear',
   alias: ['reset'],
   description: 'Clear one or more indexing rules',
