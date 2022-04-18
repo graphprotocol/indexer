@@ -3,13 +3,20 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "module": "commonjs",
+    "module": "ES2020",
     "composite": true,
     "declaration": true,
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
+    "moduleResolution": "Node",
     "strict": true,
     "lib": ["esnext", "es2015", "es6", "esnext.asynciterable", "dom", "ES2020.Promise"]
+  },
+  "ts-node": {
+    "esm": true,
+    "compilerOptions": {
+      "module": "ES2020"
+    }
   },
   "include": [
     "src/*.ts",

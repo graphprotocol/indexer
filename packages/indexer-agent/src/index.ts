@@ -1,8 +1,9 @@
-import * as yargs from 'yargs'
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 
 import start from './commands/start'
 
-yargs
+yargs(hideBin(process.argv))
   .scriptName('indexer-agent')
   .env('INDEXER_AGENT')
   .command(start)

@@ -1,7 +1,11 @@
 import { build } from 'gluegun'
+import { dirname } from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const run = async (argv: any) => {
+export const run = async (argv: any) => {
   const cli = build()
     .brand('graph-indexer')
     .help()
@@ -12,5 +16,3 @@ const run = async (argv: any) => {
 
   return await cli.run(argv)
 }
-
-export default { run }

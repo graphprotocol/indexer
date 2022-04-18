@@ -3,7 +3,7 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "module": "commonjs",
+    "module": "ES2020",
     "declaration": true,
     "esModuleInterop": true,
     "strict": true,

@@ -7,11 +7,15 @@
   "repository": "https://github.com/graphprotocol/cli",
   "author": "The Graph Foundation",
   "license": "MIT",
+  "engines": {
+    "node": ">=12.22.0"
+  },
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
+    "status": "node --experimental-modules --es-module-specifier-resolution=node ./dist/cli.js indexer --help",
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
     "test": "jest --colors --verbose --detectOpenHandles",
@@ -27,7 +31,7 @@
     "chalk": "4.1.2",
     "env-paths": "2.2.1",
     "ethers": "5.6.2",
-    "gluegun": "4.7.0",
+    "gluegun": "5.1.0",
     "graphql-tag": "2.12.6",
     "isomorphic-fetch": "3.0.0",
     "table": "6.7.5",
@@ -40,6 +44,7 @@
     "eslint": "8.13.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-import": "2.26.0",
+    "ts-node": "10.7.0",
     "typescript": "4.6.3"
   },
   "resolutions": {

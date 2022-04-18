@@ -13,7 +13,7 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "start": "yarn prepare && node ./dist/index.js start",
+    "start": "node --experimental-modules --es-module-specifier-resolution=node ./dist/index.js start",
     "test": "jest --runInBand --detectOpenHandles --passWithNoTests --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
     "migrator:pending": "node src/db/cli/migrator pending",
