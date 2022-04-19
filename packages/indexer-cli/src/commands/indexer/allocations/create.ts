@@ -6,6 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import { printObjectData } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -15,7 +16,8 @@ ${chalk.bold(
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data 
+  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
 `
 
 module.exports = {
@@ -25,12 +27,19 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { h, help } = parameters.options
+    const { h, help, o, output } = parameters.options
 
+    const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
 
     if (toHelp) {
       print.info(HELP)
+      return
+    }
+
+    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
+      print.error(`Invalid output format "${outputFormat}"`)
+      process.exitCode = 1
       return
     }
 
@@ -63,10 +72,12 @@ module.exports = {
         indexNode,
       )
 
-      print.info('Allocation created successfully')
-      print.info('Allocation: ' + allocateResult.allocation)
-      print.info('Deployment: ' + allocateResult.deployment)
-      print.info('Tokens allocated: ' + allocateResult.allocatedTokens)
+      print.success('Allocation created')
+      printObjectData(print, outputFormat, allocateResult, [
+        'allocation',
+        'deployment',
+        'allocatedTokens',
+      ])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

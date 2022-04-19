@@ -150,7 +150,6 @@ module.exports = {
         'status',
       ]
       if (!allocation || allocation == 'all') {
-        print.info('allocation: ' + allocation)
         displayProperties = displayProperties.filter(property => property !== 'indexer')
       }
       if (status == 'active') {

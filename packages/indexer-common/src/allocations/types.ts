@@ -34,6 +34,25 @@ export enum AllocationStatus {
   Claimed,
 }
 
+export interface CreateAllocationResult {
+  allocation: string
+  deployment: string
+  allocatedTokens: string
+}
+
+export interface CloseAllocationResult {
+  allocation: string
+  allocatedTokens: string
+  indexingRewards: string
+}
+
+export interface ReallocateAllocationResult {
+  closedAllocation: string
+  indexingRewardsCollected: string
+  createdAllocation: string
+  createdAllocationStake: string
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const parseGraphQLAllocation = (allocation: any): Allocation => ({
   // Ensure the allocation ID (an address) is checksummed
