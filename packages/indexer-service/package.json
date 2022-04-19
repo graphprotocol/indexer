@@ -12,7 +12,7 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "start": "yarn prepare && node ./dist/index.js start",
+    "start": "node ./dist/index.js start",
     "test": "jest --passWithNoTests --detectOpenHandles --verbose --forceExit",
     "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
@@ -33,7 +33,7 @@
     "@graphql-tools/load": "7.5.8",
     "@graphql-tools/url-loader": "7.9.11",
     "@graphql-tools/wrap": "8.4.13",
-    "@thi.ng/cache": "2.1.6",
+    "@thi.ng/cache": "1.0.94",
     "@urql/core": "2.4.4",
     "apollo-link-http": "1.5.17",
     "axios": "0.26.1",
@@ -55,7 +55,7 @@
     "p-map": "4.0.0",
     "p-queue": "6.6.2",
     "p-retry": "4.6.1",
-    "read-pkg": "7.1.0",
+    "read-pkg": "5.2.0",
     "yargs": "17.4.1"
   },
   "devDependencies": {
