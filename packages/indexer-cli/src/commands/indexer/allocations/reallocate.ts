@@ -5,6 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { BigNumber, utils } from 'ethers'
 import { reallocateAllocation } from '../../../allocations'
+import { printObjectData } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations reallocate')} [options] <id> <amount> <poi>
@@ -22,13 +23,20 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { h, help, f, force } = parameters.options
+    const { h, help, f, force, o, output } = parameters.options
 
+    const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
     const toForce = force || f || false
 
     if (toHelp) {
       print.info(HELP)
+      return
+    }
+
+    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
+      print.error(`Invalid output format "${outputFormat}"`)
+      process.exitCode = 1
       return
     }
 
@@ -78,13 +86,13 @@ module.exports = {
         toForce,
       )
 
-      print.info('Allocation reallocated successfully')
-      print.info('Old allocation ID: ' + reallocateResult.closedAllocation)
-      print.info(
-        'Indexing rewards collected: ' + reallocateResult.indexingRewardsCollected,
-      )
-      print.info('New allocation ID: ' + reallocateResult.createdAllocation)
-      print.info('New allocation stake: ' + reallocateResult.createdAllocationStake)
+      print.success('Allocation reallocated')
+      printObjectData(print, outputFormat, reallocateResult, [
+        'closedAllocation',
+        'indexingRewardsCollected',
+        'createdAllocation',
+        'createdAllocationStake',
+      ])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

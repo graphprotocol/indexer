@@ -10,7 +10,7 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   ReallocateAllocationResult,
-} from '@graphprotocol/indexer-common/dist/indexer-management/resolvers/allocations'
+} from '@graphprotocol/indexer-common'
 
 export interface IndexerAllocation {
   id: number
@@ -186,7 +186,7 @@ export const createAllocation = async (
           ) {
             allocation
             deployment
-            amount
+            allocatedTokens
           }
         }
       `,
@@ -216,7 +216,7 @@ export const closeAllocation = async (
       gql`
         mutation closeAllocation($allocation: String!, $poi: String, $force: Boolean) {
           closeAllocation(allocation: $allocation, poi: $poi, force: $force) {
-            id
+            allocation
             allocatedTokens
             indexingRewards
           }
@@ -259,9 +259,9 @@ export const reallocateAllocation = async (
             amount: $amount
             force: $force
           ) {
-            closedAllocationID
+            closedAllocation
             indexingRewardsCollected
-            createdAllocationID
+            createdAllocation
             createdAllocationStake
           }
         }

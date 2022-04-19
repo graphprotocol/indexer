@@ -28,7 +28,7 @@
 
 import { table, getBorderCharacters } from 'table'
 import yaml from 'yaml'
-import { GluegunParameters } from 'gluegun'
+import { GluegunParameters, GluegunPrint } from 'gluegun'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -94,4 +94,26 @@ export function pickFields(
     delete obj[key]
   }
   return obj
+}
+
+export function displayObjectData(
+  outputFormat: 'table' | 'json' | 'yaml',
+  data: object,
+): string {
+  return outputFormat === 'json'
+    ? JSON.stringify(data, null, 2)
+    : outputFormat === 'yaml'
+    ? yaml.stringify(data).trim()
+    : table([Object.keys(data), Object.values(data)], {
+        border: getBorderCharacters('norc'),
+      }).trim()
+}
+
+export function printObjectData(
+  print: GluegunPrint,
+  outputFormat: 'table' | 'json' | 'yaml',
+  data: object,
+  keys: string[],
+): void {
+  print.info(displayObjectData(outputFormat, pickFields(data, keys)))
 }

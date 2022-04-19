@@ -5,6 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { utils } from 'ethers'
 import { closeAllocation } from '../../../allocations'
+import { printObjectData } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations close')} [options] <id> <poi>
@@ -12,7 +13,8 @@ ${chalk.bold('graph indexer allocations close')} [options] <id> <poi>
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass POIaccuracy checks and submit transaction with provided data 
+  -f, --force                   Bypass POIaccuracy checks and submit transaction with provided data
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
 `
 
 module.exports = {
@@ -22,13 +24,20 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { h, help, f, force } = parameters.options
+    const { h, help, f, force, o, output } = parameters.options
 
+    const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
     const toForce = force || f || false
 
     if (toHelp) {
       print.info(HELP)
+      return
+    }
+
+    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
+      print.error(`Invalid output format "${outputFormat}"`)
+      process.exitCode = 1
       return
     }
 
@@ -64,10 +73,12 @@ module.exports = {
       const client = await createIndexerManagementClient({ url: config.api })
       const closeResult = await closeAllocation(client, id, poi, toForce)
 
-      print.info('Allocation closed successfully')
-      print.info('ID: ' + closeResult.allocation)
-      print.info('Tokens allocated: ' + closeResult.allocatedTokens)
-      print.info('Indexing rewards collected: ' + closeResult.indexingRewards)
+      print.success('Allocation closed')
+      printObjectData(print, outputFormat, closeResult, [
+        'allocation',
+        'allocatedTokens',
+        'indexingRewards',
+      ])
     } catch (error) {
       print.error(error.toString())
       process.exitCode = 1

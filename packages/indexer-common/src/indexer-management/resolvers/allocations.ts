@@ -4,6 +4,7 @@
 import pMap from 'p-map'
 import gql from 'graphql-tag'
 import { BigNumber, utils } from 'ethers'
+
 import {
   Address,
   formatGRT,
@@ -14,6 +15,11 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  Allocation,
+  allocationIdProof,
+  AllocationStatus,
+  CreateAllocationResult,
+  CloseAllocationResult,
   indexerError,
   IndexerErrorCode,
   IndexingDecisionBasis,
@@ -22,13 +28,11 @@ import {
   IndexingStatusResolver,
   NetworkSubgraph,
   parseGraphQLAllocation,
+  ReallocateAllocationResult,
   SubgraphIdentifierType,
   TransactionManager,
-  Allocation,
-  AllocationStatus,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
-import { allocationIdProof } from '../../allocations/keys'
 
 interface AllocationFilter {
   status: 'active' | 'closed' | 'claimable'
@@ -44,7 +48,7 @@ enum AllocationQuery {
   allocation = 'allocation',
 }
 
-export interface AllocationInfo {
+interface AllocationInfo {
   id: Address
   indexer: Address
   subgraphDeployment: string
@@ -60,25 +64,6 @@ export interface AllocationInfo {
   indexingRewards: string
   queryFeesCollected: string
   status: string
-}
-
-export interface CreateAllocationResult {
-  allocation: string
-  deployment: string
-  allocatedTokens: string
-}
-
-export interface CloseAllocationResult {
-  allocation: string
-  allocatedTokens: string
-  indexingRewards: string
-}
-
-export interface ReallocateAllocationResult {
-  closedAllocation: string
-  indexingRewardsCollected: string
-  createdAllocation: string
-  createdAllocationStake: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -211,7 +196,7 @@ async function queryAllocations(
     avgBlockTime: number
   },
 ): Promise<AllocationInfo[]> {
-  logger.info('Query Allocations', {
+  logger.debug('Query Allocations', {
     variables,
     context,
   })
@@ -264,12 +249,6 @@ async function queryAllocations(
     })
     throw result.error
   }
-
-  logger.info('Query result allocations data', {
-    allocations: result.data.allocations,
-    allocation1: result.data.allocations[0],
-    allocation1Deployment: result.data.allocations[0].subgraphDeployment.id,
-  })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return pMap(
@@ -383,7 +362,7 @@ export default {
     { filter }: { filter: AllocationFilter },
     { networkSubgraph, address, contracts, logger }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    logger.debug('Fetch allocations', {
+    logger.info('Fetch allocations', {
       filter,
     })
 
@@ -418,9 +397,6 @@ export default {
     allocations.push(
       ...(await queryAllocations(logger, networkSubgraph, contracts, variables, context)),
     )
-    logger.debug('Successfully fetched allocations', {
-      allocationsFetched: allocations.length,
-    })
     return allocations
   },
 
@@ -524,11 +500,6 @@ export default {
     try {
       const currentEpoch = await contracts.epochManager.currentEpoch()
 
-      logger.info(`Allocate to subgraph deployment`, {
-        amountGRT: formatGRT(allocationAmount),
-        epoch: currentEpoch.toString(),
-      })
-
       // Identify how many GRT the indexer has staked
       const freeStake = await contracts.staking.getIndexerCapacity(address)
 
@@ -603,7 +574,7 @@ export default {
         allocationIDProof: proof,
       })
 
-      logger.info(`Send allocateFrom tx`, {
+      logger.debug(`Sending allocateFrom transaction`, {
         indexer: address,
         subgraphDeployment: subgraphDeployment.ipfsHash,
         amount: formatGRT(allocationAmount),
@@ -669,7 +640,7 @@ export default {
         epoch: createEvent.epoch.toString(),
       })
 
-      logger.info(
+      logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
       const indexingRule = {
@@ -686,14 +657,14 @@ export default {
         where: { identifier: indexingRule.identifier },
       })
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      logger.info(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
+      logger.debug(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
         rule: updatedRule,
       })
 
       return {
         deployment,
         allocation: createEvent.allocationID,
-        allocatedTokens: allocationAmount.toString(),
+        allocatedTokens: formatGRT(allocationAmount.toString()),
       }
     } catch (error) {
       logger.error(`Failed to allocate`, {
@@ -719,12 +690,15 @@ export default {
       transactionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
-    logger.info('Closing allocation', { allocationID: allocation, poi })
+    logger.info('Closing allocation', {
+      allocationID: allocation,
+      poi: poi || 'none provided',
+    })
 
     const result = await networkSubgraph.query(
       gql`
-        query allocation($id: String!) {
-          allocation(id: $id) {
+        query allocation($allocation: String!) {
+          allocation(id: $allocation) {
             id
             indexer {
               id
@@ -748,7 +722,7 @@ export default {
       throw result.error
     }
 
-    if (result.data.length == 0) {
+    if (!result.data || result.data.length == 0) {
       throw new Error(
         `Allocation cannot be closed. No active allocation with id '${allocation}' found.`,
       )
@@ -789,7 +763,7 @@ export default {
         throw new Error('Allocation has already been closed')
       }
 
-      logger.info('Submitting allocation close tx')
+      logger.debug('Sending closeAllocation transaction')
       const receipt = await transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         () => contracts.staking.estimateGas.closeAllocation(allocationData.id, poi!),
@@ -808,15 +782,6 @@ export default {
       }
 
       const events = receipt.events || receipt.logs
-      logger.info('EVENTS', {
-        events,
-      })
-      logger.info('Event topics', {
-        allocationCloseTopic:
-          contracts.staking.interface.getEventTopic('AllocationClosed'),
-        rewardsAssignedTopic:
-          contracts.rewardsManager.interface.getEventTopic('RewardsAssigned'),
-      })
 
       const closeEvent =
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -868,7 +833,7 @@ export default {
         indexingRewards: rewardsAssigned,
       })
 
-      logger.info(
+      logger.debug(
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
       )
       const offchainIndexingRule = {
@@ -920,7 +885,7 @@ export default {
       component: 'reallocateAllocationResolver',
     })
 
-    logger.info('Refreshing allocation', {
+    logger.info('Reallocating allocation', {
       allocation: allocation,
       poi: poi || 'none provided',
       amount,
@@ -972,9 +937,6 @@ export default {
       throw err
     }
 
-    logger.info('activeAllos', {
-      activeAllocations,
-    })
     const allocationAddress = toAddress(allocation)
     const allocationData = activeAllocations.find((allocation) => {
       return allocation.id === allocationAddress
@@ -983,7 +945,7 @@ export default {
     if (!allocationData) {
       logger.error(`No existing `)
       throw new Error(
-        `Allocation cannot be refreshed. No actvie allocation with id '${allocation}' found.`,
+        `Allocation cannot be refreshed. No active allocation with id '${allocation}' found.`,
       )
     }
 
@@ -1112,14 +1074,16 @@ export default {
         allocationIDProof: proof,
       })
 
-      logger.info(`Executing reallocate transaction`, {
+      logger.info(`Sending closeAndAllocate transaction`, {
         indexer: address,
         amount: formatGRT(allocationAmount),
         oldAllocation: allocationData.id,
         newAllocation: newAllocationId,
+        newAllocationAmount: formatGRT(allocationAmount),
         deployment: allocationData.subgraphDeployment.id.toString(),
         poi: allocationPOI,
         proof,
+        epoch: currentEpoch.toString(),
       })
 
       const receipt = await transactionManager.executeTransaction(
@@ -1212,7 +1176,7 @@ export default {
         logger.warn('No rewards were distributed upon closing the allocation')
       }
 
-      logger.info(`Successfully refreshed allocation`, {
+      logger.info(`Successfully reallocated allocation`, {
         deployment: createAllocationEventLogs.subgraphDeploymentID,
         closedAllocation: closeAllocationEventLogs.allocationID,
         closedAllocationStakeGRT: formatGRT(closeAllocationEventLogs.tokens),
@@ -1226,7 +1190,7 @@ export default {
         transaction: receipt.transactionHash,
       })
 
-      logger.info(
+      logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
       const indexingRule = {
@@ -1243,7 +1207,7 @@ export default {
         where: { identifier: indexingRule.identifier },
       })
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      logger.info(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
+      logger.debug(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
         rule: updatedRule,
       })
 
