@@ -1,5 +1,5 @@
 import path from 'path'
-import { readPackage } from 'read-pkg'
+import readPackage from 'read-pkg'
 import { Argv } from 'yargs'
 import { Wallet, providers, BigNumber } from 'ethers'
 
