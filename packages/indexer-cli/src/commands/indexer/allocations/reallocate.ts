@@ -23,6 +23,8 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
+    const spinner = toolbox.print.spin('Processing inputs')
+
     const { h, help, f, force, o, output } = parameters.options
 
     const outputFormat = o || output || 'table'
@@ -30,12 +32,12 @@ module.exports = {
     const toForce = force || f || false
 
     if (toHelp) {
-      print.info(HELP)
+      spinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
     }
 
     if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+      spinner.fail(`Invalid output format "${outputFormat}"`)
       process.exitCode = 1
       return
     }
@@ -44,14 +46,14 @@ module.exports = {
     let [id, amount, poi] = parameters.array || []
 
     if (id === undefined) {
-      print.error(`Missing required argument: 'id'`)
+      spinner.fail(`Missing required argument: 'id'`)
       print.info(HELP)
       process.exitCode = 1
       return
     }
 
     if (amount === undefined) {
-      print.error(`Missing required argument: 'amount'`)
+      spinner.fail(`Missing required argument: 'amount'`)
       print.info(HELP)
       process.exitCode = 1
       return
@@ -68,7 +70,7 @@ module.exports = {
           throw new Error('Must be a 32 byte length hex string')
         }
       } catch (error) {
-        print.error(`Invalid POI provided, '${poi}'. ` + error.toString())
+        spinner.fail(`Invalid POI provided, '${poi}'. ` + error.toString())
         process.exitCode = 1
         return
       }
@@ -78,6 +80,8 @@ module.exports = {
       const allocationAmount = BigNumber.from(amount)
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
+
+      spinner.text = `Closing '${id}' and reallocating`
       const reallocateResult = await reallocateAllocation(
         client,
         id,
@@ -86,7 +90,7 @@ module.exports = {
         toForce,
       )
 
-      print.success('Allocation reallocated')
+      spinner.succeed('Reallocated')
       printObjectData(print, outputFormat, reallocateResult, [
         'closedAllocation',
         'indexingRewardsCollected',
@@ -94,7 +98,7 @@ module.exports = {
         'createdAllocationStake',
       ])
     } catch (error) {
-      print.error(error.toString())
+      spinner.fail(error.toString())
       process.exitCode = 1
       return
     }

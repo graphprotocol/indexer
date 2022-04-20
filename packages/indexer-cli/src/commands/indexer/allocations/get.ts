@@ -30,13 +30,15 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
+    const spinner = toolbox.print.spin('Processing inputs')
+
     const { status, deployment, h, help, o, output } = parameters.options
 
     const [allocation] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
-      print.info(HELP)
+      spinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
     }
 
@@ -84,6 +86,7 @@ module.exports = {
         }
       }
 
+      spinner.text = 'Querying indexer management server'
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
@@ -157,9 +160,10 @@ module.exports = {
           property => property !== 'closedAtEpoch',
         )
       }
+      spinner.succeed('Allocations')
       printIndexerAllocations(print, outputFormat, allocations, displayProperties)
     } catch (error) {
-      print.error(error.toString())
+      spinner.fail(error.toString())
       process.exitCode = 1
       return
     }
