@@ -688,6 +688,7 @@ export default {
       models,
       networkSubgraph,
       transactionManager,
+      receiptCollector,
     }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
     logger.info('Closing allocation', {
@@ -716,13 +717,13 @@ export default {
           }
         }
       `,
-      { allocation },
+      { allocation: allocation.toLocaleLowerCase() },
     )
     if (result.error) {
       throw result.error
     }
 
-    if (!result.data || result.data.length == 0) {
+    if (!result.data.allocation || result.data.length == 0) {
       throw new Error(
         `Allocation cannot be closed. No active allocation with id '${allocation}' found.`,
       )
@@ -833,6 +834,13 @@ export default {
         indexingRewards: rewardsAssigned,
       })
 
+      logger.info('Identifying receipts worth collecting', {
+        allocation: closeAllocationEventLogs.allocationID,
+      })
+
+      // Collect query fees for this allocation
+      const isCollectingQueryFees = await receiptCollector.collectReceipts(allocationData)
+
       logger.debug(
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
       )
@@ -857,6 +865,7 @@ export default {
         allocation: closeAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
+        receiptsWorthCollecting: isCollectingQueryFees,
       }
     } catch (error) {
       logger.error(error.toString())
@@ -879,6 +888,7 @@ export default {
       models,
       networkSubgraph,
       transactionManager,
+      receiptCollector,
     }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
     logger = logger.child({
@@ -1190,6 +1200,13 @@ export default {
         transaction: receipt.transactionHash,
       })
 
+      logger.info('Identifying receipts worth collecting', {
+        allocation: closeAllocationEventLogs.allocationID,
+      })
+
+      // Collect query fees for this allocation
+      const isCollectingQueryFees = await receiptCollector.collectReceipts(allocationData)
+
       logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
@@ -1214,6 +1231,7 @@ export default {
       return {
         closedAllocation: closeAllocationEventLogs.allocationID,
         indexingRewardsCollected: formatGRT(rewardsAssigned),
+        receiptsWorthCollecting: isCollectingQueryFees,
         createdAllocation: createAllocationEventLogs.allocationID,
         createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
       }

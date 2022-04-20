@@ -94,6 +94,7 @@ module.exports = {
       printObjectData(print, outputFormat, reallocateResult, [
         'closedAllocation',
         'indexingRewardsCollected',
+        'receiptsWorthCollecting',
         'createdAllocation',
         'createdAllocationStake',
       ])

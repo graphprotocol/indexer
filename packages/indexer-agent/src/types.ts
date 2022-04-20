@@ -1,7 +1,10 @@
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { Network, NetworkSubgraph } from '@graphprotocol/indexer-common'
+import {
+  Network,
+  NetworkSubgraph,
+  ReceiptCollector,
+} from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
-import { ReceiptCollector } from './query-fees'
 
 export enum AllocationManagementMode {
   AUTO,
