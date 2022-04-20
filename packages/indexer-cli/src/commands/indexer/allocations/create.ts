@@ -27,18 +27,20 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
+    const spinner = toolbox.print.spin('Processing inputs')
+
     const { h, help, o, output } = parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
 
     if (toHelp) {
-      print.info(HELP)
+      spinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
     }
 
     if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+      spinner.fail(`Invalid output format "${outputFormat}"`)
       process.exitCode = 1
       return
     }
@@ -65,6 +67,7 @@ module.exports = {
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
+      spinner.text = `Creating allocation for deployment '${deploymentString}'`
       const allocateResult = await createAllocation(
         client,
         deploymentString,
@@ -72,14 +75,14 @@ module.exports = {
         indexNode,
       )
 
-      print.success('Allocation created')
+      spinner.succeed('Allocation created')
       printObjectData(print, outputFormat, allocateResult, [
         'allocation',
         'deployment',
         'allocatedTokens',
       ])
     } catch (error) {
-      print.error(error.toString())
+      spinner.fail(error.toString())
       process.exitCode = 1
       return
     }
