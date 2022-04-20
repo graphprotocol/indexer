@@ -17,7 +17,6 @@ import {
   TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { DHeap } from '@thi.ng/heaps'
-import { ReceiptCollector } from '.'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
@@ -41,6 +40,11 @@ export interface AllocationReceiptCollectorOptions {
   voucherRedemptionBatchThreshold: BigNumber
   voucherRedemptionMaxBatchSize: number
   voucherExpiration: number
+}
+
+export interface ReceiptCollector {
+  rememberAllocations(allocations: Allocation[]): Promise<boolean>
+  collectReceipts(allocation: Allocation): Promise<boolean>
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
@@ -82,7 +86,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   async rememberAllocations(allocations: Allocation[]): Promise<boolean> {
     const logger = this.logger.child({
-      allocations: allocations.map(allocation => allocation.id),
+      allocations: allocations.map((allocation) => allocation.id),
     })
 
     try {
@@ -90,7 +94,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
-        async transaction => {
+        async (transaction) => {
           for (const allocation of allocations) {
             const [summary] = await ensureAllocationSummary(
               this.models,
@@ -103,12 +107,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       )
       return true
     } catch (err) {
-      logger.error(
-        `Failed to remember allocations for collecting receipts later`,
-        {
-          err: indexerError(IndexerErrorCode.IE056, err),
-        },
-      )
+      logger.error(`Failed to remember allocations for collecting receipts later`, {
+        err: indexerError(IndexerErrorCode.IE056, err),
+      })
       return false
     }
   }
@@ -127,7 +128,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       const receipts =
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await this.models.allocationReceipts.sequelize!.transaction(
-          async transaction => {
+          async (transaction) => {
             // Update the allocation summary
             await this.models.allocationSummaries.update(
               { closedAt: now },
@@ -148,26 +149,27 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       if (receipts.length <= 0) {
         logger.info(`No receipts to collect for allocation`)
-      } else {
-        const timeout = now.valueOf() + RECEIPT_COLLECT_DELAY
-
-        // Collect the receipts for this allocation in a bit
-        this.receiptsToCollect.push({
-          receipts,
-          timeout,
-        })
-        logger.info(`Successfully queued allocation receipts for collecting`, {
-          receipts: receipts.length,
-          timeout: new Date(timeout).toLocaleString(),
-        })
+        return false
       }
 
+      const timeout = now.valueOf() + RECEIPT_COLLECT_DELAY
+
+      // Collect the receipts for this allocation in a bit
+      this.receiptsToCollect.push({
+        receipts,
+        timeout,
+      })
+      logger.info(`Successfully queued allocation receipts for collecting`, {
+        receipts: receipts.length,
+        timeout: new Date(timeout).toLocaleString(),
+      })
       return true
     } catch (err) {
-      logger.error(`Failed to queue allocation receipts for collecting`, {
-        err: indexerError(IndexerErrorCode.IE053, err),
+      const error = indexerError(IndexerErrorCode.IE053, err)
+      this.logger.error(`Failed to queue allocation receipts for collecting`, {
+        error,
       })
-      return false
+      throw error
     }
   }
 
@@ -209,11 +211,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       const vouchers = await pReduce(
         pendingVouchers,
         async (results, voucher) => {
-          if (
-            await this.allocationExchange.allocationsRedeemed(
-              voucher.allocation,
-            )
-          ) {
+          if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
             try {
               await this.models.vouchers.destroy({
                 where: { allocation: voucher.allocation },
@@ -223,16 +221,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
                 { allocation: voucher.allocation },
               )
             } catch (err) {
-              logger.warn(
-                `Failed to delete local vouchers copy, will try again later`,
-                { err, allocation: voucher.allocation },
-              )
+              logger.warn(`Failed to delete local vouchers copy, will try again later`, {
+                err,
+                allocation: voucher.allocation,
+              })
             }
             return results
           }
-          if (
-            BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)
-          ) {
+          if (BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)) {
             results.belowThreshold.push(voucher)
           } else {
             results.eligible.push(voucher)
@@ -245,9 +241,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (vouchers.belowThreshold.length > 0) {
         logger.info(`Query vouchers below the redemption threshold`, {
           hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
-          voucherRedemptionThreshold: formatGRT(
-            this.voucherRedemptionThreshold,
-          ),
+          voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
           belowThresholdCount: vouchers.belowThreshold.length,
           totalValueGRT: formatGRT(
             vouchers.belowThreshold.reduce(
@@ -255,9 +249,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               BigNumber.from(0),
             ),
           ),
-          allocations: vouchers.belowThreshold.map(
-            voucher => voucher.allocation,
-          ),
+          allocations: vouchers.belowThreshold.map((voucher) => voucher.allocation),
         })
       }
 
@@ -265,10 +257,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (vouchers.eligible.length === 0) return
 
       // Already ordered by value
-      const voucherBatch = vouchers.eligible.slice(
-          0,
-          this.voucherRedemptionMaxBatchSize,
-        ),
+      const voucherBatch = vouchers.eligible.slice(0, this.voucherRedemptionMaxBatchSize),
         batchValueGRT = voucherBatch.reduce(
           (total, voucher) => total.add(BigNumber.from(voucher.amount)),
           BigNumber.from(0),
@@ -304,9 +293,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
   }
 
-  private async obtainReceiptsVoucher(
-    receipts: AllocationReceipt[],
-  ): Promise<void> {
+  private async obtainReceiptsVoucher(receipts: AllocationReceipt[]): Promise<void> {
     const logger = this.logger.child({
       allocation: receipts[0].allocation,
     })
@@ -346,7 +333,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // should this fail, we'll try to collect these receipts again
       // later
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.models.vouchers.sequelize!.transaction(async transaction => {
+      await this.models.vouchers.sequelize!.transaction(async (transaction) => {
         logger.debug(`Removing collected receipts from the database`, {
           receipts: receipts.length,
         })
@@ -354,14 +341,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         // Remove all receipts in the batch from the database
         await this.models.allocationReceipts.destroy({
           where: {
-            id: receipts.map(receipt => receipt.id),
+            id: receipts.map((receipt) => receipt.id),
           },
           transaction,
         })
 
-        logger.debug(
-          `Add voucher received in exchange for receipts to the database`,
-        )
+        logger.debug(`Add voucher received in exchange for receipts to the database`)
 
         // Update the query fees tracked against the allocation
         const [summary] = await ensureAllocationSummary(
@@ -399,13 +384,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
 
     logger.info(`Redeem query voucher batch on chain`, {
-      allocations: vouchers.map(voucher => voucher.allocation),
+      allocations: vouchers.map((voucher) => voucher.allocation),
     })
 
     const hexPrefix = (bytes: string): string =>
       bytes.startsWith('0x') ? bytes : `0x${bytes}`
 
-    const onchainVouchers = vouchers.map(voucher => {
+    const onchainVouchers = vouchers.map((voucher) => {
       return {
         allocationID: hexPrefix(voucher.allocation),
         amount: voucher.amount,
@@ -430,7 +415,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
-        async transaction => {
+        async (transaction) => {
           for (const voucher of vouchers) {
             const [summary] = await ensureAllocationSummary(
               this.models,
@@ -455,7 +440,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     logger.info(`Successfully redeemed query fee voucher, delete local copy`)
     try {
       await this.models.vouchers.destroy({
-        where: { allocation: vouchers.map(voucher => voucher.allocation) },
+        where: { allocation: vouchers.map((voucher) => voucher.allocation) },
       })
       logger.info(`Successfully deleted local voucher copy`)
     } catch (err) {
@@ -473,7 +458,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     // Create a receipts batch for each of these allocations
     const batches = new Map<string, AllocationReceiptsBatch>(
-      closedAllocations.map(summary => [
+      closedAllocations.map((summary) => [
         summary.allocation,
         {
           timeout: summary.closedAt.valueOf() + RECEIPT_COLLECT_DELAY,
@@ -485,7 +470,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // Obtain all receipts for these allocations
     const uncollectedReceipts = await this.models.allocationReceipts.findAll({
       where: {
-        allocation: closedAllocations.map(summary => summary.allocation),
+        allocation: closedAllocations.map((summary) => summary.allocation),
       },
       order: ['id'],
     })

@@ -44,11 +44,13 @@ export interface CloseAllocationResult {
   allocation: string
   allocatedTokens: string
   indexingRewards: string
+  receiptsWorthCollecting: boolean
 }
 
 export interface ReallocateAllocationResult {
   closedAllocation: string
   indexingRewardsCollected: string
+  receiptsWorthCollecting: boolean
   createdAllocation: string
   createdAllocationStake: string
 }

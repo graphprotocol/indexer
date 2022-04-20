@@ -219,6 +219,7 @@ export const closeAllocation = async (
             allocation
             allocatedTokens
             indexingRewards
+            receiptsWorthCollecting
           }
         }
       `,
@@ -261,6 +262,7 @@ export const reallocateAllocation = async (
           ) {
             closedAllocation
             indexingRewardsCollected
+            receiptsWorthCollecting
             createdAllocation
             createdAllocationStake
           }

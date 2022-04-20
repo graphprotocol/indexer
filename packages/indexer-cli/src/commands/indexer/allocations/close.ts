@@ -81,6 +81,7 @@ module.exports = {
         'allocation',
         'allocatedTokens',
         'indexingRewards',
+        'receiptsWorthCollecting',
       ])
     } catch (error) {
       spinner.fail(error.toString())

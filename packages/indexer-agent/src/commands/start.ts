@@ -12,6 +12,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  AllocationReceiptCollector,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -27,7 +28,6 @@ import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
 import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
-import { AllocationReceiptCollector } from '../query-fees/allocations'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
 import { AllocationManagementMode } from '../types'
@@ -722,6 +722,19 @@ export default {
       restakeRewards: argv.restakeRewards,
     })
 
+    const receiptCollector = new AllocationReceiptCollector({
+      logger,
+      transactionManager: network.transactionManager,
+      models: queryFeeModels,
+      allocationExchange: network.contracts.allocationExchange,
+      collectEndpoint: new URL(argv.collectReceiptsEndpoint),
+      voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+      voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
+      voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+      voucherExpiration: argv.voucherExpiration,
+    })
+    await receiptCollector.queuePendingReceiptsFromDatabase()
+
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
@@ -742,6 +755,7 @@ export default {
         injectDai: argv.injectDai,
       },
       transactionManager: network.transactionManager,
+      receiptCollector,
     })
     await createIndexerManagementServer({
       logger,
@@ -793,19 +807,6 @@ export default {
       daiContractAddress: toAddress(argv.daiContract),
       metrics,
     })
-
-    const receiptCollector = new AllocationReceiptCollector({
-      logger,
-      transactionManager: network.transactionManager,
-      models: queryFeeModels,
-      allocationExchange: network.contracts.allocationExchange,
-      collectEndpoint: new URL(argv.collectReceiptsEndpoint),
-      voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
-      voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
-      voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
-      voucherExpiration: argv.voucherExpiration,
-    })
-    await receiptCollector.queuePendingReceiptsFromDatabase()
 
     const allocationManagementMode: AllocationManagementMode =
       AllocationManagementMode[

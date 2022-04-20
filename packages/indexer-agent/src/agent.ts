@@ -22,6 +22,7 @@ import {
   Network,
   NetworkSubgraph,
   POIDisputeAttributes,
+  ReceiptCollector,
   Subgraph,
   SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
@@ -31,7 +32,6 @@ import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import { ReceiptCollector } from './query-fees'
 
 const allocationInList = (
   list: Allocation[],

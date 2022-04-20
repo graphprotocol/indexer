@@ -24,6 +24,7 @@ import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
 import { TransactionManager } from '../transactions'
 import { SubgraphManager } from './subgraphs'
+import { AllocationReceiptCollector } from '../allocations/query-fees'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -41,6 +42,7 @@ export interface IndexerManagementResolverContext {
   features: IndexerManagementFeatures
   dai: Eventual<string>
   transactionManager: TransactionManager
+  receiptCollector: AllocationReceiptCollector
 }
 
 const SCHEMA_SDL = gql`
@@ -98,11 +100,13 @@ const SCHEMA_SDL = gql`
     allocation: String!
     allocatedTokens: String!
     indexingRewards: String!
+    receiptsWorthCollecting: Boolean!
   }
 
   type reallocateAllocationResult {
     closedAllocation: String!
     indexingRewardsCollected: String!
+    receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
   }
@@ -316,6 +320,7 @@ export interface IndexerManagementClientOptions {
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   transactionManager?: TransactionManager
+  receiptCollector?: AllocationReceiptCollector
 }
 
 export class IndexerManagementClient extends Client {
@@ -377,6 +382,7 @@ export const createIndexerManagementClient = async (
     defaults,
     features,
     transactionManager,
+    receiptCollector,
   } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
@@ -406,6 +412,7 @@ export const createIndexerManagementClient = async (
       features,
       dai,
       transactionManager,
+      receiptCollector,
     },
   })
 
