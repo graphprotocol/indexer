@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-native",
-  "version": "0.19.0",
+  "version": "0.19.1",
   "description": "Performance sensitive indexer code",
   "main": "./lib/index.js",
   "files": [
@@ -25,9 +25,9 @@
   },
   "devDependencies": {
     "bs58": "5.0.0",
-    "ethers": "5.6.2",
     "eslint": "8.13.0",
     "eslint-config-prettier": "8.5.0",
+    "ethers": "5.6.2",
     "jest": "27.5.1",
     "prettier": "2.6.2"
   },
