@@ -4,13 +4,14 @@
   "description": "Indexer CLI for The Graph Network",
   "main": "./dist/cli.js",
   "files": [
+    "/bin",
     "/dist"
   ],
   "repository": "https://github.com/graphprotocol/cli",
   "author": "The Graph Foundation",
   "license": "MIT",
   "bin": {
-    "graph-indexer-agent": "bin/graph-indexer"
+    "graph-indexer": "bin/graph-indexer"
   },
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
