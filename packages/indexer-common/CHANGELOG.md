@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2022-04-21
+### Fixed
+- Allow null POI dispute reference proofs
+- Use consistent rule identifier formatting
+
+### Changed
+- Upgrade dependencies
+
 ## [0.19.0] - 2022-02-24
 ### Changed
 - Upgrade dependencies
@@ -16,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support offchain subgraph management via indexing rules / CLI
 - Manage allocation lifetimes via rules/CLI
 - Support rejecting unsupported subgraphs
-- Optional autorenewal of allocations
+- Optional autorenewal of allocations¡
 
 ## 0.18.6 - 2022-01-05
 
@@ -151,7 +159,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.1]: https://github.com/graphprotocol/indexer/compare/v0.18.0...v0.18.1
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0

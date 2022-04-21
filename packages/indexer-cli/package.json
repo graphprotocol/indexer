@@ -9,6 +9,9 @@
   "repository": "https://github.com/graphprotocol/cli",
   "author": "The Graph Foundation",
   "license": "MIT",
+  "bin": {
+    "graph-indexer-agent": "bin/graph-indexer"
+  },
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
@@ -41,6 +44,8 @@
     "@typescript-eslint/parser": "5.19.0",
     "eslint": "8.13.0",
     "eslint-config-prettier": "8.5.0",
+    "prettier": "2.6.2",
+    "ts-jest": "27.1.4",
     "typescript": "4.6.3"
   },
   "resolutions": {

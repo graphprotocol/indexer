@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2022-04-21
+### Changed
+- Upgrade dependencies
+
+### Added
+- Assign deployments to nodes based on usage
+- Check previous allocation closed w/ valid POI before creating
+
 ## [0.19.0] - 2022-02-24
 ### Added
 - Added automatic batching of query voucher redemptions
@@ -359,7 +367,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.6]: https://github.com/graphprotocol/indexer/compare/v0.18.4...v0.18.6
 [0.18.4]: https://github.com/graphprotocol/indexer/compare/v0.18.3...v0.18.4

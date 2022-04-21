@@ -22,6 +22,7 @@ done
 ) || true
 
 # Publish to NPM
+export NODE_ENV=production
 rm -rf node_modules packages/*/node_modules
 yarn --registry https://registry.npmjs.org/
 yarn config set registry https://registry.npmjs.org/

@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.1] - 2022-04-21
+### Added
+- Use prettier and eslint to validate and format .js code
+
 ## [0.19.0] - 2022-02-24
 ### Changed
 - Upgrade dependencies
@@ -32,7 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add package for native attestation signing and receipt signature verification
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.1...HEAD
+[0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.0]: https://github.com/graphprotocol/indexer/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/graphprotocol/indexer/compare/v0.14.0...v0.17.0
