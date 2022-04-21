@@ -12,7 +12,7 @@ name = "indexer_native"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-neon-build = "0.9"
+neon-build = "0.9.1"
 
 [dependencies]
 neon = "0.9"

@@ -3,6 +3,7 @@
   "version": "0.19.1",
   "description": "Performance sensitive indexer code",
   "main": "./lib/index.js",
+  "types": "./lib/index.d.ts",
   "files": [
     "/lib",
     "/native",
