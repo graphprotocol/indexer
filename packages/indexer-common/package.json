@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "1.8.3",
-    "@graphprotocol/cost-model": "0.1.8",
+    "@graphprotocol/cost-model": "0.1.11",
     "@thi.ng/heaps": "1.2.38",
     "@urql/core": "2.4.4",
     "@urql/exchange-execute": "1.2.2",

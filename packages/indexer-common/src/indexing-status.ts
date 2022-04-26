@@ -79,12 +79,12 @@ export class IndexingStatusResolver {
       }`
     const query =
       deployments.length > 0
-        ? `query indexingStatus($deployments: [String!]!) {
+        ? `query indexingStatuses($deployments: [String!]!) {
             indexingStatuses(subgraphs: $deployments) {
               ${indexingStatusesQueryBody}
             }
           }`
-        : `query indexingStatus {
+        : `query indexingStatuses {
             indexingStatuses {
               ${indexingStatusesQueryBody}
             }
