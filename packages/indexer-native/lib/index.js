@@ -1,4 +1,4 @@
-var addon = require("../native");
+var addon = require("../binary");
 
 function promisify(f) {
   return new Promise((resolve, reject) =>

@@ -1,0 +1,52 @@
+# Creates and publishes assets for a new release.
+# To manually trigger this workflow, create a release in the GitHub UI.
+
+name: "Publish binaries"
+
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  publish-github:
+    strategy:
+      # Allowing jobs to fail until 'node-pre-gyp-github' supports failing gracefully if file already exists
+      # (https://github.com/bchr02/node-pre-gyp-github/issues/42)
+      fail-fast: false
+      matrix:
+        node_version: [12, 14, 16, 17]
+        system:
+          - os: macos-latest
+            target: x86_64-apple-darwin
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+        include:
+          - node_version: 16
+            system:
+              os: macos-latest
+              target: aarch64-apple-darwin
+    runs-on: ${{ matrix.system.os }}
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v2
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v2.1.5
+        with:
+          node-version: ${{ matrix.node_version }}
+      - name: Setup Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: ${{ matrix.system.target }}
+          override: true
+      - name: Install dependencies
+        working-directory: ./packages/indexer-native
+        run: yarn install --ignore-scripts
+      - name: Compile binary, test, package, and publish to Github release page
+        env:
+          NODE_PRE_GYP_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CARGO_BUILD_TARGET: ${{ matrix.system.target }}
+        working-directory: ./packages/indexer-native
+        run: yarn build-test-pack-publish
