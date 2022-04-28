@@ -1014,7 +1014,7 @@ export class Network {
           throw error
         }
       },
-      { retries: 5 },
+      { retries: 5 } as pRetry.Options,
     )
   }
 
