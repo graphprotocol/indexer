@@ -184,7 +184,7 @@ export class AllocationReceiptManager implements ReceiptManager {
               }
             }
           },
-          { retries: 20 },
+          { retries: 20 } as pRetry.Options,
         )
       } catch (err) {
         // If we fail for whatever reason, keep this data in the cache to flush

@@ -176,7 +176,7 @@ export class IndexingStatusResolver {
               err: err.message,
             })
           },
-        },
+        } as pRetry.Options,
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE019, error)
