@@ -8,12 +8,6 @@ describe('Indexer cli tests', () => {
   afterEach(teardown)
 
   describe('General', () => {
-    cliTest('help', ['--help'], 'references/help', {
-      expectedExitCode: 0,
-      cwd: baseDir,
-      timeout: 10000,
-    })
-
     cliTest('Indexer help', ['indexer', '--help'], 'references/indexer-help', {
       expectedExitCode: 255,
       cwd: baseDir,
