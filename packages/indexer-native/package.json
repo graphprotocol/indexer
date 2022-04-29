@@ -21,8 +21,12 @@
     "linux"
   ],
   "cpu": [
-    "x64"
+    "x64",
+    "arm"
   ],
+  "engines": {
+    "node": ">=12.22.0"
+  },
   "scripts": {
     "build": "cd native && cargo-cp-artifact -a cdylib indexer_native ../binary/index.node -- cargo build --message-format=json-render-diagnostics",
     "build-debug": "yarn build --",
