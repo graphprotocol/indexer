@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-service",
-  "version": "0.19.1",
+  "version": "0.19.2",
   "description": "Indexer service",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -32,8 +32,8 @@
   "dependencies": {
     "@google-cloud/profiler": "4.1.7",
     "@graphprotocol/common-ts": "1.8.3",
-    "@graphprotocol/indexer-common": "^0.19.1",
-    "@graphprotocol/indexer-native": "^0.19.1",
+    "@graphprotocol/indexer-common": "^0.19.2",
+    "@graphprotocol/indexer-native": "^0.19.2",
     "@graphql-tools/load": "7.5.8",
     "@graphql-tools/url-loader": "7.9.11",
     "@graphql-tools/wrap": "8.4.13",
