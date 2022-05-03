@@ -1,3 +1,4 @@
+export * from './actions'
 export * from './allocations'
 export * from './async-cache'
 export * from './errors'

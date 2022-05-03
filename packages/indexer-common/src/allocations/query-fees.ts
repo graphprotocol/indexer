@@ -5,6 +5,7 @@ import {
   BytesWriter,
   toAddress,
   formatGRT,
+  Address,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -39,12 +40,11 @@ export interface AllocationReceiptCollectorOptions {
   voucherRedemptionThreshold: BigNumber
   voucherRedemptionBatchThreshold: BigNumber
   voucherRedemptionMaxBatchSize: number
-  voucherExpiration: number
 }
 
 export interface ReceiptCollector {
-  rememberAllocations(allocations: Allocation[]): Promise<boolean>
-  collectReceipts(allocation: Allocation): Promise<boolean>
+  rememberAllocations(actionID: number, allocationIDs: Address[]): Promise<boolean>
+  collectReceipts(actionID: number, allocation: Allocation): Promise<boolean>
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
@@ -57,7 +57,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private voucherRedemptionThreshold: BigNumber
   private voucherRedemptionBatchThreshold: BigNumber
   private voucherRedemptionMaxBatchSize: number
-  private voucherExpiration: number
 
   constructor({
     logger,
@@ -68,7 +67,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize,
-    voucherExpiration,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.transactionManager = transactionManager
@@ -78,15 +76,18 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.voucherRedemptionThreshold = voucherRedemptionThreshold
     this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
-    this.voucherExpiration = voucherExpiration
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
   }
 
-  async rememberAllocations(allocations: Allocation[]): Promise<boolean> {
+  async rememberAllocations(
+    actionID: number,
+    allocationIDs: Address[],
+  ): Promise<boolean> {
     const logger = this.logger.child({
-      allocations: allocations.map((allocation) => allocation.id),
+      action: actionID,
+      allocations: allocationIDs,
     })
 
     try {
@@ -95,10 +96,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
         async (transaction) => {
-          for (const allocation of allocations) {
+          for (const allocation of allocationIDs) {
             const [summary] = await ensureAllocationSummary(
               this.models,
-              allocation.id,
+              allocation,
               transaction,
             )
             await summary.save()
@@ -114,14 +115,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
   }
 
-  async collectReceipts(allocation: Allocation): Promise<boolean> {
+  async collectReceipts(actionID: number, allocation: Allocation): Promise<boolean> {
     const logger = this.logger.child({
+      action: actionID,
       allocation: allocation.id,
       deployment: allocation.subgraphDeployment.id.display,
     })
 
     try {
-      logger.info(`Queue allocation receipts for collecting`)
+      logger.debug(`Queue allocation receipts for collecting`)
 
       const now = new Date()
 
@@ -148,7 +150,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
       if (receipts.length <= 0) {
-        logger.info(`No receipts to collect for allocation`)
+        logger.debug(`No receipts to collect for allocation`)
         return false
       }
 

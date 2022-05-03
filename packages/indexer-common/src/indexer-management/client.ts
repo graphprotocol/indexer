@@ -8,23 +8,30 @@ import {
   Logger,
   mutable,
   NetworkContracts,
+  toAddress,
   WritableEventual,
 } from '@graphprotocol/common-ts'
 import { NetworkSubgraph } from '../network-subgraph'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
+import actionResolvers from './resolvers/actions'
 import allocationResolvers from './resolvers/allocations'
 import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
-import { BigNumber } from 'ethers'
+import { BigNumber, ethers } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { IndexingStatusResolver } from '../indexing-status'
 import { TransactionManager } from '../transactions'
 import { SubgraphManager } from './subgraphs'
 import { AllocationReceiptCollector } from '../allocations/query-fees'
+import {
+  ActionManager,
+  AllocationManager,
+  NetworkMonitor,
+} from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementFeatures {
   injectDai: boolean
@@ -36,11 +43,13 @@ export interface IndexerManagementResolverContext {
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
   subgraphManager: SubgraphManager
+  networkMonitor: NetworkMonitor
   networkSubgraph: NetworkSubgraph
   logger: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
   dai: Eventual<string>
+  actionManager: ActionManager
   transactionManager: TransactionManager
   receiptCollector: AllocationReceiptCollector
 }
@@ -103,12 +112,80 @@ const SCHEMA_SDL = gql`
     receiptsWorthCollecting: Boolean!
   }
 
-  type reallocateAllocationResult {
+  type ReallocateAllocationResult {
     closedAllocation: String!
     indexingRewardsCollected: String!
     receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
+  }
+
+  enum ActionStatus {
+    queued
+    approved
+    pending
+    success
+    failed
+    canceled
+  }
+
+  enum ActionType {
+    allocate
+    unallocate
+    reallocate
+  }
+
+  type Action {
+    id: Int!
+    status: ActionStatus!
+    type: ActionType!
+    deploymentID: String
+    allocationID: String
+    amount: String
+    poi: String
+    force: Boolean
+    priority: Int!
+    source: String!
+    reason: String!
+    transaction: String
+    failureReason: String
+    createdAt: BigInt!
+    updatedAt: BigInt
+  }
+
+  input ActionInput {
+    status: ActionStatus!
+    type: ActionType!
+    deploymentID: String
+    allocationID: String
+    amount: String
+    poi: String
+    force: Boolean
+    source: String!
+    reason: String
+    priority: Int
+  }
+
+  type ActionResult {
+    id: Int!
+    type: ActionType!
+    deploymentID: String
+    allocationID: String
+    amount: String
+    poi: String
+    force: Boolean
+    source: String!
+    reason: String!
+    status: String!
+    transaction: String
+    failureReason: String
+  }
+
+  input ActionFilter {
+    type: ActionType
+    status: String
+    source: String
+    reason: String
   }
 
   type POIDispute {
@@ -270,6 +347,9 @@ const SCHEMA_SDL = gql`
     disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
 
     allocations(filter: AllocationFilter!): [Allocation!]!
+
+    action(actionID: String!): Action
+    actions(filter: ActionFilter): [Action]!
   }
 
   type Mutation {
@@ -297,7 +377,13 @@ const SCHEMA_SDL = gql`
       poi: String
       amount: String!
       force: Boolean
-    ): reallocateAllocationResult!
+    ): ReallocateAllocationResult!
+
+    updateAction(action: ActionInput!): Action!
+    queueActions(actions: [ActionInput!]!): [Action]!
+    cancelActions(actionIDs: [String!]!): [Action]!
+    approveActions(actionIDs: [String!]!): [Action]!
+    executeApprovedActions: [ActionResult!]!
   }
 `
 
@@ -316,9 +402,10 @@ export interface IndexerManagementClientOptions {
   indexNodeIDs: string[]
   deploymentManagementEndpoint: string
   networkSubgraph: NetworkSubgraph
-  logger?: Logger
+  logger: Logger
   defaults: IndexerManagementDefaults
   features: IndexerManagementFeatures
+  ethereum?: ethers.providers.BaseProvider
   transactionManager?: TransactionManager
   receiptCollector?: AllocationReceiptCollector
 }
@@ -360,8 +447,8 @@ export class IndexerManagementClient extends Client {
         variables: Sequelize.literal(`coalesce(variables, '{}'::jsonb) || ${update}`),
       },
       {
-        // This is just a non-obvious way to match all models
-        where: { deployment: { [Op.not]: null } },
+        // TODO: update to match all rows??
+        where: { model: { [Op.not]: null } },
       },
     )
   }
@@ -391,11 +478,44 @@ export const createIndexerManagementClient = async (
     ...costModelResolvers,
     ...poiDisputeResolvers,
     ...allocationResolvers,
+    ...actionResolvers,
   }
 
   const dai: WritableEventual<string> = mutable()
 
   const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
+  let allocationManager: AllocationManager | undefined = undefined
+  let actionManager: ActionManager | undefined = undefined
+  let networkMonitor: NetworkMonitor | undefined = undefined
+
+  if (transactionManager) {
+    networkMonitor = new NetworkMonitor(
+      contracts,
+      toAddress(address),
+      logger,
+      indexingStatusResolver,
+      networkSubgraph,
+      transactionManager.ethereum,
+    )
+
+    if (receiptCollector) {
+      // TODO: AllocationManager construction inside ActionManager
+      allocationManager = new AllocationManager(
+        contracts,
+        logger,
+        address,
+        models,
+        networkMonitor,
+        receiptCollector,
+        subgraphManager,
+        transactionManager,
+      )
+      actionManager = new ActionManager(allocationManager, logger, models)
+
+      logger.info('Begin monitoring the queue for approved actions to execute')
+      await actionManager.monitorQueue()
+    }
+  }
 
   const exchange = executeExchange({
     schema,
@@ -406,12 +526,14 @@ export const createIndexerManagementClient = async (
       contracts,
       indexingStatusResolver,
       subgraphManager,
+      networkMonitor,
       networkSubgraph,
       logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
       defaults,
       features,
       dai,
       transactionManager,
+      actionManager,
       receiptCollector,
     },
   })

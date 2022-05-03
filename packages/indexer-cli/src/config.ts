@@ -31,7 +31,7 @@ export const loadValidatedConfig = (): IndexingConfig => {
   const config = loadConfig()
   const errors = []
   if (!config.api) {
-    errors.push(`- 'api' is not set. Please run 'graph indexer connect <url>' first.`)
+    errors.push(`- 'api' is not set. Please run 'graph indexer connect <url>' first`)
   }
 
   if (errors.length > 0) {

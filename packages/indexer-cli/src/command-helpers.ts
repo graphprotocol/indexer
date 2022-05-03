@@ -29,6 +29,7 @@
 import { table, getBorderCharacters } from 'table'
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
+import { utils } from 'ethers'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -44,7 +45,7 @@ export const fixParameters = (
 
   if (unexpectedStringOptions.length > 1) {
     throw new Error(
-      `Unexpected value provided for one or more of ${optionNames}. See --help for more information.`,
+      `Unexpected value provided for one or more of ${optionNames}. See --help for more information`,
     )
   } else if (unexpectedStringOptions.length == 1) {
     const params = parameters.array
@@ -109,11 +110,58 @@ export function displayObjectData(
       }).trim()
 }
 
-export function printObjectData(
+export function displayObjectArrayData(
+  outputFormat: 'table' | 'json' | 'yaml',
+  data: object[],
+): string {
+  return outputFormat === 'json'
+    ? JSON.stringify(data, null, 2)
+    : outputFormat === 'yaml'
+    ? yaml.stringify(data).trim()
+    : data.length === 0
+    ? 'No items found'
+    : table([Object.keys(data[0]), ...data.map(item => Object.values(item))], {
+        border: getBorderCharacters('norc'),
+      }).trim()
+}
+
+export function printObjectOrArray(
   print: GluegunPrint,
   outputFormat: 'table' | 'json' | 'yaml',
-  data: object,
+  data: object | object[],
   keys: string[],
 ): void {
-  print.info(displayObjectData(outputFormat, pickFields(data, keys)))
+  if (Array.isArray(data)) {
+    const formatted = data.map(item => pickFields(item, keys))
+    print.info(displayObjectArrayData(outputFormat, formatted))
+  } else if (data) {
+    print.info(displayObjectData(outputFormat, pickFields(data, keys)))
+  } else {
+    print.error(`No items returned`)
+  }
+}
+
+export async function validateRequiredParams(
+  paramsObject: Record<string, unknown>,
+  requiredParams: string[],
+): Promise<void> {
+  const missingFields = requiredParams.filter(field => paramsObject[field] === undefined)
+  if (missingFields.length >= 1) {
+    // TODO: Convert to action type specific types (instead of genericActionInput) so the missingField values are meaningful
+    throw Error(`Missing required input parameters: ${missingFields}`)
+  }
+}
+
+export async function validatePOI(poi: string | undefined): Promise<string | undefined> {
+  if (poi !== undefined) {
+    if (typeof poi == 'number' && poi == 0) {
+      poi = utils.hexlify(Array(32).fill(0))
+    }
+    // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
+    const isHex = utils.isHexString(poi, 32)
+    if (!isHex) {
+      throw new Error('Must be a 32 byte length hex string')
+    }
+  }
+  return poi
 }

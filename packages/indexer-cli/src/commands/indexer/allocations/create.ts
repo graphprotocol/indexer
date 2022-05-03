@@ -6,7 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
-import { printObjectData } from '../../../command-helpers'
+import { printObjectOrArray } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -76,7 +76,7 @@ module.exports = {
       )
 
       spinner.succeed('Allocation created')
-      printObjectData(print, outputFormat, allocateResult, [
+      printObjectOrArray(print, outputFormat, allocateResult, [
         'allocation',
         'deployment',
         'allocatedTokens',

@@ -14,7 +14,7 @@ describe('Indexer cli tests', () => {
       timeout: 10000,
     })
 
-    cliTest('Indexer (no args)', ['indexer'], 'references/indexer', {
+    cliTest('Indexer (no args)', ['indexer'], 'references/indexer-help', {
       expectedExitCode: 255,
       cwd: baseDir,
       timeout: 10000,

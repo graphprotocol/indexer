@@ -22,7 +22,8 @@
   ],
   "cpu": [
     "x64",
-    "arm"
+    "arm",
+    "arm64"
   ],
   "engines": {
     "node": ">=12.22.0"
@@ -44,7 +45,7 @@
     "clean": "rm -rf ./node_modules ./binary ./build ./coverage ./native/target ./native/artifacts.json ./native/index.node"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.8.3",
+    "@graphprotocol/common-ts": "1.8.4",
     "@mapbox/node-pre-gyp": "1.0.9",
     "cargo-cp-artifact": "0.1.6"
   },

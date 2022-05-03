@@ -2,9 +2,6 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexerManagementModels,
-  IndexingDecisionBasis,
-  IndexingRuleAttributes,
-  SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import jayson, { Client as RpcClient } from 'jayson/promise'
@@ -84,28 +81,11 @@ export class SubgraphManager {
       logger.info(`Successfully deployed subgraph`, {
         name,
         deployment: deployment.display,
-        response,
+        endpoints: response.result,
       })
 
-      logger.info(
-        `Update indexing rules, so indexer-agent keeps the deployment synced but doesn't allocate to it`,
-      )
-      const offchainIndexingRule = {
-        identifier: deployment.ipfsHash,
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      } as Partial<IndexingRuleAttributes>
-
-      await models.IndexingRule.upsert(offchainIndexingRule)
-
-      // Since upsert succeeded, we _must_ have a rule
-      const updatedRule = await models.IndexingRule.findOne({
-        where: { identifier: offchainIndexingRule.identifier },
-      })
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      logger.info(`DecisionBasis.OFFCHAIN rule merged into indexing rules`, {
-        rule: updatedRule,
-      })
+      // TODO: Insert an offchain indexing rule if one matching this deployment doesn't yet exist
+      // Will be useful for supporting deploySubgraph resolver
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE026, error)
       logger.error(`Failed to deploy subgraph deployment`, {

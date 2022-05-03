@@ -18,16 +18,15 @@ import {
   Allocation,
   allocationIdProof,
   AllocationStatus,
-  CreateAllocationResult,
   CloseAllocationResult,
+  CreateAllocationResult,
   indexerError,
   IndexerErrorCode,
-  IndexingDecisionBasis,
   IndexerManagementResolverContext,
+  IndexingDecisionBasis,
   IndexingRuleAttributes,
   IndexingStatusResolver,
   NetworkSubgraph,
-  parseGraphQLAllocation,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
   TransactionManager,
@@ -196,7 +195,7 @@ async function queryAllocations(
     avgBlockTime: number
   },
 ): Promise<AllocationInfo[]> {
-  logger.debug('Query Allocations', {
+  logger.trace('Query Allocations', {
     variables,
     context,
   })
@@ -360,9 +359,9 @@ async function resolvePOI(
 export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
-    { networkSubgraph, address, contracts, logger }: IndexerManagementResolverContext,
+    { address, contracts, logger, networkSubgraph }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    logger.info('Fetch allocations', {
+    logger.debug('Execute allocations() query', {
       filter,
     })
 
@@ -412,58 +411,16 @@ export default {
       subgraphManager,
       logger,
       models,
-      networkSubgraph,
+      networkMonitor,
       transactionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
-    logger.info('Creating allocation', { deployment, amount })
+    logger.debug('Execuute createAllocation() mutation', { deployment, amount })
 
     const allocationAmount = parseGRT(amount)
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
-    let activeAllocations: Allocation[] = []
 
-    // Fetch active allocations
-    try {
-      const result = await networkSubgraph.query(
-        gql`
-          query allocations($indexer: String!, $status: AllocationStatus!) {
-            allocations(where: { indexer: $indexer, status: $status }, first: 1000) {
-              id
-              indexer {
-                id
-              }
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-              }
-            }
-          }
-        `,
-        {
-          indexer: address.toLocaleLowerCase(),
-          status: AllocationStatus[AllocationStatus.Active],
-        },
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-
-      if (result.data.allocations.length > 0) {
-        activeAllocations = result.data.allocations.map(parseGraphQLAllocation)
-      }
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE010, error)
-      logger.error(`Failed to query active indexer allocations`, {
-        err,
-      })
-      throw err
-    }
+    const activeAllocations = await networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     const allocation = activeAllocations.find(
       (allocation) =>
@@ -475,7 +432,7 @@ export default {
         activeAllocation: allocation.id,
       })
       throw new Error(
-        `Allocation failed. An active allocation already exists for deployment '${allocation.subgraphDeployment.id.ipfsHash}'.`,
+        `Allocation failed. An active allocation already exists for deployment '${allocation.subgraphDeployment.id.ipfsHash}'`,
       )
     }
 
@@ -484,7 +441,7 @@ export default {
         amount: amount.toString(),
       })
       throw new Error(
-        `Invalid allocation amount provided (${amount.toString()}). Must use positive allocation amount.`,
+        `Invalid allocation amount provided (${amount.toString()}). Must use positive allocation amount`,
       )
     }
 
@@ -493,7 +450,7 @@ export default {
         amount: allocationAmount.toString(),
       })
       throw new Error(
-        `Invalid allocation amount provided (${allocationAmount.toString()}). Must use nonzero allocation amount.`,
+        `Invalid allocation amount provided (${allocationAmount.toString()}). Must use nonzero allocation amount`,
       )
     }
 
@@ -662,6 +619,9 @@ export default {
       })
 
       return {
+        actionID: 0,
+        type: 'allocate',
+        transactionID: receipt.transactionHash,
         deployment,
         allocation: createEvent.allocationID,
         allocatedTokens: formatGRT(allocationAmount.toString()),
@@ -686,49 +646,20 @@ export default {
       indexingStatusResolver,
       logger,
       models,
-      networkSubgraph,
+      networkMonitor,
       transactionManager,
       receiptCollector,
     }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
-    logger.info('Closing allocation', {
+    logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
     })
 
-    const result = await networkSubgraph.query(
-      gql`
-        query allocation($allocation: String!) {
-          allocation(id: $allocation) {
-            id
-            indexer {
-              id
-            }
-            allocatedTokens
-            createdAtEpoch
-            createdAtBlockHash
-            closedAtEpoch
-            subgraphDeployment {
-              id
-              ipfsHash
-              stakedTokens
-              signalledTokens
-            }
-          }
-        }
-      `,
-      { allocation: allocation.toLocaleLowerCase() },
-    )
-    if (result.error) {
-      throw result.error
+    const allocationData = await networkMonitor.allocation(allocation.toLocaleLowerCase())
+    if (!allocationData) {
+      throw Error(`No existing allocation exists with id ${allocation}`)
     }
-
-    if (!result.data.allocation || result.data.length == 0) {
-      throw new Error(
-        `Allocation cannot be closed. No active allocation with id '${allocation}' found.`,
-      )
-    }
-    const allocationData = parseGraphQLAllocation(result.data.allocation)
 
     try {
       // Ensure allocation is old enough to close
@@ -739,7 +670,7 @@ export default {
             allocationData.id
           }' cannot be closed until epoch ${currentEpoch.add(
             1,
-          )}. (Allocations cannot be closed in the same epoch they were created).`,
+          )}. (Allocations cannot be closed in the same epoch they were created)`,
         )
       }
 
@@ -839,7 +770,10 @@ export default {
       })
 
       // Collect query fees for this allocation
-      const isCollectingQueryFees = await receiptCollector.collectReceipts(allocationData)
+      const isCollectingQueryFees = await receiptCollector.collectReceipts(
+        0,
+        allocationData,
+      )
 
       logger.debug(
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
@@ -862,6 +796,9 @@ export default {
       })
 
       return {
+        actionID: 0,
+        type: 'unallocate',
+        transactionID: receipt.transactionHash,
         allocation: closeAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
@@ -886,7 +823,7 @@ export default {
       indexingStatusResolver,
       logger,
       models,
-      networkSubgraph,
+      networkMonitor,
       transactionManager,
       receiptCollector,
     }: IndexerManagementResolverContext,
@@ -903,49 +840,8 @@ export default {
     })
 
     const allocationAmount = parseGRT(amount)
-    let activeAllocations: Allocation[] = []
 
-    // Fetch active allocations
-    try {
-      const result = await networkSubgraph.query(
-        gql`
-          query allocations($indexer: String!, $status: AllocationStatus!) {
-            allocations(where: { indexer: $indexer, status: $status }, first: 1000) {
-              id
-              indexer {
-                id
-              }
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-              }
-            }
-          }
-        `,
-        {
-          indexer: address.toLocaleLowerCase(),
-          status: AllocationStatus[AllocationStatus.Active],
-        },
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-      if (result.data.allocations.length > 0) {
-        activeAllocations = result.data.allocations.map(parseGraphQLAllocation)
-      }
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE010, error)
-      logger.error(`Failed to query active indexer allocations`, {
-        err,
-      })
-      throw err
-    }
+    const activeAllocations = await networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     const allocationAddress = toAddress(allocation)
     const allocationData = activeAllocations.find((allocation) => {
@@ -955,7 +851,7 @@ export default {
     if (!allocationData) {
       logger.error(`No existing `)
       throw new Error(
-        `Allocation cannot be refreshed. No active allocation with id '${allocation}' found.`,
+        `Reallocation failed: No active allocation with id '${allocation}' found`,
       )
     }
 
@@ -968,7 +864,7 @@ export default {
             allocationData.id
           }' cannot be closed until epoch ${currentEpoch.add(
             1,
-          )}. (Allocations cannot be closed in the same epoch they were created).`,
+          )}. (Allocations cannot be closed in the same epoch they were created)`,
         )
       }
 
@@ -1205,7 +1101,10 @@ export default {
       })
 
       // Collect query fees for this allocation
-      const isCollectingQueryFees = await receiptCollector.collectReceipts(allocationData)
+      const isCollectingQueryFees = await receiptCollector.collectReceipts(
+        0,
+        allocationData,
+      )
 
       logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
@@ -1229,6 +1128,9 @@ export default {
       })
 
       return {
+        actionID: 0,
+        type: 'reallocate',
+        transactionID: receipt.transactionHash,
         closedAllocation: closeAllocationEventLogs.allocationID,
         indexingRewardsCollected: formatGRT(rewardsAssigned),
         receiptsWorthCollecting: isCollectingQueryFees,

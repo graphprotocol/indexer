@@ -78,6 +78,29 @@ export class IndexingRule
     return { ...this.toJSON(), __typename: 'IndexingRule' }
   }
 
+  public mergeGlobal(global: IndexingRule | null): IndexingRule {
+    if (global instanceof IndexingRule) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const globalRule: { [key: string]: any } | null = global.toJSON()
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rule: { [key: string]: any } | null = this.toJSON()
+      for (const k in globalRule) {
+        if (null == rule[k]) {
+          rule[k] = globalRule[k]
+        }
+      }
+      for (const k in rule) {
+        if (rule[k] == undefined) {
+          rule[k] = globalRule[k]
+        }
+      }
+      return { ...rule } as IndexingRule
+    } else {
+      return this
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/ban-types
   public mergeToGraphQL(global: IndexingRule | null): object {
     if (global instanceof IndexingRule) {

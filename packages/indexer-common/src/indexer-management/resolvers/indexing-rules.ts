@@ -7,7 +7,7 @@ import {
 } from '../models'
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
 import { Transaction } from 'sequelize/types'
-import { processIdentifier } from '@graphprotocol/indexer-common'
+import { fetchIndexingRules, processIdentifier } from '@graphprotocol/indexer-common'
 
 const resetGlobalRule = async (
   identifier: string,
@@ -49,20 +49,7 @@ export default {
     { merged }: { merged: boolean },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    const rules = await models.IndexingRule.findAll({
-      order: [
-        ['identifierType', 'DESC'],
-        ['identifier', 'ASC'],
-      ],
-    })
-    if (merged) {
-      const global = await models.IndexingRule.findOne({
-        where: { identifier: INDEXING_RULE_GLOBAL },
-      })
-      return rules.map((rule) => rule.mergeToGraphQL(global))
-    } else {
-      return rules.map((rule) => rule.toGraphQL())
-    }
+    return await fetchIndexingRules(models, merged)
   },
 
   setIndexingRule: async (
