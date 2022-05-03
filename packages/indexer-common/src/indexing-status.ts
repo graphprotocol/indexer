@@ -140,7 +140,7 @@ export class IndexingStatusResolver {
               `,
               {
                 subgraph: deployment.ipfsHash,
-                blockNumber: block.number,
+                blockNumber: +block.number,
                 blockHash: block.hash,
                 indexer: indexerAddress,
               },
