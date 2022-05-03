@@ -5,7 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { utils } from 'ethers'
 import { closeAllocation } from '../../../allocations'
-import { printObjectData } from '../../../command-helpers'
+import { printObjectOrArray } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations close')} [options] <id> <poi>
@@ -77,7 +77,7 @@ module.exports = {
       const closeResult = await closeAllocation(client, id, poi, toForce)
 
       spinner.succeed('Allocation closed')
-      printObjectData(print, outputFormat, closeResult, [
+      printObjectOrArray(print, outputFormat, closeResult, [
         'allocation',
         'allocatedTokens',
         'indexingRewards',

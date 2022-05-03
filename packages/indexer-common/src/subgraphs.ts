@@ -1,6 +1,12 @@
 import { base58 } from 'ethers/lib/utils'
-import { utils } from 'ethers'
-import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { BigNumber, utils } from 'ethers'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeployment } from './allocations'
+import {
+  INDEXING_RULE_GLOBAL,
+  IndexingDecisionBasis,
+  IndexingRuleAttributes,
+} from './indexer-management'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -127,4 +133,92 @@ export async function processIdentifier(
       : identifier,
     type,
   ]
+}
+
+export function isDeploymentWorthAllocatingTowards(
+  logger: Logger,
+  deployment: SubgraphDeployment,
+  rules: IndexingRuleAttributes[],
+): boolean {
+  const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
+  const deploymentRule =
+    rules
+      .filter((rule) => rule.identifierType == SubgraphIdentifierType.DEPLOYMENT)
+      .find(
+        (rule) =>
+          new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
+      ) || globalRule
+  // The deployment is not eligible for deployment if it doesn't have an allocation amount
+  if (!deploymentRule?.allocationAmount) {
+    logger.debug(`Could not find matching rule with non-zero 'allocationAmount':`, {
+      deployment: deployment.id.display,
+    })
+    return false
+  }
+
+  if (deploymentRule) {
+    const stakedTokens = BigNumber.from(deployment.stakedTokens)
+    const signalledTokens = BigNumber.from(deployment.signalledTokens)
+    const avgQueryFees = BigNumber.from(deployment.queryFeesAmount).div(
+      BigNumber.from(Math.max(1, deployment.activeAllocations)),
+    )
+
+    logger.trace('Deciding whether to allocate and index', {
+      deployment: {
+        id: deployment.id.display,
+        deniedAt: deployment.deniedAt,
+        stakedTokens: stakedTokens.toString(),
+        signalledTokens: signalledTokens.toString(),
+        avgQueryFees: avgQueryFees.toString(),
+      },
+      indexingRule: {
+        decisionBasis: deploymentRule.decisionBasis,
+        deployment: deploymentRule.identifier,
+        minStake: deploymentRule.minStake
+          ? BigNumber.from(deploymentRule.minStake).toString()
+          : null,
+        minSignal: deploymentRule.minSignal
+          ? BigNumber.from(deploymentRule.minSignal).toString()
+          : null,
+        maxSignal: deploymentRule.maxSignal
+          ? BigNumber.from(deploymentRule.maxSignal).toString()
+          : null,
+        minAverageQueryFees: deploymentRule.minAverageQueryFees
+          ? BigNumber.from(deploymentRule.minAverageQueryFees).toString()
+          : null,
+        requireSupported: deploymentRule.requireSupported,
+      },
+    })
+
+    // Reject unsupported subgraph by default
+    if (deployment.deniedAt > 0 && deploymentRule.requireSupported) {
+      return false
+    }
+
+    // Skip the indexing rules checks if the decision basis is 'always', 'never', or 'offchain'
+    if (deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS) {
+      return true
+    } else if (
+      deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER ||
+      deploymentRule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN
+    ) {
+      return false
+    }
+
+    return (
+      // stake >= minStake?
+      ((deploymentRule.minStake &&
+        stakedTokens.gte(deploymentRule.minStake)) as boolean) ||
+      // signal >= minSignal && signal <= maxSignal?
+      ((deploymentRule.minSignal &&
+        signalledTokens.gte(deploymentRule.minSignal)) as boolean) ||
+      ((deploymentRule.maxSignal &&
+        signalledTokens.lte(deploymentRule.maxSignal)) as boolean) ||
+      // avgQueryFees >= minAvgQueryFees?
+      ((deploymentRule.minAverageQueryFees &&
+        avgQueryFees.gte(deploymentRule.minAverageQueryFees)) as boolean)
+    )
+  } else {
+    return false
+  }
 }

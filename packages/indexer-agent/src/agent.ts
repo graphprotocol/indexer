@@ -9,34 +9,38 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  Action,
+  ActionInput,
+  ActionItem,
+  ActionStatus,
+  ActionType,
   Allocation,
+  AllocationManagementMode,
   allocationRewardsPool,
   AllocationStatus,
-  RewardsPool,
   BlockPointer,
-  IndexingDecisionBasis,
   indexerError,
   IndexerErrorCode,
   INDEXING_RULE_GLOBAL,
+  IndexingDecisionBasis,
   IndexingRuleAttributes,
   Network,
+  NetworkMonitor,
   NetworkSubgraph,
   POIDisputeAttributes,
   ReceiptCollector,
+  RewardsPool,
   Subgraph,
   SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
-import { AgentConfig, AllocationManagementMode } from './types'
+import { AgentConfig } from './types'
 import { BigNumber, utils } from 'ethers'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-
-const allocationInList = (
-  list: Allocation[],
-  allocation: Allocation,
-): boolean => list.find(item => item.id === allocation.id) !== undefined
+import gql from 'graphql-tag'
+import { CombinedError } from '@urql/core'
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -118,13 +122,14 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
 }
 
 const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
-  new Set(deployments.map(id => id.display.bytes32))
+  new Set(deployments.map(id => id.bytes32))
 
 class Agent {
   logger: Logger
   metrics: Metrics
   indexer: Indexer
   network: Network
+  networkMonitor: NetworkMonitor
   networkSubgraph: NetworkSubgraph
   allocateOnNetworkSubgraph: boolean
   registerIndexer: boolean
@@ -137,6 +142,7 @@ class Agent {
     metrics: Metrics,
     indexer: Indexer,
     network: Network,
+    networkMonitor: NetworkMonitor,
     networkSubgraph: NetworkSubgraph,
     allocateOnNetworkSubgraph: boolean,
     registerIndexer: boolean,
@@ -148,6 +154,7 @@ class Agent {
     this.metrics = metrics
     this.indexer = indexer
     this.network = network
+    this.networkMonitor = networkMonitor
     this.networkSubgraph = networkSubgraph
     this.allocateOnNetworkSubgraph = allocateOnNetworkSubgraph
     this.registerIndexer = registerIndexer
@@ -220,7 +227,7 @@ class Agent {
             rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
           )
           .map(rule => rule.identifier!)
-        const subgraphsMatchingRules = await this.network.subgraphs(
+        const subgraphsMatchingRules = await this.networkMonitor.subgraphs(
           subgraphRuleIds,
         )
         if (subgraphsMatchingRules.length >= 1) {
@@ -256,7 +263,7 @@ class Agent {
     )
 
     const targetAllocations = join({
-      ticker: timer(120_000),
+      ticker: timer(240_000),
       indexingRules,
     }).tryMap(
       async () => {
@@ -308,7 +315,7 @@ class Agent {
     )
 
     const activeAllocations = timer(120_000).tryMap(
-      () => this.network.allocations(AllocationStatus.Active),
+      () => this.networkMonitor.allocations(AllocationStatus.ACTIVE),
       {
         onError: () =>
           this.logger.warn(
@@ -323,7 +330,7 @@ class Agent {
     }).tryMap(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ activeAllocations, currentEpoch }) =>
-        this.network.recentlyClosedAllocations(
+        this.networkMonitor.recentlyClosedAllocations(
           currentEpoch.toNumber(),
           1, //TODO: Parameterize with a user provided value
         ),
@@ -367,7 +374,7 @@ class Agent {
     )
 
     join({
-      ticker: timer(120_000),
+      ticker: timer(240_000),
       paused: this.network.transactionManager.paused,
       isOperator: this.network.transactionManager.isOperator,
       currentEpoch,
@@ -447,26 +454,14 @@ class Agent {
           )
 
           // Reconcile allocations
-          if (this.allocationManagementMode == AllocationManagementMode.AUTO) {
-            await this.reconcileAllocations(
-              activeAllocations,
-              targetAllocations,
-              indexingRules,
-              currentEpoch.toNumber(),
-              currentEpochStartBlock,
-              maxAllocationEpochs,
-            )
-          } else if (
-            this.allocationManagementMode == AllocationManagementMode.MANUAL
-          ) {
-            this.logger.trace(
-              `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-              {
-                activeAllocations,
-                targetAllocations,
-              },
-            )
-          }
+          await this.reconcileAllocations(
+            activeAllocations,
+            targetAllocations,
+            indexingRules,
+            currentEpoch.toNumber(),
+            currentEpochStartBlock,
+            maxAllocationEpochs,
+          )
         } catch (err) {
           this.logger.warn(`Failed to reconcile indexer and network`, {
             err: indexerError(IndexerErrorCode.IE005, err),
@@ -479,15 +474,15 @@ class Agent {
   }
 
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
-    this.logger.info(`Claim rebate rewards`, {
-      claimable: allocations.map(allocation => ({
-        id: allocation.id,
-        deployment: allocation.subgraphDeployment.id.display,
-        createdAtEpoch: allocation.createdAtEpoch,
-        amount: allocation.queryFeeRebates,
-      })),
-    })
     if (allocations.length > 0) {
+      this.logger.info(`Claim rebate rewards`, {
+        claimable: allocations.map(allocation => ({
+          id: allocation.id,
+          deployment: allocation.subgraphDeployment.id.display,
+          createdAtEpoch: allocation.createdAtEpoch,
+          amount: allocation.queryFeeRebates,
+        })),
+      })
       await this.network.claimMany(allocations)
     }
   }
@@ -508,7 +503,7 @@ class Agent {
         ),
     )
     if (newDisputableAllocations.length == 0) {
-      this.logger.debug(
+      this.logger.trace(
         'No new disputable allocations to process for potential disputes',
       )
       return
@@ -647,10 +642,12 @@ class Agent {
     }
 
     // only show Reconcile when active ids != target ids
+    // TODO: Fix this check, always returning true
     if (
       deploymentIDSet(activeDeployments) != deploymentIDSet(targetDeployments)
     ) {
-      this.logger.info('Reconcile deployments', {
+      // Turning to trace until the above conditional is fixed
+      this.logger.trace('Reconcile deployments', {
         syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
         withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
@@ -712,15 +709,26 @@ class Agent {
     currentEpochStartBlock: BlockPointer,
     maxAllocationEpochs: number,
   ): Promise<void> {
-    this.logger.info(`Reconcile allocations`, {
+    if (this.allocationManagementMode == AllocationManagementMode.MANUAL) {
+      this.logger.trace(
+        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+        {
+          activeAllocations,
+          targetAllocations,
+        },
+      )
+      return
+    }
+
+    this.logger.trace(`Reconcile allocations`, {
       currentEpoch,
       maxAllocationEpochs,
       targetAllocations: targetAllocations.map(
-        deployment => deployment.display,
+        deployment => deployment.ipfsHash,
       ),
       activeAllocations: activeAllocations.map(allocation => ({
         id: allocation.id,
-        deployment: allocation.subgraphDeployment.id.display,
+        deployment: allocation.subgraphDeployment.id.ipfsHash,
         createdAtEpoch: allocation.createdAtEpoch,
       })),
     })
@@ -745,7 +753,7 @@ class Agent {
 
     this.logger.debug(`Deployments to reconcile allocations for`, {
       number: deployments.length,
-      deployments: deployments.map(deployment => deployment.display),
+      deployments: deployments.map(deployment => deployment.ipfsHash),
     })
 
     await pMap(
@@ -780,6 +788,7 @@ class Agent {
     )
   }
 
+  // TODO: Skip evaluation or short-circuit if item already in queue or AllocationManagementMode = MANUAL
   async reconcileDeploymentAllocations(
     deployment: SubgraphDeploymentID,
     activeAllocations: Allocation[],
@@ -790,7 +799,7 @@ class Agent {
     maxAllocationEpochs: number,
   ): Promise<void> {
     const logger = this.logger.child({
-      deployment: deployment.display,
+      deployment: deployment.ipfsHash,
       epoch,
     })
 
@@ -845,7 +854,16 @@ class Agent {
             allocation => allocation.createdAtEpoch < epoch,
           ),
           async allocation => {
-            await this.closeAllocation(epochStartBlock, allocation)
+            // Send UnallocateAction to the queue
+            await this.queueAction({
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deployment.ipfsHash,
+                poi: undefined,
+                force: false,
+              },
+              type: ActionType.UNALLOCATE,
+            } as ActionItem)
           },
           { concurrency: 1 },
         )
@@ -861,7 +879,7 @@ class Agent {
 
       // Skip allocating if the previous allocation for this deployment was closed with a null or 0x00 POI
       const closedAllocation = (
-        await this.network.closedAllocations(deployment)
+        await this.networkMonitor.closedAllocations(deployment)
       )[0]
       if (
         closedAllocation &&
@@ -877,14 +895,15 @@ class Agent {
         return
       }
 
-      const allocationsCreated = await this.network.allocate(
-        deployment,
-        desiredAllocationAmount,
-        activeAllocations,
-      )
-      if (allocationsCreated) {
-        await this.receiptCollector.rememberAllocations([allocationsCreated])
-      }
+      // Send AllocateAction to the queue
+      await this.queueAction({
+        params: {
+          deploymentID: deployment.ipfsHash,
+          amount: formatGRT(desiredAllocationAmount),
+        },
+        type: ActionType.ALLOCATE,
+      })
+
       return
     }
 
@@ -909,7 +928,15 @@ class Agent {
           .sort((a, b) => a.createdAtEpoch - b.closedAtEpoch)
           .splice(0, allocationsToRemove),
         async allocation => {
-          await this.closeAllocation(epochStartBlock, allocation)
+          // Send UnallocateAction to the queue
+          await this.queueAction({
+            params: {
+              allocationID: allocation.id,
+              poi: undefined,
+              force: false,
+            },
+            type: ActionType.UNALLOCATE,
+          })
         },
         { concurrency: 1 },
       )
@@ -954,24 +981,17 @@ class Agent {
           ),
         })
 
-        // We do a synchronous for-loop and await each iteration so that we can patch the contents
-        // of activeAllocations with new allocations as they are made. This is important so that each
-        // iteration gets an up to date copy of activeAllocations
-        for (let i = 0; i <= activeAllocations.length - 1; i++) {
-          const oldAllocation = activeAllocations[i]
-          if (allocationInList(expiredAllocations, oldAllocation)) {
-            const { newAllocation, reallocated } = await this.reallocate(
-              epochStartBlock,
-              oldAllocation,
-              desiredAllocationAmount,
-              activeAllocations,
-            )
-            if (reallocated) {
-              // Patch existing index with new allocation
-              activeAllocations[i] = newAllocation as Allocation
-            }
-          }
-        }
+        // Queue reallocate actions to be picked up by the worker
+        await pMap(expiredAllocations, async allocation => {
+          await this.queueAction({
+            params: {
+              allocationID: allocation.id,
+              deploymentID: deployment.ipfsHash,
+              amount: formatGRT(desiredAllocationAmount),
+            },
+            type: ActionType.REALLOCATE,
+          })
+        })
       } else {
         logger.info(
           `Skipping reallocating of expired allocations since the corresponding rule has 'autoRenewal' = False`,
@@ -986,117 +1006,69 @@ class Agent {
     }
   }
 
-  private async closeAllocation(
-    epochStartBlock: BlockPointer,
-    allocation: Allocation,
-  ): Promise<{ closed: boolean; collectingQueryFees: boolean }> {
-    const poi = await this.indexer.statusResolver.proofOfIndexing(
-      allocation.subgraphDeployment.id,
-      epochStartBlock,
-      this.indexer.indexerAddress,
-    )
-
-    // Don't proceed if the POI is 0x0 or null
-    // as deployment is either not fully synced or experienced a fatal undeterministic error
-    if (
-      poi === undefined ||
-      poi === null ||
-      poi === utils.hexlify(Array(32).fill(0))
-    ) {
-      const indexingStatus = await this.indexer.indexingStatus(
-        allocation.subgraphDeployment.id,
-      )
-      if (!indexingStatus) {
-        this.logger.error(
-          `Received a null or zero POI for deployment and cannot find indexing status`,
-          {
-            deployment: allocation.subgraphDeployment.id.display,
-            allocation: allocation.id,
-          },
+  private async queueAction(action: ActionItem): Promise<Action[]> {
+    let status = ActionStatus.QUEUED
+    switch (this.allocationManagementMode) {
+      case AllocationManagementMode.MANUAL:
+        throw Error(
+          `Cannot queue actions when AllocationManagementMode = 'MANUAL'`,
         )
-      } else {
-        const latestValidPoi =
-          await this.indexer.statusResolver.proofOfIndexing(
-            allocation.subgraphDeployment.id,
-            indexingStatus?.chains[0].latestBlock,
-            this.indexer.indexerAddress,
-          )
-        this.logger.error(`Received a null or zero POI for deployment`, {
-          deployment: allocation.subgraphDeployment.id.display,
-          allocation: allocation.id,
-          fatalError: indexingStatus.fatalError,
-          latestValidPoi,
-        })
-      }
-
-      return { closed: false, collectingQueryFees: false }
+      case AllocationManagementMode.AUTO:
+        status = ActionStatus.APPROVED
+        break
+      case AllocationManagementMode.OVERSIGHT:
+        status = ActionStatus.QUEUED
     }
 
-    // Close the allocation
-    const closed = await this.network.close(allocation, poi)
+    const actionInput = {
+      ...action.params,
+      status,
+      type: action.type,
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
 
-    // Collect query fees for this allocation
-    const collectingQueryFees = await this.receiptCollector.collectReceipts(
-      allocation,
-    )
+    const actionResult = await this.indexer.indexerManagement
+      .mutation(
+        gql`
+          mutation queueActions($actions: [ActionInput!]!) {
+            queueActions(actions: $actions) {
+              id
+              type
+              deploymentID
+              source
+              reason
+              priority
+              status
+            }
+          }
+        `,
+        { actions: [actionInput] },
+      )
+      .toPromise()
 
-    return { closed, collectingQueryFees }
-  }
+    if (actionResult.error) {
+      if (
+        actionResult.error instanceof CombinedError &&
+        actionResult.error.message.includes('Duplicate')
+      ) {
+        this.logger.warn(
+          `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
+          { action },
+        )
+        return []
+      }
+      throw actionResult.error
+    }
 
-  private async reallocate(
-    epochStartBlock: BlockPointer,
-    existingAllocation: Allocation,
-    allocationAmount: BigNumber,
-    activeAllocations: Allocation[],
-  ): Promise<{
-    reallocated: boolean
-    collectingQueryFees: boolean
-    newAllocation: Allocation | undefined
-  }> {
-    const poi = await this.indexer.statusResolver.proofOfIndexing(
-      existingAllocation.subgraphDeployment.id,
-      epochStartBlock,
-      this.indexer.indexerAddress,
-    )
-
-    // Don't proceed if the POI is 0x0 or null
-    if (
-      poi === undefined ||
-      poi === null ||
-      poi === utils.hexlify(Array(32).fill(0))
-    ) {
-      this.logger.error(`Received a null or zero POI for deployment`, {
-        deployment: existingAllocation.subgraphDeployment.id.display,
-        allocation: existingAllocation.id,
-        epochStartBlock,
+    if (actionResult.data.queueActions.length > 0) {
+      this.logger.info(`Queued ${action.type} action for execution`, {
+        queuedAction: actionResult.data.queueActions,
       })
-
-      return {
-        reallocated: false,
-        collectingQueryFees: false,
-        newAllocation: undefined,
-      }
     }
 
-    // closeAndAllocate for the deployment
-    const newAllocation = await this.network.closeAndAllocate(
-      existingAllocation,
-      poi,
-      existingAllocation.subgraphDeployment.id,
-      allocationAmount,
-      activeAllocations,
-    )
-
-    // Collect query fees for the old allocation
-    const collectingQueryFees = await this.receiptCollector.collectReceipts(
-      existingAllocation,
-    )
-
-    return {
-      reallocated: newAllocation !== undefined,
-      collectingQueryFees,
-      newAllocation,
-    }
+    return actionResult.data.queueActions
   }
 }
 
@@ -1106,6 +1078,7 @@ export const startAgent = async (config: AgentConfig): Promise<Agent> => {
     config.metrics,
     config.indexer,
     config.network,
+    config.networkMonitor,
     config.networkSubgraph,
     config.allocateOnNetworkSubgraph,
     config.registerIndexer,

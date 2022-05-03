@@ -80,6 +80,7 @@ export const monitorEligibleAllocations = ({
                   id
                   stakedTokens
                   signalledTokens
+                  queryFeesAmount
                 }
               }
               recentlyClosedAllocations: totalAllocations(
@@ -99,6 +100,7 @@ export const monitorEligibleAllocations = ({
                   id
                   stakedTokens
                   signalledTokens
+                  queryFeesAmount
                 }
               }
             }

@@ -5,7 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { BigNumber, utils } from 'ethers'
 import { reallocateAllocation } from '../../../allocations'
-import { printObjectData } from '../../../command-helpers'
+import { printObjectOrArray } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations reallocate')} [options] <id> <amount> <poi>
@@ -91,13 +91,18 @@ module.exports = {
       )
 
       spinner.succeed('Reallocated')
-      printObjectData(print, outputFormat, reallocateResult, [
-        'closedAllocation',
-        'indexingRewardsCollected',
-        'receiptsWorthCollecting',
-        'createdAllocation',
-        'createdAllocationStake',
-      ])
+      printObjectOrArray(
+        print,
+        outputFormat,
+        [reallocateResult],
+        [
+          'closedAllocation',
+          'indexingRewardsCollected',
+          'receiptsWorthCollecting',
+          'createdAllocation',
+          'createdAllocationStake',
+        ],
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

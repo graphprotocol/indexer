@@ -1,26 +1,26 @@
 import path from 'path'
 import readPackage from 'read-pkg'
 import { Argv } from 'yargs'
-import { Wallet, providers, BigNumber } from 'ethers'
+import { BigNumber, providers, Wallet } from 'ethers'
 
 import {
-  createLogger,
   connectContracts,
+  connectDatabase,
+  createLogger,
   createMetrics,
   createMetricsServer,
-  toAddress,
-  connectDatabase,
   SubgraphDeploymentID,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   createIndexerManagementClient,
   defineIndexerManagementModels,
+  defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
-  registerIndexerErrorMetrics,
-  defineQueryFeeModels,
-  NetworkSubgraph,
   IndexingStatusResolver,
+  NetworkSubgraph,
+  registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'

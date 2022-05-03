@@ -10,7 +10,13 @@
     "esModuleInterop": true,
     "strict": true,
     "composite": true,
-    "lib": ["esnext.asynciterable", "dom", "es2020.promise"]
+    "lib": [
+      "esnext.asynciterable",
+      "dom",
+      "es2020.promise",
+      "es2015.iterable",
+      "es2015.promise"
+    ]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["src/**/__tests__/*.ts"],

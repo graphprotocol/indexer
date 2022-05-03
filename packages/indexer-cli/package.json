@@ -25,7 +25,7 @@
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "1.8.3",
+    "@graphprotocol/common-ts": "1.8.4",
     "@graphprotocol/indexer-common": "^0.19.3",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
@@ -50,7 +50,8 @@
     "typescript": "4.6.3"
   },
   "resolutions": {
-    "ethers": "5.6.2"
+    "ethers": "5.6.2",
+    "sequelize": "6.19.0"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }

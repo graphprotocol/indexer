@@ -9,6 +9,7 @@ import {
   createLogger,
   createMetrics,
   createMetricsServer,
+  formatGRT,
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
@@ -32,7 +33,10 @@ import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-import { AllocationManagementMode } from '../types'
+import {
+  AllocationManagementMode,
+  NetworkMonitor,
+} from '@graphprotocol/indexer-common'
 
 export default {
   command: 'start',
@@ -226,7 +230,7 @@ export default {
         coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
-        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
+        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
         type: 'number',
         default: 100,
         group: 'Indexer Infrastructure',
@@ -246,7 +250,7 @@ export default {
         coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-max-batch-size', {
-        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit.`,
+        description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
         type: 'number',
         default: 100,
         group: 'Indexer Infrastructure',
@@ -453,8 +457,10 @@ export default {
       logger.warn(
         `Rebate single minimum claim value is less than voucher minimum redemption value, but claims depend on redemptions`,
         {
-          voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
-          rebateClaimThreshold: argv.rebateClaimThreshold,
+          voucherRedemptionThreshold: formatGRT(
+            argv.voucherRedemptionThreshold,
+          ),
+          rebateClaimThreshold: formatGRT(argv.rebateClaimThreshold),
         },
       )
     }
@@ -740,9 +746,17 @@ export default {
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
-      voucherExpiration: argv.voucherExpiration,
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
+
+    const networkMonitor = new NetworkMonitor(
+      contracts,
+      toAddress(indexerAddress),
+      logger,
+      indexingStatusResolver,
+      networkSubgraph,
+      ethereumProvider,
+    )
 
     logger.info('Launch indexer management API server')
     const indexerManagementClient = await createIndexerManagementClient({
@@ -750,8 +764,8 @@ export default {
       address: indexerAddress,
       contracts,
       indexingStatusResolver,
-      deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
       indexNodeIDs: argv.indexNodeIds,
+      deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
       networkSubgraph,
       logger,
       defaults: {
@@ -766,6 +780,7 @@ export default {
       transactionManager: network.transactionManager,
       receiptCollector,
     })
+
     await createIndexerManagementServer({
       logger,
       client: indexerManagementClient,
@@ -817,15 +832,12 @@ export default {
       metrics,
     })
 
-    const allocationManagementMode: AllocationManagementMode =
-      AllocationManagementMode[
-        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
-      ]
     await startAgent({
       logger,
       metrics,
       indexer,
       network,
+      networkMonitor,
       networkSubgraph,
       allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
       registerIndexer: argv.register,
@@ -833,7 +845,10 @@ export default {
         (s: string) => new SubgraphDeploymentID(s),
       ),
       receiptCollector,
-      allocationManagementMode,
+      allocationManagementMode:
+        AllocationManagementMode[
+          argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+        ],
     })
   },
 }

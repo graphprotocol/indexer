@@ -1,6 +1,12 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BigNumber, providers } from 'ethers'
 
+export enum AllocationManagementMode {
+  AUTO = 'auto',
+  MANUAL = 'manual',
+  OVERSIGHT = 'oversight',
+}
+
 export interface BlockPointer {
   number: number
   hash: string

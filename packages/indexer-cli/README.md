@@ -124,6 +124,18 @@ $ graph indexer rules clear 0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd
 ╚════════════════════════════════════════════════════════════════════╧════════════╧═════════════════════════╧═══════════╧═══════════╧══════════╧═════════════════════╧════════╧═══════════════╝
 ```
 
+# Working with the repo
+
+## CLI tests
+
+The CLI tests execute the command externally and use a directory of reference files as the expected
+outputs. In order to create new reference files it is recommended to use the following steps. 
+
+- Install `strip-ansi` to strip ansi color codes from CLI command stdout and stderr output
+  - `npm install --global strip-ansi-cli`
+- Produce reference output file by piping command output through stip-ansi before saving to file
+  - Ex: `./bin/graph-indexer indexer rules get | strip-ansi | src/__tests__/references/indexer-rules-command-no-args.stdout`
+
 # Copyright
 
 Copyright &copy; 2020 The Graph Foundation
