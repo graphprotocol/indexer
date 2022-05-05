@@ -30,6 +30,8 @@ impl AttestationSigner {
             salt: decode("a070ffb1cd7409649bf77822cce74495468e06dbfaef09556838bf188679b9c2")
                 .unwrap(),
         };
+        println!("Chain id: {:?}", chain_id);
+        println!("Verifying contract: {:?}", dispute_manager);
         let domain_separator = DomainSeparator::new(&domain);
 
         Self {

@@ -54,6 +54,10 @@ export class AllocationReceiptManager implements ReceiptManager {
     this._queryFeeModels = queryFeeModels
     this._allocationReceiptVerifier = new NativeSignatureVerifier(clientSignerAddress)
 
+    logger.info('Client signer address', {
+      clientSignerAddress,
+    })
+
     timer(30_000).pipe(async () => {
       try {
         await this._flushOutstanding()
@@ -86,10 +90,13 @@ export class AllocationReceiptManager implements ReceiptManager {
     }
 
     const receipt = this._parseAllocationReceipt(receiptData)
+    console.log('Parsed receipt: ', receipt)
+
     const signature = await validateSignature(
       this._allocationReceiptVerifier,
       receiptData,
     )
+    console.log('Signature: ', signature)
 
     // If the fee is 0, validate verifier and return allocation ID for the signer
     if (receipt.fees.isZero()) {
