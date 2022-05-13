@@ -177,3 +177,16 @@ export function outputColors(
     print.colors.disable()
   }
 }
+
+// Simple spell checker:
+// Suggest commands by shared letters (80% input match valid command letter sets)
+export function suggestCommands(
+  command: string,
+  supported_commands: string[],
+): Array<string> {
+  const letters = command.split('')
+  const suggestions = supported_commands.filter(
+    cmd => letters.filter(l => cmd.indexOf(l) == -1).length < command.length / 5,
+  )
+  return suggestions.length > 0 ? suggestions : supported_commands
+}
