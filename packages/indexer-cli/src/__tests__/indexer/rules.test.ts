@@ -374,6 +374,23 @@ describe('Indexer rules tests', () => {
           timeout: 10000,
         },
       )
+      cliTest(
+        'Indexer rules set - invalid arg',
+        [
+          'indexer',
+          'rules',
+          'set',
+          '0x0000000000000000000000000000000000000000-0',
+          'allocatoinAmount',
+          '1000',
+        ],
+        'references/indexer-cost-set-invalid-arg',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
     })
 
     describe('Rules get...', () => {
