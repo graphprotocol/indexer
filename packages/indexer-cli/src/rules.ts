@@ -136,13 +136,12 @@ export const parseIndexingRule = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj = {} as any
   for (const [key, value] of Object.entries(rule)) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const parser = (INDEXING_RULE_PARSERS as any)[key]
-    if (!parser) {
-      // In future maybe add suggestions
-      throw `Indexing rule attribute '${key}' doesn't exist, please check spelling`
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      obj[key] = (INDEXING_RULE_PARSERS as any)[key](value)
+    } catch {
+      throw new Error(key)
     }
-    obj[key] = parser(value)
   }
   return obj as Partial<IndexingRuleAttributes>
 }

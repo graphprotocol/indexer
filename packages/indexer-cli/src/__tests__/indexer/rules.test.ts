@@ -381,10 +381,10 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '0x0000000000000000000000000000000000000000-0',
-          'allocatoinAmount',
+          'allocationAmoewt',
           '1000',
         ],
-        'references/indexer-cost-set-invalid-arg',
+        'references/indexer-rules-invalid-set-arg',
         {
           expectedExitCode: 1,
           cwd: baseDir,

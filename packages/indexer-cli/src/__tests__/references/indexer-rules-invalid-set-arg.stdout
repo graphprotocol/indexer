@@ -1,0 +1,4 @@
+Error: Indexing rule attribute 'allocationAmoewt' not supported, did you mean?
+- allocationAmount
+- allocationLifetime
+- maxAllocationPercentage
