@@ -7,7 +7,7 @@ import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
 import { printIndexingRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
-import { formatData, pickFields } from '../../command-helpers'
+import { formatData, outputColors, pickFields } from '../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}
@@ -219,13 +219,14 @@ module.exports = {
       }
     }
 
+    outputColors(print, outputFormat)
     if (outputFormat === 'table') {
-      print.info('Registration')
+      print.highlight('Registration')
       print.info(formatData(data.registration, outputFormat))
       print.info('')
-      print.info('Endpoints')
+      print.highlight('Endpoints')
       if (data.endpoints.error) {
-        print.info(formatData([data.endpoints], outputFormat))
+        print.error(formatData([data.endpoints], outputFormat))
       } else {
         print.info(
           formatData(
@@ -258,7 +259,7 @@ module.exports = {
         }
       }
       print.info('')
-      print.info('Indexer Deployments')
+      print.highlight('Indexer Deployments')
       if (data.indexerDeployments) {
         print.info(
           formatData(
@@ -282,7 +283,7 @@ module.exports = {
         )
       }
       print.info('')
-      print.info('Indexer Allocations')
+      print.highlight('Indexer Allocations')
       if (data.indexerAllocations) {
         printIndexerAllocations(print, outputFormat, data.indexerAllocations, [
           'id',
@@ -294,7 +295,7 @@ module.exports = {
         ])
       }
       print.info('')
-      print.info('Indexing Rules')
+      print.highlight('Indexing Rules')
       if (data.indexingRules.length === 1 && data.indexingRules[0].error) {
         print.info(formatData(data.indexingRules[0], outputFormat))
       } else {

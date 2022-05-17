@@ -8,6 +8,7 @@ import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
+import { outputColors } from './command-helpers'
 
 const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => string> = {
   allocationID: x => x,
@@ -112,6 +113,7 @@ export const printDisputes = (
   outputFormat: 'table' | 'json' | 'yaml',
   disputes: Partial<POIDisputeAttributes>[] | null,
 ): void => {
+  outputColors(print, outputFormat)
   if (Array.isArray(disputes)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const formattedDisputes = disputes.map(dispute => formatDispute(dispute))

@@ -131,6 +131,7 @@ export function printObjectOrArray(
   data: object | object[],
   keys: string[],
 ): void {
+  outputColors(print, outputFormat)
   if (Array.isArray(data)) {
     const formatted = data.map(item => pickFields(item, keys))
     print.info(displayObjectArrayData(outputFormat, formatted))
@@ -164,4 +165,15 @@ export async function validatePOI(poi: string | undefined): Promise<string | und
     }
   }
   return poi
+}
+
+export function outputColors(
+  print: GluegunPrint,
+  outputFormat: 'table' | 'json' | 'yaml',
+): void {
+  if (outputFormat === 'table') {
+    print.colors.enable()
+  } else {
+    print.colors.disable()
+  }
 }

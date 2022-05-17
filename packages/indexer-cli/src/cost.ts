@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { pickFields } from './command-helpers'
+import { outputColors, pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all'
 
@@ -170,6 +170,7 @@ export const printCostModels = (
   costModelOrModels: Partial<CostModelAttributes> | Partial<CostModelAttributes>[] | null,
   fields: string[],
 ): void => {
+  outputColors(print, outputFormat)
   if (Array.isArray(costModelOrModels)) {
     const costModels = costModelOrModels.map(cost =>
       formatCostModel(pickFields(cost, fields), {
