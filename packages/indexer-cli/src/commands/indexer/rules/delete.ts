@@ -65,13 +65,13 @@ module.exports = {
           ),
         )
         /* eslint-enable @typescript-eslint/no-non-null-assertion */
-        print.info(`Deleted all indexing rules`)
+        print.success(`Deleted all indexing rules`)
       } else if (identifier === 'global') {
         await deleteIndexingRules(client, ['global'])
-        print.info(`Reset global indexing rules (the global rules cannot be deleted)`)
+        print.warning(`Reset global indexing rules (the global rules cannot be deleted)`)
       } else {
         await deleteIndexingRules(client, [identifier])
-        print.info(`Deleted indexing rules for "${identifier}" (${identifierType})`)
+        print.success(`Deleted indexing rules for "${identifier}" (${identifierType})`)
       }
     } catch (error) {
       print.error(error.toString())

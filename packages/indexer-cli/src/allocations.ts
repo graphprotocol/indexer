@@ -3,7 +3,7 @@ import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
-import { pickFields } from './command-helpers'
+import { outputColors, pickFields } from './command-helpers'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import {
@@ -116,6 +116,7 @@ export const printIndexerAllocations = (
     | null,
   keys: (keyof IndexerAllocation)[],
 ): void => {
+  outputColors(print, outputFormat)
   if (Array.isArray(allocationOrAllocations)) {
     const allocations = allocationOrAllocations.map(allocation =>
       formatIndexerAllocation(pickFields(allocation, keys)),

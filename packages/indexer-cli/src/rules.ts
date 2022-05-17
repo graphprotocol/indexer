@@ -9,7 +9,7 @@ import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
-import { pickFields } from './command-helpers'
+import { outputColors, pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
 
@@ -227,6 +227,7 @@ export const printIndexingRules = (
   ruleOrRules: Partial<IndexingRuleAttributes> | Partial<IndexingRuleAttributes>[] | null,
   keys: (keyof IndexingRuleAttributes)[],
 ): void => {
+  outputColors(print, outputFormat)
   if (Array.isArray(ruleOrRules)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rules = ruleOrRules.map(rule => formatIndexingRule(pickFields(rule, keys)))
@@ -240,7 +241,7 @@ export const printIndexingRules = (
 
     print.info(displayIndexingRules(outputFormat, onchainRules))
     if (offchainRules) {
-      print.info('Offchain syncing subgraphs')
+      print.highlight('Offchain sync list')
       print.info(
         offchainRules.map(rule => {
           return rule.identifier

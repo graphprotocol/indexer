@@ -44,5 +44,6 @@ module.exports = {
     const config = loadConfig()
     config.api = url.toString()
     writeConfig(config)
+    print.success(`Indexer management API URL configured as "${urlString}"`)
   },
 }
