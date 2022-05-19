@@ -1,7 +1,7 @@
 ########################################################################
 # Build image
 
-FROM node:16.13.1-slim as build
+FROM node:16.15-bullseye-slim as build
 
 ENV NODE_ENV production
 
@@ -29,7 +29,7 @@ RUN yarn --frozen-lockfile --non-interactive --production=false
 ########################################################################
 # Runtime image
 
-FROM node:16.13.1-slim
+FROM node:16.15-bullseye-slim
 
 ENV NODE_ENV production
 # When simulating large transactions, sometimes indexer-agent runs out of memory.

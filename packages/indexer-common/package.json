@@ -37,6 +37,7 @@
     "morgan": "1.10.0",
     "ngeohash": "0.6.3",
     "p-filter": "2.1.0",
+    "p-reduce": "2.1.0",
     "p-retry": "4.6.1",
     "p-timeout": "4.1.0",
     "sequelize": "6.18.0",
