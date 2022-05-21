@@ -51,6 +51,28 @@ export class QueryProcessor implements QueryProcessorInterface {
       // Don't throw on bad responses
       validateStatus: () => true,
     })
+
+    // Set up Axios for request response time measurement
+    // https://sabljakovich.medium.com/axios-response-time-capture-and-log-8ff54a02275d
+    this.graphNode.interceptors.request.use(function (x: any) {
+      // to avoid overwriting if another interceptor
+      // already defined the same object (meta)
+      x.meta = x.meta || {}
+      x.meta.requestStartedAt = new Date().getTime()
+      return x
+    })
+    this.graphNode.interceptors.response.use(
+      function (x: any) {
+        x.responseTime = new Date().getTime() - x.config.meta.requestStartedAt
+        return x
+      },
+      // Handle 4xx & 5xx responses
+      function (x: any) {
+        x.responseTime = new Date().getTime() - x.config.meta.requestStartedAt
+        throw x
+      },
+    )
+
     this.receiptManager = receiptManager
   }
 
@@ -79,10 +101,10 @@ export class QueryProcessor implements QueryProcessorInterface {
       receipt,
     })
 
-    const allocationID = await this.receiptManager.add(receipt)
+    const parsedReceipt = await this.receiptManager.add(receipt)
 
     // Look up or derive a signer for the attestation for this query
-    const signer = (await this.signers.value()).get(allocationID)
+    const signer = (await this.signers.value()).get(parsedReceipt.allocation)
 
     // Fail query outright if we have no signer for this attestation
     if (signer === undefined) {
@@ -107,6 +129,13 @@ export class QueryProcessor implements QueryProcessorInterface {
     if (response.headers['graph-attestable'] == 'true') {
       attestation = await signer.createAttestation(query, response.data)
     }
+
+    this.logger.info('Done executing paid query', {
+      deployment: subgraphDeploymentID.ipfsHash,
+      fees: parsedReceipt.fees,
+      query: query,
+      responseTime: (response as any).responseTime,
+    })
 
     return {
       status: 200,
