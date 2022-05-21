@@ -132,7 +132,7 @@ export class QueryProcessor implements QueryProcessorInterface {
 
     this.logger.info('Done executing paid query', {
       deployment: subgraphDeploymentID.ipfsHash,
-      fees: parsedReceipt.fees,
+      fees: parsedReceipt.fees.toBigInt().toString(),
       query: query,
       responseTime: (response as any).responseTime,
     })
