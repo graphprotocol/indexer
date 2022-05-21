@@ -79,7 +79,11 @@ export class AllocationReceiptManager implements ReceiptManager {
   }
 
   // Saves the receipt and returns the allocation for signing
-  async add(receiptData: string): Promise<Address> {
+  async add(receiptData: string): Promise<{
+    id: string
+    allocation: Address
+    fees: BigNumber
+  }> {
     // Security: Input validation
     if (!allocationReceiptValidator.test(receiptData)) {
       throw indexerError(IndexerErrorCode.IE031, 'Expecting 264 hex characters')
@@ -93,7 +97,7 @@ export class AllocationReceiptManager implements ReceiptManager {
 
     // If the fee is 0, validate verifier and return allocation ID for the signer
     if (receipt.fees.isZero()) {
-      return receipt.allocation
+      return receipt
     }
 
     this._queue({
@@ -103,7 +107,7 @@ export class AllocationReceiptManager implements ReceiptManager {
       signature,
     })
 
-    return receipt.allocation
+    return receipt
   }
 
   /// Flushes all receipts that have been registered by this moment in time.
