@@ -84,10 +84,10 @@ option can be used.
 
 #### Graph Node
 
-| Environment Variable | CLI Argument     | Value                               |
-| -------------------- | ---------------- | ----------------------------------- |
-| `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`   |
-| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+| Environment Variable | CLI Argument     | Value                                     |
+| -------------------- | ---------------- | ----------------------------------------- |
+| `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`         |
+| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com/ipfs/` |
 
 ## Testnet (https://testnet.thegraph.com/, Rinkeby)
 
@@ -205,7 +205,7 @@ option can be used.
 
 #### Graph Node
 
-| Environment Variable | CLI Argument     | Value                               |
-| -------------------- | ---------------- | ----------------------------------- |
-| `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
-| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+| Environment Variable | CLI Argument     | Value                                     |
+| -------------------- | ---------------- | ----------------------------------------- |
+| `ethereum`           | `--ethereum-rpc` | `mainnet:...`                             |
+| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com/ipfs/` |
