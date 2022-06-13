@@ -85,7 +85,7 @@ export const validateActionInputs = async (
       ].includes(action.status)
     ) {
       throw Error(
-        `Cannot queue action with status ${action.status}, must be one of ['APPROVED', 'CANCELED']`,
+        `Cannot queue action with status ${action.status}, must be one of ['APPROVED', 'QUEUED']`,
       )
     }
 
@@ -129,7 +129,7 @@ export interface ActionFilter {
 
 export interface ActionResult {
   type: ActionType
-  deploymentID: string | null
+  deploymentID: string
   allocationID: string | null
   amount: string | null
   poi: string | null

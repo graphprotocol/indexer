@@ -119,7 +119,11 @@ export class AllocationManager {
       async () => this.contracts.staking.estimateGas.multicall(callData),
       async (gasLimit) => this.contracts.staking.multicall(callData, { gasLimit }),
       this.logger.child({
-        actions: `${JSON.stringify(actions.map((action) => action.id))}`,
+        actions: `${JSON.stringify(
+          actions.map((action) => {
+            return { id: action.id, type: action.type, deploymentID: action.deploymentID }
+          }),
+        )}`,
         function: 'staking.multicall',
       }),
     )
@@ -400,7 +404,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: deployment,
-        amount: amount,
+        allocationAmount: amount,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>
@@ -1011,7 +1015,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: allocation.subgraphDeployment.id.ipfsHash,
-        amount: formatGRT(createAllocationEventLogs.tokens),
+        allocationAmount: formatGRT(createAllocationEventLogs.tokens),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>
