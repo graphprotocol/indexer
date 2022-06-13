@@ -415,7 +415,7 @@ export default {
       transactionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
-    logger.debug('Execuute createAllocation() mutation', { deployment, amount })
+    logger.debug('Execute createAllocation() mutation', { deployment, amount })
 
     const allocationAmount = parseGRT(amount)
     const subgraphDeployment = new SubgraphDeploymentID(deployment)

@@ -499,7 +499,7 @@ export class NetworkMonitor {
               const deploymentStatus = await this.indexingStatusResolver.indexingStatus([
                 allocation.subgraphDeployment.id,
               ])
-              throw new Error(`POI not available for deployment at current epoch start block. ß
+              throw new Error(`POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlockNumber}
               deploymentStatus: ${
                 deploymentStatus.length > 0

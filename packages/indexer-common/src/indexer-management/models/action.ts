@@ -158,7 +158,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
             case ActionType.UNALLOCATE:
               if (this.deploymentID === null || this.allocationID === null) {
                 throw new Error(
-                  `ActionType.ALLOCATE action must have required params: ['deploymentID','allocationID']`,
+                  `ActionType.UNALLOCATE action must have required params: ['deploymentID','allocationID']`,
                 )
               }
               break
@@ -169,7 +169,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
                 this.amount === null
               ) {
                 throw new Error(
-                  `ActionType.ALLOCATE action must have required params: ['deploymentID','allocationID', 'amount]`,
+                  `ActionType.REALLOCATE action must have required params: ['deploymentID','allocationID', 'amount]`,
                 )
               }
           }
