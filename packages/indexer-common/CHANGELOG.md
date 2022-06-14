@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 2022-06-14
+### Added
+- Allocations mutations and queries to management server for direct management of allocations
+
+### Changed
+- Bump @graphprotocol/cost-model from 0.1.11 to 0.1.14
+
 ## [0.19.1] - 2022-04-21
 ### Fixed
 - Allow null POI dispute reference proofs
@@ -159,7 +166,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.3...HEAD
+[0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
 [0.18.1]: https://github.com/graphprotocol/indexer/compare/v0.18.0...v0.18.1

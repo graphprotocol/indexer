@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.19.3] - 2022-06-14
+### Changed
+- Use ubuntu-18.04 machine to precompile binaries for linux targets
+
 ## [0.19.2] - 2022-04-29
 ### Changed
 - Host precompiled binaries on release page
@@ -40,7 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add package for native attestation signing and receipt signature verification
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.2...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.3...HEAD
+[0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.2...v0.19.3
 [0.19.2]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.2
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
