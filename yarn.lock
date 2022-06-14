@@ -813,10 +813,10 @@
   dependencies:
     ethers "^5.4.4"
 
-"@graphprotocol/cost-model@0.1.11":
-  version "0.1.11"
-  resolved "https://registry.npmjs.org/@graphprotocol/cost-model/-/cost-model-0.1.11.tgz#2aa0d845d3c8d790f95d923fb68bf1b4d63d73e5"
-  integrity sha512-fsOZ5mSevfkacUfbsbSanqcM3IW97bgTfOK06nWz71L5IvELWlPPGtXs6kvSXTNyYr74YpwXawdvtvRWbqjwiQ==
+"@graphprotocol/cost-model@0.1.14":
+  version "0.1.14"
+  resolved "https://registry.npmjs.org/@graphprotocol/cost-model/-/cost-model-0.1.14.tgz#0eeab1c3c63d94600c2cc67e46965e0ba65b2353"
+  integrity sha512-tqy6XPf9+cxBE+K9gS7xxQBJwhmS6bZr7JFm0J8v8BgSMGdp3JwhyEgtD+Vqng61mR4FA4V40pmUn2bPPVQn1g==
   dependencies:
     "@mapbox/node-pre-gyp" "1.0.9"
     cargo-cp-artifact "0.1.6"
