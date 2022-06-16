@@ -42,7 +42,7 @@ jobs:
       - run: yarn install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
-      - run: yarn test
+      - run: yarn test:ci
         env:
           POSTGRES_TEST_HOST: localhost
           POSTGRES_TEST_DATABASE: indexer_tests

@@ -15,7 +15,8 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "test": "jest --runInBand --detectOpenHandles --forceExit",
+    "test": "jest --colors --verbose --forceExit --runInBand",
+    "test:ci": "jest --verbose --runInBand --forceExit --ci",
     "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },

@@ -41,7 +41,8 @@
     "lint": "eslint .",
     "prepare": "yarn format && yarn lint",
     "install": "yarn pull-or-build",
-    "test": "jest --detectOpenHandles --verbose",
+    "test": "jest --colors --verbose --forceExit",
+    "test:ci": "jest --verbose --ci",
     "clean": "rm -rf ./node_modules ./binary ./build ./coverage ./native/target ./native/artifacts.json ./native/index.node"
   },
   "dependencies": {

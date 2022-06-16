@@ -15,6 +15,7 @@
     "prepare": "lerna run prepare",
     "release": "./scripts/release.sh",
     "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service",
+    "test:ci": "lerna --concurrency 1 run test:ci --stream --ignore @graphprotocol/indexer-service",
     "update-common-ts": "./scripts/update-common-ts.sh 1.8.3",
     "clean": "rm -rf ./node_modules && lerna run clean",
     "compile": "lerna run compile"
