@@ -10,8 +10,10 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   Action,
+  ActionFilter,
   ActionInput,
   ActionItem,
+  ActionResult,
   ActionStatus,
   ActionType,
   Allocation,
@@ -424,6 +426,16 @@ class Agent {
                 this.network.transactionManager.wallet.address,
               ),
             },
+          )
+        }
+
+        // Do nothing if there are already approved actions in the queue awaiting execution
+        const approvedActions = await this.fetchActions({
+          status: ActionStatus.APPROVED,
+        })
+        if (approvedActions.length > 0) {
+          return this.logger.info(
+            `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
           )
         }
 
@@ -1004,6 +1016,41 @@ class Agent {
         )
       }
     }
+  }
+
+  private async fetchActions(
+    actionFilter: ActionFilter,
+  ): Promise<ActionResult[]> {
+    const result = await this.indexer.indexerManagement
+      .query(
+        gql`
+          query actions($filter: ActionFilter!) {
+            actions(filter: $filter) {
+              id
+              type
+              allocationID
+              deploymentID
+              amount
+              poi
+              force
+              source
+              reason
+              priority
+              transaction
+              status
+              failureReason
+            }
+          }
+        `,
+        { filter: actionFilter },
+      )
+      .toPromise()
+
+    if (result.error) {
+      throw result.error
+    }
+
+    return result.data.actions
   }
 
   private async queueAction(action: ActionItem): Promise<Action[]> {
