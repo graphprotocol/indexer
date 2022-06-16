@@ -29,6 +29,7 @@ import {
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
+
 import {
   BigNumber,
   BigNumberish,
