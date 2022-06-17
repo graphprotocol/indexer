@@ -30,6 +30,8 @@ import {
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const __LOG_LEVEL__: any
 
 const SET_INDEXING_RULE_MUTATION = gql`
   mutation setIndexingRule($rule: IndexingRuleInput!) {
@@ -123,45 +125,65 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
-describe('Indexing rules', () => {
-  beforeEach(async () => {
-    // Spin up db
-    sequelize = await connectDatabase(__DATABASE__)
-    models = defineIndexerManagementModels(sequelize)
-    address = '0xtest'
-    contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
-    await sequelize.sync({ force: true })
-    logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
-    const statusEndpoint = 'http://localhost:8030/graphql'
-    indexingStatusResolver = new IndexingStatusResolver({
-      logger: logger,
-      statusEndpoint,
-    })
-    networkSubgraph = await NetworkSubgraph.create({
-      logger,
-      endpoint: 'https://gateway.testnet.thegraph.com/network',
-      deployment: undefined,
-    })
-    const indexNodeIDs = ['node_1']
-    client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      indexingStatusResolver,
-      indexNodeIDs,
-      deploymentManagementEndpoint: statusEndpoint,
-      networkSubgraph,
-      logger,
-      defaults,
-      features: {
-        injectDai: true,
-      },
-    })
+const setupAll = async () => {
+  // Spin up db
+  sequelize = await connectDatabase(__DATABASE__)
+  models = defineIndexerManagementModels(sequelize)
+  address = '0xtest'
+  contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
+  await sequelize.sync({ force: true })
+  logger = createLogger({
+    name: 'Indexer API Client',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
   })
+  const statusEndpoint = 'http://localhost:8030/graphql'
+  indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint,
+  })
+  networkSubgraph = await NetworkSubgraph.create({
+    logger,
+    endpoint: 'https://gateway.testnet.thegraph.com/network',
+    deployment: undefined,
+  })
+  const indexNodeIDs = ['node_1']
+  client = await createIndexerManagementClient({
+    models,
+    address,
+    contracts,
+    indexingStatusResolver,
+    indexNodeIDs,
+    deploymentManagementEndpoint: statusEndpoint,
+    networkSubgraph,
+    logger,
+    defaults,
+    features: {
+      injectDai: true,
+    },
+  })
+}
 
-  afterEach(async () => {
-    await sequelize.drop({})
-  })
+const teardownAll = async () => {
+  await sequelize.drop({})
+}
+
+const setupEach = async () => {
+  await sequelize.sync({ force: true })
+}
+const teardownEach = async () => {
+  // Clear out indexer management models
+  await models.Action.truncate({ cascade: true })
+  await models.CostModel.truncate({ cascade: true })
+  await models.IndexingRule.truncate({ cascade: true })
+  await models.POIDispute.truncate({ cascade: true })
+}
+
+describe('Indexing rules', () => {
+  beforeAll(setupAll)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
 
   test('Set and get global rule (partial)', async () => {
     const input = {

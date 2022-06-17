@@ -21,7 +21,7 @@
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
     "test": "jest --colors --verbose --runInBand",
-    "test:ci": "jest --verbose --runInBand --ci",
+    "test:ci": "LOG_LEVEL=error jest --verbose --runInBand --ci",
     "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose --forceExit",
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
