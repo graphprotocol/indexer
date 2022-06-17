@@ -25,6 +25,8 @@ import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const __LOG_LEVEL__: any
 
 const STORE_POI_DISPUTES_MUTATION = gql`
   mutation storeDisputes($disputes: [POIDisputeInput!]!) {
@@ -185,14 +187,18 @@ const defaults = {
   },
 } as IndexerManagementDefaults
 
-const setup = async () => {
+const setupAll = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
   await sequelize.sync({ force: true })
-  logger = createLogger({ name: 'POI dispute tests', level: 'trace' })
+  logger = createLogger({
+    name: 'POI dispute tests',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
+  })
   const statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
@@ -220,13 +226,26 @@ const setup = async () => {
   })
 }
 
-const teardown = async () => {
+const setupEach = async () => {
+  await sequelize.sync({ force: true })
+}
+const teardownEach = async () => {
+  // Clear out indexer management models
+  await models.Action.truncate({ cascade: true })
+  await models.CostModel.truncate({ cascade: true })
+  await models.IndexingRule.truncate({ cascade: true })
+  await models.POIDispute.truncate({ cascade: true })
+}
+
+const teardownAll = async () => {
   await sequelize.drop({})
 }
 
 describe('POI disputes', () => {
-  beforeEach(setup)
-  afterEach(teardown)
+  beforeAll(setupAll)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
 
   test('Store POI disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY

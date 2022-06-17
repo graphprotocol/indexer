@@ -21,5 +21,6 @@ module.exports = {
         process.env.POSTGRES_TEST_DATABASE ||
         bail('POSTGRES_TEST_DATABASE is not defined'),
     },
+    __LOG_LEVEL__: process.env.LOG_LEVEL || 'info'
   },
 }

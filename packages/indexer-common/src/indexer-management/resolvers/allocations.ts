@@ -438,7 +438,7 @@ export default {
 
     if (allocationAmount.lt('0')) {
       logger.warn('Cannot allocate a negative amount of GRT', {
-        amount: amount.toString(),
+        amount: formatGRT(allocationAmount),
       })
       throw new Error(
         `Invalid allocation amount provided (${amount.toString()}). Must use positive allocation amount`,

@@ -23,6 +23,7 @@ import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
+declare const __LOG_LEVEL__: never
 
 const SET_COST_MODEL_MUTATION = gql`
   mutation setCostModel($costModel: CostModelInput!) {
@@ -72,14 +73,18 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
-const setup = async () => {
+const setupAll = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
   contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
-  await sequelize.sync({ force: true })
-  logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+  sequelize = await sequelize.sync({ force: true })
+  logger = createLogger({
+    name: 'Indexer API Client',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
+  })
   indexNodeIDs = ['node_1']
   statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
@@ -108,13 +113,26 @@ const setup = async () => {
   })
 }
 
-const teardown = async () => {
+const teardownAll = async () => {
   await sequelize.drop({})
 }
 
+const setupEach = async () => {
+  await sequelize.sync({ force: true })
+}
+const teardownEach = async () => {
+  // Clear out indexer management models
+  await models.Action.truncate({ cascade: true })
+  await models.CostModel.truncate({ cascade: true })
+  await models.IndexingRule.truncate({ cascade: true })
+  await models.POIDispute.truncate({ cascade: true })
+}
+
 describe('Cost models', () => {
-  beforeEach(setup)
-  afterEach(teardown)
+  beforeAll(setupAll)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
 
   test('Set and get cost model (model and variables)', async () => {
     const input = {
@@ -322,8 +340,8 @@ describe('Cost models', () => {
 })
 
 describe('Feature: Inject $DAI variable', () => {
-  beforeEach(setup)
-  afterEach(teardown)
+  beforeEach(setupAll)
+  afterEach(teardownAll)
 
   test('$DAI variable is preserved when clearing variables', async () => {
     const initial = {

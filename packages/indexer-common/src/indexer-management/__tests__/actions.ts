@@ -33,10 +33,6 @@ import {
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
 
-// Make global Jest variable available
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const __DATABASE__: any
-
 const QUEUE_ACTIONS_MUTATION = gql`
   mutation queueActions($actions: [ActionInput!]!) {
     queueActions(actions: $actions) {
@@ -220,6 +216,11 @@ let client: IndexerManagementClient
 let transactionManager: TransactionManager
 let wallet: Wallet
 
+// Make global Jest variables available
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+declare const __DATABASE__: any
+declare const __LOG_LEVEL__: never
+
 const setup = async () => {
   const statusEndpoint = 'http://localhost:8030/graphql'
   const deploymentManagementEndpoint = 'http://localhost:8020/'
@@ -228,11 +229,15 @@ const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   queryFeeModels = defineQueryFeeModels(sequelize)
   managementModels = defineIndexerManagementModels(sequelize)
-  await sequelize.sync({ force: true })
+  sequelize = await sequelize.sync({ force: true })
   ethereum = ethers.getDefaultProvider('rinkeby')
   wallet = Wallet.createRandom()
   contracts = await connectContracts(ethereum, 4)
-  logger = createLogger({ name: 'Indexer API Client', level: 'trace' })
+  logger = createLogger({
+    name: 'Indexer API Client',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
+  })
 
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
@@ -283,13 +288,33 @@ const setup = async () => {
   })
 }
 
-const teardown = async () => {
+const setupEach = async () => {
+  sequelize = await sequelize.sync({ force: true })
+}
+const teardownEach = async () => {
+  // Clear out query fee model tables
+  await queryFeeModels.allocationReceipts.truncate({ cascade: true })
+  await queryFeeModels.vouchers.truncate({ cascade: true })
+  await queryFeeModels.transferReceipts.truncate({ cascade: true })
+  await queryFeeModels.transfers.truncate({ cascade: true })
+  await queryFeeModels.allocationSummaries.truncate({ cascade: true })
+
+  // Clear out indexer management models
+  await managementModels.Action.truncate({ cascade: true })
+  await managementModels.CostModel.truncate({ cascade: true })
+  await managementModels.IndexingRule.truncate({ cascade: true })
+  await managementModels.POIDispute.truncate({ cascade: true })
+}
+
+const teardownAll = async () => {
   await sequelize.drop({})
 }
 
 describe('Actions', () => {
-  beforeEach(setup)
-  afterEach(teardown)
+  beforeAll(setup)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
 
   test('Queue and retrieve action', async () => {
     const inputAction = queuedAllocateAction
