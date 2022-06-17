@@ -79,6 +79,10 @@ Postgres
 Network Subgraph
   --network-subgraph-endpoint    Endpoint to query the network subgraph from
                                                              [string] [required]
+  --network-subgraph-auth-token  Bearer token to require for /network queries
+                                                                        [string]
+  --serve-network-subgraph       Whether to serve the network subgraph at
+                                 /network             [boolean] [default: false]
   --allocation-syncing-interval  Interval (in ms) for syncing indexer
                                  allocations from the network
                                                       [number] [default: 120000]
@@ -118,43 +122,78 @@ Ethereum
   --gas-increase-factor        Factor by which gas prices are increased when
                                resubmitting transactions [number] [default: 1.2]
   --gas-price-max              The maximum gas price (gwei) to use for
-                               transactions       [number] [default: 2000000000]
-  --transaction-attempts       The maximum number of transaction attempts
-                                                           [number] [default: 5]
+                               transactions [deprecated] [number] [default: 100]
+  --base-fee-per-gas-max       The maximum base fee per gas (gwei) to use for
+                               transactions, for legacy transactions this will
+                               be treated as the max gas price          [number]
+  --transaction-attempts       The maximum number of transaction attempts (Use 0
+                               for unlimited)              [number] [default: 0]
   --mnemonic                   Mnemonic for the operator wallet
                                                              [string] [required]
   --indexer-address            Ethereum address of the indexer
                                                              [string] [required]
 
 Indexer Infrastructure
-  --graph-node-query-endpoint   Graph Node endpoint for querying subgraphs
+  --graph-node-query-endpoint           Graph Node endpoint for querying
+                                        subgraphs            [string] [required]
+  --graph-node-status-endpoint          Graph Node endpoint for indexing
+                                        statuses etc.        [string] [required]
+  --graph-node-admin-endpoint           Graph Node endpoint for applying and
+                                        updating subgraph deployments
                                                              [string] [required]
-  --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
-                                                             [string] [required]
-  --graph-node-admin-endpoint   Graph Node endpoint for applying and updating
-                                subgraph deployments         [string] [required]
-  --public-indexer-url          Indexer endpoint for receiving requests from the
-                                network                      [string] [required]
-  --indexer-geo-coordinates     Coordinates describing the Indexer's location
-                                using latitude and longitude
+  --public-indexer-url                  Indexer endpoint for receiving requests
+                                        from the network     [string] [required]
+  --indexer-geo-coordinates             Coordinates describing the Indexer's
+                                        location using latitude and longitude
                                    [array] [default: ["31.780715","-41.179504"]]
-  --index-node-ids              Node IDs of Graph nodes to use for indexing
-                                (separated by commas)         [array] [required]
-  --indexer-management-port     Port to serve the indexer management API at
-                                                        [number] [default: 8000]
-  --metrics-port                Port to serve Prometheus metrics at     [number]
-  --restake-rewards             Restake claimed indexer rewards, if set to
-                                'false' rewards will be returned to the wallet
-                                                       [boolean] [default: true]
-  --allocation-claim-threshold  Minimum query fees collected (GRT) on an
-                                allocation for it to be claimed
-                                                           [number] [default: 0]
-  --log-level                   Log level            [string] [default: "debug"]
+  --index-node-ids                      Node IDs of Graph nodes to use for
+                                        indexing (separated by commas)
+                                                              [array] [required]
+  --indexer-management-port             Port to serve the indexer management API
+                                        at              [number] [default: 8000]
+  --metrics-port                        Port to serve Prometheus metrics at
+                                                                        [number]
+  --syncing-port                        Port to serve the network subgraph and
+                                        other syncing data for indexer service
+                                        at              [number] [default: 8002]
+  --restake-rewards                     Restake claimed indexer rewards, if set
+                                        to 'false' rewards will be returned to
+                                        the wallet     [boolean] [default: true]
+  --rebate-claim-threshold              Minimum value of rebate for a single
+                                        allocation (in GRT) in order for it to
+                                        be included in a batch rebate claim
+                                        on-chain       [string] [default: "200"]
+  --rebate-claim-batch-threshold        Minimum total value of all rebates in an
+                                        batch (in GRT) before the batch is
+                                        claimed on-chain
+                                                      [string] [default: "2000"]
+  --rebate-claim-max-batch-size         Maximum number of rebates inside a
+                                        batch. Upper bound is constrained by
+                                        available system memory, and by the
+                                        block gas limit  [number] [default: 100]
+  --voucher-redemption-threshold        Minimum value of rebate for a single
+                                        allocation (in GRT) in order for it to
+                                        be included in a batch rebate claim
+                                        on-chain       [string] [default: "200"]
+  --voucher-redemption-batch-threshold  Minimum total value of all rebates in an
+                                        batch (in GRT) before the batch is
+                                        claimed on-chain
+                                                      [string] [default: "2000"]
+  --voucher-redemption-max-batch-size   Maximum number of rebates inside a
+                                        batch. Upper bound is constrained by
+                                        available system memory, and by the
+                                        block gas limit  [number] [default: 100]
+  --log-level                           Log level    [string] [default: "debug"]
+  --allocation-management               Indexer agent allocation management
+                                        automation mode (auto|manual)
+                                                      [string] [default: "auto"]
 
 Network Subgraph
-  --network-subgraph-deployment  Network subgraph deployment            [string]
-  --network-subgraph-endpoint    Endpoint to query the network subgraph from
+  --network-subgraph-deployment   Network subgraph deployment           [string]
+  --network-subgraph-endpoint     Endpoint to query the network subgraph from
                                                                         [string]
+  --allocate-on-network-subgraph  Whether to allocate to the network subgraph
+                                                      [boolean] [default: false]
 
 Protocol
   --default-allocation-amount  Default amount of GRT to allocate to a subgraph
@@ -205,31 +244,42 @@ Options:
 
 ### Indexer CLI
 
-Since indexer CLI is a plugin for `@graphprotocol/graph-cli`, it is invoked
+Since indexer CLI is a plugin for `@graphprotocol/graph-cli`, once installed it is invoked
 simply by running `graph indexer`.
 
 ```sh
-$ graph --help
+$ graph indexer --help
+Manage indexer configuration
 
-  ...
-  indexer status                      Check the status of an indexer
-  indexer rules                       Configure indexing rules
-  indexer rules stop (never)          Never index a deployment (and stop indexing it if necessary)
-  indexer rules start (always)        Always index a deployment (and start indexing it if necessary)
-  indexer rules prepare (offchain)    Offchain index a deployment (good practice to prepare indexing)
-  indexer rules set                   Set one or more indexing rules
-  indexer rules maybe                 Index a deployment based on rules
-  indexer rules get                   Get one or more indexing rules
-  indexer rules delete                Remove one or many indexing rules
-  indexer rules clear (reset)         Clear one or more indexing rules
-  indexer disputes                    POI monitoring
-  indexer disputes get                Cross-check POIs submitted in the network
-  indexer cost                        Manage costing for subgraphs
-  indexer cost set variables          Update cost model variables
-  indexer cost set model              Update a cost model
-  indexer cost get                    Get cost models and/or variables for one or all subgraphs
-  indexer connect                     Connect to indexer management API
-  indexer                             Manage indexer configuration
+  indexer status                     Check the status of an indexer                                   
+  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)     
+  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)   
+  indexer rules set                  Set one or more indexing rules                                   
+  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary) 
+  indexer rules maybe                Index a deployment based on rules                                
+  indexer rules get                  Get one or more indexing rules                                   
+  indexer rules delete               Remove one or many indexing rules                                
+  indexer rules clear (reset)        Clear one or more indexing rules                                 
+  indexer rules                      Configure indexing rules                                         
+  indexer disputes get               Cross-check POIs submitted in the network                        
+  indexer disputes                   Configure allocation POI monitoring                              
+  indexer cost set variables         Update cost model variables                                      
+  indexer cost set model             Update a cost model                                              
+  indexer cost get                   Get cost models and/or variables for one or all subgraphs        
+  indexer cost                       Manage costing for subgraphs                                     
+  indexer connect                    Connect to indexer management API                                
+  indexer allocations reallocate     Reallocate to subgraph deployment                                
+  indexer allocations get            List one or more allocations                                     
+  indexer allocations create         Create an allocation                                             
+  indexer allocations close          Close an allocation                                              
+  indexer allocations                Manage indexer allocations                                       
+  indexer actions queue              Queue an action item                                             
+  indexer actions get                List one or more actions                                         
+  indexer actions execute            Execute approved items in the action queue                       
+  indexer actions cancel             Cancel an item in the queue                                      
+  indexer actions approve            Approve an action item                                           
+  indexer actions                    Manage indexer actions                                           
+  indexer                            Manage indexer configuration 
 ```
 
 ## Running from source
