@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.0] - 2022-06-21
+### Changed
+- Include querFeesAmount in allocation queries to conform with updated SubgraphDeployment interface
+
 ## [0.19.3] - 2022-06-14
 ### Changed
 - Improve Ethereum connection process and logging
@@ -255,7 +259,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.19.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.0...HEAD
+[0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
 [0.19.0]: https://github.com/graphprotocol/indexer/compare/v0.18.6...v0.19.0
