@@ -18,6 +18,7 @@ export interface PaidQueryProcessorOptions {
   graphNode: string
   signers: Eventual<AttestationSignerMap>
   receiptManager: ReceiptManager
+  queryTimingLogs: boolean
 }
 
 interface AxiosRequestConfigWithTime extends AxiosRequestConfig {
@@ -35,6 +36,7 @@ export class QueryProcessor implements QueryProcessorInterface {
   graphNode: AxiosInstance
   signers: Eventual<AttestationSignerMap>
   receiptManager: ReceiptManager
+  queryTimingLogs: boolean
 
   constructor({
     logger,
@@ -42,8 +44,10 @@ export class QueryProcessor implements QueryProcessorInterface {
     graphNode,
     receiptManager,
     signers,
+    queryTimingLogs,
   }: PaidQueryProcessorOptions) {
     this.logger = logger
+    this.queryTimingLogs = queryTimingLogs
     this.metrics = metrics
     this.signers = signers
     this.graphNode = axios.create({
@@ -61,30 +65,32 @@ export class QueryProcessor implements QueryProcessorInterface {
       validateStatus: () => true,
     })
 
-    // Set up Axios for request response time measurement
-    // https://sabljakovich.medium.com/axios-response-time-capture-and-log-8ff54a02275d
-    this.graphNode.interceptors.request.use(function (x: AxiosRequestConfigWithTime) {
-      // to avoid overwriting if another interceptor
-      // already defined the same object (meta)
-      x.meta = x.meta || {}
-      x.meta.requestStartedAt = new Date().getTime()
-      return x
-    })
-    this.graphNode.interceptors.response.use(
-      function (x: AxiosResponseWithTime) {
-        if (x.config.meta?.requestStartedAt !== undefined) {
-          x.responseTime = new Date().getTime() - x.config.meta?.requestStartedAt
-        }
+    if (this.queryTimingLogs) {
+      // Set up Axios for request response time measurement
+      // https://sabljakovich.medium.com/axios-response-time-capture-and-log-8ff54a02275d
+      this.graphNode.interceptors.request.use(function (x: AxiosRequestConfigWithTime) {
+        // to avoid overwriting if another interceptor
+        // already defined the same object (meta)
+        x.meta = x.meta || {}
+        x.meta.requestStartedAt = new Date().getTime()
         return x
-      },
-      // Handle 4xx & 5xx responses
-      function (x: AxiosResponseWithTime) {
-        if (x.config.meta?.requestStartedAt !== undefined) {
-          x.responseTime = new Date().getTime() - x.config.meta.requestStartedAt
-        }
-        throw x
-      },
-    )
+      })
+      this.graphNode.interceptors.response.use(
+        function (x: AxiosResponseWithTime) {
+          if (x.config.meta?.requestStartedAt !== undefined) {
+            x.responseTime = new Date().getTime() - x.config.meta?.requestStartedAt
+          }
+          return x
+        },
+        // Handle 4xx & 5xx responses
+        function (x: AxiosResponseWithTime) {
+          if (x.config.meta?.requestStartedAt !== undefined) {
+            x.responseTime = new Date().getTime() - x.config.meta.requestStartedAt
+          }
+          throw x
+        },
+      )
+    }
 
     this.receiptManager = receiptManager
   }
@@ -143,12 +149,14 @@ export class QueryProcessor implements QueryProcessorInterface {
       attestation = await signer.createAttestation(query, response.data)
     }
 
-    this.logger.info('Done executing paid query', {
-      deployment: subgraphDeploymentID.ipfsHash,
-      fees: parsedReceipt.fees.toBigInt().toString(),
-      query: query,
-      responseTime: (response as AxiosResponseWithTime).responseTime ?? null,
-    })
+    if (this.queryTimingLogs) {
+      this.logger.info('Done executing paid query', {
+        deployment: subgraphDeploymentID.ipfsHash,
+        fees: parsedReceipt.fees.toBigInt().toString(),
+        query: query,
+        responseTime: (response as AxiosResponseWithTime).responseTime ?? null,
+      })
+    }
 
     return {
       status: 200,

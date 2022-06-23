@@ -154,6 +154,13 @@ export default {
         default: 'debug',
         group: 'Indexer Infrastructure',
       })
+      .option('query-timing-logs', {
+        description: 'Log time spent on each query received',
+        type: 'boolean',
+        default: false,
+        required: false,
+        group: 'Indexer Infrastructure',
+      })
       .option('vector-node', {
         description: 'URL of a vector node',
         type: 'string',
@@ -436,6 +443,7 @@ export default {
       metrics,
       receiptManager,
       signers,
+      queryTimingLogs: argv.queryTimingLogs,
     })
 
     const indexerManagementClient = await createIndexerManagementClient({
