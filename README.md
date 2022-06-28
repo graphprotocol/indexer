@@ -185,8 +185,11 @@ Indexer Infrastructure
                                         block gas limit  [number] [default: 100]
   --log-level                           Log level    [string] [default: "debug"]
   --allocation-management               Indexer agent allocation management
-                                        automation mode (auto|manual)
+                                        automation mode (auto|manual|oversight)
                                                       [string] [default: "auto"]
+  --auto-allocation-min-batch-size                 Minimum number of allocation 
+                                        transactions inside a batch for AUTO 
+                                        management mode    [number] [default: 1]
 
 Network Subgraph
   --network-subgraph-deployment   Network subgraph deployment           [string]

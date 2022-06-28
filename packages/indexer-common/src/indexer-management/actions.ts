@@ -2,8 +2,11 @@ import {
   Action,
   ActionFilter,
   ActionStatus,
+  AllocationManagementMode,
+  AllocationStatus,
   IndexerManagementModels,
   isActionFailure,
+  NetworkMonitor,
 } from '@graphprotocol/indexer-common'
 import { AllocationManager } from './allocations'
 import { Transaction } from 'sequelize'
@@ -12,9 +15,55 @@ import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 export class ActionManager {
   constructor(
     public allocationManager: AllocationManager,
+    public networkMonitor: NetworkMonitor,
     private logger: Logger,
     private models: IndexerManagementModels,
+    private allocationManagementMode?: AllocationManagementMode,
+    private autoAllocationMinBatchSize?: number,
   ) {}
+
+  private async batchReady(approvedActions: Action[]): Promise<boolean> {
+    if (approvedActions.length < 1) {
+      return false
+    }
+
+    // In auto management mode the worker will execute the batch if:
+    // 1) Number of approved actions >= minimum batch size
+    // or 2) Oldest affected allocation will expiring after the current epoch
+    if (this.allocationManagementMode === AllocationManagementMode.AUTO) {
+      const meetsMinBatchSize =
+        approvedActions.length >= (this.autoAllocationMinBatchSize ?? 1)
+
+      const approvedDeploymentIDs = approvedActions.map((action) => action.deploymentID)
+      const affectedAllocations = (
+        await this.networkMonitor.allocations(AllocationStatus.ACTIVE)
+      ).filter((a) => approvedDeploymentIDs.includes(a.subgraphDeployment.id.ipfsHash))
+      let affectedAllocationExpiring = false
+      if (affectedAllocations.length) {
+        const currentEpoch = await this.networkMonitor.currentEpoch()
+        const maxAllocationEpoch = await this.networkMonitor.maxAllocationEpoch()
+        // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
+        affectedAllocationExpiring =
+          currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationEpoch
+      }
+
+      this.logger.debug(
+        'Auto allocation management executes the batch if at least one requirement is met',
+        {
+          currentBatchSize: approvedActions.length,
+          meetsMinBatchSize,
+          oldestAffectedAllocationCreatedAtEpoch:
+            affectedAllocations[0]?.createdAtEpoch ??
+            'no action in the batch affects existing allocations',
+          affectedAllocationExpiring,
+        },
+      )
+
+      return meetsMinBatchSize || affectedAllocationExpiring
+    }
+
+    return true
+  }
 
   async monitorQueue(): Promise<void> {
     const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
@@ -27,7 +76,7 @@ export class ActionManager {
     )
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
-      if (approvedActions.length >= 1) {
+      if (await this.batchReady(approvedActions)) {
         this.logger.info('Executing batch of approved actions', {
           actions: approvedActions,
           note: 'If actions were approved very recently they may be missing from this list but will still be taken',
@@ -49,11 +98,21 @@ export class ActionManager {
     await this.models.Action.sequelize!.transaction(
       { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
       async (transaction) => {
-        // Execute already approved actions first
-        const approvedActions = await this.models.Action.findAll({
-          where: { status: ActionStatus.APPROVED },
-          transaction,
-          lock: transaction.LOCK.UPDATE,
+        // Execute already approved actions in the order of type and priority.
+        // Unallocate actions are prioritized to free up stake that can be used
+        // in subsequent reallocate and allocate actions.
+        // Reallocate actions are prioritized before allocate as they are for
+        // existing syncing deployments with relatively smaller changes made.
+        const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
+        const approvedActions = (
+          await this.models.Action.findAll({
+            where: { status: ActionStatus.APPROVED },
+            order: [['priority', 'ASC']],
+            transaction,
+            lock: transaction.LOCK.UPDATE,
+          })
+        ).sort(function (a, b) {
+          return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
         })
 
         try {

@@ -421,6 +421,12 @@ export default {
         default: 'auto',
         group: 'Indexer Infrastructure',
       })
+      .option('auto-allocation-min-batch-size', {
+        description: `Minimum number of allocation transactions inside a batch for auto allocation management. No obvious upperbound, with default of 1`,
+        type: 'number',
+        default: 1,
+        group: 'Indexer Infrastructure',
+      })
       .config({
         key: 'config-file',
         description: 'Indexer agent configuration file (YAML format)',
@@ -759,6 +765,10 @@ export default {
     )
 
     logger.info('Launch indexer management API server')
+    const allocationManagementMode =
+      AllocationManagementMode[
+        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+      ]
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
       address: indexerAddress,
@@ -779,6 +789,8 @@ export default {
       },
       transactionManager: network.transactionManager,
       receiptCollector,
+      allocationManagementMode,
+      autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     })
 
     await createIndexerManagementServer({
@@ -845,10 +857,7 @@ export default {
         (s: string) => new SubgraphDeploymentID(s),
       ),
       receiptCollector,
-      allocationManagementMode:
-        AllocationManagementMode[
-          argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
-        ],
+      allocationManagementMode,
     })
   },
 }
