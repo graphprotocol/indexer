@@ -38,6 +38,13 @@ export class NetworkMonitor {
     private ethereum: providers.BaseProvider,
   ) {}
 
+  async currentEpoch(): Promise<number> {
+    return (await this.contracts.epochManager.currentEpoch()).toNumber()
+  }
+  async maxAllocationEpoch(): Promise<number> {
+    return await this.contracts.staking.maxAllocationEpochs()
+  }
+
   async allocation(allocationID: string): Promise<Allocation | undefined> {
     const result = await this.networkSubgraph.query(
       gql`
@@ -80,7 +87,12 @@ export class NetworkMonitor {
       const result = await this.networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $status: AllocationStatus!) {
-            allocations(where: { indexer: $indexer, status: $status }, first: 1000) {
+            allocations(
+              where: { indexer: $indexer, status: $status }
+              first: 1000
+              orderBy: createdAtBlockNumber
+              orderDirection: asc
+            ) {
               id
               indexer {
                 id

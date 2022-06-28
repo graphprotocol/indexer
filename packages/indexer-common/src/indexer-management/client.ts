@@ -29,6 +29,7 @@ import { SubgraphManager } from './subgraphs'
 import { AllocationReceiptCollector } from '../allocations/query-fees'
 import {
   ActionManager,
+  AllocationManagementMode,
   AllocationManager,
   NetworkMonitor,
 } from '@graphprotocol/indexer-common'
@@ -408,6 +409,8 @@ export interface IndexerManagementClientOptions {
   ethereum?: ethers.providers.BaseProvider
   transactionManager?: TransactionManager
   receiptCollector?: AllocationReceiptCollector
+  allocationManagementMode?: AllocationManagementMode
+  autoAllocationMinBatchSize?: number
 }
 
 export class IndexerManagementClient extends Client {
@@ -470,6 +473,8 @@ export const createIndexerManagementClient = async (
     features,
     transactionManager,
     receiptCollector,
+    allocationManagementMode,
+    autoAllocationMinBatchSize,
   } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
@@ -510,7 +515,14 @@ export const createIndexerManagementClient = async (
         subgraphManager,
         transactionManager,
       )
-      actionManager = new ActionManager(allocationManager, logger, models)
+      actionManager = new ActionManager(
+        allocationManager,
+        networkMonitor,
+        logger,
+        models,
+        allocationManagementMode,
+        autoAllocationMinBatchSize,
+      )
 
       logger.info('Begin monitoring the queue for approved actions to execute')
       await actionManager.monitorQueue()

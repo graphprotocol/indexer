@@ -38,6 +38,12 @@ Indexer Infrastructure
                                 'false' rewards will be returned to the wallet
                                                        [boolean] [default: true]
   --log-level                   Log level            [string] [default: "debug"]
+  --allocation-management               Indexer agent allocation management
+                                        automation mode (auto|manual|oversight)
+                                                      [string] [default: "auto"]
+  --auto-allocation-min-batch-size                 Minimum number of allocation 
+                                        transactions inside a batch for auto 
+                                        management mode    [number] [default: 1]
 
 Network Subgraph
   --network-subgraph-deployment  Network subgraph deployment            [string]
