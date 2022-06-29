@@ -236,7 +236,11 @@ export const printIndexingRules = (
     print.info(displayIndexingRules(outputFormat, onchainRules))
     if (offchainRules) {
       print.info('Offchain syncing subgraphs')
-      print.info(displayIndexingRules(outputFormat, offchainRules))
+      print.info(
+        offchainRules.map(rule => {
+          return rule.identifier
+        }),
+      )
     } else {
       print.info(`Not syncing any subgraphs offchain`)
     }
