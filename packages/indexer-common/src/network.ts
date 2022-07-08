@@ -732,7 +732,13 @@ export class Network {
       // in order to maximise the value of the truncated batch
       // more query fees collected should mean higher value rebates
       const allocationIds = allocations
-        .sort((x, y) => (y.queryFeesCollected?.gt(x.queryFeesCollected || 0) ? 1 : -1))
+        .sort((x, y) =>
+          y.queryFeesCollected instanceof BigNumber
+            ? y.queryFeesCollected.gt(x.queryFeesCollected || 0)
+              ? 1
+              : -1
+            : -1,
+        )
         .map((allocation) => allocation.id)
         .slice(0, maxClaimsPerBatch)
 
