@@ -6,7 +6,7 @@ For mainnet:
 
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)    |
+| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)    |
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
@@ -16,10 +16,10 @@ For testnet:
 
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.2.0](https://github.com/graphprotocol/contracts/releases/tag/v1.2.0)    |
-| indexer-agent   | [0.19.0](https://github.com/graphprotocol/indexer/releases/tag/v0.19.0)    |
-| indexer-cli     | [0.19.0](https://github.com/graphprotocol/indexer/releases/tag/v0.19.0)    |
-| indexer-service | [0.19.0](https://github.com/graphprotocol/indexer/releases/tag/v0.19.0)    |
+| contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)    |
+| indexer-agent   | [0.20.2](https://github.com/graphprotocol/indexer/releases/tag/v0.20.2)    |
+| indexer-cli     | [0.20.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.1)    |
+| indexer-service | [0.20.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.1)    |
 | graph-node      | [0.26.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.26.0) |
 
 ## Mainnet (https://network.thegraph.com)
@@ -89,16 +89,16 @@ option can be used.
 | `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`   |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
 
-## Testnet (https://testnet.thegraph.com/, Rinkeby)
+## Testnet (https://testnet.thegraph.com/, Goerli)
 
 ### Registration / Funding (GRT)
 
-In order to participate in the testnet, you'll need Rinkeby ETH and testnet GRT.
+In order to participate in the testnet, you'll need Goerli ETH and GRT.
 To be eligable for testnet GRT, you'll need to
 
 1. join [The Graph Discord](https://thegraph.com/discord/),
 2. get the `@testnetindexer` role in the `#roles` channel,
-3. use the `#testnet-fauceet` channel to obtain testnet GRT.
+3. use the `#testnet-goerli-faucet` channel to obtain testnet GRT.
 
 ### Approving And Staking
 
@@ -113,8 +113,8 @@ cd contracts
 npm install
 npm run compile
 
-./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
-  contracts graphToken approve --account 0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c --amount <grt>
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-goerli-node> \
+  contracts graphToken approve --account 0x35e3Cb6B317690d662160d5d02A5b364578F62c9 --amount <grt>
 ```
 
 Afterwards, stake this amount:
@@ -124,7 +124,7 @@ git clone https://github.com/graphprotocol/contracts
 cd contracts
 npm install # if you haven't done this before
 
-./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-goerli-node> \
   contracts staking stake --amount <grt>
 ```
 
@@ -141,7 +141,7 @@ cd contracts
 npm install
 npm run compile
 
-./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-rinkeby-node> \
+./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-goerli-node> \
   contracts staking setOperator --operator <operator-address> --allowed true
 ```
 
@@ -156,27 +156,27 @@ npm run compile
 
 | Contract          | Address                                                                                                                         |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Graph Token (GRT) | [`0x54Fe55d5d255b8460fB3Bc52D5D676F9AE5697CD`](https://rinkeby.etherscan.io/address/0x54Fe55d5d255b8460fB3Bc52D5D676F9AE5697CD) |
-| Staking           | [`0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c`](https://rinkeby.etherscan.io/address/0x2d44C0e097F6cD0f514edAC633d82E01280B4A5c) |
+| Graph Token (GRT) | [`0x5c946740441C12510a167B447B7dE565C20b9E3C`](https://goerli.etherscan.io/address/0x5c946740441C12510a167B447B7dE565C20b9E3C) |
+| Staking           | [`0x35e3Cb6B317690d662160d5d02A5b364578F62c9`](https://goerli.etherscan.io/address/0x35e3Cb6B317690d662160d5d02A5b364578F62c9) |
 
 ### Configuration
 
-The Graph testnet contracts live on rinkeby, but the subgraphs used in the
-testnet (for now) are all mainnet subgraphs. This means:
+The Graph testnet contracts live on Goerli, but many of the subgraphs used in the
+testnet (for now) are Mainnet subgraphs. This means:
 
-- Indexer Agent and Indexer Service must connect to rinkeby
-- Graph Node must connect to at least one mainnet Ethereum node/provider
+- Indexer Agent and Indexer Service must connect to Goerli
+- Graph Node must connect to at least one Mainnet Ethereum node/provider
 
 #### Indexer Agent
 
 | Environment Variable                        | CLI Argument                    | Value                                                   |
 | ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum rinkeby node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `rinkeby`                                               |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                       |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                               |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                  |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmYQTw2f22picV7DToxbSfmdvXEhn9BU3JEpKvrQ1MVutf`        |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmNhsC5jwSvwgYFdjBrjcc2YW8o7Xmo2WNZUHDukfRvzD4`        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.testnet.thegraph.com/network`          |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)     |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts` |
@@ -195,11 +195,11 @@ option can be used.
 
 | Environment Variable                          | CLI Argument                    | Value                                            |
 | --------------------------------------------- | ------------------------------- | ------------------------------------------------ |
-| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum rinkeby node/provider                |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `rinkeby`                                        |
+| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                |
+| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                        |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer              |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator           |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmYQTw2f22picV7DToxbSfmdvXEhn9BU3JEpKvrQ1MVutf` |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmNhsC5jwSvwgYFdjBrjcc2YW8o7Xmo2WNZUHDukfRvzD4` |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.testnet.thegraph.com/network`   |
 | `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xe1EC4339019eC9628438F8755f847e3023e4ff9c`     |
 
