@@ -136,7 +136,7 @@ Failed to check for network pause.
 
 **Solution**
 
-TODO
+Reference IE004. 
 
 ## IE008
 
