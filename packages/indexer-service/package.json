@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@google-cloud/profiler": "4.1.7",
-    "@graphprotocol/common-ts": "1.8.4",
+    "@graphprotocol/common-ts": "1.8.6",
     "@graphprotocol/indexer-common": "^0.20.0",
     "@graphprotocol/indexer-native": "^0.20.0",
     "@graphql-tools/load": "7.5.8",
