@@ -777,12 +777,12 @@
   resolved "https://registry.npmjs.org/@google-cloud/promisify/-/promisify-2.0.4.tgz"
   integrity sha512-j8yRSSqswWi1QqUGKVEKOG03Q7qOoZP6/h2zN2YO+F5h2+DHU0bSrHCK9Y7lo2DI9fBd8qGAw795sf+3Jva4yA==
 
-"@graphprotocol/common-ts@1.8.4":
-  version "1.8.4"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.8.4.tgz#a20e8126a7da34239904b0d3ad7c225d56d6cc17"
-  integrity sha512-qHAW4gNYBxD2SahGsKCzn1dmeVII+POws4dNQ5h8vvq4DWjdDzhUrb/qQWcmqmsZQ9MI4lQEoB/s5WdFMeRMNw==
+"@graphprotocol/common-ts@1.8.6":
+  version "1.8.6"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-1.8.6.tgz#d12fe02d3f4ce544087cf9b57af26e95ca1b3b80"
+  integrity sha512-HSJ5hv1CZ1JSx0tGkEWrlG7G1QranrnipCmqkrl0U3gwfKss1XwCXuFtqMarE1NxMmYj46xKsrBm4/drlw7wLg==
   dependencies:
-    "@graphprotocol/contracts" "1.11.1"
+    "@graphprotocol/contracts" "1.13.0"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
     "@urql/core" "2.4.4"
     "@urql/exchange-execute" "1.2.2"
@@ -804,10 +804,10 @@
     prom-client "14.0.1"
     sequelize "6.19.0"
 
-"@graphprotocol/contracts@1.11.1":
-  version "1.11.1"
-  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-1.11.1.tgz"
-  integrity sha512-z4klBGRf9X08iE+JQKHH5VfmPh/8btDVVof9pckDd5bSsnPG4TvvpDHJnPAw+TQRRtoiKmDIvNIGBajRTAtQzA==
+"@graphprotocol/contracts@1.13.0":
+  version "1.13.0"
+  resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-1.13.0.tgz#0289f9ef725f342ad1c69a9ac70bc5129c3eb0a3"
+  integrity sha512-1s6559hsvOQv6bbEGYOvkvuO4DkurwNKeHQ4wM3qT3j0v96sEd1xJSXL9fIOTPyg53BDfz8pZHe2+xaohXvVbg==
   dependencies:
     ethers "^5.4.4"
 
