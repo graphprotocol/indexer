@@ -63,7 +63,8 @@ export const setup = async () => {
 
   const networkSubgraph = await NetworkSubgraph.create({
     logger,
-    endpoint: 'https://gateway.testnet.thegraph.com/network',
+    endpoint:
+      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
     deployment: undefined,
   })
   const indexNodeIDs = ['node_1']
