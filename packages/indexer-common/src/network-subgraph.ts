@@ -18,8 +18,8 @@ export interface NetworkSubgraphCreateOptions {
 interface DeploymentStatus {
   health: string
   synced: boolean
-  latestBlock?: BlockPointer
-  chainHeadBlock?: BlockPointer
+  latestBlock?: BlockPointer | null
+  chainHeadBlock?: BlockPointer | null
   fatalError?: IndexingError
 }
 
@@ -222,13 +222,13 @@ const monitorDeployment = async ({
       const status = {
         health: indexingStatus.health,
         synced: indexingStatus.synced,
-        latestBlock: indexingStatus.chains[0].latestBlock,
-        chainHeadBlock: indexingStatus.chains[0].chainHeadBlock,
+        latestBlock: indexingStatus.chains[0]?.latestBlock,
+        chainHeadBlock: indexingStatus.chains[0]?.chainHeadBlock,
         fatalError: indexingStatus.fatalError,
       }
 
       // If failed for the first time, log an error
-      if (!lastStatus.fatalError && status.fatalError) {
+      if (!lastStatus || (!lastStatus.fatalError && status.fatalError)) {
         logger.error(`Failed to index network subgraph deployment`, {
           err: status.fatalError,
           latestBlock: status.latestBlock,

@@ -135,9 +135,9 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
-const subgraphDeployment1 = 'QmbFK3kfmeNXyQ2zzvysAkduAFb68S7a6heaFxnJizSAqD'
+const subgraphDeployment1 = 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt'
 const subgraphDeployment2 = 'Qmav8jkmAeKBLyxmngJVwprN3ZsJA9A57jeoikdCU2Dyrv'
-const subgraphDeployment3 = 'Qmdpkd8yvD4XR3mQMZQmY5nqBQtjEac8gb8RoFFcWan7xE'
+const subgraphDeployment3 = 'QmW2LB36SHQ5xsn4fySZPr7AJaAEu6ZvB5jiRSLDJLwGHR'
 const notPublishedSubgraphDeployment = 'QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6'
 
 const queuedAllocateAction = {
@@ -501,7 +501,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            'Failed to queue action: Invalid action input, actionInput: {"status":"queued","type":"reallocate","deploymentID":"QmbFK3kfmeNXyQ2zzvysAkduAFb68S7a6heaFxnJizSAqD","allocationID":"0x8f63930129e585c69482b56390a09b6b176f4a4c","force":false,"source":"indexerAgent","reason":"indexingRule","priority":0}',
+            'Failed to queue action: Invalid action input, actionInput: {"status":"queued","type":"reallocate","deploymentID":"QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt","allocationID":"0x8f63930129e585c69482b56390a09b6b176f4a4c","force":false,"source":"indexerAgent","reason":"indexingRule","priority":0}',
           ),
         ],
       }),
@@ -547,7 +547,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            `Duplicate action found in queue that effects 'QmbFK3kfmeNXyQ2zzvysAkduAFb68S7a6heaFxnJizSAqD' but NOT overwritten because it has a different source and/or status. If you ` +
+            `Duplicate action found in queue that effects 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt' but NOT overwritten because it has a different source and/or status. If you ` +
               `would like to replace the item currently in the queue please cancel it and then queue the proposed action`,
           ),
         ],

@@ -279,8 +279,8 @@ const SCHEMA_SDL = gql`
 
   type ChainIndexingStatus {
     network: String!
-    latestBlock: BlockPointer!
-    chainHeadBlock: BlockPointer!
+    latestBlock: BlockPointer
+    chainHeadBlock: BlockPointer
     earliestBlock: BlockPointer
   }
 
