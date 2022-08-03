@@ -14,8 +14,8 @@ export interface BlockPointer {
 
 export interface EthereumIndexingStatus {
   network: string
-  latestBlock: BlockPointer
-  chainHeadBlock: BlockPointer
+  latestBlock: BlockPointer | null
+  chainHeadBlock: BlockPointer | null
   earliestBlock: BlockPointer | null
 }
 

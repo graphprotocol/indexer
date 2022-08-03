@@ -26,16 +26,17 @@ export const parseGraphQLChain = (chain: any): ChainIndexingStatus => ({
   network: chain.network,
   latestBlock: parseGraphQLBlockPointer(chain.latestBlock),
   chainHeadBlock: parseGraphQLBlockPointer(chain.chainHeadBlock),
-  earliestBlock: chain.earliestBlock
-    ? parseGraphQLBlockPointer(chain.earliestBlock)
-    : null,
+  earliestBlock: parseGraphQLBlockPointer(chain.earliestBlock),
 })
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const parseGraphQLBlockPointer = (block: any): BlockPointer => ({
-  number: +block.number,
-  hash: block.hash,
-})
+export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
+  block
+    ? {
+        number: +block.number,
+        hash: block.hash,
+      }
+    : null
 
 export class IndexingStatusResolver {
   logger: Logger
