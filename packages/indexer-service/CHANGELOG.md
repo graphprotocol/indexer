@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2022-08-04
+### Added
+- Option to log query details and execution times
+
 ## [0.20.0] - 2022-06-21
 ### Changed
 - Include querFeesAmount in allocation queries to conform with updated SubgraphDeployment interface
@@ -259,7 +263,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1

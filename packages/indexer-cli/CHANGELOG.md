@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2022-08-04
+### Added
+- Option to set a global default cost model
+
+### Changed
+- Remove colors from yalm and json outputs
+- Only print identifier for offchain subgraphs
+- Improve error message on indexer rules set parameter issues
+
+### Fixed
+- Null error on ChainIndexingStatus.latestBlock
+
 ## [0.20.0] - 2022-06-21
 ### Added
 - New Actions module for interacting with the actions queue
@@ -160,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1

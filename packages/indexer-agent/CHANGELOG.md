@@ -6,10 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.1] - 2022-08-04
+### Added
+- Provide allocation action batching controls
+- Option to set a global default cost model
+
+### Changed
+- Support Goerli network (upgrade @graphprotocol/contracts)
+
 ## [0.20.0] - 2022-06-21
 ### Added
 - Support file-based configuration of startup params
-- New allocation mangement mode, oversight, for requiring indexer approval to execute agents actions
+- New allocation management mode, oversight, for requiring indexer approval to execute agents actions
 
 ### Changed
 - Agent now pushes proposed allocation changes to action queue for execution by worker instead of executing them from the agent
@@ -382,7 +390,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
 [0.19.1]: https://github.com/graphprotocol/indexer/compare/v0.19.0...v0.19.1
