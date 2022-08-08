@@ -299,13 +299,14 @@ export class NetworkMonitor {
 
       return result.data.indexer.allocations.map(parseGraphQLAllocation)
     } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
         `Failed to query indexer's previously closed allocation for the deployment`,
         {
-          error,
+          err,
         },
       )
-      throw error
+      throw err
     }
   }
 
@@ -457,7 +458,7 @@ export class NetworkMonitor {
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
-        `Failed to query subgraphDeployment with with ipfsHash = ${ipfsHash}`,
+        `Failed to query subgraphDeployment with ipfsHash = ${ipfsHash}`,
         {
           err,
         },
@@ -511,13 +512,16 @@ export class NetworkMonitor {
               const deploymentStatus = await this.indexingStatusResolver.indexingStatus([
                 allocation.subgraphDeployment.id,
               ])
-              throw new Error(`POI not available for deployment at current epoch start block.
+              throw indexerError(
+                IndexerErrorCode.IE067,
+                `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlockNumber}
               deploymentStatus: ${
                 deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
                   : 'not deployed'
-              }`)
+              }`,
+              )
             } else {
               return poi
             }
@@ -527,9 +531,12 @@ export class NetworkMonitor {
             } else if (poi !== undefined && generatedPOI == undefined) {
               return poi
             }
-            throw new Error(`User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
+            throw indexerError(
+              IndexerErrorCode.IE068,
+              `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
               POI: ${poi}, 
-              referencePOI: ${generatedPOI}`)
+              referencePOI: ${generatedPOI}`,
+            )
         }
       }
     }
@@ -558,7 +565,10 @@ export class NetworkMonitor {
           }
 
           if (!result.data || result.data.length === 0) {
-            throw new Error(`No data returned by network subgraph`)
+            throw indexerError(
+              IndexerErrorCode.IE007,
+              `No data returned by network subgraph`,
+            )
           }
 
           return result.data.graphNetworks[0].isPaused

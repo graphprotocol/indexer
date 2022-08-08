@@ -15,6 +15,7 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   fetchIndexingRules,
+  IndexerError,
   indexerError,
   IndexerErrorCode,
   IndexerManagementModels,
@@ -140,7 +141,10 @@ export class AllocationManager {
           return {
             actionID: action.id,
             transactionID: undefined,
-            failureReason: error.message,
+            failureReason:
+              error instanceof IndexerError
+                ? error.code
+                : 'Failed to confirm transactions',
           }
         }
       },
@@ -235,10 +239,11 @@ export class AllocationManager {
           )
       }
     } catch (error) {
-      logger.error(`'Failed to prepare tx call data: ${error}`)
+      logger.error(`Failed to prepare tx call data: ${error}`)
       return {
         actionID: action.id,
-        failureReason: error.message,
+        failureReason:
+          error instanceof IndexerError ? error.code : `Failed to prepare tx call data`,
       }
     }
   }
@@ -266,7 +271,8 @@ export class AllocationManager {
         deployment: allocation.subgraphDeployment.id.ipfsHash,
         activeAllocation: allocation.id,
       })
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE060,
         `Allocation failed. An active allocation already exists for deployment '${allocation.subgraphDeployment.id.ipfsHash}'`,
       )
     }
@@ -275,7 +281,8 @@ export class AllocationManager {
       logger.warn('Cannot allocate a negative amount of GRT', {
         amount: amount.toString(),
       })
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE061,
         `Invalid allocation amount provided (${amount.toString()}). Must use positive allocation amount`,
       )
     }
@@ -284,7 +291,9 @@ export class AllocationManager {
       logger.warn('Cannot allocate zero GRT', {
         amount: amount.toString(),
       })
-      throw new Error(
+
+      throw indexerError(
+        IndexerErrorCode.IE061,
         `Invalid allocation amount provided (${amount.toString()}). Must use nonzero allocation amount`,
       )
     }
@@ -305,13 +314,11 @@ export class AllocationManager {
       )
       throw indexerError(
         IndexerErrorCode.IE013,
-        new Error(
-          `Allocation of ${formatGRT(
-            amount,
-          )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-            freeStake,
-          )} GRT`,
-        ),
+        `Allocation of ${formatGRT(
+          amount,
+        )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
+          freeStake,
+        )} GRT`,
       )
     }
 
@@ -348,7 +355,10 @@ export class AllocationManager {
         allocation: allocationId,
         state,
       })
-      throw new Error(`Allocation '${allocationId}' already exists onchain`)
+      throw indexerError(
+        IndexerErrorCode.IE066,
+        `Allocation '${allocationId}' already exists onchain`,
+      )
     }
 
     logger.debug('Generating new allocation ID proof', {
@@ -383,7 +393,8 @@ export class AllocationManager {
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
     logger.info(`Confirming 'allocateFrom' transaction`)
     if (receipt === 'paused' || receipt === 'unauthorized') {
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE062,
         `Allocation not created. ${
           receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
         }`,
@@ -399,7 +410,7 @@ export class AllocationManager {
     )
 
     if (!createAllocationEventLogs) {
-      throw indexerError(IndexerErrorCode.IE014, new Error(`Allocation was never mined`))
+      throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
     }
 
     logger.info(`Successfully allocated to subgraph deployment`, {
@@ -540,15 +551,17 @@ export class AllocationManager {
       logger.warn('Allocation does not exist', {
         allocationID,
       })
-      throw new Error(
-        `Unallocate failed. An active allocation does not exist with id = '${allocationID}'`,
+      throw indexerError(
+        IndexerErrorCode.IE063,
+        `Unallocate failed: No active allocation with id '${allocationID}' found`,
       )
     }
 
     // Ensure allocation is old enough to close
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE064,
         `Allocation '${allocation.id}' cannot be closed until epoch ${currentEpoch.add(
           1,
         )}. (Allocations cannot be closed in the same epoch they were created)`,
@@ -566,7 +579,7 @@ export class AllocationManager {
     // in the contracts.
     const state = await this.contracts.staking.getAllocationState(allocation.id)
     if (state !== 1) {
-      throw new Error('Allocation has already been closed')
+      throw indexerError(IndexerErrorCode.IE065)
     }
 
     return {
@@ -585,7 +598,10 @@ export class AllocationManager {
     logger.info(`Confirming 'closeAllocation' transaction`)
 
     if (receipt === 'paused' || receipt === 'unauthorized') {
-      throw new Error(`Allocation '${allocationID}' could not be closed: ${receipt}`)
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Allocation '${allocationID}' could not be closed: ${receipt}`,
+      )
     }
 
     const closeAllocationEventLogs = this.findEvent(
@@ -599,7 +615,7 @@ export class AllocationManager {
     if (!closeAllocationEventLogs) {
       throw indexerError(
         IndexerErrorCode.IE015,
-        new Error(`Allocation close transaction was never successfully mined`),
+        `Allocation close transaction was never successfully mined`,
       )
     }
 
@@ -640,7 +656,8 @@ export class AllocationManager {
     const allocation = await this.networkMonitor.allocation(allocationID)
 
     if (!allocation) {
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE063,
         `Unallocate failed: No active allocation with id '${allocationID}' found`,
       )
     }
@@ -718,8 +735,9 @@ export class AllocationManager {
         this.logger.warn('Allocation does not exist', {
           allocationID,
         })
-        throw new Error(
-          `Unallocate failed. An active allocation does not exist with id = '${allocationID}'`,
+        throw indexerError(
+          IndexerErrorCode.IE063,
+          `Unallocate failed. No active allocation with id '${allocationID}' found`,
         )
       }
 
@@ -774,7 +792,8 @@ export class AllocationManager {
 
     if (!allocation) {
       logger.error(`No existing allocation`)
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE063,
         `Reallocation failed: No active allocation with id '${allocationID}' found`,
       )
     }
@@ -782,7 +801,8 @@ export class AllocationManager {
     // Ensure allocation is old enough to close
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE064,
         `Allocation '${allocation.id}' cannot be closed until epoch ${currentEpoch.add(
           1,
         )}. (Allocations cannot be closed in the same epoch they were created)`,
@@ -806,21 +826,24 @@ export class AllocationManager {
     const state = await this.contracts.staking.getAllocationState(allocation.id)
     if (state !== 1) {
       logger.warn(`Allocation has already been closed`)
-      throw new Error(`Allocation has already been closed`)
+      throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
     }
 
     if (amount.lt('0')) {
       logger.warn('Cannot reallocate a negative amount of GRT', {
         amount: amount.toString(),
       })
-      throw new Error('Cannot reallocate a negative amount of GRT')
+      throw indexerError(
+        IndexerErrorCode.IE061,
+        'Cannot reallocate a negative amount of GRT',
+      )
     }
 
     if (amount.eq('0')) {
       logger.warn('Cannot reallocate zero GRT, skipping this allocation', {
         amount: amount.toString(),
       })
-      throw new Error(`Cannot reallocate zero GRT`)
+      throw indexerError(IndexerErrorCode.IE061, `Cannot reallocate zero GRT`)
     }
 
     // Identify how many GRT the indexer has staked
@@ -834,15 +857,13 @@ export class AllocationManager {
     if (postCloseFreeStake.lt(amount)) {
       throw indexerError(
         IndexerErrorCode.IE013,
-        new Error(
-          `Unable to allocate ${formatGRT(
-            amount,
-          )} GRT: indexer only has a free stake amount of ${formatGRT(
-            freeStake,
-          )} GRT, plus ${formatGRT(
-            allocation.allocatedTokens,
-          )} GRT from the existing allocation`,
-        ),
+        `Unable to allocate ${formatGRT(
+          amount,
+        )} GRT: indexer only has a free stake amount of ${formatGRT(
+          freeStake,
+        )} GRT, plus ${formatGRT(
+          allocation.allocatedTokens,
+        )} GRT from the existing allocation`,
       )
     }
 
@@ -875,7 +896,7 @@ export class AllocationManager {
         allocation: newAllocationId,
         newAllocationState,
       })
-      throw new Error('AllocationID already exists')
+      throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
     }
 
     logger.debug('Generating new allocation ID proof', {
@@ -922,7 +943,10 @@ export class AllocationManager {
       allocationID,
     })
     if (receipt === 'paused' || receipt === 'unauthorized') {
-      throw new Error(`Allocation '${allocationID}' could not be closed: ${receipt}`)
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Allocation '${allocationID}' could not be closed: ${receipt}`,
+      )
     }
 
     const closeAllocationEventLogs = this.findEvent(
@@ -936,7 +960,7 @@ export class AllocationManager {
     if (!closeAllocationEventLogs) {
       throw indexerError(
         IndexerErrorCode.IE015,
-        new Error(`Allocation close transaction was never successfully mined`),
+        `Allocation close transaction was never successfully mined`,
       )
     }
 
@@ -951,7 +975,7 @@ export class AllocationManager {
     if (!createAllocationEventLogs) {
       throw indexerError(
         IndexerErrorCode.IE014,
-        new Error(`Allocation create transaction was never mined`),
+        `Allocation create transaction was never mined`,
       )
     }
 
@@ -994,7 +1018,8 @@ export class AllocationManager {
     const allocation = await this.networkMonitor.allocation(allocationID)
 
     if (!allocation) {
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE063,
         `Reallocation failed: No active allocation found on chain with id '${allocationID}' found`,
       )
     }

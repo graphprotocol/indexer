@@ -70,6 +70,15 @@ export enum IndexerErrorCode {
   IE057 = 'IE057',
   IE058 = 'IE058',
   IE059 = 'IE059',
+  IE060 = 'IE060',
+  IE061 = 'IE061',
+  IE062 = 'IE062',
+  IE063 = 'IE063',
+  IE064 = 'IE064',
+  IE065 = 'IE065',
+  IE066 = 'IE066',
+  IE067 = 'IE067',
+  IE068 = 'IE068',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -132,6 +141,15 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE057: 'Transaction reverted due to failing assertion in contract',
   IE058: 'Transaction failed because nonce has already been used',
   IE059: 'Failed to check latest operator ETH balance',
+  IE060: 'Failed to allocate: Already allocating to the subgraph deployment',
+  IE061: 'Failed to allocate: Invalid allocation amount provided.',
+  IE062: 'Did not receive tx receipt, not authorized or network paused.',
+  IE063: 'No active allocation with provided id found.',
+  IE064: 'Failed to unallocate: Allocations cannot be closed in this epoch.',
+  IE065: 'Failed to unallocate: Allocation has already been closed.',
+  IE066: 'Failed to allocate: allocation ID already exist on chain',
+  IE067: 'Failed to query POI for current epoch start block',
+  IE068: 'User-provided POI did not match with reference POI from graph-node.',
 }
 
 export type IndexerErrorCause = unknown
