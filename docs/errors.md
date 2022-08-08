@@ -608,7 +608,7 @@ See also: [#IE041](#ie041).
 
 **Summary**
 
-TODO
+Failed to collect query fees on chain.
 
 **Solution**
 
@@ -618,7 +618,7 @@ TODO
 
 **Summary**
 
-TODO
+Failed to queue transfers for resolving.
 
 **Solution**
 
@@ -628,7 +628,7 @@ TODO
 
 **Summary**
 
-TODO
+Failed to resolve transfer.
 
 **Solution**
 
@@ -638,7 +638,7 @@ TODO
 
 **Summary**
 
-TODO
+Failed to mark transfer as failed.
 
 **Solution**
 
@@ -648,7 +648,7 @@ TODO
 
 **Summary**
 
-TODO
+Failed to withdraw query fees for allocation.
 
 **Solution**
 
@@ -658,8 +658,200 @@ TODO
 
 **Summary**
 
-TODO
+Failed to clean up transfers for allocation.
 
 **Solution**
 
 TODO
+
+## IE050
+
+**Summary**
+
+Transaction reverted due to gas limit being hit.
+
+**Solution**
+
+TODO
+
+## IE051
+
+**Summary**
+
+Transaction reverted for unknown reason.
+
+**Solution**
+
+TODO
+
+## IE052
+
+**Summary**
+
+Transaction aborted: maximum configured gas price reached.
+
+**Solution**
+
+TODO
+
+## IE053
+
+**Summary**
+
+Failed to queue receipts for collecting.
+
+**Solution**
+
+TODO
+
+## IE054
+
+**Summary**
+
+Failed to collect receipts in exchange for query fee voucher.
+
+**Solution**
+
+TODO
+
+## IE055
+
+**Summary**
+
+Failed to redeem query fee voucher.
+
+**Solution**
+
+TODO
+
+## IE056
+
+**Summary**
+
+Failed to remember allocation for collecting receipts later.
+
+**Solution**
+
+TODO
+
+## IE057
+
+**Summary**
+
+Transaction reverted due to failing assertion in contract.
+
+**Solution**
+
+TODO
+
+## IE058
+
+**Summary**
+
+Transaction failed because nonce has already been used.
+
+**Solution**
+
+TODO
+
+## IE059
+
+**Summary**
+
+Failed to check latest operator ETH balance.
+
+**Solution**
+
+TODO
+
+## IE060
+
+**Summary**
+
+Failed to allocate: subgraph is already allocated to.
+
+**Solution**
+
+The Indexer already has an active allocation on this subgraph so a new one cannot be created. This error can typically be ignored.
+
+## IE061
+
+**Summary**
+
+Failed to allocate: Invalid allocation amount provided.
+
+**Solution**
+
+Allocation amounts must be non-zero, positive numbers. To resolve this issue ensure the corresponding indexer rule and/or action queue item have valid `allocationAmount` values.
+
+## IE062
+
+**Summary**
+
+Action was not executed succesfully: contracts paused or operator not authorized.
+
+**Solution**
+
+Cannot confirm `allocateFrom`, `closeAllocation`, or `closeAndAllocate` transactions completed successfully. Please ensure the indexer operator is authorized, calls to the network contracts from your indexer-agent machine can be made, and the network is not paused.
+
+## IE063
+
+**Summary**
+
+Failed to unallocate: No active allocation with provided id found.
+
+**Solution**
+
+The Indexer must have an active allocation to perform an unallocate action on that subgraph deployment. Please ensure the correct allocation id for an existing active allocation is provided.
+
+## IE064
+
+**Summary**
+
+Failed to unallocate: Allocations cannot be closed during this epoch as it was created in this epoch.
+
+**Solution**
+
+An allocation cannot be closed within the same epoch that it was created in. Wait until the next epoch and the error should resolve and the unallocate action will be executed.
+
+## IE065
+
+**Summary**
+
+Failed to unallocate: Allocation has already been closed.
+
+**Solution**
+
+Check the allocation ID and network sync status. If the allocation ID is correct and allocation is closed, then there's nothing to be done. 
+
+## IE066
+
+**Summary**
+
+Allocation not created: Allocation ID already exist.
+
+**Solution**
+
+Duplicate allocation ids are not permitted. Check the network subgraph sync status, if it is caught up and an allocation still needs to be opened, agent will create a new unique allocation ID and try again.
+
+## IE067
+
+**Summary**
+
+Failed to resolve POI: POI not available for deployment at current epoch start block.
+
+**Solution**
+
+This error typically indicates a subgraph deployment that is too far behind the chain head to resolve a valid POI for closing the allocation. To succesfully resolve the POI and close the allocation you'll need to wait for the index node to sync the deployment enough to generate a POI for the current epoch start block. If you do not want to wait to sync you may choose to forfeit indexing rewards for the allocation by force closing it with a 0 POI by creating an unallocate or reallocate action item: `graph indexer actions queue unallocate/reallocate <deployment-id> <allocation-id> 0 true`.
+
+## IE068
+
+**Summary**
+
+Failed to resolve POI: User provided POI does not match reference fetched from the graph-node.
+
+**Solution**
+
+Check sync and health status of the subgraph to access the issue. If needed, provide a POI or use `--force` to bypass POI checks. 
+
+

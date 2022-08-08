@@ -332,13 +332,16 @@ async function resolvePOI(
             const deploymentStatus = await indexingStatusResolver.indexingStatus([
               allocation.subgraphDeployment.id,
             ])
-            throw new Error(`POI not available for deployment at current epoch start block. ß
-            currentEpochStartBlock: ${epochStartBlockNumber}
-            deploymentStatus: ${
-              deploymentStatus.length > 0
-                ? JSON.stringify(deploymentStatus)
-                : 'not deployed'
-            }`)
+            throw indexerError(
+              IndexerErrorCode.IE067,
+              `POI not available for deployment at current epoch start block.
+              currentEpochStartBlock: ${epochStartBlockNumber}
+              deploymentStatus: ${
+                deploymentStatus.length > 0
+                  ? JSON.stringify(deploymentStatus)
+                  : 'not deployed'
+              }`,
+            )
           } else {
             return poi
           }
@@ -348,9 +351,12 @@ async function resolvePOI(
           } else if (poi !== undefined && generatedPOI == undefined) {
             return poi
           }
-          throw new Error(`User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
+          throw indexerError(
+            IndexerErrorCode.IE068,
+            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
             POI: ${poi}, 
-            referencePOI: ${generatedPOI}`)
+            referencePOI: ${generatedPOI}`,
+          )
       }
     }
   }
@@ -431,7 +437,8 @@ export default {
         deployment: allocation.subgraphDeployment.id.ipfsHash,
         activeAllocation: allocation.id,
       })
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE060,
         `Allocation failed. An active allocation already exists for deployment '${allocation.subgraphDeployment.id.ipfsHash}'`,
       )
     }
@@ -440,7 +447,8 @@ export default {
       logger.warn('Cannot allocate a negative amount of GRT', {
         amount: formatGRT(allocationAmount),
       })
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE061,
         `Invalid allocation amount provided (${amount.toString()}). Must use positive allocation amount`,
       )
     }
@@ -449,7 +457,8 @@ export default {
       logger.warn('Cannot allocate zero GRT', {
         amount: allocationAmount.toString(),
       })
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE061,
         `Invalid allocation amount provided (${allocationAmount.toString()}). Must use nonzero allocation amount`,
       )
     }
@@ -471,13 +480,11 @@ export default {
         )
         throw indexerError(
           IndexerErrorCode.IE013,
-          new Error(
-            `Allocation of ${formatGRT(
-              allocationAmount,
-            )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-              freeStake,
-            )} GRT`,
-          ),
+          `Allocation of ${formatGRT(
+            allocationAmount,
+          )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT`,
         )
       }
 
@@ -516,7 +523,10 @@ export default {
           allocation: allocationId,
           state,
         })
-        throw new Error(`Allocation '${allocationId}' already exists onchain`)
+        throw indexerError(
+          IndexerErrorCode.IE066,
+          `Allocation '${allocationId}' already exists onchain`,
+        )
       }
 
       logger.debug('Generating new allocation ID proof', {
@@ -563,7 +573,8 @@ export default {
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
-        throw new Error(
+        throw indexerError(
+          IndexerErrorCode.IE062,
           `Allocation not created. ${
             receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
           }`,
@@ -579,10 +590,7 @@ export default {
           ),
         )
       if (!event) {
-        throw indexerError(
-          IndexerErrorCode.IE014,
-          new Error(`Allocation was never mined`),
-        )
+        throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
       const createEvent = contracts.staking.interface.decodeEventLog(
@@ -665,7 +673,8 @@ export default {
       // Ensure allocation is old enough to close
       const currentEpoch = await contracts.epochManager.currentEpoch()
       if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
-        throw new Error(
+        throw indexerError(
+          IndexerErrorCode.IE064,
           `Allocation '${
             allocationData.id
           }' cannot be closed until epoch ${currentEpoch.add(
@@ -692,7 +701,7 @@ export default {
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationData.id)
       if (state !== 1) {
-        throw new Error('Allocation has already been closed')
+        throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
       }
 
       logger.debug('Sending closeAllocation transaction')
@@ -708,7 +717,8 @@ export default {
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
-        throw new Error(
+        throw indexerError(
+          IndexerErrorCode.IE062,
           `Allocation '${allocationData.id}' could not be closed: ${receipt}`,
         )
       }
@@ -725,7 +735,7 @@ export default {
       if (!closeEvent) {
         throw indexerError(
           IndexerErrorCode.IE014,
-          new Error(`Allocation close transaction was never successfully mined`),
+          `Allocation close transaction was never successfully mined`,
         )
       }
       const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
@@ -849,8 +859,8 @@ export default {
     })
 
     if (!allocationData) {
-      logger.error(`No existing `)
-      throw new Error(
+      throw indexerError(
+        IndexerErrorCode.IE063,
         `Reallocation failed: No active allocation with id '${allocation}' found`,
       )
     }
@@ -859,7 +869,8 @@ export default {
       // Ensure allocation is old enough to close
       const currentEpoch = await contracts.epochManager.currentEpoch()
       if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
-        throw new Error(
+        throw indexerError(
+          IndexerErrorCode.IE064,
           `Allocation '${
             allocationData.id
           }' cannot be closed until epoch ${currentEpoch.add(
@@ -892,21 +903,24 @@ export default {
       const state = await contracts.staking.getAllocationState(allocationData.id)
       if (state !== 1) {
         logger.warn(`Allocation has already been closed`)
-        throw new Error(`Allocation has already been closed`)
+        throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
       }
 
       if (allocationAmount.lt('0')) {
         logger.warn('Cannot reallocate a negative amount of GRT', {
           amount: allocationAmount.toString(),
         })
-        throw new Error('Cannot reallocate a negative amount of GRT')
+        throw indexerError(
+          IndexerErrorCode.IE061,
+          'Cannot reallocate a negative amount of GRT',
+        )
       }
 
       if (allocationAmount.eq('0')) {
         logger.warn('Cannot reallocate zero GRT, skipping this allocation', {
           amount: allocationAmount.toString(),
         })
-        throw new Error(`Cannot reallocate zero GRT`)
+        throw indexerError(IndexerErrorCode.IE061, `Cannot reallocate zero GRT`)
       }
 
       logger.info(`Reallocate to subgraph deployment`, {
@@ -926,15 +940,13 @@ export default {
       if (postCloseFreeStake.lt(allocationAmount)) {
         throw indexerError(
           IndexerErrorCode.IE013,
-          new Error(
-            `Unable to allocate ${formatGRT(
-              allocationAmount,
-            )} GRT: indexer only has a free stake amount of ${formatGRT(
-              freeStake,
-            )} GRT, plus ${formatGRT(
-              allocationData.allocatedTokens,
-            )} GRT from the existing allocation`,
-          ),
+          `Unable to allocate ${formatGRT(
+            allocationAmount,
+          )} GRT: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT, plus ${formatGRT(
+            allocationData.allocatedTokens,
+          )} GRT from the existing allocation`,
         )
       }
 
@@ -967,7 +979,7 @@ export default {
           allocation: newAllocationId,
           newAllocationState,
         })
-        throw new Error('AllocationID already exists')
+        throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
       }
 
       logger.debug('Generating new allocation ID proof', {
@@ -1020,7 +1032,10 @@ export default {
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
-        throw new Error(`Allocation '${newAllocationId}' could not be closed: ${receipt}`)
+        throw indexerError(
+          IndexerErrorCode.IE062,
+          `Allocation '${newAllocationId}' could not be closed: ${receipt}`,
+        )
       }
 
       const events = receipt.events || receipt.logs
@@ -1032,10 +1047,7 @@ export default {
           ),
         )
       if (!createEvent) {
-        throw indexerError(
-          IndexerErrorCode.IE014,
-          new Error(`Allocation was never mined`),
-        )
+        throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
       const createAllocationEventLogs = contracts.staking.interface.decodeEventLog(
@@ -1054,7 +1066,7 @@ export default {
       if (!closeEvent) {
         throw indexerError(
           IndexerErrorCode.IE014,
-          new Error(`Allocation close transaction was never successfully mined`),
+          `Allocation close transaction was never successfully mined`,
         )
       }
       const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
