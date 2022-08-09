@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.2] - 2022-08-09
+### Added
+- Migration: update Actions.failureReason column size
+
 ## [0.20.1] - 2022-08-04
 ### Added
 - Provide allocation action batching controls
@@ -390,7 +394,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
