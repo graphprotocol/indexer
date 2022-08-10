@@ -94,13 +94,25 @@ option can be used.
 ### Registration / Funding (GRT)
 
 In order to participate in the testnet, you'll need Goerli ETH and GRT.
-To be eligable for testnet GRT, you'll need to
+To be eligible for testnet GRT, you'll need to
 
 1. join [The Graph Discord](https://thegraph.com/discord/),
 2. get the `@testnetindexer` role in the `#roles` channel,
 3. use the `#testnet-goerli-faucet` channel to obtain testnet GRT.
 
 ### Approving And Staking
+
+#### Via Graph Explorer
+
+The Graph Explorer provides an easy way to approve and stake your GRT as an indexer via a web GUI. 
+
+1. Navigate to [the testnet explorer](https://testnet.thegraph.com/)
+2. Login with Metamask and select the `Goerli` network
+3. Navigate to your profile (click your address/avatar at top right)
+4. Select the `Indexing` tab and hit the `Stake` button
+5. Follow the directions on the staking screen to stake the desired amount 
+
+### Via the Contracts CLI
 
 To approve your testnet GRT to be spent through the staking contract, first approve
 it in the GRT contract:
@@ -120,27 +132,24 @@ npm run compile
 Afterwards, stake this amount:
 
 ```bash
-git clone https://github.com/graphprotocol/contracts
-cd contracts
-npm install # if you haven't done this before
-
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-goerli-node> \
   contracts staking stake --amount <grt>
 ```
 
 ### Setting An Operator
 
-To set an operator for your testnet indexer, you can use the contracts CLI as follows.
-This is similar to using Remix, except it's easier.
+#### Via Graph Explorer
+
+1. Navigate to [the testnet explorer](https://testnet.thegraph.com/)
+2. Login with Metamask and select the `Goerli` network
+3. Navigate to your settings page (click profile dropdown at top right and select ⚙️ `Settings`)
+4. Navigate to the `Operators` settings (click `Operators` button)
+5. Click `+` to add your operator wallet address
+6. Follow instructions to submit transaction
+
+### Via the Contracts CLI
 
 ```bash
-git clone https://github.com/graphprotocol/contracts
-cd contracts
-
- # If you haven't done this before:
-npm install
-npm run compile
-
 ./cli/cli.ts -m <indexer-mnemonic> -p <ethereum-goerli-node> \
   contracts staking setOperator --operator <operator-address> --allowed true
 ```
