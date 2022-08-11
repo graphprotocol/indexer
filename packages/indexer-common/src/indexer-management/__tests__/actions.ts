@@ -28,6 +28,7 @@ import {
   IndexingStatusResolver,
   NetworkSubgraph,
   QueryFeeModels,
+  Sort,
   TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
@@ -94,7 +95,7 @@ const CANCEL_ACTIONS_MUTATION = gql`
 `
 
 const ACTIONS_QUERY = gql`
-  query actions($filter: ActionFilter!) {
+  query actions($filter: ActionFilter!, $order: ActionOrderBy) {
     actions(filter: $filter) {
       id
       type
@@ -334,7 +335,7 @@ describe('Actions', () => {
     ).resolves.toHaveProperty('data.actions', [expected])
   })
 
-  test('Queue many actions and retrieve all of a certain status', async () => {
+  test('Queue many actions and retrieve all of a certain status with certain ordering', async () => {
     const queuedAllocateAction1 = { ...queuedAllocateAction }
     const queuedAllocateAction2 = { ...queuedAllocateAction }
     const queuedAllocateAction3 = { ...queuedAllocateAction }
@@ -365,11 +366,62 @@ describe('Actions', () => {
             type: ActionType.ALLOCATE,
             source: 'indexerAgent',
           },
+          order: {
+            id: Sort.desc,
+          },
         })
         .toPromise(),
     ).resolves.toHaveProperty(
       'data.actions',
       expecteds.sort((a, b) => (a.id > b.id ? -1 : 1)),
+    )
+  })
+
+  test('Queue many actions and retrieve all of a certain status with invalid ordering', async () => {
+    const queuedAllocateAction1 = { ...queuedAllocateAction }
+    const queuedAllocateAction2 = { ...queuedAllocateAction }
+    const queuedAllocateAction3 = { ...queuedAllocateAction }
+    queuedAllocateAction1.deploymentID = subgraphDeployment2
+    queuedAllocateAction2.deploymentID = subgraphDeployment3
+    queuedAllocateAction3.deploymentID = subgraphDeployment1
+
+    const inputActions = [
+      queuedAllocateAction,
+      queuedAllocateAction1,
+      queuedAllocateAction2,
+    ]
+    const expecteds = await Promise.all(
+      inputActions.map(async (action, key) => {
+        return await actionInputToExpected(action, key + 1)
+      }),
+    )
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', expecteds)
+
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: {
+            status: ActionStatus.QUEUED,
+            type: ActionType.ALLOCATE,
+            source: 'indexerAgent',
+          },
+          order: {
+            adonut: Sort.desc,
+          },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            'Variable "$order" got invalid value { adonut: "desc" }; Field "adonut" is not defined by type "ActionOrderBy". Did you mean "amount"?',
+          ),
+        ],
+      }),
     )
   })
 
@@ -415,7 +467,7 @@ describe('Actions', () => {
           },
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.actions', expectedCancels)
+    ).resolves.toHaveProperty('data.actions', expectedCancels.reverse())
   })
 
   test('Approve action in queue', async () => {

@@ -1,6 +1,7 @@
 import {
   Action,
   ActionFilter,
+  ActionOrderBy,
   ActionStatus,
   AllocationManagementMode,
   AllocationStatus,
@@ -9,7 +10,7 @@ import {
   NetworkMonitor,
 } from '@graphprotocol/indexer-common'
 import { AllocationManager } from './allocations'
-import { Transaction } from 'sequelize'
+import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 
 export class ActionManager {
@@ -151,11 +152,14 @@ export class ActionManager {
     return updatedActions
   }
 
-  async fetchActions(filter: ActionFilter): Promise<Action[]> {
+  async fetchActions(filter: ActionFilter, order?: ActionOrderBy): Promise<Action[]> {
     const filterObject = JSON.parse(JSON.stringify(filter))
+    const orderObject: Order = order
+      ? Object.keys(order).map((e, i) => [e, Object.values(order)[i].toUpperCase()])
+      : [['id', 'DESC']]
     const queryResult = await this.models.Action.findAll({
       where: filterObject,
-      order: [['updatedAt', 'DESC']],
+      order: orderObject,
     })
     return queryResult
   }

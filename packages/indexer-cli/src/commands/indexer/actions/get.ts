@@ -1,7 +1,7 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
 
-import { Action, ActionResult } from '@graphprotocol/indexer-common'
+import { Action, ActionResult, Sort, ActionOrderBy } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, printObjectOrArray } from '../../../command-helpers'
@@ -19,6 +19,8 @@ ${chalk.dim('Options:')}
       --status  queued|approved|pending|success|failed|canceled     Filter by status 
       --source <source>                                             Fetch only actions queued by a specific source
       --reason <reason>                                             Fetch only actions queued for a specific reason
+      --orderBy id|deploymentID|amount|priority|...|updatedAt       Order actions by a specific field (default: id)
+      --orderDirection asc|desc                                     Order direction (default: desc)
   -o, --output table|json|yaml                                      Choose the output format: table (default), JSON, or YAML
 `
 
@@ -31,9 +33,11 @@ module.exports = {
 
     const inputSpinner = toolbox.print.spin('Processing inputs')
 
-    const { type, status, source, reason, h, help, o, output } = parameters.options
+    const { type, status, source, reason, orderBy, orderDirection, h, help, o, output } =
+      parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
+    let actionsOrder = undefined
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -75,6 +79,11 @@ module.exports = {
         }
       }
 
+      if (orderBy) {
+        actionsOrder = {
+          [orderBy as keyof ActionOrderBy]: (orderDirection ?? Sort.desc) as Sort,
+        }
+      }
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
       inputSpinner.fail(error.toString())
@@ -90,20 +99,25 @@ module.exports = {
       const client = await createIndexerManagementClient({ url: config.api })
 
       //TODO: default to filtering out 'CANCELED' actions
+      // Default ordering is [id, asc] if actionsOrder is empty
       let actions: ActionResult[] = []
       if (action) {
         if (action === 'all') {
-          actions = await fetchActions(client, {})
+          actions = await fetchActions(client, {}, actionsOrder)
         } else {
           actions = [await fetchAction(client, +action)]
         }
       } else {
-        actions = await fetchActions(client, {
-          type,
-          status,
-          source,
-          reason,
-        })
+        actions = await fetchActions(
+          client,
+          {
+            type,
+            status,
+            source,
+            reason,
+          },
+          actionsOrder,
+        )
       }
       actionSpinner.succeed('Actions query returned')
 

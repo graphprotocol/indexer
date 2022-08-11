@@ -7,6 +7,11 @@ export enum AllocationManagementMode {
   OVERSIGHT = 'oversight',
 }
 
+export enum Sort {
+  asc = 'asc',
+  desc = 'desc',
+}
+
 export interface BlockPointer {
   number: number
   hash: string
