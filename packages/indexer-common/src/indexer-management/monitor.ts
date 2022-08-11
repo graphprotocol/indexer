@@ -466,6 +466,88 @@ export class NetworkMonitor {
     }
   }
 
+  async subgraphDeployments(): Promise<SubgraphDeployment[]> {
+    const deployments = []
+    const queryProgress = {
+      lastId: '',
+      first: 10,
+      fetched: 0,
+      exhausted: false,
+      retriesRemaining: 10,
+    }
+    this.logger.debug(`Query subgraph deployments in batches of ${queryProgress.first}`)
+
+    while (!queryProgress.exhausted) {
+      this.logger.trace(`Query subgraph deployments`, {
+        queryProgress: queryProgress,
+      })
+      try {
+        const result = await this.networkSubgraph.query(
+          gql`
+            query subgraphDeployments($first: Int!, $lastId: String!) {
+              subgraphDeployments(
+                where: { id_gt: $lastId }
+                orderBy: id
+                orderDirection: asc
+                first: $first
+              ) {
+                id
+                ipfsHash
+                deniedAt
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
+                indexerAllocations {
+                  indexer {
+                    id
+                  }
+                }
+              }
+            }
+          `,
+          { first: queryProgress.first, lastId: queryProgress.lastId },
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+
+        const networkDeployments = result.data.subgraphDeployments
+
+        // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
+        if (networkDeployments.length == 0 && queryProgress.fetched == 0) {
+          this.logger.warn('Failed to query subgraph deployments: no deployments found', {
+            retriesRemaining: queryProgress.retriesRemaining,
+          })
+          throw new Error('No subgraph deployments returned')
+        }
+
+        queryProgress.exhausted = networkDeployments.length < queryProgress.first
+        queryProgress.fetched += networkDeployments.length
+        queryProgress.lastId = networkDeployments[networkDeployments.length - 1].id
+        deployments.push(...networkDeployments.map(parseGraphQLSubgraphDeployment))
+      } catch (err) {
+        queryProgress.retriesRemaining--
+        this.logger.warn(`Failed to query subgraph deployments`, {
+          retriesRemaining: queryProgress.retriesRemaining,
+          error: err,
+        })
+        if (queryProgress.retriesRemaining <= 0) {
+          const error = indexerError(IndexerErrorCode.IE009, err.message)
+          this.logger.error(`Failed to query subgraph deployments worth indexing`, {
+            error,
+          })
+          throw error
+        }
+      }
+    }
+
+    this.logger.trace(`Fetched subgraph deployments published to network`, {
+      publishedSubgraphs: queryProgress.fetched,
+    })
+    return deployments
+  }
+
   async resolvePOI(
     allocation: Allocation,
     poi: string | undefined,

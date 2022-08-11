@@ -15,13 +15,9 @@ import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
-  INDEXING_RULE_GLOBAL,
-  IndexingDecisionBasis,
-  IndexingRuleAttributes,
   NetworkSubgraph,
   parseGraphQLAllocation,
   parseGraphQLEpochs,
-  SubgraphIdentifierType,
   TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { BigNumber, providers, utils, Wallet } from 'ethers'
@@ -158,188 +154,7 @@ export class Network {
     )
   }
 
-  async deploymentsWorthAllocatingTowards(
-    rules: IndexingRuleAttributes[],
-  ): Promise<SubgraphDeploymentID[]> {
-    const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
-
-    const deployments = []
-    const queryProgress = {
-      lastId: '',
-      first: 10,
-      fetched: 0,
-      exhausted: false,
-      retriesRemaining: 10,
-    }
-    this.logger.debug(`Query subgraph deployments in batches of ${queryProgress.first}`)
-
-    while (!queryProgress.exhausted) {
-      this.logger.trace(`Query subgraph deployments`, {
-        queryProgress: queryProgress,
-      })
-      try {
-        const result = await this.networkSubgraph.query(
-          gql`
-            query subgraphDeployments($first: Int!, $lastId: String!) {
-              subgraphDeployments(
-                where: { id_gt: $lastId }
-                orderBy: id
-                orderDirection: asc
-                first: $first
-              ) {
-                id
-                ipfsHash
-                deniedAt
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
-                indexerAllocations {
-                  indexer {
-                    id
-                  }
-                }
-              }
-            }
-          `,
-          { first: queryProgress.first, lastId: queryProgress.lastId },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-
-        const results = result.data.subgraphDeployments
-
-        // In the case of a fresh graph network there will be no published subgraphs, handle gracefully
-        if (results.length == 0 && queryProgress.fetched == 0) {
-          this.logger.warn('Failed to query subgraph deployments: no deployments found', {
-            retriesRemaining: queryProgress.retriesRemaining,
-          })
-          throw new Error('No subgraph deployments returned')
-        }
-
-        queryProgress.exhausted = results.length < queryProgress.first
-        queryProgress.fetched += results.length
-        queryProgress.lastId = results[results.length - 1].id
-
-        // TODO: Use isDeploymentWorthAllocatingTowards()
-        deployments.push(
-          ...results
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .filter((deployment: any) => {
-              const deploymentRule =
-                rules
-                  .filter(
-                    (rule) => rule.identifierType == SubgraphIdentifierType.DEPLOYMENT,
-                  )
-                  .find(
-                    (rule) =>
-                      new SubgraphDeploymentID(rule.identifier).toString() ===
-                      deployment.id,
-                  ) || globalRule
-              // The deployment is not eligible for deployment if it doesn't have an allocation amount
-              if (!deploymentRule?.allocationAmount) {
-                this.logger.debug(
-                  `Could not find matching rule with non-zero 'allocationAmount':`,
-                  {
-                    deployment: deployment.display,
-                  },
-                )
-                return false
-              }
-
-              if (deploymentRule) {
-                const stakedTokens = BigNumber.from(deployment.stakedTokens)
-                const signalledTokens = BigNumber.from(deployment.signalledTokens)
-                const avgQueryFees = BigNumber.from(deployment.queryFeesAmount).div(
-                  BigNumber.from(Math.max(1, deployment.indexerAllocations.length)),
-                )
-
-                this.logger.trace('Deciding whether to allocate and index', {
-                  deployment: {
-                    id: deployment.id.display,
-                    deniedAt: deployment.deniedAt,
-                    stakedTokens: stakedTokens.toString(),
-                    signalledTokens: signalledTokens.toString(),
-                    avgQueryFees: avgQueryFees.toString(),
-                  },
-                  indexingRule: {
-                    decisionBasis: deploymentRule.decisionBasis,
-                    deployment: deploymentRule.identifier,
-                    minStake: deploymentRule.minStake
-                      ? BigNumber.from(deploymentRule.minStake).toString()
-                      : null,
-                    minSignal: deploymentRule.minSignal
-                      ? BigNumber.from(deploymentRule.minSignal).toString()
-                      : null,
-                    maxSignal: deploymentRule.maxSignal
-                      ? BigNumber.from(deploymentRule.maxSignal).toString()
-                      : null,
-                    minAverageQueryFees: deploymentRule.minAverageQueryFees
-                      ? BigNumber.from(deploymentRule.minAverageQueryFees).toString()
-                      : null,
-                    requireSupported: deploymentRule.requireSupported,
-                  },
-                })
-
-                // Reject unsupported subgraph by default
-                if (deployment.deniedAt > 0 && deploymentRule.requireSupported) {
-                  return false
-                }
-
-                // Skip the indexing rules checks if the decision basis is 'always', 'never', or 'offchain'
-                if (deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS) {
-                  return true
-                } else if (
-                  deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER ||
-                  deploymentRule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN
-                ) {
-                  return false
-                }
-
-                return (
-                  // stake >= minStake?
-                  (deploymentRule.minStake &&
-                    stakedTokens.gte(deploymentRule.minStake)) ||
-                  // signal >= minSignal && signal <= maxSignal?
-                  (deploymentRule.minSignal &&
-                    signalledTokens.gte(deploymentRule.minSignal)) ||
-                  (deploymentRule.maxSignal &&
-                    signalledTokens.lte(deploymentRule.maxSignal)) ||
-                  // avgQueryFees >= minAvgQueryFees?
-                  (deploymentRule.minAverageQueryFees &&
-                    avgQueryFees.gte(deploymentRule.minAverageQueryFees))
-                )
-              } else {
-                return false
-              }
-            })
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map((deployment: any) => new SubgraphDeploymentID(deployment.id)),
-        )
-      } catch (err) {
-        queryProgress.retriesRemaining--
-        this.logger.warn(`Failed to query subgraph deployments`, {
-          retriesRemaining: queryProgress.retriesRemaining,
-          error: err,
-        })
-        if (queryProgress.retriesRemaining <= 0) {
-          const error = indexerError(IndexerErrorCode.IE009, err.message)
-          this.logger.error(`Failed to query subgraph deployments worth indexing`, {
-            error,
-          })
-          throw error
-        }
-      }
-    }
-
-    this.logger.trace(`Fetched subgraph deployments published to network`, {
-      publishedSubgraphs: queryProgress.fetched,
-      worthIndexing: deployments.length,
-    })
-    return deployments
-  }
-
+  // TODO: Move to NetworkMonitor
   async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
     try {
       const result = await this.networkSubgraph.query(
@@ -436,6 +251,7 @@ export class Network {
     }
   }
 
+  // TODO: Move to NetworkMonitor
   async disputableAllocations(
     currentEpoch: BigNumber,
     deployments: SubgraphDeploymentID[],
@@ -785,6 +601,7 @@ export class Network {
   }
 }
 
+// TODO: Move to NetworkMonitor
 async function monitorNetworkPauses(
   logger: Logger,
   contracts: NetworkContracts,
@@ -826,6 +643,7 @@ async function monitorNetworkPauses(
     })
 }
 
+// TODO: Move to NetworkMonitor
 async function monitorIsOperator(
   logger: Logger,
   contracts: NetworkContracts,

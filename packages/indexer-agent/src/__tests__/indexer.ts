@@ -8,6 +8,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  AllocationManagementMode,
   createIndexerManagementClient,
   defineIndexerManagementModels,
   IndexerManagementClient,
@@ -166,6 +167,7 @@ const setup = async () => {
     ['test'],
     parseGRT('1000'),
     address,
+    AllocationManagementMode.AUTO,
   )
 }
 

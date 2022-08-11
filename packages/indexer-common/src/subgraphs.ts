@@ -135,11 +135,70 @@ export async function processIdentifier(
   ]
 }
 
+// enum RuleType {
+//   GLOBAL,
+//   DEPLOYMENT,
+//   SUBGRAPH,
+// }
+
+enum ActivationCriteria {
+  NA = 'na',
+  NONE = 'none',
+  ALWAYS = 'always',
+  SIGNAL_THRESHOLD = 'signal_threshold',
+  MIN_STAKE = 'min_stake',
+  MIN_AVG_QUERY_FEES = 'min_avg_query_fees',
+  UNSUPPORTED = 'unsupported',
+  NEVER = 'never',
+  OFFCHAIN = 'offchain',
+  ZERO_ALLOCATION_AMOUNT = 'zero_allocation_amount',
+}
+
+interface RuleMatch {
+  rule: IndexingRuleAttributes | undefined
+  activationCriteria: ActivationCriteria
+}
+
+export class AllocationDecision {
+  declare deployment: SubgraphDeploymentID
+  declare toAllocate: boolean
+  declare ruleMatch: RuleMatch
+
+  constructor(
+    deployment: SubgraphDeploymentID,
+    matchingRule: IndexingRuleAttributes | undefined,
+    toAllocate: boolean,
+    ruleActivator: ActivationCriteria,
+  ) {
+    this.deployment = deployment
+    this.toAllocate = toAllocate
+    this.ruleMatch = {
+      rule: matchingRule,
+      activationCriteria: ruleActivator,
+    }
+  }
+  public reasonString(): string {
+    return `${this.ruleMatch.rule?.identifierType ?? 'none'}:${
+      this.ruleMatch.activationCriteria
+    }`
+  }
+}
+
+export function evaluateDeployments(
+  logger: Logger,
+  networkDeployments: SubgraphDeployment[],
+  rules: IndexingRuleAttributes[],
+): AllocationDecision[] {
+  return networkDeployments.map((deployment) =>
+    isDeploymentWorthAllocatingTowards(logger, deployment, rules),
+  )
+}
+
 export function isDeploymentWorthAllocatingTowards(
   logger: Logger,
   deployment: SubgraphDeployment,
   rules: IndexingRuleAttributes[],
-): boolean {
+): AllocationDecision {
   const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
   const deploymentRule =
     rules
@@ -148,77 +207,101 @@ export function isDeploymentWorthAllocatingTowards(
         (rule) =>
           new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
       ) || globalRule
+
   // The deployment is not eligible for deployment if it doesn't have an allocation amount
   if (!deploymentRule?.allocationAmount) {
     logger.debug(`Could not find matching rule with non-zero 'allocationAmount':`, {
       deployment: deployment.id.display,
     })
-    return false
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      false,
+      ActivationCriteria.ZERO_ALLOCATION_AMOUNT,
+    )
   }
 
-  if (deploymentRule) {
-    const stakedTokens = BigNumber.from(deployment.stakedTokens)
-    const signalledTokens = BigNumber.from(deployment.signalledTokens)
-    const avgQueryFees = BigNumber.from(deployment.queryFeesAmount).div(
-      BigNumber.from(Math.max(1, deployment.activeAllocations)),
+  // Reject unsupported subgraphs early
+  if (deployment.deniedAt > 0 && deploymentRule.requireSupported) {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      false,
+      ActivationCriteria.UNSUPPORTED,
     )
+  }
 
-    logger.trace('Deciding whether to allocate and index', {
-      deployment: {
-        id: deployment.id.display,
-        deniedAt: deployment.deniedAt,
-        stakedTokens: stakedTokens.toString(),
-        signalledTokens: signalledTokens.toString(),
-        avgQueryFees: avgQueryFees.toString(),
-      },
-      indexingRule: {
-        decisionBasis: deploymentRule.decisionBasis,
-        deployment: deploymentRule.identifier,
-        minStake: deploymentRule.minStake
-          ? BigNumber.from(deploymentRule.minStake).toString()
-          : null,
-        minSignal: deploymentRule.minSignal
-          ? BigNumber.from(deploymentRule.minSignal).toString()
-          : null,
-        maxSignal: deploymentRule.maxSignal
-          ? BigNumber.from(deploymentRule.maxSignal).toString()
-          : null,
-        minAverageQueryFees: deploymentRule.minAverageQueryFees
-          ? BigNumber.from(deploymentRule.minAverageQueryFees).toString()
-          : null,
-        requireSupported: deploymentRule.requireSupported,
-      },
-    })
+  switch (deploymentRule?.decisionBasis) {
+    case undefined:
+      return new AllocationDecision(
+        deployment.id,
+        undefined,
+        false,
+        ActivationCriteria.NA,
+      )
+    case IndexingDecisionBasis.ALWAYS:
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        true,
+        ActivationCriteria.ALWAYS,
+      )
+    case IndexingDecisionBasis.NEVER:
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        false,
+        ActivationCriteria.NEVER,
+      )
+    case IndexingDecisionBasis.OFFCHAIN:
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        false,
+        ActivationCriteria.OFFCHAIN,
+      )
+    case IndexingDecisionBasis.RULES: {
+      const stakedTokens = BigNumber.from(deployment.stakedTokens)
+      const signalledTokens = BigNumber.from(deployment.signalledTokens)
+      const avgQueryFees = BigNumber.from(deployment.queryFeesAmount)
 
-    // Reject unsupported subgraph by default
-    if (deployment.deniedAt > 0 && deploymentRule.requireSupported) {
-      return false
+      if (deploymentRule.minStake && stakedTokens.gte(deploymentRule.minStake)) {
+        return new AllocationDecision(
+          deployment.id,
+          deploymentRule,
+          true,
+          ActivationCriteria.MIN_STAKE,
+        )
+      } else if (
+        deploymentRule.minSignal &&
+        signalledTokens.gte(deploymentRule.minSignal) &&
+        deploymentRule.maxSignal &&
+        signalledTokens.lte(deploymentRule.maxSignal)
+      ) {
+        return new AllocationDecision(
+          deployment.id,
+          deploymentRule,
+          true,
+          ActivationCriteria.SIGNAL_THRESHOLD,
+        )
+      } else if (
+        deploymentRule.minAverageQueryFees &&
+        avgQueryFees.gte(deploymentRule.minAverageQueryFees)
+      ) {
+        return new AllocationDecision(
+          deployment.id,
+          deploymentRule,
+          true,
+          ActivationCriteria.MIN_AVG_QUERY_FEES,
+        )
+      } else {
+        return new AllocationDecision(
+          deployment.id,
+          deploymentRule,
+          false,
+          ActivationCriteria.NONE,
+        )
+      }
     }
-
-    // Skip the indexing rules checks if the decision basis is 'always', 'never', or 'offchain'
-    if (deploymentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS) {
-      return true
-    } else if (
-      deploymentRule?.decisionBasis === IndexingDecisionBasis.NEVER ||
-      deploymentRule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN
-    ) {
-      return false
-    }
-
-    return (
-      // stake >= minStake?
-      ((deploymentRule.minStake &&
-        stakedTokens.gte(deploymentRule.minStake)) as boolean) ||
-      // signal >= minSignal && signal <= maxSignal?
-      ((deploymentRule.minSignal &&
-        signalledTokens.gte(deploymentRule.minSignal)) as boolean) ||
-      ((deploymentRule.maxSignal &&
-        signalledTokens.lte(deploymentRule.maxSignal)) as boolean) ||
-      // avgQueryFees >= minAvgQueryFees?
-      ((deploymentRule.minAverageQueryFees &&
-        avgQueryFees.gte(deploymentRule.minAverageQueryFees)) as boolean)
-    )
-  } else {
-    return false
   }
 }

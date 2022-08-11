@@ -1,7 +1,11 @@
 import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
-import { BigNumber } from 'ethers'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { BigNumber, utils } from 'ethers'
+import {
+  formatGRT,
+  Logger,
+  SubgraphDeploymentID,
+} from '@graphprotocol/common-ts'
 import {
   IndexingRuleAttributes,
   IndexerManagementClient,
@@ -15,8 +19,20 @@ import {
   parseGraphQLIndexingStatus,
   COST_MODEL_GLOBAL,
   CostModelAttributes,
+  ActionFilter,
+  ActionResult,
+  ActionItem,
+  Action,
+  ActionStatus,
+  AllocationManagementMode,
+  ActionInput,
+  ActionType,
+  Allocation,
+  AllocationDecision,
 } from '@graphprotocol/indexer-common'
 import fs from 'fs'
+import { CombinedError } from '@urql/core'
+import pMap from 'p-map'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
@@ -69,6 +85,7 @@ export class Indexer {
   indexNodeIDs: string[]
   defaultAllocationAmount: BigNumber
   indexerAddress: string
+  allocationManagementMode: AllocationManagementMode
 
   constructor(
     logger: Logger,
@@ -78,11 +95,13 @@ export class Indexer {
     indexNodeIDs: string[],
     defaultAllocationAmount: BigNumber,
     indexerAddress: string,
+    allocationManagementMode: AllocationManagementMode,
   ) {
     this.indexerManagement = indexerManagement
     this.statusResolver = statusResolver
     this.logger = logger
     this.indexerAddress = indexerAddress
+    this.allocationManagementMode = allocationManagementMode
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -558,6 +577,232 @@ export class Indexer {
       })
       throw err
     }
+  }
+
+  async fetchActions(actionFilter: ActionFilter): Promise<ActionResult[]> {
+    const result = await this.indexerManagement
+      .query(
+        gql`
+          query actions($filter: ActionFilter!) {
+            actions(filter: $filter) {
+              id
+              type
+              allocationID
+              deploymentID
+              amount
+              poi
+              force
+              source
+              reason
+              priority
+              transaction
+              status
+              failureReason
+            }
+          }
+        `,
+        { filter: actionFilter },
+      )
+      .toPromise()
+
+    if (result.error) {
+      throw result.error
+    }
+
+    return result.data.actions
+  }
+
+  async queueAction(action: ActionItem): Promise<Action[]> {
+    let status = ActionStatus.QUEUED
+    switch (this.allocationManagementMode) {
+      case AllocationManagementMode.MANUAL:
+        throw Error(
+          `Cannot queue actions when AllocationManagementMode = 'MANUAL'`,
+        )
+      case AllocationManagementMode.AUTO:
+        status = ActionStatus.APPROVED
+        break
+      case AllocationManagementMode.OVERSIGHT:
+        status = ActionStatus.QUEUED
+    }
+
+    const actionInput = {
+      ...action.params,
+      status,
+      type: action.type,
+      source: 'indexerAgent',
+      reason: action.reason,
+      priority: 0,
+    } as ActionInput
+
+    const actionResult = await this.indexerManagement
+      .mutation(
+        gql`
+          mutation queueActions($actions: [ActionInput!]!) {
+            queueActions(actions: $actions) {
+              id
+              type
+              deploymentID
+              source
+              reason
+              priority
+              status
+            }
+          }
+        `,
+        { actions: [actionInput] },
+      )
+      .toPromise()
+
+    if (actionResult.error) {
+      if (
+        actionResult.error instanceof CombinedError &&
+        actionResult.error.message.includes('Duplicate')
+      ) {
+        this.logger.warn(
+          `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
+          { action },
+        )
+        return []
+      }
+      throw actionResult.error
+    }
+
+    if (actionResult.data.queueActions.length > 0) {
+      this.logger.info(`Queued ${action.type} action for execution`, {
+        queuedAction: actionResult.data.queueActions,
+      })
+    }
+
+    return actionResult.data.queueActions
+  }
+
+  async createAllocation(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    mostRecentlyClosedAllocation: Allocation,
+  ): Promise<void> {
+    const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
+      ?.allocationAmount
+      ? BigNumber.from(
+          deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
+        )
+      : this.defaultAllocationAmount
+
+    logger.info(`No active allocation for deployment, creating one now`, {
+      allocationAmount: formatGRT(desiredAllocationAmount),
+    })
+
+    // Skip allocating if the previous allocation for this deployment was closed with a null or 0x00 POI
+    if (
+      mostRecentlyClosedAllocation &&
+      mostRecentlyClosedAllocation.poi === utils.hexlify(Array(32).fill(0))
+    ) {
+      logger.warn(
+        `Skipping allocation to this deployment as the last allocation to it was closed with a zero POI`,
+        {
+          deployment: deploymentAllocationDecision.deployment,
+          closedAllocation: mostRecentlyClosedAllocation.id,
+        },
+      )
+      return
+    }
+
+    // Send AllocateAction to the queue
+    await this.queueAction({
+      params: {
+        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+        amount: formatGRT(desiredAllocationAmount),
+      },
+      type: ActionType.ALLOCATE,
+      reason: deploymentAllocationDecision.reasonString(),
+    })
+
+    return
+  }
+
+  async closeEligibleAllocations(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    activeDeploymentAllocations: Allocation[],
+    epoch: number,
+  ): Promise<void> {
+    const activeDeploymentAllocationsEligibleForClose =
+      activeDeploymentAllocations
+        .filter(allocation => allocation.createdAtEpoch < epoch)
+        .map(allocation => allocation.id)
+    logger.info(
+      `Deployment is not (or no longer) worth allocating towards, close allocation if it is from a previous epoch`,
+      {
+        eligibleForClose: activeDeploymentAllocationsEligibleForClose,
+      },
+    )
+    // Make sure to close all active allocations on the way out
+    if (activeDeploymentAllocationsEligibleForClose.length > 0) {
+      await pMap(
+        // We can only close allocations from a previous epoch;
+        // try the others again later
+        activeDeploymentAllocationsEligibleForClose,
+        async allocation => {
+          // Send unallocate action to the queue
+          await this.queueAction({
+            params: {
+              allocationID: allocation,
+              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+              poi: undefined,
+              force: false,
+            },
+            type: ActionType.UNALLOCATE,
+            reason: deploymentAllocationDecision.reasonString(),
+          } as ActionItem)
+        },
+        { concurrency: 1 },
+      )
+    }
+  }
+
+  async refreshExpiredAllocations(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    expiredAllocations: Allocation[],
+  ): Promise<void> {
+    if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
+      logger.info(`Reallocating expired allocations`, {
+        number: expiredAllocations.length,
+        expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+      })
+
+      const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch
+        .rule?.allocationAmount
+        ? BigNumber.from(
+            deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
+          )
+        : this.defaultAllocationAmount
+
+      // Queue reallocate actions to be picked up by the worker
+      await pMap(expiredAllocations, async allocation => {
+        await this.queueAction({
+          params: {
+            allocationID: allocation.id,
+            deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+            amount: formatGRT(desiredAllocationAmount),
+          },
+          type: ActionType.REALLOCATE,
+          reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+        })
+      })
+    } else {
+      logger.info(
+        `Skipping reallocating expired allocation since the corresponding rule has 'autoRenewal' = False`,
+        {
+          number: expiredAllocations.length,
+          expiredAllocations: expiredAllocations.map(
+            allocation => allocation.id,
+          ),
+        },
+      )
+    }
+    return
   }
 
   async create(name: string): Promise<void> {
