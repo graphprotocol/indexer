@@ -1156,5 +1156,6 @@ export class AllocationManager {
       )
     }
     return isDeploymentWorthAllocatingTowards(logger, subgraphDeployment, indexingRules)
+      .toAllocate
   }
 }

@@ -808,6 +808,7 @@ export default {
       argv.indexNodeIds,
       argv.defaultAllocationAmount,
       indexerAddress,
+      allocationManagementMode,
     )
     const networkSubgraphDeployment = argv.networkSubgraphDeployment
       ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
@@ -857,7 +858,6 @@ export default {
         (s: string) => new SubgraphDeploymentID(s),
       ),
       receiptCollector,
-      allocationManagementMode,
     })
   },
 }

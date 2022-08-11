@@ -134,6 +134,7 @@ const setup = async () => {
     graphNode: 'http://localhost:8000/',
     metrics,
     receiptManager,
+    queryTimingLogs: false,
     signers,
   })
 

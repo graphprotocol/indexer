@@ -12,6 +12,7 @@ export interface ActionParamsInput {
 export interface ActionItem {
   params: ActionParamsInput
   type: ActionType
+  reason: string
 }
 
 export interface ActionInput {

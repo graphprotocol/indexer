@@ -1,6 +1,5 @@
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
-  AllocationManagementMode,
   Network,
   NetworkSubgraph,
   ReceiptCollector,
@@ -19,5 +18,4 @@ export interface AgentConfig {
   registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
-  allocationManagementMode: AllocationManagementMode
 }
