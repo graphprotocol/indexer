@@ -1,6 +1,7 @@
 import {
   ActionFilter,
   ActionInput,
+  ActionOrderBy,
   ActionResult,
   ActionStatus,
   ActionType,
@@ -274,12 +275,13 @@ export async function fetchAction(
 export async function fetchActions(
   client: IndexerManagementClient,
   actionFilter: ActionFilter,
+  actionOrder?: ActionOrderBy,
 ): Promise<ActionResult[]> {
   const result = await client
     .query(
       gql`
-        query actions($filter: ActionFilter!) {
-          actions(filter: $filter) {
+        query actions($filter: ActionFilter!, $order: ActionOrderBy) {
+          actions(filter: $filter, orderBy: $order) {
             id
             type
             allocationID
@@ -296,7 +298,7 @@ export async function fetchActions(
           }
         }
       `,
-      { filter: actionFilter },
+      { filter: actionFilter, order: actionOrder },
     )
     .toPromise()
 

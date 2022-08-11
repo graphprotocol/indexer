@@ -8,6 +8,7 @@ import {
   ActionInput,
   ActionResult,
   ActionStatus,
+  ActionOrderBy,
   IndexerManagementModels,
   validateActionInputs,
 } from '@graphprotocol/indexer-common'
@@ -97,13 +98,14 @@ export default {
   },
 
   actions: async (
-    { filter }: { filter: ActionFilter },
+    { filter, orderBy }: { filter: ActionFilter; orderBy: ActionOrderBy },
     { actionManager, logger }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug(`Execute 'actions' query`, {
       filter,
+      orderBy,
     })
-    return await actionManager.fetchActions(filter)
+    return await actionManager.fetchActions(filter, orderBy)
   },
 
   queueActions: async (

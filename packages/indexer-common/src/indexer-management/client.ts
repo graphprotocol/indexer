@@ -58,6 +58,11 @@ export interface IndexerManagementResolverContext {
 const SCHEMA_SDL = gql`
   scalar BigInt
 
+  enum Sort {
+    asc
+    desc
+  }
+
   enum IndexingDecisionBasis {
     rules
     never
@@ -165,6 +170,22 @@ const SCHEMA_SDL = gql`
     source: String!
     reason: String
     priority: Int
+  }
+
+  input ActionOrderBy {
+    id: Sort
+    status: Sort
+    type: Sort
+    deploymentID: Sort
+    allocationID: Sort
+    amount: Sort
+    poi: Sort
+    force: Sort
+    source: Sort
+    reason: Sort
+    priority: Sort
+    createdAt: Sort
+    updatedAt: Sort
   }
 
   type ActionResult {
@@ -351,7 +372,7 @@ const SCHEMA_SDL = gql`
     allocations(filter: AllocationFilter!): [Allocation!]!
 
     action(actionID: String!): Action
-    actions(filter: ActionFilter): [Action]!
+    actions(filter: ActionFilter, orderBy: ActionOrderBy): [Action]!
   }
 
   type Mutation {
