@@ -197,7 +197,7 @@ export class Indexer {
         },
       )
 
-      this.logger.info(`Queried index nodes`, {
+      this.logger.trace(`Queried index nodes`, {
         indexNodes,
       })
       return indexNodes
@@ -731,14 +731,14 @@ export class Indexer {
       activeDeploymentAllocations
         .filter(allocation => allocation.createdAtEpoch < epoch)
         .map(allocation => allocation.id)
-    logger.info(
-      `Deployment is not (or no longer) worth allocating towards, close allocation if it is from a previous epoch`,
-      {
-        eligibleForClose: activeDeploymentAllocationsEligibleForClose,
-      },
-    )
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocationsEligibleForClose.length > 0) {
+      logger.info(
+        `Deployment is not (or no longer) worth allocating towards, close allocation`,
+        {
+          eligibleForClose: activeDeploymentAllocationsEligibleForClose,
+        },
+      )
       await pMap(
         // We can only close allocations from a previous epoch;
         // try the others again later

@@ -543,7 +543,7 @@ export class NetworkMonitor {
       }
     }
 
-    this.logger.trace(`Fetched subgraph deployments published to network`, {
+    this.logger.debug(`Finished fetching subgraph deployments published to network`, {
       publishedSubgraphs: queryProgress.fetched,
     })
     return deployments

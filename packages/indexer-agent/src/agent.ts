@@ -173,8 +173,8 @@ class Agent {
     const currentEpoch = timer(600_000).tryMap(
       () => this.network.contracts.epochManager.currentEpoch(),
       {
-        onError: err =>
-          this.logger.warn(`Failed to fetch current epoch`, { err }),
+        onError: error =>
+          this.logger.warn(`Failed to fetch current epoch`, { error }),
       },
     )
 
@@ -191,9 +191,9 @@ class Agent {
         }
       },
       {
-        onError: err =>
+        onError: error =>
           this.logger.warn(`Failed to fetch start block of current epoch`, {
-            err,
+            error,
           }),
       },
     )
@@ -201,16 +201,16 @@ class Agent {
     const channelDisputeEpochs = timer(600_000).tryMap(
       () => this.network.contracts.staking.channelDisputeEpochs(),
       {
-        onError: err =>
-          this.logger.warn(`Failed to fetch channel dispute epochs`, { err }),
+        onError: error =>
+          this.logger.warn(`Failed to fetch channel dispute epochs`, { error }),
       },
     )
 
     const maxAllocationEpochs = timer(600_000).tryMap(
       () => this.network.contracts.staking.maxAllocationEpochs(),
       {
-        onError: err =>
-          this.logger.warn(`Failed to fetch max allocation epochs`, { err }),
+        onError: error =>
+          this.logger.warn(`Failed to fetch max allocation epochs`, { error }),
       },
     )
 
@@ -250,9 +250,12 @@ class Agent {
     const activeDeployments = timer(60_000).tryMap(
       () => this.indexer.subgraphDeployments(),
       {
-        onError: () =>
+        onError: error =>
           this.logger.warn(
             `Failed to obtain active deployments, trying again later`,
+            {
+              error,
+            },
           ),
       },
     )
@@ -260,9 +263,12 @@ class Agent {
     const networkDeployments = timer(240_000).tryMap(
       async () => await this.networkMonitor.subgraphDeployments(),
       {
-        onError: () =>
+        onError: error =>
           this.logger.warn(
             `Failed to obtain network deployments, trying again later`,
+            {
+              error,
+            },
           ),
       },
     )
@@ -279,9 +285,12 @@ class Agent {
           : evaluateDeployments(this.logger, networkDeployments, indexingRules)
       },
       {
-        onError: () =>
+        onError: error =>
           this.logger.warn(
             `Failed to obtain target allocations, trying again later`,
+            {
+              error,
+            },
           ),
       },
     )
@@ -314,9 +323,12 @@ class Agent {
           : [...targetDeploymentIDs, ...this.offchainSubgraphs]
       },
       {
-        onError: () =>
+        onError: error =>
           this.logger.warn(
             `Failed to obtain target deployments, trying again later`,
+            {
+              error,
+            },
           ),
       },
     )
@@ -664,7 +676,9 @@ class Agent {
       this.logger.warn(
         `The following deployments do not have defined cost models and will use the global cost model if it exists`,
         {
-          deployments: deploymentMissingModels,
+          deployments: deploymentMissingModels.map(
+            deployment => deployment.ipfsHash,
+          ),
         },
       )
     }
@@ -704,7 +718,7 @@ class Agent {
       deploymentIDSet(activeDeployments) != deploymentIDSet(targetDeployments)
     ) {
       // Turning to trace until the above conditional is fixed
-      this.logger.trace('Reconcile deployments', {
+      this.logger.debug('Reconcile deployments', {
         syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
         withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
