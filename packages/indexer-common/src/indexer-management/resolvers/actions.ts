@@ -41,6 +41,7 @@ async function executeQueueOperation(
       duplicateAction[0].source === action.source &&
       duplicateAction[0].status === action.status
     ) {
+      // TODO: Log this only when update will actually change existing item
       logger.info(
         `Action found in queue that effects the same deployment as proposed queue action, updating existing action`,
         {
