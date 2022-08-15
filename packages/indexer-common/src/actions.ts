@@ -129,6 +129,7 @@ export interface ActionFilter {
 }
 
 export interface ActionResult {
+  id: number
   type: ActionType
   deploymentID: string
   allocationID: string | null

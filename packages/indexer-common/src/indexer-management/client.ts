@@ -180,6 +180,7 @@ const SCHEMA_SDL = gql`
     status: String!
     transaction: String
     failureReason: String
+    priority: Int
   }
 
   input ActionFilter {

@@ -4,10 +4,12 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, printObjectOrArray } from '../../../command-helpers'
-import { approveActions } from '../../../actions'
+import { approveActions, fetchActions } from '../../../actions'
+import { ActionStatus } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
+${chalk.bold('graph indexer actions approve')} [options] queued
 
 ${chalk.dim('Options:')}
 
@@ -37,6 +39,8 @@ module.exports = {
 
     let numericActionIDs: number[]
 
+    const config = loadValidatedConfig()
+    const client = await createIndexerManagementClient({ url: config.api })
     try {
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -48,7 +52,18 @@ module.exports = {
         throw Error(`Missing required argument: 'actionID'`)
       }
 
-      numericActionIDs = actionIDs.map(action => +action)
+      // If actionIDs is 'queued', then populate actionIDs with actions that are queued
+      if (actionIDs.join() == 'queued') {
+        const queuedActions = await fetchActions(client, {
+          status: ActionStatus.QUEUED,
+        })
+        numericActionIDs = queuedActions.map(action => action.id)
+        if (numericActionIDs.length === 0) {
+          throw Error(`No 'queued' actions found.`)
+        }
+      } else {
+        numericActionIDs = actionIDs.map(action => +action)
+      }
 
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
@@ -60,9 +75,6 @@ module.exports = {
 
     const actionSpinner = toolbox.print.spin(`Approving ${actionIDs.length} actions`)
     try {
-      const config = loadValidatedConfig()
-      const client = await createIndexerManagementClient({ url: config.api })
-
       const queuedAction = await approveActions(client, numericActionIDs)
 
       actionSpinner.succeed(`Actions approved`)
