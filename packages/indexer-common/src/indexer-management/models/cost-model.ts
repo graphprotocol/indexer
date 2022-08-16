@@ -79,7 +79,7 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
       },
       deployment: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
         primaryKey: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

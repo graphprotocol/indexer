@@ -327,26 +327,31 @@ export class Indexer {
       }
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE017, error)
-      this.logger.error('Failed to ensure default "global" indexing rule', {
+      this.logger.warn('Failed to ensure default "global" indexing rule', {
         err,
       })
       throw err
     }
   }
 
-  async costModels(): Promise<CostModelAttributes[]> {
+  async costModels(
+    deployments: SubgraphDeploymentID[],
+  ): Promise<CostModelAttributes[]> {
     try {
       const result = await this.indexerManagement
         .query(
           gql`
-            query costModels {
-              costModels {
+            query costModels($deployments: [String!]!) {
+              costModels(deployments: $deployments) {
                 deployment
                 model
                 variables
               }
             }
           `,
+          {
+            deployments,
+          },
         )
         .toPromise()
 
@@ -355,7 +360,7 @@ export class Indexer {
       }
       return result.data.costModels
     } catch (error) {
-      this.logger.error(`Failed to query indexer management API`, { error })
+      this.logger.warn(`Failed to query cost models`, { error })
       throw error
     }
   }
