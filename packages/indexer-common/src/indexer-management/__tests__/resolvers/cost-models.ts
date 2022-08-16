@@ -55,6 +55,16 @@ const GET_COST_MODELS_QUERY = gql`
   }
 `
 
+const GET_COST_MODELS_DEPLOYMENTS_QUERY = gql`
+  query costModels($deployments: [String!]) {
+    costModels(deployments: $deployments) {
+      deployment
+      model
+      variables
+    }
+  }
+`
+
 let sequelize: Sequelize
 let models: IndexerManagementModels
 let address: string
@@ -195,6 +205,44 @@ describe('Cost models', () => {
     ).resolves.toHaveProperty('data.setCostModel', expected)
   })
 
+  test('Set and get global cost model', async () => {
+    const input = {
+      deployment: 'global',
+      model: 'default => 0.00025;',
+      variables: JSON.stringify({ n: 100 }),
+    }
+
+    const expected = { ...input }
+
+    await expect(
+      client
+        .mutation(SET_COST_MODEL_MUTATION, {
+          costModel: input,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.setCostModel', expected)
+
+    //Double check
+    await expect(
+      client
+        .query(GET_COST_MODEL_QUERY, {
+          deployment: 'global',
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModel', expected)
+
+    //Check non-existent
+    const expectFallback = expected
+    expectFallback.deployment = 'blah'
+    await expect(
+      client
+        .query(GET_COST_MODEL_QUERY, {
+          deployment: 'blah',
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModel', expected)
+  })
+
   test('Update existing cost model', async () => {
     const deployment =
       '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -267,6 +315,47 @@ describe('Cost models', () => {
     ).resolves.toHaveProperty('data.costModel', null)
   })
 
+  test('Get non-existent model when global model set', async () => {
+    const deployment = 'QmTBxvMF6YnbT1eYeRx9XQpH4WvxTV53vdptCCZFiZSprg'
+    // Model doesn't exist when global is not set
+    await expect(
+      client
+        .query(GET_COST_MODEL_QUERY, {
+          deployment,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModel', null)
+
+    // Set global model
+    const input = {
+      deployment: 'global',
+      model: 'default => 0.00025;',
+      variables: JSON.stringify({ n: 100 }),
+    }
+
+    const expected = { ...input }
+
+    // Global model set
+    await expect(
+      client
+        .mutation(SET_COST_MODEL_MUTATION, {
+          costModel: input,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.setCostModel', expected)
+
+    // Global fallback to non-existent model
+    const expectFallback = expected
+    expectFallback.deployment = deployment
+    await expect(
+      client
+        .query(GET_COST_MODEL_QUERY, {
+          deployment,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModel', expectFallback)
+  })
+
   test('Get one cost model', async () => {
     const inputs = [
       {
@@ -314,6 +403,61 @@ describe('Cost models', () => {
       'data.costModels',
       inputs,
     )
+  })
+
+  test('Get cost models with defined global models', async () => {
+    const inputs = [
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: 'query { votes } => 10 * $n;',
+        variables: JSON.stringify({ n: 100 }),
+      },
+      {
+        deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        model: 'query { proposals } => 30 * $n;',
+        variables: JSON.stringify({ n: 10 }),
+      },
+    ]
+    const nonexisting =
+      '0x2222222222222222222222222222222222222222222222222222222222222222'
+
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    // only defined cost models are returned
+    await expect(
+      client
+        .query(GET_COST_MODELS_DEPLOYMENTS_QUERY, {
+          deployments: inputs.map((model) => model.deployment).concat([nonexisting]),
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModels', inputs)
+
+    // Set global model
+    const global_input = {
+      deployment: 'global',
+      model: 'default => 0.00025;',
+      variables: JSON.stringify({ n: 100 }),
+    }
+    const expected = { ...global_input }
+    await expect(
+      client
+        .mutation(SET_COST_MODEL_MUTATION, {
+          costModel: global_input,
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.setCostModel', expected)
+
+    // Global fallback
+    global_input.deployment = nonexisting
+    await expect(
+      client
+        .query(GET_COST_MODELS_DEPLOYMENTS_QUERY, {
+          deployments: inputs.map((model) => model.deployment).concat([nonexisting]),
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModels', inputs.concat([global_input]))
   })
 
   test('Clear model by passing in an empty model', async () => {

@@ -396,8 +396,12 @@ class Agent {
       ticker: timer(600_000),
       networkDeploymentAllocationDecisions,
     }).tryMap(
-      async () => {
-        return await this.indexer.costModels()
+      async ({ networkDeploymentAllocationDecisions }) => {
+        return await this.indexer.costModels(
+          networkDeploymentAllocationDecisions
+            .filter(a => a.toAllocate)
+            .map(a => a.deployment),
+        )
       },
       {
         onError: error =>

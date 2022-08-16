@@ -167,7 +167,7 @@ export const createCostServer = async ({
             const result = await context.client
               .query(
                 gql`
-                  query costModel($deployment: [String!]) {
+                  query costModel($deployment: String!) {
                     costModel(deployment: $deployment) {
                       deployment
                       model
