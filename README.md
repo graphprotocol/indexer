@@ -304,8 +304,8 @@ cd packages/indexer-service
 ./bin/graph-indexer-service start ...
 
 # Indexer agent
-cd packages/indexer-service
-./bin/graph-indexer-service start ...
+cd packages/indexer-agent
+./bin/graph-indexer-agent start ...
 ```
 
 ## Docker images
