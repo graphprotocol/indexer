@@ -7,9 +7,9 @@ export enum AllocationManagementMode {
   OVERSIGHT = 'oversight',
 }
 
-export enum Sort {
-  asc = 'asc',
-  desc = 'desc',
+export enum OrderDirection {
+  ASC = 'asc',
+  DESC = 'desc',
 }
 
 export interface BlockPointer {

@@ -1,13 +1,14 @@
 import {
   Action,
   ActionFilter,
-  ActionOrderBy,
+  ActionParams,
   ActionStatus,
   AllocationManagementMode,
   AllocationStatus,
   IndexerManagementModels,
   isActionFailure,
   NetworkMonitor,
+  OrderDirection,
 } from '@graphprotocol/indexer-common'
 import { AllocationManager } from './allocations'
 import { Order, Transaction } from 'sequelize'
@@ -152,15 +153,18 @@ export class ActionManager {
     return updatedActions
   }
 
-  async fetchActions(filter: ActionFilter, order?: ActionOrderBy): Promise<Action[]> {
+  async fetchActions(
+    filter: ActionFilter,
+    orderBy?: ActionParams,
+    orderDirection?: OrderDirection,
+  ): Promise<Action[]> {
     const filterObject = JSON.parse(JSON.stringify(filter))
-    const orderObject: Order = order
-      ? Object.keys(order).map((e, i) => [e, Object.values(order)[i].toUpperCase()])
-      : [['id', 'DESC']]
-    const queryResult = await this.models.Action.findAll({
+    const orderObject: Order = orderBy
+      ? [[orderBy.toString(), orderDirection ?? 'desc']]
+      : [['id', 'desc']]
+    return await this.models.Action.findAll({
       where: filterObject,
       order: orderObject,
     })
-    return queryResult
   }
 }
