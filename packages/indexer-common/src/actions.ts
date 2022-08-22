@@ -1,6 +1,5 @@
 import { ActionManager, NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
-import { Sort } from './types'
 
 export interface ActionParamsInput {
   deploymentID?: string
@@ -156,18 +155,19 @@ export enum ActionStatus {
   CANCELED = 'canceled',
 }
 
-export interface ActionOrderBy {
-  id?: Sort | undefined
-  status?: Sort | undefined
-  type?: Sort | undefined
-  deploymentID?: Sort | undefined
-  allocationID?: Sort | undefined
-  amount?: Sort | undefined
-  poi?: Sort | undefined
-  force?: Sort | undefined
-  source?: Sort | undefined
-  reason?: Sort | undefined
-  priority?: Sort | undefined
-  createdAt?: Sort | undefined
-  updatedAt?: Sort | undefined
+export enum ActionParams {
+  ID = 'id',
+  STATUS = 'status',
+  TYPE = 'type',
+  DEPLOYMENT_ID = 'deploymentID',
+  ALLOCATION_ID = 'allocationID',
+  TRANSACTION = 'transaction',
+  AMOUNT = 'amount',
+  POI = 'poi',
+  FORCE = 'force',
+  SOURCE = 'source',
+  REASON = 'reason',
+  PRIORITY = 'priority',
+  CREATED_AT = 'createdAt',
+  UPDATED_AT = 'updatedAt',
 }
