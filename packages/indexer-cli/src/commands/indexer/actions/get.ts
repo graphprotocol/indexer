@@ -1,7 +1,12 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
 
-import { Action, ActionResult, Sort, ActionOrderBy } from '@graphprotocol/indexer-common'
+import {
+  Action,
+  ActionParams,
+  ActionResult,
+  OrderDirection,
+} from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, printObjectOrArray } from '../../../command-helpers'
@@ -37,7 +42,8 @@ module.exports = {
       parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
-    let actionsOrder = undefined
+    let orderByParam = ActionParams.ID
+    let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -80,9 +86,10 @@ module.exports = {
       }
 
       if (orderBy) {
-        actionsOrder = {
-          [orderBy as keyof ActionOrderBy]: (orderDirection ?? Sort.desc) as Sort,
-        }
+        orderByParam = ActionParams[orderBy.toUpperCase() as keyof typeof ActionParams]
+        orderDirectionValue = orderDirection
+          ? OrderDirection[orderDirection.toUpperCase() as keyof typeof OrderDirection]
+          : OrderDirection.DESC
       }
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
@@ -98,12 +105,12 @@ module.exports = {
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
-      //TODO: default to filtering out 'CANCELED' actions
-      // Default ordering is [id, asc] if actionsOrder is empty
+      // TODO: default to filtering out 'CANCELED' actions
+      // Default ordering is [id, desc] if no orderBy is provided
       let actions: ActionResult[] = []
       if (action) {
         if (action === 'all') {
-          actions = await fetchActions(client, {}, actionsOrder)
+          actions = await fetchActions(client, {}, orderByParam, orderDirectionValue)
         } else {
           actions = [await fetchAction(client, +action)]
         }
@@ -116,7 +123,8 @@ module.exports = {
             source,
             reason,
           },
-          actionsOrder,
+          orderByParam,
+          orderDirectionValue,
         )
       }
       actionSpinner.succeed('Actions query returned')

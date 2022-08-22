@@ -1,11 +1,12 @@
 import {
   ActionFilter,
   ActionInput,
-  ActionOrderBy,
+  ActionParams,
   ActionResult,
   ActionStatus,
   ActionType,
   IndexerManagementClient,
+  OrderDirection,
 } from '@graphprotocol/indexer-common'
 import { validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -275,13 +276,18 @@ export async function fetchAction(
 export async function fetchActions(
   client: IndexerManagementClient,
   actionFilter: ActionFilter,
-  actionOrder?: ActionOrderBy,
+  orderBy?: ActionParams,
+  orderDirection?: OrderDirection,
 ): Promise<ActionResult[]> {
   const result = await client
     .query(
       gql`
-        query actions($filter: ActionFilter!, $order: ActionOrderBy) {
-          actions(filter: $filter, orderBy: $order) {
+        query actions(
+          $filter: ActionFilter!
+          $orderBy: ActionParams
+          $orderDirection: OrderDirection
+        ) {
+          actions(filter: $filter, orderBy: $orderBy, orderDirection: $orderDirection) {
             id
             type
             allocationID
@@ -298,7 +304,7 @@ export async function fetchActions(
           }
         }
       `,
-      { filter: actionFilter, order: actionOrder },
+      { filter: actionFilter, orderBy, orderDirection },
     )
     .toPromise()
 

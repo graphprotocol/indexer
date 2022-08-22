@@ -6,10 +6,11 @@ import {
   Action,
   ActionFilter,
   ActionInput,
+  ActionParams,
   ActionResult,
   ActionStatus,
-  ActionOrderBy,
   IndexerManagementModels,
+  OrderDirection,
   validateActionInputs,
 } from '@graphprotocol/indexer-common'
 import { Transaction } from 'sequelize'
@@ -50,7 +51,6 @@ async function executeQueueOperation(
           proposedAction: action,
           proposedSource: action.source,
           actionSources: duplicateAction[0].source,
-          test: duplicateAction[0].source === action.source,
         },
       )
       const [, updatedAction] = await models.Action.update(
@@ -98,14 +98,19 @@ export default {
   },
 
   actions: async (
-    { filter, orderBy }: { filter: ActionFilter; orderBy: ActionOrderBy },
+    {
+      filter,
+      orderBy,
+      orderDirection,
+    }: { filter: ActionFilter; orderBy: ActionParams; orderDirection: OrderDirection },
     { actionManager, logger }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug(`Execute 'actions' query`, {
       filter,
       orderBy,
+      orderDirection,
     })
-    return await actionManager.fetchActions(filter, orderBy)
+    return await actionManager.fetchActions(filter, orderBy, orderDirection)
   },
 
   queueActions: async (

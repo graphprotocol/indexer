@@ -20,15 +20,16 @@ import {
 } from '../client'
 import { Action, defineIndexerManagementModels, IndexerManagementModels } from '../models'
 import {
+  defineQueryFeeModels,
   ActionInput,
+  ActionParams,
   ActionStatus,
   ActionType,
   AllocationReceiptCollector,
-  defineQueryFeeModels,
   IndexingStatusResolver,
   NetworkSubgraph,
+  OrderDirection,
   QueryFeeModels,
-  Sort,
   TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
@@ -95,8 +96,12 @@ const CANCEL_ACTIONS_MUTATION = gql`
 `
 
 const ACTIONS_QUERY = gql`
-  query actions($filter: ActionFilter!, $order: ActionOrderBy) {
-    actions(filter: $filter) {
+  query actions(
+    $filter: ActionFilter!
+    $orderBy: ActionParams
+    $orderDirection: OrderDirection
+  ) {
+    actions(filter: $filter, orderBy: $orderBy, orderDirection: $orderDirection) {
       id
       type
       allocationID
@@ -340,8 +345,11 @@ describe('Actions', () => {
     const queuedAllocateAction2 = { ...queuedAllocateAction }
     const queuedAllocateAction3 = { ...queuedAllocateAction }
     queuedAllocateAction1.deploymentID = subgraphDeployment2
+    queuedAllocateAction1.source = '1'
     queuedAllocateAction2.deploymentID = subgraphDeployment3
+    queuedAllocateAction2.source = '2'
     queuedAllocateAction3.deploymentID = subgraphDeployment1
+    queuedAllocateAction3.source = '3'
 
     const inputActions = [
       queuedAllocateAction,
@@ -364,16 +372,14 @@ describe('Actions', () => {
           filter: {
             status: ActionStatus.QUEUED,
             type: ActionType.ALLOCATE,
-            source: 'indexerAgent',
           },
-          order: {
-            id: Sort.desc,
-          },
+          orderBy: ActionParams.SOURCE,
+          orderDirection: OrderDirection.DESC,
         })
         .toPromise(),
     ).resolves.toHaveProperty(
       'data.actions',
-      expecteds.sort((a, b) => (a.id > b.id ? -1 : 1)),
+      expecteds.sort((a, b) => (a.source > b.source ? -1 : 1)),
     )
   })
 
@@ -408,9 +414,8 @@ describe('Actions', () => {
             type: ActionType.ALLOCATE,
             source: 'indexerAgent',
           },
-          order: {
-            adonut: Sort.desc,
-          },
+          orderBy: 'adonut',
+          orderDirection: OrderDirection.DESC,
         })
         .toPromise(),
     ).resolves.toHaveProperty(
@@ -418,7 +423,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            'Variable "$order" got invalid value { adonut: "desc" }; Field "adonut" is not defined by type "ActionOrderBy". Did you mean "amount"?',
+            'Variable "$orderBy" got invalid value "adonut"; Value "adonut" does not exist in "ActionParams" enum. Did you mean the enum value "amount"?',
           ),
         ],
       }),
@@ -465,9 +470,11 @@ describe('Actions', () => {
             status: ActionStatus.CANCELED,
             source: 'indexerAgent',
           },
+          orderBy: ActionParams.ID,
+          orderDirection: OrderDirection.ASC,
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.actions', expectedCancels.reverse())
+    ).resolves.toHaveProperty('data.actions', expectedCancels)
   })
 
   test('Approve action in queue', async () => {
