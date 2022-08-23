@@ -144,12 +144,12 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE060: 'Failed to allocate: Already allocating to the subgraph deployment',
   IE061: 'Failed to allocate: Invalid allocation amount provided.',
   IE062: 'Did not receive tx receipt, not authorized or network paused.',
-  IE063: 'No active allocation with provided id found.',
-  IE064: 'Failed to unallocate: Allocations cannot be closed in this epoch.',
-  IE065: 'Failed to unallocate: Allocation has already been closed.',
-  IE066: 'Failed to allocate: allocation ID already exist on chain',
+  IE063: 'No active allocation with provided id found',
+  IE064: 'Failed to unallocate: Allocation cannot be closed in the same epoch it was created',
+  IE065: 'Failed to unallocate: Allocation has already been closed',
+  IE066: 'Failed to allocate: allocation ID already exists on chain',
   IE067: 'Failed to query POI for current epoch start block',
-  IE068: 'User-provided POI did not match with reference POI from graph-node.',
+  IE068: 'User-provided POI did not match reference POI from graph-node',
 }
 
 export type IndexerErrorCause = unknown

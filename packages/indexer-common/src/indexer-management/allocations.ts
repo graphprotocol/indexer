@@ -433,7 +433,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: deployment,
-        allocationAmount: amount,
+        allocationAmount: parseGRT(amount).toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>
@@ -1037,7 +1037,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: allocation.subgraphDeployment.id.ipfsHash,
-        allocationAmount: formatGRT(createAllocationEventLogs.tokens),
+        allocationAmount: parseGRT(createAllocationEventLogs.tokens).toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>
