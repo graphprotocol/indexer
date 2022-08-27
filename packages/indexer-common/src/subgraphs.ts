@@ -151,7 +151,7 @@ enum ActivationCriteria {
   UNSUPPORTED = 'unsupported',
   NEVER = 'never',
   OFFCHAIN = 'offchain',
-  ZERO_ALLOCATION_AMOUNT = 'zero_allocation_amount',
+  INVALID_ALLOCATION_AMOUNT = 'invalid_allocation_amount',
 }
 
 interface RuleMatch {
@@ -210,14 +210,14 @@ export function isDeploymentWorthAllocatingTowards(
 
   // The deployment is not eligible for deployment if it doesn't have an allocation amount
   if (!deploymentRule?.allocationAmount) {
-    logger.debug(`Could not find matching rule with non-zero 'allocationAmount':`, {
+    logger.debug(`Could not find matching rule with defined 'allocationAmount':`, {
       deployment: deployment.id.display,
     })
     return new AllocationDecision(
       deployment.id,
       deploymentRule,
       false,
-      ActivationCriteria.ZERO_ALLOCATION_AMOUNT,
+      ActivationCriteria.INVALID_ALLOCATION_AMOUNT,
     )
   }
 
