@@ -453,16 +453,6 @@ export default {
       )
     }
 
-    if (allocationAmount.eq('0')) {
-      logger.warn('Cannot allocate zero GRT', {
-        amount: allocationAmount.toString(),
-      })
-      throw indexerError(
-        IndexerErrorCode.IE061,
-        `Invalid allocation amount provided (${allocationAmount.toString()}). Must use nonzero allocation amount`,
-      )
-    }
-
     try {
       const currentEpoch = await contracts.epochManager.currentEpoch()
 
@@ -914,13 +904,6 @@ export default {
           IndexerErrorCode.IE061,
           'Cannot reallocate a negative amount of GRT',
         )
-      }
-
-      if (allocationAmount.eq('0')) {
-        logger.warn('Cannot reallocate zero GRT, skipping this allocation', {
-          amount: allocationAmount.toString(),
-        })
-        throw indexerError(IndexerErrorCode.IE061, `Cannot reallocate zero GRT`)
       }
 
       logger.info(`Reallocate to subgraph deployment`, {

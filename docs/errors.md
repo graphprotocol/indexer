@@ -782,7 +782,7 @@ Failed to allocate: Invalid allocation amount provided.
 
 **Solution**
 
-Allocation amounts must be non-zero, positive numbers. To resolve this issue ensure the corresponding indexer rule and/or action queue item have valid `allocationAmount` values.
+Allocation amounts must be non-negative numbers. To resolve this issue ensure the corresponding indexer rule and/or action queue item have `allocationAmount` specified to be greater or equal to 0.
 
 ## IE062
 
