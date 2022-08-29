@@ -14,13 +14,13 @@ import {
   createIndexerManagementClient,
   IndexerManagementClient,
   IndexerManagementDefaults,
-} from '../client'
+} from '../../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
-} from '../models'
+} from '../../models'
 import {
   IndexingStatusResolver,
   NetworkSubgraph,

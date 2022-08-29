@@ -138,13 +138,20 @@ export class AllocationManager {
         try {
           return await this.confirmActionExecution(receipt, action)
         } catch (error) {
+          let transaction = undefined
+          if (typeof receipt == 'object') {
+            transaction = receipt.transactionHash ?? undefined
+          }
+          this.logger.error('Failed to confirm batch transaction', {
+            error,
+          })
           return {
             actionID: action.id,
-            transactionID: undefined,
+            transactionID: transaction,
             failureReason:
               error instanceof IndexerError
                 ? error.code
-                : 'Failed to confirm transactions',
+                : `Failed to confirm transactions: ${error.message}`,
           }
         }
       },
@@ -239,11 +246,15 @@ export class AllocationManager {
           )
       }
     } catch (error) {
-      logger.error(`Failed to prepare tx call data: ${error}`)
+      logger.error(`Failed to prepare tx call data`, {
+        error,
+      })
       return {
         actionID: action.id,
         failureReason:
-          error instanceof IndexerError ? error.code : `Failed to prepare tx call data`,
+          error instanceof IndexerError
+            ? error.code
+            : `Failed to prepare tx call data: ${error.message}`,
       }
     }
   }
@@ -433,7 +444,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: deployment,
-        allocationAmount: parseGRT(amount).toString(),
+        allocationAmount: amount,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>
@@ -667,19 +678,17 @@ export class AllocationManager {
       allocation,
     )
 
-    // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
-    if (!(await this.matchingRuleExists(logger, subgraphDeploymentID))) {
-      logger.debug(
-        `No matching indexing rule found; updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
-      )
-      const offchainIndexingRule = {
-        identifier: allocation.subgraphDeployment.id.ipfsHash,
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      } as Partial<IndexingRuleAttributes>
+    // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
+    logger.debug(
+      `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
+    )
+    const offchainIndexingRule = {
+      identifier: allocation.subgraphDeployment.id.ipfsHash,
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+    } as Partial<IndexingRuleAttributes>
 
-      await upsertIndexingRule(logger, this.models, offchainIndexingRule)
-    }
+    await upsertIndexingRule(logger, this.models, offchainIndexingRule)
 
     return {
       actionID,
@@ -1037,7 +1046,7 @@ export class AllocationManager {
       )
       const indexingRule = {
         identifier: allocation.subgraphDeployment.id.ipfsHash,
-        allocationAmount: parseGRT(createAllocationEventLogs.tokens).toString(),
+        allocationAmount: formatGRT(createAllocationEventLogs.tokens),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
       } as Partial<IndexingRuleAttributes>

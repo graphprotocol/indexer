@@ -14,8 +14,8 @@ import {
   createIndexerManagementClient,
   IndexerManagementClient,
   IndexerManagementDefaults,
-} from '../client'
-import { defineIndexerManagementModels, IndexerManagementModels } from '../models'
+} from '../../client'
+import { defineIndexerManagementModels, IndexerManagementModels } from '../../models'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
 import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
