@@ -17,8 +17,12 @@ import {
   createIndexerManagementClient,
   IndexerManagementClient,
   IndexerManagementDefaults,
-} from '../client'
-import { Action, defineIndexerManagementModels, IndexerManagementModels } from '../models'
+} from '../../client'
+import {
+  Action,
+  defineIndexerManagementModels,
+  IndexerManagementModels,
+} from '../../models'
 import {
   defineQueryFeeModels,
   ActionInput,

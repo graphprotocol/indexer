@@ -5,6 +5,7 @@ import {
   IndexingRule,
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
+import { parseIndexingRule } from '../rules'
 
 export const fetchIndexingRules = async (
   models: IndexerManagementModels,
@@ -31,16 +32,20 @@ export const upsertIndexingRule = async (
   models: IndexerManagementModels,
   newRule: Partial<IndexingRuleAttributes>,
 ): Promise<IndexingRule> => {
-  await models.IndexingRule.upsert(newRule)
+  const indexingRule = parseIndexingRule(newRule)
+  await models.IndexingRule.upsert(indexingRule)
 
   // Since upsert succeeded, we _must_ have a rule
   const updatedRule = await models.IndexingRule.findOne({
-    where: { identifier: newRule.identifier },
+    where: { identifier: indexingRule.identifier },
   })
 
-  logger.debug(`DecisionBasis.${newRule.decisionBasis} rule merged into indexing rules`, {
-    rule: updatedRule,
-  })
+  logger.debug(
+    `DecisionBasis.${indexingRule.decisionBasis} rule merged into indexing rules`,
+    {
+      rule: updatedRule,
+    },
+  )
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   return updatedRule!
 }

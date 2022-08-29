@@ -1,5 +1,8 @@
 import { SubgraphDeploymentID, parseGRT, formatGRT } from '@graphprotocol/common-ts'
 import {
+  nullPassThrough,
+  parseBoolean,
+  parseDecisionBasis,
   IndexerManagementClient,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
@@ -12,35 +15,6 @@ import { BigNumber, utils } from 'ethers'
 import { outputColors, pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
-
-export const parseDeploymentID = (s: string): SubgraphDeploymentIDIsh => {
-  if (s === 'all' || s === 'global') {
-    return s
-  } else {
-    return new SubgraphDeploymentID(s)
-  }
-}
-
-export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
-  if (!['always', 'never', 'rules', 'offchain'].includes(s)) {
-    throw new Error(
-      `Unknown decision basis "${s}". Supported: always, never, rules, offchain`,
-    )
-  } else {
-    return s as IndexingDecisionBasis
-  }
-}
-
-export const parseBoolean = (
-  val: string | boolean | number | undefined | null,
-): boolean => {
-  const s = val && val.toString().toLowerCase().trim()
-  return s != 'false' && s != 'f' && s != '0'
-}
-
-function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
-  return (x: T | null) => (x === null ? null : fn(x))
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => any> = {

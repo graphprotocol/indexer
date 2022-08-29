@@ -14,12 +14,12 @@ import {
   createIndexerManagementClient,
   IndexerManagementClient,
   IndexerManagementDefaults,
-} from '../client'
+} from '../../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
   POIDisputeAttributes,
-} from '../models'
+} from '../../models'
 import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
