@@ -350,7 +350,7 @@ export class Indexer {
             }
           `,
           {
-            deployments,
+            deployments: deployments.map(deployment => deployment.bytes32),
           },
         )
         .toPromise()
