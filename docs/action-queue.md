@@ -33,6 +33,9 @@ Local usage from source
 # Fetch actions by status
 ./bin/graph-indexer indexer actions get --status queued
 
+# Specify ordering criteria when fetching actions
+./bin/graph-indexer indexer actions get --orderBy allocationAmount --orderDirection desc
+
 # Queue allocate action (allocateFrom())
 ./bin/graph-indexer indexer actions queue allocate QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 5000
 
@@ -47,6 +50,9 @@ Local usage from source
 
 # Approve multiple actions for execution
 ./bin/graph-indexer indexer actions approve 1 3 5
+
+# Approve all queued actions
+./bin/graph-indexer indexer actions approve queued
 
 # Force the worker to execute approved actions immediately
 ./bin/graph-indexer indexer actions execute approve 
