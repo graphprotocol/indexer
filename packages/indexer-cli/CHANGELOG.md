@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2022-08-31
+### Added
+- Rule commands input parsing, suggest useage when unsupported value provided
+- Support batch approving queued actions
+- Support user defined ordering on actions get command
+
 ## [0.20.1] - 2022-08-04
 ### Added
 - Option to set a global default cost model
@@ -172,7 +178,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3

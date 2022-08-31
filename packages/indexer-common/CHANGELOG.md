@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.3] - 2022-08-31
+### Changed
+- Shorten failure reason: use indexer error codes
+
+### Added
+- Track rule matching criteria per action, store in actions db
+- Allow allocations with allocationAmount = 0
+
+### Fixed
+- Use correct allocation amount big number formatting during auto indexing rule creation
+- Fix fallback to global cost model if specific cost model not set
+
 ## [0.20.1] - 2022-08-04
 ### Fixed
 - Query fee runtime type check error
@@ -177,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.3...HEAD
+[0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3
