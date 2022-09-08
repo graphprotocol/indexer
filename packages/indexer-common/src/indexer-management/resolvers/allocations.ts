@@ -1,3 +1,4 @@
+import { NetworkMonitor } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
@@ -286,13 +287,15 @@ async function queryAllocations(
 }
 
 async function resolvePOI(
-  contracts: NetworkContracts,
+  networkMonitor: NetworkMonitor,
   transactionManager: TransactionManager,
   indexingStatusResolver: IndexingStatusResolver,
   allocation: Allocation,
   poi: string | undefined,
   force: boolean,
 ): Promise<string> {
+  // Obtain epoch start block based on subgraph deployment network's
+  const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
   // poi = undefined, force=true  -- submit even if poi is 0x0
   // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
   // poi = undefined, force=false -- submit with generated POI if one available
@@ -307,23 +310,16 @@ async function resolvePOI(
           return (
             (await indexingStatusResolver.proofOfIndexing(
               allocation.subgraphDeployment.id,
-              await transactionManager.ethereum.getBlock(
-                (await contracts.epochManager.currentEpochBlock()).toNumber(),
-              ),
+              currentEpochStartBlock,
               allocation.indexer,
             )) || utils.hexlify(Array(32).fill(0))
           )
       }
       break
     case false: {
-      // Obtain the start block of the current epoch
-      const epochStartBlockNumber = await contracts.epochManager.currentEpochBlock()
-      const epochStartBlock = await transactionManager.ethereum.getBlock(
-        epochStartBlockNumber.toNumber(),
-      )
       const generatedPOI = await indexingStatusResolver.proofOfIndexing(
         allocation.subgraphDeployment.id,
-        epochStartBlock,
+        currentEpochStartBlock,
         allocation.indexer,
       )
       switch (poi == generatedPOI) {
@@ -335,7 +331,7 @@ async function resolvePOI(
             throw indexerError(
               IndexerErrorCode.IE067,
               `POI not available for deployment at current epoch start block.
-              currentEpochStartBlock: ${epochStartBlockNumber}
+              currentEpochStartBlock: ${currentEpochStartBlock.number}
               deploymentStatus: ${
                 deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
@@ -674,7 +670,7 @@ export default {
       }
 
       poi = await resolvePOI(
-        contracts,
+        networkMonitor,
         transactionManager,
         indexingStatusResolver,
         allocationData,
@@ -871,7 +867,7 @@ export default {
 
       logger.debug('Resolving POI')
       const allocationPOI = await resolvePOI(
-        contracts,
+        networkMonitor,
         transactionManager,
         indexingStatusResolver,
         allocationData,

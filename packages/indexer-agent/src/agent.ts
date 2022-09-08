@@ -171,7 +171,8 @@ class Agent {
     }
 
     const currentEpoch = timer(600_000).tryMap(
-      () => this.network.contracts.epochManager.currentEpoch(),
+      async () =>
+        (await this.network.contracts.epochManager.currentEpoch()).toNumber(),
       {
         onError: error =>
           this.logger.warn(`Failed to fetch current epoch`, { error }),
@@ -195,6 +196,22 @@ class Agent {
           this.logger.warn(`Failed to fetch start block of current epoch`, {
             error,
           }),
+      },
+    )
+
+    const protocolChainLatestValidEpoch = timer(600_000).tryMap(
+      async () =>
+        await this.networkMonitor.latestValidEpoch(
+          this.networkMonitor.networkAlias,
+        ),
+      {
+        onError: error =>
+          this.logger.warn(
+            `Failed to obtain protocol chain's latest valid epoch`,
+            {
+              error,
+            },
+          ),
       },
     )
 
@@ -350,7 +367,7 @@ class Agent {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ activeAllocations, currentEpoch }) =>
         this.networkMonitor.recentlyClosedAllocations(
-          currentEpoch.toNumber(),
+          currentEpoch,
           1, //TODO: Parameterize with a user provided value
         ),
       {
@@ -366,9 +383,7 @@ class Agent {
       channelDisputeEpochs,
     }).tryMap(
       ({ currentEpoch, channelDisputeEpochs }) =>
-        this.network.claimableAllocations(
-          currentEpoch.toNumber() - channelDisputeEpochs,
-        ),
+        this.network.claimableAllocations(currentEpoch - channelDisputeEpochs),
       {
         onError: () =>
           this.logger.warn(
@@ -426,6 +441,7 @@ class Agent {
       claimableAllocations,
       disputableAllocations,
       costModels,
+      protocolChainLatestValidEpoch,
     }).pipe(
       async ({
         paused,
@@ -441,9 +457,21 @@ class Agent {
         claimableAllocations,
         disputableAllocations,
         costModels,
+        protocolChainLatestValidEpoch,
       }) => {
-        this.logger.info(`Reconcile with the network`)
+        this.logger.info(`Reconcile with the network`, {
+          protocolChainLatestValidEpoch,
+        })
 
+        if (protocolChainLatestValidEpoch.epochNumber != currentEpoch) {
+          this.logger.warn(
+            `EBO latest valid epoch differs from the network contract, ping updates to the EBO (After this is stable, can replace currentEpoch)`,
+            {
+              currentEpoch,
+              currentEpochStartBlock,
+            },
+          )
+        }
         // Do nothing else if the network is paused
         if (paused) {
           return this.logger.info(
@@ -488,8 +516,7 @@ class Agent {
 
         try {
           const disputableEpoch =
-            currentEpoch.toNumber() -
-            this.network.indexerConfigs.poiDisputableEpochs
+            currentEpoch - this.network.indexerConfigs.poiDisputableEpochs
           // Find disputable allocations
           await this.identifyPotentialDisputes(
             disputableAllocations,
@@ -510,7 +537,7 @@ class Agent {
           await this.reconcileActions(
             networkDeploymentAllocationDecisions,
             activeAllocations,
-            currentEpoch.toNumber(),
+            currentEpoch,
             currentEpochStartBlock,
             maxAllocationEpochs,
           )

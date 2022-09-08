@@ -854,4 +854,22 @@ Failed to resolve POI: User provided POI does not match reference fetched from t
 
 Check sync and health status of the subgraph to access the issue. If needed, provide a POI or use `--force` to bypass POI checks. 
 
+## IE069
 
+**Summary**
+
+Failed to query Epoch Block Oracle Subgraph
+
+**Solution**
+
+Check `epoch-subgraph-endpoint` query endpoint for its syncing status and the EBO contract state. 
+
+## IE070
+
+**Summary**
+
+Failed to query BlockHashFromNumber from graph node
+
+**Solution**
+
+Graph-node could not find the block hash given network and block number, check if graph-node has access to a network client that has synced to the required block. 

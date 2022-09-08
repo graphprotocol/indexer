@@ -79,6 +79,8 @@ export enum IndexerErrorCode {
   IE066 = 'IE066',
   IE067 = 'IE067',
   IE068 = 'IE068',
+  IE069 = 'IE069',
+  IE070 = 'IE070',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -151,6 +153,8 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE066: 'Failed to allocate: allocation ID already exists on chain',
   IE067: 'Failed to query POI for current epoch start block',
   IE068: 'User-provided POI did not match reference POI from graph-node',
+  IE069: 'Failed to query Epoch Block Oracle Subgraph',
+  IE070: 'Failed to query BlockHashFromNumber from graph-node',
 }
 
 export type IndexerErrorCause = unknown

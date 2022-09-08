@@ -253,7 +253,7 @@ export class Network {
 
   // TODO: Move to NetworkMonitor
   async disputableAllocations(
-    currentEpoch: BigNumber,
+    currentEpoch: number,
     deployments: SubgraphDeploymentID[],
     minimumAllocation: number,
   ): Promise<Allocation[]> {
@@ -272,8 +272,7 @@ export class Network {
 
     try {
       const zeroPOI = utils.hexlify(Array(32).fill(0))
-      const disputableEpoch =
-        currentEpoch.toNumber() - this.indexerConfigs.poiDisputableEpochs
+      const disputableEpoch = currentEpoch - this.indexerConfigs.poiDisputableEpochs
       let lastCreatedAt = 0
       while (dataRemaining) {
         const result = await this.networkSubgraph.query(
@@ -351,7 +350,7 @@ export class Network {
       disputableEpochs = await Promise.all(
         disputableEpochs.map(async (epoch: Epoch): Promise<Epoch> => {
           // TODO: May need to retry or skip epochs where obtaining start block fails
-          epoch.startBlockHash = (await this.ethereum.getBlock(epoch?.startBlock))?.hash
+          epoch.startBlockHash = (await this.ethereum.getBlock(epoch.startBlock))?.hash
           return epoch
         }),
       )

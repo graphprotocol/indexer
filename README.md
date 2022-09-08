@@ -203,6 +203,8 @@ Protocol
                                deployment             [string] [default: "0.01"]
   --register                   Whether to register the indexer on chain
                                                        [boolean] [default: true]
+  --epoch-subgraph-endpoint    Endpoint to query epoch start blocks from
+                                                             [string] [required]
 
 Cost Models
   --inject-dai  Inject the GRT to DAI/USDC conversion rate into cost model
