@@ -190,4 +190,61 @@ export class IndexingStatusResolver {
       return undefined
     }
   }
+
+  public async blockHashFromNumber(
+    network: string,
+    blockNumber: number,
+  ): Promise<string> {
+    try {
+      return await pRetry(
+        async (attempt) => {
+          const result = await this.statuses
+            .query(
+              gql`
+                query blockHashFromNumber($network: String!, $blockNumber: Int!) {
+                  blockHashFromNumber(network: $network, blockNumber: $blockNumber)
+                }
+              `,
+              {
+                network,
+                blockNumber,
+              },
+            )
+            .toPromise()
+
+          if (!result.data || !result.data.blockHashFromNumber || result.error) {
+            throw indexerError(IndexerErrorCode.IE070)
+          }
+
+          this.logger.trace('Resolved block hash', {
+            network,
+            blockNumber,
+            blockHash: result.data.blockHashFromNumber,
+            attempt,
+          })
+
+          return `0x${result.data.blockHashFromNumber}`
+        },
+        {
+          retries: 5,
+          maxTimeout: 10000,
+          onFailedAttempt: (err) => {
+            this.logger.warn(`Block hash could not be queried`, {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
+          },
+        } as pRetry.Options,
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE070, error)
+      this.logger.error(`Failed to query block hash`, {
+        network,
+        blockNumber,
+        error: error.message,
+      })
+      throw err
+    }
+  }
 }

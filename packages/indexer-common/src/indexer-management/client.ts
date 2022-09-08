@@ -8,7 +8,6 @@ import {
   Logger,
   mutable,
   NetworkContracts,
-  toAddress,
   WritableEventual,
 } from '@graphprotocol/common-ts'
 import { NetworkSubgraph } from '../network-subgraph'
@@ -436,6 +435,7 @@ export interface IndexerManagementClientOptions {
   ethereum?: ethers.providers.BaseProvider
   transactionManager?: TransactionManager
   receiptCollector?: AllocationReceiptCollector
+  networkMonitor?: NetworkMonitor
   allocationManagementMode?: AllocationManagementMode
   autoAllocationMinBatchSize?: number
 }
@@ -500,6 +500,7 @@ export const createIndexerManagementClient = async (
     features,
     transactionManager,
     receiptCollector,
+    networkMonitor,
     allocationManagementMode,
     autoAllocationMinBatchSize,
   } = options
@@ -518,18 +519,8 @@ export const createIndexerManagementClient = async (
   const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
   let allocationManager: AllocationManager | undefined = undefined
   let actionManager: ActionManager | undefined = undefined
-  let networkMonitor: NetworkMonitor | undefined = undefined
 
-  if (transactionManager) {
-    networkMonitor = new NetworkMonitor(
-      contracts,
-      toAddress(address),
-      logger,
-      indexingStatusResolver,
-      networkSubgraph,
-      transactionManager.ethereum,
-    )
-
+  if (transactionManager && networkMonitor) {
     if (receiptCollector) {
       // TODO: AllocationManager construction inside ActionManager
       allocationManager = new AllocationManager(

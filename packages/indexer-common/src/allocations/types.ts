@@ -1,3 +1,4 @@
+import { IndexingStatusResolver } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 
 import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
@@ -175,3 +176,39 @@ export const parseGraphQLEpochs = (epoch: any): Epoch => ({
   totalIndexerRewards: epoch.totalIndexerRewards,
   totalDelegatorRewards: epoch.totalDelegatorRewards,
 })
+
+export interface NetworkEpochBlock {
+  network: string
+  epochNumber: number
+  startBlockNumber: number
+  startBlockHash: string
+}
+
+export const CAIPIds: { [key: string]: string } = {
+  mainnet: 'eip155:1',
+  goerli: 'eip155:5',
+  gnosis: 'eip155:100',
+}
+
+export const alias = (identifier: string): string => {
+  try {
+    return Object.keys(CAIPIds).filter((name) => CAIPIds[name] == identifier)[0]
+  } catch (error) {
+    throw new Error(`Failed to match chain ids to a network alias`)
+  }
+}
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const buildEpochBlock = async (
+  status: IndexingStatusResolver,
+  block: any,
+): Promise<NetworkEpochBlock> => {
+  return {
+    network: block.network.id,
+    epochNumber: +block.epochNumber,
+    startBlockNumber: +block.blockNumber,
+    startBlockHash: await status.blockHashFromNumber(
+      alias(block.network.id),
+      +block.blockNumber,
+    ),
+  }
+}

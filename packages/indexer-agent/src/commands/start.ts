@@ -26,6 +26,10 @@ import {
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
+  AllocationManagementMode,
+  NetworkMonitor,
+  EpochSubgraph,
+  CAIPIds,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -33,10 +37,6 @@ import { providers, Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-import {
-  AllocationManagementMode,
-  NetworkMonitor,
-} from '@graphprotocol/indexer-common'
 
 export default {
   command: 'start',
@@ -164,6 +164,12 @@ export default {
         type: 'boolean',
         default: false,
         group: 'Network Subgraph',
+      })
+      .option('epoch-subgraph-endpoint', {
+        description: 'Endpoint to query the epoch block oracle subgraph from',
+        type: 'string',
+        required: false,
+        group: 'Protocol',
       })
       .option('index-node-ids', {
         description:
@@ -717,6 +723,14 @@ export default {
         : undefined,
     })
 
+    const epochSubgraph = argv.epochSubgraphEndpoint
+      ? await EpochSubgraph.create({
+          logger,
+          endpoint: argv.epochSubgraphEndpoint,
+          network: networkMeta.name,
+        })
+      : undefined
+
     logger.info('Connect to network')
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
@@ -756,12 +770,14 @@ export default {
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
     const networkMonitor = new NetworkMonitor(
+      CAIPIds[networkMeta.name],
       contracts,
       toAddress(indexerAddress),
       logger,
       indexingStatusResolver,
       networkSubgraph,
       ethereumProvider,
+      epochSubgraph,
     )
 
     logger.info('Launch indexer management API server')
@@ -789,6 +805,7 @@ export default {
       },
       transactionManager: network.transactionManager,
       receiptCollector,
+      networkMonitor,
       allocationManagementMode,
       autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     })
