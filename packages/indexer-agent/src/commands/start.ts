@@ -816,10 +816,7 @@ export default {
     if (networkSubgraphDeployment !== undefined) {
       // Make sure the network subgraph is being indexed
       await indexer.ensure(
-        `${networkSubgraphDeployment.ipfsHash.slice(
-          0,
-          23,
-        )}/${networkSubgraphDeployment.ipfsHash.slice(23)}`,
+        `indexer-agent/${networkSubgraphDeployment.ipfsHash.slice(-10)}`,
         networkSubgraphDeployment,
       )
     }
