@@ -8,7 +8,7 @@ interface IndexerErrorMetrics {
 
 let indexerErrorMetrics: IndexerErrorMetrics | undefined
 
-const ERROR_BASE_URL = `https://github.com/graphprotocol/indexer/blob/master/docs/errors.md`
+const ERROR_BASE_URL = `https://github.com/graphprotocol/indexer/blob/main/docs/errors.md`
 
 export enum IndexerErrorCode {
   IE001 = 'IE001',

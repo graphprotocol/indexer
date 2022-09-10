@@ -275,8 +275,9 @@ export function isDeploymentWorthAllocatingTowards(
       } else if (
         deploymentRule.minSignal &&
         signalledTokens.gte(deploymentRule.minSignal) &&
-        deploymentRule.maxSignal &&
-        signalledTokens.lte(deploymentRule.maxSignal)
+        deploymentRule.maxSignal
+          ? signalledTokens.lte(deploymentRule.maxSignal)
+          : true
       ) {
         return new AllocationDecision(
           deployment.id,
