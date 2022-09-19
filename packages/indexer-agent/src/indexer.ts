@@ -17,7 +17,6 @@ import {
   IndexingStatus,
   SubgraphIdentifierType,
   parseGraphQLIndexingStatus,
-  COST_MODEL_GLOBAL,
   CostModelAttributes,
   ActionFilter,
   ActionResult,
@@ -30,7 +29,6 @@ import {
   Allocation,
   AllocationDecision,
 } from '@graphprotocol/indexer-common'
-import fs from 'fs'
 import { CombinedError } from '@urql/core'
 import pMap from 'p-map'
 
@@ -362,71 +360,6 @@ export class Indexer {
     } catch (error) {
       this.logger.warn(`Failed to query cost models`, { error })
       throw error
-    }
-  }
-
-  async ensureGlobalCostModel(): Promise<void> {
-    try {
-      const globalCostModel = await this.indexerManagement
-        .query(
-          gql`
-            query costModel($deployment: String!) {
-              costModel(deployment: $deployment) {
-                deployment
-                model
-                variables
-              }
-            }
-          `,
-          {
-            deployment: COST_MODEL_GLOBAL,
-          },
-        )
-        .toPromise()
-
-      if (!globalCostModel.data.costModel) {
-        this.logger.info(
-          `Looking for a cost model defined at 'default.agora', if it exists then create a default "global" cost model`,
-        )
-
-        let defaults = null
-        try {
-          defaults = {
-            deployment: COST_MODEL_GLOBAL,
-            model: fs.readFileSync('default.agora', 'utf8').trim(),
-            variables: null,
-          }
-        } catch (err) {
-          this.logger.error(
-            `Failed to load default cost model": ${err.message}`,
-          )
-        }
-
-        const defaultGlobalCostModel = await this.indexerManagement
-          .mutation(
-            gql`
-              mutation setCostModel($costModel: CostModelInput!) {
-                setCostModel(costModel: $costModel) {
-                  deployment
-                  model
-                  variables
-                }
-              }
-            `,
-            { costModel: defaults },
-          )
-          .toPromise()
-
-        if (defaultGlobalCostModel.error) {
-          throw defaultGlobalCostModel.error
-        }
-
-        this.logger.info(`Created default "global" cost model`, {
-          costModel: defaultGlobalCostModel.data.setCostModel,
-        })
-      }
-    } catch (error) {
-      this.logger.error(`Failed to ensure default "global" cost model`)
     }
   }
 

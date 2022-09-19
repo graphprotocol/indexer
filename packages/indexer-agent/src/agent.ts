@@ -26,8 +26,6 @@ import {
   RewardsPool,
   Subgraph,
   SubgraphIdentifierType,
-  CostModelAttributes,
-  COST_MODEL_GLOBAL,
   evaluateDeployments,
   AllocationDecision,
 } from '@graphprotocol/indexer-common'
@@ -162,9 +160,6 @@ class Agent {
 
     // Ensure there is a 'global' indexing rule
     await this.indexer.ensureGlobalIndexingRule()
-
-    // Ensure there is a 'global' cost model
-    await this.indexer.ensureGlobalCostModel()
 
     if (this.registerIndexer) {
       await this.network.register()
@@ -407,25 +402,6 @@ class Agent {
       },
     )
 
-    const costModels = join({
-      ticker: timer(600_000),
-      networkDeploymentAllocationDecisions,
-    }).tryMap(
-      async ({ networkDeploymentAllocationDecisions }) => {
-        return await this.indexer.costModels(
-          networkDeploymentAllocationDecisions
-            .filter(a => a.toAllocate)
-            .map(a => a.deployment),
-        )
-      },
-      {
-        onError: error =>
-          this.logger.warn(`Failed to obtain cost models, trying again later`, {
-            error,
-          }),
-      },
-    )
-
     join({
       ticker: timer(240_000),
       paused: this.network.transactionManager.paused,
@@ -440,7 +416,6 @@ class Agent {
       recentlyClosedAllocations,
       claimableAllocations,
       disputableAllocations,
-      costModels,
       protocolChainLatestValidEpoch,
     }).pipe(
       async ({
@@ -456,7 +431,6 @@ class Agent {
         recentlyClosedAllocations,
         claimableAllocations,
         disputableAllocations,
-        costModels,
         protocolChainLatestValidEpoch,
       }) => {
         this.logger.info(`Reconcile with the network`, {
@@ -493,10 +467,6 @@ class Agent {
           )
         }
 
-        const targetAllocations = networkDeploymentAllocationDecisions
-          .filter(decision => decision.toAllocate === true)
-          .map(decision => decision.deployment)
-
         // Do nothing if there are already approved actions in the queue awaiting execution
         const approvedActions = await this.indexer.fetchActions({
           status: ActionStatus.APPROVED,
@@ -525,7 +495,7 @@ class Agent {
         } catch (err) {
           this.logger.warn(`Failed POI dispute monitoring`, { err })
         }
-        await this.reconcileCostModel(costModels, targetAllocations)
+
         try {
           await this.reconcileDeployments(
             activeDeployments,
@@ -690,29 +660,6 @@ class Agent {
       potentialDisputes: potentialDisputes,
       validAllocations: stored.length - potentialDisputes,
     })
-  }
-
-  async reconcileCostModel(
-    costModels: CostModelAttributes[],
-    targetAllocations: SubgraphDeploymentID[],
-  ): Promise<void> {
-    const costModelsIDs = costModels
-      .filter(model => model.deployment != COST_MODEL_GLOBAL)
-      .map(model => new SubgraphDeploymentID(model.deployment))
-    const deploymentMissingModels = targetAllocations.filter(
-      allocation => !(allocation.bytes32 in costModelsIDs),
-    )
-
-    if (deploymentMissingModels) {
-      this.logger.warn(
-        `The following deployments do not have defined cost models and will use the global cost model if it exists`,
-        {
-          deployments: deploymentMissingModels.map(
-            deployment => deployment.ipfsHash,
-          ),
-        },
-      )
-    }
   }
 
   async reconcileDeployments(
