@@ -15,6 +15,7 @@ import { validateDeploymentID } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <file>
+${chalk.bold('graph indexer cost set model')} [options] global <file>
 
 ${chalk.dim('Options:')}
 
