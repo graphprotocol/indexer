@@ -31,7 +31,7 @@ interface AllocationReceiptsBatch {
   timeout: number
 }
 
-interface PartialVoucher {
+export interface PartialVoucher {
   allocation: string // (0x-prefixed hex)
   fees: string // (0x-prefixed hex)
   signature: string // (0x-prefixed hex)
@@ -329,27 +329,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     return encodedReceipts
   }
 
-  private encodePartialVouchers(partialVouchers: PartialVoucher[]): BytesWriter {
-    // Take the partial vouchers and request for a full voucher
-    // [allocationId, partialVouchers[]] (in bytes)
-    // A voucher request needs allocation id which all partial vouchers shares,
-    // and a list of attributes (fees, signature, receipt id min, and receipt id max)
-    // from each partial voucher, all in form of 0x-prefixed hex string (32bytes)
-    const encodedPartialVouchers = new BytesWriter(20 + 128 * partialVouchers.length)
-    encodedPartialVouchers.writeHex(partialVouchers[0].allocation)
-    for (const partialVoucher of partialVouchers) {
-      // [fees, signature, receipt_id_min, receipt_id_max] as 0x-prefixed string list
-      const fee = BigNumber.from(partialVoucher.fees).toHexString()
-      const feePadding = 33 - fee.length / 2
-      encodedPartialVouchers.writeZeroes(feePadding)
-      encodedPartialVouchers.writeHex(fee)
-      encodedPartialVouchers.writeHex(partialVoucher.signature)
-      encodedPartialVouchers.writeHex(partialVoucher.receipt_id_min)
-      encodedPartialVouchers.writeHex(partialVoucher.receipt_id_max)
-    }
-    return encodedPartialVouchers
-  }
-
   private async obtainReceiptsVoucher(receipts: AllocationReceipt[]): Promise<void> {
     const logger = this.logger.child({
       allocation: receipts[0].allocation,
@@ -397,7 +376,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           hexStringLength: partialVouchers[0].allocation,
         })
 
-        const encodedPartialVouchers = this.encodePartialVouchers(partialVouchers)
+        const encodedPartialVouchers = encodePartialVouchers(partialVouchers)
 
         // Exchange the partial vouchers for a voucher
         response = await axios.post(
@@ -583,4 +562,28 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       }
     }
   }
+}
+
+export function encodePartialVouchers(partialVouchers: PartialVoucher[]): BytesWriter {
+  // Take the partial vouchers and request for a full voucher
+  // [allocationId, partialVouchers[]] (in bytes)
+  // A voucher request needs allocation id which all partial vouchers shares,
+  // and a list of attributes (fees, signature, receipt id min, and receipt id max)
+  // from each partial voucher, all in form of 0x-prefixed hex string (32bytes)
+  const encodedPartialVouchers = new BytesWriter(20 + 128 * partialVouchers.length)
+
+  encodedPartialVouchers.writeHex(partialVouchers[0].allocation)
+  for (const partialVoucher of partialVouchers) {
+    // [fees, signature, receipt_id_min, receipt_id_max] as 0x-prefixed string list
+    const fee = BigNumber.from(partialVoucher.fees).toHexString()
+    // We slice the hex string to remove the "0x" prefix from the byte length calculation
+    const feeByteLength = fee.slice(2).length / 2
+    const feePadding = 33 - feeByteLength
+    encodedPartialVouchers.writeZeroes(feePadding)
+    encodedPartialVouchers.writeHex(fee)
+    encodedPartialVouchers.writeHex(partialVoucher.signature)
+    encodedPartialVouchers.writeHex(partialVoucher.receipt_id_min)
+    encodedPartialVouchers.writeHex(partialVoucher.receipt_id_max)
+  }
+  return encodedPartialVouchers
 }
