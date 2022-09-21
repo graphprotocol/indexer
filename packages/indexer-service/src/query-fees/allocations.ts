@@ -95,11 +95,6 @@ export class AllocationReceiptManager implements ReceiptManager {
       receiptData,
     )
 
-    // If the fee is 0, validate verifier and return allocation ID for the signer
-    if (receipt.fees.isZero()) {
-      return receipt
-    }
-
     this._queue({
       id: receipt.id,
       allocation: receipt.allocation,
