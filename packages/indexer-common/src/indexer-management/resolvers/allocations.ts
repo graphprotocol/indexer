@@ -482,9 +482,7 @@ export default {
       await subgraphManager.ensure(
         logger,
         models,
-        `${subgraphDeployment.ipfsHash.slice(0, 23)}/${subgraphDeployment.ipfsHash.slice(
-          23,
-        )}`,
+        `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
         subgraphDeployment,
         indexNode,
       )
