@@ -326,7 +326,7 @@ export class AllocationManager {
     await this.subgraphManager.ensure(
       logger,
       this.models,
-      `${deployment.ipfsHash.slice(0, 23)}/${deployment.ipfsHash.slice(23)}`,
+      `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
       deployment,
       indexNode,
     )
