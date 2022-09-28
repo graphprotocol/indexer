@@ -314,3 +314,39 @@ export async function fetchActions(
 
   return result.data.actions
 }
+
+export async function deleteActions(
+  client: IndexerManagementClient,
+  actionIDs: number[],
+): Promise<ActionResult[]> {
+  const result = await client
+    .mutation(
+      gql`
+        mutation deleteActions($actionIDs: [Int!]!) {
+          deleteActions(actionIDs: $actionIDs) {
+            id
+            type
+            allocationID
+            deploymentID
+            amount
+            poi
+            force
+            source
+            reason
+            priority
+            transaction
+            status
+            failureReason
+          }
+        }
+      `,
+      { actionIDs },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.deleteActions
+}

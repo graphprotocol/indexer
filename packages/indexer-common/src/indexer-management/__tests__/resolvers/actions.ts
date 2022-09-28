@@ -126,6 +126,12 @@ const ACTIONS_QUERY = gql`
     }
   }
 `
+
+const DELETE_ACTIONS_MUTATION = gql`
+  mutation deleteActions($actionIDs: [Int!]!) {
+    deleteActions(actionIDs: $actionIDs)
+  }
+`
 async function actionInputToExpected(
   input: ActionInput,
   id: number,
@@ -558,6 +564,52 @@ describe('Actions', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.actions', [expectedApprovedAction])
+  })
+
+  test('Delete action in queue', async () => {
+    const queuedAllocateAction1 = { ...queuedAllocateAction }
+    const queuedAllocateAction2 = { ...queuedAllocateAction }
+    queuedAllocateAction1.deploymentID = subgraphDeployment2
+    queuedAllocateAction2.deploymentID = subgraphDeployment3
+
+    const inputActions = [
+      queuedAllocateAction,
+      queuedAllocateAction1,
+      queuedAllocateAction2,
+    ]
+    const expecteds = await Promise.all(
+      inputActions.map(async (action, key) => {
+        return await actionInputToExpected(action, key + 1)
+      }),
+    )
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', expecteds)
+
+    const actions = await client
+      .query(ACTIONS_QUERY, { filter: { type: ActionType.ALLOCATE } })
+      .toPromise()
+    const actionIDs = actions.data.actions.map((action: any) => action.id)
+
+    await expect(
+      client.mutation(DELETE_ACTIONS_MUTATION, { actionIDs }).toPromise(),
+    ).resolves.toHaveProperty('data.deleteActions', 3)
+  })
+
+  test('Delete non-existent action in queue', async () => {
+    const actionIDs = [0]
+
+    await expect(
+      client.mutation(DELETE_ACTIONS_MUTATION, { actionIDs }).toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError('Delete action failed: No action items found with id in [0]'),
+        ],
+      }),
+    )
   })
 
   test('Reject empty action input', async () => {

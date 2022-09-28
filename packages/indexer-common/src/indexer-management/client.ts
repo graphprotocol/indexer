@@ -409,6 +409,7 @@ const SCHEMA_SDL = gql`
     updateAction(action: ActionInput!): Action!
     queueActions(actions: [ActionInput!]!): [Action]!
     cancelActions(actionIDs: [String!]!): [Action]!
+    deleteActions(actionIDs: [String!]!): Int!
     approveActions(actionIDs: [String!]!): [Action]!
     executeApprovedActions: [ActionResult!]!
   }
