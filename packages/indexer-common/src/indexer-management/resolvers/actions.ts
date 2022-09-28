@@ -176,6 +176,22 @@ export default {
     return canceledActions
   },
 
+  deleteActions: async (
+    { actionIDs }: { actionIDs: number[] },
+    { logger, models }: IndexerManagementResolverContext,
+  ): Promise<number> => {
+    logger.debug(`Execute 'deleteActions' mutation`, {
+      actionIDs,
+    })
+    const numDeleted = await models.Action.destroy({ where: { id: actionIDs } })
+
+    if (numDeleted === 0) {
+      throw Error(`Delete action failed: No action items found with id in [${actionIDs}]`)
+    }
+
+    return numDeleted
+  },
+
   updateAction: async (
     { action }: { action: Action },
     { logger, models }: IndexerManagementResolverContext,
