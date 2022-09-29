@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2022-09-29
+### Added
+- Use partial-vouchers endpoint to batch receipt collection
+- Integrate epochSubgraph, use for multi-chain POI resolve
+
+### Changed
+- Remove cost model default file in favor or applying via cli
+
 ## [0.20.3] - 2022-08-31
 ### Added
 - Include rule match crieteria as action reason to improve debugging process
@@ -398,7 +406,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.4...HEAD
+[0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1

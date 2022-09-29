@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2022-09-29
+### Changed
+- Do not remove zero fee receipts in case needed later to resolve to vouchers
+
 ## [0.20.1] - 2022-08-04
 ### Added
 - Option to log query details and execution times
@@ -263,7 +267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.4...HEAD
+[0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.4
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.3

@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.4] - 2022-09-29
+### Fixed
+- Fix signal threshold check bug in isDeploymentWorthAllocatingTowards()
+
+### Changed
+- Remove max signal check, towards deprecating maxSignal
+
 ## [0.20.3] - 2022-08-31
 ### Changed
 - Shorten failure reason: use indexer error codes
@@ -189,7 +196,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.4...HEAD
+[0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0
