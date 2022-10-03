@@ -89,6 +89,20 @@ export class AllocationReceiptManager implements ReceiptManager {
       throw indexerError(IndexerErrorCode.IE031, 'Expecting 264 hex characters')
     }
 
+    // TODO: (Security) Additional validations are required to remove trust from
+    // the Gateway which are deferred until we can fully remove trust which requires:
+    //   * A receiptID based routing solution so that some invariants can be tested
+    //     in memory instead of hitting the database for performance (eg: collateral,
+    //     and that fees are increasing).
+    //   * A ZKP to ensure all receipts can be collected without running out of gas.
+    //
+    // Validations include:
+    //   * The address corresponds to an *unresolved* transfer.
+    //   * The unresolved transfer has sufficient collateral to pay for the query.
+    //   * Recovering the signature for the binary data in chars 20..56 = the specified address.
+    //   * The increase in fee amount from the last known valid state covers the cost of the query
+    //   * This receipt ID is not being "forked" by concurrent usage.
+
     const receipt = this._parseAllocationReceipt(receiptData)
     const signature = await validateSignature(
       this._allocationReceiptVerifier,
