@@ -23,7 +23,7 @@ spec:
     env:
       - name: ethereum
         valueFrom:
-          configMapKeyRef:
+          secretKeyRef:
             name: ethereum-networks
             key: networks
       - name: PGHOST

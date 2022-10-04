@@ -17,3 +17,7 @@ spec:
           env:
             - name: GRAPH_LOG
               value: debug
+            - name: GRAPH_ALLOW_NON_DETERMINISTIC_IPFS
+              value: "true"
+            - name: GRAPH_ALLOW_NON_DETERMINISTIC_FULLTEXT_SEARCH
+              value: "true"

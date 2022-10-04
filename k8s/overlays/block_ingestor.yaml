@@ -1,9 +1,9 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: query-node
+  name: index-node-block-ingestor
 spec:
-  # Set this to the number of VM's in the query_pool node pool
+  # Set this to the number of VM's in the index_pool node pool
   replicas: 2
   template:
     spec:

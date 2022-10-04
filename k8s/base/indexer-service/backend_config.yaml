@@ -3,6 +3,5 @@ kind: BackendConfig
 metadata:
   name: indexer-service-backend-config
 spec:
-  # Use a long timeout for WebSocket connections
   connectionDraining:
     drainingTimeoutSec: 0

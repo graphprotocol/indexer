@@ -3226,15 +3226,14 @@ spec:
     spec:
       containers:
       - name: grafana
-        image: grafana/grafana:latest
+        image: grafana/grafana:8.3.3
         ports:
           - name: service
             containerPort: 80
             protocol: TCP
           - name: grafana
             containerPort: 3000
-        resources:
-          {}
+        resources: {}
         volumeMounts:
           - mountPath: /var/lib/grafana
             name: grafana-storage
@@ -3269,22 +3268,21 @@ spec:
           emptyDir: {}
         - name: grafana-datasources
           configMap:
-              defaultMode: 420
-              name: grafana-datasources
+            defaultMode: 420
+            name: grafana-datasources
         - name: grafana-dashboards
           configMap:
-              defaultMode: 420
-              name: grafana-dashboards
+            defaultMode: 420
+            name: grafana-dashboards
 
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
   name: grafana
   annotations:
-      prometheus.io/scrape: 'true'
-      prometheus.io/port:   '3000'
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "3000"
 spec:
   selector:
     app: grafana
