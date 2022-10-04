@@ -1,0 +1,25 @@
+[general]
+query = "query_node_.*"
+
+[store]
+[store.primary]
+connection = "postgresql://$postgres_user:$postgres_pass@$postgres_host/$postgres_db"
+pool_size = [
+    { node = "query_node_.*", size = 60 },
+    { node = "index_node_.*", size = 35 },
+    { node = "index_node_block_ingestor_.*", size = 4 },
+]
+
+[deployment]
+[[deployment.rule]]
+store = "primary"
+indexers = [ "index_node_0", "index_node_1" ]
+
+[chains]
+ingestor = "index_node_block_ingestor_0"
+
+[chains.mainnet]
+shard = "primary"
+provider = [
+    { label = "mainnet-0", url = "https://eth-mainnet.node/", features = ["archive", "traces"] }
+]

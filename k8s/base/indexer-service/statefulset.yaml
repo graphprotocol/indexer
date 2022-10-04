@@ -52,12 +52,10 @@ spec:
                 secretKeyRef:
                   name: ethereum
                   key: url
-            - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
-              value: http://index-eragent.default.svc.cluster.local:8002/network
             - name: INDEXER_SERVICE_GRAPH_NODE_QUERY_ENDPOINT
-              value: http://query-node.default.svc.cluster.local/
+              value: http://query-node.default.svc.cluster.local:8000/
             - name: INDEXER_SERVICE_GRAPH_NODE_STATUS_ENDPOINT
-              value: http://query-node.default.svc.cluster.local/index-node/graphql
+              value: http://query-node.default.svc.cluster.local:8030/graphql
             - name: INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT
               value: https://gateway.network.thegraph.com/network
             - name: INDEXER_SERVICE_POSTGRES_HOST
@@ -90,3 +88,7 @@ spec:
                 secretKeyRef:
                   name: scalar
                   key: client_signer_address
+            - name: INDEXER_SERVICE_SERVE_NETWORK_SUBGRAPH
+              value: "true"
+            - name: INDEXER_SERVICE_GCLOUD_PROFILING
+              value: "true"

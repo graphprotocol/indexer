@@ -12,7 +12,7 @@ spec:
             - name: INDEXER_AGENT_INDEX_NODE_IDS
               value: index_node_0,index_node_1
 
-            # Set this to your indexer's geo location
+            # Set this to your indexer's lat, long coordinates
             - name: INDEXER_AGENT_INDEXER_GEO_COORDINATES
               value: "0.00 0.00"
 

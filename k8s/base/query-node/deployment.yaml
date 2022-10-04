@@ -7,6 +7,12 @@ spec:
     matchLabels:
       app: query-node
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+  minReadySeconds: 60 # warm up the cache before deleting old pods
   template:
     metadata:
       labels:
@@ -30,6 +36,9 @@ spec:
           persistentVolumeClaim:
             claimName: nfs-shared
             readOnly: false
+        - name: graph-node-config
+          configMap:
+            name: graph-node-config
       containers:
         # Proxy that forwards HTTP requests to port 8000 and
         # WebSocket requests to port 8001
@@ -43,6 +52,11 @@ spec:
               subPath: nginx.conf
         # The query node itself
         - name: graph-node
+          resources:
+            requests:
+              # Set this to a little more than half the number of CPUs
+              # that one VM in the node pool has
+              cpu: 5
           image: graph-node-image
           ports:
             - name: http
@@ -51,20 +65,30 @@ spec:
               containerPort: 8001
             - name: index-node
               containerPort: 8030
+            - name: metrics
+              containerPort: 8040
           volumeMounts:
             - name: nfs-shared
               mountPath: /var/lib/graph
+            - name: graph-node-config
+              mountPath: /etc/graph-node
           env:
             # Query nodes connect to Ethereum but don't call the Ethereum node
             # for anything; this argument could be made obsolete
-            - name: ethereum
-              value: mainnet:https://eth-mainnet.node/
+            - name: node_role
+              value: query-node
             - name: ipfs
               value: https://ipfs.network.thegraph.com
             - name: EXPERIMENTAL_SUBGRAPH_VERSION_SWITCHING_MODE
               value: synced
             - name: GRAPH_KILL_IF_UNRESPONSIVE
               value: "true"
+            - name: GRAPH_QUERY_CACHE_MAX_MEM
+              value: "3000"
+            - name: GRAPH_QUERY_CACHE_BLOCKS
+              value: "6"
+            - name: GRAPH_QUERY_CACHE_STALE_PERIOD
+              value: "1000"
             - name: postgres_host
               valueFrom:
                 secretKeyRef:
@@ -82,8 +106,6 @@ spec:
                   key: password
             - name: postgres_db
               value: graph
-            - name: node_role
-              value: query-node
             - name: node_id
               valueFrom:
                 fieldRef:

@@ -1,12 +1,13 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: index-node
+  name: index-node-block-ingestor
 spec:
   selector:
     matchLabels:
-      app: index-node
-  serviceName: index-node
+      app: block-ingestor
+      network: all
+  serviceName: index-node-block-ingestor
   replicas: 1
   podManagementPolicy: Parallel
   updateStrategy:
@@ -14,7 +15,8 @@ spec:
   template:
     metadata:
       labels:
-        app: index-node
+        app: block-ingestor
+        network: all
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/path: "/metrics"
@@ -61,6 +63,8 @@ spec:
               value: /etc/graph-node/graph-node.toml
             - name: GRAPH_KILL_IF_UNRESPONSIVE
               value: "true"
+            - name: GRAPH_LOG
+              value: debug
             - name: postgres_host
               valueFrom:
                 secretKeyRef:
@@ -83,7 +87,13 @@ spec:
                   key: graph_db
             - name: ipfs
               value: https://ipfs.network.thegraph.com
+            - name: GRAPH_ALLOW_NON_DETERMINISTIC_IPFS
+              value: "true"
+            - name: GRAPH_ALLOW_NON_DETERMINISTIC_FULLTEXT_SEARCH
+              value: "true"
 
             # Avoid some subgraphs fail with "Gas limit exceeded" error
             - name: GRAPH_MAX_GAS_PER_HANDLER
               value: "1_000_000_000_000_000"
+            - name: GRAPH_ETHEREUM_REQUEST_RETRIES
+              value: "30"

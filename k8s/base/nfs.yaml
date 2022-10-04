@@ -22,7 +22,7 @@ spec:
         name: nfs-server
         imagePullPolicy: IfNotPresent
         securityContext:
-            privileged: true
+          privileged: true
         volumeMounts:
           - name: nfs
             mountPath: /nfs-share
@@ -68,7 +68,7 @@ metadata:
   name: nfs-shared
 spec:
   accessModes:
-  - ReadWriteMany
+    - ReadWriteMany
   storageClassName: "standard"
   volumeName: nfs-shared
   resources:

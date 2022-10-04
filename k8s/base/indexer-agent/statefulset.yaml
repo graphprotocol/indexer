@@ -97,3 +97,7 @@ spec:
                 secretKeyRef:
                   name: network-subgraph
                   key: endpoint
+            - name: INDEXER_AGENT_LOG_LEVEL
+              value: debug
+            - name: INDEXER_AGENT_ALLOCATION_MANAGEMENT
+              value: oversight
