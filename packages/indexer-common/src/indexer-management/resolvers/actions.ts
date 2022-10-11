@@ -9,6 +9,7 @@ import {
   ActionParams,
   ActionResult,
   ActionStatus,
+  ActionType,
   IndexerManagementModels,
   OrderDirection,
   validateActionInputs,
@@ -28,8 +29,8 @@ async function executeQueueOperation(
   models: IndexerManagementModels,
   transaction: Transaction,
 ): Promise<ActionResult[]> {
-  const recentlyFailedAction = recentlyFailedActions.filter(
-    (a) => a.deploymentID === action.deploymentID && a.type === action.type,
+  const recentlyFailedAction = recentlyFailedActions.filter((a) =>
+    compareFailedActions(a, action),
   )
   if (recentlyFailedAction.length > 0) {
     const message = `Recently failed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
@@ -261,4 +262,29 @@ export default {
     logger.debug(`Execute 'executeApprovedActions' mutation`)
     return await actionManager.executeApprovedActions()
   },
+}
+
+// Helper function to assess equality among a enqueued and a proposed actions
+function compareFailedActions(enqueued: Action, proposed: ActionInput): boolean {
+  // actions are not the same if they target different deployments
+  if (enqueued.deploymentID !== proposed.deploymentID) {
+    return false
+  }
+  // actions are not the same if they have different types
+  if (enqueued.type !== proposed.type) {
+    return false
+  }
+
+  // Different fileds are used to assess equality depending on the action type
+  const amount = enqueued.amount === proposed.amount
+  const poi = enqueued.poi === proposed.poi
+  const force = enqueued.force === proposed.force
+  switch (proposed.type) {
+    case ActionType.ALLOCATE:
+      return amount
+    case ActionType.UNALLOCATE:
+      return poi && force
+    case ActionType.REALLOCATE:
+      return amount && poi && force
+  }
 }
