@@ -1,5 +1,6 @@
 import { ActionManager, NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
+import { WhereOperators } from 'sequelize'
 
 export interface ActionParamsInput {
   deploymentID?: string
@@ -126,6 +127,7 @@ export interface ActionFilter {
   status?: ActionStatus | undefined
   source?: string | undefined
   reason?: string | undefined
+  updatedAt?: WhereOperators | undefined
 }
 
 export interface ActionResult {
