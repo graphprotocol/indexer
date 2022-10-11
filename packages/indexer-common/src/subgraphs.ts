@@ -208,6 +208,11 @@ export function isDeploymentWorthAllocatingTowards(
           new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
       ) || globalRule
 
+  logger.trace('Evaluating whether subgraphDeployment is worth allocating towards', {
+    deployment,
+    matchingRule: deploymentRule,
+  })
+
   // The deployment is not eligible for deployment if it doesn't have an allocation amount
   if (!deploymentRule?.allocationAmount) {
     logger.debug(`Could not find matching rule with defined 'allocationAmount':`, {
