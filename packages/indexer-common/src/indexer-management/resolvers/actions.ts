@@ -77,18 +77,14 @@ async function executeQueueOperation(
       )
       return updatedAction
     } else {
-      logger.warn(
+      const message =
         `Duplicate action found in queue that effects '${action.deploymentID}' but NOT overwritten because it has a different source and/or status. If you ` +
-          `would like to replace the item currently in the queue please cancel it and then queue the proposed action`,
-        {
-          actionInQueue: duplicateAction,
-          proposedAction: action,
-        },
-      )
-      throw Error(
-        `Duplicate action found in queue that effects '${action.deploymentID}' but NOT overwritten because it has a different source and/or status. If you ` +
-          `would like to replace the item currently in the queue please cancel it and then queue the proposed action`,
-      )
+        `would like to replace the item currently in the queue please cancel it and then queue the proposed action`
+      logger.warn(message, {
+        actionInQueue: duplicateAction,
+        proposedAction: action,
+      })
+      throw Error(message)
     }
   } else {
     throw Error(
