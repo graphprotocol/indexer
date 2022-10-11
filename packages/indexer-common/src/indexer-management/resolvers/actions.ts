@@ -13,7 +13,7 @@ import {
   OrderDirection,
   validateActionInputs,
 } from '@graphprotocol/indexer-common'
-import { Transaction } from 'sequelize'
+import { Op, Transaction } from 'sequelize'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -24,9 +24,22 @@ async function executeQueueOperation(
   logger: Logger,
   action: ActionInput,
   actionsAwaitingExecution: Action[],
+  recentlyFailedActions: Action[],
   models: IndexerManagementModels,
   transaction: Transaction,
 ): Promise<ActionResult[]> {
+  const recentlyFailedAction = recentlyFailedActions.filter(
+    (a) => a.deploymentID === action.deploymentID && a.type === action.type,
+  )
+  if (recentlyFailedAction.length > 0) {
+    const message = `Recently failed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
+    logger.warn(message, {
+      actionInQueue: recentlyFailedAction,
+      proposedAction: action,
+    })
+    throw Error(message)
+  }
+
   const duplicateAction = actionsAwaitingExecution.filter(
     (a) => a.deploymentID === action.deploymentID,
   )
@@ -130,6 +143,12 @@ export default {
       status: ActionStatus.APPROVED,
     })
 
+    const yesterday = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
+    const recentlyFailedActions = await actionManager.fetchActions({
+      status: ActionStatus.FAILED,
+      updatedAt: { [Op.gt]: yesterday },
+    })
+
     const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
 
     let results: ActionResult[] = []
@@ -141,6 +160,7 @@ export default {
           logger,
           action,
           actionsAwaitingExecution,
+          recentlyFailedActions,
           models,
           transaction,
         )
