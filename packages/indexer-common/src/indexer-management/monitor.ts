@@ -17,7 +17,6 @@ import {
   NetworkEpochBlock,
   EpochSubgraph,
   BlockPointer,
-  buildEpochBlock,
   alias,
 } from '@graphprotocol/indexer-common'
 import {
@@ -576,9 +575,12 @@ export class NetworkMonitor {
       if (network == this.networkAlias) {
         return await this.epochManagerCurrentStartBlock(network)
       }
+      this.logger.error(`Epoch start block not available for the network`, {
+        networkName: alias(network),
+      })
       throw indexerError(
-        IndexerErrorCode.IE069,
-        `Epoch subgraph not available for indexed chains`,
+        IndexerErrorCode.IE071,
+        `Epoch start block not available for network: ${alias(network)}`,
       )
     }
     try {
@@ -613,29 +615,37 @@ export class NetworkMonitor {
       }
 
       if (!result.data.network || !result.data.network.latestValidBlockNumber) {
-        throw indexerError(
-          IndexerErrorCode.IE069,
-          `Failed to query latest valid epoch number for ${network}`,
-        )
+        throw new Error(`Failed to query EBO for ${network}'s latest valid epoch number`)
       }
 
-      const epochBlock = await buildEpochBlock(
-        this.indexingStatusResolver,
+      // Check for validity with epoch manager currentEpoch, and fetch block hash
+      const validBlock =
         result.data.network.latestValidBlockNumber.epochNumber ==
-          (await this.currentEpoch())
+        (await this.currentEpoch())
           ? result.data.network.latestValidBlockNumber
-          : result.data.network.latestValidBlockNumber.previousBlockNumber,
+          : result.data.network.latestValidBlockNumber.previousBlockNumber
+      const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
+        alias(network),
+        validBlock.startBlockNumber,
       )
 
-      return epochBlock
+      return {
+        network,
+        epochNumber: +validBlock.epochNumber,
+        startBlockNumber: +validBlock.blockNumber,
+        startBlockHash,
+      }
     } catch (err) {
-      this.logger.error(
-        `Failed to query latest global epoch number from epoch block oracle`,
-        {
+      if (err instanceof indexerError) {
+        throw err
+      } else {
+        this.logger.error(`Failed to query latest epoch number`, {
           err,
-        },
-      )
-      throw err
+          msg: err.message,
+          networkName: alias(network),
+        })
+        throw indexerError(IndexerErrorCode.IE069, err)
+      }
     }
   }
 
@@ -645,32 +655,34 @@ export class NetworkMonitor {
         allocation.subgraphDeployment.id,
       ])
       if (indexingStatuses.length != 1 || indexingStatuses[0].chains.length != 1) {
-        throw `Failed to match allocation with an indexing status or chain`
+        this.logger.error(
+          `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
+        )
+        throw indexerError(
+          IndexerErrorCode.IE020,
+          `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
+        )
       }
       const networkID = indexingStatuses[0].chains[0].network
       const epoch = await this.latestValidEpoch(CAIPIds[networkID])
-      const epochStartBlock = {
-        number: epoch.startBlockNumber,
-        hash: epoch.startBlockHash,
-      }
 
       this.logger.trace(`Fetched block pointer to use in resolving POI`, {
         deployment: allocation.subgraphDeployment.id.ipfsHash,
         networkID,
-        epochStartBlock,
+        number: epoch.startBlockNumber,
+        hash: epoch.startBlockHash,
       })
-      return epochStartBlock
+      return {
+        number: epoch.startBlockNumber,
+        hash: epoch.startBlockHash,
+      }
     } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE070, error.message)
-      this.logger.error(
-        `Failed to fetch block for resolving allocation POI ${allocation.subgraphDeployment.id}`,
-        {
-          err: error.message,
-          allocationID: allocation.id,
-          deployment: allocation.subgraphDeployment.id,
-        },
-      )
-      throw err
+      this.logger.error(`Failed to fetch block for resolving allocation POI`, {
+        err: error.cause ?? error.message,
+        allocationID: allocation.id,
+        deployment: allocation.subgraphDeployment.id.ipfsHash,
+      })
+      throw error
     }
   }
 
@@ -679,7 +691,6 @@ export class NetworkMonitor {
     poi: string | undefined,
     force: boolean,
   ): Promise<string> {
-    const epochStartBlock = await this.fetchPOIBlockPointer(allocation)
     // poi = undefined, force=true  -- submit even if poi is 0x0
     // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
     // poi = undefined, force=false -- submit with generated POI if one available
@@ -694,13 +705,14 @@ export class NetworkMonitor {
             return (
               (await this.indexingStatusResolver.proofOfIndexing(
                 allocation.subgraphDeployment.id,
-                epochStartBlock,
+                await this.fetchPOIBlockPointer(allocation),
                 allocation.indexer,
               )) || utils.hexlify(Array(32).fill(0))
             )
         }
         break
       case false: {
+        const epochStartBlock = await this.fetchPOIBlockPointer(allocation)
         // Obtain the start block of the current epoch
         const generatedPOI = await this.indexingStatusResolver.proofOfIndexing(
           allocation.subgraphDeployment.id,

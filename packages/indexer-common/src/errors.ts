@@ -81,6 +81,7 @@ export enum IndexerErrorCode {
   IE068 = 'IE068',
   IE069 = 'IE069',
   IE070 = 'IE070',
+  IE071 = 'IE071',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -154,7 +155,8 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE067: 'Failed to query POI for current epoch start block',
   IE068: 'User-provided POI did not match reference POI from graph-node',
   IE069: 'Failed to query Epoch Block Oracle Subgraph',
-  IE070: 'Failed to query BlockHashFromNumber from graph-node',
+  IE070: 'Failed to query latest valid epoch and block hash',
+  IE071: 'Add Epoch subgraph support for non-protocol chains',
 }
 
 export type IndexerErrorCause = unknown
