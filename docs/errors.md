@@ -873,3 +873,17 @@ Failed to query BlockHashFromNumber from graph node
 **Solution**
 
 Graph-node could not find the block hash given network and block number, check if graph-node has access to a network client that has synced to the required block. 
+
+## IE071
+
+**Summary**
+
+Epoch subgraph required for subgraphs indexing networks in which rpc is unprovided to the indexer agent
+
+**Description**
+
+This is a sub-error of `IE069`. It is reported when the indexer agent doesn't have access to an epoch subgraph endpoint to identify the epoch start block for chains other than the settlement network as indicated by start-up option `--ethereum-network`. 
+
+**Solution**
+
+Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `goerli`, `gnosis`) and is on or after version 0.28.0.

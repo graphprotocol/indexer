@@ -294,8 +294,6 @@ async function resolvePOI(
   poi: string | undefined,
   force: boolean,
 ): Promise<string> {
-  // Obtain epoch start block based on subgraph deployment network's
-  const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
   // poi = undefined, force=true  -- submit even if poi is 0x0
   // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
   // poi = undefined, force=false -- submit with generated POI if one available
@@ -310,13 +308,14 @@ async function resolvePOI(
           return (
             (await indexingStatusResolver.proofOfIndexing(
               allocation.subgraphDeployment.id,
-              currentEpochStartBlock,
+              await networkMonitor.fetchPOIBlockPointer(allocation),
               allocation.indexer,
             )) || utils.hexlify(Array(32).fill(0))
           )
       }
       break
     case false: {
+      const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
       const generatedPOI = await indexingStatusResolver.proofOfIndexing(
         allocation.subgraphDeployment.id,
         currentEpochStartBlock,

@@ -213,7 +213,7 @@ export class IndexingStatusResolver {
             .toPromise()
 
           if (!result.data || !result.data.blockHashFromNumber || result.error) {
-            throw indexerError(IndexerErrorCode.IE070)
+            throw new Error(`Failed to query graph node for blockHashFromNumber`)
           }
 
           this.logger.trace('Resolved block hash', {
