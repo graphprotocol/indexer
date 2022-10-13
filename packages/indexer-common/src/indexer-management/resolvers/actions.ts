@@ -31,24 +31,26 @@ async function executeQueueOperation(
   models: IndexerManagementModels,
   transaction: Transaction,
 ): Promise<ActionResult[]> {
-  const recentlyFailedAction = recentlyFailedActions.filter(function (failed) {
+  // Check for previously failed conflicting actions
+  const conflictingActions = recentlyFailedActions.filter(function (failed) {
     const areEqual = compareFailedActions(failed, action)
     const fromAgent = failed.source === indexerAgent && action.source === indexerAgent
     return areEqual && fromAgent
   })
-  if (recentlyFailedAction.length > 0) {
+  if (conflictingActions.length > 0) {
     const message = `Recently failed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
     logger.warn(message, {
-      actionInQueue: recentlyFailedAction,
+      actionInQueue: conflictingActions,
       proposedAction: action,
     })
     throw Error(message)
   }
 
-  const duplicateAction = actionsAwaitingExecution.filter(
+  // Check for duplicated actions
+  const duplicateActions = actionsAwaitingExecution.filter(
     (a) => a.deploymentID === action.deploymentID,
   )
-  if (duplicateAction.length === 0) {
+  if (duplicateActions.length === 0) {
     return [
       await models.Action.create(action, {
         validate: true,
@@ -56,25 +58,25 @@ async function executeQueueOperation(
         transaction,
       }),
     ]
-  } else if (duplicateAction.length === 1) {
+  } else if (duplicateActions.length === 1) {
     if (
-      duplicateAction[0].source === action.source &&
-      duplicateAction[0].status === action.status
+      duplicateActions[0].source === action.source &&
+      duplicateActions[0].status === action.status
     ) {
       // TODO: Log this only when update will actually change existing item
       logger.info(
         `Action found in queue that effects the same deployment as proposed queue action, updating existing action`,
         {
-          actionInQueue: duplicateAction,
+          actionInQueue: duplicateActions,
           proposedAction: action,
           proposedSource: action.source,
-          actionSources: duplicateAction[0].source,
+          actionSources: duplicateActions[0].source,
         },
       )
       const [, updatedAction] = await models.Action.update(
         { ...action },
         {
-          where: { id: duplicateAction[0].id },
+          where: { id: duplicateActions[0].id },
           returning: true,
           validate: true,
           transaction,
@@ -86,7 +88,7 @@ async function executeQueueOperation(
         `Duplicate action found in queue that effects '${action.deploymentID}' but NOT overwritten because it has a different source and/or status. If you ` +
         `would like to replace the item currently in the queue please cancel it and then queue the proposed action`
       logger.warn(message, {
-        actionInQueue: duplicateAction,
+        actionInQueue: duplicateActions,
         proposedAction: action,
       })
       throw Error(message)
