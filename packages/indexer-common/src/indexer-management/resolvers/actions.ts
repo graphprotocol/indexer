@@ -16,6 +16,8 @@ import {
 } from '@graphprotocol/indexer-common'
 import { Op, Transaction } from 'sequelize'
 
+const indexerAgent = 'indexerAgent'
+
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
 // UPDATE - Already an item in the queue targeting the same deploymentID AND that item was added by the same 'source'
@@ -29,9 +31,11 @@ async function executeQueueOperation(
   models: IndexerManagementModels,
   transaction: Transaction,
 ): Promise<ActionResult[]> {
-  const recentlyFailedAction = recentlyFailedActions.filter((a) =>
-    compareFailedActions(a, action),
-  )
+  const recentlyFailedAction = recentlyFailedActions.filter(function (failed) {
+    const areEqual = compareFailedActions(failed, action)
+    const fromAgent = failed.source === indexerAgent && action.source === indexerAgent
+    return areEqual && fromAgent
+  })
   if (recentlyFailedAction.length > 0) {
     const message = `Recently failed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
     logger.warn(message, {
