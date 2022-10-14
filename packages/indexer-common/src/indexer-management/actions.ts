@@ -42,7 +42,7 @@ export class ActionManager {
       ).filter((a) => approvedDeploymentIDs.includes(a.subgraphDeployment.id.ipfsHash))
       let affectedAllocationExpiring = false
       if (affectedAllocations.length) {
-        const currentEpoch = await this.networkMonitor.currentEpoch()
+        const currentEpoch = await this.networkMonitor.currentEpochNumber()
         const maxAllocationEpoch = await this.networkMonitor.maxAllocationEpoch()
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
         affectedAllocationExpiring =

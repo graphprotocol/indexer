@@ -52,6 +52,15 @@ export interface Subgraph {
   versions: SubgraphVersion[]
 }
 
+export interface SubgraphDeployment {
+  id: SubgraphDeploymentID
+  deniedAt: number
+  stakedTokens: BigNumber
+  signalledTokens: BigNumber
+  queryFeesAmount: BigNumber
+  activeAllocations: number
+}
+
 export enum TransactionType {
   ZERO,
   TWO,
