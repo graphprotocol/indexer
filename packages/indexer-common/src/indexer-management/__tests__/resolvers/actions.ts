@@ -293,12 +293,9 @@ const setup = async () => {
     voucherRedemptionMaxBatchSize: 100,
   })
 
-  const epochSubgraph = await EpochSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    network: 'goerli',
-  })
+  const epochSubgraph = await EpochSubgraph.create(
+    'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
+  )
 
   const networkMonitor = new NetworkMonitor(
     CAIPIds['goerli'],

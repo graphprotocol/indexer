@@ -526,7 +526,7 @@ export const createIndexerManagementClient = async (
       // TODO: AllocationManager construction inside ActionManager
       allocationManager = new AllocationManager(
         contracts,
-        logger,
+        logger.child({ component: 'AllocationManager' }),
         address,
         models,
         networkMonitor,
@@ -537,7 +537,7 @@ export const createIndexerManagementClient = async (
       actionManager = new ActionManager(
         allocationManager,
         networkMonitor,
-        logger,
+        logger.child({ component: 'ActionManager' }),
         models,
         allocationManagementMode,
         autoAllocationMinBatchSize,

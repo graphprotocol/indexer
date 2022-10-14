@@ -724,11 +724,7 @@ export default {
     })
 
     const epochSubgraph = argv.epochSubgraphEndpoint
-      ? await EpochSubgraph.create({
-          logger,
-          endpoint: argv.epochSubgraphEndpoint,
-          network: networkMeta.name,
-        })
+      ? await EpochSubgraph.create(argv.epochSubgraphEndpoint)
       : undefined
 
     logger.info('Connect to network')
@@ -770,10 +766,10 @@ export default {
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
     const networkMonitor = new NetworkMonitor(
-      CAIPIds[networkMeta.name],
+      CAIPIds[argv.ethereumNetwork],
       contracts,
       toAddress(indexerAddress),
-      logger,
+      logger.child({ component: 'NetworkMonitor' }),
       indexingStatusResolver,
       networkSubgraph,
       ethereumProvider,

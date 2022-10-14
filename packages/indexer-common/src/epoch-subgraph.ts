@@ -1,30 +1,14 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { Logger } from '@graphprotocol/common-ts'
 import { DocumentNode, print } from 'graphql'
 import { CombinedError } from '@urql/core'
 import { QueryResult } from './network-subgraph'
-export interface EpochSubgraphCreateOptions {
-  logger: Logger
-  endpoint: string
-  network: string
-}
-
-interface EpochSubgraphOptions {
-  logger: Logger
-  endpoint: string
-  network: string
-}
 
 export class EpochSubgraph {
-  logger: Logger
-  endpointClient: AxiosInstance
-  network: string
+  private constructor(private endpointClient: AxiosInstance) {}
 
-  private constructor(options: EpochSubgraphOptions) {
-    this.logger = options.logger
-
-    this.endpointClient = axios.create({
-      baseURL: options.endpoint,
+  public static async create(endpoint: string): Promise<EpochSubgraph> {
+    const endpointClient = axios.create({
+      baseURL: endpoint,
       headers: { 'content-type': 'application/json' },
 
       // Don't parse responses as JSON
@@ -33,29 +17,8 @@ export class EpochSubgraph {
       // Don't transform responses
       transformResponse: (data) => data,
     })
-
-    this.network = options.network
-  }
-
-  public static async create({
-    logger: parentLogger,
-    endpoint,
-    network,
-  }: EpochSubgraphCreateOptions): Promise<EpochSubgraph> {
-    const logger = parentLogger.child({
-      component: 'EpochSubgraph',
-      endpoint,
-    })
-
     // Create the Epoch subgraph instance
-    const epochSubgraph = new EpochSubgraph({
-      logger,
-      endpoint,
-      network,
-    })
-    // Any checks to be made after creating?
-
-    return epochSubgraph
+    return new EpochSubgraph(endpointClient)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

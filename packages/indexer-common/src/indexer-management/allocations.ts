@@ -8,6 +8,7 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   Action,
+  ActionFailure,
   ActionType,
   allocationIdProof,
   AllocationResult,
@@ -15,8 +16,8 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   fetchIndexingRules,
-  IndexerError,
   indexerError,
+  IndexerError,
   IndexerErrorCode,
   IndexerManagementModels,
   IndexingDecisionBasis,
@@ -43,7 +44,6 @@ import { NetworkMonitor } from './monitor'
 import { SubgraphManager } from './subgraphs'
 import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
-import { ActionFailure } from '../allocations/types'
 
 export interface AllocateTransactionParams {
   indexer: string
@@ -132,7 +132,7 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     actions: Action[],
   ): Promise<AllocationResult[]> {
-    const results = pMap(
+    return pMap(
       actions,
       async (action) => {
         try {
@@ -157,7 +157,6 @@ export class AllocationManager {
       },
       { stopOnError: false },
     )
-    return results
   }
 
   findEvent(

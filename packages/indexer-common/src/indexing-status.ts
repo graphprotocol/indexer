@@ -195,6 +195,7 @@ export class IndexingStatusResolver {
     network: string,
     blockNumber: number,
   ): Promise<string> {
+    this.logger.trace(`Querying blockHashFromNumber`, { network, blockNumber })
     try {
       return await pRetry(
         async (attempt) => {
