@@ -175,7 +175,7 @@ export const parseGraphQLEpochs = (epoch: any): Epoch => ({
 })
 
 export interface NetworkEpochBlock {
-  network: string
+  networkID: string
   epochNumber: number
   startBlockNumber: number
   startBlockHash: string

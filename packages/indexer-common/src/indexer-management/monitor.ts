@@ -35,7 +35,7 @@ import { providers, utils, Wallet } from 'ethers'
 // The new read only Network class
 export class NetworkMonitor {
   constructor(
-    public networkAlias: string,
+    public networkCAIPID: string,
     private contracts: NetworkContracts,
     private indexer: Address,
     private logger: Logger,
@@ -556,38 +556,43 @@ export class NetworkMonitor {
     return deployments
   }
 
-  async epochManagerCurrentStartBlock(network: string): Promise<NetworkEpochBlock> {
+  async epochManagerCurrentStartBlock(networkID: string): Promise<NetworkEpochBlock> {
     const epochNumber = await this.currentEpoch()
     const startBlockNumber = (
       await this.contracts.epochManager.currentEpochBlock()
     ).toNumber()
     const startBlockHash = (await this.ethereum.getBlock(startBlockNumber)).hash
     return {
-      network: alias(network),
+      networkID,
       epochNumber,
       startBlockNumber,
       startBlockHash,
     }
   }
 
-  async latestValidEpoch(network: string): Promise<NetworkEpochBlock> {
+  async latestValidEpoch(networkID: string): Promise<NetworkEpochBlock> {
+    this.logger.trace(`Fetching latest valid epoch`, {
+      useEBO: !!this.epochSubgraph,
+      networkMonitor: this.networkCAIPID,
+      querying: networkID,
+    })
     if (!this.epochSubgraph) {
-      if (network == this.networkAlias) {
-        return await this.epochManagerCurrentStartBlock(network)
+      if (networkID == this.networkCAIPID) {
+        return await this.epochManagerCurrentStartBlock(networkID)
       }
       this.logger.error(`Epoch start block not available for the network`, {
-        networkName: alias(network),
+        networkID,
       })
       throw indexerError(
         IndexerErrorCode.IE071,
-        `Epoch start block not available for network: ${alias(network)}`,
+        `Epoch start block not available for network: ${networkID}`,
       )
     }
     try {
       const result = await this.epochSubgraph.query(
         gql`
-          query network($network: String!) {
-            network(id: $network) {
+          query network($networkID: String!) {
+            network(id: $networkID) {
               latestValidBlockNumber {
                 network {
                   id
@@ -606,7 +611,7 @@ export class NetworkMonitor {
           }
         `,
         {
-          network,
+          networkID,
         },
       )
 
@@ -615,7 +620,9 @@ export class NetworkMonitor {
       }
 
       if (!result.data.network || !result.data.network.latestValidBlockNumber) {
-        throw new Error(`Failed to query EBO for ${network}'s latest valid epoch number`)
+        throw new Error(
+          `Failed to query EBO for ${networkID}'s latest valid epoch number`,
+        )
       }
 
       // Check for validity with epoch manager currentEpoch, and fetch block hash
@@ -625,12 +632,12 @@ export class NetworkMonitor {
           ? result.data.network.latestValidBlockNumber
           : result.data.network.latestValidBlockNumber.previousBlockNumber
       const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
-        alias(network),
+        alias(networkID),
         validBlock.startBlockNumber,
       )
 
       return {
-        network,
+        networkID,
         epochNumber: +validBlock.epochNumber,
         startBlockNumber: +validBlock.blockNumber,
         startBlockHash,
@@ -642,7 +649,7 @@ export class NetworkMonitor {
         this.logger.error(`Failed to query latest epoch number`, {
           err,
           msg: err.message,
-          networkName: alias(network),
+          networkID,
         })
         throw indexerError(IndexerErrorCode.IE069, err)
       }
@@ -654,7 +661,11 @@ export class NetworkMonitor {
       const indexingStatuses = await this.indexingStatusResolver.indexingStatus([
         allocation.subgraphDeployment.id,
       ])
-      if (indexingStatuses.length != 1 || indexingStatuses[0].chains.length != 1) {
+      if (
+        indexingStatuses.length != 1 ||
+        indexingStatuses[0].chains.length != 1 ||
+        !indexingStatuses[0].chains[0].network
+      ) {
         this.logger.error(
           `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
         )
@@ -663,12 +674,13 @@ export class NetworkMonitor {
           `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
         )
       }
-      const networkID = indexingStatuses[0].chains[0].network
-      const epoch = await this.latestValidEpoch(CAIPIds[networkID])
+      const epoch = await this.latestValidEpoch(
+        CAIPIds[indexingStatuses[0].chains[0].network],
+      )
 
       this.logger.trace(`Fetched block pointer to use in resolving POI`, {
         deployment: allocation.subgraphDeployment.id.ipfsHash,
-        networkID,
+        network: indexingStatuses[0].chains[0].network,
         number: epoch.startBlockNumber,
         hash: epoch.startBlockHash,
       })

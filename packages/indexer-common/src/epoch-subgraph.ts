@@ -6,19 +6,16 @@ import { QueryResult } from './network-subgraph'
 export interface EpochSubgraphCreateOptions {
   logger: Logger
   endpoint: string
-  network: string
 }
 
 interface EpochSubgraphOptions {
   logger: Logger
   endpoint: string
-  network: string
 }
 
 export class EpochSubgraph {
   logger: Logger
   endpointClient: AxiosInstance
-  network: string
 
   private constructor(options: EpochSubgraphOptions) {
     this.logger = options.logger
@@ -33,14 +30,11 @@ export class EpochSubgraph {
       // Don't transform responses
       transformResponse: (data) => data,
     })
-
-    this.network = options.network
   }
 
   public static async create({
     logger: parentLogger,
     endpoint,
-    network,
   }: EpochSubgraphCreateOptions): Promise<EpochSubgraph> {
     const logger = parentLogger.child({
       component: 'EpochSubgraph',
@@ -51,7 +45,6 @@ export class EpochSubgraph {
     const epochSubgraph = new EpochSubgraph({
       logger,
       endpoint,
-      network,
     })
     // Any checks to be made after creating?
 

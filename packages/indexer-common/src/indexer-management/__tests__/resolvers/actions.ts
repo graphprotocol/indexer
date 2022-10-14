@@ -297,7 +297,6 @@ const setup = async () => {
     logger,
     endpoint:
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    network: 'goerli',
   })
 
   const networkMonitor = new NetworkMonitor(

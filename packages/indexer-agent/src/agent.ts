@@ -197,7 +197,7 @@ class Agent {
     const protocolChainLatestValidEpoch = timer(600_000).tryMap(
       async () =>
         await this.networkMonitor.latestValidEpoch(
-          this.networkMonitor.networkAlias,
+          this.networkMonitor.networkCAIPID,
         ),
       {
         onError: error =>
