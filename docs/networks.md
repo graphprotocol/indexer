@@ -158,8 +158,8 @@ Afterwards, stake this amount:
 
 | Parameter                   | Value |
 | --------------------------- | ----- |
-| Epoch length                | ~ 4h  |
-| Maximum allocation lifetime | ~ 1d  |
+| Epoch length                | ~ 2h (1h 51m)  |
+| Maximum allocation lifetime | ~ 8h (7h 23m) |
 
 ### Contracts
 
