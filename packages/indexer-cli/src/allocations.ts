@@ -170,21 +170,12 @@ export const createAllocation = async (
   client: IndexerManagementClient,
   deployment: string,
   amount: BigNumber,
-  indexNode: string | undefined,
 ): Promise<CreateAllocationResult> => {
   const result = await client
     .mutation(
       gql`
-        mutation createAllocation(
-          $deployment: String!
-          $amount: String!
-          $indexNode: String
-        ) {
-          createAllocation(
-            deployment: $deployment
-            amount: $amount
-            indexNode: $indexNode
-          ) {
+        mutation createAllocation($deployment: String!, $amount: String!) {
+          createAllocation(deployment: $deployment, amount: $amount) {
             allocation
             deployment
             allocatedTokens
@@ -194,7 +185,6 @@ export const createAllocation = async (
       {
         deployment,
         amount: amount.toString(),
-        indexNode,
       },
     )
     .toPromise()
