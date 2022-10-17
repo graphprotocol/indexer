@@ -451,7 +451,6 @@ export default {
       address,
       contracts,
       indexingStatusResolver,
-      indexNodeIDs: ['node_1'], // This is just a dummy since the indexer-service doesn't manage deployments,
       deploymentManagementEndpoint: argv.graphNodeStatusEndpoint,
       networkSubgraph,
       logger,

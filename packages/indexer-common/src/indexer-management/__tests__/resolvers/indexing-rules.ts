@@ -148,13 +148,11 @@ const setupAll = async () => {
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
     deployment: undefined,
   })
-  const indexNodeIDs = ['node_1']
   client = await createIndexerManagementClient({
     models,
     address,
     contracts,
     indexingStatusResolver,
-    indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,

@@ -223,8 +223,6 @@ const invalidReallocateAction = {
   priority: 0,
 } as ActionInput
 
-const indexNodeIDs = ['node_1']
-
 let ethereum: ethers.providers.BaseProvider
 let sequelize: Sequelize
 let managementModels: IndexerManagementModels
@@ -313,7 +311,6 @@ const setup = async () => {
     address,
     contracts,
     indexingStatusResolver,
-    indexNodeIDs,
     deploymentManagementEndpoint,
     networkSubgraph,
     receiptCollector,
