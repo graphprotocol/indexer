@@ -1,7 +1,7 @@
 import path from 'path'
 import readPackage from 'read-pkg'
 import { Argv } from 'yargs'
-import { BigNumber, providers, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 
 import {
   connectContracts,
@@ -19,6 +19,7 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexingStatusResolver,
+  Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
 } from '@graphprotocol/indexer-common'
@@ -43,7 +44,7 @@ export default {
         description: 'Ethereum network',
         type: 'string',
         required: false,
-        default: 'mainnet',
+        default: 'any',
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
@@ -276,7 +277,7 @@ export default {
     // the agent and assume the models are up to date in the service.
     logger.info('Successfully connected to database')
 
-    logger.info(`Connect to network`)
+    logger.info(`Connect to network subgraph`)
     const indexingStatusResolver = new IndexingStatusResolver({
       logger,
       statusEndpoint: argv.graphNodeStatusEndpoint,
@@ -292,88 +293,16 @@ export default {
           }
         : undefined,
     })
-    logger.info(`Successfully connected to network`)
+    logger.info(`Successfully connected to network subgraph`)
 
-    logger.info('Connecting to Ethereum', {
-      provider: argv.ethereum,
-      network: argv.ethereumNetwork,
-    })
-    let providerUrl
-    try {
-      providerUrl = new URL(argv.ethereum)
-    } catch (err) {
-      logger.critical(`Invalid Ethereum URL`, {
-        err: indexerError(IndexerErrorCode.IE002, err),
-        url: argv.ethereum,
-      })
-      process.exit(1)
-      return
-    }
-
-    const web3ProviderMetrics = {
-      requests: new metrics.client.Counter({
-        name: 'eth_provider_requests',
-        help: 'Ethereum provider requests',
-        registers: [metrics.registry],
-        labelNames: ['method'],
-      }),
-    }
-
-    if (providerUrl.password && providerUrl.protocol == 'http:') {
-      logger.warn(
-        'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
-      )
-    }
-
-    // Prevent passing empty basicAuth info
-    let username
-    let password
-    if (providerUrl.username == '' && providerUrl.password == '') {
-      username = undefined
-      password = undefined
-    } else {
-      username = providerUrl.username
-      password = providerUrl.password
-    }
-
-    const ethereumProvider = new providers.StaticJsonRpcProvider(
-      {
-        url: providerUrl.toString(),
-        user: username,
-        password: password,
-        allowInsecureAuthentication: true,
-      },
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
       argv.ethereumNetwork,
+      argv.ethereum,
+      argv.ethereumPollingInterval,
     )
-    ethereumProvider.pollingInterval = argv.ethereumPollingInterval
-
-    ethereumProvider.on('debug', info => {
-      if (info.action === 'response') {
-        web3ProviderMetrics.requests.inc({
-          method: info.request.method,
-        })
-
-        logger.trace('Ethereum request', {
-          method: info.request.method,
-          params: info.request.params,
-          response: info.response,
-        })
-      }
-    })
-
-    ethereumProvider.on('network', (newNetwork, oldNetwork) => {
-      logger.trace('Ethereum network change', {
-        oldNetwork: oldNetwork,
-        newNetwork: newNetwork,
-      })
-    })
-
-    const network = await ethereumProvider.getNetwork()
-    logger.info('Successfully connected to Ethereum', {
-      provider: ethereumProvider.connection.url,
-      pollingInterval: ethereumProvider.pollingInterval,
-      network: await ethereumProvider.detectNetwork(),
-    })
+    const network = await networkProvider.getNetwork()
 
     logger.info('Connect to contracts', {
       network: network.name,
@@ -382,7 +311,7 @@ export default {
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(ethereumProvider, network.chainId)
+      contracts = await connectContracts(networkProvider, network.chainId)
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
