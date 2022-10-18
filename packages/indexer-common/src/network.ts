@@ -3,6 +3,7 @@ import {
   Eventual,
   formatGRT,
   Logger,
+  Metrics,
   mutable,
   NetworkContracts,
   SubgraphDeploymentID,
@@ -152,6 +153,94 @@ export class Network {
       baseFeePerGasMax,
       maxTransactionAttempts,
     )
+  }
+
+  static async provider(
+    logger: Logger,
+    metrics: Metrics,
+    networkName: string,
+    networkURL: string,
+    pollingInterval: number,
+  ): Promise<providers.StaticJsonRpcProvider> {
+    logger.info(`Connect to Network chain`, {
+      provider: networkURL,
+    })
+
+    let providerUrl
+    try {
+      providerUrl = new URL(networkURL)
+    } catch (err) {
+      logger.fatal(`Invalid Network provider URL`, {
+        err: indexerError(IndexerErrorCode.IE002, err),
+        url: networkURL,
+      })
+      process.exit(1)
+    }
+
+    const ethProviderMetrics = {
+      requests: new metrics.client.Counter({
+        name: 'eth_provider_requests',
+        help: 'Ethereum provider requests',
+        registers: [metrics.registry],
+        labelNames: ['method'],
+      }),
+    }
+
+    if (providerUrl.password && providerUrl.protocol == 'http:') {
+      logger.warn(
+        'Network endpoint does not use HTTPS, your authentication credentials may not be secure',
+      )
+    }
+
+    let username
+    let password
+    if (providerUrl.username == '' && providerUrl.password == '') {
+      username = undefined
+      password = undefined
+    } else {
+      username = providerUrl.username
+      password = providerUrl.password
+    }
+
+    const networkProvider = new providers.StaticJsonRpcProvider(
+      {
+        url: providerUrl.toString(),
+        user: username,
+        password: password,
+        allowInsecureAuthentication: true,
+      },
+      networkName,
+    )
+    networkProvider.pollingInterval = pollingInterval
+
+    networkProvider.on('debug', (info) => {
+      if (info.action === 'response') {
+        ethProviderMetrics.requests.inc({
+          method: info.request.method,
+        })
+
+        logger.trace('Network request', {
+          method: info.request.method,
+          params: info.request.params,
+          response: info.response,
+        })
+      }
+    })
+
+    networkProvider.on('network', (newNetwork, oldNetwork) => {
+      logger.trace('Network change', {
+        oldNetwork: oldNetwork,
+        newNetwork: newNetwork,
+      })
+    })
+
+    logger.info(`Connected to network`, {
+      provider: networkProvider.connection.url,
+      pollingInterval: networkProvider.pollingInterval,
+      network: await networkProvider.detectNetwork(),
+    })
+
+    return networkProvider
   }
 
   // TODO: Move to NetworkMonitor

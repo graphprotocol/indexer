@@ -33,7 +33,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
-import { providers, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
@@ -53,7 +53,7 @@ export default {
         description: 'Ethereum network',
         type: 'string',
         required: false,
-        default: 'mainnet',
+        default: 'any',
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
@@ -568,107 +568,31 @@ export default {
     await sequelize.sync()
     logger.info(`Successfully synced database models`)
 
-    logger.info(`Connect to Ethereum`, {
-      provider: argv.ethereum,
-      network: argv.ethereumNetwork,
-    })
-
-    let providerUrl
-    try {
-      providerUrl = new URL(argv.ethereum)
-    } catch (err) {
-      logger.fatal(`Invalid Ethereum URL`, {
-        err: indexerError(IndexerErrorCode.IE002, err),
-        url: argv.ethereum,
-      })
-      process.exit(1)
-      return
-    }
-
-    const ethProviderMetrics = {
-      requests: new metrics.client.Counter({
-        name: 'eth_provider_requests',
-        help: 'Ethereum provider requests',
-        registers: [metrics.registry],
-        labelNames: ['method'],
-      }),
-    }
-
-    if (providerUrl.password && providerUrl.protocol == 'http:') {
-      logger.warn(
-        'Ethereum endpoint does not use HTTPS, your authentication credentials may not be secure',
-      )
-    }
-
-    // Prevent passing empty basicAuth info
-    let username
-    let password
-    if (providerUrl.username == '' && providerUrl.password == '') {
-      username = undefined
-      password = undefined
-    } else {
-      username = providerUrl.username
-      password = providerUrl.password
-    }
-
-    const ethereumProvider = new providers.StaticJsonRpcProvider(
-      {
-        url: providerUrl.toString(),
-        user: username,
-        password: password,
-        allowInsecureAuthentication: true,
-      },
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
       argv.ethereumNetwork,
+      argv.ethereum,
+      argv.ethereumPollingInterval,
     )
-    ethereumProvider.pollingInterval = argv.ethereumPollingInterval
-
-    ethereumProvider.on('debug', info => {
-      if (info.action === 'response') {
-        ethProviderMetrics.requests.inc({
-          method: info.request.method,
-        })
-
-        logger.trace('Ethereum request', {
-          method: info.request.method,
-          params: info.request.params,
-          response: info.response,
-        })
-      }
-    })
-
-    ethereumProvider.on('network', (newNetwork, oldNetwork) => {
-      logger.trace('Ethereum network change', {
-        oldNetwork: oldNetwork,
-        newNetwork: newNetwork,
-      })
-    })
-
-    const networkMeta = await ethereumProvider.getNetwork()
-    logger.info(`Connected to Ethereum`, {
-      provider: ethereumProvider.connection.url,
-      pollingInterval: ethereumProvider.pollingInterval,
-      network: await ethereumProvider.detectNetwork(),
-    })
+    const networkMeta = await networkProvider.getNetwork()
 
     logger.info(`Connect wallet`, {
-      network: ethereumProvider.network.name,
-      chainId: ethereumProvider.network.chainId,
+      network: networkMeta.name,
+      chainId: networkMeta.chainId,
     })
     let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(ethereumProvider)
+    wallet = wallet.connect(networkProvider)
     logger.info(`Connected wallet`)
 
     logger.info(`Connect to contracts`, {
       network: networkMeta.name,
       chainId: networkMeta.chainId,
-      providerNetworkChainID: ethereumProvider.network.chainId,
+      providerNetworkChainID: networkProvider.network.chainId,
     })
     let contracts = undefined
     try {
-      contracts = await connectContracts(
-        wallet,
-        ethereumProvider.network.chainId,
-      )
+      contracts = await connectContracts(wallet, networkMeta.chainId)
     } catch (err) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
@@ -718,7 +642,7 @@ export default {
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
     const network = await Network.create(
       logger,
-      ethereumProvider,
+      networkProvider,
       contracts,
       wallet,
       indexerAddress,
@@ -759,7 +683,7 @@ export default {
       logger.child({ component: 'NetworkMonitor' }),
       indexingStatusResolver,
       networkSubgraph,
-      ethereumProvider,
+      networkProvider,
       epochSubgraph,
     )
 
@@ -832,7 +756,7 @@ export default {
 
     startCostModelAutomation({
       logger,
-      ethereum: ethereumProvider,
+      ethereum: networkProvider,
       contracts: network.contracts,
       indexerManagement: indexerManagementClient,
       injectDai: argv.injectDai,
