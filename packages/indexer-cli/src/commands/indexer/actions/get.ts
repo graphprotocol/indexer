@@ -21,11 +21,12 @@ ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
       --type    allocate|unallocate|reallocate|collect              Filter by type
-      --status  queued|approved|pending|success|failed|canceled     Filter by status 
+      --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
       --reason <reason>                                             Fetch only actions queued for a specific reason
       --orderBy id|deploymentID|amount|priority|...|updatedAt       Order actions by a specific field (default: id)
       --orderDirection asc|desc                                     Order direction (default: desc)
+      --first [N]                                                   Fetch only the N first records (default: all records)
   -o, --output table|json|yaml                                      Choose the output format: table (default), JSON, or YAML
 `
 
@@ -38,8 +39,19 @@ module.exports = {
 
     const inputSpinner = toolbox.print.spin('Processing inputs')
 
-    const { type, status, source, reason, orderBy, orderDirection, h, help, o, output } =
-      parameters.options
+    const {
+      type,
+      status,
+      source,
+      reason,
+      orderBy,
+      orderDirection,
+      h,
+      help,
+      o,
+      output,
+      first,
+    } = parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
     let orderByParam = ActionParams.ID
@@ -50,7 +62,6 @@ module.exports = {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
     }
-
     try {
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -91,6 +102,11 @@ module.exports = {
           ? OrderDirection[orderDirection.toUpperCase() as keyof typeof OrderDirection]
           : OrderDirection.DESC
       }
+
+      if (!['undefined', 'number'].includes(typeof first)) {
+        throw Error(`Invalid value for '--first' option, must have a numeric value.`)
+      }
+
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
       inputSpinner.fail(error.toString())
@@ -110,7 +126,13 @@ module.exports = {
       let actions: ActionResult[] = []
       if (action) {
         if (action === 'all') {
-          actions = await fetchActions(client, {}, orderByParam, orderDirectionValue)
+          actions = await fetchActions(
+            client,
+            {},
+            first,
+            orderByParam,
+            orderDirectionValue,
+          )
         } else {
           actions = [await fetchAction(client, +action)]
         }
@@ -123,6 +145,7 @@ module.exports = {
             source,
             reason,
           },
+          first,
           orderByParam,
           orderDirectionValue,
         )
