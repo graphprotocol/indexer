@@ -376,6 +376,7 @@ const SCHEMA_SDL = gql`
       filter: ActionFilter
       orderBy: ActionParams
       orderDirection: OrderDirection
+      first: Int
     ): [Action]!
   }
 

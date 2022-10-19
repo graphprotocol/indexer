@@ -118,15 +118,22 @@ export default {
       filter,
       orderBy,
       orderDirection,
-    }: { filter: ActionFilter; orderBy: ActionParams; orderDirection: OrderDirection },
+      first,
+    }: {
+      filter: ActionFilter
+      orderBy: ActionParams
+      orderDirection: OrderDirection
+      first: number
+    },
     { actionManager, logger }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug(`Execute 'actions' query`, {
       filter,
       orderBy,
       orderDirection,
+      first,
     })
-    return await actionManager.fetchActions(filter, orderBy, orderDirection)
+    return await actionManager.fetchActions(filter, orderBy, orderDirection, first)
   },
 
   queueActions: async (
