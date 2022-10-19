@@ -157,6 +157,7 @@ export class ActionManager {
     filter: ActionFilter,
     orderBy?: ActionParams,
     orderDirection?: OrderDirection,
+    first?: number,
   ): Promise<Action[]> {
     const filterObject = JSON.parse(JSON.stringify(filter))
     const orderObject: Order = orderBy
@@ -165,6 +166,7 @@ export class ActionManager {
     return await this.models.Action.findAll({
       where: filterObject,
       order: orderObject,
+      limit: first,
     })
   }
 }
