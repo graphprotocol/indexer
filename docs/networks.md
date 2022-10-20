@@ -17,9 +17,9 @@ For testnet:
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)    |
-| indexer-agent   | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
-| indexer-cli     | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
-| indexer-service | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
+| indexer-agent   | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
+| indexer-cli     | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
+| indexer-service | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
 | graph-node      | [0.28.2](https://github.com/graphprotocol/graph-node/releases/tag/v0.28.2) |
 
 ## Mainnet (https://network.thegraph.com)
@@ -180,13 +180,14 @@ testnet (for now) are Mainnet subgraphs. This means:
 
 | Environment Variable                        | CLI Argument                    | Value                                                   |
 | ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                               |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                        |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                                |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                  |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmPVz18RFwK6hE5rZFWERk23LgrTBz2FCkZzgPSrFxFWN4`        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.testnet.thegraph.com/network`          |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | Goerli epoch subgraph                                   |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)     |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts` |
 
@@ -216,5 +217,16 @@ option can be used.
 
 | Environment Variable | CLI Argument     | Value                               |
 | -------------------- | ---------------- | ----------------------------------- |
-| `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
+| `ethereum`           | `--ethereum-rpc` | `goerli:...`                        |
+| `ethereum`           | `--ethereum-rpc` | `goerli:... gnosis:...`             |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+
+Protocol chains: mainnet, goerli. 
+
+Supported network (indexed chains): gnosis. 
+
+To support multi-chain indexing with the indexer, the agent should only need to be configured with the protocol chain for their `ethereum` and `ethereum-rpc` endpoints, with access to a full node to the desired chain. 
+
+To support indexing any subgraphs, graph node should be configured with RPC endpoints to nodes with archive capability. For now, you should configure all the networks to one index node.
+
+
