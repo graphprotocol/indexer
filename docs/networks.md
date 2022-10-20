@@ -17,9 +17,9 @@ For testnet:
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)    |
-| indexer-agent   | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
-| indexer-cli     | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
-| indexer-service | [0.20.3](https://github.com/graphprotocol/indexer/releases/tag/v0.20.3)    |
+| indexer-agent   | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
+| indexer-cli     | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
+| indexer-service | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
 | graph-node      | [0.28.2](https://github.com/graphprotocol/graph-node/releases/tag/v0.28.2) |
 
 ## Mainnet (https://network.thegraph.com)
