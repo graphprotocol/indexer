@@ -630,7 +630,7 @@ export class NetworkMonitor {
           : result.data.network.latestValidBlockNumber.previousBlockNumber
       const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
         networkAlias,
-        validBlock.startBlockNumber,
+        +validBlock.blockNumber,
       )
 
       return {
