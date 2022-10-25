@@ -439,15 +439,6 @@ class Agent {
           networkLatestEpoch,
         })
 
-        if (networkLatestEpoch.epochNumber != currentEpochNumber) {
-          this.logger.warn(
-            `EBO latest valid epoch differs from the network contract, ping updates to the EBO (After this is stable, can replace currentEpoch)`,
-            {
-              currentEpochNumber,
-              currentEpochStartBlock,
-            },
-          )
-        }
         // Do nothing else if the network is paused
         if (paused) {
           return this.logger.info(
