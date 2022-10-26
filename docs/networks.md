@@ -218,3 +218,29 @@ option can be used.
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `mainnet:...`                       |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+
+### Multi-chain setup on indexer
+
+#### Protocol chains
+
+Protocol chains are the settlement layer of the graph protocol, with the choice of 'mainnet' and 'goerli' (testnet). 
+
+In order to send transactions, the indexer agent should only need to be configured with the protocol chain for their `ethereum` and `ethereum-rpc` endpoints. 
+
+#### Indexed chains
+
+Supported network (indexed chains): gnosis. 
+
+To close allocations for indexed chains, indexer agent should be provided with a epoch subgraph endpoint and a Graph node status endpoint.
+
+##### Graph node
+
+To index subgraph on a network, supply a rpc endpoint with archive capability of the network to graph node. You may either use the environmental variable or config.toml with rule matching.
+
+| Environment Variable | CLI Argument     | Value                               |
+| -------------------- | ---------------- | ----------------------------------- |
+| `ethereum`           | `--ethereum-rpc` | `goerli:... gnosis:... mainnet:...` |
+| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+
+
+For now, make sure that the networks are shared on the same index node that serves the status queries. 
