@@ -872,7 +872,7 @@ Failed to query BlockHashFromNumber from graph node
 
 **Solution**
 
-Graph-node could not find the block hash given network and block number, check if graph-node has access to a network client that has synced to the required block. 
+Graph-node could not find the block hash given network and block number, check if graph-node has access to a network client that has synced to the required block, and ensure indexer agent is connect to the index node configured with an RPC endpoint from the required network
 
 ## IE071
 

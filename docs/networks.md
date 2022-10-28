@@ -6,7 +6,7 @@ For mainnet:
 
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)    |
+| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  |
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
@@ -14,13 +14,13 @@ For mainnet:
 
 For testnet:
 
-| Component       | Release                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)    |
-| indexer-agent   | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
-| indexer-cli     | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
-| indexer-service | [0.20.4](https://github.com/graphprotocol/indexer/releases/tag/v0.20.4)    |
-| graph-node      | [0.28.2](https://github.com/graphprotocol/graph-node/releases/tag/v0.28.2) |
+| Component       | Release                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------- |
+| contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)               |
+| indexer-agent   | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1) |
+| indexer-cli     | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1) |
+| indexer-service | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1) |
+| graph-node      | [0.28.2](https://github.com/graphprotocol/graph-node/releases/tag/v0.28.2)              |
 
 ## Mainnet (https://network.thegraph.com)
 
@@ -156,10 +156,10 @@ Afterwards, stake this amount:
 
 ### Network Parameters
 
-| Parameter                   | Value |
-| --------------------------- | ----- |
-| Epoch length                | ~ 2h (1h 51m)  |
-| Maximum allocation lifetime | ~ 8h (7h 23m) |
+| Parameter                   | Value          |
+| --------------------------- | -------------- |
+| Epoch length                | ~ 2h (2h 18m)  |
+| Maximum allocation lifetime | ~ 9h (9h 12m)  |
 
 ### Contracts
 
@@ -178,17 +178,18 @@ testnet (for now) are Mainnet subgraphs. This means:
 
 #### Indexer Agent
 
-| Environment Variable                        | CLI Argument                    | Value                                                   |
-| ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                               |
-| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                     |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure       |
-| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                  |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmeTrzKtD7fuNScLZFE4QtcmFqNfcePRumkHNdZhoZSA3G`        |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.testnet.thegraph.com/network`          |
-| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)     |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts` |
+| Environment Variable                        | CLI Argument                    | Value                                                                             |
+| ------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                                                  |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                                                          |
+| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                               |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                 |
+| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                            |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmeTrzKtD7fuNScLZFE4QtcmFqNfcePRumkHNdZhoZSA3G`                                  |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.testnet.thegraph.com/network`                                    |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle` |
+| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                               |
+| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts`                           |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -241,6 +242,3 @@ To index subgraph on a network, supply a rpc endpoint with archive capability of
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `goerli:... gnosis:... mainnet:...` |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
-
-
-For now, make sure that the networks are shared on the same index node that serves the status queries. 
