@@ -79,11 +79,6 @@ export class ActionManager {
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
       if (await this.batchReady(approvedActions)) {
-        this.logger.info('Executing batch of approved actions', {
-          actions: approvedActions,
-          note: 'If actions were approved very recently they may be missing from this list but will still be taken',
-        })
-
         const attemptedActions = await this.executeApprovedActions()
 
         this.logger.trace('Attempted to execute all approved actions', {
@@ -115,6 +110,10 @@ export class ActionManager {
           })
         ).sort(function (a, b) {
           return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
+        })
+
+        this.logger.info('Executing batch of approved actions', {
+          actions: approvedActions,
         })
 
         try {

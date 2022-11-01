@@ -259,6 +259,7 @@ export async function fetchAction(
             priority
             transaction
             status
+            failureReason
           }
         }
       `,

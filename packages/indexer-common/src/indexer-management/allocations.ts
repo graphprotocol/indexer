@@ -103,14 +103,45 @@ export class AllocationManager {
       throw Error('Failed to populate batch transaction: no transactions supplied')
     }
 
-    const populateTransactionsResults = await this.prepareTransactions(actions)
+    let populateTransactionsResults = await this.prepareTransactions(actions)
 
     const failedTransactionPreparations = populateTransactionsResults
       .filter((result) => isActionFailure(result))
       .map((result) => result as ActionFailure)
 
+    // Simply return failures if no error was due to stake insufficency
     if (failedTransactionPreparations.length > 0) {
-      return failedTransactionPreparations
+      if (
+        failedTransactionPreparations.filter(
+          (result) => result.failureReason === IndexerErrorCode.IE013,
+        ).length === 0
+      ) {
+        return failedTransactionPreparations
+      } else {
+        const feasibleStakeBatch = await this.feasibleStakeBatch(actions)
+        populateTransactionsResults = await this.prepareTransactions(
+          feasibleStakeBatch,
+          true,
+        )
+
+        const failedFeasiblePreparations = populateTransactionsResults.filter((result) =>
+          isActionFailure(result),
+        )
+        const feasibleIDs = feasibleStakeBatch.map((action) => action.id)
+        // return unfeasible actions and actions that still failed
+        if (
+          feasibleStakeBatch.length !== actions.length ||
+          failedFeasiblePreparations.length > 0
+        ) {
+          return failedFeasiblePreparations
+            .concat(
+              failedTransactionPreparations.filter(
+                (tx) => !feasibleIDs.includes(tx.actionID),
+              ),
+            )
+            .map((result) => result as ActionFailure)
+        }
+      }
     }
 
     const callData = populateTransactionsResults
@@ -122,6 +153,7 @@ export class AllocationManager {
       async () => this.contracts.staking.estimateGas.multicall(callData),
       async (gasLimit) => this.contracts.staking.multicall(callData, { gasLimit }),
       this.logger.child({
+        // filter this for accurate actions in transaction
         actions: `${JSON.stringify(actions.map((action) => action.id))}`,
         function: 'staking.multicall',
       }),
@@ -157,6 +189,60 @@ export class AllocationManager {
       },
       { stopOnError: false },
     )
+  }
+
+  // filling in a feasible batch in sequential order of approved actions
+  // first ordered by action type (un- > re- > allocate), then ascending in priority
+  async feasibleStakeBatch(actions: Action[]): Promise<Action[]> {
+    // missing checks about allocations made inside prepareTransactions
+    // but separate sequential ordering here allow prepareTransactions to stay parallel
+    // or, we could parse the error string to find the stake changes required
+    const activeAllocations = await this.networkMonitor.allocations(
+      AllocationStatus.ACTIVE,
+    )
+    let freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    const feasibleStakeBatch: Action[] = []
+
+    actions.forEach((action: Action) => {
+      let delta
+      switch (action.type) {
+        case ActionType.UNALLOCATE: {
+          const existingAllocation = activeAllocations.find(
+            (alloc) => alloc.id.toLocaleLowerCase() === action.allocationID,
+          )
+          delta = parseGRT(
+            formatGRT(existingAllocation?.allocatedTokens ?? BigNumber.from(0)),
+          )
+          break
+        }
+        case ActionType.REALLOCATE: {
+          const existingAllocation = activeAllocations.find(
+            (alloc) => alloc.id.toLocaleLowerCase() === action.allocationID,
+          )
+          delta = parseGRT(
+            formatGRT(
+              existingAllocation?.allocatedTokens.sub(parseGRT(action.amount ?? `0`)) ??
+                BigNumber.from(0),
+            ),
+          )
+          break
+        }
+        case ActionType.ALLOCATE: {
+          delta = parseGRT(`-` + action.amount ?? `0`)
+          break
+        }
+      }
+      this.logger.warn(`freestake`, {
+        freeStake: formatGRT(freeStake),
+        delta: formatGRT(delta),
+      })
+      freeStake = freeStake.add(delta)
+      if (freeStake.gte(0)) {
+        feasibleStakeBatch.push(action)
+      }
+    })
+
+    return feasibleStakeBatch
   }
 
   findEvent(
@@ -204,12 +290,22 @@ export class AllocationManager {
     }
   }
 
-  async prepareTransactions(actions: Action[]): Promise<PopulateTransactionResult[]> {
-    return await pMap(actions, async (action) => await this.prepareTransaction(action), {
-      stopOnError: false,
-    })
+  async prepareTransactions(
+    actions: Action[],
+    skipStakeCheck?: boolean,
+  ): Promise<PopulateTransactionResult[]> {
+    return await pMap(
+      actions,
+      async (action) => await this.prepareTransaction(action, skipStakeCheck),
+      {
+        stopOnError: false,
+      },
+    )
   }
-  async prepareTransaction(action: Action): Promise<PopulateTransactionResult> {
+  async prepareTransaction(
+    action: Action,
+    skipStakeCheck?: boolean,
+  ): Promise<PopulateTransactionResult> {
     const logger = this.logger.child({ action: action.id })
     logger.trace('Preparing transaction', {
       action,
@@ -223,6 +319,7 @@ export class AllocationManager {
             new SubgraphDeploymentID(action.deploymentID!),
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
+            skipStakeCheck,
           )
         case ActionType.UNALLOCATE:
           return await this.prepareUnallocate(
@@ -241,6 +338,7 @@ export class AllocationManager {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
             action.force === null ? false : action.force,
+            skipStakeCheck,
           )
       }
     } catch (error) {
@@ -261,6 +359,7 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    skipStakeCheck?: boolean,
   ): Promise<AllocateTransactionParams> {
     logger.info('Preparing to allocate', {
       deployment: deployment.ipfsHash,
@@ -297,26 +396,29 @@ export class AllocationManager {
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
 
-    // Identify how many GRT the indexer has staked
-    const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    if (!skipStakeCheck) {
+      // Identify how many GRT the indexer has staked
+      const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
 
-    // If there isn't enough left for allocating, abort
-    if (freeStake.lt(amount)) {
-      logger.error(
-        `Allocation of ${formatGRT(
-          amount,
-        )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT`,
-      )
-      throw indexerError(
-        IndexerErrorCode.IE013,
-        `Allocation of ${formatGRT(
-          amount,
-        )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT`,
-      )
+      // If there isn't enough left for allocating, show error but don't abort
+      // let this pass and checked as a group later on
+      if (freeStake.lt(amount)) {
+        logger.error(
+          `Allocation of ${formatGRT(
+            amount,
+          )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT`,
+        )
+        throw indexerError(
+          IndexerErrorCode.IE013,
+          `Allocation of ${formatGRT(
+            amount,
+          )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT`,
+        )
+      }
     }
 
     // Ensure subgraph is deployed before allocating
@@ -451,8 +553,14 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    skipStakeCheck?: boolean,
   ): Promise<PopulatedTransaction> {
-    const params = await this.prepareAllocateParams(logger, deployment, amount)
+    const params = await this.prepareAllocateParams(
+      logger,
+      deployment,
+      amount,
+      skipStakeCheck,
+    )
     logger.debug(`Populating allocateFrom transaction`, {
       indexer: params.indexer,
       subgraphDeployment: params.subgraphDeploymentID,
@@ -761,6 +869,7 @@ export class AllocationManager {
     poi: string | undefined,
     amount: BigNumber,
     force: boolean,
+    skipStakeCheck?: boolean,
   ): Promise<ReallocateTransactionParams> {
     logger.info('Preparing to reallocate', {
       allocation: allocationID,
@@ -826,25 +935,37 @@ export class AllocationManager {
       )
     }
 
-    // Identify how many GRT the indexer has staked
-    const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    if (!skipStakeCheck) {
+      // Identify how many GRT the indexer has staked
+      const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
 
-    // When reallocating, we will first close the old allocation and free up the GRT in that allocation
-    // This GRT will be available in addition to freeStake for the new allocation
-    const postCloseFreeStake = freeStake.add(allocation.allocatedTokens)
+      // When reallocating, we will first close the old allocation and free up the GRT in that allocation
+      // This GRT will be available in addition to freeStake for the new allocation
+      const postCloseFreeStake = freeStake.add(allocation.allocatedTokens)
 
-    // If there isn't enough left for allocating, abort
-    if (postCloseFreeStake.lt(amount)) {
-      throw indexerError(
-        IndexerErrorCode.IE013,
-        `Unable to allocate ${formatGRT(
-          amount,
-        )} GRT: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT, plus ${formatGRT(
-          allocation.allocatedTokens,
-        )} GRT from the existing allocation`,
-      )
+      // If there isn't enough left for allocating, abort
+      // Don't really want to read the error string, but possible to calculate free stake with it
+      if (postCloseFreeStake.lt(amount)) {
+        logger.error(
+          `Unable to allocate ${formatGRT(
+            amount,
+          )} GRT: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT, plus ${formatGRT(
+            allocation.allocatedTokens,
+          )} GRT from the existing allocation`,
+        )
+        throw indexerError(
+          IndexerErrorCode.IE013,
+          `Unable to allocate ${formatGRT(
+            amount,
+          )} GRT: indexer only has a free stake amount of ${formatGRT(
+            freeStake,
+          )} GRT, plus ${formatGRT(
+            allocation.allocatedTokens,
+          )} GRT from the existing allocation`,
+        )
+      }
     }
 
     logger.debug('Generating a new unique Allocation ID')
@@ -1043,6 +1164,7 @@ export class AllocationManager {
     poi: string | undefined,
     amount: BigNumber,
     force: boolean,
+    skipStakeCheck?: boolean,
   ): Promise<PopulatedTransaction> {
     const params = await this.prepareReallocateParams(
       logger,
@@ -1050,6 +1172,7 @@ export class AllocationManager {
       poi,
       amount,
       force,
+      skipStakeCheck,
     )
     return await this.contracts.staking.populateTransaction.closeAndAllocate(
       params.closingAllocationID,
