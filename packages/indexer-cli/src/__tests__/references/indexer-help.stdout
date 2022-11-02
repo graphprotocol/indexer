@@ -15,6 +15,7 @@ Manage indexer configuration
   indexer cost set variables         Update cost model variables                                      
   indexer cost set model             Update a cost model                                              
   indexer cost get                   Get cost models and/or variables for one or all subgraphs        
+  indexer cost delete                Remove one or many cost models                                   
   indexer cost                       Manage costing for subgraphs                                     
   indexer connect                    Connect to indexer management API                                
   indexer allocations reallocate     Reallocate to subgraph deployment                                

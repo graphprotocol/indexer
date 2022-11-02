@@ -269,3 +269,28 @@ export const setCostModel = async (
 
   return costModelFromGraphQL(result.data.setCostModel)
 }
+
+export const deleteCostModels = async (
+  client: IndexerManagementClient,
+  deployments: string[],
+): Promise<number> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation deleteCostModels($deployments: [String!]!) {
+          deleteCostModels(deployments: $deployments) {
+            deployment
+            model
+            variables
+          }
+        }
+      `,
+      { deployments },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+  return result.data.deleteCostModels
+}
