@@ -139,4 +139,19 @@ export default {
 
     return (await model.save()).toGraphQL()
   },
+
+  deleteCostModels: async (
+    { deployments }: { deployments: string[] },
+    { models }: IndexerManagementResolverContext,
+  ): Promise<number> => {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return await models.CostModel.sequelize!.transaction(async (transaction) => {
+      return await models.CostModel.destroy({
+        where: {
+          deployment: deployments,
+        },
+        transaction,
+      })
+    })
+  },
 }

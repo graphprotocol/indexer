@@ -386,6 +386,7 @@ const SCHEMA_SDL = gql`
     deleteIndexingRules(identifiers: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
+    deleteCostModels(deployments: [String!]!): Int!
 
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!

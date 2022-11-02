@@ -35,6 +35,16 @@ const SET_COST_MODEL_MUTATION = gql`
   }
 `
 
+const DELETE_COST_MODELS_MUTATION = gql`
+  mutation deleteCostModels($deployments: [String!]!) {
+    deleteCostModels(deployments: $deployments) {
+      deployment
+      model
+      variables
+    }
+  }
+`
+
 const GET_COST_MODEL_QUERY = gql`
   query costModel($deployment: String!) {
     costModel(deployment: $deployment) {
@@ -202,7 +212,7 @@ describe('Cost models', () => {
     ).resolves.toHaveProperty('data.setCostModel', expected)
   })
 
-  test('Set and get global cost model', async () => {
+  test('Set, get, and delete global cost model', async () => {
     const input = {
       deployment: 'global',
       model: 'default => 0.00025;',
@@ -238,6 +248,24 @@ describe('Cost models', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.costModel', expected)
+
+    //Delete global cost model
+    await expect(
+      client
+        .mutation(DELETE_COST_MODELS_MUTATION, {
+          deployments: [input.deployment],
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.deleteCostModels', 1)
+
+    //Check non-existent without global cost model
+    await expect(
+      client
+        .query(GET_COST_MODEL_QUERY, {
+          deployment: 'blah',
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.costModel', null)
   })
 
   test('Update existing cost model', async () => {
@@ -478,6 +506,99 @@ describe('Cost models', () => {
       'data.costModels',
       [input],
     )
+  })
+
+  test('Delete one cost model', async () => {
+    const inputs = [
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: 'query { votes } => 10 * $n;',
+        variables: JSON.stringify({ n: 100 }),
+      },
+      {
+        deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        model: 'query { proposals } => 30 * $n;',
+        variables: JSON.stringify({ n: 10 }),
+      },
+    ]
+
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    for (const input of inputs) {
+      await expect(
+        client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
+      ).resolves.toHaveProperty('data.costModel', input)
+    }
+
+    for (const input of inputs) {
+      await expect(
+        client
+          .mutation(DELETE_COST_MODELS_MUTATION, { deployments: [input.deployment] })
+          .toPromise(),
+      ).resolves.toHaveProperty('data.deleteCostModels', 1)
+    }
+  })
+
+  test('Delete all costs model', async () => {
+    const inputs = [
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: 'query { votes } => 10 * $n;',
+        variables: JSON.stringify({ n: 100 }),
+      },
+      {
+        deployment: '0x1111111111111111111111111111111111111111111111111111111111111111',
+        model: 'query { proposals } => 30 * $n;',
+        variables: JSON.stringify({ n: 10 }),
+      },
+    ]
+
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    for (const input of inputs) {
+      await expect(
+        client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
+      ).resolves.toHaveProperty('data.costModel', input)
+    }
+
+    await expect(
+      client
+        .mutation(DELETE_COST_MODELS_MUTATION, {
+          deployments: inputs.map((d) => d.deployment),
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.deleteCostModels', 2)
+  })
+
+  test('Delete global costs model', async () => {
+    const inputs = [
+      {
+        deployment: 'global',
+        model: 'default => 0.00025;',
+        variables: JSON.stringify({ n: 100 }),
+      },
+      {
+        deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+        model: 'query { votes } => 10 * $n;',
+        variables: JSON.stringify({ n: 100 }),
+      },
+    ]
+
+    for (const input of inputs) {
+      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    }
+
+    await expect(
+      client
+        .mutation(DELETE_COST_MODELS_MUTATION, {
+          deployments: inputs.map((d) => d.deployment),
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.deleteCostModels', 2)
   })
 })
 
