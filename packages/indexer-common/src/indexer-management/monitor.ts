@@ -31,6 +31,7 @@ import {
 } from '@graphprotocol/common-ts'
 import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
+import pRetry from 'p-retry'
 
 // The new read only Network class
 export class NetworkMonitor {
@@ -585,8 +586,11 @@ export class NetworkMonitor {
         `Epoch start block not available for network: ${networkAlias}`,
       )
     }
-    try {
-      const result = await this.epochSubgraph.query(
+
+    const queryEpochSubgraph = async () => {
+      // We know it is non-null because of the check above for a null case that will end execution of fn if true
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const result = await this.epochSubgraph!.query(
         gql`
           query network($networkID: String!) {
             network(id: $networkID) {
@@ -639,6 +643,21 @@ export class NetworkMonitor {
         startBlockNumber: +validBlock.blockNumber,
         startBlockHash,
       }
+    }
+
+    try {
+      return await pRetry(queryEpochSubgraph, {
+        retries: 5,
+        maxTimeout: 10000,
+        onFailedAttempt: (err) => {
+          this.logger.warn(`Epoch subgraph could not be queried`, {
+            networkName: networkAlias,
+            attempt: err.attemptNumber,
+            retriesLeft: err.retriesLeft,
+            err: err.message,
+          })
+        },
+      } as pRetry.Options)
     } catch (err) {
       if (err instanceof indexerError) {
         throw err

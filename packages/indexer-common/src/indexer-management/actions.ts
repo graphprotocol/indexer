@@ -1,10 +1,14 @@
 import {
   Action,
   ActionFilter,
+  actionFilterToWhereOptions,
   ActionParams,
   ActionStatus,
   AllocationManagementMode,
+  AllocationResult,
   AllocationStatus,
+  indexerError,
+  IndexerErrorCode,
   IndexerManagementModels,
   isActionFailure,
   NetworkMonitor,
@@ -69,7 +73,10 @@ export class ActionManager {
 
   async monitorQueue(): Promise<void> {
     const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
-      async () => await this.fetchActions({ status: ActionStatus.APPROVED }),
+      async () =>
+        await ActionManager.fetchActions(this.models, {
+          status: ActionStatus.APPROVED,
+        }),
       {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (err: any) =>
@@ -84,13 +91,43 @@ export class ActionManager {
           note: 'If actions were approved very recently they may be missing from this list but will still be taken',
         })
 
-        const attemptedActions = await this.executeApprovedActions()
+        try {
+          const attemptedActions = await this.executeApprovedActions()
 
-        this.logger.trace('Attempted to execute all approved actions', {
-          actions: attemptedActions,
-        })
+          this.logger.trace('Attempted to execute all approved actions', {
+            actions: attemptedActions,
+          })
+        } catch (error) {
+          this.logger.error('Failed to execute batch of approved actions', {
+            error,
+          })
+        }
       }
     })
+  }
+
+  private async updateActionStatuses(
+    results: AllocationResult[],
+    transaction: Transaction,
+  ): Promise<Action[]> {
+    let updatedActions: Action[] = []
+    for (const result of results) {
+      const status = isActionFailure(result) ? ActionStatus.FAILED : ActionStatus.SUCCESS
+      const [, updatedAction] = await this.models.Action.update(
+        {
+          status: status,
+          transaction: result.transactionID,
+          failureReason: isActionFailure(result) ? result.failureReason : null,
+        },
+        {
+          where: { id: result.actionID },
+          returning: true,
+          transaction,
+        },
+      )
+      updatedActions = updatedActions.concat(updatedAction)
+    }
+    return updatedActions
   }
 
   async executeApprovedActions(): Promise<Action[]> {
@@ -125,27 +162,10 @@ export class ActionManager {
             results,
           })
 
-          for (const result of results) {
-            const status = isActionFailure(result)
-              ? ActionStatus.FAILED
-              : ActionStatus.SUCCESS
-            const [, updatedAction] = await this.models.Action.update(
-              {
-                status: status,
-                transaction: result.transactionID,
-                failureReason: isActionFailure(result) ? result.failureReason : null,
-              },
-              {
-                where: { id: result.actionID },
-                returning: true,
-                transaction,
-              },
-            )
-            updatedActions = updatedActions.concat(updatedAction)
-          }
+          updatedActions = await this.updateActionStatuses(results, transaction)
         } catch (error) {
           this.logger.error(`Failed to execute batch tx on staking contract: ${error}`)
-          return []
+          throw indexerError(IndexerErrorCode.IE072, error)
         }
       },
     )
@@ -153,18 +173,19 @@ export class ActionManager {
     return updatedActions
   }
 
-  async fetchActions(
+  public static async fetchActions(
+    models: IndexerManagementModels,
     filter: ActionFilter,
     orderBy?: ActionParams,
     orderDirection?: OrderDirection,
     first?: number,
   ): Promise<Action[]> {
-    const filterObject = JSON.parse(JSON.stringify(filter))
     const orderObject: Order = orderBy
       ? [[orderBy.toString(), orderDirection ?? 'desc']]
       : [['id', 'desc']]
-    return await this.models.Action.findAll({
-      where: filterObject,
+
+    return await models.Action.findAll({
+      where: actionFilterToWhereOptions(filter),
       order: orderObject,
       limit: first,
     })

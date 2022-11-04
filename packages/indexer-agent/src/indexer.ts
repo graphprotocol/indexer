@@ -18,7 +18,6 @@ import {
   SubgraphIdentifierType,
   parseGraphQLIndexingStatus,
   CostModelAttributes,
-  ActionFilter,
   ActionResult,
   ActionItem,
   Action,
@@ -28,6 +27,7 @@ import {
   ActionType,
   Allocation,
   AllocationDecision,
+  ActionFilter,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import pMap from 'p-map'

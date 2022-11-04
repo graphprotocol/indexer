@@ -82,6 +82,7 @@ export enum IndexerErrorCode {
   IE069 = 'IE069',
   IE070 = 'IE070',
   IE071 = 'IE071',
+  IE072 = 'IE072',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -157,6 +158,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE069: 'Failed to query Epoch Block Oracle Subgraph',
   IE070: 'Failed to query latest valid epoch and block hash',
   IE071: 'Add Epoch subgraph support for non-protocol chains',
+  IE072: 'Failed to execute batch tx (contract: staking)',
 }
 
 export type IndexerErrorCause = unknown

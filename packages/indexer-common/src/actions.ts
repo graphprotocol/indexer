@@ -1,6 +1,8 @@
 import { ActionManager, NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
-import { WhereOperators } from 'sequelize'
+import { WhereOperators, WhereOptions } from 'sequelize'
+import { Op } from 'sequelize'
+import { WhereAttributeHashValue } from 'sequelize/types/model'
 
 export interface ActionParamsInput {
   deploymentID?: string
@@ -123,11 +125,25 @@ export const validateActionInputs = async (
 }
 
 export interface ActionFilter {
-  type?: ActionType | undefined
-  status?: ActionStatus | undefined
-  source?: string | undefined
-  reason?: string | undefined
-  updatedAt?: WhereOperators | undefined
+  type?: ActionType
+  status?: ActionStatus
+  source?: string
+  reason?: string
+  updatedAt?: WhereOperators
+}
+
+export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
+  const whereOptions = [] as WhereAttributeHashValue<any>[]
+
+  Object.entries(filter).forEach(([key, value]) => {
+    if (value) {
+      const obj: { [key: string]: any } = {}
+      obj[key] = value
+      whereOptions.push(obj)
+    }
+  })
+
+  return whereOptions.length == 0 ? {} : { [Op.and]: whereOptions }
 }
 
 export interface ActionResult {
