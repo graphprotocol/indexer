@@ -310,15 +310,16 @@ class Agent {
       indexingRules,
       networkDeploymentAllocationDecisions,
     }).tryMap(
-      async target => {
-        const rules = await indexingRules.value()
+      async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
+        const rules = indexingRules
         const targetDeploymentIDs = new Set(
-          target.networkDeploymentAllocationDecisions
+          networkDeploymentAllocationDecisions
             .filter(decision => decision.toAllocate === true)
             .map(decision => decision.deployment),
         )
 
         // add offchain subgraphs to the deployment list
+        // from rules
         rules
           .filter(
             rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
@@ -326,9 +327,11 @@ class Agent {
           .map(rule => {
             targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
           })
-        return rules.length === 0
-          ? []
-          : [...targetDeploymentIDs, ...this.offchainSubgraphs]
+        // from startup args
+        this.offchainSubgraphs.map(deployment => {
+          targetDeploymentIDs.add(deployment)
+        })
+        return [...targetDeploymentIDs]
       },
       {
         onError: error =>
@@ -505,9 +508,12 @@ class Agent {
             maxAllocationEpochs,
           )
         } catch (err) {
-          this.logger.warn(`Failed to reconcile indexer and network`, {
-            err: indexerError(IndexerErrorCode.IE005, err),
-          })
+          this.logger.warn(
+            `Exited early while reconciling deployments/allocations`,
+            {
+              err: indexerError(IndexerErrorCode.IE005, err),
+            },
+          )
         }
       },
     )

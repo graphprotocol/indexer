@@ -828,4 +828,104 @@ describe('Actions', () => {
         .toPromise(),
     ).resolves.toHaveProperty('data.actions', [])
   })
+
+  test('Reject queueing for action that has recently failed', async () => {
+    const failedAction = {
+      status: ActionStatus.FAILED,
+      type: ActionType.ALLOCATE,
+      deploymentID: subgraphDeployment1,
+      amount: '10000',
+      force: false,
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    const proposedAction = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.ALLOCATE,
+      deploymentID: subgraphDeployment1,
+      amount: '10000',
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    await managementModels.Action.create(failedAction, {
+      validate: true,
+      returning: true,
+    })
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] }).toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            "Recently executed 'allocate' action found in queue targeting 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt', ignoring.",
+          ),
+        ],
+      }),
+    )
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: { source: 'indexerAgent' },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.actions', [
+      await actionInputToExpected(failedAction, 1),
+    ])
+  })
+
+  test('Reject queueing for action that has recently succeeded', async () => {
+    const successfulAction = {
+      status: ActionStatus.SUCCESS,
+      type: ActionType.ALLOCATE,
+      deploymentID: subgraphDeployment1,
+      amount: '10000',
+      force: false,
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    const proposedAction = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.ALLOCATE,
+      deploymentID: subgraphDeployment1,
+      amount: '10000',
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    await managementModels.Action.create(successfulAction, {
+      validate: true,
+      returning: true,
+    })
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] }).toPromise(),
+    ).resolves.toHaveProperty(
+      'error',
+      new CombinedError({
+        graphQLErrors: [
+          new GraphQLError(
+            "Recently executed 'allocate' action found in queue targeting 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt', ignoring.",
+          ),
+        ],
+      }),
+    )
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: { source: 'indexerAgent' },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.actions', [
+      await actionInputToExpected(successfulAction, 1),
+    ])
+  })
 })

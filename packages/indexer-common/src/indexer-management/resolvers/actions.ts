@@ -14,9 +14,8 @@ import {
   OrderDirection,
   validateActionInputs,
 } from '@graphprotocol/indexer-common'
-import { Op, Transaction } from 'sequelize'
-
-const indexerAgent = 'indexerAgent'
+import { literal, Op, Transaction } from 'sequelize'
+import { ActionManager } from '../actions'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -27,20 +26,20 @@ async function executeQueueOperation(
   logger: Logger,
   action: ActionInput,
   actionsAwaitingExecution: Action[],
-  recentlyFailedActions: Action[],
+  recentlyAttemptedActions: Action[],
   models: IndexerManagementModels,
   transaction: Transaction,
 ): Promise<ActionResult[]> {
   // Check for previously failed conflicting actions
-  const conflictingActions = recentlyFailedActions.filter(function (failed) {
-    const areEqual = compareFailedActions(failed, action)
-    const fromAgent = failed.source === indexerAgent && action.source === indexerAgent
+  const conflictingActions = recentlyAttemptedActions.filter(function (recentAction) {
+    const areEqual = compareActions(recentAction, action)
+    const fromAgent = action.source === 'indexerAgent'
     return areEqual && fromAgent
   })
   if (conflictingActions.length > 0) {
-    const message = `Recently failed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
+    const message = `Recently executed '${action.type}' action found in queue targeting '${action.deploymentID}', ignoring.`
     logger.warn(message, {
-      actionInQueue: conflictingActions,
+      recentlyAttemptedAction: conflictingActions,
       proposedAction: action,
     })
     throw Error(message)
@@ -125,7 +124,7 @@ export default {
       orderDirection: OrderDirection
       first: number
     },
-    { actionManager, logger }: IndexerManagementResolverContext,
+    { logger, models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug(`Execute 'actions' query`, {
       filter,
@@ -133,7 +132,13 @@ export default {
       orderDirection,
       first,
     })
-    return await actionManager.fetchActions(filter, orderBy, orderDirection, first)
+    return await ActionManager.fetchActions(
+      models,
+      filter,
+      orderBy,
+      orderDirection,
+      first,
+    )
   },
 
   queueActions: async (
@@ -146,20 +151,37 @@ export default {
 
     await validateActionInputs(actions, actionManager, networkMonitor)
 
-    const alreadyQueuedActions = await actionManager.fetchActions({
+    const alreadyQueuedActions = await ActionManager.fetchActions(models, {
       status: ActionStatus.QUEUED,
     })
-    const alreadyApprovedActions = await actionManager.fetchActions({
+    const alreadyApprovedActions = await ActionManager.fetchActions(models, {
       status: ActionStatus.APPROVED,
     })
+    const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
 
-    const yesterday = new Date(new Date().getTime() - 24 * 60 * 60 * 1000)
-    const recentlyFailedActions = await actionManager.fetchActions({
+    // Fetch recently attempted actions
+    const last15Minutes = {
+      [Op.gte]: literal("NOW() - INTERVAL '15m'"),
+    }
+
+    const recentlyFailedActions = await ActionManager.fetchActions(models, {
       status: ActionStatus.FAILED,
-      updatedAt: { [Op.gt]: yesterday },
+      updatedAt: last15Minutes,
     })
 
-    const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
+    const recentlySuccessfulActions = await ActionManager.fetchActions(models, {
+      status: ActionStatus.SUCCESS,
+      updatedAt: last15Minutes,
+    })
+
+    logger.info('Recently attempted actions', {
+      recentlySuccessfulActions,
+      recentlyFailedActions,
+    })
+
+    const recentlyAttemptedActions = recentlyFailedActions.concat(
+      recentlySuccessfulActions,
+    )
 
     let results: ActionResult[] = []
 
@@ -170,7 +192,7 @@ export default {
           logger,
           action,
           actionsAwaitingExecution,
-          recentlyFailedActions,
+          recentlyAttemptedActions,
           models,
           transaction,
         )
@@ -179,12 +201,6 @@ export default {
     })
 
     return results
-
-    // Bulk insert alternative
-    // return await models.Action.bulkCreate(actions, {
-    //   validate: true,
-    //   returning: true,
-    // })
   },
 
   cancelActions: async (
@@ -278,7 +294,7 @@ export default {
 }
 
 // Helper function to assess equality among a enqueued and a proposed actions
-function compareFailedActions(enqueued: Action, proposed: ActionInput): boolean {
+function compareActions(enqueued: Action, proposed: ActionInput): boolean {
   // actions are not the same if they target different deployments
   if (enqueued.deploymentID !== proposed.deploymentID) {
     return false
@@ -288,10 +304,10 @@ function compareFailedActions(enqueued: Action, proposed: ActionInput): boolean 
     return false
   }
 
-  // Different fileds are used to assess equality depending on the action type
+  // Different fields are used to assess equality depending on the action type
   const amount = enqueued.amount === proposed.amount
-  const poi = enqueued.poi === proposed.poi
-  const force = enqueued.force === proposed.force
+  const poi = enqueued.poi == proposed.poi
+  const force = enqueued.force == proposed.force
   switch (proposed.type) {
     case ActionType.ALLOCATE:
       return amount

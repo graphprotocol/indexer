@@ -93,10 +93,11 @@ export class IndexingStatusResolver {
             }
           }`
 
-    try {
+    const queryIndexingStatuses = async () => {
       const result = await this.statuses
         .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
         .toPromise()
+
       return (
         result.data.indexingStatuses
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -105,9 +106,25 @@ export class IndexingStatusResolver {
             subgraphDeployment: new SubgraphDeploymentID(status.subgraphDeployment),
           }))
       )
+    }
+
+    try {
+      return await pRetry(queryIndexingStatuses, {
+        retries: 5,
+        maxTimeout: 10000,
+        onFailedAttempt: (err) => {
+          this.logger.warn(`Indexing statuses could not be queried`, {
+            attempt: err.attemptNumber,
+            retriesLeft: err.retriesLeft,
+            deployments,
+            err: err.message,
+          })
+        },
+      } as pRetry.Options)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, {
+        deployments,
         err,
       })
       throw err
