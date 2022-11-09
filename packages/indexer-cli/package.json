@@ -16,7 +16,7 @@
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
-    "compile": "tsc",
+    "compile": "tsc --build",
     "prepare": "yarn format && yarn lint && yarn compile",
     "disputes": "yarn prepare && ./dist/cli.js indexer disputes get",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",

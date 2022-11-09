@@ -103,6 +103,26 @@ const CANCEL_ACTIONS_MUTATION = gql`
   }
 `
 
+const UPDATE_ACTIONS_MUTATION = gql`
+  mutation updateActions($filter: ActionFilter!, $action: ActionUpdateInput!) {
+    updateActions(filter: $filter, action: $action) {
+      id
+      type
+      allocationID
+      deploymentID
+      amount
+      poi
+      force
+      source
+      reason
+      priority
+      transaction
+      failureReason
+      status
+    }
+  }
+`
+
 const ACTIONS_QUERY = gql`
   query actions(
     $filter: ActionFilter!
@@ -184,7 +204,7 @@ const allocateToNotPublishedDeployment = {
   priority: 0,
 } as ActionInput
 
-const queuedUnallocateAction = {
+const invalidUnallocateAction = {
   status: ActionStatus.QUEUED,
   type: ActionType.UNALLOCATE,
   allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
@@ -767,7 +787,7 @@ describe('Actions', () => {
   })
 
   test('Reject unallocate action with inactive allocationID', async () => {
-    const inputActions = [queuedUnallocateAction]
+    const inputActions = [invalidUnallocateAction]
 
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
@@ -927,5 +947,67 @@ describe('Actions', () => {
     ).resolves.toHaveProperty('data.actions', [
       await actionInputToExpected(successfulAction, 1),
     ])
+  })
+
+  test('Update all queued unallocate actions', async () => {
+    const queuedUnallocateAction = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.UNALLOCATE,
+      deploymentID: subgraphDeployment1,
+      amount: '10000',
+      force: false,
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    const queuedAllocateAction = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.ALLOCATE,
+      deploymentID: subgraphDeployment1,
+      force: false,
+      amount: '10000',
+      source: 'indexerAgent',
+      reason: 'indexingRule',
+      priority: 0,
+    } as ActionInput
+
+    await managementModels.Action.create(queuedUnallocateAction, {
+      validate: true,
+      returning: true,
+    })
+
+    const queuedAllocateAction1 = { ...queuedAllocateAction }
+    const queuedAllocateAction2 = { ...queuedAllocateAction }
+    queuedAllocateAction2.deploymentID = subgraphDeployment2
+
+    const inputActions = [queuedAllocateAction1, queuedAllocateAction2]
+    const expecteds = (
+      await Promise.all(
+        inputActions.sort().map(async (action, key) => {
+          return await actionInputToExpected(action, key + 1)
+        }),
+      )
+    ).sort((a, b) => a.id - b.id)
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', expecteds)
+
+    const updatedExpecteds = expecteds.map((value) => {
+      value.force = true
+      return value
+    })
+
+    await expect(
+      client
+        .mutation(UPDATE_ACTIONS_MUTATION, {
+          filter: { type: 'allocate' },
+          action: {
+            force: true,
+          },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.updateActions', updatedExpecteds)
   })
 })

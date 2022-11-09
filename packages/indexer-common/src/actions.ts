@@ -16,6 +16,18 @@ export interface ActionItem {
   params: ActionParamsInput
   type: ActionType
   reason: string
+  status?: ActionStatus
+}
+
+export interface ActionUpdateInput {
+  deploymentID?: string
+  allocationID?: string
+  amount?: string
+  poi?: string
+  force?: boolean
+  type?: ActionType
+  status?: ActionStatus
+  reason?: string
 }
 
 export interface ActionInput {
@@ -125,6 +137,7 @@ export const validateActionInputs = async (
 }
 
 export interface ActionFilter {
+  id?: number | undefined
   type?: ActionType
   status?: ActionStatus
   source?: string
@@ -158,6 +171,8 @@ export interface ActionResult {
   reason: string
   status: ActionStatus
   priority: number | undefined
+  failureReason: string | null
+  transaction: string | null
 }
 
 export enum ActionType {

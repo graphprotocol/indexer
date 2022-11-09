@@ -5,12 +5,16 @@ import {
   ActionResult,
   ActionStatus,
   ActionType,
+  ActionUpdateInput,
   IndexerManagementClient,
+  nullPassThrough,
   OrderDirection,
+  parseBoolean,
 } from '@graphprotocol/indexer-common'
-import { validateRequiredParams } from './command-helpers'
+import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
 import { utils } from 'ethers'
+import { parseGRT } from '@graphprotocol/common-ts'
 
 export interface GenericActionInputParams {
   targetDeployment: string
@@ -101,6 +105,63 @@ export async function validateActionInput(
   )
 }
 
+export function validateActionType(input: string): ActionType {
+  const validVariants = Object.keys(ActionType).map(variant =>
+    variant.toLocaleLowerCase(),
+  )
+  if (!validVariants.includes(input.toLocaleLowerCase())) {
+    throw Error(
+      `Invalid 'ActionType' "${input}", must be one of ['${validVariants.join(`', '`)}']`,
+    )
+  }
+  return ActionType[input.toUpperCase() as keyof typeof ActionType]
+}
+
+export function validateActionStatus(input: string): ActionStatus {
+  const validVariants = Object.keys(ActionStatus).map(variant =>
+    variant.toLocaleLowerCase(),
+  )
+  if (!validVariants.includes(input.toLocaleLowerCase())) {
+    throw Error(
+      `Invalid 'ActionStatus' "${input}", must be one of ['${validVariants.join(
+        `', '`,
+      )}']`,
+    )
+  }
+  return ActionStatus[input.toUpperCase() as keyof typeof ActionStatus]
+}
+
+export function buildActionFilter(
+  id: string | undefined,
+  type: string | undefined,
+  status: string | undefined,
+  source: string | undefined,
+  reason: string | undefined,
+): ActionFilter {
+  const filter: ActionFilter = {}
+  if (id) {
+    filter.id = +id
+  }
+  if (type) {
+    filter.type = validateActionType(type)
+  }
+  if (status) {
+    filter.status = validateActionStatus(status)
+  }
+  if (source) {
+    filter.source = source
+  }
+  if (reason) {
+    filter.reason = reason
+  }
+  if (Object.keys(filter).length === 0) {
+    throw Error(
+      `No action filter provided, please specify at least one filter using ['--id', '--type', '--status', '--source', '--reason']`,
+    )
+  }
+  return filter
+}
+
 export async function queueActions(
   client: IndexerManagementClient,
   actions: ActionInput[],
@@ -133,6 +194,35 @@ export async function queueActions(
   }
 
   return result.data.queueActions
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> = {
+  deploymentID: x => nullPassThrough(x),
+  allocationID: x => x,
+  amount: nullPassThrough(parseGRT),
+  poi: nullPassThrough((x: string) => validatePOI(x)),
+  force: x => parseBoolean(x),
+  type: x => validateActionType(x),
+  status: x => validateActionStatus(x),
+  reason: nullPassThrough,
+}
+
+/**
+ * Parses a user-provided action update input into a normalized form.
+ */
+export const parseActionUpdateInput = (input: object): ActionUpdateInput => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = {} as any
+  for (const [key, value] of Object.entries(input)) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      obj[key] = (ACTION_PARAMS_PARSERS as any)[key](value)
+    } catch {
+      throw new Error(key)
+    }
+  }
+  return obj as ActionUpdateInput
 }
 
 export async function executeApprovedActions(
@@ -356,4 +446,41 @@ export async function deleteActions(
   }
 
   return result.data.deleteActions
+}
+
+export async function updateActions(
+  client: IndexerManagementClient,
+  filter: ActionFilter,
+  action: ActionUpdateInput,
+): Promise<ActionResult[]> {
+  const result = await client
+    .mutation(
+      gql`
+        mutation updateActions($filter: ActionFilter!, $action: ActionUpdateInput!) {
+          updateActions(filter: $filter, action: $action) {
+            id
+            type
+            allocationID
+            deploymentID
+            amount
+            poi
+            force
+            source
+            reason
+            priority
+            transaction
+            status
+            failureReason
+          }
+        }
+      `,
+      { filter, action },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.updateActions
 }

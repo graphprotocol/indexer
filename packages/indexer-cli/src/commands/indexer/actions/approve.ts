@@ -59,7 +59,7 @@ module.exports = {
         })
         numericActionIDs = queuedActions.map(action => action.id)
         if (numericActionIDs.length === 0) {
-          throw Error(`No 'queued' actions found.`)
+          throw Error(`No 'queued' actions found`)
         }
       } else {
         numericActionIDs = actionIDs.map(action => +action)

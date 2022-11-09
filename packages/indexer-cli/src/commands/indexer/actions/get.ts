@@ -139,7 +139,7 @@ module.exports = {
       }
 
       if (!['undefined', 'number'].includes(typeof first)) {
-        throw Error(`Invalid value for '--first' option, must have a numeric value.`)
+        throw Error(`Invalid value for '--first' option, must have a numeric value`)
       }
 
       if (!['undefined', 'string'].includes(typeof fields)) {

@@ -4,8 +4,8 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { printObjectOrArray } from '../../../command-helpers'
-import { buildActionInput, queueActions } from '../../../actions'
-import { ActionInput, ActionStatus, ActionType } from '@graphprotocol/indexer-common'
+import { buildActionInput, queueActions, validateActionType } from '../../../actions'
+import { ActionInput, ActionStatus } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -65,14 +65,8 @@ module.exports = {
         )
       }
 
-      if (!['allocate', 'unallocate', 'reallocate'].includes(type)) {
-        throw Error(
-          `Invalid 'ActionType' "${type}", must be one of ['allocate', 'unallocate', 'reallocate']`,
-        )
-      }
-
       actionInputParams = await buildActionInput(
-        ActionType[type.toUpperCase() as keyof typeof ActionType],
+        validateActionType(type),
         { targetDeployment, param1, param2, param3, param4 },
         decisionSource,
         decisionReason,

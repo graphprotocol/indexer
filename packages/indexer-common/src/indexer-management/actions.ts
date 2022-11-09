@@ -4,6 +4,7 @@ import {
   actionFilterToWhereOptions,
   ActionParams,
   ActionStatus,
+  ActionUpdateInput,
   AllocationManagementMode,
   AllocationResult,
   AllocationStatus,
@@ -189,5 +190,25 @@ export class ActionManager {
       order: orderObject,
       limit: first,
     })
+  }
+
+  public static async updateActions(
+    models: IndexerManagementModels,
+    action: ActionUpdateInput,
+    filter: ActionFilter,
+  ): Promise<[number, Action[]]> {
+    if (Object.keys(filter).length === 0) {
+      throw Error(
+        'Cannot bulk update actions without a filter, please provide a least 1 filter value',
+      )
+    }
+    return await models.Action.update(
+      { ...action },
+      {
+        where: actionFilterToWhereOptions(filter),
+        returning: true,
+        validate: true,
+      },
+    )
   }
 }

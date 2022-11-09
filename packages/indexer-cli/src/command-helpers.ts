@@ -153,7 +153,7 @@ export async function validateRequiredParams(
   }
 }
 
-export async function validatePOI(poi: string | undefined): Promise<string | undefined> {
+export function validatePOI(poi: string | undefined): string | undefined {
   if (poi !== undefined) {
     if (typeof poi == 'number' && poi == 0) {
       poi = utils.hexlify(Array(32).fill(0))
@@ -161,7 +161,9 @@ export async function validatePOI(poi: string | undefined): Promise<string | und
     // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
     const isHex = utils.isHexString(poi, 32)
     if (!isHex) {
-      throw new Error('Must be a 32 byte length hex string')
+      throw new Error(
+        `Invalid POI provided ('${poi}'): Must be a 32 byte length hex string`,
+      )
     }
   }
   return poi

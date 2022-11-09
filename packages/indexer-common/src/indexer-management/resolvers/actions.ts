@@ -10,6 +10,7 @@ import {
   ActionResult,
   ActionStatus,
   ActionType,
+  ActionUpdateInput,
   IndexerManagementModels,
   OrderDirection,
   validateActionInputs,
@@ -261,6 +262,35 @@ export default {
       )
     }
     return updatedActions[0]
+  },
+
+  updateActions: async (
+    {
+      filter,
+      action,
+    }: {
+      filter: ActionFilter
+      action: ActionUpdateInput
+    },
+    { logger, models }: IndexerManagementResolverContext,
+  ): Promise<ActionResult[]> => {
+    logger.debug(`Execute 'updateActions' mutation`, {
+      filter,
+      action,
+    })
+
+    const results = await ActionManager.updateActions(models, action, filter)
+
+    if (results[0] === 0) {
+      const msg = `Actions update failed: No action was matched by the filter, '${JSON.stringify(
+        filter,
+      )}'`
+      logger.debug(msg)
+      throw Error(msg)
+    }
+    logger.info(`'${results[0]}' actions updated`)
+
+    return results[1]
   },
 
   approveActions: async (
