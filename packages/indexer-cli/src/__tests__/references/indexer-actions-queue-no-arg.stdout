@@ -1,0 +1,15 @@
+✖ Error: Invalid 'ActionType' "undefined", must be one of ['allocate', 'unallocate', 'reallocate']
+
+graph indexer actions queue [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4>
+graph indexer actions queue [options] allocate <deploymentID> <amount>
+graph indexer actions queue [options] unallocate <deploymentID> <allocationID> <poi> <force>
+graph indexer actions queue [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force>
+
+Options:
+
+  -h, --help                    Show usage information
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -s, --source <STRING>         Specify the source of the action decision
+  -r, --reason <STRING>         Specify the reason for the action to be taken
+  -p, --priority <INT>          Define a priority order for the action
+

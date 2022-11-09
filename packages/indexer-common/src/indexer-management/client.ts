@@ -205,9 +205,22 @@ const SCHEMA_SDL = gql`
   }
 
   input ActionFilter {
+    id: Int
     type: ActionType
     status: String
     source: String
+    reason: String
+  }
+
+  input ActionUpdateParams {
+    id: Int
+    deploymentID: String
+    allocationID: String
+    amount: Int
+    poi: String
+    force: Boolean
+    type: ActionType
+    status: ActionStatus
     reason: String
   }
 
@@ -404,6 +417,11 @@ const SCHEMA_SDL = gql`
     ): ReallocateAllocationResult!
 
     updateAction(action: ActionInput!): Action!
+    updateActions(
+      filter: [ActionFilter!]!
+      action: ActionUpdateParams!
+      first: Int
+    ): [ActionResult!]!
     queueActions(actions: [ActionInput!]!): [Action]!
     cancelActions(actionIDs: [String!]!): [Action]!
     deleteActions(actionIDs: [String!]!): Int!

@@ -5,6 +5,7 @@ import {
   ActionResult,
   ActionStatus,
   ActionType,
+  ActionUpdateParams,
   IndexerManagementClient,
   OrderDirection,
 } from '@graphprotocol/indexer-common'
@@ -356,4 +357,46 @@ export async function deleteActions(
   }
 
   return result.data.deleteActions
+}
+
+export async function updateActions(
+  client: IndexerManagementClient,
+  filter: ActionFilter,
+  action: ActionUpdateParams,
+  first?: number,
+): Promise<ActionResult[]> {
+  const result = await client
+    .mutation(
+      gql`
+        mutation updateActions(
+          $filter: [ActionFilter!]!
+          $action: ActionUpdateParams!
+          $first: Int
+        ) {
+          updateActions(filter: $filter, action: $action, first: $first) {
+            id
+            type
+            allocationID
+            deploymentID
+            amount
+            poi
+            force
+            source
+            reason
+            priority
+            transaction
+            status
+            failureReason
+          }
+        }
+      `,
+      { filter, action, first },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.updateActions
 }

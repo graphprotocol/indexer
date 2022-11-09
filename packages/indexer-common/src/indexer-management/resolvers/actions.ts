@@ -6,6 +6,7 @@ import {
   Action,
   ActionFilter,
   ActionInput,
+  ActionItem,
   ActionParams,
   ActionResult,
   ActionStatus,
@@ -245,6 +246,47 @@ export default {
       )
     }
     return updatedActions[0]
+  },
+
+  updateActions: async (
+    {
+      filter,
+      action,
+      first,
+    }: // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    {
+      filter: any
+      action: ActionItem
+      first: number
+    },
+    { logger, models }: IndexerManagementResolverContext,
+  ): Promise<ActionResult[]> => {
+    logger.debug(`Execute 'updateActions' mutation`, {
+      filter,
+      action,
+    })
+
+    let results: ActionResult[] = []
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    await models.Action.sequelize!.transaction(async (transaction) => {
+      const [, result] = await models.Action.update(
+        { ...action },
+        {
+          where: filter,
+          limit: first,
+          returning: true,
+          validate: true,
+          transaction,
+        },
+      )
+      results = results.concat(result)
+    })
+
+    if (results.length === 0) {
+      throw Error(`Update actions failed: No action was matched by the filters`)
+    }
+
+    return results
   },
 
   approveActions: async (

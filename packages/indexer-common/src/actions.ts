@@ -14,6 +14,18 @@ export interface ActionItem {
   params: ActionParamsInput
   type: ActionType
   reason: string
+  status?: ActionStatus
+}
+
+export interface ActionUpdateParams {
+  deploymentID?: string
+  allocationID?: string
+  amount?: string
+  poi?: string
+  force?: boolean
+  type?: ActionType
+  status?: ActionStatus
+  reason?: string
 }
 
 export interface ActionInput {
@@ -123,6 +135,7 @@ export const validateActionInputs = async (
 }
 
 export interface ActionFilter {
+  id?: number | undefined
   type?: ActionType | undefined
   status?: ActionStatus | undefined
   source?: string | undefined
