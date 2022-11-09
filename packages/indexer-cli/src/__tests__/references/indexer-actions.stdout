@@ -1,5 +1,6 @@
 Manage indexer actions
 
+  indexer actions update     Update one or more actions                 
   indexer actions queue      Queue an action item                       
   indexer actions get        List one or more actions                   
   indexer actions execute    Execute approved items in the action queue 

@@ -9,7 +9,7 @@ describe('Indexer actions tests', () => {
     afterAll(teardown)
     describe('Actions help', () => {
       cliTest('Indexer actions', ['indexer', 'actions'], 'references/indexer-actions', {
-        expectedExitCode: 1,
+        expectedExitCode: 255,
         cwd: baseDir,
         timeout: 10000,
       })
@@ -18,7 +18,7 @@ describe('Indexer actions tests', () => {
         ['indexer', 'actions', '--help'],
         'references/indexer-actions',
         {
-          expectedExitCode: 1,
+          expectedExitCode: 255,
           cwd: baseDir,
           timeout: 10000,
         },

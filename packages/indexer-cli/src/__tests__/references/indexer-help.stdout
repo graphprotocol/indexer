@@ -22,6 +22,7 @@ Manage indexer configuration
   indexer allocations create         Create an allocation                                             
   indexer allocations close          Close an allocation                                              
   indexer allocations                Manage indexer allocations                                       
+  indexer actions update             Update one or more actions                                       
   indexer actions queue              Queue an action item                                             
   indexer actions get                List one or more actions                                         
   indexer actions execute            Execute approved items in the action queue                       

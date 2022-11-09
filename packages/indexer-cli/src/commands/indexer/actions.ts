@@ -10,6 +10,6 @@ module.exports = {
     const { print } = toolbox
     print.info(toolbox.command?.description)
     print.printCommands(toolbox, ['indexer', 'actions'])
-    process.exitCode = 1
+    process.exitCode = -1
   },
 }
