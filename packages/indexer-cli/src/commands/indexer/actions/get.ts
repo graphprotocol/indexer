@@ -27,8 +27,41 @@ ${chalk.dim('Options:')}
       --orderBy id|deploymentID|amount|priority|...|updatedAt       Order actions by a specific field (default: id)
       --orderDirection asc|desc                                     Order direction (default: desc)
       --first [N]                                                   Fetch only the N first records (default: all records)
+      --fields [field1,field2,...]                                  Comma-separated names of the fields to display (no spaces allowed between fields)
   -o, --output table|json|yaml                                      Choose the output format: table (default), JSON, or YAML
 `
+
+const actionFields: (keyof Action)[] = [
+  'id',
+  'type',
+  'deploymentID',
+  'allocationID',
+  'amount',
+  'poi',
+  'force',
+  'priority',
+  'status',
+  'source',
+  'failureReason',
+  'transaction',
+  'reason',
+]
+
+/// Validates input for the `--fieds` option.
+function validateFields(fields: string | undefined): (keyof Action)[] {
+  if (fields === undefined) {
+    return []
+  }
+  const keys = []
+  for (const key of fields.split(',')) {
+    if (actionFields.includes(key as keyof Action)) {
+      keys.push(key)
+    } else {
+      throw Error(`invalid field selector: ${key}`)
+    }
+  }
+  return keys as (keyof Action)[]
+}
 
 module.exports = {
   name: 'get',
@@ -51,6 +84,7 @@ module.exports = {
       o,
       output,
       first,
+      fields,
     } = parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
@@ -62,6 +96,7 @@ module.exports = {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
     }
+    let selectedFields: (keyof Action)[]
     try {
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -106,6 +141,13 @@ module.exports = {
       if (!['undefined', 'number'].includes(typeof first)) {
         throw Error(`Invalid value for '--first' option, must have a numeric value.`)
       }
+
+      if (!['undefined', 'string'].includes(typeof fields)) {
+        throw Error(
+          `Invalid value for '--fields' option, must be a comma-separated list of field names`,
+        )
+      }
+      selectedFields = fields === undefined ? actionFields : validateFields(fields)
 
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
@@ -157,23 +199,9 @@ module.exports = {
         process.exitCode = 1
         return
       }
-
-      const displayProperties: (keyof Action)[] = [
-        'id',
-        'type',
-        'deploymentID',
-        'allocationID',
-        'amount',
-        'poi',
-        'force',
-        'priority',
-        'status',
-        'source',
-        'failureReason',
-        'transaction',
-        'reason',
-      ]
-
+      const displayProperties = actionFields.filter(field =>
+        selectedFields.includes(field),
+      )
       printObjectOrArray(print, outputFormat, actions, displayProperties)
     } catch (error) {
       actionSpinner.fail(error.toString())
