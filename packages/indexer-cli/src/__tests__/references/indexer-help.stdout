@@ -26,7 +26,7 @@ Manage indexer configuration
   indexer actions queue              Queue an action item                                             
   indexer actions get                List one or more actions                                         
   indexer actions execute            Execute approved items in the action queue                       
-  indexer actions delete             Delete an item in the queue                                      
+  indexer actions delete             Delete one or many actions in the queue                          
   indexer actions cancel             Cancel an item in the queue                                      
   indexer actions approve            Approve an action item                                           
   indexer actions                    Manage indexer actions                                           
