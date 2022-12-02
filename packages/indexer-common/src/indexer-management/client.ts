@@ -311,7 +311,7 @@ const SCHEMA_SDL = gql`
     synced: Boolean!
     health: String!
     fatalError: IndexingError
-    node: String!
+    node: String
     chains: [ChainIndexingStatus]
   }
 
