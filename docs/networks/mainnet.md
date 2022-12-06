@@ -6,7 +6,7 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  x|
+| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  |
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
