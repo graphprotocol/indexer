@@ -298,7 +298,6 @@ export default {
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.ethereumNetwork,
       argv.ethereum,
       argv.ethereumPollingInterval,
     )
