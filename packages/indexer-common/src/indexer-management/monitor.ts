@@ -13,11 +13,10 @@ import {
   Subgraph,
   SubgraphDeployment,
   SubgraphVersion,
-  CAIPIds,
   NetworkEpoch,
   EpochSubgraph,
   BlockPointer,
-  alias,
+  resolveChainId,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -691,7 +690,7 @@ export class NetworkMonitor {
         )
       }
       const deploymentNetworkAlias = deploymentIndexingStatuses[0].chains[0].network
-      const deploymentNetworkCAIPID = CAIPIds[deploymentNetworkAlias]
+      const deploymentNetworkCAIPID = resolveChainId(deploymentNetworkAlias)
       const currentEpoch = await this.currentEpoch(deploymentNetworkCAIPID)
 
       this.logger.trace(`Fetched block pointer to use in resolving POI`, {
