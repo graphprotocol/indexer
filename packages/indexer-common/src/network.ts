@@ -158,7 +158,6 @@ export class Network {
   static async provider(
     logger: Logger,
     metrics: Metrics,
-    networkName: string,
     networkURL: string,
     pollingInterval: number,
   ): Promise<providers.StaticJsonRpcProvider> {
@@ -202,15 +201,12 @@ export class Network {
       password = providerUrl.password
     }
 
-    const networkProvider = new providers.StaticJsonRpcProvider(
-      {
-        url: providerUrl.toString(),
-        user: username,
-        password: password,
-        allowInsecureAuthentication: true,
-      },
-      networkName,
-    )
+    const networkProvider = new providers.StaticJsonRpcProvider({
+      url: providerUrl.toString(),
+      user: username,
+      password: password,
+      allowInsecureAuthentication: true,
+    })
     networkProvider.pollingInterval = pollingInterval
 
     networkProvider.on('debug', (info) => {
