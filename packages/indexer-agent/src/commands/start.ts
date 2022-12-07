@@ -49,13 +49,6 @@ export default {
         required: true,
         group: 'Ethereum',
       })
-      .option('ethereum-network', {
-        description: 'Ethereum network',
-        type: 'string',
-        required: false,
-        default: 'any',
-        group: 'Ethereum',
-      })
       .option('ethereum-polling-interval', {
         description: 'Polling interval for the Ethereum provider (ms)',
         type: 'number',
@@ -571,7 +564,6 @@ export default {
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.ethereumNetwork,
       argv.ethereum,
       argv.ethereumPollingInterval,
     )
