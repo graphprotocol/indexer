@@ -38,7 +38,7 @@ import {
   TransactionManager,
   NetworkMonitor,
   EpochSubgraph,
-  CAIPIds,
+  resolveChainId,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
@@ -296,7 +296,7 @@ const setup = async () => {
   )
 
   const networkMonitor = new NetworkMonitor(
-    CAIPIds['goerli'],
+    resolveChainId('goerli'),
     contracts,
     toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
     logger,

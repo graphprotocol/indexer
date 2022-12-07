@@ -149,16 +149,31 @@ export interface NetworkEpoch {
   startBlockHash: string
 }
 
-export const CAIPIds: { [key: string]: string } = {
+const Caip2ByChainAlias: { [key: string]: string } = {
   mainnet: 'eip155:1',
   goerli: 'eip155:5',
   gnosis: 'eip155:100',
 }
 
-export const alias = (identifier: string): string => {
-  try {
-    return Object.keys(CAIPIds).filter((name) => CAIPIds[name] == identifier)[0]
-  } catch (error) {
-    throw new Error(`Failed to match chain ids to a network alias`)
+const Caip2ByChainId: { [key: number]: string } = {
+  1: 'eip155:1',
+  5: 'eip155:5',
+  100: 'eip155:100',
+}
+
+/// Unified entryfpoint to resolve CAIP ID based either on chain aliases (strings)
+/// or chain ids (numbers).
+export function resolveChainId(key: number | string): string {
+  if (typeof key === 'number') {
+    const chainId = Caip2ByChainId[key]
+    if (chainId !== undefined) {
+      return chainId
+    }
+  } else {
+    const chainId = Caip2ByChainAlias[key]
+    if (chainId !== undefined) {
+      return chainId
+    }
   }
+  throw new Error(`Failed to resolve CAIP2 ID from the provided network alias: ${key}`)
 }
