@@ -29,7 +29,7 @@ import {
   AllocationManagementMode,
   NetworkMonitor,
   EpochSubgraph,
-  CAIPIds,
+  resolveChainId,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -677,7 +677,7 @@ export default {
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
     const networkMonitor = new NetworkMonitor(
-      CAIPIds[argv.ethereumNetwork],
+      resolveChainId(networkMeta.chainId),
       contracts,
       toAddress(indexerAddress),
       logger.child({ component: 'NetworkMonitor' }),
