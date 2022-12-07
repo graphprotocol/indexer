@@ -572,17 +572,16 @@ export class NetworkMonitor {
   }
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
-    const networkAlias = alias(networkID)
     if (!this.epochSubgraph) {
       if (networkID == this.networkCAIPID) {
         return await this.networkCurrentEpoch()
       }
       this.logger.error(`Epoch start block not available for the network`, {
-        networkName: networkAlias,
+        networkName: networkID,
       })
       throw indexerError(
         IndexerErrorCode.IE071,
-        `Epoch start block not available for network: ${networkAlias}`,
+        `Epoch start block not available for network: ${networkID}`,
       )
     }
 
@@ -621,7 +620,7 @@ export class NetworkMonitor {
 
       if (!result.data.network || !result.data.network.latestValidBlockNumber) {
         throw new Error(
-          `Failed to query EBO for ${networkAlias}'s latest valid epoch number`,
+          `Failed to query EBO for ${networkID}'s latest valid epoch number`,
         )
       }
 
@@ -632,7 +631,7 @@ export class NetworkMonitor {
           ? result.data.network.latestValidBlockNumber
           : result.data.network.latestValidBlockNumber.previousBlockNumber
       const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
-        networkAlias,
+        networkID,
         +validBlock.blockNumber,
       )
 
@@ -650,7 +649,7 @@ export class NetworkMonitor {
         maxTimeout: 10000,
         onFailedAttempt: (err) => {
           this.logger.warn(`Epoch subgraph could not be queried`, {
-            networkName: networkAlias,
+            networkName: networkID,
             attempt: err.attemptNumber,
             retriesLeft: err.retriesLeft,
             err: err.message,
@@ -664,7 +663,7 @@ export class NetworkMonitor {
         this.logger.error(`Failed to query latest epoch number`, {
           err,
           msg: err.message,
-          networkName: networkAlias,
+          networkName: networkID,
         })
         throw indexerError(IndexerErrorCode.IE069, err)
       }
