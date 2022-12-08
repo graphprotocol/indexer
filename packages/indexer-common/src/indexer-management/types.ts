@@ -161,7 +161,7 @@ const Caip2ByChainId: { [key: number]: string } = {
   100: 'eip155:100',
 }
 
-/// Unified entryfpoint to resolve CAIP ID based either on chain aliases (strings)
+/// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
 /// or chain ids (numbers).
 export function resolveChainId(key: number | string): string {
   if (typeof key === 'number') {
