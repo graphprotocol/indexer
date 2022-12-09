@@ -10,7 +10,7 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| graph-node      | [0.28.2](https://github.com/graphprotocol/graph-node/releases/tag/v0.28.2) |
+| graph-node      | [0.29.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.29.0) |
 
 ## Network Parameters
 
@@ -80,6 +80,12 @@ option can be used.
 
 > This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
 
+```
+graph-node: ≥0.29.0 <0.30.0
+valid from: 708
+upgrade window: 720
+```
+
 | Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |
 |--------------------------|---------|-------------|--------------|-------------------|----------------------|------------------|
 | **Core Features**        |         |             |              |                   |                      |                  |
@@ -89,6 +95,7 @@ option can be used.
 | **Data Source Types**    |         |             |              |                   |                      |                  |
 | eip155:*                 | *       | Yes         | No           | No                | No                   | No               |
 | eip155:1                 | mainnet | Yes         | No           | Yes               | Yes                  | Yes              |
+| eip155:100               | gnosis  | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | near:*                   | *       | Yes         | Yes          | No                | No                   | No               |
 | cosmos:*                 | *       | Yes         | Yes          | No                | No                   | No               |
 | arweave:*                | *       | Yes         | Yes          | No                | No                   | No               |
