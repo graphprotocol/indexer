@@ -157,9 +157,9 @@ const defaults: IndexerManagementDefaults = {
   },
 }
 
-const subgraphDeployment1 = 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt'
-const subgraphDeployment2 = 'Qmav8jkmAeKBLyxmngJVwprN3ZsJA9A57jeoikdCU2Dyrv'
-const subgraphDeployment3 = 'QmW2LB36SHQ5xsn4fySZPr7AJaAEu6ZvB5jiRSLDJLwGHR'
+const subgraphDeployment1 = 'Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy'
+const subgraphDeployment2 = 'QmWq1pmnhEvx25qxpYYj9Yp6E1xMKMVoUjXVQBxUJmreSe'
+const subgraphDeployment3 = 'QmRhH2nhNibDVPZmYqq3TUZZARZ77vgjYCvPNiGBCogtgM'
 const notPublishedSubgraphDeployment = 'QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6'
 
 const queuedAllocateAction = {
@@ -250,9 +250,9 @@ const setup = async () => {
   queryFeeModels = defineQueryFeeModels(sequelize)
   managementModels = defineIndexerManagementModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
-  ethereum = ethers.getDefaultProvider('rinkeby')
+  ethereum = ethers.getDefaultProvider('goerli')
   wallet = Wallet.createRandom()
-  contracts = await connectContracts(ethereum, 4)
+  contracts = await connectContracts(ethereum, 5)
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
@@ -266,7 +266,7 @@ const setup = async () => {
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
+      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
     deployment: undefined,
   })
   transactionManager = new TransactionManager(
@@ -292,7 +292,7 @@ const setup = async () => {
   })
 
   const epochSubgraph = await EpochSubgraph.create(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
+    'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
   )
 
   const networkMonitor = new NetworkMonitor(
@@ -637,7 +637,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            'Failed to queue action: Invalid action input, actionInput: {"status":"queued","type":"reallocate","deploymentID":"QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt","allocationID":"0x8f63930129e585c69482b56390a09b6b176f4a4c","force":false,"source":"indexerAgent","reason":"indexingRule","priority":0}',
+            'Failed to queue action: Invalid action input, actionInput: {"status":"queued","type":"reallocate","deploymentID":"Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy","allocationID":"0x8f63930129e585c69482b56390a09b6b176f4a4c","force":false,"source":"indexerAgent","reason":"indexingRule","priority":0}',
           ),
         ],
       }),
@@ -683,7 +683,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            `Duplicate action found in queue that effects 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt' but NOT overwritten because it has a different source and/or status. If you ` +
+            `Duplicate action found in queue that effects 'Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy' but NOT overwritten because it has a different source and/or status. If you ` +
               `would like to replace the item currently in the queue please cancel it and then queue the proposed action`,
           ),
         ],
@@ -863,7 +863,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            "Recently executed 'allocate' action found in queue targeting 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt', ignoring.",
+            `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
           ),
         ],
       }),
@@ -913,7 +913,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            "Recently executed 'allocate' action found in queue targeting 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt', ignoring.",
+            `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
           ),
         ],
       }),

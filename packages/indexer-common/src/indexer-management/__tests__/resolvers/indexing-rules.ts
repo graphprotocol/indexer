@@ -130,7 +130,7 @@ const setupAll = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
-  contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
+  contracts = await connectContracts(ethers.getDefaultProvider('goerli'), 5)
   await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'Indexer API Client',
@@ -145,7 +145,7 @@ const setupAll = async () => {
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
+      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
     deployment: undefined,
   })
   client = await createIndexerManagementClient({

@@ -50,7 +50,7 @@ export const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55'
-  contracts = await connectContracts(wallet, 4)
+  contracts = await connectContracts(wallet, 5)
   await sequelize.sync({ force: true })
 
   wallet = Wallet.createRandom()

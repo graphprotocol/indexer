@@ -192,7 +192,7 @@ const setupAll = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
-  contracts = await connectContracts(ethers.getDefaultProvider('rinkeby'), 4)
+  contracts = await connectContracts(ethers.getDefaultProvider('goerli'), 5)
   await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'POI dispute tests',
