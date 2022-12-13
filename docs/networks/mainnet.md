@@ -103,4 +103,4 @@ upgrade window: 720
 | ipfs.cat in mappings     |         | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
 
-[Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xbdd884654a393620a7e8665b4289201b7542c3ee62becfad133e951b0c408444)
+[Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x4fa76f9ae541bf883e547407270866ffeb8448f3b3fca90bb9c5bc46e31499c2)
