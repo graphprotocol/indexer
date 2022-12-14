@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.6] - 2022-12-14
+### Changed
+- Upgrade @graphprotocol/common-ts to v2.0.1
+
 ## [0.20.1] - 2022-08-04
 ### Changed
 - Upgrade @graphprotocol/common-ts
@@ -48,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Add package for native attestation signing and receipt signature verification
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.6
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.1
 [0.19.3]: https://github.com/graphprotocol/indexer/compare/v0.19.2...v0.19.3
 [0.19.2]: https://github.com/graphprotocol/indexer/compare/v0.19.1...v0.19.2

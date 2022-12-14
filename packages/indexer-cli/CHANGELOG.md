@@ -5,8 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.6] - 2022-12-14
 ### Added
 - New `--filter` option to select only a subset of Actions query columns, when printing results to stdout.
+- Add `cost delete ..` command for deleting one or more cost models
+- Add `--fields` option to filter output of actions get command
+- New `actions update` command for updating one or more actions in the queue
+
+### Changed
+- Extend `actions delete` command to support filters to delete groups of actions
+- Upgrade @graphprotocol/common-ts to v2.0.1
 
 ## [0.20.3] - 2022-08-31
 ### Added
@@ -180,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.3...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.6
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/graphprotocol/indexer/compare/v0.19.3...v0.20.0

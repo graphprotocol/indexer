@@ -5,8 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.6] - 2022-12-14
 ### Changed
 - The `ethereum-network` is now inferred from provider's `chainId`
+- Retry epoch subgraph queries
+- Avoid requeueing recently failed actions
+- Avoid querying block information when action is forced and poi is provided
+- Avoid requeueuing recently successful actions
+- Add retry loop around epoch subgraph queries
+- Upgrade @graphprotocol/common-ts to v2.0.1
+
+### Fixed
+- Allow null IndexerDeployment.node in status responses
 
 ## [0.20.4] - 2022-09-29
 ### Fixed
@@ -198,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
 [0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1

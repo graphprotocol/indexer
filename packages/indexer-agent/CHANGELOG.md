@@ -5,8 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.6] - 2022-12-14
 ### Removed
-- The `ethereum-network` command line argument is no longer required.
+- The `ethereum-network` command line argument is no longer required
+
+### Changed
+- Leave subgraph node assignment decisions to the graph nodes (user can control using graph-node.toml)
+- Upgrade @graphprotocol/common-ts to v2.0.1
 
 ## [0.20.4] - 2022-09-29
 ### Added
@@ -408,7 +414,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.4...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
 [0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.2...v0.20.3
 [0.20.2]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.2
