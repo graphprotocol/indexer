@@ -17,12 +17,14 @@ The indexer-cli provides an `actions` module for manually working with the actio
 ```bash
 Manage indexer actions
 
-indexer actions queue      Queue an action item                       
-indexer actions get        List one or more actions                   
-indexer actions execute    Execute approved items in the action queue
-indexer actions cancel     Cancel an item in the queue                
-indexer actions approve    Approve an action item                     
-indexer actions            Manage indexer actions
+  indexer actions update     Update one or more actions                 
+  indexer actions queue      Queue an action item                       
+  indexer actions get        List one or more actions                   
+  indexer actions execute    Execute approved items in the action queue 
+  indexer actions delete     Delete one or many actions in the queue    
+  indexer actions cancel     Cancel an item in the queue                
+  indexer actions approve    Approve an action item                     
+  indexer actions            Manage indexer actions
 ```
 
 Local usage from source
@@ -44,6 +46,9 @@ Local usage from source
 
 # Queue unallocate action (closeAllocation())
 ./bin/graph-indexer indexer actions queue unallocate QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 0x4a58d33e27d3acbaecc92c15101fbc82f47c2ae
+
+# Update all queued reallocate actions, setting force=true and poi=0x0...
+./bin/graph-indexer indexer actions update --status queued --type reallocate force true poi 0
 
 # Cancel action in the queue
 ./bin/graph-indexer indexer actions cancel
@@ -67,13 +72,20 @@ Action Schema (shortened for focus; the endpoint also includes other methods spe
 ```graphql
 type Query {
     action(actionID: String!): Action
-    actions(filter: ActionFilter): [Action]!
+    actions(
+      filter: ActionFilter
+      orderBy: ActionParams
+      orderDirection: OrderDirection
+      first: Int
+    ): [Action]!
   }
 
   type Mutation {
     updateAction(action: ActionInput!): Action!
+    updateActions(filter: ActionFilter!, action: ActionUpdateInput!): [Action]!
     queueActions(actions: [ActionInput!]!): [Action]!
     cancelActions(actionIDs: [String!]!): [Action]!
+    deleteActions(actionIDs: [String!]!): Int!
     approveActions(actionIDs: [String!]!): [Action]!
     executeApprovedActions: [ActionResult!]!
   }
@@ -122,6 +134,18 @@ input ActionInput {
     priority: Int
 }
 
+input ActionUpdateInput {
+    id: Int
+    deploymentID: String
+    allocationID: String
+    amount: Int
+    poi: String
+    force: Boolean
+    type: ActionType
+    status: ActionStatus
+    reason: String
+}
+
 type Action {
     id: Int!
     status: ActionStatus!
@@ -137,7 +161,31 @@ type Action {
     transaction: String
     createdAt: BigInt!
     updatedAt: BigInt
-  }
+}
+
+type ActionResult {
+    id: Int!
+    type: ActionType!
+    deploymentID: String
+    allocationID: String
+    amount: String
+    poi: String
+    force: Boolean
+    source: String!
+    reason: String!
+    status: String!
+    transaction: String
+    failureReason: String
+    priority: Int
+}
+
+input ActionFilter {
+    id: Int
+    type: ActionType
+    status: String
+    source: String
+    reason: String
+}
 
 enum ActionStatus {
     queued
@@ -146,14 +194,31 @@ enum ActionStatus {
     success
     failed
     canceled
-  }
+}
 
-  enum ActionType {
+enum ActionType {
     allocate
     unallocate
     reallocate
     collect
-  }
+} 
+
+enum ActionParams {
+    id
+    status
+    type
+    deploymentID
+    allocationID
+    transaction
+    amount
+    poi
+    force
+    source
+    reason
+    priority
+    createdAt
+    updatedAt
+}
 ```
 
 Example usage
