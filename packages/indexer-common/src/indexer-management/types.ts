@@ -164,12 +164,14 @@ const Caip2ByChainId: { [key: number]: string } = {
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
 /// or chain ids (numbers).
 export function resolveChainId(key: number | string): string {
-  if (typeof key === 'number') {
-    const chainId = Caip2ByChainId[key]
+  if (typeof key === 'number' || !isNaN(+key)) {
+    // If key is a number, then it must be a `chainId`
+    const chainId = Caip2ByChainId[+key]
     if (chainId !== undefined) {
       return chainId
     }
   } else {
+    // If chain is a string, it must be a chain alias
     const chainId = Caip2ByChainAlias[key]
     if (chainId !== undefined) {
       return chainId
