@@ -223,6 +223,7 @@ export class AllocationManager {
             new SubgraphDeploymentID(action.deploymentID!),
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
+            undefined,
           )
         case ActionType.UNALLOCATE:
           return await this.prepareUnallocate(
@@ -261,6 +262,7 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    indexNode: string | undefined,
   ): Promise<AllocateTransactionParams> {
     logger.info('Preparing to allocate', {
       deployment: deployment.ipfsHash,
@@ -325,6 +327,7 @@ export class AllocationManager {
       this.models,
       `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
       deployment,
+      indexNode,
     )
 
     logger.debug('Obtain a unique Allocation ID')
@@ -451,8 +454,9 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    indexNode: string | undefined,
   ): Promise<PopulatedTransaction> {
-    const params = await this.prepareAllocateParams(logger, deployment, amount)
+    const params = await this.prepareAllocateParams(logger, deployment, amount, indexNode)
     logger.debug(`Populating allocateFrom transaction`, {
       indexer: params.indexer,
       subgraphDeployment: params.subgraphDeploymentID,
@@ -473,9 +477,15 @@ export class AllocationManager {
   async allocate(
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
+    indexNode: string | undefined,
   ): Promise<CreateAllocationResult> {
     try {
-      const params = await this.prepareAllocateParams(this.logger, deployment, amount)
+      const params = await this.prepareAllocateParams(
+        this.logger,
+        deployment,
+        amount,
+        indexNode,
+      )
 
       this.logger.debug(`Sending allocateFrom transaction`, {
         indexer: params.indexer,

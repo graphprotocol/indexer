@@ -80,6 +80,7 @@ let models: IndexerManagementModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
+let indexNodeIDs: string[]
 let statusEndpoint: string
 let indexingStatusResolver: IndexingStatusResolver
 let networkSubgraph: NetworkSubgraph
@@ -104,6 +105,7 @@ const setupAll = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
+  indexNodeIDs = ['node_1']
   statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
@@ -121,6 +123,7 @@ const setupAll = async () => {
     address,
     contracts,
     indexingStatusResolver,
+    indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
@@ -754,6 +757,7 @@ describe('Feature: Inject $DAI variable', () => {
       address,
       contracts,
       indexingStatusResolver,
+      indexNodeIDs,
       deploymentManagementEndpoint: statusEndpoint,
       networkSubgraph,
       logger,

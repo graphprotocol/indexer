@@ -29,6 +29,8 @@ Indexer Infrastructure
   --indexer-geo-coordinates     Coordinates describing the Indexer's location
                                 using latitude and longitude
                                    [array] [default: ["31.780715","-41.179504"]]
+  --index-node-ids              Node IDs of Graph nodes to use for indexing
+                                (separated by commas)         [array] [required]
   --indexer-management-port     Port to serve the indexer management API at
                                                         [number] [default: 8000]
   --metrics-port                Port to serve Prometheus metrics at     [number]
