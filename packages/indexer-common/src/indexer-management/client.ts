@@ -404,7 +404,11 @@ const SCHEMA_SDL = gql`
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
     deleteDisputes(allocationIDs: [String!]!): Int!
 
-    createAllocation(deployment: String!, amount: String!): CreateAllocationResult!
+    createAllocation(
+      deployment: String!
+      amount: String!
+      indexNode: String
+    ): CreateAllocationResult!
     closeAllocation(
       allocation: String!
       poi: String
@@ -439,6 +443,7 @@ export interface IndexerManagementClientOptions {
   address: string
   contracts: NetworkContracts
   indexingStatusResolver: IndexingStatusResolver
+  indexNodeIDs: string[]
   deploymentManagementEndpoint: string
   networkSubgraph: NetworkSubgraph
   logger: Logger
@@ -504,6 +509,7 @@ export const createIndexerManagementClient = async (
     address,
     contracts,
     indexingStatusResolver,
+    indexNodeIDs,
     deploymentManagementEndpoint,
     networkSubgraph,
     logger,
@@ -527,7 +533,7 @@ export const createIndexerManagementClient = async (
 
   const dai: WritableEventual<string> = mutable()
 
-  const subgraphManager = new SubgraphManager(deploymentManagementEndpoint)
+  const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
   let allocationManager: AllocationManager | undefined = undefined
   let actionManager: ActionManager | undefined = undefined
 

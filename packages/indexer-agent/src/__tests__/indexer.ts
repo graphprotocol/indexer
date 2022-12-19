@@ -138,11 +138,13 @@ const setup = async () => {
     deployment: undefined,
   })
 
+  const indexNodeIDs = ['node_1']
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
     indexingStatusResolver,
+    indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
     logger,
@@ -162,6 +164,7 @@ const setup = async () => {
     'test',
     indexingStatusResolver,
     indexerManagementClient,
+    ['test'],
     parseGRT('1000'),
     address,
     AllocationManagementMode.AUTO,

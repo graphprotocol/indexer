@@ -164,6 +164,19 @@ export default {
         required: false,
         group: 'Protocol',
       })
+      .option('index-node-ids', {
+        description:
+          'Node IDs of Graph nodes to use for indexing (separated by commas)',
+        type: 'string',
+        array: true,
+        required: true,
+        coerce: arg =>
+          arg.reduce(
+            (acc: string[], value: string) => [...acc, ...value.split(',')],
+            [],
+          ),
+        group: 'Indexer Infrastructure',
+      })
       .option('default-allocation-amount', {
         description:
           'Default amount of GRT to allocate to a subgraph deployment',
@@ -689,6 +702,7 @@ export default {
       address: indexerAddress,
       contracts,
       indexingStatusResolver,
+      indexNodeIDs: argv.indexNodeIds,
       deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
       networkSubgraph,
       logger,
@@ -720,6 +734,7 @@ export default {
       argv.graphNodeAdminEndpoint,
       indexingStatusResolver,
       indexerManagementClient,
+      argv.indexNodeIds,
       argv.defaultAllocationAmount,
       indexerAddress,
       allocationManagementMode,

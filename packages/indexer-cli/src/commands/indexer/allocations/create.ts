@@ -9,7 +9,9 @@ import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexe
 import { printObjectOrArray } from '../../../command-helpers'
 
 const HELP = `
-${chalk.bold('graph indexer allocations create')} [options] <deployment-id> <amount>
+${chalk.bold(
+  'graph indexer allocations create',
+)} [options] <deployment-id> <amount> <index-node>
 
 ${chalk.dim('Options:')}
 
@@ -43,7 +45,7 @@ module.exports = {
       return
     }
 
-    const [deploymentID, amount] = parameters.array || []
+    const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
       if (!deploymentID || !amount) {
@@ -70,6 +72,7 @@ module.exports = {
         client,
         deploymentString,
         allocationAmount,
+        indexNode,
       )
 
       spinner.succeed('Allocation created')

@@ -401,7 +401,11 @@ export default {
   },
 
   createAllocation: async (
-    { deployment, amount }: { deployment: string; amount: string },
+    {
+      deployment,
+      amount,
+      indexNode,
+    }: { deployment: string; amount: string; indexNode: string | undefined },
     {
       address,
       contracts,
@@ -475,6 +479,7 @@ export default {
         models,
         `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
         subgraphDeployment,
+        indexNode,
       )
 
       logger.debug('Obtain a unique Allocation ID')
