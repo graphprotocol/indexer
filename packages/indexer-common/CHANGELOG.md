@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.7] - 2022-12-20
+### Changed
+- Use strict chain identifier check on \`resolveChainId()
+
 ## [0.20.6] - 2022-12-14
 ### Changed
 - The `ethereum-network` is now inferred from provider's `chainId`
@@ -209,7 +213,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.7...HEAD
+[0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
 [0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3

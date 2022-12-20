@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.7] - 2022-12-20
+### Changed
+- Agent makes deployment assignment decisions
+
 ## [0.20.6] - 2022-12-14
 ### Removed
 - The `ethereum-network` command line argument is no longer required
@@ -414,7 +418,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.7...HEAD
+[0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
 [0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.2...v0.20.3
