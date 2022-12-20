@@ -7,9 +7,9 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  |
-| indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
+| indexer-agent   | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.8)    |
+| indexer-cli     | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.8)    |
+| indexer-service | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.8)    |
 | graph-node      | [0.29.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.29.0) |
 
 ## Network Parameters
@@ -34,18 +34,19 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 
 ### Indexer Agent
 
-| Environment Variable                        | CLI Argument                    | Value                                                   |
-| ------------------------------------------- | ------------------------------- | ------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`                                               |
-| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                     |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure       |
-| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                  |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmV614UpBCpuusv5MsismmPYu4KqLtdeNMKpiNrX56kw6u`        |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.thegraph.com/network`                  |
-| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)     |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts` |
-| `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                    |
+| Environment Variable                        | CLI Argument                    | Value                                                                              |
+| ------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------- |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                                                  |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`                                                                          |
+| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                  |
+| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                             |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmV614UpBCpuusv5MsismmPYu4KqLtdeNMKpiNrX56kw6u`                                   |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.thegraph.com/network`                                             |
+| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)                                |
+| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts`                            |
+| `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                                               |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/mainnet-epoch-block-oracle` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
