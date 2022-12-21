@@ -209,10 +209,10 @@ export class IndexingStatusResolver {
   }
 
   public async blockHashFromNumber(
-    network: string,
+    networkAlias: string,
     blockNumber: number,
   ): Promise<string> {
-    this.logger.trace(`Querying blockHashFromNumber`, { network, blockNumber })
+    this.logger.trace(`Querying blockHashFromNumber`, { networkAlias, blockNumber })
     try {
       return await pRetry(
         async (attempt) => {
@@ -224,7 +224,7 @@ export class IndexingStatusResolver {
                 }
               `,
               {
-                network,
+                network: networkAlias,
                 blockNumber,
               },
             )
@@ -235,7 +235,7 @@ export class IndexingStatusResolver {
           }
 
           this.logger.trace('Resolved block hash', {
-            network,
+            networkAlias,
             blockNumber,
             blockHash: result.data.blockHashFromNumber,
             attempt,
@@ -248,6 +248,8 @@ export class IndexingStatusResolver {
           maxTimeout: 10000,
           onFailedAttempt: (err) => {
             this.logger.warn(`Block hash could not be queried`, {
+              networkAlias,
+              blockNumber,
               attempt: err.attemptNumber,
               retriesLeft: err.retriesLeft,
               err: err.message,
@@ -258,7 +260,7 @@ export class IndexingStatusResolver {
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE070, error)
       this.logger.error(`Failed to query block hash`, {
-        network,
+        networkAlias,
         blockNumber,
         error: error.message,
       })
