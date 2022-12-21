@@ -179,3 +179,13 @@ export function resolveChainId(key: number | string): string {
   }
   throw new Error(`Failed to resolve CAIP2 ID from the provided network alias: ${key}`)
 }
+
+export function resolveChainAlias(id: string): string {
+  try {
+    return Object.keys(Caip2ByChainAlias).filter(
+      (name) => Caip2ByChainAlias[name] == id,
+    )[0]
+  } catch (error) {
+    throw new Error(`Failed to match chain ids to a network alias`)
+  }
+}

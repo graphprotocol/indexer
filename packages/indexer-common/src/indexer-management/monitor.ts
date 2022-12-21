@@ -17,6 +17,7 @@ import {
   EpochSubgraph,
   BlockPointer,
   resolveChainId,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -572,6 +573,7 @@ export class NetworkMonitor {
   }
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
+    const networkAlias = resolveChainAlias(networkID)
     if (!this.epochSubgraph) {
       if (networkID == this.networkCAIPID) {
         return await this.networkCurrentEpoch()
@@ -631,7 +633,7 @@ export class NetworkMonitor {
           ? result.data.network.latestValidBlockNumber
           : result.data.network.latestValidBlockNumber.previousBlockNumber
       const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
-        networkID,
+        networkAlias,
         +validBlock.blockNumber,
       )
 
@@ -649,7 +651,8 @@ export class NetworkMonitor {
         maxTimeout: 10000,
         onFailedAttempt: (err) => {
           this.logger.warn(`Epoch subgraph could not be queried`, {
-            networkName: networkID,
+            networkID,
+            networkAlias,
             attempt: err.attemptNumber,
             retriesLeft: err.retriesLeft,
             err: err.message,
@@ -663,7 +666,8 @@ export class NetworkMonitor {
         this.logger.error(`Failed to query latest epoch number`, {
           err,
           msg: err.message,
-          networkName: networkID,
+          networkID,
+          networkAlias,
         })
         throw indexerError(IndexerErrorCode.IE069, err)
       }
