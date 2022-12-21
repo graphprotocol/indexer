@@ -163,7 +163,7 @@ const Caip2ByChainId: { [key: number]: string } = {
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
 /// or chain ids (numbers).
-export function resolveChainId(key: number | string): string {
+export async function resolveChainId(key: number | string): Promise<string> {
   if (typeof key === 'number' || !isNaN(+key)) {
     // If key is a number, then it must be a `chainId`
     const chainId = Caip2ByChainId[+key]
@@ -180,12 +180,19 @@ export function resolveChainId(key: number | string): string {
   throw new Error(`Failed to resolve CAIP2 ID from the provided network alias: ${key}`)
 }
 
-export function resolveChainAlias(id: string): string {
-  try {
-    return Object.keys(Caip2ByChainAlias).filter(
-      (name) => Caip2ByChainAlias[name] == id,
-    )[0]
-  } catch (error) {
-    throw new Error(`Failed to match chain ids to a network alias`)
+export async function resolveChainAlias(id: string): Promise<string> {
+  const aliasMatches = Object.keys(Caip2ByChainAlias).filter(
+    (name) => Caip2ByChainAlias[name] == id,
+  )
+  if (aliasMatches.length === 1) {
+    return aliasMatches[0]
+  } else if (aliasMatches.length === 0) {
+    throw new Error(
+      `Failed to match chain id, '${id}', to a network alias in Caip2ByChainAlias`,
+    )
+  } else {
+    throw new Error(
+      `Something has gone wrong, chain id, '${id}', matched more than one network alias in Caip2ByChainAlias`,
+    )
   }
 }

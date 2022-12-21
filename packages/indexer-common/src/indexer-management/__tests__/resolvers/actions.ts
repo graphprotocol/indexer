@@ -313,19 +313,14 @@ const setup = async () => {
     voucherRedemptionMaxBatchSize: 100,
   })
 
-  const epochSubgraph = await EpochSubgraph.create(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
-  )
-
   const networkMonitor = new NetworkMonitor(
-    resolveChainId('goerli'),
+    await resolveChainId('goerli'),
     contracts,
     toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
     logger,
     indexingStatusResolver,
     networkSubgraph,
     ethereum,
-    epochSubgraph,
   )
 
   client = await createIndexerManagementClient({

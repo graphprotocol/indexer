@@ -231,7 +231,11 @@ export class IndexingStatusResolver {
             .toPromise()
 
           if (!result.data || !result.data.blockHashFromNumber || result.error) {
-            throw new Error(`Failed to query graph node for blockHashFromNumber`)
+            throw new Error(
+              `Failed to query graph node for blockHashFromNumber: ${
+                result.error ?? 'no data returned'
+              }`,
+            )
           }
 
           this.logger.trace('Resolved block hash', {

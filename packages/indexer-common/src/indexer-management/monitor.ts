@@ -573,7 +573,7 @@ export class NetworkMonitor {
   }
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
-    const networkAlias = resolveChainAlias(networkID)
+    const networkAlias = await resolveChainAlias(networkID)
     if (!this.epochSubgraph) {
       if (networkID == this.networkCAIPID) {
         return await this.networkCurrentEpoch()
@@ -685,15 +685,15 @@ export class NetworkMonitor {
         !deploymentIndexingStatuses[0].chains[0].network
       ) {
         this.logger.error(
-          `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
+          `No indexing status data found for ${allocation.subgraphDeployment.id.ipfsHash}`,
         )
         throw indexerError(
-          IndexerErrorCode.IE020,
-          `Failed to query indexing status for ${allocation.subgraphDeployment.id.ipfsHash}`,
+          IndexerErrorCode.IE018,
+          `No indexing status data found for ${allocation.subgraphDeployment.id.ipfsHash}`,
         )
       }
       const deploymentNetworkAlias = deploymentIndexingStatuses[0].chains[0].network
-      const deploymentNetworkCAIPID = resolveChainId(deploymentNetworkAlias)
+      const deploymentNetworkCAIPID = await resolveChainId(deploymentNetworkAlias)
       const currentEpoch = await this.currentEpoch(deploymentNetworkCAIPID)
 
       this.logger.trace(`Fetched block pointer to use in resolving POI`, {

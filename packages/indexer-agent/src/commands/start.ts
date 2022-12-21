@@ -682,7 +682,7 @@ export default {
     await receiptCollector.queuePendingReceiptsFromDatabase()
 
     const networkMonitor = new NetworkMonitor(
-      resolveChainId(networkMeta.chainId),
+      await resolveChainId(networkMeta.chainId),
       contracts,
       toAddress(indexerAddress),
       logger.child({ component: 'NetworkMonitor' }),
