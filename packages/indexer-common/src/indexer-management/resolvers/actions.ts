@@ -175,7 +175,7 @@ export default {
       updatedAt: last15Minutes,
     })
 
-    logger.info('Recently attempted actions', {
+    logger.trace('Recently attempted actions', {
       recentlySuccessfulActions,
       recentlyFailedActions,
     })

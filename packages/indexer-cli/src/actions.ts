@@ -218,8 +218,8 @@ export const parseActionUpdateInput = (input: object): ActionUpdateInput => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       obj[key] = (ACTION_PARAMS_PARSERS as any)[key](value)
-    } catch {
-      throw new Error(key)
+    } catch (error) {
+      throw new Error(`Failed to parse value for key, ${key}: ${error}`)
     }
   }
   return obj as ActionUpdateInput

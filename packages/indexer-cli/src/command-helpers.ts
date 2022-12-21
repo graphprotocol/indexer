@@ -158,6 +158,9 @@ export function validatePOI(poi: string | undefined): string | undefined {
     if (typeof poi == 'number' && poi == 0) {
       poi = utils.hexlify(Array(32).fill(0))
     }
+    if (typeof poi == 'string' && poi == '0') {
+      poi = utils.hexlify(Array(32).fill(0))
+    }
     // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
     const isHex = utils.isHexString(poi, 32)
     if (!isHex) {
