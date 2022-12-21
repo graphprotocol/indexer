@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.8] - 2022-12-21
+### Fixed
+- Use network alias when querying blockHashFromNumber
+
+### Added
+- Add tests for CAIP id conversion functions
+
 ## [0.20.7] - 2022-12-20
 ### Changed
 - Use strict chain identifier check on \`resolveChainId()
@@ -213,7 +220,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.7...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.8...HEAD
+[0.20.8]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.8
 [0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
 [0.20.4]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.4

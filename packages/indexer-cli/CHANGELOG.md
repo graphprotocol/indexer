@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.8] - 2022-12-21
+### Changed
+- Improve actions update command: better logging, accept `0` poi
+
 ## [0.20.6] - 2022-12-14
 ### Added
 - New `--filter` option to select only a subset of Actions query columns, when printing results to stdout.
@@ -189,7 +193,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.6...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.8...HEAD
+[0.20.8]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.8
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.6
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3
 [0.20.1]: https://github.com/graphprotocol/indexer/compare/v0.20.0...v0.20.1
