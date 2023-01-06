@@ -3,6 +3,7 @@ import path from 'path'
 import { Argv } from 'yargs'
 import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
+
 import {
   connectContracts,
   connectDatabase,
@@ -368,34 +369,6 @@ export default {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
         return true
-      })
-      .option('vector-node', {
-        description: 'URL of a vector node',
-        type: 'string',
-        group: 'Query Fees',
-      })
-      .option('vector-router', {
-        description: 'Public identifier of the vector router',
-        type: 'string',
-        group: 'Query Fees',
-      })
-      .option('vector-transfer-definition', {
-        description: 'Address of the Graph transfer definition contract',
-        type: 'string',
-        default: 'auto',
-        group: 'Query Fees',
-      })
-      .option('vector-event-server', {
-        description: 'External URL of the vector event server of the agent',
-        type: 'string',
-        group: 'Query Fees',
-      })
-      .option('vector-event-server-port', {
-        description: 'Port to serve the vector event server at',
-        type: 'number',
-        required: false,
-        default: 8001,
-        group: 'Query Fees',
       })
       .option('allocation-exchange-contract', {
         description: 'Address of the contract to submit query fee vouchers to',
