@@ -2,6 +2,8 @@ import path from 'path'
 import readPackage from 'read-pkg'
 import { Argv } from 'yargs'
 import { BigNumber, Wallet } from 'ethers'
+import fs from 'fs'
+import { parse as yaml_parse } from 'yaml'
 
 import {
   connectContracts,
@@ -38,13 +40,6 @@ export default {
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
-        group: 'Ethereum',
-      })
-      .option('ethereum-network', {
-        description: 'Ethereum network',
-        type: 'string',
-        required: false,
-        default: 'any',
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
@@ -130,6 +125,11 @@ export default {
         required: true,
         group: 'Postgres',
       })
+      .option('network-subgraph-deployment', {
+        description: 'Network subgraph deployment',
+        type: 'string',
+        group: 'Network Subgraph',
+      })
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
         type: 'string',
@@ -162,24 +162,6 @@ export default {
         required: false,
         group: 'Indexer Infrastructure',
       })
-      .option('vector-node', {
-        description: 'URL of a vector node',
-        type: 'string',
-        required: false,
-        group: 'Query Fees',
-      })
-      .option('vector-router', {
-        description: 'Public identifier of the vector router',
-        type: 'string',
-        required: false,
-        group: 'Query Fees',
-      })
-      .option('vector-transfer-definition', {
-        description: 'Address of the Graph transfer definition contract',
-        type: 'string',
-        default: 'auto',
-        group: 'Query Fees',
-      })
       .option('allocation-syncing-interval', {
         description: 'Interval (in ms) for syncing indexer allocations from the network',
         type: 'number',
@@ -190,6 +172,19 @@ export default {
         description: 'Address that signs query fee receipts from a known client',
         type: 'string',
         required: false,
+      })
+      .check(argv => {
+        if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
+          return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
+        }
+        return true
+      })
+      .config({
+        key: 'config-file',
+        description: 'Indexer service configuration file (YAML format)',
+        parseFn: function (cfgFilePath: string) {
+          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
+        },
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
