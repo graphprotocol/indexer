@@ -175,14 +175,10 @@ class Agent {
 
     const currentEpochStartBlock = currentEpochNumber.tryMap(
       async () => {
-        const startBlockNumber =
-          await this.network.contracts.epochManager.currentEpochBlock()
-        const startBlock = await this.network.ethereum.getBlock(
-          startBlockNumber.toNumber(),
-        )
+        const currentEpoch = await this.networkMonitor.networkCurrentEpoch()
         return {
-          number: startBlock.number,
-          hash: startBlock.hash,
+          number: currentEpoch.startBlockNumber,
+          hash: currentEpoch.startBlockHash,
         } as BlockPointer
       },
       {
