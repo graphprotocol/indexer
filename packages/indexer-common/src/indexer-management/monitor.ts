@@ -559,17 +559,7 @@ export class NetworkMonitor {
   }
 
   async networkCurrentEpoch(): Promise<NetworkEpoch> {
-    const epochNumber = await this.currentEpochNumber()
-    const startBlockNumber = (
-      await this.contracts.epochManager.currentEpochBlock()
-    ).toNumber()
-    const startBlockHash = (await this.ethereum.getBlock(startBlockNumber)).hash
-    return {
-      networkID: this.networkCAIPID,
-      epochNumber,
-      startBlockNumber,
-      startBlockHash,
-    }
+    return this.currentEpoch(this.networkCAIPID)
   }
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
