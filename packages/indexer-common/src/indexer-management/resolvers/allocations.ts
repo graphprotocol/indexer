@@ -1,4 +1,4 @@
-import { NetworkMonitor } from '@graphprotocol/indexer-common'
+import { NetworkMonitor, epochElapsedBlocks } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
@@ -360,7 +360,13 @@ async function resolvePOI(
 export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
-    { address, contracts, logger, networkSubgraph }: IndexerManagementResolverContext,
+    {
+      address,
+      contracts,
+      logger,
+      networkSubgraph,
+      networkMonitor,
+    }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug('Execute allocations() query', {
       filter,
@@ -368,11 +374,11 @@ export default {
 
     const allocations: AllocationInfo[] = []
 
-    const currentEpoch = await contracts.epochManager.currentEpoch()
+    const currentEpoch = await networkMonitor.networkCurrentEpoch()
     const disputeEpochs = await contracts.staking.channelDisputeEpochs()
     const variables = {
       indexer: toAddress(address),
-      disputableEpoch: currentEpoch.sub(disputeEpochs).toNumber(),
+      disputableEpoch: currentEpoch.epochNumber - disputeEpochs,
       allocation: filter.allocation
         ? filter.allocation === 'all'
           ? null
@@ -381,14 +387,10 @@ export default {
       status: filter.status,
     }
     const context = {
-      currentEpoch: currentEpoch.toNumber(),
-      currentEpochStartBlock: (
-        await contracts.epochManager.currentEpochBlock()
-      ).toNumber(),
-      currentEpochElapsedBlocks: (
-        await contracts.epochManager.currentEpochBlockSinceStart()
-      ).toNumber(),
-      latestBlock: (await contracts.epochManager.blockNum()).toNumber(),
+      currentEpoch: currentEpoch.epochNumber,
+      currentEpochStartBlock: currentEpoch.startBlockNumber,
+      currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
+      latestBlock: currentEpoch.latestBlock,
       maxAllocationEpochs: await contracts.staking.maxAllocationEpochs(),
       blocksPerEpoch: (await contracts.epochManager.epochLength()).toNumber(),
       avgBlockTime: 13_000,

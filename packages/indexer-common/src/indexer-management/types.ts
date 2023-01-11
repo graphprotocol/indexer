@@ -150,6 +150,10 @@ export interface NetworkEpoch {
   latestBlock: number
 }
 
+export function epochElapsedBlocks(networkEpoch: NetworkEpoch): number {
+  return networkEpoch.startBlockNumber - networkEpoch.latestBlock
+}
+
 const Caip2ByChainAlias: { [key: string]: string } = {
   mainnet: 'eip155:1',
   goerli: 'eip155:5',
