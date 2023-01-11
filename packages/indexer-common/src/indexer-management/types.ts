@@ -147,6 +147,7 @@ export interface NetworkEpoch {
   epochNumber: number
   startBlockNumber: number
   startBlockHash: string
+  latestBlock: number
 }
 
 const Caip2ByChainAlias: { [key: string]: string } = {

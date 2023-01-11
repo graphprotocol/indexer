@@ -599,6 +599,11 @@ export class NetworkMonitor {
                 }
               }
             }
+            _meta {
+              block {
+                number
+              }
+            }
           }
         `,
         {
@@ -626,12 +631,14 @@ export class NetworkMonitor {
         networkAlias,
         +validBlock.blockNumber,
       )
+      const latestBlock = result.data._meta.block.number
 
       return {
         networkID,
         epochNumber: +validBlock.epochNumber,
         startBlockNumber: +validBlock.blockNumber,
         startBlockHash,
+        latestBlock,
       }
     }
 
