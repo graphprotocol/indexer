@@ -257,6 +257,7 @@ let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 let transactionManager: TransactionManager
 let wallet: Wallet
+let epochSubgraph: EpochSubgraph
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -302,6 +303,10 @@ const setup = async () => {
     0,
   )
 
+  epochSubgraph = await EpochSubgraph.create(
+    'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
+  )
+
   const receiptCollector = new AllocationReceiptCollector({
     logger,
     transactionManager: transactionManager,
@@ -321,6 +326,7 @@ const setup = async () => {
     indexingStatusResolver,
     networkSubgraph,
     ethereum,
+    epochSubgraph,
   )
 
   client = await createIndexerManagementClient({

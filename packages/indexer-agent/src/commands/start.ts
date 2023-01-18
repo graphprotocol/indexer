@@ -162,7 +162,7 @@ export default {
       .option('epoch-subgraph-endpoint', {
         description: 'Endpoint to query the epoch block oracle subgraph from',
         type: 'string',
-        required: false,
+        required: true,
         group: 'Protocol',
       })
       .option('index-node-ids', {
@@ -612,9 +612,7 @@ export default {
         : undefined,
     })
 
-    const epochSubgraph = argv.epochSubgraphEndpoint
-      ? await EpochSubgraph.create(argv.epochSubgraphEndpoint)
-      : undefined
+    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
     logger.info('Connect to network')
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax

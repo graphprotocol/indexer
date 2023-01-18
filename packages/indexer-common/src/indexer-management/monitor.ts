@@ -43,7 +43,7 @@ export class NetworkMonitor {
     private indexingStatusResolver: IndexingStatusResolver,
     private networkSubgraph: NetworkSubgraph,
     private ethereum: providers.BaseProvider,
-    private epochSubgraph?: EpochSubgraph,
+    private epochSubgraph: EpochSubgraph,
   ) {}
 
   async currentEpochNumber(): Promise<number> {
