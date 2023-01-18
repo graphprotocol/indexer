@@ -774,7 +774,7 @@ export class NetworkMonitor {
             throw indexerError(
               IndexerErrorCode.IE068,
               `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
-              POI: ${poi}, 
+              POI: ${poi},
               referencePOI: ${generatedPOI}`,
             )
         }
