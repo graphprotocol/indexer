@@ -564,18 +564,6 @@ export class NetworkMonitor {
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
     const networkAlias = await resolveChainAlias(networkID)
-    if (!this.epochSubgraph) {
-      if (networkID == this.networkCAIPID) {
-        return await this.networkCurrentEpoch()
-      }
-      this.logger.error(`Epoch start block not available for the network`, {
-        networkName: networkID,
-      })
-      throw indexerError(
-        IndexerErrorCode.IE071,
-        `Epoch start block not available for network: ${networkID}`,
-      )
-    }
 
     const queryEpochSubgraph = async () => {
       // We know it is non-null because of the check above for a null case that will end execution of fn if true
