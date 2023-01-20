@@ -331,7 +331,8 @@ export const createApp = async ({
             res
               .status(response.status || 200)
               .contentType('application/json')
-              .send(response.result)
+              .setHeader('graph-attestable', response.result.attestable.toString())
+              .send({ graphQLResponse: response.result.graphQLResponse })
           } catch (error) {
             const err = indexerError(IndexerErrorCode.IE033, error)
             logger.error(`Failed to handle free query`, { err })

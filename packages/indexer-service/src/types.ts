@@ -15,6 +15,7 @@ export interface QueryResult {
 
 export interface UnattestedQueryResult {
   graphQLResponse: string
+  attestable: boolean
 }
 
 export type Response<T> = {
