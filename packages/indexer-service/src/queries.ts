@@ -108,6 +108,7 @@ export class QueryProcessor implements QueryProcessorInterface {
       status: 200,
       result: {
         graphQLResponse: response.data,
+        attestable: response.headers['graph-attestable'] === 'true',
       },
     }
   }
