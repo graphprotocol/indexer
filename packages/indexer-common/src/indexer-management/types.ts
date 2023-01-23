@@ -161,6 +161,10 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   hardhat: 'eip155:1337',
   'arbitrum-one': 'eip155:42161',
   'arbitrum-goerli': 'eip155:421613',
+  avalanche: 'eip155:43114',
+  polygon: 'eip155:137',
+  celo: 'eip155:42220',
+  optimism: 'eip155:10',
 }
 
 const Caip2ByChainId: { [key: number]: string } = {
@@ -170,6 +174,10 @@ const Caip2ByChainId: { [key: number]: string } = {
   1337: 'eip155:1337',
   42161: 'eip155:42161',
   421613: 'eip155:421613',
+  43114: 'eip155:43114',
+  137: 'eip155:137',
+  42220: 'eip155:42220',
+  10: 'eip155:10',
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
