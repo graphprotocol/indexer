@@ -1206,7 +1206,7 @@ export class AllocationManager {
     const batchDelta: BigNumber = resolvedBatch
       .map((resolvedAction) => resolvedAction.balance)
       .reduce((a, b) => a.add(b))
-    const newBalance = batchDelta.add(freeStake)
+    const newBalance = freeStake.sub(batchDelta)
     if (newBalance.isNegative()) {
       {
         throw indexerError(
@@ -1220,10 +1220,11 @@ export class AllocationManager {
 
     // TODO:  checkGasLimit(batch)
 
-    /* Sort actions based on GRT balance before returning.
-     * This ensures batch feasibility when it gets processed on chain. */
+    /* Return actions sorted by GRT balance (ascending).
+     * This ensures on-chain batch feasibility because higher unallocations are processed
+     * first and larger allocations are processed last */
     return resolvedBatch
-      .sort((a, b) => (a.balance.gt(b.balance) ? 1 : -1))
+      .sort((a, b) => (a.balance.lt(b.balance) ? 1 : -1))
       .map((a) => a.action)
   }
 }
