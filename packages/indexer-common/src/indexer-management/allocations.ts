@@ -1167,7 +1167,7 @@ export class AllocationManager {
 
     // Handle unallocations
     if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
-      // ensure those action types have r
+      // ensure this Action have a valid allocationID
       if (action.allocationID === null || action.allocationID === undefined) {
         throw Error(
           `SHOULD BE UNREACHABLE: Unallocate or Reallocate action must have an allocationID field: ${action}`,
@@ -1182,7 +1182,7 @@ export class AllocationManager {
         )
       }
       /* We intentionally don't check if the allocation is active now because it will be checked
-       * when preparing the transaction */
+       * later when we prepare the transaction */
       unallocates = unallocates.add(allocation.allocatedTokens)
     }
 
