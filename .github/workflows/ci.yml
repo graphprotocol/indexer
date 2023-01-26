@@ -11,12 +11,16 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-20.04
-
     strategy:
       matrix:
-        node-version: [14, 16]
-
+        node-version: [14, 16, 17]
+        system:
+          - os: ubuntu-20.04
+        include:
+          - node_version: 18
+            system:
+              os: ubuntu-22.04
+    runs-on: ${{ matrix.system.os }}
     services:
       postgres:
         image: postgres:13
