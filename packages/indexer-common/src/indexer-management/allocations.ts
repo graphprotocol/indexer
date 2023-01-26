@@ -70,6 +70,14 @@ export interface ReallocateTransactionParams {
   proof: BytesLike
 }
 
+// An Action with resolved Allocation and Unnalocation values
+export interface ResolvedAction {
+  action: Action
+  allocates: BigNumber
+  unallocates: BigNumber
+  balance: BigNumber
+}
+
 export type PopulateTransactionResult = PopulatedTransaction | ActionFailure
 
 export type TransactionResult =
@@ -103,8 +111,8 @@ export class AllocationManager {
       throw Error('Failed to populate batch transaction: no transactions supplied')
     }
 
-    await this.validateActionBatchFeasibilty(actions)
-    const populateTransactionsResults = await this.prepareTransactions(actions)
+    const validatedActions = await this.validateActionBatchFeasibilty(actions)
+    const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
     const failedTransactionPreparations = populateTransactionsResults
       .filter((result) => isActionFailure(result))
@@ -114,7 +122,6 @@ export class AllocationManager {
       return failedTransactionPreparations
     }
 
-    // TODO: sort actions here. they should be sorted by their "intrinsic delta"
     const callData = populateTransactionsResults
       .map((tx) => tx as PopulatedTransaction)
       .filter((tx: PopulatedTransaction) => !!tx.data)
@@ -124,7 +131,7 @@ export class AllocationManager {
       async () => this.contracts.staking.estimateGas.multicall(callData),
       async (gasLimit) => this.contracts.staking.multicall(callData, { gasLimit }),
       this.logger.child({
-        actions: `${JSON.stringify(actions.map((action) => action.id))}`,
+        actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
         function: 'staking.multicall',
       }),
     )
@@ -1152,15 +1159,13 @@ export class AllocationManager {
   }
 
   // Calculates the balance (GRT delta) of a single Action.
-  async resolveActionDelta(action: Action): Promise<BigNumber> {
-    let delta = BigNumber.from(0)
+  async resolveActionDelta(action: Action): Promise<ResolvedAction> {
+    let unallocates = BigNumber.from(0)
 
-    // Delta increases when allocating
-    if (action.type === ActionType.ALLOCATE || action.type === ActionType.REALLOCATE) {
-      delta.add(BigNumber.from(action.amount))
-    }
+    // Handle allocations
+    const allocates = BigNumber.from(action.amount ?? 0)
 
-    // Delta decreases when unallocating
+    // Handle unallocations
     if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
       // ensure those action types have r
       if (action.allocationID === null || action.allocationID === undefined) {
@@ -1178,20 +1183,29 @@ export class AllocationManager {
       }
       /* We intentionally don't check if the allocation is active now because it will be checked
        * when preparing the transaction */
-      delta.sub(allocation.allocatedTokens)
+      unallocates = unallocates.add(allocation.allocatedTokens)
     }
 
-    return delta
+    const balance = allocates.sub(unallocates)
+    return {
+      action,
+      allocates,
+      unallocates,
+      balance,
+    }
   }
 
-  async validateActionBatchFeasibilty(batch: Action[]) {
+  async validateActionBatchFeasibilty(batch: Action[]): Promise<Action[]> {
     const logger = this.logger.child({ function: 'validateActionBatch' })
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
     const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
     const mapper = async (action: Action) => this.resolveActionDelta(action)
-    const batchDelta: BigNumber = (await pMap(batch, mapper)).reduce((a, b) => a.add(b))
+    const resolvedBatch = await pMap(batch, mapper)
+    const batchDelta: BigNumber = resolvedBatch
+      .map((resolvedAction) => resolvedAction.balance)
+      .reduce((a, b) => a.add(b))
     const newBalance = batchDelta.add(freeStake)
     if (newBalance.isNegative()) {
       {
@@ -1205,5 +1219,11 @@ export class AllocationManager {
     }
 
     // TODO:  checkGasLimit(batch)
+
+    /* Sort actions based on GRT balance before returning.
+     * This ensures batch feasibility when it gets processed on chain. */
+    return resolvedBatch
+      .sort((a, b) => (a.balance.gt(b.balance) ? 1 : -1))
+      .map((a) => a.action)
   }
 }
