@@ -70,7 +70,7 @@ export interface ReallocateTransactionParams {
   proof: BytesLike
 }
 
-// An Action with resolved Allocation and Unnalocation values
+// An Action with resolved Allocation and Unallocation values
 export interface ResolvedAction {
   action: Action
   allocates: BigNumber
