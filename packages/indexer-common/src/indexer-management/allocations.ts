@@ -10,6 +10,7 @@ import {
   Action,
   ActionFailure,
   ActionType,
+  Allocation,
   allocationIdProof,
   AllocationResult,
   AllocationStatus,
@@ -97,6 +98,17 @@ export class AllocationManager {
     private subgraphManager: SubgraphManager,
     private transactionManager: TransactionManager,
   ) {}
+
+  async fetchAllocation(allocationID: string, context: string): Promise<Allocation> {
+    const allocation = await this.networkMonitor.allocation(allocationID)
+    if (!allocation) {
+      throw indexerError(
+        IndexerErrorCode.IE063,
+        `${context}: No active allocation with id '${allocationID}' found`,
+      )
+    }
+    return allocation
+  }
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
     const result = await this.executeTransactions(actions)
@@ -552,19 +564,7 @@ export class AllocationManager {
       allocationID: allocationID,
       poi: poi || 'none provided',
     })
-
-    const allocation = await this.networkMonitor.allocation(allocationID)
-
-    if (!allocation) {
-      logger.warn('Allocation does not exist', {
-        allocationID,
-      })
-      throw indexerError(
-        IndexerErrorCode.IE063,
-        `Unallocate failed: No active allocation with id '${allocationID}' found`,
-      )
-    }
-
+    const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
     // Ensure allocation is old enough to close
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
@@ -660,15 +660,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-
-    const allocation = await this.networkMonitor.allocation(allocationID)
-
-    if (!allocation) {
-      throw indexerError(
-        IndexerErrorCode.IE063,
-        `Unallocate failed: No active allocation with id '${allocationID}' found`,
-      )
-    }
+    const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
     // Collect query fees for this allocation
     const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
       actionID,
@@ -734,19 +726,7 @@ export class AllocationManager {
         poi,
         force,
       )
-
-      const allocation = await this.networkMonitor.allocation(allocationID)
-
-      if (!allocation) {
-        this.logger.warn('Allocation does not exist', {
-          allocationID,
-        })
-        throw indexerError(
-          IndexerErrorCode.IE063,
-          `Unallocate failed. No active allocation with id '${allocationID}' found`,
-        )
-      }
-
+      const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
       this.logger.debug('Sending closeAllocation transaction')
       const receipt = await this.transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -788,6 +768,9 @@ export class AllocationManager {
       force,
     })
 
+    /* Fetch all active allocations and search for our input parameter `allocationID`.
+     * We don't call `fetchAllocations` here because all allocations will be required
+     * later when generating a new `uniqueAllocationID`. */
     const activeAllocations = await this.networkMonitor.allocations(
       AllocationStatus.ACTIVE,
     )
@@ -795,7 +778,6 @@ export class AllocationManager {
     const allocation = activeAllocations.find((allocation) => {
       return allocation.id === allocationAddress
     })
-
     if (!allocation) {
       logger.error(`No existing allocation`)
       throw indexerError(
@@ -1013,16 +995,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-
-    const allocation = await this.networkMonitor.allocation(allocationID)
-
-    if (!allocation) {
-      throw indexerError(
-        IndexerErrorCode.IE063,
-        `Reallocation failed: No active allocation found on chain with id '${allocationID}' found`,
-      )
-    }
-
+    const allocation = await this.fetchAllocation(allocationID, 'Reallocate failed')
     // Collect query fees for this allocation
     const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
       actionID,
@@ -1174,13 +1147,10 @@ export class AllocationManager {
         )
       }
       // Fetch the allocation on chain to inspect its amount
-      const allocation = await this.networkMonitor.allocation(action.allocationID)
-      if (!allocation) {
-        throw indexerError(
-          IndexerErrorCode.IE063,
-          `Action validation failed: No active allocation found on chain with id '${action.allocationID}' found`,
-        )
-      }
+      const allocation = await this.fetchAllocation(
+        action.allocationID,
+        'Action validation failed',
+      )
       /* We intentionally don't check if the allocation is active now because it will be checked
        * later when we prepare the transaction */
       unallocates = unallocates.add(allocation.allocatedTokens)
