@@ -1180,15 +1180,13 @@ export class AllocationManager {
     if (newBalance.isNegative()) {
       {
         throw indexerError(
-          IndexerErrorCode.IE013, // TODO: Should we create a new error code?
+          IndexerErrorCode.IE013,
           `Unfeasible action batch: Approved action batch GRT balance is ` +
             `${formatGRT(batchDelta)} ` +
             `but available stake equals ${formatGRT(freeStake)}.`,
         )
       }
     }
-
-    // TODO:  checkGasLimit(batch)
 
     /* Return actions sorted by GRT balance (ascending).
      * This ensures on-chain batch feasibility because higher unallocations are processed
