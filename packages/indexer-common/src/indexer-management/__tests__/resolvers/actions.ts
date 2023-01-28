@@ -39,6 +39,8 @@ import {
   NetworkMonitor,
   EpochSubgraph,
   resolveChainId,
+  AllocationManager,
+  SubgraphManager,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
@@ -258,6 +260,10 @@ let client: IndexerManagementClient
 let transactionManager: TransactionManager
 let wallet: Wallet
 let epochSubgraph: EpochSubgraph
+let networkMonitor: NetworkMonitor
+let receiptCollector: AllocationReceiptCollector
+let mockedSubgraphManager: SubgraphManager
+let allocationManager: AllocationManager
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,7 +313,7 @@ const setup = async () => {
     'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
   )
 
-  const receiptCollector = new AllocationReceiptCollector({
+  receiptCollector = new AllocationReceiptCollector({
     logger,
     transactionManager: transactionManager,
     models: queryFeeModels,
@@ -318,7 +324,7 @@ const setup = async () => {
     voucherRedemptionMaxBatchSize: 100,
   })
 
-  const networkMonitor = new NetworkMonitor(
+  networkMonitor = new NetworkMonitor(
     await resolveChainId('goerli'),
     contracts,
     toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
@@ -346,6 +352,17 @@ const setup = async () => {
       injectDai: true,
     },
   })
+  mockedSubgraphManager = new SubgraphManager('fake endpoint', ['fake node id'])
+  allocationManager = new AllocationManager(
+    contracts,
+    logger,
+    address,
+    managementModels,
+    networkMonitor,
+    receiptCollector,
+    mockedSubgraphManager,
+    transactionManager,
+  )
 }
 
 const setupEach = async () => {
@@ -1013,5 +1030,61 @@ describe('Actions', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.updateActions', updatedExpecteds)
+  })
+})
+
+describe('Allocation Manager', () => {
+  beforeAll(setup)
+  beforeEach(setupEach)
+  afterEach(teardownEach)
+  afterAll(teardownAll)
+
+  test('fetchAllocation', async () => {
+    const allocation = await allocationManager.fetchAllocation(
+      '0x96737b6a31f40edaf96c567efbb98935aa906ab9',
+      'testing',
+    )
+    expect(allocation.id.toLowerCase()).toBe(
+      '0x96737b6a31f40edaf96c567efbb98935aa906ab9'.toLowerCase(),
+    )
+  })
+
+  describe('', () => {
+    jest.setTimeout(10_000)
+
+    // Reuse an existing allocation with 25 sextillion allocated GRT
+    const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
+
+    // Redefine test actions to use that allocation ID
+
+    const unallocateAction = {
+      ...invalidUnallocateAction,
+      id: 'unallocate action test id',
+      allocationID,
+    }
+    const reallocateAction = {
+      ...invalidReallocateAction,
+      amount: 10_000,
+      id: 'reallocate action test id',
+      allocationID,
+    }
+
+    const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
+
+    test('resolveActionDelta', async () => {
+      const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
+      const balances = await Promise.all(actions.map(mapper))
+
+      expect(balances[0].balance).toStrictEqual(BigNumber.from(10_000)) // (allocate)
+      expect(balances[1].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bda00000')) // -25*10**21 (unallocate)
+      expect(balances[2].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bd9fd8f0')) // -25*10**21 + 10,000 (reallocate)
+    })
+
+    test('validateActionBatchFeasibility', async () => {
+      const reordered = await allocationManager.validateActionBatchFeasibilty(actions)
+      expect(reordered[0]).toStrictEqual(unallocateAction)
+      expect(reordered[1]).toStrictEqual(reallocateAction)
+      expect(reordered[2]).toStrictEqual(queuedAllocateAction)
+    })
   })
 })

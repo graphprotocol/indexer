@@ -1192,7 +1192,7 @@ export class AllocationManager {
      * This ensures on-chain batch feasibility because higher unallocations are processed
      * first and larger allocations are processed last */
     return resolvedBatch
-      .sort((a, b) => (a.balance.lt(b.balance) ? 1 : -1))
+      .sort((a, b) => (a.balance.gt(b.balance) ? 1 : -1))
       .map((a) => a.action)
   }
 }
