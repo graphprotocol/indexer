@@ -808,7 +808,12 @@ describe('Actions', () => {
   })
 
   test('Reject unallocate action with inactive allocationID', async () => {
-    const inputActions = [invalidUnallocateAction]
+    // This allocation has been closed on chain
+    const closedAllocation = '0x0001572b5fde192fc1c65630fabb5e13d3ad173e'
+
+    // Reuse a valid inputAction but use an allocationID dedicated to this test purpose,
+    // as the previously used allocationID does not exist on chain.
+    const inputActions = [{ ...invalidUnallocateAction, allocationID: closedAllocation }]
 
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
@@ -817,7 +822,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            `An active allocation does not exist with id = '0x8f63930129e585c69482b56390a09b6b176f4a4c'`,
+            `An active allocation does not exist with id = '${closedAllocation}'`,
           ),
         ],
       }),
