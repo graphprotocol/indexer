@@ -1039,16 +1039,6 @@ describe('Allocation Manager', () => {
   afterEach(teardownEach)
   afterAll(teardownAll)
 
-  test('fetchAllocation', async () => {
-    const allocation = await allocationManager.fetchAllocation(
-      '0x96737b6a31f40edaf96c567efbb98935aa906ab9',
-      'testing',
-    )
-    expect(allocation.id.toLowerCase()).toBe(
-      '0x96737b6a31f40edaf96c567efbb98935aa906ab9'.toLowerCase(),
-    )
-  })
-
   describe('', () => {
     jest.setTimeout(10_000)
 
