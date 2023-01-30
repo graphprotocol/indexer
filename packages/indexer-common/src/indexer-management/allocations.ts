@@ -99,17 +99,6 @@ export class AllocationManager {
     private transactionManager: TransactionManager,
   ) {}
 
-  async fetchAllocation(allocationID: string, context: string): Promise<Allocation> {
-    const allocation = await this.networkMonitor.allocation(allocationID)
-    if (!allocation) {
-      throw indexerError(
-        IndexerErrorCode.IE063,
-        `${context}: No active allocation with id '${allocationID}' found`,
-      )
-    }
-    return allocation
-  }
-
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
     const result = await this.executeTransactions(actions)
     if (Array.isArray(result)) {
@@ -564,7 +553,7 @@ export class AllocationManager {
       allocationID: allocationID,
       poi: poi || 'none provided',
     })
-    const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
+    const allocation = await this.networkMonitor.allocation(allocationID)
     // Ensure allocation is old enough to close
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
@@ -660,7 +649,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
+    const allocation = await this.networkMonitor.allocation(allocationID)
     // Collect query fees for this allocation
     const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
       actionID,
@@ -726,7 +715,7 @@ export class AllocationManager {
         poi,
         force,
       )
-      const allocation = await this.fetchAllocation(allocationID, 'Unallocate failed')
+      const allocation = await this.networkMonitor.allocation(allocationID)
       this.logger.debug('Sending closeAllocation transaction')
       const receipt = await this.transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -995,7 +984,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.fetchAllocation(allocationID, 'Reallocate failed')
+    const allocation = await this.networkMonitor.allocation(allocationID)
     // Collect query fees for this allocation
     const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
       actionID,
@@ -1147,10 +1136,8 @@ export class AllocationManager {
         )
       }
       // Fetch the allocation on chain to inspect its amount
-      const allocation = await this.fetchAllocation(
-        action.allocationID,
-        'Action validation failed',
-      )
+      const allocation = await this.networkMonitor.allocation(action.allocationID)
+
       /* We intentionally don't check if the allocation is active now because it will be checked
        * later when we prepare the transaction */
       unallocates = unallocates.add(allocation.allocatedTokens)

@@ -649,10 +649,7 @@ export default {
       poi: poi || 'none provided',
     })
 
-    const allocationData = await networkMonitor.allocation(allocation.toLocaleLowerCase())
-    if (!allocationData) {
-      throw Error(`No existing allocation exists with id ${allocation}`)
-    }
+    const allocationData = await networkMonitor.allocation(allocation)
 
     try {
       // Ensure allocation is old enough to close

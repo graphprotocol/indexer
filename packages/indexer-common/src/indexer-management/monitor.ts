@@ -54,7 +54,7 @@ export class NetworkMonitor {
     return await this.contracts.staking.maxAllocationEpochs()
   }
 
-  async allocation(allocationID: string): Promise<Allocation | undefined> {
+  async allocation(allocationID: string): Promise<Allocation> {
     const result = await this.networkSubgraph.query(
       gql`
         query allocation($allocation: String!) {
@@ -85,8 +85,9 @@ export class NetworkMonitor {
     }
 
     if (!result.data.allocation || result.data.length == 0) {
-      this.logger.warn(`No active allocation with id '${allocationID}' found`)
-      return undefined
+      const errorMessage = `No active allocation with id '${allocationID}' found`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE063, errorMessage)
     }
     return parseGraphQLAllocation(result.data.allocation)
   }
