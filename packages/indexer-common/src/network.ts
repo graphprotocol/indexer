@@ -691,41 +691,9 @@ async function monitorNetworkPauses(
   contracts: NetworkContracts,
   networkSubgraph: NetworkSubgraph,
 ): Promise<Eventual<boolean>> {
+  let networkPaused: boolean
   try {
-    return timer(60_000)
-      .reduce(async (currentlyPaused) => {
-        try {
-          const result = await networkSubgraph.query(
-            gql`
-              {
-                graphNetworks {
-                  isPaused
-                }
-              }
-            `,
-          )
-
-          if (result.error) {
-            throw result.error
-          }
-
-          if (!result.data || result.data.length === 0) {
-            throw new Error(`No data returned by network subgraph`)
-          }
-
-          return result.data.graphNetworks[0].isPaused
-        } catch (err) {
-          logger.warn(`Failed to check for network pause, assuming it has not changed`, {
-            err: indexerError(IndexerErrorCode.IE007, err),
-            paused: currentlyPaused,
-          })
-          return currentlyPaused
-        }
-      }, await contracts.controller.paused())
-      .map((paused) => {
-        logger.info(paused ? `Network paused` : `Network active`)
-        return paused
-      })
+    networkPaused = await contracts.controller.paused()
   } catch (error) {
     logger.error(`Failed to check for network pause with contracts controller`, {
       suberror: IndexerErrorCode.IE007,
@@ -733,6 +701,40 @@ async function monitorNetworkPauses(
     })
     throw indexerError(IndexerErrorCode.IE007, `Failed to check for network pause`)
   }
+  return timer(60_000)
+    .reduce(async (currentlyPaused) => {
+      try {
+        const result = await networkSubgraph.query(
+          gql`
+            {
+              graphNetworks {
+                isPaused
+              }
+            }
+          `,
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+
+        if (!result.data || result.data.length === 0) {
+          throw new Error(`No data returned by network subgraph`)
+        }
+
+        return result.data.graphNetworks[0].isPaused
+      } catch (err) {
+        logger.warn(`Failed to check for network pause, assuming it has not changed`, {
+          err: indexerError(IndexerErrorCode.IE007, err),
+          paused: currentlyPaused,
+        })
+        return currentlyPaused
+      }
+    }, networkPaused)
+    .map((paused) => {
+      logger.info(paused ? `Network paused` : `Network active`)
+      return paused
+    })
 }
 
 // TODO: Move to NetworkMonitor
