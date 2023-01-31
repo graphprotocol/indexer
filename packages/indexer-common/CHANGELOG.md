@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.10] - 2023-01-31
+### Added
+- Moved GRT stake feasibility check from the action level to batch level
+
 ## [0.20.9] - 2023-01-24
 ### Changed
 - Epoch block tracking is now handled by the Epoch Subgraph instead of the Epoch Manager contract
@@ -225,7 +229,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.9...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.10...HEAD
+[0.20.10]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.10
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.8...v0.20.9
 [0.20.8]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.8
 [0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7
