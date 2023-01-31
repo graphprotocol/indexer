@@ -1043,43 +1043,37 @@ describe('Allocation Manager', () => {
   beforeEach(setupEach)
   afterEach(teardownEach)
   afterAll(teardownAll)
+  jest.setTimeout(10_000)
 
-  describe('', () => {
-    jest.setTimeout(10_000)
+  // Reuse an existing allocation with 25 sextillion allocated GRT
+  const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
 
-    // Reuse an existing allocation with 25 sextillion allocated GRT
-    const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
+  // Redefine test actions to use that allocation ID
+  const unallocateAction = {
+    ...invalidUnallocateAction,
+    allocationID,
+  }
+  const reallocateAction = {
+    ...invalidReallocateAction,
+    amount: 10_000,
+    allocationID,
+  }
 
-    // Redefine test actions to use that allocation ID
+  const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
 
-    const unallocateAction = {
-      ...invalidUnallocateAction,
-      id: 'unallocate action test id',
-      allocationID,
-    }
-    const reallocateAction = {
-      ...invalidReallocateAction,
-      amount: 10_000,
-      id: 'reallocate action test id',
-      allocationID,
-    }
+  test('resolveActionDelta() correctly calculates token balances for array of actions', async () => {
+    const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
+    const balances = await Promise.all(actions.map(mapper))
 
-    const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
+    expect(balances[0].balance).toStrictEqual(BigNumber.from(10_000)) // (allocate)
+    expect(balances[1].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bda00000')) // -25*10**21 (unallocate)
+    expect(balances[2].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bd9fd8f0')) // -25*10**21 + 10,000 (reallocate)
+  })
 
-    test('resolveActionDelta', async () => {
-      const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
-      const balances = await Promise.all(actions.map(mapper))
-
-      expect(balances[0].balance).toStrictEqual(BigNumber.from(10_000)) // (allocate)
-      expect(balances[1].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bda00000')) // -25*10**21 (unallocate)
-      expect(balances[2].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bd9fd8f0')) // -25*10**21 + 10,000 (reallocate)
-    })
-
-    test('validateActionBatchFeasibility', async () => {
-      const reordered = await allocationManager.validateActionBatchFeasibilty(actions)
-      expect(reordered[0]).toStrictEqual(unallocateAction)
-      expect(reordered[1]).toStrictEqual(reallocateAction)
-      expect(reordered[2]).toStrictEqual(queuedAllocateAction)
-    })
+  test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {
+    const reordered = await allocationManager.validateActionBatchFeasibilty(actions)
+    expect(reordered[0]).toStrictEqual(unallocateAction)
+    expect(reordered[1]).toStrictEqual(reallocateAction)
+    expect(reordered[2]).toStrictEqual(queuedAllocateAction)
   })
 })
