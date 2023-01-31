@@ -61,6 +61,7 @@
     "p-queue": "6.6.2",
     "p-retry": "4.6.1",
     "read-pkg": "5.2.0",
+    "yaml": "^2.0.0-10",
     "yargs": "17.4.1"
   },
   "devDependencies": {
