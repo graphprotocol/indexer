@@ -616,10 +616,19 @@ export class NetworkMonitor {
         (await this.currentEpochNumber())
           ? result.data.network.latestValidBlockNumber
           : result.data.network.latestValidBlockNumber.previousBlockNumber
-      const startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
-        networkAlias,
-        +validBlock.blockNumber,
-      )
+
+      // Resolve block hash for the given block number.
+      // Calls the configured provider for blocks from protocol chain, or Graph Node otherwise.
+      let startBlockHash: string
+      if (networkID == this.networkCAIPID) {
+        startBlockHash = (await this.ethereum.getBlock(+validBlock.blockNumber)).hash
+      } else {
+        startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
+          networkAlias,
+          +validBlock.blockNumber,
+        )
+      }
+
       const latestBlock = result.data._meta.block.number
 
       return {
