@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.11] - 2023-02-01
+### Changed
+- Remove unecessary currentEpochStartBlock eventual
+
 ## [0.20.9] - 2023-01-24
 ### Changed
 - The `--epoch-subgraph-endpoint` is now a required parameter to start the Agent
@@ -422,7 +426,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.9...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.11...HEAD
+[0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9
 [0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.4...v0.20.6
