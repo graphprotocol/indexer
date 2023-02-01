@@ -1055,7 +1055,7 @@ describe('Allocation Manager', () => {
   }
   const reallocateAction = {
     ...invalidReallocateAction,
-    amount: 10_000,
+    amount: '10000',
     allocationID,
   }
 
@@ -1065,9 +1065,9 @@ describe('Allocation Manager', () => {
     const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
     const balances = await Promise.all(actions.map(mapper))
 
-    expect(balances[0].balance).toStrictEqual(BigNumber.from(10_000)) // (allocate)
-    expect(balances[1].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bda00000')) // -25*10**21 (unallocate)
-    expect(balances[2].balance).toStrictEqual(BigNumber.from('-0x054b40b1f852bd9fd8f0')) // -25*10**21 + 10,000 (reallocate)
+    expect(balances[0].balance).toStrictEqual(parseGRT('10000')) // (allocate)
+    expect(balances[1].balance).toStrictEqual(parseGRT('-25000')) // (unallocate)
+    expect(balances[2].balance).toStrictEqual(parseGRT('-15000')) // (reallocate)
   })
 
   test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {
