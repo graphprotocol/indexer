@@ -10,7 +10,6 @@ import {
   Action,
   ActionFailure,
   ActionType,
-  Allocation,
   allocationIdProof,
   AllocationResult,
   AllocationStatus,
