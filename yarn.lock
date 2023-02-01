@@ -1883,6 +1883,21 @@
     npmlog "^6.0.2"
     write-file-atomic "^4.0.1"
 
+"@mapbox/node-pre-gyp@1.0.10":
+  version "1.0.10"
+  resolved "https://registry.npmjs.org/@mapbox/node-pre-gyp/-/node-pre-gyp-1.0.10.tgz#8e6735ccebbb1581e5a7e652244cadc8a844d03c"
+  integrity sha512-4ySo4CjzStuprMwk35H5pPbkymjv1SF3jGLj6rAHp/xT/RF7TL7bd9CTm1xDY49K2qF7jmR/g7k+SkLETP6opA==
+  dependencies:
+    detect-libc "^2.0.0"
+    https-proxy-agent "^5.0.0"
+    make-dir "^3.1.0"
+    node-fetch "^2.6.7"
+    nopt "^5.0.0"
+    npmlog "^5.0.1"
+    rimraf "^3.0.2"
+    semver "^7.3.5"
+    tar "^6.1.11"
+
 "@mapbox/node-pre-gyp@1.0.9", "@mapbox/node-pre-gyp@^1.0.0":
   version "1.0.9"
   resolved "https://registry.npmjs.org/@mapbox/node-pre-gyp/-/node-pre-gyp-1.0.9.tgz"
@@ -4054,6 +4069,11 @@ cargo-cp-artifact@0.1.6:
   version "0.1.6"
   resolved "https://registry.npmjs.org/cargo-cp-artifact/-/cargo-cp-artifact-0.1.6.tgz"
   integrity sha512-CQw0doK/aaF7j041666XzuilHxqMxaKkn+I5vmBsd8SAwS0cO5CqVEVp0xJwOKstyqWZ6WK4Ww3O6p26x/Goyg==
+
+cargo-cp-artifact@0.1.7:
+  version "0.1.7"
+  resolved "https://registry.npmjs.org/cargo-cp-artifact/-/cargo-cp-artifact-0.1.7.tgz#1181b9d6e71f00f17c068c05e3cd1b0864783341"
+  integrity sha512-pxEV9p1on8vu3BOKstVisF9TwMyGKCBRvzaVpQHuU2sLULCKrn3MJWx/4XlNzmG6xNCTPf78DJ7WCGgr2mOzjg==
 
 chalk@4.1.0:
   version "4.1.0"
