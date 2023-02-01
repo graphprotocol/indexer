@@ -10,7 +10,6 @@ import {
   Action,
   ActionFailure,
   ActionType,
-  Allocation,
   allocationIdProof,
   AllocationResult,
   AllocationStatus,
@@ -1125,7 +1124,12 @@ export class AllocationManager {
     let unallocates = BigNumber.from(0)
 
     // Handle allocations
-    const allocates = BigNumber.from(action.amount ?? 0)
+    let allocates
+    if (action.amount) {
+      allocates = parseGRT(action.amount)
+    } else {
+      allocates = BigNumber.from(0)
+    }
 
     // Handle unallocations
     if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
