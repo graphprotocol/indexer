@@ -47,8 +47,9 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "2.0.1",
-    "@mapbox/node-pre-gyp": "1.0.9",
-    "cargo-cp-artifact": "0.1.6"
+    "@mapbox/node-pre-gyp": "1.0.10",
+    "node-pre-gyp-github": "1.4.4",
+    "cargo-cp-artifact": "0.1.7"
   },
   "devDependencies": {
     "bs58": "5.0.0",
@@ -56,7 +57,6 @@
     "eslint-config-prettier": "8.5.0",
     "ethers": "5.7.0",
     "jest": "27.5.1",
-    "node-pre-gyp-github": "1.4.4",
     "prettier": "2.6.2"
   },
   "binary": {
