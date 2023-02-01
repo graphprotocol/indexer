@@ -13,7 +13,6 @@ import {
   AllocationManagementMode,
   allocationRewardsPool,
   AllocationStatus,
-  BlockPointer,
   indexerError,
   IndexerErrorCode,
   IndexingDecisionBasis,
@@ -170,22 +169,6 @@ class Agent {
       {
         onError: error =>
           this.logger.warn(`Failed to fetch current epoch`, { error }),
-      },
-    )
-
-    const currentEpochStartBlock = currentEpochNumber.tryMap(
-      async () => {
-        const currentEpoch = await this.networkMonitor.networkCurrentEpoch()
-        return {
-          number: currentEpoch.startBlockNumber,
-          hash: currentEpoch.startBlockHash,
-        } as BlockPointer
-      },
-      {
-        onError: error =>
-          this.logger.warn(`Failed to fetch start block of current epoch`, {
-            error,
-          }),
       },
     )
 
@@ -408,7 +391,6 @@ class Agent {
       paused: this.network.transactionManager.paused,
       isOperator: this.network.transactionManager.isOperator,
       currentEpochNumber,
-      currentEpochStartBlock,
       maxAllocationEpochs,
       activeDeployments,
       targetDeployments,
@@ -423,7 +405,6 @@ class Agent {
         paused,
         isOperator,
         currentEpochNumber,
-        currentEpochStartBlock,
         maxAllocationEpochs,
         activeDeployments,
         targetDeployments,
@@ -500,7 +481,6 @@ class Agent {
             networkDeploymentAllocationDecisions,
             activeAllocations,
             currentEpochNumber,
-            currentEpochStartBlock,
             maxAllocationEpochs,
           )
         } catch (err) {
@@ -850,7 +830,6 @@ class Agent {
     networkDeploymentAllocationDecisions: AllocationDecision[],
     activeAllocations: Allocation[],
     epoch: number,
-    epochStartBlock: BlockPointer,
     maxAllocationEpochs: number,
   ): Promise<void> {
     if (
@@ -887,7 +866,6 @@ class Agent {
 
     this.logger.trace(`Reconcile allocation actions`, {
       epoch,
-      epochStartBlock,
       maxAllocationEpochs,
       targetDeployments: networkDeploymentAllocationDecisions
         .filter(decision => decision.toAllocate)
