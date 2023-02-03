@@ -7,7 +7,9 @@ import {
   connectContracts,
   connectDatabase,
   createLogger,
+  createMetrics,
   Logger,
+  Metrics,
   mutable,
   NetworkContracts,
   parseGRT,
@@ -264,6 +266,7 @@ let networkMonitor: NetworkMonitor
 let receiptCollector: AllocationReceiptCollector
 let mockedSubgraphManager: SubgraphManager
 let allocationManager: AllocationManager
+let metrics: Metrics
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -313,8 +316,10 @@ const setup = async () => {
     'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
   )
 
+  metrics = createMetrics()
   receiptCollector = new AllocationReceiptCollector({
     logger,
+    metrics,
     transactionManager: transactionManager,
     models: queryFeeModels,
     allocationExchange: contracts.allocationExchange,
@@ -384,6 +389,7 @@ const teardownEach = async () => {
 }
 
 const teardownAll = async () => {
+  metrics.registry.clear()
   await sequelize.drop({})
 }
 

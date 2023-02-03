@@ -1,3 +1,4 @@
+import { Counter, Gauge, Histogram } from 'prom-client'
 import axios from 'axios'
 import {
   Logger,
@@ -6,6 +7,7 @@ import {
   toAddress,
   formatGRT,
   Address,
+  Metrics,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -39,8 +41,23 @@ export interface PartialVoucher {
   receipt_id_max: string // (0x-prefixed hex)
 }
 
+interface ReceiptMetrics {
+  receiptsToCollect: Gauge<string>
+  failedReceipts: Counter<string>
+  partialVouchersToExchange: Gauge<string>
+  receiptsCollectDuration: Histogram<string>
+  vouchers: Counter<string>
+  successVoucherRedeems: Counter<string>
+  invalidVoucherRedeems: Counter<string>
+  failedVoucherRedeems: Counter<string>
+  vouchersRedeemDuration: Histogram<string>
+  vouchersBatchRedeemSize: Gauge<never>
+  voucherCollectedFees: Gauge<string>
+}
+
 export interface AllocationReceiptCollectorOptions {
   logger: Logger
+  metrics: Metrics
   transactionManager: TransactionManager
   allocationExchange: Contract
   models: QueryFeeModels
@@ -57,6 +74,7 @@ export interface ReceiptCollector {
 
 export class AllocationReceiptCollector implements ReceiptCollector {
   private logger: Logger
+  private metrics: ReceiptMetrics
   private models: QueryFeeModels
   private transactionManager: TransactionManager
   private allocationExchange: Contract
@@ -70,6 +88,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   constructor({
     logger,
+    metrics,
     transactionManager,
     models,
     collectEndpoint,
@@ -79,6 +98,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     voucherRedemptionMaxBatchSize,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
+    this.metrics = registerReceiptMetrics(metrics)
     this.transactionManager = transactionManager
     this.models = models
     this.collectEndpoint = new URL(collectEndpoint)
@@ -166,6 +186,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           },
         )
 
+      this.metrics.receiptsToCollect.set(
+        { allocation: receipts[0].allocation },
+        receipts.length,
+      )
       if (receipts.length <= 0) {
         logger.debug(`No receipts to collect for allocation`)
         return false
@@ -185,6 +209,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       return true
     } catch (err) {
       const error = indexerError(IndexerErrorCode.IE053, err)
+      this.metrics.failedReceipts.inc({ allocation: allocation.id })
       this.logger.error(`Failed to queue allocation receipts for collecting`, {
         error,
       })
@@ -258,16 +283,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       )
 
       if (vouchers.belowThreshold.length > 0) {
+        const totalValueGRT = formatGRT(
+          vouchers.belowThreshold.reduce(
+            (total, voucher) => total.add(BigNumber.from(voucher.amount)),
+            BigNumber.from(0),
+          ),
+        )
         logger.info(`Query vouchers below the redemption threshold`, {
           hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
           voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
           belowThresholdCount: vouchers.belowThreshold.length,
-          totalValueGRT: formatGRT(
-            vouchers.belowThreshold.reduce(
-              (total, voucher) => total.add(BigNumber.from(voucher.amount)),
-              BigNumber.from(0),
-            ),
-          ),
+          totalValueGRT,
           allocations: vouchers.belowThreshold.map((voucher) => voucher.allocation),
         })
       }
@@ -283,6 +309,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
       if (batchValueGRT.gt(this.voucherRedemptionBatchThreshold)) {
+        this.metrics.vouchersBatchRedeemSize.set(voucherBatch.length)
         logger.info(`Query voucher batch is ready for redemption`, {
           batchSize: voucherBatch.length,
           voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
@@ -330,8 +357,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }
 
   private async obtainReceiptsVoucher(receipts: AllocationReceipt[]): Promise<void> {
+    const allocation = receipts[0].allocation
     const logger = this.logger.child({
-      allocation: receipts[0].allocation,
+      allocation,
     })
     // Gross underestimated number of receipts the gateway take at once
     const receiptsThreshold = 25_000
@@ -340,6 +368,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       logger.info(`Collect receipts for allocation`, {
         receipts: receipts.length,
       })
+      const stopTimer = this.metrics.receiptsCollectDuration.startTimer({ allocation })
 
       // All receipts can fit the gateway, make a single-shot collection
       if (receipts.length <= receiptsThreshold) {
@@ -371,8 +400,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           partialVouchers.push(partialVoucher)
         }
 
-        logger.debug(`obtainReceiptVoucher: For debugging`, {
-          partialVouchers,
+        this.metrics.partialVouchersToExchange.set({ allocation }, partialVouchers.length)
+        logger.debug(`Partial vouchers to exchange`, {
+          partialVouchers: partialVouchers.length,
           hexStringLength: partialVouchers[0].allocation,
         })
 
@@ -391,6 +421,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         amount: string
         signature: string
       }
+      this.metrics.vouchers.inc({
+        allocation,
+      })
+      this.metrics.voucherCollectedFees.set({ allocation }, parseFloat(voucher.amount))
 
       // Replace the receipts with the voucher in one db transaction;
       // should this fail, we'll try to collect these receipts again
@@ -433,6 +467,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           transaction,
         })
       })
+      stopTimer()
     } catch (err) {
       logger.error(
         `Failed to collect receipts in exchange for an on-chain query fee voucher`,
@@ -448,6 +483,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     logger.info(`Redeem query voucher batch on chain`, {
       allocations: vouchers.map((voucher) => voucher.allocation),
+    })
+    const stopTimer = this.metrics.vouchersRedeemDuration.startTimer({
+      allocation: vouchers[0].allocation,
     })
 
     const hexPrefix = (bytes: string): string =>
@@ -473,6 +511,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       )
 
       if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+        this.metrics.invalidVoucherRedeems.inc({ allocation: vouchers[0].allocation })
         return
       }
 
@@ -493,11 +532,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         },
       )
     } catch (err) {
+      this.metrics.failedVoucherRedeems.inc({ allocation: vouchers[0].allocation })
       logger.error(`Failed to redeem query fee voucher`, {
         err: indexerError(IndexerErrorCode.IE055, err),
       })
       return
     }
+    stopTimer()
 
     // Remove the now obsolete voucher from the database
     logger.info(`Successfully redeemed query fee voucher, delete local copy`)
@@ -505,6 +546,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       await this.models.vouchers.destroy({
         where: { allocation: vouchers.map((voucher) => voucher.allocation) },
       })
+      this.metrics.successVoucherRedeems.inc({ allocation: vouchers[0].allocation })
       logger.info(`Successfully deleted local voucher copy`)
     } catch (err) {
       logger.warn(`Failed to delete local voucher copy, will try again later`, {
@@ -587,3 +629,81 @@ export function encodePartialVouchers(partialVouchers: PartialVoucher[]): BytesW
   }
   return encodedPartialVouchers
 }
+
+const registerReceiptMetrics = (metrics: Metrics) => ({
+  receiptsToCollect: new metrics.client.Gauge({
+    name: 'indexer_agent_receipts_to_collect',
+    help: 'Individual receipts to collect',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  failedReceipts: new metrics.client.Counter({
+    name: 'indexer_agent_receipts_failed',
+    help: 'Failed to queue receipts to collect',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  partialVouchersToExchange: new metrics.client.Gauge({
+    name: 'indexer_agent_vouchers_to_exchange',
+    help: 'Individual partial vouchers to exchange',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  receiptsCollectDuration: new metrics.client.Histogram({
+    name: 'indexer_agent_receipts_exchange_duration',
+    help: 'Duration of processing and exchanging receipts to voucher',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  vouchers: new metrics.client.Counter({
+    name: 'indexer_agent_vouchers',
+    help: 'Individual vouchers to redeem',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  successVoucherRedeems: new metrics.client.Counter({
+    name: 'indexer_agent_voucher_exchanges_ok',
+    help: 'Successfully redeemed vouchers',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  invalidVoucherRedeems: new metrics.client.Counter({
+    name: 'indexer_agent_voucher_exchanges_invalid',
+    help: 'Invalid vouchers redeems - tx paused or unauthorized',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  failedVoucherRedeems: new metrics.client.Counter({
+    name: 'indexer_agent_voucher_redeems_failed',
+    help: 'Failed redeems for vouchers',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  vouchersRedeemDuration: new metrics.client.Histogram({
+    name: 'indexer_agent_vouchers_redeem_duration',
+    help: 'Duration of redeeming vouchers',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  vouchersBatchRedeemSize: new metrics.client.Gauge({
+    name: 'indexer_agent_vouchers_redeem',
+    help: 'Size of redeeming batched vouchers',
+    registers: [metrics.registry],
+  }),
+
+  voucherCollectedFees: new metrics.client.Gauge({
+    name: 'indexer_agent_voucher_collected_fees',
+    help: 'Amount of query fees collected for a voucher',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+})
