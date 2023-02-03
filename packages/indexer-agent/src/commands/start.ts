@@ -633,6 +633,7 @@ export default {
 
     const receiptCollector = new AllocationReceiptCollector({
       logger,
+      metrics,
       transactionManager: network.transactionManager,
       models: queryFeeModels,
       allocationExchange: network.contracts.allocationExchange,
