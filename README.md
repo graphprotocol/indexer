@@ -232,8 +232,6 @@ Query Fees
                                   agent                                 [string]
   --vector-event-server-port      Port to serve the vector event server at
                                                         [number] [default: 8001]
-  --allocation-exchange-contract  Address of the contract to submit query fee
-                                  vouchers to         [string] [default: "auto"]
   --collect-receipts-endpoint     Client endpoint for collecting receipts
                                                                         [string]
 
