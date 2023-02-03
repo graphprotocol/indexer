@@ -370,14 +370,6 @@ export default {
         }
         return true
       })
-      .option('allocation-exchange-contract', {
-        description: 'Address of the contract to submit query fee vouchers to',
-        type: 'string',
-        required: false,
-        default: 'auto',
-        implies: ['collect-receipts-endpoint'],
-        group: 'Query Fees',
-      })
       .option('collect-receipts-endpoint', {
         description: 'Client endpoint for collecting receipts',
         type: 'string',
