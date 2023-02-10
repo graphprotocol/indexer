@@ -172,19 +172,6 @@ class Agent {
       },
     )
 
-    const networkLatestEpoch = timer(600_000).tryMap(
-      async () => await this.networkMonitor.networkCurrentEpoch(),
-      {
-        onError: error =>
-          this.logger.warn(
-            `Failed to obtain protocol chain's latest valid epoch`,
-            {
-              error,
-            },
-          ),
-      },
-    )
-
     const channelDisputeEpochs = timer(600_000).tryMap(
       () => this.network.contracts.staking.channelDisputeEpochs(),
       {
@@ -399,7 +386,6 @@ class Agent {
       recentlyClosedAllocations,
       claimableAllocations,
       disputableAllocations,
-      networkLatestEpoch,
     }).pipe(
       async ({
         paused,
@@ -413,10 +399,9 @@ class Agent {
         recentlyClosedAllocations,
         claimableAllocations,
         disputableAllocations,
-        networkLatestEpoch,
       }) => {
         this.logger.info(`Reconcile with the network`, {
-          networkLatestEpoch,
+          currentEpochNumber,
         })
 
         // Do nothing else if the network is paused
