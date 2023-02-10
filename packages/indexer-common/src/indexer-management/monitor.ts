@@ -604,9 +604,18 @@ export class NetworkMonitor {
         throw result.error
       }
 
-      if (!result.data.network || !result.data.network.latestValidBlockNumber) {
+      if (!result.data.network) {
+        // If the network is missing, it means it is not registered in the Epoch Subgraph.
         throw new Error(
-          `Failed to query EBO for ${networkID}'s latest valid epoch number`,
+          `Failed to query EBO for ${networkID}'s latest valid epoch number: Network not found`,
+        )
+      }
+
+      if (!result.data.network.latestValidBlockNumber) {
+        // If there is no block number, it means the Epoch Subgraph did not receive the initial
+        // update for this network.
+        throw new Error(
+          `Failed to query EBO for ${networkID}'s latest valid epoch number: Network not yet initialized`,
         )
       }
 
