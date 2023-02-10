@@ -219,41 +219,41 @@ export default {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
         type: 'string',
         default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
         coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
         default: '2000',
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
         coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
         type: 'number',
         default: 100,
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
       })
       .option('voucher-redemption-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
         type: 'string',
         default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
         coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'string',
         default: '2000',
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
         coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
         type: 'number',
         default: 100,
-        group: 'Indexer Infrastructure',
+        group: 'Query Fees',
       })
       .option('inject-dai', {
         description:
@@ -374,7 +374,6 @@ export default {
         description: 'Client endpoint for collecting receipts',
         type: 'string',
         required: false,
-        implies: ['allocation-exchange-contract'],
         group: 'Query Fees',
       })
       .option('allocation-management', {
