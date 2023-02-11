@@ -619,12 +619,47 @@ export class NetworkMonitor {
         )
       }
 
-      // Check for validity with epoch manager currentEpoch, and fetch block hash
-      const validBlock =
-        result.data.network.latestValidBlockNumber.epochNumber ==
-        (await this.currentEpochNumber())
-          ? result.data.network.latestValidBlockNumber
-          : result.data.network.latestValidBlockNumber.previousBlockNumber
+      // Check for validity with Epoch Manager's currentEpoch method, and fetch block hash after that.
+      const epochManagerCurrentEpoch = await this.currentEpochNumber()
+      const epochSubgraphCurrentEpoch =
+        result.data.network.latestValidBlockNumber.epochNumber
+
+      // The Epoch Manager will always lead new epochs, so the epochSubgraphCurrentEpoch should be subtracted.
+      const epochDifference = epochManagerCurrentEpoch - epochSubgraphCurrentEpoch
+
+      const logContext = {
+        epochManagerCurrentEpoch,
+        epochSubgraphCurrentEpoch,
+        epochDifferenceFromContracts: epochDifference,
+        networkID,
+      }
+
+      if (epochDifference < 0) {
+        // Somehow, the Epoch Manager is behind the Epoch Subgraph. This is a critical failure.
+        const criticalErrorMessage = `The Epoch Manager is behind the Epoch Subgraph`
+        this.logger.critical(criticalErrorMessage, { ...logContext })
+        throw new Error(criticalErrorMessage)
+      }
+
+      if (epochDifference > 1) {
+        // It is not acceptable to submit a POI for an epoch more than one epoch away from the current epoch
+        const errorMessage = `The Epoch Subgraph is ${epochDifference} epochs away from the Epoch Manager. \
+It should never be more than 1 epoch away from the Epoch Manager contract. \
+Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/new`
+        this.logger.error(errorMessage, { ...logContext })
+        throw new Error(errorMessage)
+      }
+
+      if (epochDifference === 1) {
+        // It is acceptable that the Epoch Subgraph stays at least one epoch behind the Epoch
+        // Manager, considering this measurement could have happened during an epoch transition.
+        this.logger.info(`Epoch Subgraph is one epoch behind the Epoch Manager`, {
+          ...logContext,
+        })
+      }
+
+      // At this point, the epoch difference is either 0 or 1.
+      const validBlock = result.data.network.latestValidBlockNumber
 
       // Resolve block hash for the given block number.
       // Calls the configured provider for blocks from protocol chain, or Graph Node otherwise.
@@ -639,6 +674,8 @@ export class NetworkMonitor {
       }
 
       const latestBlock = result.data._meta.block.number
+
+      this.logger.info('Resolved current Epoch', { latestBlock, ...logContext })
 
       return {
         networkID,
