@@ -27,6 +27,7 @@
     "@thi.ng/heaps": "1.2.38",
     "@urql/core": "2.4.4",
     "@urql/exchange-execute": "1.2.2",
+    "axios": "0.26.1",
     "body-parser": "1.19.1",
     "cors": "2.8.5",
     "ethers": "5.7.0",
