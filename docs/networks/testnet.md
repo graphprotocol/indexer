@@ -10,7 +10,7 @@ The Graph Network's testnet is on Goerli. Goerli network information can be foun
 | indexer-agent   | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
 | indexer-cli     | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
 | indexer-service | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
-| graph-node      | [0.29.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.29.0) |
+| graph-node      | [0.30.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0-rc.0)       |
 
 ## Network Parameters
 
@@ -99,6 +99,10 @@ option can be used.
 | near:*                   | *       | Yes         | Yes          | No                | No                   | No               |
 | cosmos:*                 | *       | Yes         | Yes          | No                | No                   | No               |
 | arweave:*                | *       | Yes         | Yes          | No                | No                   | No               |
+| eip155:42161             | arbitrum-one  | Yes   | Yes          | Yes               | Yes                  | Yes              |
+| eip155:42220             | celo    | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:43114             | avalanche | Yes       | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features** |         |             |              |                   |                      |                  |
 | ipfs.cat in mappings     |         | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
+| File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
