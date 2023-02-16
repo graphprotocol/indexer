@@ -61,6 +61,7 @@ module.exports = {
         'decisionBasis',
         'custom',
         'requireSupported',
+        'safety',
       )
     }
 
@@ -86,6 +87,7 @@ module.exports = {
         identifier,
         identifierType,
         autoRenewal: true,
+        safety: true,
       })
 
       const client = await createIndexerManagementClient({ url: config.api })

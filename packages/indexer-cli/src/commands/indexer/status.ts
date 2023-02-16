@@ -129,6 +129,7 @@ module.exports = {
                 custom
                 decisionBasis
                 requireSupported
+                safety
               }
             }
           `,

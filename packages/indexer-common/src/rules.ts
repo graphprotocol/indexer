@@ -33,6 +33,7 @@ const INDEXING_RULE_READABLE_TO_MODEL_PARSERS: Record<
   decisionBasis: nullPassThrough(parseDecisionBasis),
   custom: nullPassThrough(JSON.parse),
   requireSupported: (x) => parseBoolean(x),
+  safety: (x) => parseBoolean(x),
 }
 
 export const parseIndexingRule = (

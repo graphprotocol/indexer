@@ -33,6 +33,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   decisionBasis: nullPassThrough(parseDecisionBasis),
   custom: nullPassThrough(JSON.parse),
   requireSupported: x => parseBoolean(x),
+  safety: x => parseBoolean(x),
 }
 
 const INDEXING_RULE_FORMATTERS: Record<
@@ -55,6 +56,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
+  safety: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
@@ -77,6 +79,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
+  safety: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
@@ -99,6 +102,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
+  safety: x => x,
 }
 
 /**
@@ -256,6 +260,7 @@ export const indexingRules = async (
             custom
             decisionBasis
             requireSupported
+            safety
           }
         }
       `,
@@ -294,6 +299,7 @@ export const indexingRule = async (
             custom
             decisionBasis
             requireSupported
+            safety
           }
         }
       `,
@@ -335,6 +341,7 @@ export const setIndexingRule = async (
             custom
             decisionBasis
             requireSupported
+            safety
           }
         }
       `,

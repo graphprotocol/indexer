@@ -50,6 +50,7 @@ const SET_INDEXING_RULE_MUTATION = gql`
       custom
       decisionBasis
       requireSupported
+      safety
     }
   }
 `
@@ -83,6 +84,7 @@ const INDEXING_RULE_QUERY = gql`
       custom
       decisionBasis
       requireSupported
+      safety
     }
   }
 `
@@ -104,6 +106,7 @@ const INDEXING_RULES_QUERY = gql`
       custom
       decisionBasis
       requireSupported
+      safety
     }
   }
 `
@@ -122,6 +125,7 @@ const defaults: IndexerManagementDefaults = {
     allocationAmount: parseGRT('100'),
     parallelAllocations: 1,
     requireSupported: true,
+    safety: true,
   },
 }
 
@@ -206,6 +210,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
+      safety: true,
     }
 
     // Update the rule and ensure the right data is returned
@@ -237,6 +242,7 @@ describe('Indexing rules', () => {
       custom: JSON.stringify({ foo: 'bar' }),
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
+      safety: true,
     }
 
     const expected = {
@@ -276,6 +282,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
+      safety: true,
     }
 
     // Write the original
@@ -290,6 +297,7 @@ describe('Indexing rules', () => {
       maxSignal: '3',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       autoRenewal: true,
+      safety: false,
     }
 
     const expected = {
@@ -331,6 +339,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: true,
+      safety: true,
     }
 
     // Write the original
@@ -347,6 +356,7 @@ describe('Indexing rules', () => {
       allocationLifetime: 2,
       autoRenewal: false,
       requireSupported: false,
+      safety: false,
     }
 
     const expected = {
@@ -417,6 +427,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       autoRenewal: false,
+      safety: true,
     }
 
     const globalExpected = {
@@ -431,6 +442,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
+      safety: true,
     }
 
     const deploymentExpected = {
@@ -445,6 +457,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
+      safety: true,
     }
     deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
@@ -505,6 +518,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
+      safety: true,
     }
 
     // Write the rule
@@ -536,6 +550,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       requireSupported: true,
+      safety: true,
     }
 
     const expectedBefore = {
@@ -593,6 +608,7 @@ describe('Indexing rules', () => {
       allocationLifetime: 15,
       requireSupported: true,
       autoRenewal: true,
+      safety: false,
     }
 
     const deploymentInput = {
@@ -604,6 +620,7 @@ describe('Indexing rules', () => {
       allocationLifetime: 10,
       autoRenewal: false,
       requireSupported: false,
+      safety: true,
     }
 
     const globalExpected = {
@@ -617,6 +634,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
+      safety: false,
     }
 
     const deploymentExpected = {
@@ -631,6 +649,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
+      safety: true,
     }
 
     const deploymentMergedExpected = {
@@ -645,6 +664,7 @@ describe('Indexing rules', () => {
       custom: null,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
+      safety: true,
     }
 
     // Write the orginals
@@ -739,6 +759,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       minAverageQueryFees: '1',
       requireSupported: false,
+      safety: false,
     }
 
     const deploymentInput = {
@@ -747,6 +768,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
       requireSupported: true,
+      safety: true,
     }
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
@@ -783,6 +805,7 @@ describe('Indexing rules', () => {
         minSignal: null,
         minStake: null,
         requireSupported: true,
+        safety: true,
       },
     ])
   })

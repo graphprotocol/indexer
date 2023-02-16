@@ -178,6 +178,7 @@ const defaults: IndexerManagementDefaults = {
     allocationAmount: parseGRT('100'),
     parallelAllocations: 1,
     requireSupported: true,
+    safety: true,
   },
 }
 
