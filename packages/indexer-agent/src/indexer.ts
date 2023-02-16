@@ -287,6 +287,7 @@ export class Indexer {
           parallelAllocations: 1,
           decisionBasis: 'rules',
           requireSupported: true,
+          safety: true,
         }
 
         const defaultGlobalRule = await this.indexerManagement
@@ -308,6 +309,7 @@ export class Indexer {
                   custom
                   decisionBasis
                   requireSupported
+                  safety
                 }
               }
             `,
@@ -631,14 +633,16 @@ export class Indexer {
       allocationAmount: formatGRT(desiredAllocationAmount),
     })
 
-    // Skip allocating if the previous allocation for this deployment was closed with a null or 0x00 POI
+    // Skip allocating if the previous allocation for this deployment was closed with 0x00 POI but rules set to un-safe
     if (
+      deploymentAllocationDecision.ruleMatch.rule?.safety &&
       mostRecentlyClosedAllocation &&
       mostRecentlyClosedAllocation.poi === utils.hexlify(Array(32).fill(0))
     ) {
       logger.warn(
         `Skipping allocation to this deployment as the last allocation to it was closed with a zero POI`,
         {
+          notSafe: !deploymentAllocationDecision.ruleMatch.rule?.safety,
           deployment: deploymentAllocationDecision.deployment,
           closedAllocation: mostRecentlyClosedAllocation.id,
         },

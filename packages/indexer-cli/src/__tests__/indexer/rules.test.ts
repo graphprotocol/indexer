@@ -315,6 +315,23 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
+        'Indexer rules set deployment id safety - success',
+        [
+          'indexer',
+          'rules',
+          'set',
+          'QmVEV7RA2U6BJT9Ssjxcfyrk4YQUnVqSRNX4TvYagjzh9h',
+          'safety',
+          'false',
+        ],
+        'references/indexer-rule-deployment-safety',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
         'Indexer rules set deployment id - success - offchain',
         [
           'indexer',
