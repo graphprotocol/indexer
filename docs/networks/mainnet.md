@@ -10,7 +10,7 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| graph-node      | [0.29.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.29.0) |
+| graph-node      | [0.30.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0) |
 
 ## Network Parameters
 
@@ -81,9 +81,9 @@ option can be used.
 > This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
 
 ```
-graph-node: ≥0.29.0 <0.30.0
-valid from: 708
-upgrade window: 720
+graph-node: ≥0.30.0 <0.31.0
+valid from: 787
+upgrade window: 795
 ```
 
 | Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |
@@ -99,8 +99,12 @@ upgrade window: 720
 | near:*                   | *       | Yes         | Yes          | No                | No                   | No               |
 | cosmos:*                 | *       | Yes         | Yes          | No                | No                   | No               |
 | arweave:*                | *       | Yes         | Yes          | No                | No                   | No               |
+| eip155:42161             | arbitrum-one  | Yes   | Yes          | Yes               | Yes                  | Yes              |
+| eip155:42220             | celo    | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:43114             | avalanche | Yes       | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features** |         |             |              |                   |                      |                  |
 | ipfs.cat in mappings     |         | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
+| File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
 
 [Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x4fa76f9ae541bf883e547407270866ffeb8448f3b3fca90bb9c5bc46e31499c2)
