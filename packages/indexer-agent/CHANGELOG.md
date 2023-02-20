@@ -6,9 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.12] - 2023-02-19
+### Changed
+- Only require network current epoch resolutio if indexing a subgraph on network chain
+
 ## [0.20.11] - 2023-02-01
 ### Changed
-- Remove unecessary currentEpochStartBlock eventual
+- Remove unnecessary currentEpochStartBlock eventual
 
 ## [0.20.9] - 2023-01-24
 ### Changed
@@ -426,7 +430,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.11...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9
 [0.20.7]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.7

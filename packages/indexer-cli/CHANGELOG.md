@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.12] - 2023-02-19
+### Added
+- Add `--safety` option to add extra POI correctness safety checks
+
 ## [0.20.8] - 2022-12-21
 ### Changed
 - Improve actions update command: better logging, accept `0` poi
@@ -193,7 +197,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.8...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.8...v0.20.12
 [0.20.8]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.8
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.6
 [0.20.3]: https://github.com/graphprotocol/indexer/compare/v0.20.1...v0.20.3

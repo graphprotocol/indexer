@@ -5,8 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.12] - 2023-02-19
 ### Added
 - New `ReceiptMetrics` metric for allocation receipt collector
+- Add `safety` option in indexing rules to not allocate to a deployment when its previous allocation was closed with a 0x0 POI
+
+### Fixed
+- Fix unresolved promise warning in monitor network pause function
+
+### Changed
+- Improve EBO missing data error log messages
 
 ## [0.20.11] - 2023-02-01
 ### Changed
@@ -238,7 +247,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.11...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.10...v0.20.11
 [0.20.10]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.10
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.8...v0.20.9
