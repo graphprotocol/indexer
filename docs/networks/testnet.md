@@ -7,9 +7,9 @@ The Graph Network's testnet is on Goerli. Goerli network information can be foun
 | Component       | Release                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------ |
 | contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)                  |
-| indexer-agent   | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.8)    |
-| indexer-cli     | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.8)    |
-| indexer-service | [0.20.8](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1)    |
+| indexer-agent   | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1)    |
+| indexer-cli     | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1)    |
+| indexer-service | [0.20.5-alpha.1](https://github.com/graphprotocol/indexer/releases/tag/v0.20.5-alpha.1)    |
 | graph-node      | [0.29.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.29.0)       |
 
 ## Network Parameters
