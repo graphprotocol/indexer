@@ -19,9 +19,13 @@ An example:
 | near:*                   | *       | Yes         | Yes          | No                | No                   | No               |
 | cosmos:*                 | *       | Yes         | Yes          | No                | No                   | No               |
 | arweave:*                | *       | Yes         | Yes          | No                | No                   | No               |
+| eip155:42161             | arbitrum-one  | Yes   | Yes          | Yes               | Yes                  | Yes              |
+| eip155:42220             | celo    | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:43114             | avalanche | Yes       | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features** |         |             |              |                   |                      |                  |
 | ipfs.cat in mappings     |         | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
+| File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
 
 
 - Aliases can be used in subgraph manifest files to refer to specific networks.
