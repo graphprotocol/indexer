@@ -755,7 +755,6 @@ class Agent {
   }
   async reconcileDeploymentAllocationAction(
     deploymentAllocationDecision: AllocationDecision,
-    activeAllocations: Allocation[],
     epoch: number,
     maxAllocationEpochs: number,
   ): Promise<void> {
@@ -763,6 +762,11 @@ class Agent {
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
       epoch,
     })
+
+    // Acuracy check: re-fetch allocations to ensure that we have a fresh state since the start of the reconciliation loop
+    const activeAllocations = await this.networkMonitor.allocations(
+      AllocationStatus.ACTIVE,
+    )
 
     const activeDeploymentAllocations = activeAllocations.filter(
       allocation =>
@@ -866,7 +870,6 @@ class Agent {
     await pMap(networkDeploymentAllocationDecisions, async decision => {
       await this.reconcileDeploymentAllocationAction(
         decision,
-        activeAllocations,
         epoch,
         maxAllocationEpochs,
       )
