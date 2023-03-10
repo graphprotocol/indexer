@@ -484,6 +484,86 @@ export default {
     // inside the agent
     registerIndexerErrorMetrics(metrics)
 
+    const indexingStatusResolver = new IndexingStatusResolver({
+      logger: logger,
+      statusEndpoint: argv.graphNodeStatusEndpoint,
+    })
+
+    const networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      endpoint: argv.networkSubgraphEndpoint,
+      deployment: argv.networkSubgraphDeployment
+        ? {
+            indexingStatusResolver: indexingStatusResolver,
+            deployment: new SubgraphDeploymentID(
+              argv.networkSubgraphDeployment,
+            ),
+            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+          }
+        : undefined,
+    })
+
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
+      argv.ethereum,
+      argv.ethereumPollingInterval,
+    )
+
+    const networkMeta = await networkProvider.getNetwork()
+
+    logger.info(`Connect to contracts`, {
+      network: networkMeta.name,
+      chainId: networkMeta.chainId,
+      providerNetworkChainID: networkProvider.network.chainId,
+    })
+
+    logger.info(`Connect wallet`, {
+      network: networkMeta.name,
+      chainId: networkMeta.chainId,
+    })
+    let wallet = Wallet.fromMnemonic(argv.mnemonic)
+    wallet = wallet.connect(networkProvider)
+    logger.info(`Connected wallet`)
+
+    let contracts = undefined
+    try {
+      contracts = await connectContracts(wallet, networkMeta.chainId)
+    } catch (err) {
+      logger.error(
+        `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
+        {
+          err,
+        },
+      )
+      process.exit(1)
+    }
+    logger.info(`Successfully connected to contracts`, {
+      curation: contracts.curation.address,
+      disputeManager: contracts.disputeManager.address,
+      epochManager: contracts.epochManager.address,
+      gns: contracts.gns.address,
+      rewardsManager: contracts.rewardsManager.address,
+      serviceRegistry: contracts.serviceRegistry.address,
+      staking: contracts.staking.address,
+      token: contracts.token.address,
+    })
+
+    const indexerAddress = toAddress(argv.indexerAddress)
+
+    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
+
+    const networkMonitor = new NetworkMonitor(
+      await resolveChainId(networkMeta.chainId),
+      contracts,
+      toAddress(indexerAddress),
+      logger.child({ component: 'NetworkMonitor' }),
+      indexingStatusResolver,
+      networkSubgraph,
+      networkProvider,
+      epochSubgraph,
+    )
+
     logger.info('Connect to database', {
       host: argv.postgresHost,
       port: argv.postgresPort,
@@ -515,6 +595,9 @@ export default {
         context: {
           queryInterface: sequelize.getQueryInterface(),
           logger,
+          indexingStatusResolver,
+          graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
+          networkMonitor,
         },
         storage: new SequelizeStorage({ sequelize }),
         logger: console,
@@ -537,73 +620,6 @@ export default {
     const queryFeeModels = defineQueryFeeModels(sequelize)
     await sequelize.sync()
     logger.info(`Successfully synced database models`)
-
-    const networkProvider = await Network.provider(
-      logger,
-      metrics,
-      argv.ethereum,
-      argv.ethereumPollingInterval,
-    )
-    const networkMeta = await networkProvider.getNetwork()
-
-    logger.info(`Connect wallet`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-    })
-    let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(networkProvider)
-    logger.info(`Connected wallet`)
-
-    logger.info(`Connect to contracts`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-      providerNetworkChainID: networkProvider.network.chainId,
-    })
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, networkMeta.chainId)
-    } catch (err) {
-      logger.error(
-        `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
-        {
-          err,
-        },
-      )
-      process.exit(1)
-    }
-    logger.info(`Successfully connected to contracts`, {
-      curation: contracts.curation.address,
-      disputeManager: contracts.disputeManager.address,
-      epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
-      rewardsManager: contracts.rewardsManager.address,
-      serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
-      token: contracts.token.address,
-    })
-
-    const indexerAddress = toAddress(argv.indexerAddress)
-
-    const indexingStatusResolver = new IndexingStatusResolver({
-      logger: logger,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-    })
-
-    const networkSubgraph = await NetworkSubgraph.create({
-      logger,
-      endpoint: argv.networkSubgraphEndpoint,
-      deployment: argv.networkSubgraphDeployment
-        ? {
-            indexingStatusResolver: indexingStatusResolver,
-            deployment: new SubgraphDeploymentID(
-              argv.networkSubgraphDeployment,
-            ),
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-          }
-        : undefined,
-    })
-
-    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
     logger.info('Connect to network')
     const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
@@ -643,17 +659,6 @@ export default {
       voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
     })
     await receiptCollector.queuePendingReceiptsFromDatabase()
-
-    const networkMonitor = new NetworkMonitor(
-      await resolveChainId(networkMeta.chainId),
-      contracts,
-      toAddress(indexerAddress),
-      logger.child({ component: 'NetworkMonitor' }),
-      indexingStatusResolver,
-      networkSubgraph,
-      networkProvider,
-      epochSubgraph,
-    )
 
     logger.info('Launch indexer management API server')
     const allocationManagementMode =
