@@ -702,14 +702,17 @@ export default {
       indexerAddress,
       allocationManagementMode,
     )
-    const networkSubgraphDeployment = argv.networkSubgraphDeployment
+    const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
       ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
       : undefined
-    if (networkSubgraphDeployment !== undefined) {
+    if (networkSubgraphDeploymentId !== undefined) {
       // Make sure the network subgraph is being indexed
+      //
+      // TODO: once the Network Subgraph is published to the Network, we can use the
+      // `formatDeploymentName` function instead of using a hardcoded deployment name.
       await indexer.ensure(
-        `indexer-agent/${networkSubgraphDeployment.ipfsHash.slice(-10)}`,
-        networkSubgraphDeployment,
+        `graphprotocol/network-subgraph/${networkSubgraphDeploymentId.ipfsHash}`,
+        networkSubgraphDeploymentId,
       )
     }
 

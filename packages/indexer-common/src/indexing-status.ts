@@ -11,6 +11,11 @@ export interface IndexingStatusFetcherOptions {
   statusEndpoint: string
 }
 
+export interface SubgraphDeploymentAssignment {
+  id: SubgraphDeploymentID
+  node: string
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const parseGraphQLIndexingStatus = (indexingStatus: any): IndexingStatus => ({
   subgraphDeployment: new SubgraphDeploymentID(indexingStatus.subgraphDeployment),
@@ -268,6 +273,46 @@ export class IndexingStatusResolver {
         blockNumber,
         error: error.message,
       })
+      throw err
+    }
+  }
+
+  public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
+    return (await this.subgraphDeploymentsAssignments()).map((details) => details.id)
+  }
+
+  public async subgraphDeploymentsAssignments(): Promise<SubgraphDeploymentAssignment[]> {
+    try {
+      const result = await this.statuses
+        .query(
+          gql`
+            {
+              indexingStatuses {
+                subgraphDeployment: subgraph
+                node
+              }
+            }
+          `,
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      type QueryResult = { subgraphDeployment: string; node: string }
+
+      return result.data.indexingStatuses
+        .filter((status: QueryResult) => status.node && status.node !== 'removed')
+        .map((status: QueryResult) => {
+          return {
+            id: new SubgraphDeploymentID(status.subgraphDeployment),
+            node: status.node,
+          }
+        })
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(`Failed to query indexing status API`, { err })
       throw err
     }
   }
