@@ -16,6 +16,7 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   fetchIndexingRules,
+  formatDeploymentName,
   indexerError,
   IndexerError,
   IndexerErrorCode,
@@ -330,11 +331,15 @@ export class AllocationManager {
       )
     }
 
+    const subgraphDeployment = await this.networkMonitor.requireSubgraphDeployment(
+      deployment.ipfsHash,
+    )
+
     // Ensure subgraph is deployed before allocating
     await this.subgraphManager.ensure(
       logger,
       this.models,
-      `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
+      formatDeploymentName(subgraphDeployment),
       deployment,
       indexNode,
     )
