@@ -655,24 +655,24 @@ describe('Actions', () => {
   })
 
   test('Reject empty action input', async () => {
+    const expectedFieldNamesAndTypes: [string, string][] = [
+      ['status', 'ActionStatus'],
+      ['type', 'ActionType'],
+      ['source', 'String'],
+      ['reason', 'String'],
+      ['priority', 'Int'],
+    ]
+    const graphQLErrors = expectedFieldNamesAndTypes.map(
+      ([fieldName, fieldType]) =>
+        new GraphQLError(
+          `Variable "$actions" got invalid value {} at "actions[0]"; Field "${fieldName}" of required type "${fieldType}!" was not provided.`,
+        ),
+    )
+    const expected = new CombinedError({ graphQLErrors })
+
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [{}] }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            'Variable "$actions" got invalid value {} at "actions[0]"; Field "status" of required type "ActionStatus!" was not provided.',
-          ),
-          new GraphQLError(
-            'Variable "$actions" got invalid value {} at "actions[0]"; Field "type" of required type "ActionType!" was not provided.',
-          ),
-          new GraphQLError(
-            'Variable "$actions" got invalid value {} at "actions[0]"; Field "source" of required type "String!" was not provided.',
-          ),
-        ],
-      }),
-    )
+    ).resolves.toHaveProperty('error', expected)
   })
 
   test('Reject action with invalid params for action type', async () => {

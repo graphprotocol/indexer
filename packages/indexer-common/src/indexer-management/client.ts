@@ -167,8 +167,8 @@ const SCHEMA_SDL = gql`
     poi: String
     force: Boolean
     source: String!
-    reason: String
-    priority: Int
+    reason: String!
+    priority: Int!
   }
 
   input ActionUpdateInput {
