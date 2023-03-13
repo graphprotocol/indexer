@@ -130,8 +130,8 @@ input ActionInput {
     poi: String
     force: Boolean
     source: String!
-    reason: String
-    priority: Int
+    reason: String!
+    priority: Int!
 }
 
 input ActionUpdateInput {
