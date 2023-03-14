@@ -1050,7 +1050,10 @@ describe('Allocation Manager', () => {
   beforeEach(setupEach)
   afterEach(teardownEach)
   afterAll(teardownAll)
-  jest.setTimeout(10_000)
+
+  // We have been rate-limited on CI as this test uses RPC providers,
+  // so we set its timeout to a higher value than usual.
+  jest.setTimeout(30_000)
 
   // Reuse an existing allocation with 25 sextillion allocated GRT
   const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
@@ -1058,6 +1061,7 @@ describe('Allocation Manager', () => {
   // Redefine test actions to use that allocation ID
   const unallocateAction = {
     ...invalidUnallocateAction,
+    poi: '0x1', // non-zero POI
     allocationID,
   }
   const reallocateAction = {
@@ -1072,9 +1076,34 @@ describe('Allocation Manager', () => {
     const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
     const balances = await Promise.all(actions.map(mapper))
 
-    expect(balances[0].balance).toStrictEqual(parseGRT('10000')) // (allocate)
-    expect(balances[1].balance).toStrictEqual(parseGRT('-25000')) // (unallocate)
-    expect(balances[2].balance).toStrictEqual(parseGRT('-15000')) // (reallocate)
+    console.table(balances)
+
+    const allocate = balances[0]
+    const unallocate = balances[1]
+    const reallocate = balances[2]
+
+    // Allocate test action
+    expect(allocate.action.type).toBe(ActionType.ALLOCATE)
+    expect(allocate.allocates).toStrictEqual(parseGRT('10000'))
+    expect(allocate.rewards.isZero()).toBeTruthy()
+    expect(allocate.unallocates.isZero()).toBeTruthy()
+    expect(allocate.balance).toStrictEqual(parseGRT('10000'))
+
+    // Unallocate test action
+    expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
+    expect(unallocate.allocates.isZero()).toBeTruthy()
+    expect(unallocate.rewards.isZero()).toBeFalsy()
+    expect(unallocate.unallocates).toStrictEqual(parseGRT('25000'))
+    expect(unallocate.balance).toStrictEqual(
+      unallocate.allocates.sub(unallocate.unallocates).sub(unallocate.rewards),
+    )
+
+    // This Reallocate test Action intentionally uses a null or zeroed POI, so it should not accrue rewards.
+    expect(reallocate.action.type).toBe(ActionType.REALLOCATE)
+    expect(reallocate.allocates).toStrictEqual(parseGRT('10000'))
+    expect(reallocate.rewards.isZero()).toBeTruthy()
+    expect(reallocate.unallocates).toStrictEqual(parseGRT('25000'))
+    expect(reallocate.balance).toStrictEqual(parseGRT('-15000'))
   })
 
   test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {

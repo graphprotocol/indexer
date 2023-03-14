@@ -75,6 +75,7 @@ export interface ResolvedAction {
   action: Action
   allocates: BigNumber
   unallocates: BigNumber
+  rewards: BigNumber
   balance: BigNumber
 }
 
@@ -1122,6 +1123,7 @@ export class AllocationManager {
   // Calculates the balance (GRT delta) of a single Action.
   async resolveActionDelta(action: Action): Promise<ResolvedAction> {
     let unallocates = BigNumber.from(0)
+    let rewards = BigNumber.from(0)
 
     // Handle allocations
     let allocates
@@ -1131,27 +1133,37 @@ export class AllocationManager {
       allocates = BigNumber.from(0)
     }
 
-    // Handle unallocations
+    // Handle unallocations.
+    // We intentionally don't check if the allocation is active now because it will be checked
+    // later, when we prepare the transaction.
+
     if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
-      // ensure this Action have a valid allocationID
+      // Ensure this Action have a valid allocationID
       if (action.allocationID === null || action.allocationID === undefined) {
         throw Error(
           `SHOULD BE UNREACHABLE: Unallocate or Reallocate action must have an allocationID field: ${action}`,
         )
       }
+
       // Fetch the allocation on chain to inspect its amount
       const allocation = await this.networkMonitor.allocation(action.allocationID)
 
-      /* We intentionally don't check if the allocation is active now because it will be checked
-       * later when we prepare the transaction */
+      // Accrue rewards, except for null or zeroed POI
+      const zeroHexString = utils.hexlify(Array(32).fill(0))
+      rewards =
+        !action.poi || action.poi === zeroHexString
+          ? BigNumber.from(0)
+          : await this.contracts.rewardsManager.getRewards(action.allocationID)
+
       unallocates = unallocates.add(allocation.allocatedTokens)
     }
 
-    const balance = allocates.sub(unallocates)
+    const balance = allocates.sub(unallocates).sub(rewards)
     return {
       action,
       allocates,
       unallocates,
+      rewards,
       balance,
     }
   }
