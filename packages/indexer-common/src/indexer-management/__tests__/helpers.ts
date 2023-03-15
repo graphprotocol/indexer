@@ -30,6 +30,7 @@ import {
   resolveChainAlias,
   resolveChainId,
   SubgraphDeployment,
+  getTestProvider,
 } from '@graphprotocol/indexer-common'
 import { BigNumber, ethers, utils } from 'ethers'
 
@@ -66,7 +67,7 @@ const setupMonitor = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  ethereum = ethers.getDefaultProvider('goerli')
+  ethereum = getTestProvider('goerli')
   contracts = await connectContracts(ethereum, 5)
   networkSubgraph = await NetworkSubgraph.create({
     logger,

@@ -53,3 +53,4 @@ jobs:
           POSTGRES_TEST_USERNAME: testuser
           POSTGRES_TEST_PASSWORD: testpass
           NODE_OPTIONS: '--dns-result-order=ipv4first'
+          INDEXER_TEST_JRPC_PROVIDER_URL: ${{ secrets.TESTS_RPC_PROVIDER }}
