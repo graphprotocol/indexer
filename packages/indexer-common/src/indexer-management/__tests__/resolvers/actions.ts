@@ -43,6 +43,7 @@ import {
   resolveChainId,
   AllocationManager,
   SubgraphManager,
+  getTestProvider,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
@@ -283,7 +284,7 @@ const setup = async () => {
   queryFeeModels = defineQueryFeeModels(sequelize)
   managementModels = defineIndexerManagementModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
-  ethereum = ethers.getDefaultProvider('goerli')
+  ethereum = getTestProvider('goerli')
   wallet = Wallet.createRandom()
   contracts = await connectContracts(ethereum, 5)
   logger = createLogger({

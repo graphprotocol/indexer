@@ -25,6 +25,7 @@ import {
   IndexingStatusResolver,
   NetworkSubgraph,
   SubgraphIdentifierType,
+  getTestProvider,
 } from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
@@ -134,7 +135,7 @@ const setupAll = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
-  contracts = await connectContracts(ethers.getDefaultProvider('goerli'), 5)
+  contracts = await connectContracts(getTestProvider('goerli'), 5)
   await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'Indexer API Client',

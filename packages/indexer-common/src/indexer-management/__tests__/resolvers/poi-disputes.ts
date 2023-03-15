@@ -20,7 +20,11 @@ import {
   IndexerManagementModels,
   POIDisputeAttributes,
 } from '../../models'
-import { IndexingStatusResolver, NetworkSubgraph } from '@graphprotocol/indexer-common'
+import {
+  IndexingStatusResolver,
+  NetworkSubgraph,
+  getTestProvider,
+} from '@graphprotocol/indexer-common'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -192,7 +196,7 @@ const setupAll = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   address = '0xtest'
-  contracts = await connectContracts(ethers.getDefaultProvider('goerli'), 5)
+  contracts = await connectContracts(getTestProvider('goerli'), 5)
   await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'POI dispute tests',
