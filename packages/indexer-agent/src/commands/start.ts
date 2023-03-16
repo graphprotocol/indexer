@@ -613,7 +613,6 @@ export default {
         err: indexerError(IndexerErrorCode.IE001, err),
       })
       process.exit(1)
-      return
     }
     logger.info(`Successfully ran database migrations`)
 
