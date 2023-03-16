@@ -332,7 +332,7 @@ const setup = async () => {
   })
 
   networkMonitor = new NetworkMonitor(
-    await resolveChainId('goerli'),
+    resolveChainId('goerli'),
     contracts,
     toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
     logger,

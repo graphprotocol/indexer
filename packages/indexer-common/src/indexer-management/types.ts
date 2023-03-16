@@ -184,7 +184,7 @@ const Caip2ByChainId: { [key: number]: string } = {
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
 /// or chain ids (numbers).
-export async function resolveChainId(key: number | string): Promise<string> {
+export function resolveChainId(key: number | string): string {
   if (typeof key === 'number' || !isNaN(+key)) {
     // If key is a number, then it must be a `chainId`
     const chainId = Caip2ByChainId[+key]
@@ -201,7 +201,7 @@ export async function resolveChainId(key: number | string): Promise<string> {
   throw new Error(`Failed to resolve CAIP2 ID from the provided network alias: ${key}`)
 }
 
-export async function resolveChainAlias(id: string): Promise<string> {
+export function resolveChainAlias(id: string): string {
   const aliasMatches = Object.keys(Caip2ByChainAlias).filter(
     (name) => Caip2ByChainAlias[name] == id,
   )
