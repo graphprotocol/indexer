@@ -3,7 +3,7 @@ import gql from 'graphql-tag'
 import { Client, createClient } from '@urql/core'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
-import { indexerError, IndexerErrorCode } from './errors'
+import { indexerError, IndexerErrorCode, INDEXER_ERROR_MESSAGES } from './errors'
 import pRetry from 'p-retry'
 
 export interface IndexingStatusFetcherOptions {
@@ -14,6 +14,11 @@ export interface IndexingStatusFetcherOptions {
 export interface SubgraphDeploymentAssignment {
   id: SubgraphDeploymentID
   node: string
+}
+
+export interface SubgraphFeatures {
+  // `null` is only expected when Graph Node detects validation errors in the Subgraph Manifest.
+  network: string | null
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -313,6 +318,39 @@ export class IndexingStatusResolver {
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, { err })
+      throw err
+    }
+  }
+
+  public async subgraphFeatures(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<SubgraphFeatures> {
+    const subgraphId = subgraphDeploymentId.ipfsHash
+    try {
+      const result = await this.statuses
+        .query(
+          gql`
+            query subgraphFeatures($subgraphId: String!) {
+              subgraphFeatures(subgraphId: $subgraphId) {
+                network
+              }
+            }
+          `,
+          { subgraphId },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      if (!result.data) {
+        throw new Error('Subgraph Deployment Not Found')
+      }
+      return result.data.subgraphFeatures as SubgraphFeatures
+    } catch (error) {
+      const errorCode = IndexerErrorCode.IE073
+      const err = indexerError(errorCode, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], { err, subgraphId })
       throw err
     }
   }
