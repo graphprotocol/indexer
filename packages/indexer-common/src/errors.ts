@@ -83,6 +83,7 @@ export enum IndexerErrorCode {
   IE070 = 'IE070',
   IE071 = 'IE071',
   IE072 = 'IE072',
+  IE073 = 'IE073',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -159,6 +160,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE070: 'Failed to query latest valid epoch and block hash',
   IE071: 'Add Epoch subgraph support for non-protocol chains',
   IE072: 'Failed to execute batch tx (contract: staking)',
+  IE073: 'Failed to query subgraph features from indexing statuses endpoint',
 }
 
 export type IndexerErrorCause = unknown
