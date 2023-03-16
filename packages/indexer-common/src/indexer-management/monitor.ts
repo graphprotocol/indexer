@@ -588,7 +588,7 @@ export class NetworkMonitor {
   }
 
   async currentEpoch(networkID: string): Promise<NetworkEpoch> {
-    const networkAlias = await resolveChainAlias(networkID)
+    const networkAlias = resolveChainAlias(networkID)
 
     const queryEpochSubgraph = async () => {
       // We know it is non-null because of the check above for a null case that will end execution of fn if true
@@ -758,7 +758,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         )
       }
       const deploymentNetworkAlias = deploymentIndexingStatuses[0].chains[0].network
-      const deploymentNetworkCAIPID = await resolveChainId(deploymentNetworkAlias)
+      const deploymentNetworkCAIPID = resolveChainId(deploymentNetworkAlias)
       const currentEpoch = await this.currentEpoch(deploymentNetworkCAIPID)
 
       this.logger.trace(`Fetched block pointer to use in resolving POI`, {

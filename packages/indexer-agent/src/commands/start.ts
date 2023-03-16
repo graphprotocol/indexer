@@ -556,7 +556,7 @@ export default {
     const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
     const networkMonitor = new NetworkMonitor(
-      await resolveChainId(networkMeta.chainId),
+      resolveChainId(networkMeta.chainId),
       contracts,
       toAddress(indexerAddress),
       logger.child({ component: 'NetworkMonitor' }),
@@ -795,8 +795,8 @@ async function validateNetworkId(
     throw new Error(errorMsg)
   }
 
-  const providerChainId = await resolveChainId(providerNetwork.chainId)
-  const networkSubgraphChainId = await resolveChainId(subgraphNetworkChainName)
+  const providerChainId = resolveChainId(providerNetwork.chainId)
+  const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
   if (providerChainId !== networkSubgraphChainId) {
     const errorMsg =
       'The configured provider and the Network Subgraph have different CAIP-2 chain IDs. ' +

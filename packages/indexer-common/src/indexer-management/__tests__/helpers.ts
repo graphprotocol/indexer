@@ -82,7 +82,7 @@ const setupMonitor = async () => {
     statusEndpoint,
   })
   networkMonitor = new NetworkMonitor(
-    await resolveChainId('goerli'),
+    resolveChainId('goerli'),
     contracts,
     toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
     logger,
@@ -243,27 +243,27 @@ describe('Actions', () => {
   })
 })
 describe('Types', () => {
-  test('Fail to resolve chain id', async () => {
-    await expect(resolveChainId('arbitrum')).rejects.toThrow(
+  test('Fail to resolve chain id', () => {
+    expect(() => resolveChainId('arbitrum')).toThrow(
       'Failed to resolve CAIP2 ID from the provided network alias: arbitrum',
     )
   })
 
-  test('Resolve chain id: `mainnet`', async () => {
-    await expect(resolveChainId('mainnet')).resolves.toBe('eip155:1')
+  test('Resolve chain id: `mainnet`', () => {
+    expect(resolveChainId('mainnet')).toBe('eip155:1')
   })
 
-  test('Resolve chain id: `5`', async () => {
-    await expect(resolveChainId('5')).resolves.toBe('eip155:5')
+  test('Resolve chain id: `5`', () => {
+    expect(resolveChainId('5')).toBe('eip155:5')
   })
 
-  test('Resolve chain alias: `eip155:1`', async () => {
-    await expect(resolveChainAlias('eip155:1')).resolves.toBe('mainnet')
+  test('Resolve chain alias: `eip155:1`', () => {
+    expect(resolveChainAlias('eip155:1')).toBe('mainnet')
   })
 
-  test('Fail to Resolve chain alias: `eip155:666`', async () => {
-    await expect(resolveChainAlias('eip155:666')).rejects.toThrow(
-      "Failed to match chain id, 'eip155:666', to a network alias",
+  test('Fail to Resolve chain alias: `eip155:666`', () => {
+    expect(() => resolveChainAlias('eip155:666')).toThrow(
+      "Failed to match chain id, 'eip155:666', to a network alias in Caip2ByChainAlias",
     )
   })
 })
@@ -275,7 +275,7 @@ describe.skip('Monitor', () => {
 
   test('Fetch currentEpoch for `goerli`', async () => {
     await expect(
-      networkMonitor.currentEpoch(await resolveChainId('goerli')),
+      networkMonitor.currentEpoch(resolveChainId('goerli')),
     ).resolves.toHaveProperty('networkID', 'eip155:5')
   }, 10000)
 
