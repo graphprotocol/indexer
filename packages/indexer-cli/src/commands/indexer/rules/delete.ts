@@ -3,7 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters } from '../../../command-helpers'
+import { fixParameters, parseOutputFormat } from '../../../command-helpers'
 import { indexingRules, deleteIndexingRules } from '../../../rules'
 import { processIdentifier } from '@graphprotocol/indexer-common'
 
@@ -26,15 +26,13 @@ module.exports = {
 
     const { h, help, o, output } = parameters.options
     const [id] = fixParameters(parameters, { h, help }) || []
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {
       print.info(HELP)
       return
     }
-
-    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+    if (!outputFormat) {
       process.exitCode = 1
       return
     }

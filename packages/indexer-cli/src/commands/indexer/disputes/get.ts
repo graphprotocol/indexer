@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
+import { parseOutputFormat } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -25,15 +26,13 @@ module.exports = {
 
     const { h, help, o, output } = parameters.options
     const [status, minAllocationClosedEpoch] = parameters.array || []
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {
       print.info(HELP)
       return
     }
-
-    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+    if (!outputFormat) {
       process.exitCode = 1
       return
     }

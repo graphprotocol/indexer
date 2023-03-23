@@ -3,7 +3,11 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, printObjectOrArray } from '../../../command-helpers'
+import {
+  fixParameters,
+  printObjectOrArray,
+  parseOutputFormat,
+} from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
 import { ActionStatus } from '@graphprotocol/indexer-common'
 
@@ -29,11 +33,15 @@ module.exports = {
     const { h, help, o, output } = parameters.options
     const [...actionIDs] = fixParameters(parameters, { h, help }) || []
 
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
     const toHelp = help || h || undefined
 
     if (toHelp) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
+      return
+    }
+    if (!outputFormat) {
+      process.exitCode = 1
       return
     }
 
@@ -42,12 +50,6 @@ module.exports = {
     const config = loadValidatedConfig()
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-        throw Error(
-          `Invalid output format "${outputFormat}", must be one of ['json', 'yaml', 'table']`,
-        )
-      }
-
       if (!actionIDs || actionIDs.length === 0) {
         throw Error(`Missing required argument: 'actionID'`)
       }

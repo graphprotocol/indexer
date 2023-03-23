@@ -4,11 +4,15 @@ import { partition } from '@thi.ng/iterators'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, suggestCommands } from '../../../command-helpers'
+import {
+  fixParameters,
+  parseOutputFormat,
+  suggestCommands,
+} from '../../../command-helpers'
 import {
   parseIndexingRule,
   setIndexingRule,
-  printIndexingRules,
+  displayRules,
   indexingRule,
 } from '../../../rules'
 import { processIdentifier } from '@graphprotocol/indexer-common'
@@ -33,15 +37,13 @@ module.exports = {
 
     const { h, help, o, output } = parameters.options
     const [id, ...keyValues] = fixParameters(parameters, { h, help }) || []
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {
       print.info(HELP)
       return
     }
-
-    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+    if (!outputFormat) {
       process.exitCode = 1
       return
     }
@@ -82,7 +84,7 @@ module.exports = {
           process.exitCode = 1
         }
         const rule = await setIndexingRule(client, inputRule)
-        printIndexingRules(print, outputFormat, identifier, rule, [])
+        print.info(displayRules(outputFormat, identifier, rule, []))
       } catch (error) {
         // Failed to parse input, make suggestions
         // Generate a instance of indexing rules for valid attributes
