@@ -491,18 +491,22 @@ export default {
       statusEndpoint: argv.graphNodeStatusEndpoint,
     })
 
+    // Parse the Network Subgraph optional argument
+    const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
+      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+      : undefined
+
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
       endpoint: argv.networkSubgraphEndpoint,
-      deployment: argv.networkSubgraphDeployment
-        ? {
-            indexingStatusResolver: indexingStatusResolver,
-            deployment: new SubgraphDeploymentID(
-              argv.networkSubgraphDeployment,
-            ),
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-          }
-        : undefined,
+      deployment:
+        networkSubgraphDeploymentId !== undefined
+          ? {
+              indexingStatusResolver: indexingStatusResolver,
+              deployment: networkSubgraphDeploymentId,
+              graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+            }
+          : undefined,
     })
 
     const networkProvider = await Network.provider(
@@ -708,9 +712,7 @@ export default {
       indexerAddress,
       allocationManagementMode,
     )
-    const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
-      : undefined
+
     if (networkSubgraphDeploymentId !== undefined) {
       // Make sure the network subgraph is being indexed
       //
@@ -720,20 +722,20 @@ export default {
         `graphprotocol/network-subgraph/${networkSubgraphDeploymentId.ipfsHash}`,
         networkSubgraphDeploymentId,
       )
-    }
 
-    // Validate if the Network Subgraph belongs to the current provider's network.
-    // This check must be performed after we ensure the Network Subgraph is being indexed.
-    try {
-      await validateNetworkId(
-        networkMeta,
-        argv.networkSubgraphDeployment,
-        indexingStatusResolver,
-        logger,
-      )
-    } catch (e) {
-      logger.critical("Failed to validate Network Subgraph. Exiting.", e)
-      process.exit(1)
+      // Validate if the Network Subgraph belongs to the current provider's network.
+      // This check must be performed after we ensure the Network Subgraph is being indexed.
+      try {
+        await validateNetworkId(
+          networkMeta,
+          argv.networkSubgraphDeployment,
+          indexingStatusResolver,
+          logger,
+        )
+      } catch (e) {
+        logger.critical('Failed to validate Network Subgraph. Exiting.', e)
+        process.exit(1)
+      }
     }
 
     // Monitor ETH balance of the operator and write the latest value to a metric
