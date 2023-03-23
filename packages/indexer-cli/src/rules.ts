@@ -9,10 +9,10 @@ import {
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
-import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
-import { outputColors, pickFields } from './command-helpers'
+import { OutputFormat, pickFields } from './command-helpers'
+import chalk from 'chalk'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
 
@@ -172,12 +172,12 @@ export const indexingRuleToGraphQL = (
 }
 
 export const displayIndexingRules = (
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   rules: Partial<IndexingRuleAttributes>[],
 ): string =>
-  outputFormat === 'json'
+  outputFormat === OutputFormat.Json
     ? JSON.stringify(rules, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(rules).trim()
     : rules.length === 0
     ? 'No data'
@@ -186,25 +186,23 @@ export const displayIndexingRules = (
       }).trim()
 
 export const displayIndexingRule = (
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   rule: Partial<IndexingRuleAttributes>,
 ): string =>
-  outputFormat === 'json'
+  outputFormat === OutputFormat.Json
     ? JSON.stringify(rule, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(rule).trim()
     : table([Object.keys(rule), Object.values(rule)], {
         border: getBorderCharacters('norc'),
       }).trim()
 
-export const printIndexingRules = (
-  print: GluegunPrint,
-  outputFormat: 'table' | 'json' | 'yaml',
+export const displayRules = (
+  outputFormat: OutputFormat,
   identifier: string,
   ruleOrRules: Partial<IndexingRuleAttributes> | Partial<IndexingRuleAttributes>[] | null,
   keys: (keyof IndexingRuleAttributes)[],
-): void => {
-  outputColors(print, outputFormat)
+): string => {
   if (Array.isArray(ruleOrRules)) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rules = ruleOrRules.map(rule => formatIndexingRule(pickFields(rule, keys)))
@@ -216,24 +214,24 @@ export const printIndexingRules = (
       rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
     )
 
-    print.info(displayIndexingRules(outputFormat, onchainRules))
-    if (offchainRules) {
-      print.highlight('Offchain sync list')
-      print.info(
-        offchainRules.map(rule => {
-          return rule.identifier
-        }),
-      )
-    } else {
-      print.info(`Not syncing any subgraphs offchain`)
-    }
+    // Display indexing rules set to sync off-chain if any
+    const offchainRulesDisplay = offchainRules.length
+      ? [
+          chalk.bold('Offchain sync list'),
+          offchainRules.map(rule => {
+            return rule.identifier
+          }),
+        ].join('\n')
+      : chalk.dim(`Not syncing any subgraphs offchain`)
+
+    return `${displayIndexingRules(outputFormat, onchainRules)}\n${offchainRulesDisplay}`
   } else if (ruleOrRules) {
     const rule = formatIndexingRule(pickFields(ruleOrRules, keys))
-    print.info(displayIndexingRule(outputFormat, rule))
+    return displayIndexingRule(outputFormat, rule)
   } else if (identifier) {
-    print.error(`No rule found for subgraph identifier "${identifier}"`)
+    return chalk.red(`No rule found for subgraph identifier "${identifier}"`)
   } else {
-    print.error(`No indexing rules found`)
+    return chalk.dim(`No indexing rules found`)
   }
 }
 

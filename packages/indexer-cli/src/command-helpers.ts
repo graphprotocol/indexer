@@ -27,6 +27,12 @@
 // parameters array and returns the result of that.
 
 import { table, getBorderCharacters } from 'table'
+
+export enum OutputFormat {
+  Table = 'table',
+  Json = 'json',
+  Yaml = 'yaml',
+}
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
 import { utils } from 'ethers'
@@ -59,11 +65,11 @@ export const fixParameters = (
 export const formatData = (
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
   data: any,
-  format: 'json' | 'yaml' | 'table',
+  format: OutputFormat,
 ): string =>
-  format === 'json'
+  format === OutputFormat.Json
     ? JSON.stringify(data, null, 2)
-    : format === 'yaml'
+    : format === OutputFormat.Yaml
     ? yaml.stringify(data).trim()
     : Array.isArray(data)
     ? data.length === 0
@@ -97,13 +103,10 @@ export function pickFields(
   return obj
 }
 
-export function displayObjectData(
-  outputFormat: 'table' | 'json' | 'yaml',
-  data: object,
-): string {
-  return outputFormat === 'json'
+export function displayObjectData(outputFormat: OutputFormat, data: object): string {
+  return outputFormat === OutputFormat.Json
     ? JSON.stringify(data, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(data).trim()
     : table([Object.keys(data), Object.values(data)], {
         border: getBorderCharacters('norc'),
@@ -111,12 +114,12 @@ export function displayObjectData(
 }
 
 export function displayObjectArrayData(
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   data: object[],
 ): string {
-  return outputFormat === 'json'
+  return outputFormat === OutputFormat.Json
     ? JSON.stringify(data, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(data).trim()
     : data.length === 0
     ? 'No items found'
@@ -127,11 +130,10 @@ export function displayObjectArrayData(
 
 export function printObjectOrArray(
   print: GluegunPrint,
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   data: object | object[],
   keys: string[],
 ): void {
-  outputColors(print, outputFormat)
   if (Array.isArray(data)) {
     const formatted = data.map(item => pickFields(item, keys))
     print.info(displayObjectArrayData(outputFormat, formatted))
@@ -172,14 +174,23 @@ export function validatePOI(poi: string | undefined): string | undefined {
   return poi
 }
 
-export function outputColors(
+export function parseOutputFormat(
   print: GluegunPrint,
-  outputFormat: 'table' | 'json' | 'yaml',
-): void {
-  if (outputFormat === 'table') {
-    print.colors.enable()
-  } else {
-    print.colors.disable()
+  outputFormat: string,
+): OutputFormat | undefined {
+  switch (outputFormat) {
+    case OutputFormat.Table:
+      print.colors.enable()
+      return OutputFormat.Table
+    case OutputFormat.Json:
+      print.colors.disable()
+      return OutputFormat.Json
+    case OutputFormat.Yaml:
+      print.colors.disable()
+      return OutputFormat.Yaml
+    default:
+      print.error(`Invalid output format "${outputFormat}"`)
+      return
   }
 }
 

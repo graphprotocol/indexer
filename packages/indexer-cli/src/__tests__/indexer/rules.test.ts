@@ -412,6 +412,16 @@ describe('Indexer rules tests', () => {
 
     describe('Rules get...', () => {
       cliTest(
+        'Indexer rules output format error',
+        ['indexer', 'rules', 'get', 'all', '--output', 'josn'],
+        'references/indexer-output-format',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
         'Indexer rules get deployment - success',
         ['indexer', 'rules', 'get', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
         'references/indexer-rule-deployment-rules',
@@ -445,6 +455,23 @@ describe('Indexer rules tests', () => {
         'Indexer rules get subgraph - success - options',
         ['indexer', 'rules', 'get', '0x0000000000000000000000000000000000000000-2'],
         'references/indexer-rule-subgraph-options',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules get deployment yaml - success',
+        [
+          'indexer',
+          'rules',
+          'get',
+          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          '--output',
+          'yaml',
+        ],
+        'references/indexer-rule-deployment-yaml',
         {
           expectedExitCode: 0,
           cwd: baseDir,

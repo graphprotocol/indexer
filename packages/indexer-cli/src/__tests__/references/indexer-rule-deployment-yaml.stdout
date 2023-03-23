@@ -1,0 +1,15 @@
+identifier: QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr
+identifierType: deployment
+allocationAmount: null
+allocationLifetime: null
+autoRenewal: true
+parallelAllocations: null
+maxAllocationPercentage: null
+minSignal: null
+maxSignal: null
+minStake: null
+minAverageQueryFees: null
+custom: null
+decisionBasis: rules
+requireSupported: true
+safety: true

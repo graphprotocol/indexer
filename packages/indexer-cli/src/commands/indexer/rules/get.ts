@@ -3,8 +3,8 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters } from '../../../command-helpers'
-import { indexingRule, indexingRules, printIndexingRules } from '../../../rules'
+import { fixParameters, parseOutputFormat } from '../../../command-helpers'
+import { indexingRule, indexingRules, displayRules } from '../../../rules'
 import { IndexingRuleAttributes, processIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
@@ -28,15 +28,13 @@ module.exports = {
 
     const { h, help, merged, o, output } = parameters.options
     const [id, ...keys] = fixParameters(parameters, { h, help, merged }) || []
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {
       print.info(HELP)
       return
     }
-
-    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+    if (!outputFormat) {
       process.exitCode = 1
       return
     }
@@ -58,12 +56,13 @@ module.exports = {
           ? await indexingRules(client, !!merged)
           : await indexingRule(client, identifier, !!merged)
 
-      printIndexingRules(
-        print,
-        outputFormat,
-        identifier,
-        ruleOrRules,
-        keys as (keyof IndexingRuleAttributes)[],
+      print.info(
+        displayRules(
+          outputFormat,
+          identifier,
+          ruleOrRules,
+          keys as (keyof IndexingRuleAttributes)[],
+        ),
       )
     } catch (error) {
       print.error(error.toString())

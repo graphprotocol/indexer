@@ -5,9 +5,9 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../config'
 import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
-import { printIndexingRules, indexingRuleFromGraphQL } from '../../rules'
+import { displayRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
-import { formatData, outputColors, pickFields } from '../../command-helpers'
+import { formatData, parseOutputFormat, pickFields } from '../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}
@@ -25,15 +25,13 @@ module.exports = {
     const { print } = toolbox
 
     const { h, help, o, output } = toolbox.parameters.options
-    const outputFormat = o || output || 'table'
+    const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {
       print.info(HELP)
       return
     }
-
-    if (!['json', 'yaml', 'table'].includes(outputFormat)) {
-      print.error(`Invalid output format "${outputFormat}"`)
+    if (!outputFormat) {
       process.exitCode = 1
       return
     }
@@ -220,12 +218,10 @@ module.exports = {
       }
     }
 
-    outputColors(print, outputFormat)
     if (outputFormat === 'table') {
-      print.highlight('Registration')
+      print.info(chalk.cyan('Registration'))
       print.info(formatData(data.registration, outputFormat))
-      print.info('')
-      print.highlight('Endpoints')
+      print.info(chalk.cyan('\nEndpoints'))
       if (data.endpoints.error) {
         print.error(formatData([data.endpoints], outputFormat))
       } else {
@@ -259,8 +255,7 @@ module.exports = {
           }
         }
       }
-      print.info('')
-      print.highlight('Indexer Deployments')
+      print.info(chalk.cyan('\nIndexer Deployments'))
       if (data.indexerDeployments) {
         print.info(
           formatData(
@@ -283,8 +278,7 @@ module.exports = {
           ),
         )
       }
-      print.info('')
-      print.highlight('Indexer Allocations')
+      print.info(chalk.cyan('\nIndexer Allocations'))
       if (data.indexerAllocations) {
         printIndexerAllocations(print, outputFormat, data.indexerAllocations, [
           'id',
@@ -295,12 +289,11 @@ module.exports = {
           'stakedTokens',
         ])
       }
-      print.info('')
-      print.highlight('Indexing Rules')
+      print.info(chalk.cyan('\nIndexing Rules'))
       if (data.indexingRules.length === 1 && data.indexingRules[0].error) {
         print.info(formatData(data.indexingRules[0], outputFormat))
       } else {
-        printIndexingRules(print, outputFormat, 'all', data.indexingRules, [])
+        print.info(displayRules(outputFormat, 'all', data.indexingRules, []))
       }
     } else {
       print.info(formatData(data, outputFormat))

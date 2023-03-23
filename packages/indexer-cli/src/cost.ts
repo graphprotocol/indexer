@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { outputColors, pickFields } from './command-helpers'
+import { OutputFormat, pickFields } from './command-helpers'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all' | 'global'
 
@@ -135,12 +135,12 @@ export const costModelToGraphQL = (
 }
 
 export const displayCostModels = (
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   costModels: Partial<CostModelAttributes>[],
 ): string =>
-  outputFormat === 'json'
+  outputFormat === OutputFormat.Json
     ? JSON.stringify(costModels, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(costModels).trim()
     : costModels.length === 0
     ? 'No data'
@@ -152,12 +152,12 @@ export const displayCostModels = (
       ).trim()
 
 export const displayCostModel = (
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   cost: Partial<CostModelAttributes>,
 ): string =>
-  outputFormat === 'json'
+  outputFormat === OutputFormat.Json
     ? JSON.stringify(cost, null, 2)
-    : outputFormat === 'yaml'
+    : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(cost).trim()
     : table([Object.keys(cost), Object.values(cost)], {
         border: getBorderCharacters('norc'),
@@ -165,12 +165,11 @@ export const displayCostModel = (
 
 export const printCostModels = (
   print: GluegunPrint,
-  outputFormat: 'table' | 'json' | 'yaml',
+  outputFormat: OutputFormat,
   deployment: SubgraphDeploymentIDIsh | null,
   costModelOrModels: Partial<CostModelAttributes> | Partial<CostModelAttributes>[] | null,
   fields: string[],
 ): void => {
-  outputColors(print, outputFormat)
   if (Array.isArray(costModelOrModels)) {
     const costModels = costModelOrModels.map(cost =>
       formatCostModel(pickFields(cost, fields), {
