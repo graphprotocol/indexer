@@ -7,9 +7,9 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 | Component       | Release                                                                    |
 | --------------- | -------------------------------------------------------------------------- |
 | contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  |
-| indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
+| indexer-agent   | [0.20.13](https://github.com/graphprotocol/indexer/releases/tag/v0.20.13)    |
+| indexer-cli     | [0.20.13](https://github.com/graphprotocol/indexer/releases/tag/v0.20.13)    |
+| indexer-service | [0.20.13](https://github.com/graphprotocol/indexer/releases/tag/v0.20.13)    |
 | graph-node      | [0.30.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0) |
 
 ## Network Parameters
@@ -55,7 +55,7 @@ option can be used.
 | -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
 | `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 200)                |
 | `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 2000)        |
-| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
+| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |
 
 ### Indexer Service
 
