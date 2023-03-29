@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.14] - 2023-03-29
 ### Changed
 - Subgraph deployment names are now format as: `<SUBGRAPH_NAME>/<IPFS_HASH>/<OWNER_ADDRESSS>`
 
@@ -432,7 +434,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.14...HEAD
+[0.20.14]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.14
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9
