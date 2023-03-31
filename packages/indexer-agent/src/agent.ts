@@ -27,7 +27,7 @@ import {
   SubgraphIdentifierType,
   evaluateDeployments,
   AllocationDecision,
-  formatDeploymentName,
+  resolveSubgraphDeploymentName,
 } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
 import { AgentConfig } from './types'
@@ -689,13 +689,14 @@ class Agent {
     // Index all new deployments worth indexing
     await queue.addAll(
       deploy.map(deployment => async () => {
-        const subgraphDeployment =
-          await this.networkMonitor.requireSubgraphDeployment(
-            deployment.ipfsHash,
-          )
-        const name = formatDeploymentName(subgraphDeployment)
+        const name = await resolveSubgraphDeploymentName(
+          deployment,
+          this.networkMonitor,
+          this.logger,
+        )
         this.logger.info(`Index subgraph deployment`, {
           name,
+
           deployment: deployment.display,
         })
 

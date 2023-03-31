@@ -1,5 +1,6 @@
-import { Address, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Address, Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BigNumber, providers } from 'ethers'
+import { NetworkMonitor } from './indexer-management'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
@@ -110,6 +111,27 @@ export function cleanDeploymentName(subgraphName: undefined | string): string {
   }
 
   return cleaned
+}
+
+// Helper function to handle deployment names for Subgraphs potentially not listed in the Network Subgraph.
+export async function resolveSubgraphDeploymentName(
+  deploymentId: SubgraphDeploymentID,
+  networkMonitor: NetworkMonitor,
+  logger: Logger,
+): Promise<string> {
+  try {
+    const subgraphDeployment = await networkMonitor.requireSubgraphDeployment(
+      deploymentId.ipfsHash,
+    )
+    return formatDeploymentName(subgraphDeployment)
+  } catch (err) {
+    logger.debug(
+      `Failed to resolve subgraph deployment name for ${deploymentId.ipfsHash} because it was not found in the Network Subgraph. \
+      Using a simplifiled name.`,
+      err,
+    )
+    return `unknownSubgraph/${deploymentId.ipfsHash}/unknownCreator`
+  }
 }
 
 export enum TransactionType {
