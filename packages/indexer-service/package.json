@@ -57,7 +57,7 @@
     "isomorphic-fetch": "3.0.0",
     "merkletreejs": "^0.2.13",
     "morgan": "1.9.1",
-    "p-map": "4.0.0",
+    "p-map": "5.5.0",
     "p-queue": "6.6.2",
     "p-retry": "4.6.1",
     "read-pkg": "5.2.0",

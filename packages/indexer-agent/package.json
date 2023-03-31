@@ -45,7 +45,7 @@
     "jayson": "3.6.6",
     "ngeohash": "0.6.3",
     "p-filter": "2.1.0",
-    "p-map": "4.0.0",
+    "p-map": "5.5.0",
     "p-queue": "6.6.2",
     "p-reduce": "2.1.0",
     "p-retry": "4.6.1",
