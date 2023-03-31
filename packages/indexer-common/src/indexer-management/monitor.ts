@@ -630,9 +630,9 @@ export class NetworkMonitor {
 
       if (!result.data.network) {
         // If the network is missing, it means it is not registered in the Epoch Subgraph.
-        throw new Error(
-          `Failed to query EBO for ${networkID}'s latest valid epoch number: Network not found`,
-        )
+        const err = `Failed to query EBO for ${networkID}'s latest valid epoch number: Network not found`
+        this.logger.error(err)
+        throw indexerError(IndexerErrorCode.IE071, err)
       }
 
       if (!result.data.network.latestValidBlockNumber) {

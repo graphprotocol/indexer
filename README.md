@@ -190,6 +190,12 @@ Indexer Infrastructure
   --auto-allocation-min-batch-size                 Minimum number of allocation 
                                         transactions inside a batch for AUTO 
                                         management mode    [number] [default: 1]
+  --auto-graft-resolver-limit           Maximum depth of grafting dependency to 
+                                        automatically 
+                                        resolve            [number] [default: 0]
+  --ipfs-endpoint                       Endpoint to an ipfs node to quickly 
+                                        query subgraph manifest data`   [string]
+                                        [default: "https://ipfs.network.thegraph.com"]
 
 Network Subgraph
   --network-subgraph-deployment   Network subgraph deployment           [string]

@@ -126,6 +126,7 @@ const setup = async () => {
   await sequelize.sync({ force: true })
 
   const statusEndpoint = 'http://localhost:8030/graphql'
+  const ipfsEndpoint = 'https://ipfs.network.thegraph.com'
   const indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
     statusEndpoint: 'statusEndpoint',
@@ -139,6 +140,7 @@ const setup = async () => {
   })
 
   const indexNodeIDs = ['node_1']
+  const autoGraftResolverLimit = 1
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
@@ -157,6 +159,8 @@ const setup = async () => {
     features: {
       injectDai: false,
     },
+    ipfsEndpoint,
+    autoGraftResolverLimit,
   })
 
   indexer = new Indexer(
@@ -168,6 +172,8 @@ const setup = async () => {
     parseGRT('1000'),
     address,
     AllocationManagementMode.AUTO,
+    ipfsEndpoint,
+    autoGraftResolverLimit,
   )
 }
 

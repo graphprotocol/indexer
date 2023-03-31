@@ -457,6 +457,8 @@ export interface IndexerManagementClientOptions {
   networkMonitor?: NetworkMonitor
   allocationManagementMode?: AllocationManagementMode
   autoAllocationMinBatchSize?: number
+  ipfsEndpoint?: string
+  autoGraftResolverLimit?: number
 }
 
 export class IndexerManagementClient extends Client {
@@ -522,6 +524,8 @@ export const createIndexerManagementClient = async (
     networkMonitor,
     allocationManagementMode,
     autoAllocationMinBatchSize,
+    ipfsEndpoint,
+    autoGraftResolverLimit,
   } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
@@ -535,7 +539,13 @@ export const createIndexerManagementClient = async (
 
   const dai: WritableEventual<string> = mutable()
 
-  const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
+  const subgraphManager = new SubgraphManager(
+    deploymentManagementEndpoint,
+    indexNodeIDs,
+    indexingStatusResolver,
+    ipfsEndpoint,
+    autoGraftResolverLimit,
+  )
   let allocationManager: AllocationManager | undefined = undefined
   let actionManager: ActionManager | undefined = undefined
 
