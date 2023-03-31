@@ -8,7 +8,7 @@ import {
   SubgraphDeploymentAssignment,
 } from '@graphprotocol/indexer-common'
 import { Client } from 'jayson/promise'
-import pMap from 'p-map'
+import pMap, { pMapSkip } from 'p-map'
 
 interface MigrationContext {
   logger: Logger
@@ -50,8 +50,10 @@ export async function up({ context }: Context): Promise<void> {
   ).filter((item): item is SubgraphRedeployment => Boolean(item))
 
   // Execute Redeployments over Graph-Node's RPC endpoint
-  await pMap(subgraphRedeployments, async subgraphRedeployment =>
-    redeploy(rpc, subgraphRedeployment, logger),
+  pMap(
+    subgraphRedeployments,
+    async subgraphRedeployment => redeploy(rpc, subgraphRedeployment, logger),
+    { concurrency: 10 },
   )
 }
 
@@ -64,7 +66,7 @@ async function redeploy(
   client: Client,
   subgraphRedeployment: SubgraphRedeployment,
   logger: Logger,
-): Promise<void> {
+): Promise<void | typeof pMapSkip> {
   logger = logger.child({
     ...subgraphRedeployment,
   })
@@ -89,8 +91,11 @@ async function redeploy(
     logger.info(`Successfully redeployed subgraph with a fixed name`)
   } catch (error) {
     const err = indexerError(IndexerErrorCode.IE026, error)
-    logger.error(`Failed to redeploy subgraph with a fixed name`, { err })
-    throw err
+    logger.warn(
+      `Failed to redeploy subgraph with a fixed name. Skipping its rename`,
+      { err },
+    )
+    return pMapSkip
   }
 }
 
