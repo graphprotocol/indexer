@@ -95,6 +95,37 @@ export class QueryProcessor implements QueryProcessorInterface {
     this.receiptManager = receiptManager
   }
 
+  validateResponse(query: String, response: AxiosResponse, ipfsHash: String): void {
+    // Check response for specific graphql errors
+    const throwableErrors = [
+      'Failed to decode `block.hash` value: `no block with that hash found`',
+      'Store error: database unavailable',
+      'Store error: store error: Fulltext search is not yet deterministic'
+    ]
+
+    // Optimization: Parse only if the message is small enough, presume there are no critical errors otherwise
+    if (response.data.length > 500) {
+      return
+    }
+
+    const responseData = JSON.parse(response.data);
+    if (responseData.errors) {
+      this.logger.debug('GraphQL errors', {
+        deployment: ipfsHash,
+        errors: responseData.errors,
+        query,
+      })
+      for (const graphqlError of responseData.errors) {
+        if (throwableErrors.includes(graphqlError.message)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const error = Error(graphqlError.message) as any
+          error.status = 500;
+          throw error;
+        }
+      }
+    }
+  }
+
   async executeFreeQuery(query: FreeQuery): Promise<Response<UnattestedQueryResult>> {
     const { subgraphDeploymentID } = query
 
@@ -103,6 +134,8 @@ export class QueryProcessor implements QueryProcessorInterface {
       `/subgraphs/id/${subgraphDeploymentID.ipfsHash}`,
       query.query,
     )
+
+    this.validateResponse(query.query, response, subgraphDeploymentID.ipfsHash)
 
     return {
       status: 200,
@@ -144,6 +177,8 @@ export class QueryProcessor implements QueryProcessorInterface {
       error.status = 500
       throw error
     }
+
+    this.validateResponse(query, response, subgraphDeploymentID.ipfsHash)
 
     let attestation = null
     if (response.headers['graph-attestable'] == 'true') {
