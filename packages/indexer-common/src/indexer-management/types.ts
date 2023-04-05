@@ -167,6 +167,7 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   polygon: 'eip155:137',
   celo: 'eip155:42220',
   optimism: 'eip155:10',
+  fantom: 'eip155:250'
 }
 
 const Caip2ByChainId: { [key: number]: string } = {
@@ -180,6 +181,7 @@ const Caip2ByChainId: { [key: number]: string } = {
   137: 'eip155:137',
   42220: 'eip155:42220',
   10: 'eip155:10',
+  250: 'eip155:250'
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
