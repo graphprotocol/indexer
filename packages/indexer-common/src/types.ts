@@ -127,7 +127,7 @@ export async function resolveSubgraphDeploymentName(
   } catch (err) {
     logger.debug(
       `Failed to resolve subgraph deployment name for ${deploymentId.ipfsHash} because it was not found in the Network Subgraph. \
-      Using a simplifiled name.`,
+      Using a simplified name.`,
       err,
     )
     return `unknownSubgraph/${deploymentId.ipfsHash}/unknownCreator`
