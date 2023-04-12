@@ -1,8 +1,4 @@
-import {
-  NetworkMonitor,
-  epochElapsedBlocks,
-  formatDeploymentName,
-} from '@graphprotocol/indexer-common'
+import { NetworkMonitor, epochElapsedBlocks } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
@@ -425,13 +421,13 @@ export default {
     logger.debug('Execute createAllocation() mutation', { deployment, amount })
 
     const allocationAmount = parseGRT(amount)
-    const subgraphDeploymentID = new SubgraphDeploymentID(deployment)
+    const subgraphDeployment = new SubgraphDeploymentID(deployment)
 
     const activeAllocations = await networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     const allocation = activeAllocations.find(
       (allocation) =>
-        allocation.subgraphDeployment.id.toString() === subgraphDeploymentID.toString(),
+        allocation.subgraphDeployment.id.toString() === subgraphDeployment.toString(),
     )
     if (allocation) {
       logger.warn('Already allocated to deployment', {
@@ -479,16 +475,12 @@ export default {
         )
       }
 
-      const subgraphDeployment = await networkMonitor.requireSubgraphDeployment(
-        subgraphDeploymentID.ipfsHash,
-      )
-
       // Ensure subgraph is deployed before allocating
       await subgraphManager.ensure(
         logger,
         models,
-        formatDeploymentName(subgraphDeployment),
-        subgraphDeploymentID,
+        `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
+        subgraphDeployment,
         indexNode,
       )
 
@@ -498,7 +490,7 @@ export default {
       const { allocationSigner, allocationId } = uniqueAllocationID(
         transactionManager.wallet.mnemonic.phrase,
         currentEpoch.toNumber(),
-        subgraphDeploymentID,
+        subgraphDeployment,
         activeAllocations.map((allocation) => allocation.id),
       )
 
@@ -536,7 +528,7 @@ export default {
 
       logger.debug(`Sending allocateFrom transaction`, {
         indexer: address,
-        subgraphDeployment: subgraphDeploymentID.ipfsHash,
+        subgraphDeployment: subgraphDeployment.ipfsHash,
         amount: formatGRT(allocationAmount),
         allocation: allocationId,
         proof,
@@ -546,7 +538,7 @@ export default {
         async () =>
           contracts.staking.estimateGas.allocateFrom(
             address,
-            subgraphDeploymentID.bytes32,
+            subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
             utils.hexlify(Array(32).fill(0)),
@@ -555,7 +547,7 @@ export default {
         async (gasLimit) =>
           contracts.staking.allocateFrom(
             address,
-            subgraphDeploymentID.bytes32,
+            subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
             utils.hexlify(Array(32).fill(0)),
@@ -602,7 +594,7 @@ export default {
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
       const indexingRule = {
-        identifier: subgraphDeploymentID.ipfsHash,
+        identifier: subgraphDeployment.ipfsHash,
         allocationAmount: allocationAmount.toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,

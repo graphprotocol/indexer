@@ -715,11 +715,8 @@ export default {
 
     if (networkSubgraphDeploymentId !== undefined) {
       // Make sure the network subgraph is being indexed
-      //
-      // TODO: once the Network Subgraph is published to the Network, we can use the
-      // `formatDeploymentName` function instead of using a hardcoded deployment name.
       await indexer.ensure(
-        `graphprotocol/network-subgraph/${networkSubgraphDeploymentId.ipfsHash}`,
+        `indexer-agent/${networkSubgraphDeploymentId.ipfsHash.slice(-10)}`,
         networkSubgraphDeploymentId,
       )
 

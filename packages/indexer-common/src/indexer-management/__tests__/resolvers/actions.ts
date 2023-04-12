@@ -1077,8 +1077,6 @@ describe('Allocation Manager', () => {
     const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
     const balances = await Promise.all(actions.map(mapper))
 
-    console.table(balances)
-
     const allocate = balances[0]
     const unallocate = balances[1]
     const reallocate = balances[2]

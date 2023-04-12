@@ -440,12 +440,6 @@ export class NetworkMonitor {
                   id
                 }
               }
-              versions(first: 1, orderBy: version, orderDirection: desc) {
-                subgraph {
-                  displayName
-                  creatorAddress
-                }
-              }
             }
           }
         `,
@@ -483,18 +477,6 @@ export class NetworkMonitor {
     }
   }
 
-  // Wrapper function over this.subgraphDeployment that will throw an
-  // error on missing subgraph deployments
-  async requireSubgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment> {
-    const subgraphDeployment = await this.subgraphDeployment(ipfsHash)
-    if (!subgraphDeployment) {
-      const errorMessage = `Failed to locate subgraph deployment with id ${ipfsHash} in the Network Subgraph`
-      this.logger.error(errorMessage, { ipfsHash })
-      throw indexerError(IndexerErrorCode.IE020, errorMessage)
-    }
-    return subgraphDeployment
-  }
-
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
     const deployments = []
     const queryProgress = {
@@ -529,12 +511,6 @@ export class NetworkMonitor {
                 indexerAllocations {
                   indexer {
                     id
-                  }
-                }
-                versions(first: 1, orderBy: version, orderDirection: desc) {
-                  subgraph {
-                    displayName
-                    creatorAddress
                   }
                 }
               }
