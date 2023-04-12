@@ -1,7 +1,7 @@
 import {
   NetworkMonitor,
   epochElapsedBlocks,
-  formatDeploymentName,
+  resolveSubgraphDeploymentName,
 } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
@@ -352,8 +352,8 @@ async function resolvePOI(
           }
           throw indexerError(
             IndexerErrorCode.IE068,
-            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
-            POI: ${poi}, 
+            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
+            POI: ${poi},
             referencePOI: ${generatedPOI}`,
           )
       }
@@ -479,15 +479,17 @@ export default {
         )
       }
 
-      const subgraphDeployment = await networkMonitor.requireSubgraphDeployment(
-        subgraphDeploymentID.ipfsHash,
+      const deploymentName = await resolveSubgraphDeploymentName(
+        subgraphDeploymentID,
+        networkMonitor,
+        logger,
       )
 
       // Ensure subgraph is deployed before allocating
       await subgraphManager.ensure(
         logger,
         models,
-        formatDeploymentName(subgraphDeployment),
+        deploymentName,
         subgraphDeploymentID,
         indexNode,
       )
