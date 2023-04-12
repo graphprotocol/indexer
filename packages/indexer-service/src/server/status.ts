@@ -23,12 +23,24 @@ export const createStatusServer = async ({
     fetch,
   })
 
+  // Filtering the index-node server schema to the queries we want to expose externally
+  // indexingStatuses - needed by gateways, and explorer
+  // others are used for debugging data discrepancies
+  const supportedRootFields = [
+    'indexingStatuses',
+    'publicProofsOfIndexing',
+    'entityChangesInBlock',
+    'blockData',
+    'cachedEthereumCalls',
+    'subgraphFeatures',
+    'apiVersions',
+  ]
   const filteredSchema = wrapSchema({
     schema,
     transforms: [
       new FilterRootFields(
         (_operation: 'Query' | 'Mutation' | 'Subscription', rootFieldName: string) =>
-          rootFieldName === 'indexingStatuses',
+          supportedRootFields.some(rootField => rootField === rootFieldName),
       ),
     ],
   })
