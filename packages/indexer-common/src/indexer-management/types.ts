@@ -59,8 +59,6 @@ export const parseGraphQLSubgraphDeployment = (
   signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
   queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
   activeAllocations: subgraphDeployment.indexerAllocations.length,
-  name: subgraphDeployment.versions[0].subgraph.displayName,
-  creatorAddress: toAddress(subgraphDeployment.versions[0].subgraph.creatorAddress),
 })
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

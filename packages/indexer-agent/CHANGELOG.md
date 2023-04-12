@@ -6,10 +6,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.14] - 2023-03-29
-### Changed
-- Subgraph deployment names are now format as: `<SUBGRAPH_NAME>/<IPFS_HASH>/<OWNER_ADDRESSS>`
-
 ## [0.20.12] - 2023-02-19
 ### Changed
 - Only require network current epoch resolutio if indexing a subgraph on network chain

@@ -131,7 +131,36 @@ export class Indexer {
   }
 
   async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
-    return await this.statusResolver.subgraphDeployments()
+    try {
+      const result = await this.statusResolver.statuses
+        .query(
+          gql`
+            {
+              indexingStatuses {
+                subgraphDeployment: subgraph
+                node
+              }
+            }
+          `,
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return result.data.indexingStatuses
+        .filter((status: { subgraphDeployment: string; node: string }) => {
+          return status.node && status.node !== 'removed'
+        })
+        .map((status: { subgraphDeployment: string; node: string }) => {
+          return new SubgraphDeploymentID(status.subgraphDeployment)
+        })
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(`Failed to query indexing status API`, { err })
+      throw err
+    }
   }
 
   async indexNodes(): Promise<indexNode[]> {
