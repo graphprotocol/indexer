@@ -98,9 +98,10 @@ export class QueryProcessor implements QueryProcessorInterface {
   validateResponse(query: String, response: AxiosResponse, ipfsHash: String): void {
     // Check response for specific graphql errors
     const throwableErrors = [
-      'Failed to decode `block.hash` value: `no block with that hash found`',
+      'Failed to decode `block.hash` value:',
       'Store error: database unavailable',
-      'Store error: store error: Fulltext search is not yet deterministic'
+      'Store error: store error: Fulltext search is not yet deterministic',
+      'Failed to decode `block.number` value:'
     ]
 
     // Optimization: Parse only if the message is small enough, presume there are no critical errors otherwise
@@ -116,7 +117,10 @@ export class QueryProcessor implements QueryProcessorInterface {
         query,
       })
       for (const graphqlError of responseData.errors) {
-        if (throwableErrors.includes(graphqlError.message)) {
+        const isThrowableError = throwableErrors.some((errorString) =>
+            graphqlError.message.startsWith(errorString)
+        );
+        if (isThrowableError) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const error = Error(graphqlError.message) as any
           error.status = 500;
