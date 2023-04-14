@@ -886,4 +886,13 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 
 **Solution**
 
+## IE072
+
+**Summary**
+
 Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `goerli`, `gnosis`) and is on or after version 0.28.0.
+Failed to deploy subgraph deployment graft base.
+
+**Solution**
+
+Please make sure the auto graft depth resolver has correct limit, and that the graft base deployment has synced to the graft block before trying again - Set indexing rules for agent to periodically reconcile the deployment.

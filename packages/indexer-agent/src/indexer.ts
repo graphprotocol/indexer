@@ -31,6 +31,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import pMap from 'p-map'
+import yaml from 'yaml'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
@@ -84,6 +85,8 @@ export class Indexer {
   defaultAllocationAmount: BigNumber
   indexerAddress: string
   allocationManagementMode: AllocationManagementMode
+  ipfsEndpoint: string
+  autoGraftResolverLimit: number
 
   constructor(
     logger: Logger,
@@ -94,12 +97,16 @@ export class Indexer {
     defaultAllocationAmount: BigNumber,
     indexerAddress: string,
     allocationManagementMode: AllocationManagementMode,
+    ipfsUrl: string,
+    autoGraftResolverLimit: number,
   ) {
     this.indexerManagement = indexerManagement
     this.statusResolver = statusResolver
     this.logger = logger
     this.indexerAddress = indexerAddress
     this.allocationManagementMode = allocationManagementMode
+    this.autoGraftResolverLimit = autoGraftResolverLimit
+    this.ipfsEndpoint = ipfsUrl + '/api/v0/cat?arg='
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -735,6 +742,78 @@ export class Indexer {
     }
   }
 
+  // Simple fetch for subgraph manifest
+  async subgraphManifest(targetDeployment: SubgraphDeploymentID) {
+    const ipfsFile = await fetch(
+      this.ipfsEndpoint + targetDeployment.ipfsHash,
+      {
+        method: 'POST',
+        redirect: 'follow',
+      },
+    )
+    return yaml.parse(await ipfsFile.text())
+  }
+
+  // Recursive function for targetDeployment resolve grafting, add depth until reached to resolverDepth
+  async resolveGrafting(
+    name: string,
+    targetDeployment: SubgraphDeploymentID,
+    depth: number,
+  ): Promise<void> {
+    // Matches "/depth-" followed by one or more digits
+    const depthRegex = /\/depth-\d+/
+    const manifest = await this.subgraphManifest(targetDeployment)
+
+    // No grafting dependency
+    if (!manifest.features || !manifest.features.includes('grafting')) {
+      // Ensure sync if at root of dependency
+      if (depth) {
+        await this.ensure(name, targetDeployment)
+      }
+      return
+    }
+
+    // Default autoGraftResolverLimit is 0, essentially disabling auto-resolve
+    if (depth >= this.autoGraftResolverLimit) {
+      throw indexerError(
+        IndexerErrorCode.IE074,
+        `Grafting depth reached limit for auto resolve`,
+      )
+    }
+
+    try {
+      const baseDeployment = new SubgraphDeploymentID(manifest.graft.base)
+      let baseName = name.replace(depthRegex, `/depth-${depth}`)
+      if (baseName === name) {
+        // add depth suffix if didn't have one from targetDeployment
+        baseName += `/depth-${depth}`
+      }
+      await this.resolveGrafting(baseName, baseDeployment, depth + 1)
+
+      // If base deployment has synced upto the graft block, then ensure the target deployment
+      // Otherwise just log to come back later
+      const graftStatus = await this.statusResolver.indexingStatus([
+        baseDeployment,
+      ])
+      // If base deployment synced to required block, try to sync the target and
+      // turn off syncing for the base deployment
+      if (
+        graftStatus[0].chains[0].latestBlock &&
+        graftStatus[0].chains[0].latestBlock.number >= manifest.graft.block
+      ) {
+        await this.ensure(name, targetDeployment)
+      } else {
+        this.logger.debug(
+          `Graft base deployment has yet to reach the graft block, try again later`,
+        )
+      }
+    } catch {
+      throw indexerError(
+        IndexerErrorCode.IE074,
+        `Base deployment hasn't synced to the graft block, try again later`,
+      )
+    }
+  }
   async deploy(
     name: string,
     deployment: SubgraphDeploymentID,
@@ -751,7 +830,7 @@ export class Indexer {
         node_id: node_id,
       })
       if (response.error) {
-        throw response.error
+        throw indexerError(IndexerErrorCode.IE026, response.error)
       }
       this.logger.info(`Successfully deployed subgraph deployment`, {
         name,

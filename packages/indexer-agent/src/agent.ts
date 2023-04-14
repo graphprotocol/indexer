@@ -702,7 +702,11 @@ class Agent {
         // Ensure the deployment is deployed to the indexer
         // Note: we're not waiting here, as sometimes indexing a subgraph
         // will block if the IPFS files cannot be retrieved
-        this.indexer.ensure(name, deployment)
+        try {
+          this.indexer.ensure(name, deployment)
+        } catch {
+          this.indexer.resolveGrafting(name, deployment, 0)
+        }
       }),
     )
 

@@ -359,7 +359,11 @@ const setup = async () => {
       injectDai: true,
     },
   })
-  mockedSubgraphManager = new SubgraphManager('fake endpoint', ['fake node id'])
+  mockedSubgraphManager = new SubgraphManager(
+    'fake endpoint',
+    ['fake node id'],
+    indexingStatusResolver,
+  )
   allocationManager = new AllocationManager(
     contracts,
     logger,

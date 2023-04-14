@@ -336,6 +336,14 @@ export class AllocationManager {
       deployment.ipfsHash,
     )
 
+    // Ensure graft dependency is resolved
+    await this.subgraphManager.resolveGrafting(
+      logger,
+      this.models,
+      deployment,
+      indexNode,
+      0,
+    )
     // Ensure subgraph is deployed before allocating
     await this.subgraphManager.ensure(
       logger,

@@ -257,6 +257,18 @@ export default {
         default: 100,
         group: 'Query Fees',
       })
+      .option('ipfs-endpoint', {
+        description: `Endpoint to an ipfs node to quickly query subgraph manifest data`,
+        type: 'string',
+        default: 'https://ipfs.network.thegraph.com',
+        group: 'Indexer Infrastructure',
+      })
+      .option('auto-graft-resolver-limit', {
+        description: `Maximum depth of grafting dependency to automatically resolve`,
+        type: 'number',
+        default: 0,
+        group: 'Indexer Infrastructure',
+      })
       .option('inject-dai', {
         description:
           'Inject the GRT to DAI/USDC conversion rate into cost model variables',
@@ -369,6 +381,12 @@ export default {
           argv['rebate-claim-max-batch-size'] <= 0
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        if (
+          !Number.isInteger(argv['auto-graft-resolver-limit']) ||
+          argv['auto-graft-resolver-limit'] < 0
+        ) {
+          return 'Invalid --auto-graft-resolver-limit provided. Must be >= 0 and an integer.'
         }
         return true
       })
@@ -693,6 +711,8 @@ export default {
       networkMonitor,
       allocationManagementMode,
       autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+      ipfsEndpoint: argv.ipfsEndpoint,
+      autoGraftResolverLimit: argv.autoGraftResolverLimit,
     })
 
     await createIndexerManagementServer({
@@ -711,6 +731,8 @@ export default {
       argv.defaultAllocationAmount,
       indexerAddress,
       allocationManagementMode,
+      argv.ipfsEndpoint,
+      argv.autoGraftResolverLimit,
     )
 
     if (networkSubgraphDeploymentId !== undefined) {

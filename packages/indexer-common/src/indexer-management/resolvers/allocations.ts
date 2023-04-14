@@ -483,6 +483,14 @@ export default {
         subgraphDeploymentID.ipfsHash,
       )
 
+      // Ensure grafting dependencies are resolved
+      await subgraphManager.resolveGrafting(
+        logger,
+        models,
+        subgraphDeploymentID,
+        indexNode,
+        0,
+      )
       // Ensure subgraph is deployed before allocating
       await subgraphManager.ensure(
         logger,
