@@ -334,7 +334,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       allocation: receipts[0].allocation,
     })
     // Gross underestimated number of receipts the gateway take at once
-    const receiptsThreshold = 25_000
+    const receiptsThreshold = 1
     let response
     try {
       logger.info(`Collect receipts for allocation`, {
@@ -371,19 +371,16 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           partialVouchers.push(partialVoucher)
         }
 
-        logger.debug(`obtainReceiptVoucher: For debugging`, {
-          partialVouchers,
-          hexStringLength: partialVouchers[0].allocation,
+        logger.debug(`Partial vouchers to exchange`, {
+          partialVouchers: partialVouchers.length,
         })
 
-        const encodedPartialVouchers = encodePartialVouchers(partialVouchers)
+        // const encodedPartialVouchers = encodePartialVouchers(partialVouchers)
 
         // Exchange the partial vouchers for a voucher
-        response = await axios.post(
-          this.voucherEndpoint.toString(),
-          encodedPartialVouchers.unwrap().buffer,
-          { headers: { 'Content-Type': 'application/octet-stream' } },
-        )
+        response = await axios.post(this.voucherEndpoint.toString(), partialVouchers, {
+          headers: { 'Content-Type': 'application/octet-stream' },
+        })
       }
 
       const voucher = response.data as {
