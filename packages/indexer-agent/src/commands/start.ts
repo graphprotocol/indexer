@@ -343,6 +343,33 @@ export default {
         default: false,
         group: 'Disputes',
       })
+      .option('collect-receipts-endpoint', {
+        description: 'Client endpoint for collecting receipts',
+        type: 'string',
+        required: false,
+        group: 'Query Fees',
+      })
+      .option('allocation-management', {
+        description:
+          'Indexer agent allocation management automation mode (auto|manual) ',
+        type: 'string',
+        required: false,
+        default: 'auto',
+        group: 'Indexer Infrastructure',
+      })
+      .option('auto-allocation-min-batch-size', {
+        description: `Minimum number of allocation transactions inside a batch for auto allocation management. No obvious upperbound, with default of 1`,
+        type: 'number',
+        default: 1,
+        group: 'Indexer Infrastructure',
+      })
+      .config({
+        key: 'config-file',
+        description: 'Indexer agent configuration file (YAML format)',
+        parseFn: function (cfgFilePath: string) {
+          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
+        },
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -371,33 +398,6 @@ export default {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
         return true
-      })
-      .option('collect-receipts-endpoint', {
-        description: 'Client endpoint for collecting receipts',
-        type: 'string',
-        required: false,
-        group: 'Query Fees',
-      })
-      .option('allocation-management', {
-        description:
-          'Indexer agent allocation management automation mode (auto|manual) ',
-        type: 'string',
-        required: false,
-        default: 'auto',
-        group: 'Indexer Infrastructure',
-      })
-      .option('auto-allocation-min-batch-size', {
-        description: `Minimum number of allocation transactions inside a batch for auto allocation management. No obvious upperbound, with default of 1`,
-        type: 'number',
-        default: 1,
-        group: 'Indexer Infrastructure',
-      })
-      .config({
-        key: 'config-file',
-        description: 'Indexer agent configuration file (YAML format)',
-        parseFn: function (cfgFilePath: string) {
-          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
-        },
       })
   },
   handler: async (
