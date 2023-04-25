@@ -352,6 +352,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           { headers: { 'Content-Type': 'application/octet-stream' } },
         )
       } else {
+        logger.info('Lets split and collect partial vouchers shall we')
         // Split receipts in batches and collect partial vouchers
         const partialVouchers: Array<PartialVoucher> = []
         for (let i = 0; i < receipts.length; i += receiptsThreshold) {
@@ -359,6 +360,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             i,
             Math.min(i + receiptsThreshold, receipts.length),
           )
+          logger.info('Encode receipt batch', {
+            partialReceipts
+          })
           const encodedReceipts = this.encodeReceiptBatch(partialReceipts)
 
           // Exchange the receipts for a partial voucher signed by the counterparty (aka the client)
@@ -367,6 +371,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             encodedReceipts.unwrap().buffer,
             { headers: { 'Content-Type': 'application/octet-stream' } },
           )
+
+          logger.debug('Partial voucher response', {
+            response,
+          })
+
           const partialVoucher = response.data as PartialVoucher
           partialVouchers.push(partialVoucher)
         }

@@ -162,7 +162,7 @@ export default {
 
     // Fetch recently attempted actions
     const last15Minutes = {
-      [Op.gte]: literal("NOW() - INTERVAL '15m'"),
+      [Op.gte]: literal("NOW() - INTERVAL '1m'"),
     }
 
     const recentlyFailedActions = await ActionManager.fetchActions(models, {
