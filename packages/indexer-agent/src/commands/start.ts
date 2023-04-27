@@ -44,7 +44,7 @@ import { monitorEthBalance } from '../utils'
 import { parseTaggedUrl, parseTaggedIpfsHash } from './input-parsers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AgentOptions = { [key: string]: any } & Argv['argv']
+export type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export default {
   command: 'start',
@@ -818,7 +818,7 @@ async function validateNetworkId(
   }
 }
 
-function validateNetworkOptions(argv: AgentOptions) {
+export function validateNetworkOptions(argv: AgentOptions) {
   // Check if at least one of those two options is being used
   if (!argv.networkSubgraphEndpoint && !argv.networkSubgraphDeployment) {
     throw new Error(
@@ -862,9 +862,21 @@ function validateNetworkOptions(argv: AgentOptions) {
   const commonIdCount = new Set(Object.values(networkIdCount)).size
   if (commonIdCount !== 1) {
     throw new Error(
-      `Indexer-Agent was configured with unbalanced network identifiers for these options: ${usedOptions}. ` +
+      `Indexer-Agent was configured with mixed network identifiers for these options: ${usedOptions}. ` +
         'Ensure that every network identifier is equally used among options.',
     )
+  }
+
+  // Check for duplicated network identification
+  for (const optionGroup of arraysToCheck) {
+    const usedNetworks = countBy(optionGroup, option => option.networkId)
+    const maxUsed = Math.max(...Object.values(usedNetworks))
+    if (maxUsed > 1) {
+      throw new Error(
+        `Indexer-Agent was configured with duplicate network identifiers for these options: ${usedOptions}. ` +
+          'Ensure that each network identifier is used at most once.',
+      )
+    }
   }
 
   // Validation finished. Assign the parsed values to their original sources.
