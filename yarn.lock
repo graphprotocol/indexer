@@ -2828,6 +2828,18 @@
   resolved "https://registry.npmjs.org/@types/json5/-/json5-0.0.29.tgz#ee28707ae94e11d2b827bcbe5270bcea7f3e71ee"
   integrity sha512-dRLjCWHYg4oaA77cxO64oO+7JwCwnIzkZPdrrC71jQmQtlhM556pwKo5bUzqvZndkVbeFLIIi+9TC40JNF5hNQ==
 
+"@types/lodash.countby@^4.6.7":
+  version "4.6.7"
+  resolved "https://registry.npmjs.org/@types/lodash.countby/-/lodash.countby-4.6.7.tgz#9dfa94ff43823c314c70056c18c00adfb8fa7cc3"
+  integrity sha512-RkkfnOXscBXuRc9Iay+tMHtaztdRCtU7doEwi5yLEV/7UHRyy5yS+ppZCzFl06s6lWt6fcHKAN8F6kyes6js5g==
+  dependencies:
+    "@types/lodash" "*"
+
+"@types/lodash@*":
+  version "4.14.194"
+  resolved "https://registry.npmjs.org/@types/lodash/-/lodash-4.14.194.tgz#b71eb6f7a0ff11bff59fc987134a093029258a76"
+  integrity sha512-r22s9tAS7imvBt2lyHC9B8AGwWnXaYb1tY09oyLkXDs4vArpYJzw09nj8MLx5VfciBPGIb+ZwG0ssYnEPJxn/g==
+
 "@types/lodash@^4.14.159":
   version "4.14.182"
   resolved "https://registry.npmjs.org/@types/lodash/-/lodash-4.14.182.tgz"
@@ -7524,6 +7536,11 @@ lodash.camelcase@^4.3.0:
   version "4.3.0"
   resolved "https://registry.npmjs.org/lodash.camelcase/-/lodash.camelcase-4.3.0.tgz"
   integrity sha1-soqmKIorn8ZRA1x3EfZathkDMaY=
+
+lodash.countby@^4.6.0:
+  version "4.6.0"
+  resolved "https://registry.npmjs.org/lodash.countby/-/lodash.countby-4.6.0.tgz#5351f24de16724a0059b561f920b0d80af78a33c"
+  integrity sha512-RhdqSKPeVL9zWY5jSYHA2PHrV+lm2x/NfZd1uCUMEJXZoqFJ14MlSjnm+otBVdmlrkJ3trLKM07wuMszZ5GIbA==
 
 lodash.ismatch@^4.4.0:
   version "4.4.0"
