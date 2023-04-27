@@ -154,7 +154,7 @@ export function epochElapsedBlocks(networkEpoch: NetworkEpoch): number {
   return networkEpoch.startBlockNumber - networkEpoch.latestBlock
 }
 
-const Caip2ByChainAlias: { [key: string]: string } = {
+export const Caip2ByChainAlias: { [key: string]: string } = {
   mainnet: 'eip155:1',
   goerli: 'eip155:5',
   gnosis: 'eip155:100',
@@ -168,7 +168,7 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   fantom: 'eip155:250',
 }
 
-const Caip2ByChainId: { [key: number]: string } = {
+export const Caip2ByChainId: { [key: number]: string } = {
   1: 'eip155:1',
   5: 'eip155:5',
   100: 'eip155:100',
