@@ -3,6 +3,7 @@ import path from 'path'
 import { Argv } from 'yargs'
 import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
+import countBy from 'lodash.countby'
 
 import {
   connectContracts,
@@ -40,14 +41,20 @@ import { Network as NetworkMetadata } from '@ethersproject/networks'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
+import { parseTaggedUrl, parseTaggedIpfsHash } from './input-parsers'
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export default {
   command: 'start',
   describe: 'Start the agent',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .option('ethereum', {
+      .option('network-provider', {
+        alias: 'ethereum',
         description: 'Ethereum node or provider URL',
+        array: true,
         type: 'string',
         required: true,
         group: 'Ethereum',
@@ -147,11 +154,13 @@ export default {
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
+        array: true,
         type: 'string',
         group: 'Network Subgraph',
       })
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
+        array: true,
         type: 'string',
         group: 'Network Subgraph',
       })
@@ -163,6 +172,7 @@ export default {
       })
       .option('epoch-subgraph-endpoint', {
         description: 'Endpoint to query the epoch block oracle subgraph from',
+        array: true,
         type: 'string',
         required: true,
         group: 'Protocol',
@@ -371,12 +381,12 @@ export default {
         },
       })
       .check(argv => {
-        if (
-          !argv['network-subgraph-endpoint'] &&
-          !argv['network-subgraph-deployment']
-        ) {
-          return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
+        try {
+          validateNetworkOptions(argv)
+        } catch (error) {
+          return error.message
         }
+
         if (argv['indexer-geo-coordinates']) {
           const [geo1, geo2] = argv['indexer-geo-coordinates']
           if (!+geo1 || !+geo2) {
@@ -400,10 +410,7 @@ export default {
         return true
       })
   },
-  handler: async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    argv: { [key: string]: any } & Argv['argv'],
-  ): Promise<void> => {
+  handler: async (argv: AgentOptions): Promise<void> => {
     const logger = createLogger({
       name: 'IndexerAgent',
       async: false,
@@ -493,12 +500,12 @@ export default {
 
     // Parse the Network Subgraph optional argument
     const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment[0].cid) // FIXME: Use multiple network subgraphs.
       : undefined
 
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
-      endpoint: argv.networkSubgraphEndpoint,
+      endpoint: argv.networkSubgraphEndpoint?.[0].url.toString(), // FIXME: Use multiple network subgraphs.
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
@@ -512,7 +519,7 @@ export default {
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.ethereum,
+      argv.networkProvider[0].url.toString(), // FIXME: Use multiple providers.
       argv.ethereumPollingInterval,
     )
 
@@ -557,7 +564,9 @@ export default {
 
     const indexerAddress = toAddress(argv.indexerAddress)
 
-    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
+    const epochSubgraph = await EpochSubgraph.create(
+      argv.epochSubgraphEndpoint[0].url.toString(), // FIXME: use multiple epoch subgraphs
+    )
 
     const networkMonitor = new NetworkMonitor(
       resolveChainId(networkMeta.chainId),
@@ -725,7 +734,7 @@ export default {
       try {
         await validateNetworkId(
           networkMeta,
-          argv.networkSubgraphDeployment,
+          argv.networkSubgraphDeployment[0].cid, // FIXME: Use multiple network subgraphs.
           indexingStatusResolver,
           logger,
         )
@@ -807,4 +816,60 @@ async function validateNetworkId(
     })
     throw new Error(errorMsg)
   }
+}
+
+function validateNetworkOptions(argv: AgentOptions) {
+  // Check if at least one of those two options is being used
+  if (!argv.networkSubgraphEndpoint && !argv.networkSubgraphDeployment) {
+    throw new Error(
+      'At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided',
+    )
+  }
+
+  // Parse each option group, making a special case for the Network Subgraph options that can be
+  // partially defined.
+  const providers = argv.networkProvider.map(parseTaggedUrl)
+  const epochSubgraphs = argv.epochSubgraphEndpoint.map(parseTaggedUrl)
+  const networkSubgraphEndpoints =
+    argv.networkSubgraphEndpoint?.map(parseTaggedUrl)
+  const networkSubgraphDeployments =
+    argv.networkSubgraphDeployment?.map(parseTaggedIpfsHash)
+
+  // Refine which option lists to check, while formatting a string with the used ones.
+  const arraysToCheck = [providers, epochSubgraphs]
+  let usedOptions = '[--network-provider, --epoch-subgraph-endpoint'
+  if (networkSubgraphEndpoints !== undefined) {
+    arraysToCheck.push(networkSubgraphEndpoints)
+    usedOptions += ', --network-subgraph-endpoint'
+  }
+  if (networkSubgraphDeployments !== undefined) {
+    arraysToCheck.push(networkSubgraphDeployments)
+    usedOptions += ', --network-subgraph-deployment'
+  }
+  usedOptions += ']'
+
+  // Check for consistent length across network options
+  const commonSize = new Set(arraysToCheck.map(a => a.length)).size
+  if (commonSize !== 1) {
+    throw new Error(
+      `Indexer-Agent was configured with an unbalanced argument number for these options: ${usedOptions}. ` +
+        'Ensure that every option cotains an equal number of arguments.',
+    )
+  }
+
+  // Check for consistent network identification
+  const networkIdCount = countBy(arraysToCheck.flat(), a => a.networkId)
+  const commonIdCount = new Set(Object.values(networkIdCount)).size
+  if (commonIdCount !== 1) {
+    throw new Error(
+      `Indexer-Agent was configured with unbalanced network identifiers for these options: ${usedOptions}. ` +
+        'Ensure that every network identifier is equally used among options.',
+    )
+  }
+
+  // Validation finished. Assign the parsed values to their original sources.
+  argv.networkProvider = providers
+  argv.epochSubgraphEndpoint = epochSubgraphs
+  argv.networkSubgraphEndpoint = networkSubgraphEndpoints
+  argv.networkSubgraphDeployment = networkSubgraphDeployments
 }
