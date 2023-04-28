@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Startup parameter `--ethereum` has been renamed to `--network-provider`
+- The Agent can now be configured with multiple networks: The startup parameters
+  `--network-provider`, `--network-subgraph-endpoint`, `--network-subgraph-deployment` and
+  `--epochSubgraph` can be declared multiple times using the `<network identifier>:<parameter
+  value>`, where the `<network_identifier>` part can be either a human friendly chain alias (such as
+  `mainnet` or `arbitrum-one`), or a CAIP-2 (such as `eip155:1` or `eip155:42161`).
+
+  A startup check ensures that parameters are consistent and usable by validating if they have the
+  same length and network identification pattern.
 
 ## [0.20.12] - 2023-02-19
 ### Changed
@@ -431,7 +441,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update @graphprotocol/common-ts to 0.2.2
 
 [Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.14...HEAD
-[0.20.14]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.14
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9
