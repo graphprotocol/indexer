@@ -10,6 +10,7 @@ import {
   nullPassThrough,
   OrderDirection,
   parseBoolean,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -32,6 +33,7 @@ export async function buildActionInput(
   reason: string,
   status: ActionStatus,
   priority: number,
+  protocolNetwork: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
   switch (type) {
@@ -44,6 +46,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -60,6 +63,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     }
     case ActionType.REALLOCATE: {
@@ -78,6 +82,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     }
   }
@@ -206,6 +211,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 /**
