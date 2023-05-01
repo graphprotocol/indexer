@@ -59,6 +59,7 @@ export type AllocationResult =
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const parseGraphQLSubgraphDeployment = (
   subgraphDeployment: any,
+  protocolNetwork: string,
 ): SubgraphDeployment => ({
   id: new SubgraphDeploymentID(subgraphDeployment.id),
   deniedAt: subgraphDeployment.deniedAt,
@@ -66,10 +67,14 @@ export const parseGraphQLSubgraphDeployment = (
   signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
   queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
   activeAllocations: subgraphDeployment.indexerAllocations.length,
+  protocolNetwork,
 })
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const parseGraphQLAllocation = (allocation: any): Allocation => ({
+export const parseGraphQLAllocation = (
+  allocation: any,
+  protocolNetwork: string,
+): Allocation => ({
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
   status: allocation.status,
@@ -82,6 +87,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
     activeAllocations: allocation.subgraphDeployment.indexerAllocations
       ? allocation.subgraphDeployment.indexerAllocations.length
       : 0,
+    protocolNetwork,
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),
