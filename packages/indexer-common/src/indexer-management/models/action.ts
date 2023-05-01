@@ -34,7 +34,7 @@ export class Action extends Model<
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  declare protocolChain: string | null
+  declare protocolNetwork: string | null
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
@@ -143,7 +143,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         allowNull: true,
         defaultValue: null,
       },
-      protocolChain: {
+      protocolNetwork: {
         type: DataTypes.STRING(50),
         allowNull: true,
         defaultValue: null,
