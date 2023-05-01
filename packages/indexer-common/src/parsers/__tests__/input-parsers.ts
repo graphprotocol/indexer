@@ -1,4 +1,4 @@
-import { parseTaggedUrl, parseTaggedIpfsHash } from '../commands/input-parsers'
+import { parseTaggedUrl, parseTaggedIpfsHash } from '../validators'
 
 const testUrlString = 'https://example.com/path/to/resource'
 const testUrl = new URL(testUrlString)

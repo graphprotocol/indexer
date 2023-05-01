@@ -33,6 +33,8 @@ import {
   NetworkMonitor,
   EpochSubgraph,
   resolveChainId,
+  parseTaggedUrl,
+  parseTaggedIpfsHash,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -41,7 +43,6 @@ import { Network as NetworkMetadata } from '@ethersproject/networks'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-import { parseTaggedUrl, parseTaggedIpfsHash } from './input-parsers'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
