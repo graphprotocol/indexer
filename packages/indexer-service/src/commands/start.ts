@@ -24,19 +24,25 @@ import {
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
+  resolveChainId,
+  validateNetworkId,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
+import { MaybeTaggedUrl } from 'indexer-common/src/parsers/tagged'
 
 export default {
   command: 'start',
   describe: 'Start the service',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .option('ethereum', {
+      .option('network-provider', {
+        //TODO:FIXME: uptrade this field as we did for Agent
+        alias: 'ethereum',
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
@@ -177,6 +183,12 @@ export default {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
           return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
+        try {
+          argv['network-provider'] = validateNetworkIdentifier(argv['network-provider'])
+        } catch (parseError) {
+          return parseError.message
+        }
+
         return true
       })
       .config({
@@ -290,13 +302,33 @@ export default {
     })
     logger.info(`Successfully connected to network subgraph`)
 
+    const { url: networkProviderEndpoint, networkId: networkIdentifier }: MaybeTaggedUrl =
+      argv.ethereum
+
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.ethereum,
+      networkProviderEndpoint.toString(),
       argv.ethereumPollingInterval,
     )
     const network = await networkProvider.getNetwork()
+
+    // If the network subgraph deployment is present, validate if the `chainId` we get from our
+    // provider is consistent.
+    if (argv.networkSubgraphDeployment) {
+      validateNetworkId(
+        network,
+        argv.networkSubgraphDeployment,
+        indexingStatusResolver,
+        logger,
+      )
+    }
+
+    // If the network identifier is present, compare it with the one we resolved from our provider.
+    const protocolNetwork = resolveChainId(network.chainId)
+    if (networkIdentifier && networkIdentifier !== protocolNetwork) {
+      const errorMessage = `The network identifier was configured to ${networkIdentifier}, but the JRPC provider network uses ${protocolNetwork}`
+    }
 
     logger.info('Connect to contracts', {
       network: network.name,
@@ -347,6 +379,7 @@ export default {
       indexer: indexerAddress,
       logger,
       networkSubgraph,
+      protocolNetwork,
       interval: argv.allocationSyncingInterval,
     })
 
