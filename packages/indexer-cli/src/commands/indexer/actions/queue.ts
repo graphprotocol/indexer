@@ -5,7 +5,11 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { printObjectOrArray } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
-import { ActionInput, ActionStatus } from '@graphprotocol/indexer-common'
+import {
+  ActionInput,
+  ActionStatus,
+  validateNetworkIdentifier,
+} from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -21,8 +25,9 @@ ${chalk.bold(
 
 ${chalk.dim('Options:')}
 
-  -h, --help                    Show usage information
-  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -h, --help                    Show usage informatio
+  -n, --network <STRING>        [REQUIRED] The protocol network for this action
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision
   -r, --reason <STRING>         Specify the reason for the action to be taken
   -p, --priority <INT>          Define a priority order for the action
@@ -41,7 +46,8 @@ module.exports = {
     const defaultReason = 'manual'
     const defaultPriority = 0
 
-    const { h, help, o, output, s, source, r, reason, p, priority } = parameters.options
+    const { h, help, o, output, s, source, r, reason, p, priority, n, network } =
+      parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
@@ -65,6 +71,11 @@ module.exports = {
         )
       }
 
+      if (!n || !network) {
+        throw Error('The required `network` parameter was not present')
+      }
+      const networkIdentifier = validateNetworkIdentifier(n || network)
+
       actionInputParams = await buildActionInput(
         validateActionType(type),
         { targetDeployment, param1, param2, param3, param4 },
@@ -72,6 +83,7 @@ module.exports = {
         decisionReason,
         ActionStatus.QUEUED,
         executionPriority,
+        networkIdentifier,
       )
 
       inputSpinner.succeed(`Processed input parameters`)
