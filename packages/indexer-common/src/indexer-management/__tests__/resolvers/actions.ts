@@ -1071,6 +1071,8 @@ describe('Allocation Manager', () => {
     allocationID,
   }
 
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore: Mocking the Action type for this test
   const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
 
   test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
