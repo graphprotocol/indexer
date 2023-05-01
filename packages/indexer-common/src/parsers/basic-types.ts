@@ -4,7 +4,7 @@ import P from 'parsimmon'
 import { resolveChainId } from '..'
 
 // Checks if the provided network identifier is supported by the Indexer Agent.
-function validateNetworkIdentifier(n: string): P.Parser<any> {
+function validateNetworkIdentifier(n: string): P.Parser<string> {
   try {
     const valid = resolveChainId(n)
     return P.succeed(valid)
@@ -19,9 +19,11 @@ export const url = P.regex(/^https?:.*/)
   .desc('a valid URL')
 
 // Intermediary parser to tag either CAIP-2 ids or network aliases like 'mainnet' and 'arbitrum-one'.
-const caip2Id = P.regex(/[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}/).chain(
-  validateNetworkIdentifier,
-)
+// Source: https://github.com/ChainAgnostic/CAIPs/blob/master/CAIPs/caip-2.md
+const namespace_ = P.regex(/[-a-z0-9]{3,8}/).desc('a CAIP2 namespace, like eip155')
+const colon = P.string(':').desc('a colon, separating CAIP2 namespace from its reference')
+const reference = P.regex(/[-_a-zA-Z0-9]{1,32}/).desc('a CAIP2 reference')
+const caip2Id = namespace_.then(colon).then(reference).chain(validateNetworkIdentifier)
 
 // A valid human friendly network name / alias.
 const networkAlias = P.regex(/[a-z-]+/).chain(validateNetworkIdentifier)
