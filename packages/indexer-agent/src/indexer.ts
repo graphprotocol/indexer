@@ -658,6 +658,7 @@ export class Indexer {
       },
       type: ActionType.ALLOCATE,
       reason: deploymentAllocationDecision.reasonString(),
+      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
     })
 
     return
@@ -696,6 +697,7 @@ export class Indexer {
             },
             type: ActionType.UNALLOCATE,
             reason: deploymentAllocationDecision.reasonString(),
+            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
           } as ActionItem)
         },
         { concurrency: 1 },
@@ -731,6 +733,7 @@ export class Indexer {
           },
           type: ActionType.REALLOCATE,
           reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+          protocolNetwork: deploymentAllocationDecision.protocolNetwork,
         })
       })
     } else {

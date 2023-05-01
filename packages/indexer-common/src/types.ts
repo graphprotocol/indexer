@@ -59,6 +59,7 @@ export interface SubgraphDeployment {
   signalledTokens: BigNumber
   queryFeesAmount: BigNumber
   activeAllocations: number
+  protocolNetwork: string
 }
 
 export enum TransactionType {
