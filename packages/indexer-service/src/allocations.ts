@@ -20,12 +20,14 @@ export interface MonitorEligibleAllocationsOptions {
   logger: Logger
   networkSubgraph: NetworkSubgraph
   interval: number
+  protocolNetwork: string
 }
 
 export const monitorEligibleAllocations = ({
   indexer,
   logger: parentLogger,
   networkSubgraph,
+  protocolNetwork,
   interval,
 }: MonitorEligibleAllocationsOptions): Eventual<Allocation[]> => {
   const logger = parentLogger.child({ component: 'AllocationMonitor' })
@@ -128,7 +130,7 @@ export const monitorEligibleAllocations = ({
       return [
         ...result.data.indexer.activeAllocations,
         ...result.data.indexer.recentlyClosedAllocations,
-      ].map(parseGraphQLAllocation)
+      ].map(x => parseGraphQLAllocation(x, protocolNetwork))
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
