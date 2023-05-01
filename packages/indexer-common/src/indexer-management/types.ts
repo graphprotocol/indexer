@@ -1,7 +1,14 @@
-import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
+import {
+  Address,
+  Logger,
+  SubgraphDeploymentID,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
+import { IndexingStatusResolver } from '../indexing-status'
 import { SubgraphDeployment } from '../types'
+import { Network as NetworkMetadata } from '@ethersproject/networks'
 
 export interface CreateAllocationResult {
   actionID: number
@@ -215,5 +222,39 @@ export function resolveChainAlias(id: string): string {
     throw new Error(
       `Something has gone wrong, chain id, '${id}', matched more than one network alias in Caip2ByChainAlias`,
     )
+  }
+}
+
+// Compares the CAIP-2 chain ID between the Ethereum provider and the Network Subgraph and requires
+// they are equal.
+export async function validateNetworkId(
+  providerNetwork: NetworkMetadata,
+  networkSubgraphDeploymentIpfsHash: string,
+  indexingStatusResolver: IndexingStatusResolver,
+  logger: Logger,
+) {
+  const subgraphNetworkId = new SubgraphDeploymentID(networkSubgraphDeploymentIpfsHash)
+  const { network: subgraphNetworkChainName } =
+    await indexingStatusResolver.subgraphFeatures(subgraphNetworkId)
+
+  if (!subgraphNetworkChainName) {
+    // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.
+    const errorMsg = 'Failed to fetch the networkId for the Network Subgraph'
+    logger.error(errorMsg, { networkSubgraphDeploymentIpfsHash })
+    throw new Error(errorMsg)
+  }
+
+  const providerChainId = resolveChainId(providerNetwork.chainId)
+  const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
+  if (providerChainId !== networkSubgraphChainId) {
+    const errorMsg =
+      'The configured provider and the Network Subgraph have different CAIP-2 chain IDs. ' +
+      'Please ensure that both Network Subgraph and the Ethereum provider are correctly configured.'
+    logger.error(errorMsg, {
+      networkSubgraphDeploymentIpfsHash,
+      networkSubgraphChainId,
+      providerChainId,
+    })
+    throw new Error(errorMsg)
   }
 }
