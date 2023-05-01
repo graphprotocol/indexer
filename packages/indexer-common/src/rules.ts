@@ -34,6 +34,7 @@ const INDEXING_RULE_READABLE_TO_MODEL_PARSERS: Record<
   custom: nullPassThrough(JSON.parse),
   requireSupported: (x) => parseBoolean(x),
   safety: (x) => parseBoolean(x),
+  protocolNetwork: (x) => x,
 }
 
 export const parseIndexingRule = (
