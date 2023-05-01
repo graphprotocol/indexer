@@ -35,11 +35,11 @@ import {
   resolveChainId,
   parseTaggedUrl,
   parseTaggedIpfsHash,
+  validateNetworkId,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
 import { Wallet } from 'ethers'
-import { Network as NetworkMetadata } from '@ethersproject/networks'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
@@ -781,42 +781,6 @@ export default {
       receiptCollector,
     })
   },
-}
-
-// Compares the CAIP-2 chain ID between the Ethereum provider and the Network Subgraph and requires
-// they are equal.
-async function validateNetworkId(
-  providerNetwork: NetworkMetadata,
-  networkSubgraphDeploymentIpfsHash: string,
-  indexingStatusResolver: IndexingStatusResolver,
-  logger: Logger,
-) {
-  const subgraphNetworkId = new SubgraphDeploymentID(
-    networkSubgraphDeploymentIpfsHash,
-  )
-  const { network: subgraphNetworkChainName } =
-    await indexingStatusResolver.subgraphFeatures(subgraphNetworkId)
-
-  if (!subgraphNetworkChainName) {
-    // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.
-    const errorMsg = 'Failed to fetch the networkId for the Network Subgraph'
-    logger.error(errorMsg, { networkSubgraphDeploymentIpfsHash })
-    throw new Error(errorMsg)
-  }
-
-  const providerChainId = resolveChainId(providerNetwork.chainId)
-  const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
-  if (providerChainId !== networkSubgraphChainId) {
-    const errorMsg =
-      'The configured provider and the Network Subgraph have different CAIP-2 chain IDs. ' +
-      'Please ensure that both Network Subgraph and the Ethereum provider are correctly configured.'
-    logger.error(errorMsg, {
-      networkSubgraphDeploymentIpfsHash,
-      networkSubgraphChainId,
-      providerChainId,
-    })
-    throw new Error(errorMsg)
-  }
 }
 
 export function validateNetworkOptions(argv: AgentOptions) {
