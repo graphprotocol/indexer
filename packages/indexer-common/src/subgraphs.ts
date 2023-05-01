@@ -163,12 +163,14 @@ export class AllocationDecision {
   declare deployment: SubgraphDeploymentID
   declare toAllocate: boolean
   declare ruleMatch: RuleMatch
+  declare protocolNetwork: string
 
   constructor(
     deployment: SubgraphDeploymentID,
     matchingRule: IndexingRuleAttributes | undefined,
     toAllocate: boolean,
     ruleActivator: ActivationCriteria,
+    protocolNetwork: string,
   ) {
     this.deployment = deployment
     this.toAllocate = toAllocate
@@ -176,6 +178,7 @@ export class AllocationDecision {
       rule: matchingRule,
       activationCriteria: ruleActivator,
     }
+    this.protocolNetwork = protocolNetwork
   }
   public reasonString(): string {
     return `${this.ruleMatch.rule?.identifierType ?? 'none'}:${
@@ -223,6 +226,7 @@ export function isDeploymentWorthAllocatingTowards(
       deploymentRule,
       false,
       ActivationCriteria.INVALID_ALLOCATION_AMOUNT,
+      deployment.protocolNetwork,
     )
   }
 
@@ -233,6 +237,7 @@ export function isDeploymentWorthAllocatingTowards(
       deploymentRule,
       false,
       ActivationCriteria.UNSUPPORTED,
+      deployment.protocolNetwork,
     )
   }
 
@@ -243,13 +248,16 @@ export function isDeploymentWorthAllocatingTowards(
         undefined,
         false,
         ActivationCriteria.NA,
+        deployment.protocolNetwork,
       )
+
     case IndexingDecisionBasis.ALWAYS:
       return new AllocationDecision(
         deployment.id,
         deploymentRule,
         true,
         ActivationCriteria.ALWAYS,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.NEVER:
       return new AllocationDecision(
@@ -257,6 +265,7 @@ export function isDeploymentWorthAllocatingTowards(
         deploymentRule,
         false,
         ActivationCriteria.NEVER,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.OFFCHAIN:
       return new AllocationDecision(
@@ -264,6 +273,7 @@ export function isDeploymentWorthAllocatingTowards(
         deploymentRule,
         false,
         ActivationCriteria.OFFCHAIN,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.RULES: {
       const stakedTokens = BigNumber.from(deployment.stakedTokens)
@@ -276,6 +286,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.MIN_STAKE,
+          deployment.protocolNetwork,
         )
       } else if (
         deploymentRule.minSignal &&
@@ -286,6 +297,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.SIGNAL_THRESHOLD,
+          deployment.protocolNetwork,
         )
       } else if (
         deploymentRule.minAverageQueryFees &&
@@ -296,6 +308,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.MIN_AVG_QUERY_FEES,
+          deployment.protocolNetwork,
         )
       } else {
         return new AllocationDecision(
@@ -303,6 +316,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           false,
           ActivationCriteria.NONE,
+          deployment.protocolNetwork,
         )
       }
     }

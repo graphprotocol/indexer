@@ -89,7 +89,7 @@ export class NetworkMonitor {
       this.logger.warn(errorMessage)
       throw indexerError(IndexerErrorCode.IE063, errorMessage)
     }
-    return parseGraphQLAllocation(result.data.allocation)
+    return parseGraphQLAllocation(result.data.allocation, this.networkCAIPID)
   }
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
@@ -464,7 +464,10 @@ export class NetworkMonitor {
       }
 
       // TODO: Make and use parseGraphqlDeployment() function
-      return parseGraphQLSubgraphDeployment(result.data.subgraphDeployments[0])
+      return parseGraphQLSubgraphDeployment(
+        result.data.subgraphDeployments[0],
+        this.networkCAIPID,
+      )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
@@ -536,7 +539,11 @@ export class NetworkMonitor {
         queryProgress.exhausted = networkDeployments.length < queryProgress.first
         queryProgress.fetched += networkDeployments.length
         queryProgress.lastId = networkDeployments[networkDeployments.length - 1].id
-        deployments.push(...networkDeployments.map(parseGraphQLSubgraphDeployment))
+        deployments.push(
+          ...networkDeployments.map((x: any) =>
+            parseGraphQLSubgraphDeployment(x, this.networkCAIPID),
+          ),
+        )
       } catch (err) {
         queryProgress.retriesRemaining--
         this.logger.warn(`Failed to query subgraph deployments`, {
