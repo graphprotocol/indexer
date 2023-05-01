@@ -29,6 +29,7 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
+  protocolNetwork: string | null
 }
 
 export interface IndexingRuleCreationAttributes
@@ -50,6 +51,7 @@ export interface IndexingRuleCreationAttributes
     | 'decisionBasis'
     | 'requireSupported'
     | 'safety'
+    | 'protocolNetwork'
   > {}
 
 export class IndexingRule
@@ -72,6 +74,7 @@ export class IndexingRule
   public decisionBasis!: IndexingDecisionBasis
   public requireSupported!: boolean
   public safety!: boolean
+  public protocolNetwork!: string | null
 
   public createdAt!: Date
   public updatedAt!: Date
@@ -247,6 +250,10 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
     },
     {

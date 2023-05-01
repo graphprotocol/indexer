@@ -34,6 +34,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   custom: nullPassThrough(JSON.parse),
   requireSupported: x => parseBoolean(x),
   safety: x => parseBoolean(x),
+  protocolNetwork: x => x,
 }
 
 const INDEXING_RULE_FORMATTERS: Record<
@@ -57,6 +58,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
@@ -80,6 +82,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
@@ -103,6 +106,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
