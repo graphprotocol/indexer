@@ -17,6 +17,7 @@ export interface ActionItem {
   type: ActionType
   reason: string
   status?: ActionStatus
+  protocolNetwork: string
 }
 
 export interface ActionUpdateInput {
@@ -28,6 +29,7 @@ export interface ActionUpdateInput {
   type?: ActionType
   status?: ActionStatus
   reason?: string
+  protocolNetwork?: string
 }
 
 export interface ActionInput {
@@ -41,6 +43,7 @@ export interface ActionInput {
   reason: string
   status: ActionStatus
   priority: number | undefined
+  protocolNetwork: string
 }
 
 export const isValidActionInput = (
