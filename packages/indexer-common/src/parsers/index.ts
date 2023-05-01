@@ -1,1 +1,1 @@
-export { parseTaggedUrl, parseTaggedIpfsHash } from './validators'
+export * from './validators'

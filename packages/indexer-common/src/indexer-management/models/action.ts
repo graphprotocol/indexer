@@ -34,6 +34,8 @@ export class Action extends Model<
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
+  declare protocolChain: string | null
+
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
     return { ...this.toJSON(), __typename: 'Action' }
@@ -138,6 +140,11 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       },
       failureReason: {
         type: DataTypes.STRING(1000),
+        allowNull: true,
+        defaultValue: null,
+      },
+      protocolChain: {
+        type: DataTypes.STRING(50),
         allowNull: true,
         defaultValue: null,
       },
