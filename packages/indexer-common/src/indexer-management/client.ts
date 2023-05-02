@@ -156,6 +156,7 @@ const SCHEMA_SDL = gql`
     failureReason: String
     createdAt: BigInt!
     updatedAt: BigInt
+    protocolNetwork: String!
   }
 
   input ActionInput {
@@ -169,6 +170,7 @@ const SCHEMA_SDL = gql`
     source: String!
     reason: String!
     priority: Int!
+    protocolNetwork: String!
   }
 
   input ActionUpdateInput {
@@ -198,6 +200,7 @@ const SCHEMA_SDL = gql`
     priority
     createdAt
     updatedAt
+    protocolNetwork
   }
 
   type ActionResult {
