@@ -64,6 +64,7 @@ const QUEUE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
+      protocolNetwork
     }
   }
 `
@@ -84,6 +85,7 @@ const APPROVE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
+      protocolNetwork
     }
   }
 `
@@ -104,6 +106,7 @@ const CANCEL_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
+      protocolNetwork
     }
   }
 `
@@ -124,6 +127,7 @@ const UPDATE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
+      protocolNetwork
     }
   }
 `
@@ -148,6 +152,7 @@ const ACTIONS_QUERY = gql`
       transaction
       failureReason
       status
+      protocolNetwork
     }
   }
 `
@@ -197,6 +202,7 @@ const queuedAllocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
+  protocolNetwork: 'goerli',
 } as ActionInput
 
 const allocateToNotPublishedDeployment = {
@@ -208,6 +214,7 @@ const allocateToNotPublishedDeployment = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
+  protocolNetwork: 'goerli',
 } as ActionInput
 
 const invalidUnallocateAction = {
@@ -221,6 +228,7 @@ const invalidUnallocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
+  protocolNetwork: 'goerli',
 } as ActionInput
 
 // const queuedReallocateAction = {
@@ -239,14 +247,15 @@ const invalidUnallocateAction = {
 const invalidReallocateAction = {
   status: ActionStatus.QUEUED,
   type: ActionType.REALLOCATE,
-  allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
   deploymentID: subgraphDeployment1,
+  allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
   poi: undefined,
   amount: undefined,
   force: false,
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
+  protocolNetwork: 'goerli',
 } as ActionInput
 
 const indexNodeIDs = ['node_1']
@@ -662,6 +671,7 @@ describe('Actions', () => {
       ['source', 'String'],
       ['reason', 'String'],
       ['priority', 'Int'],
+      ['protocolNetwork', 'String'],
     ]
     const graphQLErrors = expectedFieldNamesAndTypes.map(
       ([fieldName, fieldType]) =>
@@ -678,7 +688,7 @@ describe('Actions', () => {
 
   test('Reject action with invalid params for action type', async () => {
     const inputAction = invalidReallocateAction
-
+    const fields = JSON.stringify(inputAction)
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
     ).resolves.toHaveProperty(
@@ -686,7 +696,7 @@ describe('Actions', () => {
       new CombinedError({
         graphQLErrors: [
           new GraphQLError(
-            'Failed to queue action: Invalid action input, actionInput: {"status":"queued","type":"reallocate","deploymentID":"Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy","allocationID":"0x8f63930129e585c69482b56390a09b6b176f4a4c","force":false,"source":"indexerAgent","reason":"indexingRule","priority":0}',
+            `Failed to queue action: Invalid action input, actionInput: ${fields}`,
           ),
         ],
       }),
@@ -893,6 +903,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     const proposedAction = {
@@ -903,6 +914,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     await managementModels.Action.create(failedAction, {
@@ -943,6 +955,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     const proposedAction = {
@@ -953,6 +966,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     await managementModels.Action.create(successfulAction, {
@@ -993,6 +1007,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     const queuedAllocateAction = {
@@ -1004,6 +1019,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     } as ActionInput
 
     await managementModels.Action.create(queuedUnallocateAction, {
