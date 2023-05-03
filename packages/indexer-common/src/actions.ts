@@ -176,7 +176,7 @@ export interface ActionResult {
   priority: number | undefined
   failureReason: string | null
   transaction: string | null
-  protocolNetwork: string | null
+  protocolNetwork: string
 }
 
 export enum ActionType {
