@@ -29,7 +29,7 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
-  protocolNetwork: string | null
+  protocolNetwork: string
 }
 
 export interface IndexingRuleCreationAttributes
@@ -74,7 +74,7 @@ export class IndexingRule
   public decisionBasis!: IndexingDecisionBasis
   public requireSupported!: boolean
   public safety!: boolean
-  public protocolNetwork!: string | null
+  public protocolNetwork!: string
 
   public createdAt!: Date
   public updatedAt!: Date
