@@ -34,7 +34,7 @@ export class Action extends Model<
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
-  declare protocolNetwork: string | null
+  declare protocolNetwork: string
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
