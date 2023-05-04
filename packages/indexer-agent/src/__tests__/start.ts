@@ -100,6 +100,7 @@ describe('validateNetworkOptions tests', () => {
         'mainnet:http://epoch-subgraph-1',
         'goerli:http://epoch-subgraph-2',
       ],
+      defaultProtocolNetwork: 'goerli',
     }
     validateNetworkOptions(options)
 
@@ -248,5 +249,49 @@ describe('validateNetworkOptions tests', () => {
     expect(() => validateNetworkOptions(options)).toThrow(
       mixedNetworkIdentifiersErrorMessage,
     )
+  })
+
+  describe('defaultProtocolNetwork parameter tests', () => {
+    it('should be valid if propperly defined and network options are tagged', () => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Mock this value's type for this test
+      const options: AgentOptions = {
+        networkSubgraphEndpoint: ['mainnet:https://subgraph1'],
+        networkSubgraphDeployment: [`mainnet:${cid}`],
+        networkProvider: ['mainnet:http://provider'],
+        epochSubgraphEndpoint: ['mainnet:http://epoch-subgraph'],
+        defaultProtocolNetwork: 'mainnet',
+      }
+      validateNetworkOptions(options)
+    })
+
+    it('should be valid if propperly defined and network options are untagged', () => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Mock this value's type for this test
+      const options: AgentOptions = {
+        networkSubgraphEndpoint: ['https://subgraph1'],
+        networkSubgraphDeployment: [cid],
+        networkProvider: ['http://provider'],
+        epochSubgraphEndpoint: ['http://epoch-subgraph'],
+        defaultProtocolNetwork: 'mainnet',
+      }
+      validateNetworkOptions(options)
+    })
+
+    it('should fail if defined to a different network identifier than used by other options', () => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore: Mock this value's type for this test
+      const options: AgentOptions = {
+        networkSubgraphEndpoint: ['mainnet:https://subgraph1'],
+        networkSubgraphDeployment: [`mainnet:${cid}`],
+        networkProvider: ['mainnet:http://provider'],
+        epochSubgraphEndpoint: ['mainnet:http://epoch-subgraph'],
+        defaultProtocolNetwork: 'goerli',
+      }
+      expect(() => validateNetworkOptions(options)).toThrowError(
+        'Indexer-Agent was configured with an invalid --default-protocol-network parameter: "goerli".' +
+          ' Ensure its network identifier is consistent with the ones used in the --network-provider parameter.',
+      )
+    })
   })
 })
