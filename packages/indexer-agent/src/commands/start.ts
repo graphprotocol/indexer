@@ -36,6 +36,7 @@ import {
   parseTaggedUrl,
   parseTaggedIpfsHash,
   validateNetworkId,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -58,6 +59,15 @@ export default {
         array: true,
         type: 'string',
         required: true,
+        group: 'Ethereum',
+      })
+      .option('default-protocol-network', {
+        description:
+          'The network identifier to assign to the global indexing rule',
+        type: 'string',
+        // This argument is conditionally required.
+        //Consult the `validateNetworkIdentifier` function for reference.
+        required: false,
         group: 'Ethereum',
       })
       .option('ethereum-polling-interval', {
@@ -832,6 +842,7 @@ export function validateNetworkOptions(argv: AgentOptions) {
     )
   }
 
+  const allUsedNetworks = new Set()
   // Check for duplicated network identification
   for (const optionGroup of arraysToCheck) {
     const usedNetworks = countBy(optionGroup, option => option.networkId)
@@ -840,6 +851,33 @@ export function validateNetworkOptions(argv: AgentOptions) {
       throw new Error(
         `Indexer-Agent was configured with duplicate network identifiers for these options: ${usedOptions}. ` +
           'Ensure that each network identifier is used at most once.',
+      )
+    }
+    // Populate the set that will be used in the next validation step
+    Object.keys(usedNetworks).forEach(key => allUsedNetworks.add(key))
+  }
+
+  // Checks whether the --default-protocol-network parameter is set and validates its value.
+  if (argv.defaultProtocolNetwork) {
+    // If it's set, validates it and ensures that the specified network is in use
+    const defaultProtocolNetwork = validateNetworkIdentifier(
+      argv.defaultProtocolNetwork,
+    )
+    if (
+      !allUsedNetworks.has('null') && // No need to check if networks aren't identified
+      !allUsedNetworks.has(defaultProtocolNetwork)
+    ) {
+      throw new Error(
+        `Indexer-Agent was configured with an invalid --default-protocol-network parameter: "${argv.defaultProtocolNetwork}". ` +
+          'Ensure its network identifier is consistent with the ones used in the --network-provider parameter.',
+      )
+    }
+  } else {
+    // If it's not set, ensure that only one protocol network is configured
+    if (allUsedNetworks.size > 1) {
+      throw new Error(
+        'Indexer-Agent was configured with multiple protocol networks and thus requires the ' +
+          '--default-protocol-network parameter to be set.',
       )
     }
   }
