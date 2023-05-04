@@ -55,6 +55,11 @@ interface ReceiptMetrics {
   voucherCollectedFees: Gauge<string>
 }
 
+export interface AllocationPartialVouchers {
+  allocation: string
+  partialVouchers: PartialVoucher[]
+}
+
 export interface AllocationReceiptCollectorOptions {
   logger: Logger
   metrics: Metrics
@@ -364,6 +369,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     const allocation = receipts[0].allocation
     const logger = this.logger.child({
       allocation,
+      function: 'obtainReceiptsVoucher()',
     })
     // Gross underestimated number of receipts the gateway take at once
     const receiptsThreshold = 25_000
@@ -385,6 +391,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           { headers: { 'Content-Type': 'application/octet-stream' } },
         )
       } else {
+        logger.info(
+          `Too many receipts to collect in oneshot, collecting in batches of '${receiptsThreshold} receipts`,
+          {
+            receipts: receipts.length,
+          },
+        )
         // Split receipts in batches and collect partial vouchers
         const partialVouchers: Array<PartialVoucher> = []
         for (let i = 0; i < receipts.length; i += receiptsThreshold) {
@@ -407,7 +419,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         this.metrics.partialVouchersToExchange.set({ allocation }, partialVouchers.length)
         logger.debug(`Partial vouchers to exchange`, {
           partialVouchers: partialVouchers.length,
-          hexStringLength: partialVouchers[0].allocation,
         })
 
         const encodedPartialVouchers = encodePartialVouchers(partialVouchers)
@@ -415,20 +426,22 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         // Exchange the partial vouchers for a voucher
         response = await axios.post(
           this.voucherEndpoint.toString(),
-          encodedPartialVouchers.unwrap().buffer,
-          { headers: { 'Content-Type': 'application/octet-stream' } },
+          encodedPartialVouchers,
+          {
+            headers: { 'Content-Type': 'application/json' },
+          },
         )
       }
 
       const voucher = response.data as {
         allocation: string
-        amount: string
+        fees: string
         signature: string
       }
       this.metrics.vouchers.inc({
         allocation,
       })
-      this.metrics.voucherCollectedFees.set({ allocation }, parseFloat(voucher.amount))
+      this.metrics.voucherCollectedFees.set({ allocation }, parseFloat(voucher.fees))
 
       // Replace the receipts with the voucher in one db transaction;
       // should this fail, we'll try to collect these receipts again
@@ -447,7 +460,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           transaction,
         })
 
-        logger.debug(`Add voucher received in exchange for receipts to the database`)
+        logger.debug(`Add voucher received in exchange for receipts to the database`, {
+          voucher,
+        })
 
         // Update the query fees tracked against the allocation
         const [summary] = await ensureAllocationSummary(
@@ -456,7 +471,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           transaction,
         )
         summary.collectedFees = BigNumber.from(summary.collectedFees)
-          .add(voucher.amount)
+          .add(voucher.fees)
           .toString()
         await summary.save({ transaction })
 
@@ -465,7 +480,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           where: { allocation: toAddress(voucher.allocation) },
           defaults: {
             allocation: toAddress(voucher.allocation),
-            amount: voucher.amount,
+            amount: voucher.fees,
             signature: voucher.signature,
           },
           transaction,
@@ -482,11 +497,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private async submitVouchers(vouchers: Voucher[]): Promise<void> {
     const logger = this.logger.child({
+      function: 'submitVouchers()',
       voucherBatchSize: vouchers.length,
     })
 
     logger.info(`Redeem query voucher batch on chain`, {
-      allocations: vouchers.map((voucher) => voucher.allocation),
+      vouchers,
     })
     const stopTimer = this.metrics.vouchersRedeemDuration.startTimer({
       allocation: vouchers[0].allocation,
@@ -610,28 +626,21 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }
 }
 
-export function encodePartialVouchers(partialVouchers: PartialVoucher[]): BytesWriter {
-  // Take the partial vouchers and request for a full voucher
-  // [allocationId, partialVouchers[]] (in bytes)
-  // A voucher request needs allocation id which all partial vouchers shares,
-  // and a list of attributes (fees, signature, receipt id min, and receipt id max)
-  // from each partial voucher, all in form of 0x-prefixed hex string (32bytes)
-  const encodedPartialVouchers = new BytesWriter(20 + 128 * partialVouchers.length)
-
-  encodedPartialVouchers.writeHex(partialVouchers[0].allocation)
-  for (const partialVoucher of partialVouchers) {
-    // [fees, signature, receipt_id_min, receipt_id_max] as 0x-prefixed string list
-    const fee = BigNumber.from(partialVoucher.fees).toHexString()
-    // We slice the hex string to remove the "0x" prefix from the byte length calculation
-    const feeByteLength = fee.slice(2).length / 2
-    const feePadding = 33 - feeByteLength
-    encodedPartialVouchers.writeZeroes(feePadding)
-    encodedPartialVouchers.writeHex(fee)
-    encodedPartialVouchers.writeHex(partialVoucher.signature)
-    encodedPartialVouchers.writeHex(partialVoucher.receipt_id_min)
-    encodedPartialVouchers.writeHex(partialVoucher.receipt_id_max)
+export function encodePartialVouchers(
+  partialVouchers: PartialVoucher[],
+): AllocationPartialVouchers {
+  const uniqueAllocations = new Set(partialVouchers.map((voucher) => voucher.allocation))
+    .size
+  if (uniqueAllocations !== 1) {
+    throw Error(
+      `Partial vouchers set must be for a single allocation, '${uniqueAllocations}' unique allocations represented`,
+    )
   }
-  return encodedPartialVouchers
+
+  return {
+    allocation: partialVouchers[0].allocation,
+    partialVouchers,
+  }
 }
 
 const registerReceiptMetrics = (metrics: Metrics) => ({
