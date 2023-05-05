@@ -1,4 +1,4 @@
-import { validateNetworkOptions, AgentOptions } from '../commands/start'
+import { validateNetworkOptions, AgentOptions } from '../validation'
 
 const unbalancedOptionsErrorMessage =
   'Indexer-Agent was configured with an unbalanced argument number for these options: [--network-provider, --epoch-subgraph-endpoint, --network-subgraph-endpoint, --network-subgraph-deployment]. Ensure that every option cotains an equal number of arguments.'
@@ -150,6 +150,8 @@ describe('validateNetworkOptions tests', () => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore: Mock this value's type for this test
     const options: AgentOptions = {
+      networkProvider: ['http://provider'],
+      epochSubgraphEndpoint: ['http://epoch-subgraph'],
       networkSubgraphEndpoint: undefined,
       networkSubgraphDeployment: undefined,
     }
@@ -289,8 +291,8 @@ describe('validateNetworkOptions tests', () => {
         defaultProtocolNetwork: 'goerli',
       }
       expect(() => validateNetworkOptions(options)).toThrowError(
-        'Indexer-Agent was configured with an invalid --default-protocol-network parameter: "goerli".' +
-          ' Ensure its network identifier is consistent with the ones used in the --network-provider parameter.',
+        'Indexer-Agent was configured with a --default-protocol-network parameter different ' +
+          'from the network identifiers used in the --network-provider parameter.',
       )
     })
   })
