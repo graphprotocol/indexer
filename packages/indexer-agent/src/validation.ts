@@ -17,7 +17,6 @@ type NetworkOptions = {
   epochSubgraphs: Array<MaybeTaggedUrl>
   networkSubgraphEndpoints: Array<MaybeTaggedUrl> | undefined
   networkSubgraphDeployments: Array<MaybeTaggedIpfsHash> | undefined
-  defaultProtocolNetwork: string | undefined
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,7 +26,6 @@ export function validateNetworkOptions(argv: AgentOptions) {
   const [networkOptions, helpText] = parseNetworkOptions(argv)
   checkMixedIdentifiers(networkOptions, helpText)
   checkDuplicatedNetworkIdentifiers(networkOptions, helpText)
-  checkDefaultProtocolNetwork(networkOptions)
   reassignParsedValues(argv, networkOptions)
 }
 
@@ -40,9 +38,6 @@ function parseNetworkOptions(argv: AgentOptions): [NetworkOptions, string] {
     argv.networkSubgraphEndpoint?.map(parseTaggedUrl)
   const networkSubgraphDeployments =
     argv.networkSubgraphDeployment?.map(parseTaggedIpfsHash)
-  const defaultProtocolNetwork = argv.defaultProtocolNetwork
-    ? validateNetworkIdentifier(argv.defaultProtocolNetwork)
-    : undefined
 
   // Check if at least one of those two options is being used
   if (!networkSubgraphEndpoints && !networkSubgraphDeployments) {
@@ -55,7 +50,6 @@ function parseNetworkOptions(argv: AgentOptions): [NetworkOptions, string] {
   const options = {
     providers,
     epochSubgraphs,
-    defaultProtocolNetwork,
     networkSubgraphEndpoints: undefined,
     networkSubgraphDeployments: undefined,
   }
@@ -124,35 +118,6 @@ function checkDuplicatedNetworkIdentifiers(
       throw new Error(
         `Indexer-Agent was configured with duplicate network identifiers for these options: ${usedOptions}. ` +
           'Ensure that each network identifier is used at most once.',
-      )
-    }
-  }
-}
-
-// Checks whether the --default-protocol-network parameter is set and validates its value.
-function checkDefaultProtocolNetwork(options: NetworkOptions) {
-  const optionGroups = getOptionGroups(options)
-  const usedNetworks = new Set(
-    optionGroups.flat().map(option => option.networkId),
-  )
-
-  if (options.defaultProtocolNetwork) {
-    // If it's set, validates it and ensures that the specified network is in use
-    if (
-      !usedNetworks.has(null) && // No need to check if networks aren't identified
-      !usedNetworks.has(options.defaultProtocolNetwork)
-    ) {
-      throw new Error(
-        'Indexer-Agent was configured with a --default-protocol-network parameter different from' +
-          ' the network identifiers used in the --network-provider parameter.',
-      )
-    }
-  } else {
-    // If it's not set, ensure that only one protocol network is configured
-    if (usedNetworks.size > 1) {
-      throw new Error(
-        'Indexer-Agent was configured with a --default-protocol-network parameter different ' +
-          'from the network identifiers used in the --network-provider parameter.',
       )
     }
   }
