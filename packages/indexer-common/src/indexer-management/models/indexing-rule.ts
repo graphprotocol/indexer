@@ -253,7 +253,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
       },
       protocolNetwork: {
         type: DataTypes.STRING,
-        allowNull: true,
+        allowNull: false,
       },
     },
     {
