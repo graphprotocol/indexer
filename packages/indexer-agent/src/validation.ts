@@ -9,6 +9,7 @@ import {
   MaybeTaggedUrl,
 } from 'indexer-common/src/parsers/tagged'
 import countBy from 'lodash.countby'
+import isEqual from 'lodash.isequal'
 import { Argv } from 'yargs'
 
 type NetworkOptions = {
@@ -24,13 +25,9 @@ export type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export function validateNetworkOptions(argv: AgentOptions) {
   const [networkOptions, helpText] = parseNetworkOptions(argv)
-  checkOptionLengths(networkOptions, helpText)
   checkMixedIdentifiers(networkOptions, helpText)
-  const usedNetworks = checkDuplicatedNetworkIdentifiers(
-    networkOptions,
-    helpText,
-  )
-  checkDefaultProtocolNetwork(networkOptions, usedNetworks)
+  checkDuplicatedNetworkIdentifiers(networkOptions, helpText)
+  checkDefaultProtocolNetwork(networkOptions)
   reassignParsedValues(argv, networkOptions)
 }
 
@@ -82,6 +79,10 @@ interface MaybeTagged {
 
 // Extracs an array of arrays from the NetworkOptions type
 function getOptionGroups(options: NetworkOptions): Array<Array<MaybeTagged>> {
+  function getTag(x: MaybeTagged): MaybeTagged {
+    return { networkId: x.networkId }
+  }
+
   const optionGroups: Array<Array<MaybeTagged>> = [
     options.providers,
     options.epochSubgraphs,
@@ -92,31 +93,21 @@ function getOptionGroups(options: NetworkOptions): Array<Array<MaybeTagged>> {
   if (options.networkSubgraphDeployments) {
     optionGroups.push(options.networkSubgraphDeployments)
   }
-  return optionGroups
-}
-
-// Check for consistent length across network options
-function checkOptionLengths(options: NetworkOptions, usedOptions: string) {
-  const optionGroups = getOptionGroups(options)
-  const commonSize = new Set(optionGroups.map(a => a.length)).size
-  if (commonSize !== 1) {
-    throw new Error(
-      `Indexer-Agent was configured with an unbalanced argument number for these options: ${usedOptions}. ` +
-        'Ensure that every option cotains an equal number of arguments.',
-    )
-  }
+  return optionGroups.map(sublist => sublist.map(getTag))
 }
 
 // Check for consistent network identification
 function checkMixedIdentifiers(options: NetworkOptions, usedOptions: string) {
   const optionGroups = getOptionGroups(options)
-  const networkIdCount = countBy(optionGroups.flat(), a => a.networkId)
-  const commonIdCount = new Set(Object.values(networkIdCount)).size
-  if (commonIdCount !== 1) {
-    throw new Error(
-      `Indexer-Agent was configured with mixed network identifiers for these options: ${usedOptions}. ` +
-        'Ensure that every network identifier is equally used among options.',
-    )
+  const setList = optionGroups.map(subList => new Set(subList))
+  const [firstSet, ...otherSets] = setList
+  for (const set of otherSets) {
+    if (!isEqual(set, firstSet)) {
+      throw new Error(
+        `Indexer-Agent was configured with mixed network identifiers for these options: ${usedOptions}. ` +
+          'Ensure that every network identifier is evenly used among options.',
+      )
+    }
   }
 }
 
@@ -124,8 +115,7 @@ function checkMixedIdentifiers(options: NetworkOptions, usedOptions: string) {
 function checkDuplicatedNetworkIdentifiers(
   options: NetworkOptions,
   usedOptions: string,
-): Set<string> {
-  const allUsedNetworks: Set<string> = new Set()
+) {
   const optionGroups = getOptionGroups(options)
   for (const optionGroup of optionGroups) {
     const usedNetworks = countBy(optionGroup, option => option.networkId)
@@ -136,21 +126,20 @@ function checkDuplicatedNetworkIdentifiers(
           'Ensure that each network identifier is used at most once.',
       )
     }
-    // Populate the set that will be used in the next validation step
-    Object.keys(usedNetworks).forEach(key => allUsedNetworks.add(key))
   }
-  return allUsedNetworks
 }
 
 // Checks whether the --default-protocol-network parameter is set and validates its value.
-function checkDefaultProtocolNetwork(
-  options: NetworkOptions,
-  usedNetworks: Set<string>,
-) {
+function checkDefaultProtocolNetwork(options: NetworkOptions) {
+  const optionGroups = getOptionGroups(options)
+  const usedNetworks = new Set(
+    optionGroups.flat().map(option => option.networkId),
+  )
+
   if (options.defaultProtocolNetwork) {
     // If it's set, validates it and ensures that the specified network is in use
     if (
-      !usedNetworks.has('null') && // No need to check if networks aren't identified
+      !usedNetworks.has(null) && // No need to check if networks aren't identified
       !usedNetworks.has(options.defaultProtocolNetwork)
     ) {
       throw new Error(
