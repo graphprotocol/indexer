@@ -53,15 +53,6 @@ export default {
         required: true,
         group: 'Ethereum',
       })
-      .option('default-protocol-network', {
-        description:
-          'The network identifier to assign to the global indexing rule',
-        type: 'string',
-        // This argument is conditionally required.
-        //Consult the `validateNetworkIdentifier` function for reference.
-        required: false,
-        group: 'Ethereum',
-      })
       .option('ethereum-polling-interval', {
         description: 'Polling interval for the Ethereum provider (ms)',
         type: 'number',
@@ -684,23 +675,6 @@ export default {
         argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
       ]
 
-    // Resolve the default protocol network parameter.
-    let defaultProtocolNetwork: string
-    if (argv.defaultProtocolNetwork) {
-      defaultProtocolNetwork = argv.defaultProtocolNetwork
-      if (defaultProtocolNetwork !== networkChainId) {
-        logger.warn(
-          `Indexer Agent has a different --default-protocol-network than the RPC provider stated.`,
-          {
-            defaultProtocolNetwork,
-            providerNetwork: networkChainId,
-          },
-        )
-      }
-    } else {
-      defaultProtocolNetwork = networkChainId
-    }
-
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
       address: indexerAddress,
@@ -714,7 +688,7 @@ export default {
         globalIndexingRule: {
           allocationAmount: argv.defaultAllocationAmount,
           parallelAllocations: 1,
-          protocolNetwork: defaultProtocolNetwork,
+          protocolNetwork: 'FIXME TODO',
         },
       },
       features: {
@@ -743,7 +717,7 @@ export default {
       argv.defaultAllocationAmount,
       indexerAddress,
       allocationManagementMode,
-      defaultProtocolNetwork,
+      'FIXME TODO',
     )
 
     if (networkSubgraphDeploymentId !== undefined) {
