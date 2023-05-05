@@ -168,6 +168,7 @@ const setup = async () => {
     parseGRT('1000'),
     address,
     AllocationManagementMode.AUTO,
+    'goerli',
   )
 }
 

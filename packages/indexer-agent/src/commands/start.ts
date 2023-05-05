@@ -527,6 +527,7 @@ export default {
     )
 
     const networkMeta = await networkProvider.getNetwork()
+    const networkChainId = resolveChainId(networkMeta.chainId)
 
     logger.info(`Connect to contracts`, {
       network: networkMeta.name,
@@ -572,7 +573,7 @@ export default {
     )
 
     const networkMonitor = new NetworkMonitor(
-      resolveChainId(networkMeta.chainId),
+      networkChainId,
       contracts,
       toAddress(indexerAddress),
       logger.child({ component: 'NetworkMonitor' }),
@@ -682,6 +683,24 @@ export default {
       AllocationManagementMode[
         argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
       ]
+
+    // Resolve the default protocol network parameter.
+    let defaultProtocolNetwork: string
+    if (argv.defaultProtocolNetwork) {
+      defaultProtocolNetwork = argv.defaultProtocolNetwork
+      if (defaultProtocolNetwork !== networkChainId) {
+        logger.warn(
+          `Indexer Agent has a different --default-protocol-network than the RPC provider stated.`,
+          {
+            defaultProtocolNetwork,
+            providerNetwork: networkChainId,
+          },
+        )
+      }
+    } else {
+      defaultProtocolNetwork = networkChainId
+    }
+
     const indexerManagementClient = await createIndexerManagementClient({
       models: managementModels,
       address: indexerAddress,
@@ -695,6 +714,7 @@ export default {
         globalIndexingRule: {
           allocationAmount: argv.defaultAllocationAmount,
           parallelAllocations: 1,
+          protocolNetwork: defaultProtocolNetwork,
         },
       },
       features: {
@@ -723,6 +743,7 @@ export default {
       argv.defaultAllocationAmount,
       indexerAddress,
       allocationManagementMode,
+      defaultProtocolNetwork,
     )
 
     if (networkSubgraphDeploymentId !== undefined) {
