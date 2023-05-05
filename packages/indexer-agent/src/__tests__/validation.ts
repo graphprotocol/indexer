@@ -1,9 +1,7 @@
 import { validateNetworkOptions, AgentOptions } from '../validation'
 
-const unbalancedOptionsErrorMessage =
-  'Indexer-Agent was configured with an unbalanced argument number for these options: [--network-provider, --epoch-subgraph-endpoint, --network-subgraph-endpoint, --network-subgraph-deployment]. Ensure that every option cotains an equal number of arguments.'
 const mixedNetworkIdentifiersErrorMessage =
-  'Indexer-Agent was configured with mixed network identifiers for these options: [--network-provider, --epoch-subgraph-endpoint, --network-subgraph-endpoint, --network-subgraph-deployment]. Ensure that every network identifier is equally used among options.'
+  'Indexer-Agent was configured with mixed network identifiers for these options: [--network-provider, --epoch-subgraph-endpoint, --network-subgraph-endpoint, --network-subgraph-deployment]. Ensure that every network identifier is evenly used among options.'
 const duplicateNetworkIdentifiersErrorMessage =
   'Indexer-Agent was configured with duplicate network identifiers for these options: [--network-provider, --epoch-subgraph-endpoint, --network-subgraph-endpoint, --network-subgraph-deployment]. Ensure that each network identifier is used at most once.'
 const cid = 'QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpBq'
@@ -173,7 +171,7 @@ describe('validateNetworkOptions tests', () => {
       epochSubgraphEndpoint: ['http://epoch-subgraph'],
     }
     expect(() => validateNetworkOptions(options)).toThrowError(
-      unbalancedOptionsErrorMessage,
+      mixedNetworkIdentifiersErrorMessage,
     )
   })
 
