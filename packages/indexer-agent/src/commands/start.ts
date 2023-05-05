@@ -3,8 +3,6 @@ import path from 'path'
 import { Argv } from 'yargs'
 import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
-import countBy from 'lodash.countby'
-
 import {
   connectContracts,
   connectDatabase,
@@ -15,7 +13,6 @@ import {
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
-  Logger,
 } from '@graphprotocol/common-ts'
 import {
   AllocationReceiptCollector,
@@ -33,10 +30,7 @@ import {
   NetworkMonitor,
   EpochSubgraph,
   resolveChainId,
-  parseTaggedUrl,
-  parseTaggedIpfsHash,
   validateNetworkId,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -44,9 +38,7 @@ import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type AgentOptions = { [key: string]: any } & Argv['argv']
+import { AgentOptions, validateNetworkOptions } from '../validation'
 
 export default {
   command: 'start',
@@ -791,100 +783,4 @@ export default {
       receiptCollector,
     })
   },
-}
-
-export function validateNetworkOptions(argv: AgentOptions) {
-  // Check if at least one of those two options is being used
-  if (!argv.networkSubgraphEndpoint && !argv.networkSubgraphDeployment) {
-    throw new Error(
-      'At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided',
-    )
-  }
-
-  // Parse each option group, making a special case for the Network Subgraph options that can be
-  // partially defined.
-  const providers = argv.networkProvider.map(parseTaggedUrl)
-  const epochSubgraphs = argv.epochSubgraphEndpoint.map(parseTaggedUrl)
-  const networkSubgraphEndpoints =
-    argv.networkSubgraphEndpoint?.map(parseTaggedUrl)
-  const networkSubgraphDeployments =
-    argv.networkSubgraphDeployment?.map(parseTaggedIpfsHash)
-
-  // Refine which option lists to check, while formatting a string with the used ones.
-  const arraysToCheck = [providers, epochSubgraphs]
-  let usedOptions = '[--network-provider, --epoch-subgraph-endpoint'
-  if (networkSubgraphEndpoints !== undefined) {
-    arraysToCheck.push(networkSubgraphEndpoints)
-    usedOptions += ', --network-subgraph-endpoint'
-  }
-  if (networkSubgraphDeployments !== undefined) {
-    arraysToCheck.push(networkSubgraphDeployments)
-    usedOptions += ', --network-subgraph-deployment'
-  }
-  usedOptions += ']'
-
-  // Check for consistent length across network options
-  const commonSize = new Set(arraysToCheck.map(a => a.length)).size
-  if (commonSize !== 1) {
-    throw new Error(
-      `Indexer-Agent was configured with an unbalanced argument number for these options: ${usedOptions}. ` +
-        'Ensure that every option cotains an equal number of arguments.',
-    )
-  }
-
-  // Check for consistent network identification
-  const networkIdCount = countBy(arraysToCheck.flat(), a => a.networkId)
-  const commonIdCount = new Set(Object.values(networkIdCount)).size
-  if (commonIdCount !== 1) {
-    throw new Error(
-      `Indexer-Agent was configured with mixed network identifiers for these options: ${usedOptions}. ` +
-        'Ensure that every network identifier is equally used among options.',
-    )
-  }
-
-  const allUsedNetworks = new Set()
-  // Check for duplicated network identification
-  for (const optionGroup of arraysToCheck) {
-    const usedNetworks = countBy(optionGroup, option => option.networkId)
-    const maxUsed = Math.max(...Object.values(usedNetworks))
-    if (maxUsed > 1) {
-      throw new Error(
-        `Indexer-Agent was configured with duplicate network identifiers for these options: ${usedOptions}. ` +
-          'Ensure that each network identifier is used at most once.',
-      )
-    }
-    // Populate the set that will be used in the next validation step
-    Object.keys(usedNetworks).forEach(key => allUsedNetworks.add(key))
-  }
-
-  // Checks whether the --default-protocol-network parameter is set and validates its value.
-  if (argv.defaultProtocolNetwork) {
-    // If it's set, validates it and ensures that the specified network is in use
-    const defaultProtocolNetwork = validateNetworkIdentifier(
-      argv.defaultProtocolNetwork,
-    )
-    if (
-      !allUsedNetworks.has('null') && // No need to check if networks aren't identified
-      !allUsedNetworks.has(defaultProtocolNetwork)
-    ) {
-      throw new Error(
-        `Indexer-Agent was configured with an invalid --default-protocol-network parameter: "${argv.defaultProtocolNetwork}". ` +
-          'Ensure its network identifier is consistent with the ones used in the --network-provider parameter.',
-      )
-    }
-  } else {
-    // If it's not set, ensure that only one protocol network is configured
-    if (allUsedNetworks.size > 1) {
-      throw new Error(
-        'Indexer-Agent was configured with multiple protocol networks and thus requires the ' +
-          '--default-protocol-network parameter to be set.',
-      )
-    }
-  }
-
-  // Validation finished. Assign the parsed values to their original sources.
-  argv.networkProvider = providers
-  argv.epochSubgraphEndpoint = epochSubgraphs
-  argv.networkSubgraphEndpoint = networkSubgraphEndpoints
-  argv.networkSubgraphDeployment = networkSubgraphDeployments
 }
