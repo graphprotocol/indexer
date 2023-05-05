@@ -10,16 +10,47 @@ interface Context {
   context: MigrationContext
 }
 
+const IndexingRules = 'IndexingRules'
+const Actions = 'Actions'
+const protocolNetwork = 'protocolNetwork'
+const oldPrimaryKey = 'IndexingRules_pkey'
+const newPrimaryKey = 'IndexingRules_composite_pkey'
+
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
-  await addColumn('IndexingRules', 'protocolNetwork', queryInterface, logger)
-  await addColumn('Action', 'protocolNetwork', queryInterface, logger)
+
+  // Add protocolNetwork column
+  await addColumn(Actions, protocolNetwork, queryInterface, logger)
+  await addColumn(IndexingRules, protocolNetwork, queryInterface, logger)
+
+  // Update constraints for the IndexingRules table
+  await queryInterface.removeConstraint(IndexingRules, oldPrimaryKey)
+
+  logger.fatal(
+    // TODO
+    'TODO: SET protocolNetwork column to the signle currently used network CAIP-2 identifier',
+  )
+  process.exit(1)
+
+  await queryInterface.addConstraint(IndexingRules, {
+    fields: ['identifier', protocolNetwork],
+    type: 'primary key',
+    name: newPrimaryKey,
+  })
 }
 
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
-  await dropColumn('IndexingRules', 'protocolNetwork', queryInterface, logger)
-  await dropColumn('Action', 'protocolNetwork', queryInterface, logger)
+  // Restore Primary Key
+  await queryInterface.removeConstraint(IndexingRules, newPrimaryKey)
+  await queryInterface.addConstraint(IndexingRules, {
+    fields: ['identifier'],
+    type: 'primary key',
+    name: oldPrimaryKey,
+  })
+
+  await dropColumn(IndexingRules, protocolNetwork, queryInterface, logger)
+  await dropColumn(Actions, protocolNetwork, queryInterface, logger)
 }
 
 async function addColumn(
