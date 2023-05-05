@@ -275,6 +275,7 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis!
     requireSupported: Boolean!
     safety: Boolean!
+    protocolNetwork: String!
   }
 
   input IndexingRuleInput {
@@ -293,6 +294,7 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis
     requireSupported: Boolean
     safety: Boolean
+    protocolNetwork: String!
   }
 
   type GeoLocation {

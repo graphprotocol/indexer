@@ -138,8 +138,8 @@ describe('Indexing Rules', () => {
       allocationAmount: '5000',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
+      protocolNetwork: 'goerli',
     } as Partial<IndexingRuleAttributes>
-
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
     expect(setIndexingRuleResult).toHaveProperty(
       'allocationAmount',
@@ -204,6 +204,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      protocolNetwork: 'goerli',
     }
 
     await models.Action.upsert(action)

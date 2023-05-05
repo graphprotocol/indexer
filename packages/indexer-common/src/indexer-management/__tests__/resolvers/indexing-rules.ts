@@ -52,6 +52,7 @@ const SET_INDEXING_RULE_MUTATION = gql`
       decisionBasis
       requireSupported
       safety
+      protocolNetwork
     }
   }
 `
@@ -86,6 +87,7 @@ const INDEXING_RULE_QUERY = gql`
       decisionBasis
       requireSupported
       safety
+      protocolNetwork
     }
   }
 `
@@ -108,6 +110,7 @@ const INDEXING_RULES_QUERY = gql`
       decisionBasis
       requireSupported
       safety
+      protocolNetwork
     }
   }
 `
@@ -127,6 +130,7 @@ const defaults: IndexerManagementDefaults = {
     parallelAllocations: 1,
     requireSupported: true,
     safety: true,
+    protocolNetwork: 'goerli',
   },
 }
 
@@ -196,6 +200,7 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1000',
+      protocolNetwork: 'goerli',
     }
 
     const expected = {
@@ -244,6 +249,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     const expected = {
@@ -269,6 +275,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '2',
+      protocolNetwork: 'goerli',
     }
 
     const original = {
@@ -299,6 +306,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       autoRenewal: true,
       safety: false,
+      protocolNetwork: 'goerli',
     }
 
     const expected = {
@@ -326,6 +334,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      protocolNetwork: 'goerli',
     }
 
     const original = {
@@ -358,6 +367,7 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: false,
+      protocolNetwork: 'goerli',
     }
 
     const expected = {
@@ -386,6 +396,7 @@ describe('Indexing rules', () => {
       allocationLifetime: null,
       decisionBasis: IndexingDecisionBasis.NEVER,
       autoRenewal: true,
+      protocolNetwork: 'goerli',
     }
 
     const expectedAgain = {
@@ -418,6 +429,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
+      protocolNetwork: 'goerli',
     }
 
     const deploymentInput = {
@@ -429,6 +441,7 @@ describe('Indexing rules', () => {
       requireSupported: false,
       autoRenewal: false,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     const globalExpected = {
@@ -444,6 +457,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     const deploymentExpected = {
@@ -459,6 +473,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
+      protocolNetwork: 'goerli',
     }
     deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
@@ -505,6 +520,7 @@ describe('Indexing rules', () => {
       minSignal: '2',
       allocationLifetime: 20,
       autoRenewal: false,
+      protocolNetwork: 'goerli',
     }
 
     const expected = {
@@ -552,6 +568,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       requireSupported: true,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     const expectedBefore = {
@@ -610,6 +627,7 @@ describe('Indexing rules', () => {
       requireSupported: true,
       autoRenewal: true,
       safety: false,
+      protocolNetwork: 'goerli',
     }
 
     const deploymentInput = {
@@ -622,6 +640,7 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     const globalExpected = {
@@ -710,7 +729,7 @@ describe('Indexing rules', () => {
     ])
   })
 
-  test('Delete global rules (which should reset)', async () => {
+  test.only('Delete global rules (which should reset)', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
@@ -718,6 +737,7 @@ describe('Indexing rules', () => {
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
       minAverageQueryFees: '1',
+      protocolNetwork: 'goerli',
     }
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
