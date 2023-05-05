@@ -15,7 +15,6 @@ const resetGlobalRule = async (
   models: IndexerManagementModels,
   transaction: Transaction,
 ) => {
-  console.log(defaults)
   await models.IndexingRule.upsert(
     {
       ...defaults,
@@ -87,6 +86,7 @@ export default {
       const numDeleted = await models.IndexingRule.destroy({
         where: {
           identifier,
+          protocolNetwork: defaults.globalIndexingRule.protocolNetwork,
         },
         transaction,
       })
@@ -123,6 +123,7 @@ export default {
       const numDeleted = await models.IndexingRule.destroy({
         where: {
           identifier: identifiers,
+          protocolNetwork: defaults.globalIndexingRule.protocolNetwork,
         },
         transaction,
       })
