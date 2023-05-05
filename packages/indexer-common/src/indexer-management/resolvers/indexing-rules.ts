@@ -15,6 +15,7 @@ const resetGlobalRule = async (
   models: IndexerManagementModels,
   transaction: Transaction,
 ) => {
+  console.log(defaults)
   await models.IndexingRule.upsert(
     {
       ...defaults,
