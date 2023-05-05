@@ -1,6 +1,5 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { ethers } from 'ethers'
 import {
   connectDatabase,
   connectContracts,
@@ -729,7 +728,7 @@ describe('Indexing rules', () => {
     ])
   })
 
-  test.only('Delete global rules (which should reset)', async () => {
+  test('Delete global rules (which should reset)', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
@@ -781,6 +780,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: '1',
       requireSupported: false,
       safety: false,
+      protocolNetwork: 'goerli',
     }
 
     const deploymentInput = {
@@ -790,6 +790,7 @@ describe('Indexing rules', () => {
       minSignal: '2',
       requireSupported: true,
       safety: true,
+      protocolNetwork: 'goerli',
     }
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()

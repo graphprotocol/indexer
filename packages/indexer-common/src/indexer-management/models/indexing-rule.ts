@@ -147,7 +147,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
       identifier: {
         type: DataTypes.STRING,
         primaryKey: true,
-        unique: true,
+        unique: false,
         allowNull: false,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
