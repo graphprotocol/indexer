@@ -1,14 +1,15 @@
 // Parser combinators for basic types
 
 import P from 'parsimmon'
-import { resolveChainId } from '..'
+import { resolveChainId } from '../indexer-management/types'
 
 // Checks if the provided network identifier is supported by the Indexer Agent.
 function validateNetworkIdentifier(n: string): P.Parser<string> {
   try {
     const valid = resolveChainId(n)
     return P.succeed(valid)
-  } catch {
+  } catch (e) {
+    console.log(e)
     return P.fail('a supported network identifier')
   }
 }
