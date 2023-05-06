@@ -831,4 +831,26 @@ describe('Indexing rules', () => {
       },
     ])
   })
+  test('Invalid protocolNetwork value prevents rule creation', async () => {
+    const deploymentInput = {
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      allocationAmount: '1',
+      minSignal: '2',
+      requireSupported: true,
+      safety: true,
+      protocolNetwork: 'unsupported',
+    }
+
+    const result = await client
+      .mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput })
+      .toPromise()
+
+    // Mutation must not succeed
+    expect(result).toHaveProperty('data', null)
+
+    // Must not create any Rule in the database
+    const rows = await client.query(INDEXING_RULES_QUERY, { merged: false }).toPromise()
+    expect(rows.data.indexingRules).toEqual([])
+  })
 })
