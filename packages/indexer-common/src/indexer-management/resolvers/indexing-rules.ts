@@ -8,6 +8,7 @@ import {
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
 import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules, processIdentifier } from '@graphprotocol/indexer-common'
+import { validateNetworkIdentifier } from '../../parsers'
 
 const resetGlobalRule = async (
   identifier: string,
@@ -58,6 +59,16 @@ export default {
   ): Promise<object> => {
     if (!rule.identifier) {
       throw Error('Cannot set indexingRule without identifier')
+    }
+
+    if (!rule.protocolNetwork) {
+      throw Error('Cannot set indexingRule without protocolNetwork')
+    } else {
+      try {
+        validateNetworkIdentifier(rule.protocolNetwork)
+      } catch (e) {
+        throw Error(`Invalid protocolNetwork. ${e}`)
+      }
     }
 
     const [identifier] = await processIdentifier(rule.identifier, {
