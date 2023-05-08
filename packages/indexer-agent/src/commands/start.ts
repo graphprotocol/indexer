@@ -518,6 +518,9 @@ export default {
     )
 
     const networkMeta = await networkProvider.getNetwork()
+
+    // TODO: enforce that this ID is the same as the configured network(s), when networks are
+    // identified.
     const networkChainId = resolveChainId(networkMeta.chainId)
 
     logger.info(`Connect to contracts`, {
@@ -608,6 +611,7 @@ export default {
           indexingStatusResolver,
           graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
           networkMonitor,
+          networkChainId,
         },
         storage: new SequelizeStorage({ sequelize }),
         logger: console,
