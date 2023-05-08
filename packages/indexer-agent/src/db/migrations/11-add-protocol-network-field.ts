@@ -4,6 +4,7 @@ import { DataTypes, QueryInterface } from 'sequelize'
 interface MigrationContext {
   queryInterface: QueryInterface
   logger: Logger
+  networkChainId: string
 }
 
 interface Context {
@@ -13,45 +14,69 @@ interface Context {
 const IndexingRules = 'IndexingRules'
 const Actions = 'Actions'
 const protocolNetwork = 'protocolNetwork'
-const oldPrimaryKey = 'IndexingRules_pkey'
-const newPrimaryKey = 'IndexingRules_composite_pkey'
+const oldPrimaryKeyConstraint = 'IndexingRules_pkey' // Assuming this is the existing constraint name
+const newPrimaryKeyConstraint = 'IndexingRules_composite_pkey'
 
 export async function up({ context }: Context): Promise<void> {
-  const { queryInterface, logger } = context
+  const { queryInterface, networkChainId, logger } = context
 
-  // Add protocolNetwork column
+  // Add protocolNetwork columns
   await addColumn(Actions, protocolNetwork, queryInterface, logger)
   await addColumn(IndexingRules, protocolNetwork, queryInterface, logger)
 
-  // Update constraints for the IndexingRules table
-  await queryInterface.removeConstraint(IndexingRules, oldPrimaryKey)
-
-  logger.fatal(
-    // TODO
-    'TODO: SET protocolNetwork column to the signle currently used network CAIP-2 identifier',
+  // Update and relax constraints for the IndexingRules table
+  logger.info(
+    `Temporarily removing primary key constraints from ${IndexingRules}`,
   )
-  process.exit(1)
+  await queryInterface.removeConstraint(IndexingRules, oldPrimaryKeyConstraint)
 
+  // Populate the `protocolNetwork` columns with the provided network ID
+  await updateTable(
+    IndexingRules,
+    protocolNetwork,
+    networkChainId,
+    queryInterface,
+    logger,
+  )
+  await updateTable(
+    Actions,
+    protocolNetwork,
+    networkChainId,
+    queryInterface,
+    logger,
+  )
+
+  // Restore constraints for the IndexingRules table
+  logger.info(`Restoring primary key constraints from ${IndexingRules}`)
   await queryInterface.addConstraint(IndexingRules, {
     fields: ['identifier', protocolNetwork],
     type: 'primary key',
-    name: newPrimaryKey,
+    name: newPrimaryKeyConstraint,
   })
+
+  // Alter the `protocolNetwork` columns to be NOT NULL
+  await alterColumn(IndexingRules, protocolNetwork, queryInterface, logger)
+  await alterColumn(Actions, protocolNetwork, queryInterface, logger)
 }
 
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
-  // Restore Primary Key
-  await queryInterface.removeConstraint(IndexingRules, newPrimaryKey)
+  // Drop the new primary key constraint
+  await queryInterface.removeConstraint(IndexingRules, newPrimaryKeyConstraint)
+
+  // Drop the new columns
+  await dropColumn(IndexingRules, protocolNetwork, queryInterface, logger)
+  await dropColumn(Actions, protocolNetwork, queryInterface, logger)
+
+  // Restore the old primary key constraint
   await queryInterface.addConstraint(IndexingRules, {
     fields: ['identifier'],
     type: 'primary key',
-    name: oldPrimaryKey,
+    name: oldPrimaryKeyConstraint,
   })
-
-  await dropColumn(IndexingRules, protocolNetwork, queryInterface, logger)
-  await dropColumn(Actions, protocolNetwork, queryInterface, logger)
 }
+
+/* Helper functions */
 
 async function addColumn(
   tableName: string,
@@ -93,4 +118,30 @@ async function dropColumn(
     logger.info(`Drop '${columnName}' column from ${tableName} table`)
     await queryInterface.removeColumn(tableName, columnName)
   }
+}
+
+async function updateTable(
+  tableName: string,
+  columnName: string,
+  value: string,
+  queryInterface: QueryInterface,
+  logger: Logger,
+) {
+  const values = { [columnName]: value }
+  const where = { [columnName]: null }
+  logger.info(`Set '${tableName}' table '${columnName}' column to '${value}'`)
+  await queryInterface.bulkUpdate(tableName, values, where)
+}
+
+async function alterColumn(
+  tableName: string,
+  columnName: string,
+  queryInterface: QueryInterface,
+  logger: Logger,
+) {
+  logger.info(`Altering ${tableName} table ${columnName} to be non-nullable`)
+  await queryInterface.changeColumn(tableName, columnName, {
+    type: DataTypes.STRING,
+    allowNull: true,
+  })
 }
