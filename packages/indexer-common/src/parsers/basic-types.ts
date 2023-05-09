@@ -9,7 +9,6 @@ function validateNetworkIdentifier(n: string): P.Parser<string> {
     const valid = resolveChainId(n)
     return P.succeed(valid)
   } catch (e) {
-    console.log(e)
     return P.fail('a supported network identifier')
   }
 }
