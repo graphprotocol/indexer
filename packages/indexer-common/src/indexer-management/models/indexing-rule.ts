@@ -32,6 +32,13 @@ export interface IndexingRuleAttributes {
   protocolNetwork: string
 }
 
+// Unambiguously identify a Indexing Rule in the Database.
+// This type should match the IndexingRules primary key columns.
+export interface IndexingRuleIdentifier {
+  identifier: string
+  protocolNetwork: string
+}
+
 export interface IndexingRuleCreationAttributes
   extends Optional<
     IndexingRuleAttributes,
