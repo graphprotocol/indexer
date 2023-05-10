@@ -84,7 +84,6 @@ export class Indexer {
   defaultAllocationAmount: BigNumber
   indexerAddress: string
   allocationManagementMode: AllocationManagementMode
-  globalIndexingRuleProtocolNetwork: string
 
   constructor(
     logger: Logger,
@@ -95,14 +94,12 @@ export class Indexer {
     defaultAllocationAmount: BigNumber,
     indexerAddress: string,
     allocationManagementMode: AllocationManagementMode,
-    globalIndexingRuleProtocolNetwork: string,
   ) {
     this.indexerManagement = indexerManagement
     this.statusResolver = statusResolver
     this.logger = logger
     this.indexerAddress = indexerAddress
     this.allocationManagementMode = allocationManagementMode
-    this.globalIndexingRuleProtocolNetwork = globalIndexingRuleProtocolNetwork
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -291,7 +288,6 @@ export class Indexer {
           decisionBasis: 'rules',
           requireSupported: true,
           safety: true,
-          protocolNetwork: this.globalIndexingRuleProtocolNetwork,
         }
 
         const defaultGlobalRule = await this.indexerManagement

@@ -692,7 +692,6 @@ export default {
         globalIndexingRule: {
           allocationAmount: argv.defaultAllocationAmount,
           parallelAllocations: 1,
-          protocolNetwork: 'FIXME TODO',
         },
       },
       features: {
@@ -721,7 +720,6 @@ export default {
       argv.defaultAllocationAmount,
       indexerAddress,
       allocationManagementMode,
-      'FIXME TODO',
     )
 
     if (networkSubgraphDeploymentId !== undefined) {
