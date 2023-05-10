@@ -57,19 +57,19 @@ const SET_INDEXING_RULE_MUTATION = gql`
 `
 
 const DELETE_INDEXING_RULE_MUTATION = gql`
-  mutation deleteIndexingRule($identifier: String!) {
+  mutation deleteIndexingRule($identifier: IndexingRuleIdentifier!) {
     deleteIndexingRule(identifier: $identifier)
   }
 `
 
 const DELETE_INDEXING_RULES_MUTATION = gql`
-  mutation deleteIndexingRules($identifiers: [String!]!) {
+  mutation deleteIndexingRules($identifiers: [IndexingRuleIdentifier!]!) {
     deleteIndexingRules(identifiers: $identifiers)
   }
 `
 
 const INDEXING_RULE_QUERY = gql`
-  query indexingRule($identifier: String!, $merged: Boolean!) {
+  query indexingRule($identifier: IndexingRuleIdentifier!, $merged: Boolean!) {
     indexingRule(identifier: $identifier, merged: $merged) {
       identifier
       identifierType
@@ -224,9 +224,10 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
+    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
@@ -261,9 +262,10 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
+    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
@@ -319,16 +321,18 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
+    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
     await expect(
       client
-        .query(INDEXING_RULE_QUERY, { identifier: INDEXING_RULE_GLOBAL, merged: false })
+        .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
   test('Set and get deployment rule (partial update)', async () => {
+    const originalIdentifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
     const originalInput = {
-      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+      identifier: originalIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
@@ -357,7 +361,7 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
-      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+      identifier: originalIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: null,
       maxSignal: '3',
@@ -380,10 +384,14 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
+    const ruleIdentifier = {
+      identifier: update.identifier,
+      protocolNetwork: update.protocolNetwork,
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+          identifier: ruleIdentifier,
           merged: false,
         })
         .toPromise(),
@@ -403,7 +411,7 @@ describe('Indexing rules', () => {
       ...update,
       ...updateAgain,
     }
-    expectedAgain.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
+    expectedAgain.identifier = originalIdentifier
 
     // Update the rule
     await expect(
@@ -411,10 +419,14 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expectedAgain)
 
     // Query the rule to make sure it's updated in the db
+    const ruleIdentifierAgain = {
+      identifier: originalIdentifier,
+      protocolNetwork: updateAgain.protocolNetwork,
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+          identifier: ruleIdentifierAgain,
           merged: false,
         })
         .toPromise(),
@@ -485,21 +497,28 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', deploymentExpected)
 
     // Query the global rule
+    const globalRuleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'goerli',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier: INDEXING_RULE_GLOBAL,
+          identifier: globalRuleIdentifier,
           merged: false,
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', globalExpected)
 
     // Query the rule for the deployment
+    const deploymentRuleIdentifier = {
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      protocolNetwork: 'goerli',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier:
-            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+          identifier: deploymentRuleIdentifier,
           merged: false,
         })
         .toPromise(),
@@ -548,9 +567,12 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.indexingRules', [expected])
 
     // Delete the rule
+    const ruleIdentifier = { identifier: expected.identifier, protocolNetwork: 'goerli' }
     await expect(
       client
-        .mutation(DELETE_INDEXING_RULE_MUTATION, { identifier: expected.identifier })
+        .mutation(DELETE_INDEXING_RULE_MUTATION, {
+          identifier: ruleIdentifier,
+        })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
 
@@ -695,20 +717,28 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', deploymentExpected)
 
     // Query the global rule
+    const globalRuleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'goerli',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier: INDEXING_RULE_GLOBAL,
+          identifier: globalRuleIdentifier,
           merged: false,
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRule', globalExpected)
 
     // Query the rule for the deployment merged with the global rule
+    const ruleIdentifier = {
+      identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+      protocolNetwork: 'goerli',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, {
-          identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
+          identifier: ruleIdentifier,
           merged: true,
         })
         .toPromise(),
@@ -741,10 +771,14 @@ describe('Indexing rules', () => {
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
 
+    const globalRuleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'goerli',
+    }
     await expect(
       client
         .mutation(DELETE_INDEXING_RULE_MUTATION, {
-          identifier: 'global',
+          identifier: globalRuleIdentifier,
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
@@ -757,7 +791,7 @@ describe('Indexing rules', () => {
         allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
-        identifier: 'global',
+        identifier: INDEXING_RULE_GLOBAL,
         identifierType: SubgraphIdentifierType.GROUP,
         allocationLifetime: null,
         autoRenewal: true,
@@ -798,13 +832,19 @@ describe('Indexing rules', () => {
       .mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput })
       .toPromise()
 
+    const globalRuleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'goerli',
+    }
+    const deploymentRuleIdentifier = {
+      identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
+      protocolNetwork: 'goerli',
+    }
+
     await expect(
       client
         .mutation(DELETE_INDEXING_RULES_MUTATION, {
-          identifiers: [
-            'global',
-            '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-          ],
+          identifiers: [globalRuleIdentifier, deploymentRuleIdentifier],
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteIndexingRules', true)
@@ -817,7 +857,7 @@ describe('Indexing rules', () => {
         allocationAmount: defaults.globalIndexingRule.allocationAmount.toString(),
         custom: null,
         decisionBasis: 'rules',
-        identifier: 'global',
+        identifier: INDEXING_RULE_GLOBAL,
         identifierType: SubgraphIdentifierType.GROUP,
         allocationLifetime: null,
         autoRenewal: true,
