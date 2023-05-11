@@ -107,22 +107,58 @@ export const setup = async () => {
   // Set global, deployment, and subgraph based test rules and cost model
   const commands: string[][] = [
     ['indexer', 'connect', 'http://localhost:18000'],
-    ['indexer', 'rules', 'set', 'global', 'minSignal', '500', 'allocationAmount', '.01'],
-    ['indexer', 'rules', 'set', 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr'],
-    ['indexer', 'rules', 'prepare', 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK'],
     [
       'indexer',
       'rules',
       'set',
+      '--network',
+      'goerli',
+      'global',
+      'minSignal',
+      '500',
+      'allocationAmount',
+      '.01',
+    ],
+    [
+      'indexer',
+      'rules',
+      'set',
+      '--network',
+      'goerli',
+      'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+    ],
+    [
+      'indexer',
+      'rules',
+      'prepare',
+      '--network',
+      'goerli',
+      'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
+    ],
+    [
+      'indexer',
+      'rules',
+      'set',
+      '--network',
+      'goerli',
       '0x0000000000000000000000000000000000000000-0',
       'allocationAmount',
       '1000',
     ],
-    ['indexer', 'rules', 'offchain', '0x0000000000000000000000000000000000000000-1'],
+    [
+      'indexer',
+      'rules',
+      'offchain',
+      '--network',
+      'goerli',
+      '0x0000000000000000000000000000000000000000-1',
+    ],
     [
       'indexer',
       'rules',
       'set',
+      '--network',
+      'goerli',
       '0x0000000000000000000000000000000000000000-2',
       'allocationAmount',
       '1000',
@@ -150,8 +186,10 @@ export const setup = async () => {
     ],
   ]
   for (const command of commands) {
-    const { exitCode } = await runIndexerCli(command, process.cwd())
+    const { exitCode, stderr, stdout } = await runIndexerCli(command, process.cwd())
     if (exitCode == 1) {
+      console.error(stderr)
+      console.log(stdout)
       throw Error(`Setup failed: indexer rules or cost set command failed: ${command}`)
     }
   }
@@ -224,12 +262,26 @@ export const cliTest = (
             `Make sure there is least one expected output located at the defined 'outputReferencePath', '${outputReferencePath}'`,
         )
       }
+      // TEMPORARY DEGBUG
+      const outfile = outputReferencePath.replace('references/', '')
+      if (stdout) {
+        fs.writeFile(`/tmp/idx-${outfile}.stdout`, stripAnsi(stdout), 'utf8', err => {
+          err ? console.error('test: %s, error: %s', outfile, err) : null
+        })
+      }
+      if (stderr) {
+        fs.writeFile(`/tmp/idx-${outfile}.stderr`, stripAnsi(stderr), 'utf8', err => {
+          err ? console.error('test: %s, error: %s', outfile, err) : null
+        })
+      }
+
       if (expectedExitCode !== undefined) {
         if (exitCode == undefined) {
           throw new Error('Expected exitCode (found undefined)')
         }
         expect(exitCode).toBe(expectedExitCode)
       }
+
       if (expectedStderr) {
         if (stderr == undefined) {
           throw new Error('Expected stderr (found undefined)')

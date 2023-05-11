@@ -3,7 +3,11 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, parseOutputFormat } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  fixParameters,
+  parseOutputFormat,
+} from '../../../command-helpers'
 import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
 import { setIndexingRule, displayRules, parseIndexingRule } from '../../../rules'
 
@@ -15,7 +19,7 @@ ${chalk.bold('graph indexer rules prepare')}   [options] <subgraph-identifier>
 
 ${chalk.dim('Options:')}
 
-  -h, --help                    Show usage information
+,  -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
@@ -42,6 +46,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
@@ -50,6 +55,7 @@ module.exports = {
       const inputRule = parseIndexingRule({
         identifier,
         identifierType,
+        protocolNetwork,
         decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       })
 

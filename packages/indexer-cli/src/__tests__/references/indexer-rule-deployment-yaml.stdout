@@ -13,3 +13,4 @@ custom: null
 decisionBasis: rules
 requireSupported: true
 safety: true
+protocolNetwork: goerli
