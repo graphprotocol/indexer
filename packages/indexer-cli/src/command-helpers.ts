@@ -206,3 +206,22 @@ export function suggestCommands(
   )
   return suggestions.length > 0 ? suggestions : supported_commands
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function extractProtocolNetworkOption(options: { [key: string]: any }): string {
+  const { n, network } = options
+
+  // Check for omission explicitly to return a proper error message
+  if (!n && !network) {
+    throw new Error("The option '--network' is required")
+  }
+
+  // Check for invalid usage
+  const allowedUsages =
+    (n === undefined && typeof network === 'string') ||
+    (network === undefined && typeof n === 'string')
+  if (!allowedUsages) {
+    throw new Error("Invalid usage of the option '--network'")
+  }
+  return (network ?? n) as string
+}
