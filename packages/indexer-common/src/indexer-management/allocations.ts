@@ -162,6 +162,7 @@ export class AllocationManager {
               error instanceof IndexerError
                 ? error.code
                 : `Failed to confirm transactions: ${error.message}`,
+            protocolNetwork: action.protocolNetwork,
           }
         }
       },
@@ -204,13 +205,24 @@ export class AllocationManager {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.amount!,
           receipt,
+          action.protocolNetwork,
         )
       case ActionType.UNALLOCATE:
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return await this.confirmUnallocate(action.id, action.allocationID!, receipt)
+        return await this.confirmUnallocate(
+          action.id,
+          action.allocationID!,
+          receipt,
+          action.protocolNetwork,
+        )
       case ActionType.REALLOCATE:
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return await this.confirmReallocate(action.id, action.allocationID!, receipt)
+        return await this.confirmReallocate(
+          action.id,
+          action.allocationID!,
+          receipt,
+          action.protocolNetwork,
+        )
     }
   }
 
@@ -268,6 +280,7 @@ export class AllocationManager {
           error instanceof IndexerError
             ? error.code
             : `Failed to prepare tx call data: ${error.message}`,
+        protocolNetwork: action.protocolNetwork,
       }
     }
   }
@@ -379,6 +392,7 @@ export class AllocationManager {
     deployment: string,
     amount: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
+    protocolNetwork: string,
   ): Promise<CreateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -439,6 +453,7 @@ export class AllocationManager {
       deployment: deployment,
       allocation: createAllocationEventLogs.allocationID,
       allocatedTokens: amount,
+      protocolNetwork,
     }
   }
 
@@ -470,7 +485,9 @@ export class AllocationManager {
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
     indexNode: string | undefined,
+    protocolNetwork: string,
   ): Promise<CreateAllocationResult> {
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     try {
       const params = await this.prepareAllocateParams(
         this.logger,
@@ -515,6 +532,7 @@ export class AllocationManager {
         deployment.ipfsHash,
         amount.toString(),
         receipt,
+        protocolNetwork,
       )
     } catch (error) {
       this.logger.error(`Failed to allocate`, {
@@ -572,7 +590,9 @@ export class AllocationManager {
     actionID: number,
     allocationID: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
+    protocolNetwork: string,
   ): Promise<CloseAllocationResult> {
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming 'closeAllocation' transaction`)
 
@@ -658,6 +678,7 @@ export class AllocationManager {
       allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
       indexingRewards: formatGRT(rewardsAssigned),
       receiptsWorthCollecting: isCollectingQueryFees,
+      protocolNetwork,
     }
   }
 
@@ -689,6 +710,7 @@ export class AllocationManager {
     allocationID: string,
     poi: string | undefined,
     force: boolean,
+    protocolNetwork: string,
   ): Promise<CloseAllocationResult> {
     try {
       const params = await this.prepareUnallocateParams(
@@ -715,7 +737,7 @@ export class AllocationManager {
       )
 
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return await this.confirmUnallocate(0, allocation.id!, receipt)
+      return await this.confirmUnallocate(0, allocation.id!, receipt, protocolNetwork)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE015, error)
       this.logger.warn(`Failed to close allocation`, {
@@ -868,7 +890,9 @@ export class AllocationManager {
     actionID: number,
     allocationID: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
+    protocolNetwork: string,
   ): Promise<ReallocateAllocationResult> {
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming 'closeAndAllocate' transaction`, {
       allocationID,
@@ -976,6 +1000,7 @@ export class AllocationManager {
       receiptsWorthCollecting: isCollectingQueryFees,
       createdAllocation: createAllocationEventLogs.allocationID,
       createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
+      protocolNetwork,
     }
   }
 
@@ -1010,6 +1035,7 @@ export class AllocationManager {
     poi: string | undefined,
     amount: BigNumber,
     force: boolean,
+    protocolNetwork: string,
   ): Promise<ReallocateAllocationResult> {
     try {
       const params = await this.prepareReallocateParams(
@@ -1057,7 +1083,7 @@ export class AllocationManager {
         this.logger.child({ function: 'staking.closeAndAllocate' }),
       )
 
-      return await this.confirmReallocate(0, allocationID, receipt)
+      return await this.confirmReallocate(0, allocationID, receipt, protocolNetwork)
     } catch (error) {
       this.logger.error(error.toString())
       throw error
