@@ -79,6 +79,7 @@ const SCHEMA_SDL = gql`
     status: String
     allocation: String
     subgraphDeployment: String
+    protocolNetwork: String
   }
 
   enum AllocationStatus {
@@ -102,12 +103,14 @@ const SCHEMA_SDL = gql`
     signalledTokens: BigInt!
     stakedTokens: BigInt!
     status: AllocationStatus!
+    protocolNetwork: String!
   }
 
   type CreateAllocationResult {
     allocation: String!
     deployment: String!
     allocatedTokens: String!
+    protocolNetwork: String!
   }
 
   type CloseAllocationResult {
@@ -115,6 +118,7 @@ const SCHEMA_SDL = gql`
     allocatedTokens: String!
     indexingRewards: String!
     receiptsWorthCollecting: Boolean!
+    protocolNetwork: String!
   }
 
   type ReallocateAllocationResult {
@@ -123,6 +127,7 @@ const SCHEMA_SDL = gql`
     receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
+    protocolNetwork: String!
   }
 
   enum ActionStatus {
@@ -423,17 +428,20 @@ const SCHEMA_SDL = gql`
       deployment: String!
       amount: String!
       indexNode: String
+      protocolNetwork: String
     ): CreateAllocationResult!
     closeAllocation(
       allocation: String!
       poi: String
       force: Boolean
+      protocoNetwork: String!
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
       poi: String
       amount: String!
       force: Boolean
+      protocoNetwork: String!
     ): ReallocateAllocationResult!
 
     updateAction(action: ActionInput!): Action!

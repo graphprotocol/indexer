@@ -28,6 +28,7 @@ export interface IndexerAllocation {
   indexingRewards: BigNumber
   queryFeesCollected: BigNumber
   status: string
+  protocolNetwork: string
 }
 
 const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
@@ -51,6 +52,7 @@ const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
   indexingRewards: nullPassThrough((x: string) => BigNumber.from(x)),
   queryFeesCollected: nullPassThrough((x: string) => BigNumber.from(x)),
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 const ALLOCATION_FORMATTERS: Record<
@@ -73,6 +75,7 @@ const ALLOCATION_FORMATTERS: Record<
   indexingRewards: x => utils.commify(formatGRT(x)),
   queryFeesCollected: x => utils.commify(formatGRT(x)),
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -171,6 +174,7 @@ export const createAllocation = async (
   deployment: string,
   amount: BigNumber,
   indexNode: string | undefined,
+  protocolNetwork: string,
 ): Promise<CreateAllocationResult> => {
   const result = await client
     .mutation(
@@ -178,16 +182,19 @@ export const createAllocation = async (
         mutation createAllocation(
           $deployment: String!
           $amount: String!
+          $protocolNetwork: String!
           $indexNode: String
         ) {
           createAllocation(
             deployment: $deployment
             amount: $amount
+            protocolNetwork: $protocolNetwork
             indexNode: $indexNode
           ) {
             allocation
             deployment
             allocatedTokens
+            protocolNetwork
           }
         }
       `,
@@ -195,6 +202,7 @@ export const createAllocation = async (
         deployment,
         amount: amount.toString(),
         indexNode,
+        protocolNetwork,
       },
     )
     .toPromise()
@@ -211,23 +219,32 @@ export const closeAllocation = async (
   allocationID: string,
   poi: string | undefined,
   force: boolean,
+  protocolNetwork: string,
 ): Promise<CloseAllocationResult> => {
   const result = await client
     .mutation(
       gql`
-        mutation closeAllocation($allocation: String!, $poi: String, $force: Boolean) {
-          closeAllocation(allocation: $allocation, poi: $poi, force: $force) {
+        mutation closeAllocation(
+          $allocation: String!
+          $poi: String
+          $force: Boolean
+          $protocolNetwork: String!
+        ) {
+          closeAllocation(allocation: $allocation, poi: $poi, force: $force, $protocolNetwork) {
             allocation
             allocatedTokens
             indexingRewards
             receiptsWorthCollecting
+            protocolNetwork
           }
         }
+
       `,
       {
         allocation: allocationID,
-        poi: poi,
-        force: force,
+        poi,
+        force,
+        protocolNetwork,
       },
     )
     .toPromise()
@@ -245,6 +262,7 @@ export const reallocateAllocation = async (
   poi: string | undefined,
   amount: BigNumber,
   force: boolean,
+  protocolNetwork: string,
 ): Promise<ReallocateAllocationResult> => {
   const result = await client
     .mutation(
@@ -254,26 +272,30 @@ export const reallocateAllocation = async (
           $poi: String
           $amount: String!
           $force: Boolean
+          $protocolNetwork: String!
         ) {
           reallocateAllocation(
             allocation: $allocation
             poi: $poi
             amount: $amount
             force: $force
+            protocolNetwork: $protocolNetwork
           ) {
             closedAllocation
             indexingRewardsCollected
             receiptsWorthCollecting
             createdAllocation
             createdAllocationStake
+            protocolNetwork
           }
         }
       `,
       {
         allocation: allocationID,
-        poi: poi,
+        poi,
         amount: amount.toString(),
-        force: force,
+        force,
+        protocolNetwork,
       },
     )
     .toPromise()
