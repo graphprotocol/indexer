@@ -40,6 +40,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'goerli',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -60,6 +61,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'goerli',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -79,6 +81,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockNumber: x => +x,
   previousEpochReferenceProof: x => x,
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -168,7 +171,6 @@ const setup = async () => {
     parseGRT('1000'),
     address,
     AllocationManagementMode.AUTO,
-    'goerli',
   )
 }
 
@@ -201,6 +203,7 @@ describe('Indexer tests', () => {
       previousEpochReferenceProof:
         '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
       status: 'potential',
+      protocolNetwork: 'goerli',
     }
 
     const disputes = [badDispute]
@@ -239,8 +242,8 @@ describe('Indexer tests', () => {
     await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.fetchPOIDisputes('potential', 205)).resolves.toEqual(
-      expectedFilteredResult,
-    )
+    await expect(
+      indexer.fetchPOIDisputes('potential', 205, 'goerli'),
+    ).resolves.toEqual(expectedFilteredResult)
   })
 })

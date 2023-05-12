@@ -4,15 +4,16 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
-import { parseOutputFormat } from '../../../command-helpers'
+import { extractProtocolNetworkOption, parseOutputFormat } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
   'graph indexer disputes get',
 )} [options] potential <minimumAllocationClosedEpoch>
-  
+
 ${chalk.dim('Options:')}
 
+  -n, --network                 Filter by protocol network
   -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -24,7 +25,7 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { h, help, o, output } = parameters.options
+    const { h, help, o, output, n, network } = parameters.options
     const [status, minAllocationClosedEpoch] = parameters.array || []
     const outputFormat = parseOutputFormat(print, o || output || 'table')
 
@@ -49,12 +50,28 @@ module.exports = {
       return
     }
 
+    let protocolNetwork: string | null = null
+    if (n || network) {
+      try {
+        protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      } catch (error) {
+        print.error(`Failed to parse network option: ${error.message()}`)
+        process.exitCode = 1
+        return
+      }
+    }
+
     const config = loadValidatedConfig()
 
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      const storedDisputes = await disputes(client, status, +minAllocationClosedEpoch)
+      const storedDisputes = await disputes(
+        client,
+        status,
+        +minAllocationClosedEpoch,
+        protocolNetwork,
+      )
 
       printDisputes(print, outputFormat, storedDisputes)
     } catch (error) {
