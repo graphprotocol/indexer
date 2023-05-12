@@ -1,22 +1,27 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
-import { POIDispute, POIDisputeCreationAttributes } from '../models'
+import { POIDispute, POIDisputeIdentifier, POIDisputeCreationAttributes } from '../models'
 import { IndexerManagementResolverContext } from '../client'
 import { Op } from 'sequelize'
+import groupBy from 'lodash.groupby'
 
 export default {
   dispute: async (
-    { allocationID }: { allocationID: number },
+    { identifier }: { identifier: POIDisputeIdentifier },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const dispute = await models.POIDispute.findOne({
-      where: { allocationID },
+      where: { ...identifier },
     })
     return dispute?.toGraphQL() || dispute
   },
 
   disputes: async (
-    { status, minClosedEpoch }: { status: string; minClosedEpoch: number },
+    {
+      status,
+      minClosedEpoch,
+      protocolNetwork,
+    }: { status: string; minClosedEpoch: number; protocolNetwork: string | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const disputes = await models.POIDispute.findAll({
@@ -28,6 +33,7 @@ export default {
               [Op.gte]: minClosedEpoch,
             },
           },
+          { protocolNetwork },
         ],
       },
       order: [['allocationAmount', 'DESC']],
@@ -52,15 +58,24 @@ export default {
   },
 
   deleteDisputes: async (
-    { allocationIDs }: { allocationIDs: string[] },
+    { identifiers }: { identifiers: POIDisputeIdentifier[] },
     { models }: IndexerManagementResolverContext,
   ): Promise<number> => {
-    const numDeleted = await models.POIDispute.destroy({
-      where: {
-        allocationID: allocationIDs,
-      },
-      force: true,
-    })
-    return numDeleted
+    let totalNumDeleted = 0
+
+    // Batch by protocolNetwork
+    const batches = groupBy(identifiers, (x: POIDisputeIdentifier) => x.protocolNetwork)
+
+    for (const protocolNetwork in batches) {
+      const batch = batches[protocolNetwork]
+      const numDeleted = await models.POIDispute.destroy({
+        where: {
+          allocationID: batch.map((x) => x.allocationID),
+        },
+        force: true,
+      })
+      totalNumDeleted += numDeleted
+    }
+    return totalNumDeleted
   },
 }

@@ -501,9 +501,23 @@ class Agent {
     disputableEpoch: number,
   ): Promise<void> {
     // TODO: Support supplying status = 'any' to fetchPOIDisputes() to fetch all previously processed allocations in a single query
+
+    // TODO:L2: Perform this procedure for all configured networks, not just one
+    const protocolNetwork = this.networkMonitor.networkCAIPID
+
     const alreadyProcessed = (
-      await this.indexer.fetchPOIDisputes('potential', disputableEpoch)
-    ).concat(await this.indexer.fetchPOIDisputes('valid', disputableEpoch))
+      await this.indexer.fetchPOIDisputes(
+        'potential',
+        disputableEpoch,
+        protocolNetwork,
+      )
+    ).concat(
+      await this.indexer.fetchPOIDisputes(
+        'valid',
+        disputableEpoch,
+        protocolNetwork,
+      ),
+    )
 
     const newDisputableAllocations = disputableAllocations.filter(
       allocation =>
@@ -607,6 +621,7 @@ class Agent {
           previousEpochStartBlockNumber:
             rewardsPool!.previousEpochStartBlockNumber!,
           status,
+          protocolNetwork,
         } as POIDisputeAttributes
       },
     )
