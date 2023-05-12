@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- Adds a `protocolNetwork`field to multiple types across packages:
+  - `IndexingRule`
+  - `POIDispute`
+  - `Action`
+  - `Allocation`
+
+- Indexer Management GraphQL API's queries and mutations signatures have changed to accommodate the
+  new composite primary key identifier types.
 
 ## [0.20.17] - 2023-06-19
 ### Changed
