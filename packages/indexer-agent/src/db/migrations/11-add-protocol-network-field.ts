@@ -13,135 +13,162 @@ interface Context {
 
 const IndexingRules = 'IndexingRules'
 const Actions = 'Actions'
+const POIDispute = 'POIDispute'
 const protocolNetwork = 'protocolNetwork'
-const oldPrimaryKeyConstraint = 'IndexingRules_pkey' // Assuming this is the existing constraint name
-const newPrimaryKeyConstraint = 'IndexingRules_composite_pkey'
+const IndexingRulesOldPrimaryKeyConstraint = 'IndexingRules_pkey' // Assuming this is the existing constraint name
+const IndexingRulesNewPrimaryKeyConstraint = 'IndexingRules_composite_pkey'
+const IndexingRulesOldPrimaryKeyColumn = 'identifier'
+const POIDisputeOldPrimaryKeyConstraint = 'POIDispute_pkey' // Assuming this is the existing constraint name
+const POIDisputeNewPrimaryKeyConstraint = 'POIDispute_composite_pkey'
+const POIDisputeOldPrimaryKeyColumn = 'allocationID'
 
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, networkChainId, logger } = context
+  const m = new Migration(queryInterface, logger)
 
   // Add protocolNetwork columns
-  await addColumn(Actions, protocolNetwork, queryInterface, logger)
-  await addColumn(IndexingRules, protocolNetwork, queryInterface, logger)
+  await m.addColumn(Actions, protocolNetwork)
+  await m.addColumn(IndexingRules, protocolNetwork)
+  await m.addColumn(POIDispute, protocolNetwork)
 
-  // Update and relax constraints for the IndexingRules table
-  logger.info(
-    `Temporarily removing primary key constraints from ${IndexingRules}`,
-  )
-  await queryInterface.removeConstraint(IndexingRules, oldPrimaryKeyConstraint)
+  // Update and relax constraints
+  await m.removeConstraint(IndexingRules, IndexingRulesOldPrimaryKeyConstraint)
+  await m.removeConstraint(POIDispute, POIDisputeOldPrimaryKeyConstraint)
 
   // Populate the `protocolNetwork` columns with the provided network ID
-  await updateTable(
-    IndexingRules,
-    protocolNetwork,
-    networkChainId,
-    queryInterface,
-    logger,
-  )
-  await updateTable(
-    Actions,
-    protocolNetwork,
-    networkChainId,
-    queryInterface,
-    logger,
-  )
+  await m.updateTable(IndexingRules, protocolNetwork, networkChainId)
+  await m.updateTable(Actions, protocolNetwork, networkChainId)
+  await m.updateTable(POIDispute, protocolNetwork, networkChainId)
 
-  // Restore constraints for the IndexingRules table
-  logger.info(`Restoring primary key constraints from ${IndexingRules}`)
-  await queryInterface.addConstraint(IndexingRules, {
-    fields: ['identifier', protocolNetwork],
-    type: 'primary key',
-    name: newPrimaryKeyConstraint,
-  })
+  // Restore constraints
+  await m.restorePrimaryKeyConstraint(
+    IndexingRules,
+    IndexingRulesNewPrimaryKeyConstraint,
+    [IndexingRulesOldPrimaryKeyColumn, protocolNetwork],
+  )
+  await m.restorePrimaryKeyConstraint(
+    POIDispute,
+    POIDisputeNewPrimaryKeyConstraint,
+    [POIDisputeOldPrimaryKeyColumn, protocolNetwork],
+  )
 
   // Alter the `protocolNetwork` columns to be NOT NULL
-  await alterColumn(IndexingRules, protocolNetwork, queryInterface, logger)
-  await alterColumn(Actions, protocolNetwork, queryInterface, logger)
+  await m.alterColumn(IndexingRules, protocolNetwork)
+  await m.alterColumn(Actions, protocolNetwork)
+  await m.alterColumn(POIDispute, protocolNetwork)
 }
 
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
+  const m = new Migration(queryInterface, logger)
+
   // Drop the new primary key constraint
-  await queryInterface.removeConstraint(IndexingRules, newPrimaryKeyConstraint)
+  await queryInterface.removeConstraint(
+    IndexingRules,
+    IndexingRulesNewPrimaryKeyConstraint,
+  )
+  await queryInterface.removeConstraint(
+    POIDispute,
+    POIDisputeNewPrimaryKeyConstraint,
+  )
 
   // Drop the new columns
-  await dropColumn(IndexingRules, protocolNetwork, queryInterface, logger)
-  await dropColumn(Actions, protocolNetwork, queryInterface, logger)
+  await m.dropColumn(IndexingRules, protocolNetwork)
+  await m.dropColumn(Actions, protocolNetwork)
+  await m.dropColumn(POIDispute, protocolNetwork)
 
   // Restore the old primary key constraint
   await queryInterface.addConstraint(IndexingRules, {
-    fields: ['identifier'],
+    fields: [IndexingRulesOldPrimaryKeyColumn],
     type: 'primary key',
-    name: oldPrimaryKeyConstraint,
+    name: IndexingRulesOldPrimaryKeyConstraint,
+  })
+  await queryInterface.addConstraint(IndexingRules, {
+    fields: [POIDisputeOldPrimaryKeyColumn],
+    type: 'primary key',
+    name: POIDisputeOldPrimaryKeyConstraint,
   })
 }
 
-/* Helper functions */
-
-async function addColumn(
-  tableName: string,
-  columnName: string,
-  queryInterface: QueryInterface,
-  logger: Logger,
-): Promise<void> {
-  logger.debug(`Checking if ${tableName} table exists`)
-  const tables = await queryInterface.showAllTables()
-  if (!tables.includes(tableName)) {
-    logger.info(`${tableName} table does not exist, migration not necessary`)
-    return
+// Helper migration class
+class Migration {
+  queryInterface: QueryInterface
+  logger: Logger
+  constructor(queryInterface: QueryInterface, logger: Logger) {
+    this.queryInterface = queryInterface
+    this.logger = logger
   }
 
-  logger.debug(`Checking if ${tableName} table needs to be migrated`)
-  const table = await queryInterface.describeTable(tableName)
-  if (columnName in table) {
-    logger.info(
-      `'${columnName}' columns already exist, migration not necessary`,
+  async addColumn(tableName: string, columnName: string): Promise<void> {
+    this.logger.debug(`Checking if ${tableName} table exists`)
+    const tables = await this.queryInterface.showAllTables()
+    if (!tables.includes(tableName)) {
+      this.logger.info(
+        `${tableName} table does not exist, migration not necessary`,
+      )
+      return
+    }
+
+    this.logger.debug(`Checking if ${tableName} table needs to be migrated`)
+    const table = await this.queryInterface.describeTable(tableName)
+    if (columnName in table) {
+      this.logger.info(
+        `'${columnName}' columns already exist, migration not necessary`,
+      )
+      return
+    }
+
+    this.logger.info(`Add '${columnName}' column to ${tableName} table`)
+    await this.queryInterface.addColumn(tableName, columnName, {
+      type: DataTypes.STRING,
+      allowNull: true,
+    })
+  }
+
+  async dropColumn(tableName: string, columnName: string): Promise<void> {
+    const tables = await this.queryInterface.showAllTables()
+    if (tables.includes(tableName)) {
+      this.logger.info(`Drop '${columnName}' column from ${tableName} table`)
+      await this.queryInterface.removeColumn(tableName, columnName)
+    }
+  }
+
+  async updateTable(tableName: string, columnName: string, value: string) {
+    const values = { [columnName]: value }
+    const where = { [columnName]: null }
+    this.logger.info(
+      `Set '${tableName}' table '${columnName}' column to '${value}'`,
     )
-    return
+    await this.queryInterface.bulkUpdate(tableName, values, where)
   }
 
-  logger.info(`Add '${columnName}' column to ${tableName} table`)
-  await queryInterface.addColumn(tableName, columnName, {
-    type: DataTypes.STRING,
-    allowNull: true,
-  })
-}
-
-async function dropColumn(
-  tableName: string,
-  columnName: string,
-  queryInterface: QueryInterface,
-  logger: Logger,
-): Promise<void> {
-  const tables = await queryInterface.showAllTables()
-  if (tables.includes(tableName)) {
-    logger.info(`Drop '${columnName}' column from ${tableName} table`)
-    await queryInterface.removeColumn(tableName, columnName)
+  async alterColumn(tableName: string, columnName: string) {
+    this.logger.info(
+      `Altering ${tableName} table ${columnName} to be non-nullable`,
+    )
+    await this.queryInterface.changeColumn(tableName, columnName, {
+      type: DataTypes.STRING,
+      allowNull: true,
+    })
   }
-}
 
-async function updateTable(
-  tableName: string,
-  columnName: string,
-  value: string,
-  queryInterface: QueryInterface,
-  logger: Logger,
-) {
-  const values = { [columnName]: value }
-  const where = { [columnName]: null }
-  logger.info(`Set '${tableName}' table '${columnName}' column to '${value}'`)
-  await queryInterface.bulkUpdate(tableName, values, where)
-}
+  async removeConstraint(tableName: string, constraintName: string) {
+    this.logger.info(
+      `Temporarily removing primary key constraints from ${tableName}`,
+    )
+    await this.queryInterface.removeConstraint(tableName, constraintName)
+  }
 
-async function alterColumn(
-  tableName: string,
-  columnName: string,
-  queryInterface: QueryInterface,
-  logger: Logger,
-) {
-  logger.info(`Altering ${tableName} table ${columnName} to be non-nullable`)
-  await queryInterface.changeColumn(tableName, columnName, {
-    type: DataTypes.STRING,
-    allowNull: true,
-  })
+  async restorePrimaryKeyConstraint(
+    tableName: string,
+    newConstraintName: string,
+    columns: string[],
+  ) {
+    this.logger.info(`Restoring primary key constraints from ${tableName}`)
+    await this.queryInterface.addConstraint(tableName, {
+      fields: columns,
+      type: 'primary key',
+      name: newConstraintName,
+    })
+  }
 }
