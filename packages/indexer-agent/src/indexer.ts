@@ -49,6 +49,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockNumber: x => +x,
   previousEpochReferenceProof: x => x,
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -388,6 +389,7 @@ export class Indexer {
                 previousEpochStartBlockNumber
                 previousEpochReferenceProof
                 status
+                protocolNetwork
               }
             }
           `,
@@ -417,13 +419,22 @@ export class Indexer {
   async fetchPOIDisputes(
     status: string,
     minClosedEpoch: number,
+    protocolNetwork: string | undefined,
   ): Promise<POIDisputeAttributes[]> {
     try {
       const result = await this.indexerManagement
         .query(
           gql`
-            query disputes($status: String!, $minClosedEpoch: Int!) {
-              disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
+            query disputes(
+              $status: String!
+              $minClosedEpoch: Int!
+              $protocolNetwork: String
+            ) {
+              disputes(
+                status: $status
+                minClosedEpoch: $minClosedEpoch
+                protocolNetwork: $protocolNetwork
+              ) {
                 allocationID
                 subgraphDeploymentID
                 allocationIndexer
@@ -437,12 +448,14 @@ export class Indexer {
                 previousEpochStartBlockNumber
                 previousEpochReferenceProof
                 status
+                protocolNetwork
               }
             }
           `,
           {
             status,
             minClosedEpoch,
+            protocolNetwork,
           },
         )
         .toPromise()

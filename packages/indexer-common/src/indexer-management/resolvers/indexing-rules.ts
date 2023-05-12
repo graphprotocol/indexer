@@ -11,6 +11,7 @@ import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules } from '../rules'
 import { processIdentifier } from '../../'
 import { validateNetworkIdentifier } from '../../parsers'
+import groupBy from 'lodash.groupby'
 
 const resetGlobalRule = async (
   ruleIdentifier: IndexingRuleIdentifier,
@@ -142,19 +143,16 @@ export default {
   ): Promise<boolean> => {
     let totalNumDeleted = 0
     // Batch deletions by the `IndexingRuleIdentifier.protocolNetwork` attribute .
-    const batches = indexingRuleIdentifiers.reduce((acc, rule) => {
-      if (!acc[rule.protocolNetwork]) {
-        acc[rule.protocolNetwork] = []
-      }
-      acc[rule.protocolNetwork].push(rule.identifier)
-      return acc
-    }, {} as Record<string, string[]>)
+    const batches = groupBy(
+      indexingRuleIdentifiers,
+      (x: IndexingRuleIdentifier) => x.protocolNetwork,
+    )
 
     for (const protocolNetwork in batches) {
       const batch = batches[protocolNetwork]
       const identifiers = await Promise.all(
         batch.map(
-          async (identifier: string) =>
+          async ({ identifier }: IndexingRuleIdentifier) =>
             (
               await processIdentifier(identifier, { all: false, global: true })
             )[0],
