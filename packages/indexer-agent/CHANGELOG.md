@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- A new migration to add the `protocolNetwork` column to the `Actions`, `IndexingRules` and
+  `POIDispute` tables. The new column will also be part of a composite key for the last two tables.
+
 ### Changed
 - Startup parameter `--ethereum` has been renamed to `--network-provider`
 - The Agent can now be configured with multiple networks: The startup parameters
