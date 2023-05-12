@@ -494,12 +494,12 @@ export default {
 
     // Parse the Network Subgraph optional argument
     const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment[0].cid) // FIXME: Use multiple network subgraphs.
+      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment[0].cid) // TODO:L2: Use multiple network subgraphs.
       : undefined
 
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
-      endpoint: argv.networkSubgraphEndpoint?.[0].url.toString(), // FIXME: Use multiple network subgraphs.
+      endpoint: argv.networkSubgraphEndpoint?.[0].url.toString(), // TODO:L2: Use multiple network subgraphs.
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
@@ -513,13 +513,13 @@ export default {
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.networkProvider[0].url.toString(), // FIXME: Use multiple providers.
+      argv.networkProvider[0].url.toString(), // TODO:L2: Use multiple providers.
       argv.ethereumPollingInterval,
     )
 
     const networkMeta = await networkProvider.getNetwork()
 
-    // TODO: enforce that this ID is the same as the configured network(s), when networks are
+    // TODO:L2: enforce that this ID is the same as the configured network(s), when networks are
     // identified.
     const networkChainId = resolveChainId(networkMeta.chainId)
 
@@ -563,7 +563,7 @@ export default {
     const indexerAddress = toAddress(argv.indexerAddress)
 
     const epochSubgraph = await EpochSubgraph.create(
-      argv.epochSubgraphEndpoint[0].url.toString(), // FIXME: use multiple epoch subgraphs
+      argv.epochSubgraphEndpoint[0].url.toString(), // TODO:L2: use multiple epoch subgraphs
     )
 
     const networkMonitor = new NetworkMonitor(
@@ -734,7 +734,7 @@ export default {
       try {
         await validateNetworkId(
           networkMeta,
-          argv.networkSubgraphDeployment[0].cid, // FIXME: Use multiple network subgraphs.
+          argv.networkSubgraphDeployment[0].cid, // TODO:L2: Use multiple network subgraphs.
           indexingStatusResolver,
           logger,
         )
