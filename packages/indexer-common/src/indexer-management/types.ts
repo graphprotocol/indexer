@@ -17,6 +17,7 @@ export interface CreateAllocationResult {
   allocation: string
   deployment: string
   allocatedTokens: string
+  protocolNetwork: string
 }
 
 export interface CloseAllocationResult {
@@ -27,6 +28,7 @@ export interface CloseAllocationResult {
   allocatedTokens: string
   indexingRewards: string
   receiptsWorthCollecting: boolean
+  protocolNetwork: string
 }
 
 export interface ReallocateAllocationResult {
@@ -38,12 +40,14 @@ export interface ReallocateAllocationResult {
   receiptsWorthCollecting: boolean
   createdAllocation: string
   createdAllocationStake: string
+  protocolNetwork: string
 }
 
 export interface ActionFailure {
   actionID: number
   transactionID?: string
   failureReason: string
+  protocolNetwork: string
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

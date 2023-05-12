@@ -348,8 +348,8 @@ async function resolvePOI(
           }
           throw indexerError(
             IndexerErrorCode.IE068,
-            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
-            POI: ${poi}, 
+            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
+            POI: ${poi},
             referencePOI: ${generatedPOI}`,
           )
       }
@@ -407,7 +407,13 @@ export default {
       deployment,
       amount,
       indexNode,
-    }: { deployment: string; amount: string; indexNode: string | undefined },
+      protocolNetwork,
+    }: {
+      deployment: string
+      amount: string
+      indexNode: string | undefined
+      protocolNetwork: string
+    },
     {
       address,
       contracts,
@@ -419,6 +425,7 @@ export default {
     }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', { deployment, amount })
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
 
     const allocationAmount = parseGRT(amount)
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -618,6 +625,7 @@ export default {
         deployment,
         allocation: createEvent.allocationID,
         allocatedTokens: formatGRT(allocationAmount.toString()),
+        protocolNetwork,
       }
     } catch (error) {
       logger.error(`Failed to allocate`, {
@@ -633,7 +641,13 @@ export default {
       allocation,
       poi,
       force,
-    }: { allocation: string; poi: string | undefined; force: boolean },
+      protocolNetwork,
+    }: {
+      allocation: string
+      poi: string | undefined
+      force: boolean
+      protocolNetwork: string
+    },
     {
       contracts,
       indexingStatusResolver,
@@ -644,6 +658,7 @@ export default {
       receiptCollector,
     }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
@@ -795,6 +810,7 @@ export default {
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
         receiptsWorthCollecting: isCollectingQueryFees,
+        protocolNetwork,
       }
     } catch (error) {
       logger.error(error.toString())
@@ -808,7 +824,14 @@ export default {
       poi,
       amount,
       force,
-    }: { allocation: string; poi: string | undefined; amount: string; force: boolean },
+      protocolNetwork,
+    }: {
+      allocation: string
+      poi: string | undefined
+      amount: string
+      force: boolean
+      protocolNetwork: string
+    },
     {
       address,
       contracts,
@@ -820,6 +843,7 @@ export default {
       receiptCollector,
     }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
+    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     logger = logger.child({
       component: 'reallocateAllocationResolver',
     })
@@ -1096,6 +1120,7 @@ export default {
         allocationAmount: allocationAmount.toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork,
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(indexingRule)
@@ -1118,6 +1143,7 @@ export default {
         receiptsWorthCollecting: isCollectingQueryFees,
         createdAllocation: createAllocationEventLogs.allocationID,
         createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
+        protocolNetwork,
       }
     } catch (error) {
       logger.error(error.toString())
