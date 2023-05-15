@@ -1,15 +1,15 @@
 # Testnet Configuration
 
-The Graph Network's testnet is on Goerli. Goerli network information can be found at https://testnet.thegraph.com/explorer/network.
+The Graph Network's testnet is on Goerli. Goerli network information can be found at https://testnet.thegraph.com/explorer?chain=goerli.
 
 ## Latest Releases
 
 | Component       | Release                                                                              |
 | --------------- | ------------------------------------------------------------------------------------ |
 | contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)            |
-| indexer-agent   | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)            |
-| indexer-cli     | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)            |
-| indexer-service | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)            |
+| indexer-agent   | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
+| indexer-cli     | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
+| indexer-service | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
 | graph-node      | [0.31.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.31.0-rc.0) |
 
 ## Network Parameters
