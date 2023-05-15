@@ -542,11 +542,13 @@ export class NetworkMonitor {
         this.logger.warn(`Failed to query subgraph deployments`, {
           retriesRemaining: queryProgress.retriesRemaining,
           error: err,
+          queryProgress,
         })
         if (queryProgress.retriesRemaining <= 0) {
           const error = indexerError(IndexerErrorCode.IE009, err.message)
           this.logger.error(`Failed to query subgraph deployments worth indexing`, {
             error,
+            queryProgress,
           })
           throw error
         }
