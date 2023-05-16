@@ -71,7 +71,7 @@ export interface ReallocateTransactionParams {
 }
 
 // An Action with resolved Allocation and Unallocation values
-export interface ResolvedAction {
+export interface ActionStakeUsageSummary {
   action: Action
   allocates: BigNumber
   unallocates: BigNumber
@@ -308,28 +308,6 @@ export class AllocationManager {
     }
 
     const currentEpoch = await this.contracts.epochManager.currentEpoch()
-
-    // Identify how many GRT the indexer has staked
-    const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
-
-    // If there isn't enough left for allocating, abort
-    if (freeStake.lt(amount)) {
-      logger.error(
-        `Allocation of ${formatGRT(
-          amount,
-        )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT`,
-      )
-      throw indexerError(
-        IndexerErrorCode.IE013,
-        `Allocation of ${formatGRT(
-          amount,
-        )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT`,
-      )
-    }
 
     // Ensure subgraph is deployed before allocating
     await this.subgraphManager.ensure(
@@ -816,27 +794,6 @@ export class AllocationManager {
       )
     }
 
-    // Identify how many GRT the indexer has staked
-    const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
-
-    // When reallocating, we will first close the old allocation and free up the GRT in that allocation
-    // This GRT will be available in addition to freeStake for the new allocation
-    const postCloseFreeStake = freeStake.add(allocation.allocatedTokens)
-
-    // If there isn't enough left for allocating, abort
-    if (postCloseFreeStake.lt(amount)) {
-      throw indexerError(
-        IndexerErrorCode.IE013,
-        `Unable to allocate ${formatGRT(
-          amount,
-        )} GRT: indexer only has a free stake amount of ${formatGRT(
-          freeStake,
-        )} GRT, plus ${formatGRT(
-          allocation.allocatedTokens,
-        )} GRT from the existing allocation`,
-      )
-    }
-
     logger.debug('Generating a new unique Allocation ID')
     const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
       this.transactionManager.wallet.mnemonic.phrase,
@@ -1121,7 +1078,7 @@ export class AllocationManager {
   }
 
   // Calculates the balance (GRT delta) of a single Action.
-  async resolveActionDelta(action: Action): Promise<ResolvedAction> {
+  async stakeUsageSummary(action: Action): Promise<ActionStakeUsageSummary> {
     let unallocates = BigNumber.from(0)
     let rewards = BigNumber.from(0)
 
@@ -1173,20 +1130,21 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    const freeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
-    const mapper = async (action: Action) => this.resolveActionDelta(action)
-    const resolvedBatch = await pMap(batch, mapper)
-    const batchDelta: BigNumber = resolvedBatch
-      .map((resolvedAction) => resolvedAction.balance)
-      .reduce((a, b) => a.add(b))
-    const newBalance = freeStake.sub(batchDelta)
-    if (newBalance.isNegative()) {
+    const indexerFreeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    const actionsBatchStakeusageSummaries = await pMap(batch, async (action: Action) =>
+      this.stakeUsageSummary(action),
+    )
+    const batchDelta: BigNumber = actionsBatchStakeusageSummaries
+      .map((summary: ActionStakeUsageSummary) => summary.balance)
+      .reduce((a: BigNumber, b: BigNumber) => a.add(b))
+    const indexerNewBalance = indexerFreeStake.sub(batchDelta)
+    if (indexerNewBalance.isNegative()) {
       {
         throw indexerError(
           IndexerErrorCode.IE013,
           `Unfeasible action batch: Approved action batch GRT balance is ` +
             `${formatGRT(batchDelta)} ` +
-            `but available stake equals ${formatGRT(freeStake)}.`,
+            `but available stake equals ${formatGRT(indexerFreeStake)}.`,
         )
       }
     }
@@ -1194,8 +1152,10 @@ export class AllocationManager {
     /* Return actions sorted by GRT balance (ascending).
      * This ensures on-chain batch feasibility because higher unallocations are processed
      * first and larger allocations are processed last */
-    return resolvedBatch
-      .sort((a, b) => (a.balance.gt(b.balance) ? 1 : -1))
-      .map((a) => a.action)
+    return actionsBatchStakeusageSummaries
+      .sort((a: ActionStakeUsageSummary, b: ActionStakeUsageSummary) =>
+        a.balance.gt(b.balance) ? 1 : -1,
+      )
+      .map((a: ActionStakeUsageSummary) => a.action)
   }
 }
