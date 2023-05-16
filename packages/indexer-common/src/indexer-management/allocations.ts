@@ -144,7 +144,7 @@ export class AllocationManager {
   ): Promise<AllocationResult[]> {
     return pMap(
       actions,
-      async (action) => {
+      async (action: Action) => {
         try {
           return await this.confirmActionExecution(receipt, action)
         } catch (error) {
@@ -215,9 +215,13 @@ export class AllocationManager {
   }
 
   async prepareTransactions(actions: Action[]): Promise<PopulateTransactionResult[]> {
-    return await pMap(actions, async (action) => await this.prepareTransaction(action), {
-      stopOnError: false,
-    })
+    return await pMap(
+      actions,
+      async (action: Action) => await this.prepareTransaction(action),
+      {
+        stopOnError: false,
+      },
+    )
   }
   async prepareTransaction(action: Action): Promise<PopulateTransactionResult> {
     const logger = this.logger.child({ action: action.id })
