@@ -10,6 +10,7 @@ import {
   createMetrics,
   createMetricsServer,
   formatGRT,
+  Logger,
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
@@ -411,57 +412,7 @@ export default {
       level: argv.logLevel,
     })
 
-    if (argv.gasIncreaseTimeout < 90000) {
-      logger.warn(
-        'Gas increase timeout is set to less than 90 seconds (~ 6 blocks). This may lead to high gas usage',
-        { gasIncreaseTimeout: argv.gasIncreaseTimeout / 1000.0 },
-      )
-    }
-
-    if (argv.gasIncreaseFactor > 1.5) {
-      logger.warn(
-        `Gas increase factor is set to > 1.5. This may lead to high gas usage`,
-        { gasIncreaseFactor: argv.gasIncreaseFactor },
-      )
-    }
-
-    if (argv.rebateClaimThreshold.lt(argv.voucherRedemptionThreshold)) {
-      logger.warn(
-        `Rebate single minimum claim value is less than voucher minimum redemption value, but claims depend on redemptions`,
-        {
-          voucherRedemptionThreshold: formatGRT(
-            argv.voucherRedemptionThreshold,
-          ),
-          rebateClaimThreshold: formatGRT(argv.rebateClaimThreshold),
-        },
-      )
-    }
-
-    if (argv.rebateClaimThreshold.eq(0)) {
-      logger.warn(
-        `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
-      )
-    }
-
-    if (argv.rebateClaimMaxBatchSize > 200) {
-      logger.warn(
-        `Setting the max batch size for rebate claims to more than 200 may result in batches that are too large to fit into a block`,
-        { rebateClaimMaxBatchSize: argv.rebateClaimMaxBatchSize },
-      )
-    }
-
-    if (argv.voucherRedemptionThreshold.eq(0)) {
-      logger.warn(
-        `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
-      )
-    }
-
-    if (argv.voucherRedemptionMaxBatchSize > 200) {
-      logger.warn(
-        `Setting the max batch size for voucher redemptions to more than 200 may result in batches that are too large to fit into a block`,
-        { voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize },
-      )
-    }
+    reviewArgumentsForWarnings(argv, logger)
 
     process.on('unhandledRejection', err => {
       logger.warn(`Unhandled promise rejection`, {
@@ -780,4 +731,78 @@ export default {
       receiptCollector,
     })
   },
+}
+
+// Review CLI arguments, emit non-interrupting warnings about expected behavior.
+// Perform this check immediately after parsing the command line arguments.
+function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
+  const {
+    gasIncreaseTimeout,
+    gasIncreaseFactor,
+    rebateClaimThreshold,
+    voucherRedemptionThreshold,
+    rebateClaimMaxBatchSize,
+    voucherRedemptionMaxBatchSize,
+  } = argv
+
+  const advisedGasIncreaseTimeout = 90000
+  const advisedGasIncreaseFactor = 1.5
+  const advisedRebateClaimMaxBatchSize = 200
+  const advisedVoucherRedemptionMaxBatchSize = 200
+
+  if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
+    logger.warn(
+      `Gas increase timeout is set to less than ${
+        gasIncreaseTimeout / 1000
+      } seconds. This may lead to high gas usage`,
+      { gasIncreaseTimeout: gasIncreaseTimeout / 1000.0 },
+    )
+  }
+
+  if (gasIncreaseFactor > advisedGasIncreaseTimeout) {
+    logger.warn(
+      `Gas increase factor is set to > ${advisedGasIncreaseFactor}. ` +
+        'This may lead to high gas usage',
+      { gasIncreaseFactor: gasIncreaseFactor },
+    )
+  }
+
+  if (rebateClaimThreshold.lt(voucherRedemptionThreshold)) {
+    logger.warn(
+      'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
+        'but claims depend on redemptions',
+      {
+        voucherRedemptionThreshold: formatGRT(voucherRedemptionThreshold),
+        rebateClaimThreshold: formatGRT(rebateClaimThreshold),
+      },
+    )
+  }
+
+  if (rebateClaimThreshold.eq(0)) {
+    logger.warn(
+      `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
+    )
+  }
+
+  if (rebateClaimMaxBatchSize > advisedRebateClaimMaxBatchSize) {
+    logger.warn(
+      `Setting the max batch size for rebate claims to more than ${advisedRebateClaimMaxBatchSize}` +
+        'may result in batches that are too large to fit into a block',
+      { rebateClaimMaxBatchSize: rebateClaimMaxBatchSize },
+    )
+  }
+
+  if (voucherRedemptionThreshold.eq(0)) {
+    logger.warn(
+      `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
+    )
+  }
+
+  if (voucherRedemptionMaxBatchSize > advisedVoucherRedemptionMaxBatchSize) {
+    logger.warn(
+      `Setting the max batch size for voucher redemptions to more than ${advisedVoucherRedemptionMaxBatchSize} ` +
+        'may result in batches that are too large to fit into a block',
+      { voucherRedemptionMaxBatchSize: voucherRedemptionMaxBatchSize },
+    )
+  }
 }
