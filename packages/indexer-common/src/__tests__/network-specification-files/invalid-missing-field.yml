@@ -1,0 +1,33 @@
+networkIdentifier: mainnet
+gateway:
+  baseUrl: http://gateway
+indexerOptions:
+  mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
+  url: http://indexer
+  geoCoordinates: [a, b]  # this field needs validation
+  restakeRewards: true
+  rebateClaimThreshold: "0xdeadbeef"
+  rebateClaimBatchThreshold: "0xdeadbeef"
+  rebateClaimMaxBatchSize: 10
+  poiDisputeMonitoring: false
+  poiDisputableEpochs: 5
+  defaultAllocationAmount: "0xdeadbeef"
+  voucherRedemptionThreshold: "0xdeadbeef"
+  voucherRedemptionBatchThreshold: "0xdeadbeef"
+  voucherRedemptionMaxBatchSize: 15
+  allocationManagementMode: "auto"
+  autoAllocationMinBatchSize: 20
+transactionMonitoring:
+  gasIncreaseTimeout: 10
+  gasIncreaseFactor: 10
+  baseFeePerGasMax: 10
+  maxTransactionAttempts: 10
+subgraphs:
+  networkSubgraph:
+    url: http://subgraph
+  epochSubgraph:
+    deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
+networkProvider:
+  url: http://provider
+dai:
+  contractAddress: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"

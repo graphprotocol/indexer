@@ -1,211 +1,99 @@
-import {
-  Address,
-  toAddress,
-  connectContracts,
-  NetworkContracts,
-} from '@graphprotocol/common-ts'
-import { BigNumber, Wallet } from 'ethers'
-import { validateNetworkIdentifier } from './parsers'
-import { AllocationManagementMode } from './types'
+import { toAddress } from '@graphprotocol/common-ts'
+import { BigNumber } from 'ethers'
+import { validateNetworkIdentifier, validateIpfsHash } from './parsers'
+import { z } from 'zod'
 
-const GATEWAY_COLLECT_ENDPOINT = 'collect-receipts'
-const GATEWAY_VOUCHER_ENDPOINT = 'voucher'
-const GATEWAY_PARTIAL_VOUCHER_ENDPOINT = 'partial-voucher'
+// TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
+const ALLOCATION_MANAGEMENT_MODE = ['auto', 'manual', 'oversight'] as const
+
+// Gateway endpoints
+export const Gateway = z
+  .object({
+    baseUrl: z.string().url(),
+  })
+  .strict()
+export type Gateway = z.infer<typeof Gateway>
+
+// Indexer identification and network behavior options
+export const IndexerOptions = z
+  .object({
+    address: z.string().transform(toAddress),
+    mnemonic: z.string(),
+    url: z.string().url(),
+    geoCoordinates: z.string().array().length(2),
+    restakeRewards: z.boolean(),
+    rebateClaimThreshold: z.string().transform(BigNumber.from),
+    rebateClaimBatchThreshold: z.string().transform(BigNumber.from),
+    rebateClaimMaxBatchSize: z.number(),
+    poiDisputeMonitoring: z.boolean(),
+    poiDisputableEpochs: z.number(),
+    defaultAllocationAmount: z.string().transform(BigNumber.from),
+    voucherRedemptionThreshold: z.string().transform(BigNumber.from),
+    voucherRedemptionBatchThreshold: z.string().transform(BigNumber.from),
+    voucherRedemptionMaxBatchSize: z.number(),
+    allocationManagementMode: z.enum(ALLOCATION_MANAGEMENT_MODE),
+    autoAllocationMinBatchSize: z.number(),
+  })
+  .strict()
+export type IndexerOptions = z.infer<typeof IndexerOptions>
+
+// Transaction handling options
+export const TransactionMonitoring = z
+  .object({
+    gasIncreaseTimeout: z.number(),
+    gasIncreaseFactor: z.number(),
+    baseFeePerGasMax: z.number(),
+    maxTransactionAttempts: z.number(),
+  })
+  .strict()
+export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
+
+// Generic subgraph specification
+export const Subgraph = z
+  .object({
+    url: z.string().url().optional(),
+    deployment: z.string().refine(validateIpfsHash).optional(),
+  })
+  .strict()
+  .refine((obj) => !(!obj.url && !obj.deployment), {
+    message: 'At least one of `url` or `deployment` must be set',
+  })
+
+export type Subgraph = z.infer<typeof Subgraph>
+
+// All pertinent subgraphs in the protocol
+export const ProtocolSubgraphs = z
+  .object({
+    networkSubgraph: Subgraph,
+    epochSubgraph: Subgraph,
+  })
+  .strict()
+export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
+
+export const NetworkProvider = z
+  .object({
+    url: z.string().url(),
+  })
+  .strict()
+export type NetworkProvider = z.infer<typeof NetworkProvider>
+
+export const Dai = z
+  .object({
+    contractAddress: z.string().transform(toAddress),
+  })
+  .strict()
+export type Dai = z.infer<typeof Dai>
 
 // All necessary information to describe a Protocol Network
-class NetworkSpecification {
-  readonly networkIdentifier: string
-  readonly gateway: Gateway
-  readonly indexerOptions: IndexerOptions
-  readonly transactionMonitoring: TransactionMonitoring
-  readonly contracts: Contracts
-  readonly subgraphs: ProtocolSubgraphs
-  readonly networkProvider: NetworkProvider
-  readonly dai: Dai | undefined
-
-  constructor(
-    networkIdentifier: string,
+export const NetworkSpecification = z
+  .object({
+    networkIdentifier: z.string().refine(validateNetworkIdentifier),
     gateway: Gateway,
     indexerOptions: IndexerOptions,
     transactionMonitoring: TransactionMonitoring,
-    contracts: Contracts,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
-    dai?: Dai,
-  ) {
-    this.networkIdentifier = validateNetworkIdentifier(networkIdentifier)
-    this.gateway = gateway
-    this.indexerOptions = indexerOptions
-    this.transactionMonitoring = transactionMonitoring
-    this.contracts = contracts
-    this.subgraphs = subgraphs
-    this.networkProvider = networkProvider
-    this.dai = dai
-  }
-}
-
-// Gateway endpoints
-class Gateway {
-  readonly baseUrl: URL
-  readonly collectEndpoint: URL
-  readonly voucherEndpoint: URL
-  readonly partialVoucherEndpoint: URL
-
-  constructor(baseUrl: string) {
-    this.baseUrl = new URL(baseUrl)
-    this.collectEndpoint = new URL(GATEWAY_COLLECT_ENDPOINT, this.baseUrl)
-    this.voucherEndpoint = new URL(GATEWAY_VOUCHER_ENDPOINT, this.baseUrl)
-    this.partialVoucherEndpoint = new URL(GATEWAY_PARTIAL_VOUCHER_ENDPOINT, this.baseUrl)
-  }
-}
-
-// Indexer identification and network behavior opetions
-class IndexerOptions {
-  readonly address: Address
-  readonly url: URL
-  readonly geoCordinates: [string, string]
-  readonly restakeRewards: boolean
-  readonly rebateClaimThreshold: BigNumber
-  readonly rebateClaimBatchThreshold: BigNumber
-  readonly rebateClaimMaxBatchSize: number
-  readonly poiDisputeMonitoring: boolean
-  readonly poiDisputableEpochs: number
-  readonly defaultAllocationAmount: BigNumber
-  readonly voucherRedemptionThreshold: BigNumber
-  readonly voucherRedemptionBatchThreshold: BigNumber
-  readonly voucherRedemptionMaxBatchSize: number
-  readonly allocationManagementMode: AllocationManagementMode
-  readonly autoAllocationMinBatchSize: number
-
-  constructor(
-    address: string,
-    url: string,
-    geoCordinates: [string, string],
-    restakeRewards: boolean,
-    rebateClaimThreshold: string,
-    rebateClaimBatchThreshold: string,
-    rebateClaimMaxBatchSize: number,
-    poiDisputeMonitoring: boolean,
-    poiDisputableEpochs: number,
-    defaultAllocationAmount: string,
-    voucherRedemptionThreshold: string,
-    voucherRedemptionBatchThreshold: string,
-    voucherRedemptionMaxBatchSize: number,
-    allocationManagementMode: string,
-    autoAllocationMinBatchSize: number,
-  ) {
-    // TODO: validate input
-    this.address = toAddress(address)
-    this.url = new URL(url)
-    this.geoCordinates = geoCordinates
-    this.restakeRewards = restakeRewards
-    this.rebateClaimThreshold = BigNumber.from(rebateClaimThreshold)
-    this.rebateClaimBatchThreshold = BigNumber.from(rebateClaimBatchThreshold)
-    this.rebateClaimMaxBatchSize = rebateClaimMaxBatchSize
-    this.poiDisputeMonitoring = poiDisputeMonitoring
-    this.poiDisputableEpochs = poiDisputableEpochs
-    this.defaultAllocationAmount = BigNumber.from(defaultAllocationAmount)
-    this.voucherRedemptionThreshold = BigNumber.from(voucherRedemptionThreshold)
-    this.voucherRedemptionBatchThreshold = BigNumber.from(voucherRedemptionBatchThreshold)
-    this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
-    this.autoAllocationMinBatchSize = autoAllocationMinBatchSize
-
-    // Validates Allocation Management Mode
-    if (
-      Object.values(AllocationManagementMode).includes(
-        allocationManagementMode as AllocationManagementMode,
-      )
-    ) {
-      this.allocationManagementMode = allocationManagementMode as AllocationManagementMode
-    } else {
-      throw new Error(
-        `Invalid allocation management mode: ${AllocationManagementMode}. ` +
-          `Must be one of: ${Object.values(AllocationManagementMode)}`,
-      )
-    }
-  }
-}
-
-// Transaction handling options
-class TransactionMonitoring {
-  readonly paused: boolean
-  readonly isOperator: boolean
-  readonly gasIncreaseTimeout: number
-  readonly gasIncreaseFactor: number
-  readonly baseFeePerGasMax: number
-  readonly maxTransactionAttempts: number
-
-  constructor(
-    paused: boolean,
-    isOperator: boolean,
-    gasIncreaseTimeout: number,
-    gasIncreaseFactor: number,
-    baseFeePerGasMax: number,
-    maxTransactionAttempts: number,
-  ) {
-    this.paused = paused
-    this.isOperator = isOperator
-    this.gasIncreaseTimeout = gasIncreaseTimeout
-    this.gasIncreaseFactor = gasIncreaseFactor
-    this.baseFeePerGasMax = baseFeePerGasMax
-    this.maxTransactionAttempts = maxTransactionAttempts
-  }
-}
-
-// TODO:L2: this is a high-level object (a component) and not a raw-data specification.
-// It might not belong in the NetworkSpec class, but in Network.
-class Contracts {
-  declare networkContracts: NetworkContracts
-
-  private constructor() {}
-
-  // Asynchronous initialization
-  static async connect(wallet: Wallet, networkIdentifier: number): Promise<Contracts> {
-    const instance = new Contracts()
-    const networkContracts = await connectContracts(wallet, networkIdentifier)
-    instance.networkContracts = networkContracts
-    return instance
-  }
-}
-
-// Generic subgraph specification
-class Subgraph {
-  readonly httpEndpoint: string | undefined
-  readonly deployment: string | undefined
-
-  constructor(httpEndpoint?: string, deployment?: string) {
-    if (!httpEndpoint && !deployment) {
-      throw new Error('At least one of httpEndpoint or deployment must be set.')
-    }
-
-    this.httpEndpoint = httpEndpoint
-    this.deployment = deployment
-  }
-}
-
-// All pertinent subgraphs in the protocol
-class ProtocolSubgraphs {
-  readonly networkSubgraph: Subgraph
-  readonly epochSubgraph: Subgraph
-
-  constructor(networkSubgraph: Subgraph, epochSubgraph: Subgraph) {
-    this.networkSubgraph = networkSubgraph
-    this.epochSubgraph = epochSubgraph
-  }
-}
-
-class NetworkProvider {
-  readonly httpEndpoint: URL
-
-  constructor(httpEndpoint: string) {
-    this.httpEndpoint = new URL(httpEndpoint)
-  }
-}
-
-class Dai {
-  readonly contractAddress: Address
-
-  constructor(contractAddress: string) {
-    this.contractAddress = toAddress(contractAddress)
-  }
-}
+    dai: Dai.optional(),
+  })
+  .strict()
+export type NetworkSpecification = z.infer<typeof NetworkSpecification>
