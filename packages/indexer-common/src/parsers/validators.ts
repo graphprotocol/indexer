@@ -8,7 +8,7 @@ import {
   maybeTaggedUrl,
   MaybeTaggedUrl,
 } from './tagged'
-import { networkIdentifier } from './basic-types'
+import { networkIdentifier, base58 } from './basic-types'
 
 // Generic function that takes a parser of type T and attempts to parse it from a string. If it
 // fails, then it will throw an error with an explanation of what was expected, as well as the
@@ -36,4 +36,8 @@ export function parseTaggedIpfsHash(input: string): MaybeTaggedIpfsHash {
 
 export function validateNetworkIdentifier(input: string): string {
   return parse(networkIdentifier, input)
+}
+
+export function validateIpfsHash(input: string): string {
+  return parse(base58, input)
 }
