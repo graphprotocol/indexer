@@ -66,7 +66,7 @@ export interface AllocationReceiptCollectorOptions {
   transactionManager: TransactionManager
   allocationExchange: Contract
   models: QueryFeeModels
-  collectEndpoint: string
+  gatewayEndpoint: string
   voucherRedemptionThreshold: BigNumber
   voucherRedemptionBatchThreshold: BigNumber
   voucherRedemptionMaxBatchSize: number
@@ -96,7 +96,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     metrics,
     transactionManager,
     models,
-    collectEndpoint,
+    gatewayEndpoint,
     allocationExchange,
     voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold,
@@ -106,14 +106,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.metrics = registerReceiptMetrics(metrics)
     this.transactionManager = transactionManager
     this.models = models
-    this.collectEndpoint = new URL(collectEndpoint)
     this.allocationExchange = allocationExchange
-    this.partialVoucherEndpoint = new URL(
-      collectEndpoint.replace('/collect-receipts', '/partial-voucher'),
-    )
-    this.voucherEndpoint = new URL(
-      collectEndpoint.replace('/collect-receipts', '/voucher'),
-    )
+
+    // Process Gateway routes
+    const gatewayUrls = processGatewayRoutes(gatewayEndpoint)
+    this.collectEndpoint = gatewayUrls.collectReceipts
+    this.voucherEndpoint = gatewayUrls.voucher
+    this.partialVoucherEndpoint = gatewayUrls.partialVoucher
 
     this.voucherRedemptionThreshold = voucherRedemptionThreshold
     this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
@@ -720,3 +719,33 @@ const registerReceiptMetrics = (metrics: Metrics) => ({
     labelNames: ['allocation'],
   }),
 })
+
+interface GatewayRoutes {
+  collectReceipts: URL
+  voucher: URL
+  partialVoucher: URL
+}
+
+function processGatewayRoutes(input: string): GatewayRoutes {
+  const GATEWAY_ROUTES = {
+    collectReceipts: 'collect-receipts',
+    voucher: 'voucher',
+    partialVoucher: 'partial-voucher',
+  }
+
+  // Strip existing information except for protocol and host
+  const inputURL = new URL(input)
+  const base = `${inputURL.protocol}//${inputURL.host}`
+
+  function route(pathname: string): URL {
+    const url = new URL(base)
+    url.pathname = pathname
+    return url
+  }
+
+  return {
+    collectReceipts: route(GATEWAY_ROUTES.collectReceipts),
+    voucher: route(GATEWAY_ROUTES.voucher),
+    partialVoucher: route(GATEWAY_ROUTES.partialVoucher),
+  }
+}
