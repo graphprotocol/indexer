@@ -1,22 +1,27 @@
 import * as yargs from 'yargs'
 
 import start from './commands/start'
+import startMultiNetwork from './commands/start-multi-network'
 
-yargs
+const args = yargs
   .scriptName('indexer-agent')
   .env('INDEXER_AGENT')
   .command(start)
-  .fail(function (msg, err, yargs) {
+  .command(startMultiNetwork)
+  .fail(function (msg, err, _yargs) {
+    console.error('The Indexer Agent command has failed.')
     if (err) {
       console.error(err)
     } else {
       console.error(msg)
-      console.error(`
-Usage help...
-`)
-      console.error(yargs.help())
     }
     process.exit(1)
   })
-  .demandCommand(1, 'Choose a command from the above list')
+  .demandCommand(
+    1,
+    'You need at least one command before continuing.' +
+      " See 'indexer-agent --help' for usage instructions.",
+  )
   .help().argv
+
+console.log(args)
