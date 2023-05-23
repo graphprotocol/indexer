@@ -4,7 +4,7 @@ gateway:
 indexerOptions:
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
-  geoCoordinates: [a, b]  # this field needs validation
+  geoCoordinates: [25.1, -71.2]
   restakeRewards: true
   rebateClaimThreshold: "0xdeadbeef"
   rebateClaimBatchThreshold: "0xdeadbeef"
