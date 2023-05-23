@@ -5,7 +5,7 @@ indexerOptions:
   address: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
-  geoCoordinates: [a, b]  # this field needs validation
+  geoCoordinates: [25.1, -71.2]
   restakeRewards: true
   rebateClaimThreshold: "0xdeadbeef"
   rebateClaimBatchThreshold: "0xdeadbeef"

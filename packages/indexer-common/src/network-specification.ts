@@ -6,6 +6,10 @@ import { z } from 'zod'
 // TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
 const ALLOCATION_MANAGEMENT_MODE = ['auto', 'manual', 'oversight'] as const
 
+function positiveNumber(): z.ZodNumber {
+  return z.number().positive().finite()
+}
+
 // Gateway endpoints
 export const Gateway = z
   .object({
@@ -20,19 +24,19 @@ export const IndexerOptions = z
     address: z.string().transform(toAddress),
     mnemonic: z.string(),
     url: z.string().url(),
-    geoCoordinates: z.string().array().length(2),
+    geoCoordinates: z.number().finite().array().length(2),
     restakeRewards: z.boolean(),
     rebateClaimThreshold: z.string().transform(BigNumber.from),
     rebateClaimBatchThreshold: z.string().transform(BigNumber.from),
-    rebateClaimMaxBatchSize: z.number(),
+    rebateClaimMaxBatchSize: positiveNumber(),
     poiDisputeMonitoring: z.boolean(),
-    poiDisputableEpochs: z.number(),
+    poiDisputableEpochs: positiveNumber(),
     defaultAllocationAmount: z.string().transform(BigNumber.from),
     voucherRedemptionThreshold: z.string().transform(BigNumber.from),
     voucherRedemptionBatchThreshold: z.string().transform(BigNumber.from),
-    voucherRedemptionMaxBatchSize: z.number(),
+    voucherRedemptionMaxBatchSize: positiveNumber(),
     allocationManagementMode: z.enum(ALLOCATION_MANAGEMENT_MODE),
-    autoAllocationMinBatchSize: z.number(),
+    autoAllocationMinBatchSize: positiveNumber(),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
@@ -40,10 +44,10 @@ export type IndexerOptions = z.infer<typeof IndexerOptions>
 // Transaction handling options
 export const TransactionMonitoring = z
   .object({
-    gasIncreaseTimeout: z.number(),
-    gasIncreaseFactor: z.number(),
-    baseFeePerGasMax: z.number(),
-    maxTransactionAttempts: z.number(),
+    gasIncreaseTimeout: positiveNumber(),
+    gasIncreaseFactor: positiveNumber(),
+    baseFeePerGasMax: positiveNumber(),
+    maxTransactionAttempts: positiveNumber(),
   })
   .strict()
 export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
