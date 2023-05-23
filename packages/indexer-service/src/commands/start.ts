@@ -33,7 +33,6 @@ import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
-import { MaybeTaggedUrl } from 'indexer-common/src/parsers/tagged'
 
 export default {
   command: 'start',
@@ -302,13 +301,10 @@ export default {
     })
     logger.info(`Successfully connected to network subgraph`)
 
-    const { url: networkProviderEndpoint, networkId: networkIdentifier }: MaybeTaggedUrl =
-      argv.ethereum
-
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      networkProviderEndpoint.toString(),
+      argv.networkProvider,
       argv.ethereumPollingInterval,
     )
     const network = await networkProvider.getNetwork()
@@ -323,12 +319,7 @@ export default {
         logger,
       )
     }
-
-    // If the network identifier is present, compare it with the one we resolved from our provider.
     const protocolNetwork = resolveChainId(network.chainId)
-    if (networkIdentifier && networkIdentifier !== protocolNetwork) {
-      const errorMessage = `The network identifier was configured to ${networkIdentifier}, but the JRPC provider network uses ${protocolNetwork}`
-    }
 
     logger.info('Connect to contracts', {
       network: network.name,

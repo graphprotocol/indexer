@@ -39,7 +39,8 @@ import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-import { AgentOptions, validateNetworkOptions } from '../validation'
+
+type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export default {
   command: 'start',
@@ -49,7 +50,7 @@ export default {
       .option('network-provider', {
         alias: 'ethereum',
         description: 'Ethereum node or provider URL',
-        array: true,
+        array: false,
         type: 'string',
         required: true,
         group: 'Ethereum',
@@ -149,13 +150,13 @@ export default {
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
-        array: true,
+        array: false,
         type: 'string',
         group: 'Network Subgraph',
       })
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
-        array: true,
+        array: false,
         type: 'string',
         group: 'Network Subgraph',
       })
@@ -167,7 +168,7 @@ export default {
       })
       .option('epoch-subgraph-endpoint', {
         description: 'Endpoint to query the epoch block oracle subgraph from',
-        array: true,
+        array: false,
         type: 'string',
         required: true,
         group: 'Protocol',
@@ -352,7 +353,7 @@ export default {
         description: 'Gateway endpoint base URL',
         alias: 'collect-receipts-endpoint',
         type: 'string',
-        array: true,
+        array: false,
         required: true,
         group: 'Query Fees',
       })
@@ -378,12 +379,12 @@ export default {
         },
       })
       .check(argv => {
-        try {
-          validateNetworkOptions(argv)
-        } catch (error) {
-          return error.message
+        if (
+          !argv['network-subgraph-endpoint'] &&
+          !argv['network-subgraph-deployment']
+        ) {
+          return 'At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided'
         }
-
         if (argv['indexer-geo-coordinates']) {
           const [geo1, geo2] = argv['indexer-geo-coordinates']
           if (!+geo1 || !+geo2) {
@@ -755,8 +756,8 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
 
   if (collectReceiptsEndpoint) {
     logger.warn(
-      'The --collect-receipts-endpoint is depracated. ' +
-        'Please use the --gateway-endpoint argument to inform the Gatway base URL ',
+      "The option '--collect-receipts-endpoint' is depracated. " +
+        "Please use the option '--gateway-endpoint' to inform the Gatway base URL.",
     )
   }
 

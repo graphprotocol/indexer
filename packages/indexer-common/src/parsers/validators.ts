@@ -2,12 +2,7 @@
 // expose their internal parsing interface.
 
 import P from 'parsimmon'
-import {
-  maybeTaggedIpfsHash,
-  MaybeTaggedIpfsHash,
-  maybeTaggedUrl,
-  MaybeTaggedUrl,
-} from './tagged'
+
 import { networkIdentifier, base58 } from './basic-types'
 
 // Generic function that takes a parser of type T and attempts to parse it from a string. If it
@@ -25,15 +20,6 @@ function parse<T>(parser: P.Parser<T>, input: string): T {
     `Failed to parse "${input}". Expected: ${expected}. Parsed up to: "${parsed}". Remaining: "${remaining}"`,
   )
 }
-
-export function parseTaggedUrl(input: string): MaybeTaggedUrl {
-  return parse(maybeTaggedUrl, input)
-}
-
-export function parseTaggedIpfsHash(input: string): MaybeTaggedIpfsHash {
-  return parse(maybeTaggedIpfsHash, input)
-}
-
 export function validateNetworkIdentifier(input: string): string {
   return parse(networkIdentifier, input)
 }
