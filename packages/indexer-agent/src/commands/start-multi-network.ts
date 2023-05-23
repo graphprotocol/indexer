@@ -1,5 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { specification as spec } from '@graphprotocol/indexer-common'
+import * as YAML from 'yaml'
 import { Argv } from 'yargs'
 
 export default {
@@ -16,15 +18,16 @@ export default {
       })
       .check(function (argv: any) {
         const dir: string = argv.dir
-        let yamlFiles
+        let networkSpecifications
         try {
-          yamlFiles = scanDirectoryForYamlFiles(dir)
+          const yamlFiles = scanDirectoryForYamlFiles(dir)
+          networkSpecifications = parseYamlFiles(yamlFiles)
         } catch (e) {
           console.error(e)
           return false
         }
         // Inject the found files into `argv` for later use.
-        Object.assign(argv, { yamlFiles })
+        Object.assign(argv, { networkSpecifications })
         return true
       })
   },
@@ -75,4 +78,15 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
   }
 
   return yamlFiles
+}
+
+function readYamlFile(filePath: string): string {
+  const text = fs.readFileSync(filePath, 'utf8')
+  return YAML.parse(text)
+}
+
+function parseYamlFiles(filePaths: string[]): spec.NetworkSpecification[] {
+  return filePaths
+    .map(readYamlFile)
+    .map(x => spec.NetworkSpecification.parse(x))
 }
