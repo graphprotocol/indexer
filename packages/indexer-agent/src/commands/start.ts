@@ -348,10 +348,12 @@ export default {
         default: false,
         group: 'Disputes',
       })
-      .option('collect-receipts-endpoint', {
-        description: 'Client endpoint for collecting receipts',
+      .option('gateway-endopoint', {
+        description: 'Gateway endpoint base URL',
+        alias: 'collect-receipts-endpoint',
         type: 'string',
-        required: false,
+        array: true,
+        required: true,
         group: 'Query Fees',
       })
       .option('allocation-management', {
@@ -617,7 +619,7 @@ export default {
       transactionManager: network.transactionManager,
       models: queryFeeModels,
       allocationExchange: network.contracts.allocationExchange,
-      collectEndpoint: argv.collectReceiptsEndpoint,
+      gatewayEndpoint: argv.gatewayEndpoint,
       voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
@@ -743,12 +745,20 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
     voucherRedemptionThreshold,
     rebateClaimMaxBatchSize,
     voucherRedemptionMaxBatchSize,
+    collectReceiptsEndpoint,
   } = argv
 
   const advisedGasIncreaseTimeout = 90000
   const advisedGasIncreaseFactor = 1.5
   const advisedRebateClaimMaxBatchSize = 200
   const advisedVoucherRedemptionMaxBatchSize = 200
+
+  if (collectReceiptsEndpoint) {
+    logger.warn(
+      'The --collect-receipts-endpoint is depracated. ' +
+        'Please use the --gateway-endpoint argument to inform the Gatway base URL ',
+    )
+  }
 
   if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
     logger.warn(
