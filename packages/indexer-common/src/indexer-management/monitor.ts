@@ -28,17 +28,20 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
+  formatGRT,
 } from '@graphprotocol/common-ts'
+import { BigNumber } from 'ethers'
 import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
 import pRetry from 'p-retry'
+import { IndexerOptions } from '../network-specification'
 
 // The new read only Network class
 export class NetworkMonitor {
   constructor(
     public networkCAIPID: string,
     private contracts: NetworkContracts,
-    private indexer: Address,
+    private indexerOptions: IndexerOptions,
     private logger: Logger,
     private indexingStatusResolver: IndexingStatusResolver,
     private networkSubgraph: NetworkSubgraph,
@@ -121,7 +124,7 @@ export class NetworkMonitor {
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           status: status,
         },
       )
@@ -138,7 +141,7 @@ export class NetworkMonitor {
         this.logger.warn(
           `No ${
             AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
-          } allocations found for indexer '${this.indexer}'`,
+          } allocations found for indexer '${this.indexerOptions.address}'`,
         )
         return []
       }
@@ -225,7 +228,7 @@ export class NetworkMonitor {
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           closedAtEpochThreshold: currentEpoch - range,
         },
       )
@@ -290,7 +293,7 @@ export class NetworkMonitor {
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           subgraphDeploymentId: subgraphDeploymentId.display.bytes32,
         },
       )
@@ -910,5 +913,225 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         )
         return isOperator
       })
+  }
+
+  async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
+    try {
+      const result = await this.networkSubgraph.query(
+        gql`
+          query allocations(
+            $indexer: String!
+            $disputableEpoch: Int!
+            $minimumQueryFeesCollected: BigInt!
+          ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                closedAtEpoch_lte: $disputableEpoch
+                queryFeesCollected_gte: $minimumQueryFeesCollected
+                status: Closed
+              }
+              first: 1000
+            ) {
+              id
+              indexer {
+                id
+              }
+              queryFeesCollected
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              closedAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
+              }
+            }
+          }
+        `,
+        {
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
+          disputableEpoch,
+          minimumQueryFeesCollected: this.indexerOptions.rebateClaimThreshold.toString(),
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      const totalFees: BigNumber = result.data.allocations.reduce(
+        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
+          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+        },
+        BigNumber.from(0),
+      )
+
+      const parsedAllocs: Allocation[] =
+        result.data.allocations.map(parseGraphQLAllocation)
+
+      // If the total fees claimable do not meet the minimum required for batching, return an empty array
+      if (
+        parsedAllocs.length > 0 &&
+        totalFees.lt(this.indexerOptions.rebateClaimBatchThreshold)
+      ) {
+        this.logger.info(
+          `Allocation rebate batch value does not meet minimum for claiming`,
+          {
+            batchValueGRT: formatGRT(totalFees),
+            rebateClaimBatchThreshold: formatGRT(
+              this.indexerOptions.rebateClaimBatchThreshold,
+            ),
+            rebateClaimMaxBatchSize: this.indexerOptions.rebateClaimMaxBatchSize,
+            batchSize: parsedAllocs.length,
+            allocations: parsedAllocs.map((allocation) => {
+              return {
+                allocation: allocation.id,
+                deployment: allocation.subgraphDeployment.id.display,
+                createdAtEpoch: allocation.createdAtEpoch,
+                closedAtEpoch: allocation.closedAtEpoch,
+                createdAtBlockHash: allocation.createdAtBlockHash,
+              }
+            }),
+          },
+        )
+        return []
+      }
+      // Otherwise return the allos for claiming since the batch meets the minimum
+      return parsedAllocs
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE011, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
+        err,
+      })
+      throw err
+    }
+  }
+  async disputableAllocations(
+    currentEpoch: number,
+    deployments: SubgraphDeploymentID[],
+    minimumAllocation: number,
+  ): Promise<Allocation[]> {
+    const logger = this.logger.child({ component: 'POI Monitor' })
+    if (!this.indexerOptions.poiDisputeMonitoring) {
+      logger.trace('POI monitoring disabled, skipping')
+      return Promise.resolve([])
+    }
+
+    logger.debug(
+      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference POIs)',
+    )
+
+    let dataRemaining = true
+    let allocations: Allocation[] = []
+
+    try {
+      const zeroPOI = utils.hexlify(Array(32).fill(0))
+      const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
+      let lastCreatedAt = 0
+      while (dataRemaining) {
+        const result = await this.networkSubgraph.query(
+          gql`
+            query allocations(
+              $deployments: [String!]!
+              $minimumAllocation: Int!
+              $disputableEpoch: Int!
+              $zeroPOI: String!
+              $createdAt: Int!
+            ) {
+              allocations(
+                where: {
+                  createdAt_gt: $createdAt
+                  subgraphDeployment_in: $deployments
+                  allocatedTokens_gt: $minimumAllocation
+                  closedAtEpoch_gte: $disputableEpoch
+                  status: Closed
+                  poi_not: $zeroPOI
+                }
+                first: 1000
+                orderBy: createdAt
+                orderDirection: asc
+              ) {
+                id
+                createdAt
+                indexer {
+                  id
+                }
+                poi
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                closedAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                  queryFeesAmount
+                }
+              }
+            }
+          `,
+          {
+            deployments: deployments.map((subgraph) => subgraph.bytes32),
+            minimumAllocation,
+            disputableEpoch,
+            createdAt: lastCreatedAt,
+            zeroPOI,
+          },
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          dataRemaining = false
+        } else {
+          lastCreatedAt = result.data.allocations.slice(-1)[0].createdAt
+          const parsedResult: Allocation[] =
+            result.data.allocations.map(parseGraphQLAllocation)
+          allocations = allocations.concat(parsedResult)
+        }
+      }
+
+      // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
+      let disputableEpochs = await this.epochs([
+        ...allocations.reduce((epochNumbers: Set<number>, allocation: Allocation) => {
+          epochNumbers.add(allocation.closedAtEpoch)
+          epochNumbers.add(allocation.closedAtEpoch - 1)
+          return epochNumbers
+        }, new Set()),
+      ])
+
+      disputableEpochs = await Promise.all(
+        disputableEpochs.map(async (epoch: Epoch): Promise<Epoch> => {
+          // TODO: May need to retry or skip epochs where obtaining start block fails
+          epoch.startBlockHash = (await this.ethereum.getBlock(epoch.startBlock))?.hash
+          return epoch
+        }),
+      )
+
+      return await Promise.all(
+        allocations.map(async (allocation) => {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.closedAtEpochStartBlockHash = disputableEpochs.find(
+            (epoch) => epoch.id == allocation.closedAtEpoch,
+          )!.startBlockHash
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.previousEpochStartBlockHash = disputableEpochs.find(
+            (epoch) => epoch.id == allocation.closedAtEpoch - 1,
+          )!.startBlockHash
+          return allocation
+        }),
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE037, error)
+      logger.error(INDEXER_ERROR_MESSAGES.IE037, {
+        err,
+      })
+      throw err
+    }
   }
 }
