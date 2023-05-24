@@ -4,35 +4,27 @@ import { specification as spec } from '@graphprotocol/indexer-common'
 import * as YAML from 'yaml'
 import { Argv } from 'yargs'
 
-export default {
+export const startMultiNetwork = {
   command: 'start-multiple',
   describe: 'Start the Agent in multiple Protocol Networks',
   builder: (yargs: Argv): Argv => {
-    return yargs
-      .option('network-specifications-directory', {
-        alias: 'dir',
-        description:
-          'Path to a directory containing network specificaiton files',
-        type: 'string',
-        required: true,
-      })
-      .check(function (argv: any) {
-        const dir: string = argv.dir
-        let networkSpecifications
-        try {
-          const yamlFiles = scanDirectoryForYamlFiles(dir)
-          networkSpecifications = parseYamlFiles(yamlFiles)
-        } catch (e) {
-          console.error(e)
-          return false
-        }
-        // Inject the found files into `argv` for later use.
-        Object.assign(argv, { networkSpecifications })
-        return true
-      })
+    return yargs.option('network-specifications-directory', {
+      alias: 'dir',
+      description: 'Path to a directory containing network specificaiton files',
+      type: 'string',
+      required: true,
+    })
   },
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   handler: (argv: any) => {},
+}
+
+export function parseNetworkSpecifications(
+  argv: any,
+): spec.NetworkSpecification[] {
+  const dir: string = argv.dir
+  const yamlFiles = scanDirectoryForYamlFiles(dir)
+  return parseYamlFiles(yamlFiles)
 }
 
 function scanDirectoryForYamlFiles(directoryPath: string): string[] {

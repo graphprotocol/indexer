@@ -2,18 +2,19 @@ networkIdentifier: mainnet
 gateway:
   baseUrl: http://gateway
 indexerOptions:
+  # missing indexer address field
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
   geoCoordinates: [25.1, -71.2]
   restakeRewards: true
-  rebateClaimThreshold: "0xdeadbeef"
-  rebateClaimBatchThreshold: "0xdeadbeef"
+  rebateClaimThreshold: 400
+  rebateClaimBatchThreshold: 5000
   rebateClaimMaxBatchSize: 10
   poiDisputeMonitoring: false
   poiDisputableEpochs: 5
-  defaultAllocationAmount: "0xdeadbeef"
-  voucherRedemptionThreshold: "0xdeadbeef"
-  voucherRedemptionBatchThreshold: "0xdeadbeef"
+  defaultAllocationAmount: 0.05
+  voucherRedemptionThreshold: 2
+  voucherRedemptionBatchThreshold: 2000
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
