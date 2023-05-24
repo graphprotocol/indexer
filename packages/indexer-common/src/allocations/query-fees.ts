@@ -18,7 +18,7 @@ import {
   Voucher,
   ensureAllocationSummary,
   TransactionManager,
-} from '@graphprotocol/indexer-common'
+} from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
