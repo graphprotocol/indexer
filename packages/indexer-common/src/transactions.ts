@@ -17,6 +17,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import delay from 'delay'
+import { TransactionMonitoring } from './network-specification'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'
 import { NetworkSubgraph } from './network-subgraph'
@@ -27,29 +28,28 @@ export class TransactionManager {
   wallet: Wallet
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
-  gasIncreaseTimeout: number
-  gasIncreaseFactor: BigNumber
-  baseFeePerGasMax: number
-  maxTransactionAttempts: number
+  specification: TransactionMonitoring
+  adjustedGasIncreaseFactor: BigNumber
+  adjustedBaseFeePerGasMax: number
 
   constructor(
     ethereum: providers.BaseProvider,
     wallet: Wallet,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
-    gasIncreaseTimeout: number,
-    gasIncreaseFactor: number,
-    baseFeePerGasMax: number,
-    maxTransactionAttempts: number,
+    specification: TransactionMonitoring,
   ) {
     this.ethereum = ethereum
     this.wallet = wallet
     this.paused = paused
     this.isOperator = isOperator
-    this.gasIncreaseTimeout = gasIncreaseTimeout
-    this.gasIncreaseFactor = utils.parseUnits(gasIncreaseFactor.toString(), 3)
-    this.baseFeePerGasMax = baseFeePerGasMax
-    this.maxTransactionAttempts = maxTransactionAttempts
+    this.specification = specification
+    this.adjustedGasIncreaseFactor = utils.parseUnits(
+      specification.gasIncreaseFactor.toString(),
+      3,
+    )
+    this.adjustedBaseFeePerGasMax =
+      specification.baseFeePerGasMax || specification.gasPriceMax
   }
 
   async executeTransaction(
@@ -80,7 +80,7 @@ export class TransactionManager {
     let txConfig: TransactionConfig = {
       attempt: 1,
       type: await this.transactionType(feeData),
-      gasBump: this.gasIncreaseFactor,
+      gasBump: this.adjustedGasIncreaseFactor,
       nonce: tx.nonce,
       maxFeePerGas: tx.maxFeePerGas,
       maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
@@ -92,8 +92,8 @@ export class TransactionManager {
 
     while (pending) {
       if (
-        this.maxTransactionAttempts !== 0 &&
-        txConfig.attempt > this.maxTransactionAttempts
+        this.specification.maxTransactionAttempts !== 0 &&
+        txConfig.attempt > this.specification.maxTransactionAttempts
       ) {
         logger.warn('Transaction retry limit reached, giving up', {
           txConfig,
@@ -127,7 +127,7 @@ export class TransactionManager {
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
           3,
-          this.gasIncreaseTimeout,
+          this.specification.gasIncreaseTimeout,
         )
 
         if (receipt.status == 0) {
@@ -270,15 +270,15 @@ export class TransactionManager {
           .maxFeePerGas! // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           .sub(feeData.maxPriorityFeePerGas!)
           .div(2)
-        if (baseFeePerGas.toNumber() >= this.baseFeePerGasMax) {
+        if (baseFeePerGas.toNumber() >= this.adjustedBaseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
-              { maxBaseFeePerGas: this.baseFeePerGasMax, baseFeePerGas },
+              { maxBaseFeePerGas: this.specification.baseFeePerGasMax, baseFeePerGas },
             )
           } else {
             logger.info(`Base gas fee per gas estimation still above max threshold`, {
-              maxBaseFeePerGas: this.baseFeePerGasMax,
+              maxBaseFeePerGas: this.specification.baseFeePerGasMax,
               baseFeePerGas,
               priceEstimateAttempt: attempt,
             })
@@ -292,18 +292,18 @@ export class TransactionManager {
       } else if (type === TransactionType.ZERO) {
         // Legacy transaction type
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        if (feeData.gasPrice!.toNumber() >= this.baseFeePerGasMax) {
+        if (feeData.gasPrice!.toNumber() >= this.adjustedBaseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
               {
-                baseFeePerGasMax: this.baseFeePerGasMax,
+                baseFeePerGasMax: this.specification.baseFeePerGasMax,
                 currentGasPriceEstimate: feeData.gasPrice,
               },
             )
           } else {
             logger.info(`Gas price estimation still above max threshold`, {
-              baseFeePerGasMax: this.baseFeePerGasMax,
+              baseFeePerGasMax: this.specification.baseFeePerGasMax,
               currentGasPriceEstimate: feeData.gasPrice,
               priceEstimateAttempt: attempt,
             })

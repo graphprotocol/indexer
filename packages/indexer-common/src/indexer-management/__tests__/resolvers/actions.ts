@@ -13,7 +13,6 @@ import {
   mutable,
   NetworkContracts,
   parseGRT,
-  toAddress,
 } from '@graphprotocol/common-ts'
 
 import {
@@ -44,6 +43,7 @@ import {
   AllocationManager,
   SubgraphManager,
   getTestProvider,
+  specification,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
@@ -312,15 +312,20 @@ const setup = async () => {
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
     deployment: undefined,
   })
+
+  const transactionMonitoringSpecs = specification.TransactionMonitoring.parse({
+    gasIncreaseTimeout: 240000,
+    gasIncreaseFactor: 1.2,
+    baseFeePerGasMax: 100 * 10 ** 9,
+    maxTransactionAttempts: 0,
+  })
+
   transactionManager = new TransactionManager(
     ethereum,
     wallet,
     mutable(false),
     mutable(true),
-    240000,
-    1.2,
-    100 * 10 ** 9,
-    0,
+    transactionMonitoringSpecs,
   )
 
   epochSubgraph = await EpochSubgraph.create(
@@ -340,10 +345,16 @@ const setup = async () => {
     voucherRedemptionMaxBatchSize: 100,
   })
 
+  const indexerOptions = specification.IndexerOptions.parse({
+    address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
+    mnemonic: 'foo',
+    url: 'http://test-indexer.xyz',
+  })
+
   networkMonitor = new NetworkMonitor(
     resolveChainId('goerli'),
     contracts,
-    toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
+    indexerOptions,
     logger,
     indexingStatusResolver,
     networkSubgraph,

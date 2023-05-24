@@ -79,7 +79,6 @@ export const Subgraph = z
   .refine((obj) => !(!obj.url && !obj.deployment), {
     message: 'At least one of `url` or `deployment` must be set',
   })
-
 export type Subgraph = z.infer<typeof Subgraph>
 
 // All pertinent subgraphs in the protocol
@@ -89,6 +88,12 @@ export const ProtocolSubgraphs = z
     epochSubgraph: Subgraph,
   })
   .strict()
+  // TODO: Ensure the `url` property is always defined until Epoch Subgraph
+  // indexing is supported.
+  .refine((subgraphs) => subgraphs.epochSubgraph.url, {
+    message: 'Epoch Subgraph endpoint must be defined',
+    path: ['epochSubgraph', 'url'],
+  })
 export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
 
 export const NetworkProvider = z

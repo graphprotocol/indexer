@@ -30,6 +30,7 @@ import {
   EpochSubgraph,
   resolveChainId,
   validateNetworkId,
+  specification as spec,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
@@ -37,7 +38,6 @@ import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
-import { specification as spec } from '@graphprotocol/indexer-common'
 import { injectCommonStartupOptions } from './common-options'
 
 export type AgentOptions = { [key: string]: any } & Argv['argv']
@@ -326,9 +326,9 @@ export async function createNetworkSpecification(
       url: argv.networkSubgraphEndpoint,
     },
     epochSubgraph: {
-      url: argv.epochSubgraphEndpoint,
       // TODO: We should consider indexing the Epoch Subgraph, similar
       // to how we currently do it for the Network Subgraph.
+      url: argv.epochSubgraphEndpoint,
     },
   }
 
@@ -360,7 +360,10 @@ export async function createNetworkSpecification(
 // TODO: Split this code into two functions:
 // 1. [X] Create NetworkSpecification
 // 2. [ ] Start Agent with NetworkSpecification as input.
-async function oldHandler(argv: AgentOptions): Promise<void> {
+async function _oldHandler(
+  argv: AgentOptions,
+  networkSpecification: spec.NetworkSpecification,
+): Promise<void> {
   const logger = createLogger({
     name: 'IndexerAgent',
     async: false,
@@ -471,7 +474,7 @@ async function oldHandler(argv: AgentOptions): Promise<void> {
   const networkMonitor = new NetworkMonitor(
     networkChainId,
     contracts,
-    toAddress(indexerAddress),
+    networkSpecification.indexerOptions,
     logger.child({ component: 'NetworkMonitor' }),
     indexingStatusResolver,
     networkSubgraph,
@@ -537,26 +540,14 @@ async function oldHandler(argv: AgentOptions): Promise<void> {
   logger.info(`Successfully synced database models`)
 
   logger.info('Connect to network')
-  const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
+  const _maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
+
   const network = await Network.create(
     logger,
-    networkProvider,
-    contracts,
-    wallet,
-    indexerAddress,
-    argv.publicIndexerUrl,
-    argv.indexerGeoCoordinates,
-    networkSubgraph,
-    argv.restakeRewards,
-    argv.rebateClaimThreshold,
-    argv.rebateClaimBatchThreshold,
-    argv.rebateClaimMaxBatchSize,
-    argv.poiDisputeMonitoring,
-    argv.poiDisputableEpochs,
-    argv.gasIncreaseTimeout,
-    argv.gasIncreaseFactor,
-    maxGasFee,
-    argv.transactionAttempts,
+    networkSpecification,
+    argv.graphNodeQueryEndpoint,
+    argv.graphNodeStatusEndpoint,
+    metrics,
   )
   logger.info('Successfully connected to network', {
     restakeRewards: argv.restakeRewards,

@@ -325,7 +325,7 @@ class Agent {
       currentEpochNumber,
     }).tryMap(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      ({ activeAllocations, currentEpochNumber }) =>
+      ({ activeAllocations: _, currentEpochNumber }) =>
         this.networkMonitor.recentlyClosedAllocations(
           currentEpochNumber,
           1, //TODO: Parameterize with a user provided value
@@ -343,7 +343,7 @@ class Agent {
       channelDisputeEpochs,
     }).tryMap(
       ({ currentEpochNumber, channelDisputeEpochs }) =>
-        this.network.claimableAllocations(
+        this.networkMonitor.claimableAllocations(
           currentEpochNumber - channelDisputeEpochs,
         ),
       {
@@ -360,7 +360,7 @@ class Agent {
       activeDeployments,
     }).tryMap(
       ({ currentEpochNumber, activeDeployments }) =>
-        this.network.disputableAllocations(
+        this.network.networkMonitor.disputableAllocations(
           currentEpochNumber,
           activeDeployments,
           0,
@@ -417,7 +417,9 @@ class Agent {
             `Not authorized as an operator for the indexer`,
             {
               err: indexerError(IndexerErrorCode.IE034),
-              indexer: toAddress(this.network.indexerAddress),
+              indexer: toAddress(
+                this.network.specification.indexerOptions.address,
+              ),
               operator: toAddress(
                 this.network.transactionManager.wallet.address,
               ),
@@ -444,7 +446,8 @@ class Agent {
 
         try {
           const disputableEpoch =
-            currentEpochNumber - this.network.indexerConfigs.poiDisputableEpochs
+            currentEpochNumber -
+            this.network.specification.indexerOptions.poiDisputableEpochs
           // Find disputable allocations
           await this.identifyPotentialDisputes(
             disputableAllocations,
@@ -546,14 +549,16 @@ class Agent {
       ]
         .filter(pool => pool.closedAtEpochStartBlockHash)
         .map(async pool => {
-          const closedAtEpochStartBlock = await this.network.ethereum.getBlock(
-            pool.closedAtEpochStartBlockHash!,
-          )
+          const closedAtEpochStartBlock =
+            await this.network.networkProvider.getBlock(
+              pool.closedAtEpochStartBlockHash!,
+            )
 
           // Todo: Lazily fetch this, only if the first reference POI doesn't match
-          const previousEpochStartBlock = await this.network.ethereum.getBlock(
-            pool.previousEpochStartBlockHash!,
-          )
+          const previousEpochStartBlock =
+            await this.network.networkProvider.getBlock(
+              pool.previousEpochStartBlockHash!,
+            )
           pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
           pool.referencePOI = await this.indexer.statusResolver.proofOfIndexing(
             pool.subgraphDeployment,
@@ -726,7 +731,7 @@ class Agent {
   }
 
   async identifyExpiringAllocations(
-    logger: Logger,
+    _logger: Logger,
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
