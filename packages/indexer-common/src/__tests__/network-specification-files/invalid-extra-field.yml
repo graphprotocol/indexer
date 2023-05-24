@@ -5,19 +5,20 @@ indexerOptions:
   address: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
-  geoCoordinates: [25.0, -71.2]
+  geoCoordinates: [25.1, -71.2]
   restakeRewards: true
-  rebateClaimThreshold: "0xdeadbeef"
-  rebateClaimBatchThreshold: "0xdeadbeef"
+  rebateClaimThreshold: 400
+  rebateClaimBatchThreshold: 5000
   rebateClaimMaxBatchSize: 10
   poiDisputeMonitoring: false
   poiDisputableEpochs: 5
-  defaultAllocationAmount: "0xdeadbeef"
-  voucherRedemptionThreshold: "0xdeadbeef"
-  voucherRedemptionBatchThreshold: "0xdeadbeef"
+  defaultAllocationAmount: 0.05
+  voucherRedemptionThreshold: 2
+  voucherRedemptionBatchThreshold: 2000
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
+  invalidExtraField: abcd  # <-- invalid extra field
 transactionMonitoring:
   gasIncreaseTimeout: 10
   gasIncreaseFactor: 10
@@ -32,4 +33,3 @@ networkProvider:
   url: http://provider
 dai:
   contractAddress: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
-invalidExtraField: 10

@@ -1,5 +1,6 @@
 import fs from 'fs'
 import path from 'path'
+import axios, { AxiosResponse } from 'axios'
 import { Argv } from 'yargs'
 import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
@@ -11,7 +12,6 @@ import {
   createMetricsServer,
   formatGRT,
   Logger,
-  parseGRT,
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
@@ -39,10 +39,11 @@ import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
+import { specification as spec } from '@graphprotocol/indexer-common'
 
-type AgentOptions = { [key: string]: any } & Argv['argv']
+export type AgentOptions = { [key: string]: any } & Argv['argv']
 
-export default {
+export const start = {
   command: 'start',
   describe: 'Start the agent',
   builder: (yargs: Argv): Argv => {
@@ -67,7 +68,6 @@ export default {
         type: 'number',
         default: 240,
         group: 'Ethereum',
-        coerce: arg => arg * 1000,
       })
       .option('gas-increase-factor', {
         description:
@@ -82,7 +82,6 @@ export default {
         default: 100,
         deprecated: true,
         group: 'Ethereum',
-        coerce: arg => arg * 10 ** 9,
       })
       .option('base-fee-per-gas-max', {
         description:
@@ -90,7 +89,6 @@ export default {
         type: 'number',
         required: false,
         group: 'Ethereum',
-        coerce: arg => arg * 10 ** 9,
       })
       .option('transaction-attempts', {
         description:
@@ -142,11 +140,7 @@ export default {
         array: true,
         default: ['31.780715', '-41.179504'],
         group: 'Indexer Infrastructure',
-        coerce: arg =>
-          arg.reduce(
-            (acc: string[], value: string) => [...acc, ...value.split(' ')],
-            [],
-          ),
+        coerce: coordinates => coordinates.map(parseFloat),
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
@@ -179,7 +173,9 @@ export default {
         type: 'string',
         array: true,
         required: true,
-        coerce: arg =>
+        coerce: (
+          arg, // TODO: we shouldn't need to coerce because yargs already separates values by space
+        ) =>
           arg.reduce(
             (acc: string[], value: string) => [...acc, ...value.split(',')],
             [],
@@ -189,11 +185,10 @@ export default {
       .option('default-allocation-amount', {
         description:
           'Default amount of GRT to allocate to a subgraph deployment',
-        type: 'string',
-        default: '0.01',
+        type: 'number',
+        default: 0.01,
         required: false,
         group: 'Protocol',
-        coerce: arg => parseGRT(arg),
       })
       .option('indexer-management-port', {
         description: 'Port to serve the indexer management API at',
@@ -205,7 +200,7 @@ export default {
       .option('metrics-port', {
         description: 'Port to serve Prometheus metrics at',
         type: 'number',
-        defaut: 7300,
+        default: 7300,
         required: false,
         group: 'Indexer Infrastructure',
       })
@@ -225,17 +220,15 @@ export default {
       })
       .option('rebate-claim-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
-        type: 'string',
-        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        type: 'number',
+        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
-        type: 'string',
-        default: '2000',
+        type: 'number',
+        default: 2000,
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
@@ -245,17 +238,15 @@ export default {
       })
       .option('voucher-redemption-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
-        type: 'string',
-        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        type: 'number',
+        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
-        type: 'string',
-        default: '2000',
+        type: 'number',
+        default: 2000,
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
@@ -392,7 +383,7 @@ export default {
           }
         }
         if (argv['gas-increase-timeout']) {
-          if (argv['gas-increase-timeout'] < 30000) {
+          if (argv['gas-increase-timeout'] < 30) {
             return 'Invalid --gas-increase-timeout provided. Must be at least 30 seconds'
           }
         }
@@ -408,332 +399,405 @@ export default {
         return true
       })
   },
-  handler: async (argv: AgentOptions): Promise<void> => {
-    const logger = createLogger({
-      name: 'IndexerAgent',
-      async: false,
-      level: argv.logLevel,
-    })
-
-    reviewArgumentsForWarnings(argv, logger)
-
-    process.on('unhandledRejection', err => {
-      logger.warn(`Unhandled promise rejection`, {
-        err: indexerError(IndexerErrorCode.IE035, err),
-      })
-    })
-
-    process.on('uncaughtException', err => {
-      logger.warn(`Uncaught exception`, {
-        err: indexerError(IndexerErrorCode.IE036, err),
-      })
-    })
-
-    // Spin up a metrics server
-    const metrics = createMetrics()
-    createMetricsServer({
-      logger: logger.child({ component: 'MetricsServer' }),
-      registry: metrics.registry,
-      port: argv.metricsPort,
-    })
-
-    // Register indexer error metrics so we can track any errors that happen
-    // inside the agent
-    registerIndexerErrorMetrics(metrics)
-
-    const indexingStatusResolver = new IndexingStatusResolver({
-      logger: logger,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-    })
-
-    // Parse the Network Subgraph optional argument
-    const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment[0].cid) // TODO:L2: Use multiple network subgraphs.
-      : undefined
-
-    const networkSubgraph = await NetworkSubgraph.create({
-      logger,
-      endpoint: argv.networkSubgraphEndpoint?.[0].url.toString(), // TODO:L2: Use multiple network subgraphs.
-      deployment:
-        networkSubgraphDeploymentId !== undefined
-          ? {
-              indexingStatusResolver: indexingStatusResolver,
-              deployment: networkSubgraphDeploymentId,
-              graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-            }
-          : undefined,
-    })
-
-    const networkProvider = await Network.provider(
-      logger,
-      metrics,
-      argv.networkProvider[0].url.toString(), // TODO:L2: Use multiple providers.
-      argv.ethereumPollingInterval,
-    )
-
-    const networkMeta = await networkProvider.getNetwork()
-
-    // TODO:L2: enforce that this ID is the same as the configured network(s), when networks are
-    // identified.
-    const networkChainId = resolveChainId(networkMeta.chainId)
-
-    logger.info(`Connect to contracts`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-      providerNetworkChainID: networkProvider.network.chainId,
-    })
-
-    logger.info(`Connect wallet`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-    })
-    let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(networkProvider)
-    logger.info(`Connected wallet`)
-
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, networkMeta.chainId)
-    } catch (err) {
-      logger.error(
-        `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
-        {
-          err,
-        },
-      )
-      process.exit(1)
-    }
-    logger.info(`Successfully connected to contracts`, {
-      curation: contracts.curation.address,
-      disputeManager: contracts.disputeManager.address,
-      epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
-      rewardsManager: contracts.rewardsManager.address,
-      serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
-      token: contracts.token.address,
-    })
-
-    const indexerAddress = toAddress(argv.indexerAddress)
-
-    const epochSubgraph = await EpochSubgraph.create(
-      argv.epochSubgraphEndpoint[0].url.toString(), // TODO:L2: use multiple epoch subgraphs
-    )
-
-    const networkMonitor = new NetworkMonitor(
-      networkChainId,
-      contracts,
-      toAddress(indexerAddress),
-      logger.child({ component: 'NetworkMonitor' }),
-      indexingStatusResolver,
-      networkSubgraph,
-      networkProvider,
-      epochSubgraph,
-    )
-
-    logger.info('Connect to database', {
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      database: argv.postgresDatabase,
-    })
-    const sequelize = await connectDatabase({
-      logging: undefined,
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      username: argv.postgresUsername,
-      password: argv.postgresPassword,
-      database: argv.postgresDatabase,
-    })
-    logger.info('Successfully connected to database')
-
-    // Automatic database migrations
-    logger.info(`Run database migrations`)
-
-    // If the application is being executed using ts-node __dirname may be in /src rather than /dist
-    const migrations_path = __dirname.includes('dist')
-      ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
-      : path.join(__dirname, '..', '..', 'dist', 'db', 'migrations', '*.js')
-
-    try {
-      const umzug = new Umzug({
-        migrations: {
-          glob: migrations_path,
-        },
-        context: {
-          queryInterface: sequelize.getQueryInterface(),
-          logger,
-          indexingStatusResolver,
-          graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-          networkMonitor,
-          networkChainId,
-        },
-        storage: new SequelizeStorage({ sequelize }),
-        logger: console,
-      })
-      const pending = await umzug.pending()
-      const executed = await umzug.executed()
-      logger.debug(`Migrations status`, { pending, executed })
-      await umzug.up()
-    } catch (err) {
-      logger.fatal(`Failed to run database migrations`, {
-        err: indexerError(IndexerErrorCode.IE001, err),
-      })
-      process.exit(1)
-    }
-    logger.info(`Successfully ran database migrations`)
-
-    logger.info(`Sync database models`)
-    const managementModels = defineIndexerManagementModels(sequelize)
-    const queryFeeModels = defineQueryFeeModels(sequelize)
-    await sequelize.sync()
-    logger.info(`Successfully synced database models`)
-
-    logger.info('Connect to network')
-    const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
-    const network = await Network.create(
-      logger,
-      networkProvider,
-      contracts,
-      wallet,
-      indexerAddress,
-      argv.publicIndexerUrl,
-      argv.indexerGeoCoordinates,
-      networkSubgraph,
-      argv.restakeRewards,
-      argv.rebateClaimThreshold,
-      argv.rebateClaimBatchThreshold,
-      argv.rebateClaimMaxBatchSize,
-      argv.poiDisputeMonitoring,
-      argv.poiDisputableEpochs,
-      argv.gasIncreaseTimeout,
-      argv.gasIncreaseFactor,
-      maxGasFee,
-      argv.transactionAttempts,
-    )
-    logger.info('Successfully connected to network', {
-      restakeRewards: argv.restakeRewards,
-    })
-
-    const receiptCollector = new AllocationReceiptCollector({
-      logger,
-      metrics,
-      transactionManager: network.transactionManager,
-      models: queryFeeModels,
-      allocationExchange: network.contracts.allocationExchange,
-      gatewayEndpoint: argv.gatewayEndpoint,
-      voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
-      voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
-      voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
-    })
-    await receiptCollector.queuePendingReceiptsFromDatabase()
-
-    logger.info('Launch indexer management API server')
-    const allocationManagementMode =
-      AllocationManagementMode[
-        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
-      ]
-
-    const indexerManagementClient = await createIndexerManagementClient({
-      models: managementModels,
-      address: indexerAddress,
-      contracts,
-      indexingStatusResolver,
-      indexNodeIDs: argv.indexNodeIds,
-      deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
-      networkSubgraph,
-      logger,
-      defaults: {
-        globalIndexingRule: {
-          allocationAmount: argv.defaultAllocationAmount,
-          parallelAllocations: 1,
-        },
-      },
-      features: {
-        injectDai: argv.injectDai,
-      },
-      transactionManager: network.transactionManager,
-      receiptCollector,
-      networkMonitor,
-      allocationManagementMode,
-      autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
-    })
-
-    await createIndexerManagementServer({
-      logger,
-      client: indexerManagementClient,
-      port: argv.indexerManagementPort,
-    })
-    logger.info(`Successfully launched indexer management API server`)
-
-    const indexer = new Indexer(
-      logger,
-      argv.graphNodeAdminEndpoint,
-      indexingStatusResolver,
-      indexerManagementClient,
-      argv.indexNodeIds,
-      argv.defaultAllocationAmount,
-      indexerAddress,
-      allocationManagementMode,
-    )
-
-    if (networkSubgraphDeploymentId !== undefined) {
-      // Make sure the network subgraph is being indexed
-      await indexer.ensure(
-        `indexer-agent/${networkSubgraphDeploymentId.ipfsHash.slice(-10)}`,
-        networkSubgraphDeploymentId,
-      )
-
-      // Validate if the Network Subgraph belongs to the current provider's network.
-      // This check must be performed after we ensure the Network Subgraph is being indexed.
-      try {
-        await validateNetworkId(
-          networkMeta,
-          argv.networkSubgraphDeployment[0].cid, // TODO:L2: Use multiple network subgraphs.
-          indexingStatusResolver,
-          logger,
-        )
-      } catch (e) {
-        logger.critical('Failed to validate Network Subgraph. Exiting.', e)
-        process.exit(1)
-      }
-    }
-
-    // Monitor ETH balance of the operator and write the latest value to a metric
-    await monitorEthBalance(logger, wallet, metrics)
-
-    logger.info(`Launch syncing server`)
-    await createSyncingServer({
-      logger,
-      networkSubgraph,
-      port: argv.syncingPort,
-    })
-    logger.info(`Successfully launched syncing server`)
-
-    startCostModelAutomation({
-      logger,
-      ethereum: networkProvider,
-      contracts: network.contracts,
-      indexerManagement: indexerManagementClient,
-      injectDai: argv.injectDai,
-      daiContractAddress: toAddress(argv.daiContract),
-      metrics,
-    })
-
-    await startAgent({
-      logger,
-      metrics,
-      indexer,
-      network,
-      networkMonitor,
-      networkSubgraph,
-      allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
-      registerIndexer: argv.register,
-      offchainSubgraphs: argv.offchainSubgraphs.map(
-        (s: string) => new SubgraphDeploymentID(s),
-      ),
-      receiptCollector,
-    })
+  handler: (argv: any) => {
+    /* no op */
   },
+}
+
+export async function createNetworkSpecification(
+  argv: AgentOptions,
+): Promise<spec.NetworkSpecification> {
+  const gateway = {
+    baseUrl: argv.gatewayEndpoint,
+  }
+
+  const indexerOptions = {
+    address: argv.indexerAddress,
+    mnemonic: argv.mnemonic,
+    url: argv.publicIndexerUrl,
+    geoCoordinates: argv.indexerGeoCoordinates,
+    restakeRewards: argv.restakeRewards,
+    rebateClaimThreshold: argv.rebateClaimThreshold,
+    rebateClaimBatchThreshold: argv.rebateClaimBatchThreshold,
+    rebateClaimMaxBatchSize: argv.rebateClaimMaxBatchSize,
+    poiDisputeMonitoring: argv.poiDisputeMonitoring,
+    poiDisputableEpochs: argv.poiDisputableEpochs,
+    defaultAllocationAmount: argv.defaultAllocationAmount,
+    voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+    voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
+    voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+    allocationManagementMode: argv.allocationManagementMode,
+    autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+  }
+
+  const transactionMonitoring = {
+    gasIncreaseTimeout: argv.gasIncreaseTimeout,
+    gasIncreaseFactor: argv.gasIncreaseFactor,
+    baseFeePerGasMax: argv.baseFeeGasMax,
+    maxTransactionAttempts: argv.maxTransactionAttempts,
+  }
+
+  const subgraphs = {
+    networkSubgraph: {
+      deployment: argv.networkSubgraphDeployment,
+      url: argv.networkSubgraphEndpoint,
+    },
+    epochSubgraph: {
+      url: argv.epochSubgraphEndpoint,
+      // TODO: We should consider indexing the Epoch Subgraph, similar
+      // to how we currently do it for the Network Subgraph.
+    },
+  }
+
+  const dai = {
+    contractAddress: argv.daiContractAddress,
+    injectDai: argv.injectDai,
+  }
+
+  const networkProvider = {
+    url: argv.networkProvider,
+  }
+
+  // TODO: We can't infer the network identifier, so we must ask the
+  // configured JSON RPC provider for its `chainID`.
+  const chainId = await fetchChainId(networkProvider.url)
+  const networkIdentifier = resolveChainId(chainId)
+
+  return spec.NetworkSpecification.parse({
+    networkIdentifier,
+    gateway,
+    indexerOptions,
+    transactionMonitoring,
+    subgraphs,
+    networkProvider,
+    dai,
+  })
+}
+
+// TODO: Split this code into two functions:
+// 1. [X] Create NetworkSpecification
+// 2. [ ] Start Agent with NetworkSpecification as input.
+async function oldHandler(argv: AgentOptions): Promise<void> {
+  const logger = createLogger({
+    name: 'IndexerAgent',
+    async: false,
+    level: argv.logLevel,
+  })
+
+  reviewArgumentsForWarnings(argv, logger)
+
+  process.on('unhandledRejection', err => {
+    logger.warn(`Unhandled promise rejection`, {
+      err: indexerError(IndexerErrorCode.IE035, err),
+    })
+  })
+
+  process.on('uncaughtException', err => {
+    logger.warn(`Uncaught exception`, {
+      err: indexerError(IndexerErrorCode.IE036, err),
+    })
+  })
+
+  // Spin up a metrics server
+  const metrics = createMetrics()
+  createMetricsServer({
+    logger: logger.child({ component: 'MetricsServer' }),
+    registry: metrics.registry,
+    port: argv.metricsPort,
+  })
+
+  // Register indexer error metrics so we can track any errors that happen
+  // inside the agent
+  registerIndexerErrorMetrics(metrics)
+
+  const indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint: argv.graphNodeStatusEndpoint,
+  })
+
+  // Parse the Network Subgraph optional argument
+  const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
+    ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
+    : undefined
+
+  const networkSubgraph = await NetworkSubgraph.create({
+    logger,
+    endpoint: argv.networkSubgraphEndpoint,
+    deployment:
+      networkSubgraphDeploymentId !== undefined
+        ? {
+            indexingStatusResolver: indexingStatusResolver,
+            deployment: networkSubgraphDeploymentId,
+            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
+          }
+        : undefined,
+  })
+
+  const networkProvider = await Network.provider(
+    logger,
+    metrics,
+    argv.networkProvider,
+    argv.ethereumPollingInterval,
+  )
+
+  const networkMeta = await networkProvider.getNetwork()
+
+  const networkChainId = resolveChainId(networkMeta.chainId)
+
+  logger.info(`Connect to contracts`, {
+    network: networkMeta.name,
+    chainId: networkMeta.chainId,
+    providerNetworkChainID: networkProvider.network.chainId,
+  })
+
+  logger.info(`Connect wallet`, {
+    network: networkMeta.name,
+    chainId: networkMeta.chainId,
+  })
+  let wallet = Wallet.fromMnemonic(argv.mnemonic)
+  wallet = wallet.connect(networkProvider)
+  logger.info(`Connected wallet`)
+
+  let contracts = undefined
+  try {
+    contracts = await connectContracts(wallet, networkMeta.chainId)
+  } catch (err) {
+    logger.error(
+      `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
+      {
+        err,
+      },
+    )
+    process.exit(1)
+  }
+  logger.info(`Successfully connected to contracts`, {
+    curation: contracts.curation.address,
+    disputeManager: contracts.disputeManager.address,
+    epochManager: contracts.epochManager.address,
+    gns: contracts.gns.address,
+    rewardsManager: contracts.rewardsManager.address,
+    serviceRegistry: contracts.serviceRegistry.address,
+    staking: contracts.staking.address,
+    token: contracts.token.address,
+  })
+
+  const indexerAddress = toAddress(argv.indexerAddress)
+
+  const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
+
+  const networkMonitor = new NetworkMonitor(
+    networkChainId,
+    contracts,
+    toAddress(indexerAddress),
+    logger.child({ component: 'NetworkMonitor' }),
+    indexingStatusResolver,
+    networkSubgraph,
+    networkProvider,
+    epochSubgraph,
+  )
+
+  logger.info('Connect to database', {
+    host: argv.postgresHost,
+    port: argv.postgresPort,
+    database: argv.postgresDatabase,
+  })
+  const sequelize = await connectDatabase({
+    logging: undefined,
+    host: argv.postgresHost,
+    port: argv.postgresPort,
+    username: argv.postgresUsername,
+    password: argv.postgresPassword,
+    database: argv.postgresDatabase,
+  })
+  logger.info('Successfully connected to database')
+
+  // Automatic database migrations
+  logger.info(`Run database migrations`)
+
+  // If the application is being executed using ts-node __dirname may be in /src rather than /dist
+  const migrations_path = __dirname.includes('dist')
+    ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
+    : path.join(__dirname, '..', '..', 'dist', 'db', 'migrations', '*.js')
+
+  try {
+    const umzug = new Umzug({
+      migrations: {
+        glob: migrations_path,
+      },
+      context: {
+        queryInterface: sequelize.getQueryInterface(),
+        logger,
+        indexingStatusResolver,
+        graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
+        networkMonitor,
+        networkChainId,
+      },
+      storage: new SequelizeStorage({ sequelize }),
+      logger: console,
+    })
+    const pending = await umzug.pending()
+    const executed = await umzug.executed()
+    logger.debug(`Migrations status`, { pending, executed })
+    await umzug.up()
+  } catch (err) {
+    logger.fatal(`Failed to run database migrations`, {
+      err: indexerError(IndexerErrorCode.IE001, err),
+    })
+    process.exit(1)
+  }
+  logger.info(`Successfully ran database migrations`)
+
+  logger.info(`Sync database models`)
+  const managementModels = defineIndexerManagementModels(sequelize)
+  const queryFeeModels = defineQueryFeeModels(sequelize)
+  await sequelize.sync()
+  logger.info(`Successfully synced database models`)
+
+  logger.info('Connect to network')
+  const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
+  const network = await Network.create(
+    logger,
+    networkProvider,
+    contracts,
+    wallet,
+    indexerAddress,
+    argv.publicIndexerUrl,
+    argv.indexerGeoCoordinates,
+    networkSubgraph,
+    argv.restakeRewards,
+    argv.rebateClaimThreshold,
+    argv.rebateClaimBatchThreshold,
+    argv.rebateClaimMaxBatchSize,
+    argv.poiDisputeMonitoring,
+    argv.poiDisputableEpochs,
+    argv.gasIncreaseTimeout,
+    argv.gasIncreaseFactor,
+    maxGasFee,
+    argv.transactionAttempts,
+  )
+  logger.info('Successfully connected to network', {
+    restakeRewards: argv.restakeRewards,
+  })
+
+  const receiptCollector = new AllocationReceiptCollector({
+    logger,
+    metrics,
+    transactionManager: network.transactionManager,
+    models: queryFeeModels,
+    allocationExchange: network.contracts.allocationExchange,
+    gatewayEndpoint: argv.gatewayEndpoint,
+    voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+    voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
+    voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+  })
+  await receiptCollector.queuePendingReceiptsFromDatabase()
+
+  logger.info('Launch indexer management API server')
+  const allocationManagementMode =
+    AllocationManagementMode[
+      argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
+    ]
+
+  const indexerManagementClient = await createIndexerManagementClient({
+    models: managementModels,
+    address: indexerAddress,
+    contracts,
+    indexingStatusResolver,
+    indexNodeIDs: argv.indexNodeIds,
+    deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
+    networkSubgraph,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        allocationAmount: argv.defaultAllocationAmount,
+        parallelAllocations: 1,
+      },
+    },
+    features: {
+      injectDai: argv.injectDai,
+    },
+    transactionManager: network.transactionManager,
+    receiptCollector,
+    networkMonitor,
+    allocationManagementMode,
+    autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+  })
+
+  await createIndexerManagementServer({
+    logger,
+    client: indexerManagementClient,
+    port: argv.indexerManagementPort,
+  })
+  logger.info(`Successfully launched indexer management API server`)
+
+  const indexer = new Indexer(
+    logger,
+    argv.graphNodeAdminEndpoint,
+    indexingStatusResolver,
+    indexerManagementClient,
+    argv.indexNodeIds,
+    argv.defaultAllocationAmount,
+    indexerAddress,
+    allocationManagementMode,
+  )
+
+  if (networkSubgraphDeploymentId !== undefined) {
+    // Make sure the network subgraph is being indexed
+    await indexer.ensure(
+      `indexer-agent/${networkSubgraphDeploymentId.ipfsHash.slice(-10)}`,
+      networkSubgraphDeploymentId,
+    )
+
+    // Validate if the Network Subgraph belongs to the current provider's network.
+    // This check must be performed after we ensure the Network Subgraph is being indexed.
+    try {
+      await validateNetworkId(
+        networkMeta,
+        argv.networkSubgraphDeployment,
+        indexingStatusResolver,
+        logger,
+      )
+    } catch (e) {
+      logger.critical('Failed to validate Network Subgraph. Exiting.', e)
+      process.exit(1)
+    }
+  }
+
+  // Monitor ETH balance of the operator and write the latest value to a metric
+  await monitorEthBalance(logger, wallet, metrics)
+
+  logger.info(`Launch syncing server`)
+  await createSyncingServer({
+    logger,
+    networkSubgraph,
+    port: argv.syncingPort,
+  })
+  logger.info(`Successfully launched syncing server`)
+
+  startCostModelAutomation({
+    logger,
+    ethereum: networkProvider,
+    contracts: network.contracts,
+    indexerManagement: indexerManagementClient,
+    injectDai: argv.injectDai,
+    daiContractAddress: toAddress(argv.daiContract),
+    metrics,
+  })
+
+  await startAgent({
+    logger,
+    metrics,
+    indexer,
+    network,
+    networkMonitor,
+    networkSubgraph,
+    allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
+    registerIndexer: argv.register,
+    offchainSubgraphs: argv.offchainSubgraphs.map(
+      (s: string) => new SubgraphDeploymentID(s),
+    ),
+    receiptCollector,
+  })
 }
 
 // Review CLI arguments, emit non-interrupting warnings about expected behavior.
@@ -815,5 +879,25 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
         'may result in batches that are too large to fit into a block',
       { voucherRedemptionMaxBatchSize: voucherRedemptionMaxBatchSize },
     )
+  }
+}
+
+async function fetchChainId(url: string): Promise<number> {
+  const payload = {
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'eth_chainId',
+  }
+  try {
+    const response = await axios.post(url, payload)
+    if (response.status !== 200) {
+      throw `HTTP ${response.status}`
+    }
+    if (!response.data || !response.data.result) {
+      throw `Received invalid response body from provider: ${response.data}`
+    }
+    return parseInt(response.data.result, 16)
+  } catch (error) {
+    throw new Error(`Failed to fetch chainID from provider: ${error}`)
   }
 }
