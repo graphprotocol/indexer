@@ -3,12 +3,14 @@ import * as path from 'path'
 import { specification as spec } from '@graphprotocol/indexer-common'
 import * as YAML from 'yaml'
 import { Argv } from 'yargs'
+import { injectCommonStartupOptions } from './common-options'
 
 export const startMultiNetwork = {
   command: 'start-multiple',
   describe: 'Start the Agent in multiple Protocol Networks',
-  builder: (yargs: Argv): Argv => {
-    return yargs.option('network-specifications-directory', {
+  builder: (args: Argv): Argv => {
+    const updatedArgs = injectCommonStartupOptions(args)
+    return updatedArgs.option('network-specifications-directory', {
       alias: 'dir',
       description: 'Path to a directory containing network specificaiton files',
       type: 'string',
@@ -16,7 +18,7 @@ export const startMultiNetwork = {
     })
   },
   // eslint-disable-next-line @typescript-eslint/no-empty-function
-  handler: (argv: any) => {},
+  handler: (_argv: any) => {},
 }
 
 export function parseNetworkSpecifications(

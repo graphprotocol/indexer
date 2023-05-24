@@ -1,8 +1,6 @@
-import fs from 'fs'
 import path from 'path'
-import axios, { AxiosResponse } from 'axios'
+import axios from 'axios'
 import { Argv } from 'yargs'
-import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
   connectContracts,
@@ -40,14 +38,16 @@ import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
 import { specification as spec } from '@graphprotocol/indexer-common'
+import { injectCommonStartupOptions } from './common-options'
 
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export const start = {
   command: 'start',
   describe: 'Start the agent',
-  builder: (yargs: Argv): Argv => {
-    return yargs
+  builder: (args: Argv): Argv => {
+    const updatedArgs = injectCommonStartupOptions(args)
+    return updatedArgs
       .option('network-provider', {
         alias: 'ethereum',
         description: 'Ethereum node or provider URL',
@@ -109,25 +109,6 @@ export const start = {
         required: true,
         group: 'Ethereum',
       })
-      .option('graph-node-query-endpoint', {
-        description: 'Graph Node endpoint for querying subgraphs',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
-      .option('graph-node-status-endpoint', {
-        description: 'Graph Node endpoint for indexing statuses etc.',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
-      .option('graph-node-admin-endpoint', {
-        description:
-          'Graph Node endpoint for applying and updating subgraph deployments',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
       .option('public-indexer-url', {
         description: 'Indexer endpoint for receiving requests from the network',
         type: 'string',
@@ -167,21 +148,6 @@ export const start = {
         required: true,
         group: 'Protocol',
       })
-      .option('index-node-ids', {
-        description:
-          'Node IDs of Graph nodes to use for indexing (separated by commas)',
-        type: 'string',
-        array: true,
-        required: true,
-        coerce: (
-          arg, // TODO: we shouldn't need to coerce because yargs already separates values by space
-        ) =>
-          arg.reduce(
-            (acc: string[], value: string) => [...acc, ...value.split(',')],
-            [],
-          ),
-        group: 'Indexer Infrastructure',
-      })
       .option('default-allocation-amount', {
         description:
           'Default amount of GRT to allocate to a subgraph deployment',
@@ -189,28 +155,6 @@ export const start = {
         default: 0.01,
         required: false,
         group: 'Protocol',
-      })
-      .option('indexer-management-port', {
-        description: 'Port to serve the indexer management API at',
-        type: 'number',
-        default: 8000,
-        required: false,
-        group: 'Indexer Infrastructure',
-      })
-      .option('metrics-port', {
-        description: 'Port to serve Prometheus metrics at',
-        type: 'number',
-        default: 7300,
-        required: false,
-        group: 'Indexer Infrastructure',
-      })
-      .option('syncing-port', {
-        description:
-          'Port to serve the network subgraph and other syncing data for indexer service at',
-        type: 'number',
-        default: 8002,
-        required: false,
-        group: 'Indexer Infrastructure',
       })
       .option('restake-rewards', {
         description: `Restake claimed indexer rewards, if set to 'false' rewards will be returned to the wallet`,
@@ -268,64 +212,11 @@ export const start = {
         // Default to USDC
         default: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       })
-      .option('postgres-host', {
-        description: 'Postgres host',
-        type: 'string',
-        required: true,
-        group: 'Postgres',
-      })
-      .option('postgres-port', {
-        description: 'Postgres port',
-        type: 'number',
-        default: 5432,
-        group: 'Postgres',
-      })
-      .option('postgres-username', {
-        description: 'Postgres username',
-        type: 'string',
-        required: false,
-        default: 'postgres',
-        group: 'Postgres',
-      })
-      .option('postgres-password', {
-        description: 'Postgres password',
-        type: 'string',
-        default: '',
-        required: false,
-        group: 'Postgres',
-      })
-      .option('postgres-database', {
-        description: 'Postgres database name',
-        type: 'string',
-        required: true,
-        group: 'Postgres',
-      })
-      .option('log-level', {
-        description: 'Log level',
-        type: 'string',
-        default: 'debug',
-        group: 'Indexer Infrastructure',
-      })
       .option('register', {
         description: 'Whether to register the indexer on chain',
         type: 'boolean',
         default: true,
         group: 'Protocol',
-      })
-      .option('offchain-subgraphs', {
-        description:
-          'Subgraphs to index that are not on chain (comma-separated)',
-        type: 'string',
-        array: true,
-        default: [],
-        coerce: arg =>
-          arg
-            .reduce(
-              (acc: string[], value: string) => [...acc, ...value.split(',')],
-              [],
-            )
-            .map((id: string) => id.trim())
-            .filter((id: string) => id.length > 0),
       })
       .option('poi-disputable-epochs', {
         description:
@@ -362,13 +253,6 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
-      .config({
-        key: 'config-file',
-        description: 'Indexer agent configuration file (YAML format)',
-        parseFn: function (cfgFilePath: string) {
-          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
-        },
-      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -399,9 +283,8 @@ export const start = {
         return true
       })
   },
-  handler: (argv: any) => {
-    /* no op */
-  },
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  handler: (_argv: any) => {},
 }
 
 export async function createNetworkSpecification(
