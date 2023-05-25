@@ -3,7 +3,6 @@ import axios from 'axios'
 import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
-  connectContracts,
   connectDatabase,
   createLogger,
   createMetrics,
@@ -26,14 +25,12 @@ import {
   NetworkSubgraph,
   registerIndexerErrorMetrics,
   AllocationManagementMode,
-  EpochSubgraph,
   resolveChainId,
   validateNetworkId,
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
 import { Indexer } from '../indexer'
-import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { monitorEthBalance } from '../utils'
@@ -456,58 +453,6 @@ async function _oldHandler(
   const networkChainId = resolveChainId(networkMeta.chainId)
 
   // --------------------------------------------------------------------------------
-  // * Contracts
-  // TODO: We already instantiate it inside the Network class. We don't need it here.
-  // --------------------------------------------------------------------------------
-  /* Currently in use by:
-   - Logging (for itself, mostly)
-   - Network Monitor (TODO: remove this usage // it will go away as we remove it
-     from this scope)
-   - Indexer Management Client
-  */
-  logger.info(`Connect to contracts`, {
-    network: networkMeta.name,
-    chainId: networkMeta.chainId,
-    providerNetworkChainID: networkProvider.network.chainId,
-  })
-
-  logger.info(`Connect wallet`, {
-    network: networkMeta.name,
-    chainId: networkMeta.chainId,
-  })
-  let wallet = Wallet.fromMnemonic(argv.mnemonic)
-  wallet = wallet.connect(networkProvider)
-  logger.info(`Connected wallet`)
-
-  let contracts = undefined
-  try {
-    contracts = await connectContracts(wallet, networkMeta.chainId)
-  } catch (err) {
-    logger.error(
-      `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
-      {
-        err,
-      },
-    )
-    process.exit(1)
-  }
-  logger.info(`Successfully connected to contracts`, {
-    curation: contracts.curation.address,
-    disputeManager: contracts.disputeManager.address,
-    epochManager: contracts.epochManager.address,
-    gns: contracts.gns.address,
-    rewardsManager: contracts.rewardsManager.address,
-    serviceRegistry: contracts.serviceRegistry.address,
-    staking: contracts.staking.address,
-    token: contracts.token.address,
-  })
-
-  // --------------------------------------------------------------------------------
-  // * Epoch Subgraph
-  // --------------------------------------------------------------------------------
-  const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
-
-  // --------------------------------------------------------------------------------
   // * Network
   // --------------------------------------------------------------------------------
 
@@ -624,7 +569,7 @@ async function _oldHandler(
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     address: networkSpecification.indexerOptions.address,
-    contracts,
+    contracts: network.contracts,
     indexingStatusResolver,
     indexNodeIDs: argv.indexNodeIds,
     deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
@@ -698,7 +643,7 @@ async function _oldHandler(
   // * ETH Balance Monitor
   // --------------------------------------------------------------------------------
   // Monitor ETH balance of the operator and write the latest value to a metric
-  await monitorEthBalance(logger, wallet, metrics)
+  await monitorEthBalance(logger, network.wallet, metrics)
 
   // --------------------------------------------------------------------------------
   // * Syncing Server
