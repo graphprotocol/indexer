@@ -30,7 +30,6 @@ import { Agent } from '../agent'
 import { Indexer } from '../indexer'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
-import { monitorEthBalance } from '../utils'
 import { injectCommonStartupOptions } from './common-options'
 
 export type AgentOptions = { [key: string]: any } & Argv['argv']
@@ -621,8 +620,6 @@ async function _oldHandler(
   // * ETH Balance Monitor
   // TODO: Put this inside the Network class
   // --------------------------------------------------------------------------------
-  // Monitor ETH balance of the operator and write the latest value to a metric
-  await monitorEthBalance(logger, network.wallet, metrics)
 
   // --------------------------------------------------------------------------------
   // * Syncing Server

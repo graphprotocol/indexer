@@ -26,6 +26,7 @@ import geohash from 'ngeohash'
 import pFilter from 'p-filter'
 import pRetry from 'p-retry'
 import { resolveChainId } from './indexer-management'
+import { monitorEthBalance } from './utils'
 
 export class Network {
   logger: Logger
@@ -119,6 +120,9 @@ export class Network {
     logger = logger.child({
       operator: wallet.address,
     })
+
+    // Monitor ETH balance of the operator and write the latest value to a metric
+    await monitorEthBalance(logger, wallet, metrics)
 
     const contracts = await connectToProtocolContracts(
       wallet,
