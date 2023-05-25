@@ -31,6 +31,7 @@ export class Network {
   logger: Logger
   networkSubgraph: NetworkSubgraph
   contracts: NetworkContracts
+  wallet: Wallet
   networkProvider: providers.StaticJsonRpcProvider
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
@@ -39,6 +40,7 @@ export class Network {
   private constructor(
     logger: Logger,
     contracts: NetworkContracts,
+    wallet: Wallet,
     networkSubgraph: NetworkSubgraph,
     networkProvider: providers.StaticJsonRpcProvider,
     transactionManager: TransactionManager,
@@ -47,6 +49,7 @@ export class Network {
   ) {
     this.logger = logger
     this.contracts = contracts
+    this.wallet = wallet
     this.networkSubgraph = networkSubgraph
     this.networkProvider = networkProvider
     this.transactionManager = transactionManager
@@ -61,12 +64,10 @@ export class Network {
     graphNodeStatusEndpoint: string,
     metrics: Metrics,
   ): Promise<Network> {
-    const wallet = Wallet.fromMnemonic(specification.indexerOptions.mnemonic)
-
-    const logger = parentLogger.child({
+    // Incomplete logger for initial operations, will be replaced as new labels emerge.
+    let logger = parentLogger.child({
       component: 'Network',
       indexer: specification.indexerOptions.address,
-      operator: wallet.address,
       networkIdentifier: specification.networkIdentifier,
     })
 
@@ -95,23 +96,35 @@ export class Network {
     })
 
     // * -----------------------------------------------------------------------
+    // * Network Provider
+    // * -----------------------------------------------------------------------
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
+      specification.networkProvider.url,
+      specification.networkProvider.pollingInterval,
+    )
+
+    // * -----------------------------------------------------------------------
     // * Contracts
     // * -----------------------------------------------------------------------
-    const numericNetworkId = parseInt(specification.networkIdentifier.split(':')[1])
+    const wallet = await connectWallet(
+      networkProvider,
+      specification.networkIdentifier,
+      specification.indexerOptions.mnemonic,
+      logger,
+    )
 
-    // Confidence check: Should be unreachable since NetworkSpecification was validated before
-    if (resolveChainId(numericNetworkId) !== specification.networkIdentifier) {
-      throw new Error(`Invalid network identifier: ${specification.networkIdentifier}`)
-    }
+    // Include wallet address in this logger
+    logger = logger.child({
+      operator: wallet.address,
+    })
 
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, numericNetworkId)
-    } catch (err) {
-      throw new Error(
-        `Failed to connect to contracts, please ensure you are using the intended protocol network`,
-      )
-    }
+    const contracts = await connectToProtocolContracts(
+      wallet,
+      specification.networkIdentifier,
+      logger,
+    )
 
     // * -----------------------------------------------------------------------
     // * Epoch Subgraph
@@ -121,16 +134,6 @@ export class Network {
       // has already been validated during parsing. Once indexing is supported,
       // initialize it in the same way as the Network Subgraph.
       specification.subgraphs.epochSubgraph.url!,
-    )
-
-    // * -----------------------------------------------------------------------
-    // * Network Provider
-    // * -----------------------------------------------------------------------
-    const networkProvider = await Network.provider(
-      logger,
-      metrics,
-      specification.networkProvider.url,
-      specification.networkProvider.pollingInterval,
     )
 
     // * -----------------------------------------------------------------------
@@ -174,6 +177,7 @@ export class Network {
     return new Network(
       logger,
       contracts,
+      wallet,
       networkSubgraph,
       networkProvider,
       transactionManager,
@@ -490,4 +494,56 @@ export class Network {
       return false
     }
   }
+}
+
+async function connectWallet(
+  networkProvider: providers.Provider,
+  networkIdentifier: string,
+  mnemonic: string,
+  logger: Logger,
+): Promise<Wallet> {
+  logger.info(`Connect wallet`, {
+    networkIdentifier: networkIdentifier,
+  })
+  let wallet = Wallet.fromMnemonic(mnemonic)
+  wallet = wallet.connect(networkProvider)
+  logger.info(`Connected wallet`)
+  return wallet
+}
+
+async function connectToProtocolContracts(
+  wallet: Wallet,
+  networkIdentifier: string,
+  logger: Logger,
+): Promise<NetworkContracts> {
+  const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
+
+  // Confidence check: Should be unreachable since NetworkSpecification was validated before
+  if (resolveChainId(numericNetworkId) !== networkIdentifier) {
+    throw new Error(`Invalid network identifier: ${networkIdentifier}`)
+  }
+
+  logger.info(`Connect to contracts`, {
+    network: networkIdentifier,
+  })
+
+  let contracts
+  try {
+    contracts = await connectContracts(wallet, numericNetworkId)
+  } catch (err) {
+    throw new Error(
+      `Failed to connect to contracts, please ensure you are using the intended protocol network`,
+    )
+  }
+  logger.info(`Successfully connected to contracts`, {
+    curation: contracts.curation.address,
+    disputeManager: contracts.disputeManager.address,
+    epochManager: contracts.epochManager.address,
+    gns: contracts.gns.address,
+    rewardsManager: contracts.rewardsManager.address,
+    serviceRegistry: contracts.serviceRegistry.address,
+    staking: contracts.staking.address,
+    token: contracts.token.address,
+  })
+  return contracts
 }
