@@ -212,17 +212,17 @@ export class AllocationManager {
           action.protocolNetwork,
         )
       case ActionType.UNALLOCATE:
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         return await this.confirmUnallocate(
           action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
           action.protocolNetwork,
         )
       case ActionType.REALLOCATE:
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         return await this.confirmReallocate(
           action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
           action.protocolNetwork,
