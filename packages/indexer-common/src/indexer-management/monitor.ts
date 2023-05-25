@@ -543,6 +543,7 @@ export class NetworkMonitor {
         queryProgress.fetched += networkDeployments.length
         queryProgress.lastId = networkDeployments[networkDeployments.length - 1].id
         deployments.push(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...networkDeployments.map((x: any) =>
             parseGraphQLSubgraphDeployment(x, this.networkCAIPID),
           ),

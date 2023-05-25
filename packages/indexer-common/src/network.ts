@@ -130,9 +130,11 @@ export class Network {
     // * Epoch Subgraph
     // * -----------------------------------------------------------------------
     const epochSubgraph = await EpochSubgraph.create(
-      // TODO: Accept the non-null `url` property of the Epoch Subgraph, as it
-      // has already been validated during parsing. Once indexing is supported,
-      // initialize it in the same way as the Network Subgraph.
+      /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion --
+       * Accept the non-null `url` property of the Epoch Subgraph, as it has
+       * already been validated during parsing. Once indexing is supported,
+       * initialize it in the same way as the NetworkSubgraph
+       */
       specification.subgraphs.epochSubgraph.url!,
     )
 
