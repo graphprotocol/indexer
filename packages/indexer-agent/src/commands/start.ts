@@ -32,7 +32,7 @@ import {
   validateNetworkId,
   specification as spec,
 } from '@graphprotocol/indexer-common'
-import { startAgent } from '../agent'
+import { Agent } from '../agent'
 import { Indexer } from '../indexer'
 import { Wallet } from 'ethers'
 import { startCostModelAutomation } from '../cost'
@@ -516,7 +516,6 @@ async function _oldHandler(
   /* Currently lin use by
   - Migrations
   - Indexeer Management Client
-  - Starting the Agent, itself
   */
   const networkMonitor = new NetworkMonitor(
     networkChainId,
@@ -750,21 +749,16 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * The Agent itself
   // --------------------------------------------------------------------------------
-
-  await startAgent({
+  const agent = new Agent(
     logger,
     metrics,
     indexer,
     network,
-    networkMonitor,
     networkSubgraph,
-    allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
-    registerIndexer: argv.register,
-    offchainSubgraphs: argv.offchainSubgraphs.map(
-      (s: string) => new SubgraphDeploymentID(s),
-    ),
+    argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
     receiptCollector,
-  })
+  )
+  await agent.start()
 }
 
 // Review CLI arguments, emit non-interrupting warnings about expected behavior.

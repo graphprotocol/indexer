@@ -18,7 +18,6 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
   Network,
-  NetworkMonitor,
   NetworkSubgraph,
   POIDisputeAttributes,
   ReceiptCollector,
@@ -29,7 +28,6 @@ import {
   AllocationDecision,
 } from '@graphprotocol/indexer-common'
 import { Indexer } from './indexer'
-import { AgentConfig } from './types'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
@@ -116,15 +114,12 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
 const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
   new Set(deployments.map(id => id.bytes32))
 
-class Agent {
+export class Agent {
   logger: Logger
   metrics: Metrics
   indexer: Indexer
   network: Network
-  networkMonitor: NetworkMonitor
   networkSubgraph: NetworkSubgraph
-  allocateOnNetworkSubgraph: boolean
-  registerIndexer: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
 
@@ -133,10 +128,7 @@ class Agent {
     metrics: Metrics,
     indexer: Indexer,
     network: Network,
-    networkMonitor: NetworkMonitor,
     networkSubgraph: NetworkSubgraph,
-    allocateOnNetworkSubgraph: boolean,
-    registerIndexer: boolean,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
   ) {
@@ -144,28 +136,39 @@ class Agent {
     this.metrics = metrics
     this.indexer = indexer
     this.network = network
-    this.networkMonitor = networkMonitor
     this.networkSubgraph = networkSubgraph
-    this.allocateOnNetworkSubgraph = allocateOnNetworkSubgraph
-    this.registerIndexer = registerIndexer
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
   }
 
   async start(): Promise<Agent> {
+    // --------------------------------------------------------------------------------
+    // * Connect to graph node
+    // QUESTION: what does it mean to connect to it?
+    // --------------------------------------------------------------------------------
     this.logger.info(`Connect to Graph node(s)`)
     await this.indexer.connect()
     this.logger.info(`Connected to Graph node(s)`)
 
-    // Ensure there is a 'global' indexing rule
+    // --------------------------------------------------------------------------------
+    // * Ensure there is a 'global' indexing rule
+    // --------------------------------------------------------------------------------
     await this.indexer.ensureGlobalIndexingRule()
 
-    if (this.registerIndexer) {
+    // --------------------------------------------------------------------------------
+    // * Register the Indexer in the Network
+    // --------------------------------------------------------------------------------
+    if (this.network.specification.indexerOptions.register) {
       await this.network.register()
     }
 
+    this.buildEventualTree()
+    return this
+  }
+
+  buildEventualTree() {
     const currentEpochNumber = timer(600_000).tryMap(
-      async () => this.networkMonitor.currentEpochNumber(),
+      async () => this.network.networkMonitor.currentEpochNumber(),
       {
         onError: error =>
           this.logger.warn(`Failed to fetch current epoch`, { error }),
@@ -196,9 +199,8 @@ class Agent {
             rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
           )
           .map(rule => rule.identifier!)
-        const subgraphsMatchingRules = await this.networkMonitor.subgraphs(
-          subgraphRuleIds,
-        )
+        const subgraphsMatchingRules =
+          await this.network.networkMonitor.subgraphs(subgraphRuleIds)
         if (subgraphsMatchingRules.length >= 1) {
           const epochLength =
             await this.network.contracts.epochManager.epochLength()
@@ -235,7 +237,7 @@ class Agent {
     )
 
     const networkDeployments = timer(240_000).tryMap(
-      async () => await this.networkMonitor.subgraphDeployments(),
+      async () => await this.network.networkMonitor.subgraphDeployments(),
       {
         onError: error =>
           this.logger.warn(
@@ -311,7 +313,7 @@ class Agent {
     )
 
     const activeAllocations = timer(120_000).tryMap(
-      () => this.networkMonitor.allocations(AllocationStatus.ACTIVE),
+      () => this.network.networkMonitor.allocations(AllocationStatus.ACTIVE),
       {
         onError: () =>
           this.logger.warn(
@@ -326,7 +328,7 @@ class Agent {
     }).tryMap(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       ({ activeAllocations: _, currentEpochNumber }) =>
-        this.networkMonitor.recentlyClosedAllocations(
+        this.network.networkMonitor.recentlyClosedAllocations(
           currentEpochNumber,
           1, //TODO: Parameterize with a user provided value
         ),
@@ -343,7 +345,7 @@ class Agent {
       channelDisputeEpochs,
     }).tryMap(
       ({ currentEpochNumber, channelDisputeEpochs }) =>
-        this.networkMonitor.claimableAllocations(
+        this.network.networkMonitor.claimableAllocations(
           currentEpochNumber - channelDisputeEpochs,
         ),
       {
@@ -481,8 +483,6 @@ class Agent {
         }
       },
     )
-
-    return this
   }
 
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
@@ -506,7 +506,7 @@ class Agent {
     // TODO: Support supplying status = 'any' to fetchPOIDisputes() to fetch all previously processed allocations in a single query
 
     // TODO:L2: Perform this procedure for all configured networks, not just one
-    const protocolNetwork = this.networkMonitor.networkCAIPID
+    const protocolNetwork = this.network.networkMonitor.networkCAIPID
 
     const alreadyProcessed = (
       await this.indexer.fetchPOIDisputes(
@@ -784,7 +784,7 @@ class Agent {
     })
 
     // Acuracy check: re-fetch allocations to ensure that we have a fresh state since the start of the reconciliation loop
-    const activeAllocations = await this.networkMonitor.allocations(
+    const activeAllocations = await this.network.networkMonitor.allocations(
       AllocationStatus.ACTIVE,
     )
 
@@ -809,7 +809,7 @@ class Agent {
             logger,
             deploymentAllocationDecision,
             (
-              await this.networkMonitor.closedAllocations(
+              await this.network.networkMonitor.closedAllocations(
                 deploymentAllocationDecision.deployment,
               )
             )[0],
@@ -858,7 +858,7 @@ class Agent {
 
     // Ensure the network subgraph is never allocated towards
     if (
-      !this.allocateOnNetworkSubgraph &&
+      !this.network.specification.indexerOptions.allocateOnNetworkSubgraph &&
       this.networkSubgraph.deployment?.id.bytes32
     ) {
       const networkSubgraphDeploymentId = this.networkSubgraph.deployment.id
@@ -895,20 +895,4 @@ class Agent {
       )
     })
   }
-}
-
-export const startAgent = async (config: AgentConfig): Promise<Agent> => {
-  const agent = new Agent(
-    config.logger,
-    config.metrics,
-    config.indexer,
-    config.network,
-    config.networkMonitor,
-    config.networkSubgraph,
-    config.allocateOnNetworkSubgraph,
-    config.registerIndexer,
-    config.offchainSubgraphs,
-    config.receiptCollector,
-  )
-  return await agent.start()
 }
