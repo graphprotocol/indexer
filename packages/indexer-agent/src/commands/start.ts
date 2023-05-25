@@ -22,7 +22,6 @@ import {
   IndexerErrorCode,
   IndexingStatusResolver,
   Network,
-  NetworkSubgraph,
   registerIndexerErrorMetrics,
   AllocationManagementMode,
   resolveChainId,
@@ -420,27 +419,6 @@ async function _oldHandler(
   })
 
   // --------------------------------------------------------------------------------
-  // * NetworkSubgraph
-  // --------------------------------------------------------------------------------
-  // Parse the Network Subgraph optional argument
-  const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-    ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
-    : undefined
-
-  const networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint: argv.networkSubgraphEndpoint,
-    deployment:
-      networkSubgraphDeploymentId !== undefined
-        ? {
-            indexingStatusResolver: indexingStatusResolver,
-            deployment: networkSubgraphDeploymentId,
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-          }
-        : undefined,
-  })
-
-  // --------------------------------------------------------------------------------
   // * NetworkProvider and NetworkIdentifier
   // --------------------------------------------------------------------------------
   const networkProvider = await Network.provider(
@@ -455,7 +433,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Network
   // --------------------------------------------------------------------------------
-
   logger.info('Connect to network')
 
   const network = await Network.create(
@@ -472,7 +449,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Database - Connection
   // --------------------------------------------------------------------------------
-
   logger.info('Connect to database', {
     host: argv.postgresHost,
     port: argv.postgresPort,
@@ -531,7 +507,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Database - Sync Models
   // --------------------------------------------------------------------------------
-
   logger.info(`Sync database models`)
   const managementModels = defineIndexerManagementModels(sequelize)
   const queryFeeModels = defineQueryFeeModels(sequelize)
@@ -541,7 +516,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Allocation Receipt Collector
   // --------------------------------------------------------------------------------
-
   const receiptCollector = new AllocationReceiptCollector({
     logger,
     metrics,
@@ -558,7 +532,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
-
   logger.info('Launch indexer management API server')
   const allocationManagementMode =
     AllocationManagementMode[
@@ -573,7 +546,7 @@ async function _oldHandler(
     indexingStatusResolver,
     indexNodeIDs: argv.indexNodeIds,
     deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
-    networkSubgraph,
+    networkSubgraph: network.networkSubgraph,
     logger,
     defaults: {
       globalIndexingRule: {
@@ -603,7 +576,6 @@ async function _oldHandler(
   // * Indexer
   // TODO: rename & refactor it to be a Graph-Node class)
   // --------------------------------------------------------------------------------
-
   const indexer = new Indexer(
     logger,
     argv.graphNodeAdminEndpoint,
@@ -616,12 +588,16 @@ async function _oldHandler(
   )
 
   // * Index the Network Subgraph
-
-  if (networkSubgraphDeploymentId !== undefined) {
+  // TODO: put this routine inside the Indexer class
+  if (networkSpecification.subgraphs.networkSubgraph.deployment !== undefined) {
     // Make sure the network subgraph is being indexed
     await indexer.ensure(
-      `indexer-agent/${networkSubgraphDeploymentId.ipfsHash.slice(-10)}`,
-      networkSubgraphDeploymentId,
+      `indexer-agent/${networkSpecification.subgraphs.networkSubgraph.deployment.slice(
+        -10,
+      )}`,
+      new SubgraphDeploymentID(
+        networkSpecification.subgraphs.networkSubgraph.deployment,
+      ),
     )
 
     // Validate if the Network Subgraph belongs to the current provider's network.
@@ -629,7 +605,7 @@ async function _oldHandler(
     try {
       await validateNetworkId(
         networkMeta,
-        argv.networkSubgraphDeployment,
+        networkSpecification.subgraphs.networkSubgraph.deployment,
         indexingStatusResolver,
         logger,
       )
@@ -651,7 +627,7 @@ async function _oldHandler(
   logger.info(`Launch syncing server`)
   await createSyncingServer({
     logger,
-    networkSubgraph,
+    networkSubgraph: network.networkSubgraph,
     port: argv.syncingPort,
   })
   logger.info(`Successfully launched syncing server`)
@@ -678,7 +654,6 @@ async function _oldHandler(
     metrics,
     indexer,
     network,
-    networkSubgraph,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
     receiptCollector,
   )
