@@ -1,6 +1,7 @@
 import { toAddress, parseGRT } from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 import { validateNetworkIdentifier, validateIpfsHash } from './parsers'
+import { AllocationManagementMode } from './types'
 import { z } from 'zod'
 
 // TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
@@ -21,7 +22,7 @@ function GRT(): z.ZodEffects<z.ZodNumber, BigNumber, number> {
 // Gateway endpoints
 export const Gateway = z
   .object({
-    baseUrl: z.string().url(),
+    url: z.string().url(),
   })
   .strict()
 export type Gateway = z.infer<typeof Gateway>
@@ -43,7 +44,10 @@ export const IndexerOptions = z
     voucherRedemptionThreshold: GRT().default(200),
     voucherRedemptionBatchThreshold: GRT().default(2000),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
-    allocationManagementMode: z.enum(ALLOCATION_MANAGEMENT_MODE).default('auto'),
+    allocationManagementMode: z
+      .enum(ALLOCATION_MANAGEMENT_MODE)
+      .default('auto')
+      .transform((x) => x as AllocationManagementMode),
     autoAllocationMinBatchSize: positiveNumber().default(1),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
@@ -110,7 +114,7 @@ export const Dai = z
       .string()
       .default('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
       .transform(toAddress),
-    injectDai: z.boolean().default(true),
+    inject: z.boolean().default(true),
   })
   .strict()
 export type Dai = z.infer<typeof Dai>
@@ -124,7 +128,7 @@ export const NetworkSpecification = z
     transactionMonitoring: TransactionMonitoring,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
-    dai: Dai.optional(),
+    dai: Dai,
   })
   .strict()
 export type NetworkSpecification = z.infer<typeof NetworkSpecification>
