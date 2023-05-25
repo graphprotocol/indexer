@@ -369,9 +369,17 @@ async function _oldHandler(
     async: false,
     level: argv.logLevel,
   })
-
+  // --------------------------------------------------------------------------------
+  // * CLI Argument review
+  //
+  // Note: it only lives here and not on yargs.check because we don't have a
+  // logger in that context
+  // --------------------------------------------------------------------------------
   reviewArgumentsForWarnings(argv, logger)
 
+  // --------------------------------------------------------------------------------
+  // * NodeJS process stuff
+  // --------------------------------------------------------------------------------
   process.on('unhandledRejection', err => {
     logger.warn(`Unhandled promise rejection`, {
       err: indexerError(IndexerErrorCode.IE035, err),
@@ -384,6 +392,17 @@ async function _oldHandler(
     })
   })
 
+  // --------------------------------------------------------------------------------
+  // * Metrics Server
+  // --------------------------------------------------------------------------------
+  /* Currently in use by:
+   - Network Provider
+   - Network
+   - Allocation Receipt Collector
+   - ETH Balance Monitor
+   - Cost Model Automation
+   - The Agent itself
+  */
   // Spin up a metrics server
   const metrics = createMetrics()
   createMetricsServer({
@@ -396,11 +415,17 @@ async function _oldHandler(
   // inside the agent
   registerIndexerErrorMetrics(metrics)
 
+  // --------------------------------------------------------------------------------
+  // * Indexing Status Resolver (part of the upcoming GraphNode class)
+  // --------------------------------------------------------------------------------
   const indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,
     statusEndpoint: argv.graphNodeStatusEndpoint,
   })
 
+  // --------------------------------------------------------------------------------
+  // * NetworkSubgraph
+  // --------------------------------------------------------------------------------
   // Parse the Network Subgraph optional argument
   const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
     ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
@@ -419,17 +444,28 @@ async function _oldHandler(
         : undefined,
   })
 
+  // --------------------------------------------------------------------------------
+  // * NetworkProvider and NetworkIdentifier
+  // --------------------------------------------------------------------------------
   const networkProvider = await Network.provider(
     logger,
     metrics,
     argv.networkProvider,
     argv.ethereumPollingInterval,
   )
-
   const networkMeta = await networkProvider.getNetwork()
-
   const networkChainId = resolveChainId(networkMeta.chainId)
 
+  // --------------------------------------------------------------------------------
+  // * Contracts
+  // TODO: We already instantiate it inside the Network class. We don't need it here.
+  // --------------------------------------------------------------------------------
+  /* Currently in use by:
+   - Logging (for itself, mostly)
+   - Network Monitor (TODO: remove this usage // it will go away as we remove it
+     from this scope)
+   - Indexer Management Client
+  */
   logger.info(`Connect to contracts`, {
     network: networkMeta.name,
     chainId: networkMeta.chainId,
@@ -467,10 +503,21 @@ async function _oldHandler(
     token: contracts.token.address,
   })
 
-  const indexerAddress = toAddress(argv.indexerAddress)
-
+  // --------------------------------------------------------------------------------
+  // * Epoch Subgraph
+  // --------------------------------------------------------------------------------
   const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
+  // --------------------------------------------------------------------------------
+  // * Network Monitor
+  // TODO: Pass it around as a Network field, not as it's own instance.
+  // (this will help organize the code in function of the Network class)
+  // --------------------------------------------------------------------------------
+  /* Currently lin use by
+  - Migrations
+  - Indexeer Management Client
+  - Starting the Agent, itself
+  */
   const networkMonitor = new NetworkMonitor(
     networkChainId,
     contracts,
@@ -481,6 +528,10 @@ async function _oldHandler(
     networkProvider,
     epochSubgraph,
   )
+
+  // --------------------------------------------------------------------------------
+  // * Database - Connection
+  // --------------------------------------------------------------------------------
 
   logger.info('Connect to database', {
     host: argv.postgresHost,
@@ -496,6 +547,10 @@ async function _oldHandler(
     database: argv.postgresDatabase,
   })
   logger.info('Successfully connected to database')
+
+  // --------------------------------------------------------------------------------
+  // * Database - Migrations
+  // --------------------------------------------------------------------------------
 
   // Automatic database migrations
   logger.info(`Run database migrations`)
@@ -533,14 +588,21 @@ async function _oldHandler(
   }
   logger.info(`Successfully ran database migrations`)
 
+  // --------------------------------------------------------------------------------
+  // * Database - Sync Models
+  // --------------------------------------------------------------------------------
+
   logger.info(`Sync database models`)
   const managementModels = defineIndexerManagementModels(sequelize)
   const queryFeeModels = defineQueryFeeModels(sequelize)
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 
+  // --------------------------------------------------------------------------------
+  // * Network
+  // --------------------------------------------------------------------------------
+
   logger.info('Connect to network')
-  const _maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
 
   const network = await Network.create(
     logger,
@@ -552,6 +614,10 @@ async function _oldHandler(
   logger.info('Successfully connected to network', {
     restakeRewards: argv.restakeRewards,
   })
+
+  // --------------------------------------------------------------------------------
+  // * Allocation Receipt Collector
+  // --------------------------------------------------------------------------------
 
   const receiptCollector = new AllocationReceiptCollector({
     logger,
@@ -566,15 +632,20 @@ async function _oldHandler(
   })
   await receiptCollector.queuePendingReceiptsFromDatabase()
 
+  // --------------------------------------------------------------------------------
+  // * Indexer Management (GraphQL) Server
+  // --------------------------------------------------------------------------------
+
   logger.info('Launch indexer management API server')
   const allocationManagementMode =
     AllocationManagementMode[
       argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
     ]
 
+  // * Indexer Management Client
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
-    address: indexerAddress,
+    address: networkSpecification.indexerOptions.address,
     contracts,
     indexingStatusResolver,
     indexNodeIDs: argv.indexNodeIds,
@@ -597,12 +668,18 @@ async function _oldHandler(
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
   })
 
+  // * Indexer Management Server
   await createIndexerManagementServer({
     logger,
     client: indexerManagementClient,
     port: argv.indexerManagementPort,
   })
   logger.info(`Successfully launched indexer management API server`)
+
+  // --------------------------------------------------------------------------------
+  // * Indexer
+  // TODO: rename & refactor it to be a Graph-Node class)
+  // --------------------------------------------------------------------------------
 
   const indexer = new Indexer(
     logger,
@@ -611,9 +688,11 @@ async function _oldHandler(
     indexerManagementClient,
     argv.indexNodeIds,
     argv.defaultAllocationAmount,
-    indexerAddress,
+    networkSpecification.indexerOptions.address,
     allocationManagementMode,
   )
+
+  // * Index the Network Subgraph
 
   if (networkSubgraphDeploymentId !== undefined) {
     // Make sure the network subgraph is being indexed
@@ -637,9 +716,15 @@ async function _oldHandler(
     }
   }
 
+  // --------------------------------------------------------------------------------
+  // * ETH Balance Monitor
+  // --------------------------------------------------------------------------------
   // Monitor ETH balance of the operator and write the latest value to a metric
   await monitorEthBalance(logger, wallet, metrics)
 
+  // --------------------------------------------------------------------------------
+  // * Syncing Server
+  // --------------------------------------------------------------------------------
   logger.info(`Launch syncing server`)
   await createSyncingServer({
     logger,
@@ -647,6 +732,10 @@ async function _oldHandler(
     port: argv.syncingPort,
   })
   logger.info(`Successfully launched syncing server`)
+
+  // --------------------------------------------------------------------------------
+  // * Cost Model Automation
+  // --------------------------------------------------------------------------------
 
   startCostModelAutomation({
     logger,
@@ -657,6 +746,10 @@ async function _oldHandler(
     daiContractAddress: toAddress(argv.daiContract),
     metrics,
   })
+
+  // --------------------------------------------------------------------------------
+  // * The Agent itself
+  // --------------------------------------------------------------------------------
 
   await startAgent({
     logger,
