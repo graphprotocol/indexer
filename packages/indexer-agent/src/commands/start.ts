@@ -26,7 +26,6 @@ import {
   NetworkSubgraph,
   registerIndexerErrorMetrics,
   AllocationManagementMode,
-  NetworkMonitor,
   EpochSubgraph,
   resolveChainId,
   validateNetworkId,
@@ -509,24 +508,21 @@ async function _oldHandler(
   const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
   // --------------------------------------------------------------------------------
-  // * Network Monitor
-  // TODO: Pass it around as a Network field, not as it's own instance.
-  // (this will help organize the code in function of the Network class)
+  // * Network
   // --------------------------------------------------------------------------------
-  /* Currently lin use by
-  - Migrations
-  - Indexeer Management Client
-  */
-  const networkMonitor = new NetworkMonitor(
-    networkChainId,
-    contracts,
-    networkSpecification.indexerOptions,
-    logger.child({ component: 'NetworkMonitor' }),
-    indexingStatusResolver,
-    networkSubgraph,
-    networkProvider,
-    epochSubgraph,
+
+  logger.info('Connect to network')
+
+  const network = await Network.create(
+    logger,
+    networkSpecification,
+    argv.graphNodeQueryEndpoint,
+    argv.graphNodeStatusEndpoint,
+    metrics,
   )
+  logger.info('Successfully connected to network', {
+    restakeRewards: argv.restakeRewards,
+  })
 
   // --------------------------------------------------------------------------------
   // * Database - Connection
@@ -569,7 +565,7 @@ async function _oldHandler(
         logger,
         indexingStatusResolver,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-        networkMonitor,
+        networkMonitor: network.networkMonitor,
         networkChainId,
       },
       storage: new SequelizeStorage({ sequelize }),
@@ -596,23 +592,6 @@ async function _oldHandler(
   const queryFeeModels = defineQueryFeeModels(sequelize)
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
-
-  // --------------------------------------------------------------------------------
-  // * Network
-  // --------------------------------------------------------------------------------
-
-  logger.info('Connect to network')
-
-  const network = await Network.create(
-    logger,
-    networkSpecification,
-    argv.graphNodeQueryEndpoint,
-    argv.graphNodeStatusEndpoint,
-    metrics,
-  )
-  logger.info('Successfully connected to network', {
-    restakeRewards: argv.restakeRewards,
-  })
 
   // --------------------------------------------------------------------------------
   // * Allocation Receipt Collector
@@ -662,7 +641,7 @@ async function _oldHandler(
     },
     transactionManager: network.transactionManager,
     receiptCollector,
-    networkMonitor,
+    networkMonitor: network.networkMonitor,
     allocationManagementMode,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
   })
