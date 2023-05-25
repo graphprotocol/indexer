@@ -10,7 +10,6 @@ import {
   formatGRT,
   Logger,
   SubgraphDeploymentID,
-  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   AllocationReceiptCollector,
@@ -23,7 +22,6 @@ import {
   IndexingStatusResolver,
   Network,
   registerIndexerErrorMetrics,
-  AllocationManagementMode,
   resolveChainId,
   validateNetworkId,
   specification as spec,
@@ -424,8 +422,8 @@ async function _oldHandler(
   const networkProvider = await Network.provider(
     logger,
     metrics,
-    argv.networkProvider,
-    argv.ethereumPollingInterval,
+    networkSpecification.networkProvider.url,
+    networkSpecification.networkProvider.pollingInterval,
   )
   const networkMeta = await networkProvider.getNetwork()
   const networkChainId = resolveChainId(networkMeta.chainId)
@@ -443,7 +441,8 @@ async function _oldHandler(
     metrics,
   )
   logger.info('Successfully connected to network', {
-    restakeRewards: argv.restakeRewards,
+    // QUESTION: Why do we (only) log this?
+    restakeRewards: networkSpecification.indexerOptions.restakeRewards,
   })
 
   // --------------------------------------------------------------------------------
@@ -522,10 +521,13 @@ async function _oldHandler(
     transactionManager: network.transactionManager,
     models: queryFeeModels,
     allocationExchange: network.contracts.allocationExchange,
-    gatewayEndpoint: argv.gatewayEndpoint,
-    voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
-    voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
-    voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+    gatewayEndpoint: networkSpecification.gateway.url,
+    voucherRedemptionThreshold:
+      networkSpecification.indexerOptions.voucherRedemptionThreshold,
+    voucherRedemptionBatchThreshold:
+      networkSpecification.indexerOptions.voucherRedemptionBatchThreshold,
+    voucherRedemptionMaxBatchSize:
+      networkSpecification.indexerOptions.voucherRedemptionMaxBatchSize,
   })
   await receiptCollector.queuePendingReceiptsFromDatabase()
 
@@ -533,10 +535,6 @@ async function _oldHandler(
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
   logger.info('Launch indexer management API server')
-  const allocationManagementMode =
-    AllocationManagementMode[
-      argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
-    ]
 
   // * Indexer Management Client
   const indexerManagementClient = await createIndexerManagementClient({
@@ -550,18 +548,21 @@ async function _oldHandler(
     logger,
     defaults: {
       globalIndexingRule: {
-        allocationAmount: argv.defaultAllocationAmount,
+        allocationAmount:
+          networkSpecification.indexerOptions.defaultAllocationAmount,
         parallelAllocations: 1,
       },
     },
     features: {
-      injectDai: argv.injectDai,
+      injectDai: networkSpecification.dai.inject,
     },
     transactionManager: network.transactionManager,
     receiptCollector,
     networkMonitor: network.networkMonitor,
-    allocationManagementMode,
-    autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+    allocationManagementMode:
+      networkSpecification.indexerOptions.allocationManagementMode,
+    autoAllocationMinBatchSize:
+      networkSpecification.indexerOptions.autoAllocationMinBatchSize,
   })
 
   // * Indexer Management Server
@@ -574,7 +575,8 @@ async function _oldHandler(
 
   // --------------------------------------------------------------------------------
   // * Indexer
-  // TODO: rename & refactor it to be a Graph-Node class)
+  // TODO: rename & refactor it to be a Graph-Node class. Include the
+  // IdexingStatusEndpoint
   // --------------------------------------------------------------------------------
   const indexer = new Indexer(
     logger,
@@ -582,9 +584,9 @@ async function _oldHandler(
     indexingStatusResolver,
     indexerManagementClient,
     argv.indexNodeIds,
-    argv.defaultAllocationAmount,
+    networkSpecification.indexerOptions.defaultAllocationAmount,
     networkSpecification.indexerOptions.address,
-    allocationManagementMode,
+    networkSpecification.indexerOptions.allocationManagementMode,
   )
 
   // * Index the Network Subgraph
@@ -617,12 +619,14 @@ async function _oldHandler(
 
   // --------------------------------------------------------------------------------
   // * ETH Balance Monitor
+  // TODO: Put this inside the Network class
   // --------------------------------------------------------------------------------
   // Monitor ETH balance of the operator and write the latest value to a metric
   await monitorEthBalance(logger, network.wallet, metrics)
 
   // --------------------------------------------------------------------------------
   // * Syncing Server
+  // QUESTION: What does this component do?
   // --------------------------------------------------------------------------------
   logger.info(`Launch syncing server`)
   await createSyncingServer({
@@ -635,14 +639,13 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Cost Model Automation
   // --------------------------------------------------------------------------------
-
   startCostModelAutomation({
     logger,
     ethereum: networkProvider,
     contracts: network.contracts,
     indexerManagement: indexerManagementClient,
-    injectDai: argv.injectDai,
-    daiContractAddress: toAddress(argv.daiContract),
+    injectDai: networkSpecification.dai.inject,
+    daiContractAddress: networkSpecification.dai.contractAddress,
     metrics,
   })
 
