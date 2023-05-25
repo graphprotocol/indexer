@@ -18,7 +18,6 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
   Network,
-  NetworkSubgraph,
   POIDisputeAttributes,
   ReceiptCollector,
   RewardsPool,
@@ -119,7 +118,6 @@ export class Agent {
   metrics: Metrics
   indexer: Indexer
   network: Network
-  networkSubgraph: NetworkSubgraph
   offchainSubgraphs: SubgraphDeploymentID[]
   receiptCollector: ReceiptCollector
 
@@ -128,7 +126,6 @@ export class Agent {
     metrics: Metrics,
     indexer: Indexer,
     network: Network,
-    networkSubgraph: NetworkSubgraph,
     offchainSubgraphs: SubgraphDeploymentID[],
     receiptCollector: ReceiptCollector,
   ) {
@@ -136,7 +133,6 @@ export class Agent {
     this.metrics = metrics
     this.indexer = indexer
     this.network = network
-    this.networkSubgraph = networkSubgraph
     this.offchainSubgraphs = offchainSubgraphs
     this.receiptCollector = receiptCollector
   }
@@ -655,11 +651,14 @@ export class Agent {
     )
 
     // Ensure the network subgraph deployment is _always_ indexed
-    if (this.networkSubgraph.deployment) {
+    if (this.network.networkSubgraph.deployment) {
       if (
-        !deploymentInList(targetDeployments, this.networkSubgraph.deployment.id)
+        !deploymentInList(
+          targetDeployments,
+          this.network.networkSubgraph.deployment.id,
+        )
       ) {
-        targetDeployments.push(this.networkSubgraph.deployment.id)
+        targetDeployments.push(this.network.networkSubgraph.deployment.id)
       }
     }
 
@@ -859,9 +858,10 @@ export class Agent {
     // Ensure the network subgraph is never allocated towards
     if (
       !this.network.specification.indexerOptions.allocateOnNetworkSubgraph &&
-      this.networkSubgraph.deployment?.id.bytes32
+      this.network.networkSubgraph.deployment?.id.bytes32
     ) {
-      const networkSubgraphDeploymentId = this.networkSubgraph.deployment.id
+      const networkSubgraphDeploymentId =
+        this.network.networkSubgraph.deployment.id
       const networkSubgraphIndex =
         networkDeploymentAllocationDecisions.findIndex(
           decision =>
