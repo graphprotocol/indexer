@@ -77,7 +77,7 @@
   },
   "resolutions": {
     "ethers": "5.7.0",
-    "sequelize": "6.19.0",
+    "sequelize": "6.31.1",
     "@ethersproject/bignumber": "5.7.0",
     "@ethersproject/providers": "5.7.0"
   },

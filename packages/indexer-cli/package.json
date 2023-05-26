@@ -52,7 +52,7 @@
   },
   "resolutions": {
     "ethers": "5.7.0",
-    "sequelize": "6.19.0"
+    "sequelize": "6.31.1"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }
