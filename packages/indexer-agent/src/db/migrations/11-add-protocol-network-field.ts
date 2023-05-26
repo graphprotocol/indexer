@@ -34,24 +34,46 @@ const actionsTarget: AddColumnTarget = {
   table: 'Actions',
   ...defaults,
 }
-const indexingRulesInput: MigrationInput = {
-  table: 'IndexingRules',
-  oldPrimaryKeyColumns: ['identifier'],
-  ...defaults,
-}
 
-const poiDisputesInput: MigrationInput = {
-  table: 'POIDispute',
-  oldPrimaryKeyColumns: ['allocationID'],
-  ...defaults,
-}
+const migrationInputs: MigrationInput[] = [
+  {
+    table: 'IndexingRules',
+    oldPrimaryKeyColumns: ['identifier'],
+  },
+  {
+    table: 'POIDispute',
+    oldPrimaryKeyColumns: ['allocationID'],
+  },
+  {
+    table: 'allocation_receipts',
+    oldPrimaryKeyColumns: ['id', 'allocation'],
+  },
+  {
+    table: 'vouchers',
+    oldPrimaryKeyColumns: ['allocation'],
+  },
+  {
+    table: 'transfer_receipts',
+    oldPrimaryKeyColumns: ['id', 'signer'],
+  },
+  {
+    table: 'transfers',
+    oldPrimaryKeyColumns: ['signer', 'routingId'],
+  },
+  {
+    table: 'allocation_summaries',
+    oldPrimaryKeyColumns: ['allocation'],
+  },
+].map(input => ({ ...input, ...defaults }))
 
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, networkChainId, logger } = context
   const m = new Migration(queryInterface, logger)
 
-  await m.addPrimaryKeyMigration(indexingRulesInput, networkChainId)
-  await m.addPrimaryKeyMigration(poiDisputesInput, networkChainId)
+  for (const input of migrationInputs) {
+    await m.addPrimaryKeyMigration(input, networkChainId)
+  }
+
   await m.addColumnMigration(actionsTarget, networkChainId)
 }
 
@@ -59,8 +81,10 @@ export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
   const m = new Migration(queryInterface, logger)
 
-  await m.removePrimaryKeyMigration(indexingRulesInput)
-  await m.removePrimaryKeyMigration(poiDisputesInput)
+  for (const input of migrationInputs) {
+    await m.removePrimaryKeyMigration(input)
+  }
+
   await m.dropColumn(actionsTarget)
 }
 

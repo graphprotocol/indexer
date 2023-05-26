@@ -355,6 +355,7 @@ export default {
       queryFeeModels,
       logger,
       toAddress(argv.clientSignerAddress),
+      protocolNetwork,
     )
 
     // Ensure the address is checksummed

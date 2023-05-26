@@ -343,6 +343,7 @@ const setup = async () => {
     voucherRedemptionThreshold: BigNumber.from(200),
     voucherRedemptionBatchThreshold: BigNumber.from(2000),
     voucherRedemptionMaxBatchSize: 100,
+    protocolNetwork: 'goerli',
   })
 
   const indexerOptions = specification.IndexerOptions.parse({

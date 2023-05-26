@@ -6,6 +6,7 @@ export interface AllocationReceiptAttributes {
   allocation: Address
   fees: string
   signature: string
+  protocolNetwork: string
 }
 
 export class AllocationReceipt
@@ -16,6 +17,7 @@ export class AllocationReceipt
   public allocation!: Address
   public fees!: string
   public signature!: string
+  public protocolNetwork!: string
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
@@ -25,6 +27,7 @@ export interface VoucherAttributes {
   allocation: Address
   amount: string
   signature: string
+  protocolNetwork: string
 }
 
 export class Voucher extends Model<VoucherAttributes> implements VoucherAttributes {
@@ -34,6 +37,7 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
+  public protocolNetwork!: string
 
   public readonly allocationSummary?: AllocationSummary
 
@@ -47,6 +51,7 @@ export interface TransferReceiptAttributes {
   signer: Address
   fees: string
   signature: string
+  protocolNetwork: string
 }
 
 export class TransferReceipt
@@ -57,6 +62,7 @@ export class TransferReceipt
   public signer!: Address
   public fees!: string
   public signature!: string
+  public protocolNetwork!: string
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
@@ -81,6 +87,7 @@ export interface TransferAttributes {
   signer: Address
   allocationClosedAt: Date | null
   status: TransferStatus
+  protocolNetwork: string
 }
 
 export class Transfer extends Model<TransferAttributes> implements TransferAttributes {
@@ -89,6 +96,7 @@ export class Transfer extends Model<TransferAttributes> implements TransferAttri
   public signer!: Address
   public allocationClosedAt!: Date | null
   public status!: TransferStatus
+  public protocolNetwork!: string
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
@@ -109,6 +117,7 @@ export interface AllocationSummaryAttributes {
   openTransfers: number
   collectedFees: string
   withdrawnFees: string
+  protocolNetwork: string
 }
 
 export class AllocationSummary
@@ -123,6 +132,7 @@ export class AllocationSummary
   public openTransfers!: number
   public collectedFees!: string
   public withdrawnFees!: string
+  public protocolNetwork!: string
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
@@ -174,6 +184,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           min: 0.0,
         },
       },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
+        allowNull: false,
+      },
     },
     { sequelize, tableName: 'allocation_receipts' },
   )
@@ -194,6 +209,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
       signature: {
         type: DataTypes.STRING,
+        allowNull: false,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
         allowNull: false,
       },
     },
@@ -222,6 +242,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         validate: {
           min: 0.0,
         },
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
+        allowNull: false,
       },
     },
     { sequelize, tableName: 'transfer_receipts' },
@@ -254,6 +279,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           TransferStatus.RESOLVED,
           TransferStatus.FAILED,
         ),
+        allowNull: false,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
         allowNull: false,
       },
     },
@@ -293,6 +323,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
       withdrawnFees: {
         type: DataTypes.DECIMAL,
+        allowNull: false,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
         allowNull: false,
       },
     },
