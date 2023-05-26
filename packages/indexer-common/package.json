@@ -46,7 +46,7 @@
     "p-retry": "4.6.1",
     "p-timeout": "4.1.0",
     "parsimmon": "^1.18.1",
-    "sequelize": "6.19.0",
+    "sequelize": "6.31.1",
     "ts-custom-error": "^3.2.0",
     "zod": "^3.21.4"
   },
@@ -70,7 +70,7 @@
   },
   "resolutions": {
     "ethers": "5.7.0",
-    "sequelize": "6.19.0",
+    "sequelize": "6.31.1",
     "@ethersproject/bignumber": "5.7.0",
     "@urql/exchange-execute/@urql/core": "2.4.4"
   },
