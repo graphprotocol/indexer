@@ -527,6 +527,7 @@ async function _oldHandler(
       networkSpecification.indexerOptions.voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize:
       networkSpecification.indexerOptions.voucherRedemptionMaxBatchSize,
+    protocolNetwork: networkSpecification.networkIdentifier,
   })
   await receiptCollector.queuePendingReceiptsFromDatabase()
 

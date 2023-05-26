@@ -41,18 +41,21 @@ export class AllocationReceiptManager implements ReceiptManager {
   private readonly _cache: Map<string, Readonly<AllocationReceiptAttributes>> = new Map()
   private readonly _flushQueue: string[] = []
   private readonly _allocationReceiptVerifier: NativeSignatureVerifier
+  private readonly protocolNetwork: string
 
   constructor(
     sequelize: Sequelize,
     queryFeeModels: QueryFeeModels,
     logger: Logger,
     clientSignerAddress: Address,
+    protocolNetwork: string,
   ) {
     logger = logger.child({ component: 'ReceiptManager' })
 
     this._sequelize = sequelize
     this._queryFeeModels = queryFeeModels
     this._allocationReceiptVerifier = new NativeSignatureVerifier(clientSignerAddress)
+    this.protocolNetwork = protocolNetwork
 
     timer(30_000).pipe(async () => {
       try {
@@ -114,6 +117,7 @@ export class AllocationReceiptManager implements ReceiptManager {
       allocation: receipt.allocation,
       fees: receipt.fees.toString(),
       signature,
+      protocolNetwork: this.protocolNetwork,
     })
 
     return receipt
@@ -147,6 +151,7 @@ export class AllocationReceiptManager implements ReceiptManager {
               this._queryFeeModels,
               receipt.allocation,
               transaction,
+              this.protocolNetwork,
             )
             if (isNewSummary) {
               await summary.save()
@@ -160,6 +165,7 @@ export class AllocationReceiptManager implements ReceiptManager {
                   allocation: receipt.allocation,
                   signature: receipt.signature,
                   fees: receipt.fees,
+                  protocolNetwork: this.protocolNetwork,
                 },
                 transaction,
               })
