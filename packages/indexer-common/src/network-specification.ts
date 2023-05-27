@@ -77,7 +77,7 @@ export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
 export const Subgraph = z
   .object({
     url: z.string().url().optional(),
-    deployment: z.string().refine(validateIpfsHash).optional(),
+    deployment: z.string().transform(transformIpfsHash).optional(),
   })
   .strict()
   .refine((obj) => !(!obj.url && !obj.deployment), {
@@ -122,7 +122,7 @@ export type Dai = z.infer<typeof Dai>
 // All necessary information to describe a Protocol Network
 export const NetworkSpecification = z
   .object({
-    networkIdentifier: z.string().refine(validateNetworkIdentifier),
+    networkIdentifier: z.string().transform(transformNetworkIdentifier),
     gateway: Gateway,
     indexerOptions: IndexerOptions,
     transactionMonitoring: TransactionMonitoring,
@@ -132,3 +132,27 @@ export const NetworkSpecification = z
   })
   .strict()
 export type NetworkSpecification = z.infer<typeof NetworkSpecification>
+
+function transformNetworkIdentifier(input: string, ctx: z.RefinementCtx): string {
+  try {
+    return validateNetworkIdentifier(input)
+  } catch (e) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid network identifier',
+    })
+    return z.NEVER
+  }
+}
+
+function transformIpfsHash(input: string, ctx: z.RefinementCtx): string {
+  try {
+    return validateIpfsHash(input)
+  } catch (e) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid IPFS hash',
+    })
+    return z.NEVER
+  }
+}
