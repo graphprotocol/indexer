@@ -16,25 +16,56 @@ describe('Network Specification deserialization', () => {
       NetworkSpecification.parse(validFile)
     })
   })
-  describe('Failed deserialization', () => {
-    test('missing field', () => {
-      const invalidFile = readYamlFile('invalid-missing-field.yml')
-      expect(() => NetworkSpecification.parse(invalidFile)).toThrow()
-    })
+})
 
-    test('extra field', () => {
-      const invalidFile = readYamlFile('invalid-extra-field.yml')
-      expect(() => NetworkSpecification.parse(invalidFile)).toThrow()
-    })
+interface FailedDeserializationTest {
+  file: string
+  path: string[]
+  message: string
+}
 
-    test('invalid network identifier field', () => {
-      const invalidFile = readYamlFile('invalid-network-identifier.yml')
-      expect(() => NetworkSpecification.parse(invalidFile)).toThrow()
-    })
+describe('Failed deserialization', () => {
+  const failedTests: FailedDeserializationTest[] = [
+    {
+      file: 'invalid-epoch-subgraph.yml',
+      path: ['subgraphs', 'epochSubgraph', 'url'],
+      message: 'Epoch Subgraph endpoint must be defined',
+    },
+    {
+      file: 'invalid-missing-field.yml',
+      path: ['indexerOptions', 'address'],
+      message: 'Required',
+    },
+    {
+      file: 'invalid-extra-field.yml',
+      path: ['indexerOptions'],
+      message: "Unrecognized key(s) in object: 'invalidExtraField'",
+    },
+    {
+      file: 'invalid-network-identifier.yml',
+      path: ['networkIdentifier'],
+      message: 'Invalid network identifier',
+    },
+    {
+      file: 'invalid-base58.yml',
+      path: ['subgraphs', 'networkSubgraph', 'deployment'],
+      message: 'Invalid IPFS hash',
+    },
+  ]
 
-    test('invalid base58 field', () => {
-      const invalidFile = readYamlFile('invalid-base58.yml')
-      expect(() => NetworkSpecification.parse(invalidFile)).toThrow()
-    })
-  })
+  test.each(failedTests)(
+    'Validation should fail for $file',
+    (t: FailedDeserializationTest) => {
+      const invalidFile = readYamlFile(t.file)
+      const result = NetworkSpecification.safeParse(invalidFile)
+      expect(result.success).toBe(false)
+      if (result.success === false) {
+        const issue = result.error.issues[0]
+        expect(issue.path).toStrictEqual(t.path)
+        expect(issue.message).toStrictEqual(t.message)
+      } else {
+        fail('This deserialization test should have failed')
+      }
+    },
+  )
 })

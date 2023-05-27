@@ -2,7 +2,7 @@ networkIdentifier: mainnet
 gateway:
   url: http://gateway
 indexerOptions:
-  # missing indexer address field
+  address: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
   geoCoordinates: [25.1, -71.2]
@@ -26,9 +26,9 @@ transactionMonitoring:
 subgraphs:
   networkSubgraph:
     url: http://subgraph
-    deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
   epochSubgraph:
-    url: http://subgraph
+    deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
+    # <-- Missing `url` field
 networkProvider:
   url: http://provider
 dai:
