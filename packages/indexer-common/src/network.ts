@@ -18,6 +18,7 @@ import {
   IndexingStatusResolver,
   EpochSubgraph,
   NetworkMonitor,
+  AllocationReceiptCollector,
 } from '.'
 import { BigNumber, providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -27,6 +28,7 @@ import pFilter from 'p-filter'
 import pRetry from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
+import { QueryFeeModels } from './query-fees'
 
 export class Network {
   logger: Logger
@@ -36,6 +38,7 @@ export class Network {
   networkProvider: providers.StaticJsonRpcProvider
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
+  receiptCollector: AllocationReceiptCollector
   specification: spec.NetworkSpecification
 
   private constructor(
@@ -46,6 +49,7 @@ export class Network {
     networkProvider: providers.StaticJsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
+    receiptCollector: AllocationReceiptCollector,
     specification: spec.NetworkSpecification,
   ) {
     this.logger = logger
@@ -55,12 +59,14 @@ export class Network {
     this.networkProvider = networkProvider
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
+    this.receiptCollector = receiptCollector
     this.specification = specification
   }
 
   static async create(
     parentLogger: Logger,
     specification: spec.NetworkSpecification,
+    queryFeeModels: QueryFeeModels,
     graphNodeQueryEndpoint: string,
     graphNodeStatusEndpoint: string,
     metrics: Metrics,
@@ -180,6 +186,23 @@ export class Network {
       specification.transactionMonitoring,
     )
 
+    // --------------------------------------------------------------------------------
+    // * Allocation Receipt Collector
+    // --------------------------------------------------------------------------------
+    const receiptCollector = new AllocationReceiptCollector({
+      logger,
+      metrics,
+      transactionManager: transactionManager,
+      models: queryFeeModels,
+      allocationExchange: contracts.allocationExchange,
+      networkSpecification: specification,
+    })
+
+    await receiptCollector.queuePendingReceiptsFromDatabase()
+
+    // --------------------------------------------------------------------------------
+    // * Network
+    // --------------------------------------------------------------------------------
     return new Network(
       logger,
       contracts,
@@ -188,6 +211,7 @@ export class Network {
       networkProvider,
       transactionManager,
       networkMonitor,
+      receiptCollector,
       specification,
     )
   }

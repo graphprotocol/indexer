@@ -2,7 +2,7 @@
 
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { BigNumber, ethers, Wallet } from 'ethers'
+import { ethers, Wallet } from 'ethers'
 import {
   connectContracts,
   connectDatabase,
@@ -313,11 +313,31 @@ const setup = async () => {
     deployment: undefined,
   })
 
-  const transactionMonitoringSpecs = specification.TransactionMonitoring.parse({
-    gasIncreaseTimeout: 240000,
-    gasIncreaseFactor: 1.2,
-    baseFeePerGasMax: 100 * 10 ** 9,
-    maxTransactionAttempts: 0,
+  const networkSpecification = specification.NetworkSpecification.parse({
+    networkIdentifier: 'goerli',
+    gateway: {
+      url: 'http://localhost:8030/',
+    },
+    networkProvider: { url: 'http://test-url.xyz' },
+    indexerOptions: {
+      address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
+      mnemonic: 'foo',
+      url: 'http://test-indexer.xyz',
+    },
+    subgraphs: {
+      networkSubgraph: { url: 'http://test-url.xyz' },
+      epochSubgraph: { url: 'http://test-url.xyz' },
+    },
+    transactionMonitoring: {
+      gasIncreaseTimeout: 240000,
+      gasIncreaseFactor: 1.2,
+      baseFeePerGasMax: 100 * 10 ** 9,
+      maxTransactionAttempts: 0,
+    },
+    dai: {
+      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+      inject: false,
+    },
   })
 
   transactionManager = new TransactionManager(
@@ -325,7 +345,7 @@ const setup = async () => {
     wallet,
     mutable(false),
     mutable(true),
-    transactionMonitoringSpecs,
+    networkSpecification.transactionMonitoring,
   )
 
   epochSubgraph = await EpochSubgraph.create(
@@ -339,23 +359,13 @@ const setup = async () => {
     transactionManager: transactionManager,
     models: queryFeeModels,
     allocationExchange: contracts.allocationExchange,
-    gatewayEndpoint: 'http://localhost:8030/',
-    voucherRedemptionThreshold: BigNumber.from(200),
-    voucherRedemptionBatchThreshold: BigNumber.from(2000),
-    voucherRedemptionMaxBatchSize: 100,
-    protocolNetwork: 'goerli',
-  })
-
-  const indexerOptions = specification.IndexerOptions.parse({
-    address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
-    mnemonic: 'foo',
-    url: 'http://test-indexer.xyz',
+    networkSpecification,
   })
 
   networkMonitor = new NetworkMonitor(
     resolveChainId('goerli'),
     contracts,
-    indexerOptions,
+    networkSpecification.indexerOptions,
     logger,
     indexingStatusResolver,
     networkSubgraph,

@@ -19,7 +19,6 @@ import {
   IndexingRuleAttributes,
   Network,
   POIDisputeAttributes,
-  ReceiptCollector,
   RewardsPool,
   Subgraph,
   SubgraphIdentifierType,
@@ -119,7 +118,6 @@ export class Agent {
   indexer: Indexer
   network: Network
   offchainSubgraphs: SubgraphDeploymentID[]
-  receiptCollector: ReceiptCollector
 
   constructor(
     logger: Logger,
@@ -127,14 +125,12 @@ export class Agent {
     indexer: Indexer,
     network: Network,
     offchainSubgraphs: SubgraphDeploymentID[],
-    receiptCollector: ReceiptCollector,
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
     this.indexer = indexer
     this.network = network
     this.offchainSubgraphs = offchainSubgraphs
-    this.receiptCollector = receiptCollector
   }
 
   async start(): Promise<Agent> {

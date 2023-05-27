@@ -12,7 +12,6 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  AllocationReceiptCollector,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -512,26 +511,6 @@ async function _oldHandler(
   logger.info(`Successfully synced database models`)
 
   // --------------------------------------------------------------------------------
-  // * Allocation Receipt Collector
-  // --------------------------------------------------------------------------------
-  const receiptCollector = new AllocationReceiptCollector({
-    logger,
-    metrics,
-    transactionManager: network.transactionManager,
-    models: queryFeeModels,
-    allocationExchange: network.contracts.allocationExchange,
-    gatewayEndpoint: networkSpecification.gateway.url,
-    voucherRedemptionThreshold:
-      networkSpecification.indexerOptions.voucherRedemptionThreshold,
-    voucherRedemptionBatchThreshold:
-      networkSpecification.indexerOptions.voucherRedemptionBatchThreshold,
-    voucherRedemptionMaxBatchSize:
-      networkSpecification.indexerOptions.voucherRedemptionMaxBatchSize,
-    protocolNetwork: networkSpecification.networkIdentifier,
-  })
-  await receiptCollector.queuePendingReceiptsFromDatabase()
-
-  // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
   logger.info('Launch indexer management API server')
@@ -557,7 +536,7 @@ async function _oldHandler(
       injectDai: networkSpecification.dai.inject,
     },
     transactionManager: network.transactionManager,
-    receiptCollector,
+    receiptCollector: network.receiptCollector,
     networkMonitor: network.networkMonitor,
     allocationManagementMode:
       networkSpecification.indexerOptions.allocationManagementMode,
@@ -656,7 +635,6 @@ async function _oldHandler(
     indexer,
     network,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
-    receiptCollector,
   )
   await agent.start()
 }
