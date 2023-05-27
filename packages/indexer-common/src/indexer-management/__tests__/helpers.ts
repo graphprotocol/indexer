@@ -13,6 +13,7 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from '../models'
+import { specification as spec } from '../../'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
 import { SubgraphIdentifierType } from '../../subgraphs'
 import { ActionManager } from '../actions'
@@ -82,10 +83,18 @@ const setupMonitor = async () => {
     logger: logger,
     statusEndpoint,
   })
-  networkMonitor = new NetworkMonitor(
+
+  const indexerOptions = spec.IndexerOptions.parse({
+    address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
+    mnemonic:
+      'word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport',
+    url: 'http://test-url.xyz',
+  })
+
+  const networkMonitor = new NetworkMonitor(
     resolveChainId('goerli'),
     contracts,
-    toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
+    indexerOptions,
     logger,
     indexingStatusResolver,
     networkSubgraph,

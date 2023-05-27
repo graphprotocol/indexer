@@ -18,6 +18,7 @@ import {
   Voucher,
   ensureAllocationSummary,
   TransactionManager,
+  specification as spec,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
@@ -66,11 +67,7 @@ export interface AllocationReceiptCollectorOptions {
   transactionManager: TransactionManager
   allocationExchange: Contract
   models: QueryFeeModels
-  gatewayEndpoint: string
-  voucherRedemptionThreshold: BigNumber
-  voucherRedemptionBatchThreshold: BigNumber
-  voucherRedemptionMaxBatchSize: number
-  protocolNetwork: string
+  networkSpecification: spec.NetworkSpecification
 }
 
 export interface ReceiptCollector {
@@ -98,29 +95,26 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     metrics,
     transactionManager,
     models,
-    gatewayEndpoint,
     allocationExchange,
-    voucherRedemptionThreshold,
-    voucherRedemptionBatchThreshold,
-    voucherRedemptionMaxBatchSize,
-    protocolNetwork,
+    networkSpecification,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.metrics = registerReceiptMetrics(metrics)
     this.transactionManager = transactionManager
     this.models = models
     this.allocationExchange = allocationExchange
-    this.protocolNetwork = protocolNetwork
+    this.protocolNetwork = networkSpecification.networkIdentifier
 
     // Process Gateway routes
-    const gatewayUrls = processGatewayRoutes(gatewayEndpoint)
+    const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
     this.collectEndpoint = gatewayUrls.collectReceipts
     this.voucherEndpoint = gatewayUrls.voucher
     this.partialVoucherEndpoint = gatewayUrls.partialVoucher
 
-    this.voucherRedemptionThreshold = voucherRedemptionThreshold
-    this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
-    this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
+    const { indexerOptions } = networkSpecification
+    this.voucherRedemptionThreshold = indexerOptions.voucherRedemptionThreshold
+    this.voucherRedemptionBatchThreshold = indexerOptions.voucherRedemptionBatchThreshold
+    this.voucherRedemptionMaxBatchSize = indexerOptions.voucherRedemptionMaxBatchSize
 
     this.startReceiptCollecting()
     this.startVoucherProcessing()
