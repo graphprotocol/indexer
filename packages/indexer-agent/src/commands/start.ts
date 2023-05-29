@@ -26,7 +26,7 @@ import {
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
-import { Indexer } from '../indexer'
+import { GraphNode } from '../indexer'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
@@ -546,15 +546,12 @@ async function _oldHandler(
   // TODO: rename & refactor it to be a Graph-Node class. Include the
   // IdexingStatusEndpoint
   // --------------------------------------------------------------------------------
-  const indexer = new Indexer(
+  const indexer = new GraphNode(
     logger,
     argv.graphNodeAdminEndpoint,
     indexingStatusResolver,
     indexerManagementClient,
     argv.indexNodeIds,
-    networkSpecification.indexerOptions.defaultAllocationAmount,
-    networkSpecification.indexerOptions.address,
-    networkSpecification.indexerOptions.allocationManagementMode,
   )
 
   // * Index the Network Subgraph
@@ -617,6 +614,7 @@ async function _oldHandler(
     logger,
     metrics,
     indexer,
+    indexerManagementClient,
     network,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
   )
