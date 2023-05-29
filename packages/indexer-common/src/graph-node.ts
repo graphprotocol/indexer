@@ -48,9 +48,7 @@ export class GraphNode {
       this.logger.info(`Check if indexing status API is available`)
       const currentDeployments = await this.subgraphDeployments()
       this.logger.info(`Successfully connected to indexing status API`, {
-        currentDeployments: currentDeployments.map(
-          deployment => deployment.display,
-        ),
+        currentDeployments: currentDeployments.map((deployment) => deployment.display),
       })
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE024, error)
@@ -116,7 +114,7 @@ export class GraphNode {
       const indexNodes: indexNode[] = []
       result.data.indexingStatuses.map(
         (status: { subgraphDeployment: string; node: string }) => {
-          const node = indexNodes.find(node => node.id === status.node)
+          const node = indexNodes.find((node) => node.id === status.node)
           node
             ? node.deployments.push(status.subgraphDeployment)
             : indexNodes.push({
@@ -132,17 +130,14 @@ export class GraphNode {
       return indexNodes
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
-      this.logger.error(
-        `Failed to query index nodes API (Should get a different IE?)`,
-        { err },
-      )
+      this.logger.error(`Failed to query index nodes API (Should get a different IE?)`, {
+        err,
+      })
       throw err
     }
   }
 
-  async indexingStatus(
-    deployment: SubgraphDeploymentID,
-  ): Promise<IndexingStatus> {
+  async indexingStatus(deployment: SubgraphDeploymentID): Promise<IndexingStatus> {
     try {
       const result = await this.statusResolver.statuses
         .query(
@@ -268,10 +263,7 @@ export class GraphNode {
     }
   }
 
-  async reassign(
-    deployment: SubgraphDeploymentID,
-    node: string,
-  ): Promise<void> {
+  async reassign(deployment: SubgraphDeploymentID, node: string): Promise<void> {
     try {
       this.logger.info(`Reassign subgraph deployment`, {
         deployment: deployment.display,
@@ -310,9 +302,9 @@ export class GraphNode {
           return node.id && node.id !== 'removed'
         },
       )
-      const usedIndexNodeIDs = indexNodes.map(node => node.id)
+      const usedIndexNodeIDs = indexNodes.map((node) => node.id)
       const unusedNodes = this.indexNodeIDs.filter(
-        nodeID => !(nodeID in usedIndexNodeIDs),
+        (nodeID) => !(nodeID in usedIndexNodeIDs),
       )
 
       const targetNode = unusedNodes

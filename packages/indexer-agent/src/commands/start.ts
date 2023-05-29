@@ -16,6 +16,7 @@ import {
   createIndexerManagementServer,
   defineIndexerManagementModels,
   defineQueryFeeModels,
+  GraphNode,
   indexerError,
   IndexerErrorCode,
   IndexingStatusResolver,
@@ -26,7 +27,6 @@ import {
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
-import { GraphNode } from '../graph-node'
 import { Operator } from '../operator'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
