@@ -43,7 +43,7 @@ async function processArguments(
   } else if (args['_'].includes('start-multiple')) {
     return parseNetworkSpecifications(args)
   }
-  // SHould Unreachable
+  // Should be unreachable
   throw new Error('Bad invocation')
 }
 

@@ -15,7 +15,7 @@ import {
   parseGraphQLEpochs,
   TransactionManager,
   specification as spec,
-  IndexingStatusResolver,
+  GraphNode,
   EpochSubgraph,
   NetworkMonitor,
   AllocationReceiptCollector,
@@ -67,8 +67,7 @@ export class Network {
     parentLogger: Logger,
     specification: spec.NetworkSpecification,
     queryFeeModels: QueryFeeModels,
-    graphNodeQueryEndpoint: string,
-    graphNodeStatusEndpoint: string,
+    graphNode: GraphNode,
     metrics: Metrics,
   ): Promise<Network> {
     // Incomplete logger for initial operations, will be replaced as new labels emerge.
@@ -81,10 +80,6 @@ export class Network {
     // * -----------------------------------------------------------------------
     // * Network Subgraph
     // * -----------------------------------------------------------------------
-    const indexingStatusResolver = new IndexingStatusResolver({
-      logger: logger,
-      statusEndpoint: graphNodeStatusEndpoint,
-    })
     const networkSubgraphDeploymentId = specification.subgraphs.networkSubgraph.deployment
       ? new SubgraphDeploymentID(specification.subgraphs.networkSubgraph.deployment)
       : undefined
@@ -95,9 +90,8 @@ export class Network {
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
-              indexingStatusResolver: indexingStatusResolver,
+              graphNode,
               deployment: networkSubgraphDeploymentId,
-              graphNodeQueryEndpoint: graphNodeQueryEndpoint,
             }
           : undefined,
     })
@@ -156,7 +150,7 @@ export class Network {
       contracts,
       specification.indexerOptions,
       logger.child({ component: 'NetworkMonitor' }),
-      indexingStatusResolver,
+      graphNode,
       networkSubgraph,
       networkProvider,
       epochSubgraph,

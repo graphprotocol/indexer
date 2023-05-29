@@ -22,7 +22,7 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import { BigNumber, ethers } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
-import { IndexingStatusResolver } from '../indexing-status'
+import { GraphNode } from '../graph-node'
 import { TransactionManager } from '../transactions'
 import { SubgraphManager } from './subgraphs'
 import { AllocationReceiptCollector } from '../allocations/query-fees'
@@ -41,7 +41,7 @@ export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
-  indexingStatusResolver: IndexingStatusResolver
+  graphNode: GraphNode
   subgraphManager: SubgraphManager
   networkMonitor: NetworkMonitor
   networkSubgraph: NetworkSubgraph
@@ -476,7 +476,7 @@ export interface IndexerManagementClientOptions {
   models: IndexerManagementModels
   address: string
   contracts: NetworkContracts
-  indexingStatusResolver: IndexingStatusResolver
+  graphNode: GraphNode
   indexNodeIDs: string[]
   deploymentManagementEndpoint: string
   networkSubgraph: NetworkSubgraph
@@ -542,7 +542,7 @@ export const createIndexerManagementClient = async (
     models,
     address,
     contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint,
     networkSubgraph,
@@ -605,7 +605,7 @@ export const createIndexerManagementClient = async (
       models,
       address,
       contracts,
-      indexingStatusResolver,
+      graphNode,
       subgraphManager,
       networkMonitor,
       networkSubgraph,

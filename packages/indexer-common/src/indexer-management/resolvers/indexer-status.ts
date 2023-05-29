@@ -84,9 +84,9 @@ export default {
 
   indexerDeployments: async (
     _: {},
-    { indexingStatusResolver }: IndexerManagementResolverContext,
+    { graphNode }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    const result = await indexingStatusResolver.indexingStatus([])
+    const result = await graphNode.indexingStatus([])
     return result.map((status) => ({
       ...status,
       subgraphDeployment: status.subgraphDeployment.ipfsHash,

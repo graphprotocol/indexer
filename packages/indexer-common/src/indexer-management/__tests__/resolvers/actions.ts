@@ -32,7 +32,7 @@ import {
   ActionStatus,
   ActionType,
   AllocationReceiptCollector,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   OrderDirection,
   QueryFeeModels,
@@ -267,7 +267,7 @@ let queryFeeModels: QueryFeeModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
-let indexingStatusResolver: IndexingStatusResolver
+let graphNode: GraphNode
 let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 let transactionManager: TransactionManager
@@ -302,10 +302,13 @@ const setup = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
 
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  graphNode = new GraphNode(
+    logger,
+    'https://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
-  })
+    [],
+  )
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
@@ -367,7 +370,7 @@ const setup = async () => {
     contracts,
     networkSpecification.indexerOptions,
     logger,
-    indexingStatusResolver,
+    graphNode,
     networkSubgraph,
     ethereum,
     epochSubgraph,
@@ -377,7 +380,7 @@ const setup = async () => {
     models: managementModels,
     address,
     contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint,
     networkSubgraph,

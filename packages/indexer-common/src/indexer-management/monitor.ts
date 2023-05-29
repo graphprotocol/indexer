@@ -5,7 +5,7 @@ import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   parseGraphQLAllocation,
   parseGraphQLEpochs,
@@ -43,7 +43,7 @@ export class NetworkMonitor {
     private contracts: NetworkContracts,
     private indexerOptions: IndexerOptions,
     private logger: Logger,
-    private indexingStatusResolver: IndexingStatusResolver,
+    private graphNode: GraphNode,
     private networkSubgraph: NetworkSubgraph,
     private ethereum: providers.BaseProvider,
     private epochSubgraph: EpochSubgraph,
@@ -678,7 +678,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       if (networkID == this.networkCAIPID) {
         startBlockHash = (await this.ethereum.getBlock(+validBlock.blockNumber)).hash
       } else {
-        startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
+        startBlockHash = await this.graphNode.blockHashFromNumber(
           networkAlias,
           +validBlock.blockNumber,
         )
@@ -728,9 +728,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async fetchPOIBlockPointer(allocation: Allocation): Promise<BlockPointer> {
     try {
-      const deploymentIndexingStatuses = await this.indexingStatusResolver.indexingStatus(
-        [allocation.subgraphDeployment.id],
-      )
+      const deploymentIndexingStatuses = await this.graphNode.indexingStatus([
+        allocation.subgraphDeployment.id,
+      ])
       if (
         deploymentIndexingStatuses.length != 1 ||
         deploymentIndexingStatuses[0].chains.length != 1 ||
@@ -785,7 +785,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
             return poi!
           case false:
             return (
-              (await this.indexingStatusResolver.proofOfIndexing(
+              (await this.graphNode.proofOfIndexing(
                 allocation.subgraphDeployment.id,
                 await this.fetchPOIBlockPointer(allocation),
                 allocation.indexer,
@@ -796,7 +796,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       case false: {
         const epochStartBlock = await this.fetchPOIBlockPointer(allocation)
         // Obtain the start block of the current epoch
-        const generatedPOI = await this.indexingStatusResolver.proofOfIndexing(
+        const generatedPOI = await this.graphNode.proofOfIndexing(
           allocation.subgraphDeployment.id,
           epochStartBlock,
           allocation.indexer,
@@ -804,7 +804,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         switch (poi == generatedPOI) {
           case true:
             if (poi == undefined) {
-              const deploymentStatus = await this.indexingStatusResolver.indexingStatus([
+              const deploymentStatus = await this.graphNode.indexingStatus([
                 allocation.subgraphDeployment.id,
               ])
               throw indexerError(

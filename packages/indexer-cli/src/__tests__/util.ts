@@ -13,7 +13,7 @@ import {
   defineIndexerManagementModels,
   IndexerManagementClient,
   IndexerManagementModels,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
 } from '@graphprotocol/indexer-common'
 import {
@@ -56,10 +56,14 @@ export const setup = async () => {
   wallet = Wallet.createRandom()
 
   const statusEndpoint = 'http://localhost:8030/graphql'
-  const indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  const indexNodeIDs = ['node_1']
+  const graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
-  })
+    indexNodeIDs,
+  )
 
   const networkSubgraph = await NetworkSubgraph.create({
     logger,
@@ -67,12 +71,12 @@ export const setup = async () => {
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
     deployment: undefined,
   })
-  const indexNodeIDs = ['node_1']
+
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
@@ -101,8 +105,8 @@ export const setup = async () => {
 
   defaultMaxEventListeners = process.getMaxListeners()
   process.setMaxListeners(100)
-  process.on('SIGTERM', await shutdownIndexerManagementServer)
-  process.on('SIGINT', await shutdownIndexerManagementServer)
+  process.on('SIGTERM', shutdownIndexerManagementServer)
+  process.on('SIGINT', shutdownIndexerManagementServer)
 
   // Set global, deployment, and subgraph based test rules and cost model
   const commands: string[][] = [

@@ -3,14 +3,13 @@ import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/co
 import { DocumentNode, print } from 'graphql'
 import { OperationResult, CombinedError } from '@urql/core'
 import { BlockPointer, IndexingError } from './types'
-import { IndexingStatusResolver } from './indexing-status'
+import { GraphNode } from './graph-node'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger
   endpoint?: string
   deployment?: {
-    indexingStatusResolver: IndexingStatusResolver
-    graphNodeQueryEndpoint: string
+    graphNode: GraphNode
     deployment: SubgraphDeploymentID
   }
 }
@@ -29,7 +28,7 @@ interface NetworkSubgraphOptions {
   deployment?: {
     id: SubgraphDeploymentID
     status: Eventual<DeploymentStatus>
-    graphNodeQueryEndpoint: string
+    graphNode: GraphNode
   }
 }
 
@@ -45,8 +44,8 @@ export class NetworkSubgraph {
 
   public readonly deployment?: {
     id: SubgraphDeploymentID
-    client: AxiosInstance
     status: Eventual<DeploymentStatus>
+    endpointClient: AxiosInstance
   }
 
   private constructor(options: NetworkSubgraphOptions) {
@@ -66,26 +65,16 @@ export class NetworkSubgraph {
     }
 
     if (options.deployment) {
-      const client = axios.create({
-        baseURL: new URL(
-          `/subgraphs/id/${options.deployment.id.ipfsHash}`,
-          options.deployment.graphNodeQueryEndpoint,
-        ).toString(),
-
-        headers: { 'content-type': 'application/json' },
-
-        // Don't parse responses as JSON
-        responseType: 'text',
-
-        // Don't transform responses
-        transformResponse: (data) => data,
-      })
       const status = options.deployment.status
+
+      const graphNodeEndpointClient = options.deployment.graphNode.getQueryClient(
+        options.deployment.id.ipfsHash,
+      )
 
       this.deployment = {
         id: options.deployment.id,
-        client,
         status,
+        endpointClient: graphNodeEndpointClient,
       }
     }
   }
@@ -110,21 +99,21 @@ export class NetworkSubgraph {
       | {
           id: SubgraphDeploymentID
           status: Eventual<DeploymentStatus>
-          graphNodeQueryEndpoint: string
+          graphNode: GraphNode
         }
       | undefined
 
     if (deployment) {
       const status = await monitorDeployment({
         logger,
-        indexingStatusResolver: deployment.indexingStatusResolver,
+        graphNode: deployment.graphNode,
         deployment: deployment.deployment,
       })
 
       deploymentInfo = {
         id: deployment.deployment,
         status,
-        graphNodeQueryEndpoint: deployment.graphNodeQueryEndpoint,
+        graphNode: deployment.graphNode,
       }
     }
 
@@ -152,7 +141,7 @@ export class NetworkSubgraph {
 
       if (healthy) {
         this.logger.trace('Use own deployment for network subgraph query')
-        return this.deployment.client
+        return this.deployment.endpointClient
       } else if (this.endpointClient) {
         this.logger.trace('Use provided endpoint for network subgraph query')
         return this.endpointClient
@@ -194,11 +183,11 @@ export class NetworkSubgraph {
 
 const monitorDeployment = async ({
   logger,
-  indexingStatusResolver,
+  graphNode,
   deployment,
 }: {
   logger: Logger
-  indexingStatusResolver: IndexingStatusResolver
+  graphNode: GraphNode
   deployment: SubgraphDeploymentID
 }): Promise<Eventual<DeploymentStatus>> => {
   const initialStatus: DeploymentStatus = {
@@ -213,7 +202,7 @@ const monitorDeployment = async ({
     try {
       logger.trace(`Checking the network subgraph deployment status`)
 
-      const indexingStatuses = await indexingStatusResolver.indexingStatus([deployment])
+      const indexingStatuses = await graphNode.indexingStatus([deployment])
       const indexingStatus = indexingStatuses.pop()
       if (!indexingStatus) {
         throw `No indexing status found`
