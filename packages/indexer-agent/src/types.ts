@@ -4,7 +4,7 @@ import {
   NetworkSubgraph,
   ReceiptCollector,
 } from '@graphprotocol/indexer-common'
-import { GraphNode } from './indexer'
+import { GraphNode } from './graph-node'
 import { NetworkMonitor } from '@graphprotocol/indexer-common'
 
 export interface AgentConfig {
