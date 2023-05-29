@@ -26,7 +26,8 @@ import {
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
-import { GraphNode } from '../indexer'
+import { GraphNode } from '../graph-node'
+import { Operator } from '../operator'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
@@ -546,7 +547,7 @@ async function _oldHandler(
   // TODO: rename & refactor it to be a Graph-Node class. Include the
   // IdexingStatusEndpoint
   // --------------------------------------------------------------------------------
-  const indexer = new GraphNode(
+  const graphNode = new GraphNode(
     logger,
     argv.graphNodeAdminEndpoint,
     indexingStatusResolver,
@@ -558,7 +559,7 @@ async function _oldHandler(
   // TODO: put this routine inside the Indexer class
   if (networkSpecification.subgraphs.networkSubgraph.deployment !== undefined) {
     // Make sure the network subgraph is being indexed
-    await indexer.ensure(
+    await graphNode.ensure(
       `indexer-agent/${networkSpecification.subgraphs.networkSubgraph.deployment.slice(
         -10,
       )}`,
@@ -608,12 +609,22 @@ async function _oldHandler(
   })
 
   // --------------------------------------------------------------------------------
+  // * Operator
+  // --------------------------------------------------------------------------------
+  const operator = new Operator(
+    logger.child({ component: 'Operator' }),
+    indexerManagementClient,
+    networkSpecification,
+  )
+
+  // --------------------------------------------------------------------------------
   // * The Agent itself
   // --------------------------------------------------------------------------------
   const agent = new Agent(
     logger,
     metrics,
-    indexer,
+    graphNode,
+    operator,
     indexerManagementClient,
     network,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),

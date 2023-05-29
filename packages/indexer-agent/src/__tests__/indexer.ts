@@ -112,7 +112,7 @@ let address: string
 let contracts: NetworkContracts
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
-let indexer: GraphNode
+let graphNode: GraphNode
 
 const setup = async () => {
   logger = createLogger({
@@ -162,7 +162,7 @@ const setup = async () => {
     },
   })
 
-  indexer = new GraphNode(
+  graphNode = new GraphNode(
     logger,
     'test',
     indexingStatusResolver,
@@ -208,7 +208,7 @@ describe('Indexer tests', () => {
 
     const disputes = [badDispute]
 
-    await expect(indexer.storePoiDisputes(disputes)).rejects.toThrow(
+    await expect(graphNode.storePoiDisputes(disputes)).rejects.toThrow(
       'Failed to store potential POI disputes',
     )
   })
@@ -220,13 +220,13 @@ describe('Indexer tests', () => {
     const expectedResult = disputes.map((dispute: Record<string, any>) => {
       return disputeFromGraphQL(dispute)
     })
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
   })
@@ -239,11 +239,11 @@ describe('Indexer tests', () => {
       return disputeFromGraphQL(dispute)
     })
     const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
     await expect(
-      indexer.fetchPOIDisputes('potential', 205, 'goerli'),
+      graphNode.fetchPOIDisputes('potential', 205, 'goerli'),
     ).resolves.toEqual(expectedFilteredResult)
   })
 })
