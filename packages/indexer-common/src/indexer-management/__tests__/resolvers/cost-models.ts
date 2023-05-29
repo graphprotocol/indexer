@@ -18,7 +18,7 @@ import { defineIndexerManagementModels, IndexerManagementModels } from '../../mo
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
 import {
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   getTestProvider,
 } from '@graphprotocol/indexer-common'
@@ -85,7 +85,7 @@ let contracts: NetworkContracts
 let logger: Logger
 let indexNodeIDs: string[]
 let statusEndpoint: string
-let indexingStatusResolver: IndexingStatusResolver
+let graphNode: GraphNode
 let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 
@@ -110,10 +110,13 @@ const setupAll = async () => {
   })
   indexNodeIDs = ['node_1']
   statusEndpoint = 'http://localhost:8030/graphql'
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
-  })
+    [],
+  )
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
@@ -125,7 +128,7 @@ const setupAll = async () => {
     models,
     address,
     contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
@@ -759,7 +762,7 @@ describe('Feature: Inject $DAI variable', () => {
       models,
       address,
       contracts,
-      indexingStatusResolver,
+      graphNode,
       indexNodeIDs,
       deploymentManagementEndpoint: statusEndpoint,
       networkSubgraph,

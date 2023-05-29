@@ -20,7 +20,7 @@ import {
   defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
@@ -284,18 +284,23 @@ export default {
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network subgraph`)
-    const indexingStatusResolver = new IndexingStatusResolver({
+    const graphNode = new GraphNode(
       logger,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-    })
+      // We use a fake Graph Node admin endpoint here because we don't
+      // want the Indexer Service to perform management actions on
+      // Graph Node.
+      'http://fake-graph-node-admin-endpoint',
+      argv.graphNodeQueryEndpoint,
+      argv.graphNodeStatusEndpoint,
+      argv.indexNodeIds,
+    )
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
       endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment
         ? {
-            indexingStatusResolver,
+            graphNode,
             deployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
           }
         : undefined,
     })
@@ -312,12 +317,7 @@ export default {
     // If the network subgraph deployment is present, validate if the `chainId` we get from our
     // provider is consistent.
     if (argv.networkSubgraphDeployment) {
-      validateNetworkId(
-        network,
-        argv.networkSubgraphDeployment,
-        indexingStatusResolver,
-        logger,
-      )
+      validateNetworkId(network, argv.networkSubgraphDeployment, graphNode, logger)
     }
     const protocolNetwork = resolveChainId(network.chainId)
 
@@ -398,7 +398,7 @@ export default {
       models,
       address,
       contracts,
-      indexingStatusResolver,
+      graphNode,
       indexNodeIDs: ['node_1'], // This is just a dummy since the indexer-service doesn't manage deployments,
       deploymentManagementEndpoint: argv.graphNodeStatusEndpoint,
       networkSubgraph,

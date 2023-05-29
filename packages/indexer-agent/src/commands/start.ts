@@ -19,15 +19,14 @@ import {
   GraphNode,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
   Network,
+  Operator,
   registerIndexerErrorMetrics,
   resolveChainId,
   validateNetworkId,
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
-import { Operator } from '../operator'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
@@ -283,7 +282,7 @@ export async function createNetworkSpecification(
   argv: AgentOptions,
 ): Promise<spec.NetworkSpecification> {
   const gateway = {
-    baseUrl: argv.gatewayEndpoint,
+    url: argv.gatewayEndpoint,
   }
 
   const indexerOptions = {
@@ -326,7 +325,7 @@ export async function createNetworkSpecification(
 
   const dai = {
     contractAddress: argv.daiContractAddress,
-    injectDai: argv.injectDai,
+    inject: argv.injectDai,
   }
 
   const networkProvider = {
@@ -399,14 +398,6 @@ async function _oldHandler(
   registerIndexerErrorMetrics(metrics)
 
   // --------------------------------------------------------------------------------
-  // * Indexing Status Resolver (part of the upcoming GraphNode class)
-  // --------------------------------------------------------------------------------
-  const indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint: argv.graphNodeStatusEndpoint,
-  })
-
-  // --------------------------------------------------------------------------------
   // * NetworkProvider and NetworkIdentifier
   // --------------------------------------------------------------------------------
   const networkProvider = await Network.provider(
@@ -417,6 +408,18 @@ async function _oldHandler(
   )
   const networkMeta = await networkProvider.getNetwork()
   const networkChainId = resolveChainId(networkMeta.chainId)
+
+  // --------------------------------------------------------------------------------
+  // * Graph Node
+  // --------------------------------------------------------------------------------
+
+  const graphNode = new GraphNode(
+    logger,
+    argv.graphNodeAdminEndpoint,
+    argv.graphNodeQueryEndpoint,
+    argv.graphNodeStatusEndpoint,
+    argv.indexNodeIds,
+  )
 
   // --------------------------------------------------------------------------------
   // * Database - Connection
@@ -456,7 +459,6 @@ async function _oldHandler(
       context: {
         queryInterface: sequelize.getQueryInterface(),
         logger,
-        indexingStatusResolver,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
         networkChainId,
       },
@@ -493,8 +495,7 @@ async function _oldHandler(
     logger,
     networkSpecification,
     queryFeeModels,
-    argv.graphNodeQueryEndpoint,
-    argv.graphNodeStatusEndpoint,
+    graphNode,
     metrics,
   )
   logger.info('Successfully connected to network', {
@@ -510,7 +511,7 @@ async function _oldHandler(
     models: managementModels,
     address: networkSpecification.indexerOptions.address,
     contracts: network.contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs: argv.indexNodeIds,
     deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
     networkSubgraph: network.networkSubgraph,
@@ -542,19 +543,6 @@ async function _oldHandler(
   })
   logger.info(`Successfully launched indexer management API server`)
 
-  // --------------------------------------------------------------------------------
-  // * Indexer
-  // TODO: rename & refactor it to be a Graph-Node class. Include the
-  // IdexingStatusEndpoint
-  // --------------------------------------------------------------------------------
-  const graphNode = new GraphNode(
-    logger,
-    argv.graphNodeAdminEndpoint,
-    indexingStatusResolver,
-    indexerManagementClient,
-    argv.indexNodeIds,
-  )
-
   // * Index the Network Subgraph
   // TODO: put this routine inside the Indexer class
   if (networkSpecification.subgraphs.networkSubgraph.deployment !== undefined) {
@@ -574,7 +562,7 @@ async function _oldHandler(
       await validateNetworkId(
         networkMeta,
         networkSpecification.subgraphs.networkSubgraph.deployment,
-        indexingStatusResolver,
+        graphNode,
         logger,
       )
     } catch (e) {

@@ -26,8 +26,8 @@ import {
   evaluateDeployments,
   AllocationDecision,
   GraphNode,
+  Operator,
 } from '@graphprotocol/indexer-common'
-import { Operator } from './operator'
 
 import PQueue from 'p-queue'
 import pMap from 'p-map'
@@ -558,26 +558,24 @@ export class Agent {
               pool.previousEpochStartBlockHash!,
             )
           pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
-          pool.referencePOI =
-            await this.graphNode.statusResolver.proofOfIndexing(
-              pool.subgraphDeployment,
-              {
-                number: closedAtEpochStartBlock.number,
-                hash: closedAtEpochStartBlock.hash,
-              },
-              pool.allocationIndexer,
-            )
+          pool.referencePOI = await this.graphNode.proofOfIndexing(
+            pool.subgraphDeployment,
+            {
+              number: closedAtEpochStartBlock.number,
+              hash: closedAtEpochStartBlock.hash,
+            },
+            pool.allocationIndexer,
+          )
           pool.previousEpochStartBlockHash = previousEpochStartBlock.hash
           pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
-          pool.referencePreviousPOI =
-            await this.graphNode.statusResolver.proofOfIndexing(
-              pool.subgraphDeployment,
-              {
-                number: previousEpochStartBlock.number,
-                hash: previousEpochStartBlock.hash,
-              },
-              pool.allocationIndexer,
-            )
+          pool.referencePreviousPOI = await this.graphNode.proofOfIndexing(
+            pool.subgraphDeployment,
+            {
+              number: previousEpochStartBlock.number,
+              hash: previousEpochStartBlock.hash,
+            },
+            pool.allocationIndexer,
+          )
           return pool
         }),
     )

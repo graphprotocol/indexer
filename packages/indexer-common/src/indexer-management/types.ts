@@ -6,7 +6,7 @@ import {
 } from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
-import { IndexingStatusResolver } from '../indexing-status'
+import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
 import { Network as NetworkMetadata } from '@ethersproject/networks'
 
@@ -240,12 +240,13 @@ export function resolveChainAlias(id: string): string {
 export async function validateNetworkId(
   providerNetwork: NetworkMetadata,
   networkSubgraphDeploymentIpfsHash: string,
-  indexingStatusResolver: IndexingStatusResolver,
+  graphNode: GraphNode,
   logger: Logger,
 ) {
   const subgraphNetworkId = new SubgraphDeploymentID(networkSubgraphDeploymentIpfsHash)
-  const { network: subgraphNetworkChainName } =
-    await indexingStatusResolver.subgraphFeatures(subgraphNetworkId)
+  const { network: subgraphNetworkChainName } = await graphNode.subgraphFeatures(
+    subgraphNetworkId,
+  )
 
   if (!subgraphNetworkChainName) {
     // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.

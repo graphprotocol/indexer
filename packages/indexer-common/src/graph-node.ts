@@ -1,45 +1,91 @@
 import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  IndexerManagementClient,
-  indexerError,
-  IndexerErrorCode,
-  IndexingStatusResolver,
-  IndexingStatus,
-  parseGraphQLIndexingStatus,
-} from '@graphprotocol/indexer-common'
+import { Client, createClient } from '@urql/core'
+import { indexerError, IndexerErrorCode, INDEXER_ERROR_MESSAGES } from './errors'
+import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
+import pRetry from 'p-retry'
+import axios, { AxiosInstance } from 'axios'
+import fetch from 'isomorphic-fetch'
 
 interface indexNode {
   id: string
   deployments: string[]
 }
 
+export interface SubgraphDeploymentAssignment {
+  id: SubgraphDeploymentID
+  node: string
+}
+
+export interface IndexingStatusFetcherOptions {
+  logger: Logger
+  statusEndpoint: string
+}
+
+export interface SubgraphFeatures {
+  // `null` is only expected when Graph Node detects validation errors in the Subgraph Manifest.
+  network: string | null
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const parseGraphQLIndexingStatus = (indexingStatus: any): IndexingStatus => ({
+  subgraphDeployment: new SubgraphDeploymentID(indexingStatus.subgraphDeployment),
+  synced: indexingStatus.synced,
+  health: indexingStatus.health,
+  fatalError: indexingStatus.fatalError,
+  node: indexingStatus.node,
+  chains: indexingStatus.chains.map(parseGraphQLChain),
+})
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const parseGraphQLChain = (chain: any): ChainIndexingStatus => ({
+  network: chain.network,
+  latestBlock: parseGraphQLBlockPointer(chain.latestBlock),
+  chainHeadBlock: parseGraphQLBlockPointer(chain.chainHeadBlock),
+  earliestBlock: parseGraphQLBlockPointer(chain.earliestBlock),
+})
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
+  block
+    ? {
+        number: +block.number,
+        hash: block.hash,
+      }
+    : null
+
 export class GraphNode {
-  statusResolver: IndexingStatusResolver
-  rpc: RpcClient
-  indexerManagement: IndexerManagementClient
+  admin: RpcClient
+  private queryBaseURL: URL
+  status: Client
   logger: Logger
   indexNodeIDs: string[]
 
   constructor(
     logger: Logger,
     adminEndpoint: string,
-    statusResolver: IndexingStatusResolver,
-    indexerManagement: IndexerManagementClient,
+    queryEndpoint: string,
+    statusEndpoint: string,
     indexNodeIDs: string[],
   ) {
-    this.indexerManagement = indexerManagement
-    this.statusResolver = statusResolver
     this.logger = logger
+    this.status = createClient({
+      url: statusEndpoint,
+      fetch,
+      requestPolicy: 'network-only',
+    })
 
     if (adminEndpoint.startsWith('https')) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.rpc = jayson.Client.https(adminEndpoint as any)
+      this.admin = jayson.Client.https(adminEndpoint as any)
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.rpc = jayson.Client.http(adminEndpoint as any)
+      this.admin = jayson.Client.http(adminEndpoint as any)
     }
+
+    this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
+
     this.indexNodeIDs = indexNodeIDs
   }
 
@@ -59,9 +105,23 @@ export class GraphNode {
     }
   }
 
-  async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
+  // AxiosClient factory scoped by subgraph IFPS hash
+  getQueryClient(deploymentIpfsHash: string): AxiosInstance {
+    return axios.create({
+      baseURL: new URL(deploymentIpfsHash, this.queryBaseURL).toString(),
+      headers: { 'content-type': 'application/json' },
+      responseType: 'text', // Don't parse responses as JSON
+      transformResponse: (data) => data, // Don't transform responses
+    })
+  }
+
+  public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
+    return (await this.subgraphDeploymentsAssignments()).map((details) => details.id)
+  }
+
+  public async subgraphDeploymentsAssignments(): Promise<SubgraphDeploymentAssignment[]> {
     try {
-      const result = await this.statusResolver.statuses
+      const result = await this.status
         .query(
           gql`
             {
@@ -78,12 +138,15 @@ export class GraphNode {
         throw result.error
       }
 
+      type QueryResult = { subgraphDeployment: string; node: string }
+
       return result.data.indexingStatuses
-        .filter((status: { subgraphDeployment: string; node: string }) => {
-          return status.node && status.node !== 'removed'
-        })
-        .map((status: { subgraphDeployment: string; node: string }) => {
-          return new SubgraphDeploymentID(status.subgraphDeployment)
+        .filter((status: QueryResult) => status.node && status.node !== 'removed')
+        .map((status: QueryResult) => {
+          return {
+            id: new SubgraphDeploymentID(status.subgraphDeployment),
+            node: status.node,
+          }
         })
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
@@ -94,7 +157,7 @@ export class GraphNode {
 
   async indexNodes(): Promise<indexNode[]> {
     try {
-      const result = await this.statusResolver.statuses
+      const result = await this.status
         .query(
           gql`
             {
@@ -137,62 +200,14 @@ export class GraphNode {
     }
   }
 
-  async indexingStatus(deployment: SubgraphDeploymentID): Promise<IndexingStatus> {
-    try {
-      const result = await this.statusResolver.statuses
-        .query(
-          gql`
-            query indexingStatus($deployments: [String!]!) {
-              indexingStatuses(subgraphs: $deployments) {
-                subgraphDeployment: subgraph
-                synced
-                health
-                fatalError {
-                  handler
-                  message
-                }
-                chains {
-                  network
-                  ... on EthereumIndexingStatus {
-                    latestBlock {
-                      number
-                      hash
-                    }
-                    chainHeadBlock {
-                      number
-                      hash
-                    }
-                  }
-                }
-              }
-            }
-          `,
-          { deployments: [deployment.ipfsHash] },
-        )
-        .toPromise()
-      this.logger.debug(`Query indexing status`, {
-        deployment,
-        statuses: result.data,
-      })
-      return (
-        result.data.indexingStatuses
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .map((status: any) => parseGraphQLIndexingStatus(status))
-          .pop()
-      )
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE018, error)
-      this.logger.error(`Failed to query indexing status API`, {
-        err,
-      })
-      throw err
-    }
-  }
+  // --------------------------------------------------------------------------------
+  // * Subgraph Management
+  // --------------------------------------------------------------------------------
 
   async create(name: string): Promise<void> {
     try {
       this.logger.info(`Create subgraph name`, { name })
-      const response = await this.rpc.request('subgraph_create', { name })
+      const response = await this.admin.request('subgraph_create', { name })
       if (response.error) {
         throw response.error
       }
@@ -216,7 +231,7 @@ export class GraphNode {
         name,
         deployment: deployment.display,
       })
-      const response = await this.rpc.request('subgraph_deploy', {
+      const response = await this.admin.request('subgraph_deploy', {
         name,
         ipfs_hash: deployment.ipfsHash,
         node_id: node_id,
@@ -244,7 +259,7 @@ export class GraphNode {
       this.logger.info(`Remove subgraph deployment`, {
         deployment: deployment.display,
       })
-      const response = await this.rpc.request('subgraph_reassign', {
+      const response = await this.admin.request('subgraph_reassign', {
         node_id: 'removed',
         ipfs_hash: deployment.ipfsHash,
       })
@@ -269,7 +284,7 @@ export class GraphNode {
         deployment: deployment.display,
         node,
       })
-      const response = await this.rpc.request('subgraph_reassign', {
+      const response = await this.admin.request('subgraph_reassign', {
         node_id: node,
         ipfs_hash: deployment.ipfsHash,
       })
@@ -322,6 +337,263 @@ export class GraphNode {
         deployment: deployment.display,
         err,
       })
+    }
+  }
+
+  // --------------------------------------------------------------------------------
+  // * Indexing Status
+  // --------------------------------------------------------------------------------
+  public async indexingStatus(
+    deployments: SubgraphDeploymentID[],
+  ): Promise<IndexingStatus[]> {
+    const indexingStatusesQueryBody = `
+      subgraphDeployment: subgraph
+      synced
+      health
+      fatalError {
+        handler
+        message
+      }
+      node
+      chains {
+        network
+        ... on EthereumIndexingStatus {
+          latestBlock {
+            number
+            hash
+          }
+          chainHeadBlock {
+            number
+            hash
+          }
+          earliestBlock {
+            number
+            hash
+          }
+        }
+      }`
+    const query =
+      deployments.length > 0
+        ? `query indexingStatuses($deployments: [String!]!) {
+            indexingStatuses(subgraphs: $deployments) {
+              ${indexingStatusesQueryBody}
+            }
+          }`
+        : `query indexingStatuses {
+            indexingStatuses {
+              ${indexingStatusesQueryBody}
+            }
+          }`
+
+    const queryIndexingStatuses = async () => {
+      const result = await this.status
+        .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
+        .toPromise()
+
+      return (
+        result.data.indexingStatuses
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .map((status: any) => ({
+            ...status,
+            subgraphDeployment: new SubgraphDeploymentID(status.subgraphDeployment),
+          }))
+      )
+    }
+
+    try {
+      return await pRetry(queryIndexingStatuses, {
+        retries: 5,
+        maxTimeout: 10000,
+        onFailedAttempt: (err) => {
+          this.logger.warn(`Indexing statuses could not be queried`, {
+            attempt: err.attemptNumber,
+            retriesLeft: err.retriesLeft,
+            deployments,
+            err: err.message,
+          })
+        },
+      } as pRetry.Options)
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(`Failed to query indexing status API`, {
+        deployments,
+        err,
+      })
+      throw err
+    }
+  }
+
+  public async proofOfIndexing(
+    deployment: SubgraphDeploymentID,
+    block: BlockPointer,
+    indexerAddress: string,
+  ): Promise<string | undefined> {
+    try {
+      return await pRetry(
+        async (attempt) => {
+          const result = await this.status
+            .query(
+              gql`
+                query proofOfIndexing(
+                  $subgraph: String!
+                  $blockNumber: Int!
+                  $blockHash: String!
+                  $indexer: String!
+                ) {
+                  proofOfIndexing(
+                    subgraph: $subgraph
+                    blockNumber: $blockNumber
+                    blockHash: $blockHash
+                    indexer: $indexer
+                  )
+                }
+              `,
+              {
+                subgraph: deployment.ipfsHash,
+                blockNumber: +block.number,
+                blockHash: block.hash,
+                indexer: indexerAddress,
+              },
+            )
+            .toPromise()
+
+          if (result.error) {
+            if (
+              result.error.message &&
+              result.error.message.includes('DeploymentNotFound')
+            ) {
+              return undefined
+            }
+            throw result.error
+          }
+          this.logger.trace('Reference POI generated', {
+            indexer: indexerAddress,
+            subgraph: deployment.ipfsHash,
+            block: block,
+            proof: result.data.proofOfIndexing,
+            attempt,
+          })
+
+          return result.data.proofOfIndexing
+        },
+        {
+          retries: 5,
+          maxTimeout: 10000,
+          onFailedAttempt: (err) => {
+            this.logger.warn(`Proof of indexing could not be queried`, {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
+          },
+        } as pRetry.Options,
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE019, error)
+      this.logger.error(`Failed to query proof of indexing`, {
+        subgraph: deployment.ipfsHash,
+        blockHash: block,
+        indexer: indexerAddress,
+        err: err,
+      })
+      return undefined
+    }
+  }
+
+  public async blockHashFromNumber(
+    networkAlias: string,
+    blockNumber: number,
+  ): Promise<string> {
+    this.logger.trace(`Querying blockHashFromNumber`, { networkAlias, blockNumber })
+    try {
+      return await pRetry(
+        async (attempt) => {
+          const result = await this.status
+            .query(
+              gql`
+                query blockHashFromNumber($network: String!, $blockNumber: Int!) {
+                  blockHashFromNumber(network: $network, blockNumber: $blockNumber)
+                }
+              `,
+              {
+                network: networkAlias,
+                blockNumber,
+              },
+            )
+            .toPromise()
+
+          if (!result.data || !result.data.blockHashFromNumber || result.error) {
+            throw new Error(
+              `Failed to query graph node for blockHashFromNumber: ${
+                result.error ?? 'no data returned'
+              }`,
+            )
+          }
+
+          this.logger.trace('Resolved block hash', {
+            networkAlias,
+            blockNumber,
+            blockHash: result.data.blockHashFromNumber,
+            attempt,
+          })
+
+          return `0x${result.data.blockHashFromNumber}`
+        },
+        {
+          retries: 5,
+          maxTimeout: 10000,
+          onFailedAttempt: (err) => {
+            this.logger.warn(`Block hash could not be queried`, {
+              networkAlias,
+              blockNumber,
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
+          },
+        } as pRetry.Options,
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE070, error)
+      this.logger.error(`Failed to query block hash`, {
+        networkAlias,
+        blockNumber,
+        error: error.message,
+      })
+      throw err
+    }
+  }
+
+  public async subgraphFeatures(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<SubgraphFeatures> {
+    const subgraphId = subgraphDeploymentId.ipfsHash
+    try {
+      const result = await this.status
+        .query(
+          gql`
+            query subgraphFeatures($subgraphId: String!) {
+              subgraphFeatures(subgraphId: $subgraphId) {
+                network
+              }
+            }
+          `,
+          { subgraphId },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      if (!result.data) {
+        throw new Error('Subgraph Deployment Not Found')
+      }
+      return result.data.subgraphFeatures as SubgraphFeatures
+    } catch (error) {
+      const errorCode = IndexerErrorCode.IE073
+      const err = indexerError(errorCode, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], { err, subgraphId })
+      throw err
     }
   }
 }

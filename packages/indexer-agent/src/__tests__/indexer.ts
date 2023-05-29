@@ -8,18 +8,18 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
-  AllocationManagementMode,
   createIndexerManagementClient,
   defineIndexerManagementModels,
   IndexerManagementClient,
   IndexerManagementModels,
-  IndexingStatusResolver,
+  GraphNode,
+  Operator,
   NetworkSubgraph,
   POIDisputeAttributes,
+  specification,
 } from '@graphprotocol/indexer-common'
 import { BigNumber, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
-import { GraphNode } from '../indexer'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
@@ -113,6 +113,7 @@ let contracts: NetworkContracts
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
 let graphNode: GraphNode
+let operator: Operator
 
 const setup = async () => {
   logger = createLogger({
@@ -129,10 +130,15 @@ const setup = async () => {
   await sequelize.sync({ force: true })
 
   const statusEndpoint = 'http://localhost:8030/graphql'
-  const indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint: 'statusEndpoint',
-  })
+  const indexNodeIDs = ['node_1']
+
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
+    statusEndpoint,
+    indexNodeIDs,
+  )
 
   const networkSubgraph = await NetworkSubgraph.create({
     logger,
@@ -141,12 +147,11 @@ const setup = async () => {
     deployment: undefined,
   })
 
-  const indexNodeIDs = ['node_1']
   indexerManagementClient = await createIndexerManagementClient({
     models,
     address: toAddress(address),
     contracts: contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,
@@ -162,16 +167,34 @@ const setup = async () => {
     },
   })
 
-  graphNode = new GraphNode(
-    logger,
-    'test',
-    indexingStatusResolver,
-    indexerManagementClient,
-    ['test'],
-    parseGRT('1000'),
-    address,
-    AllocationManagementMode.AUTO,
-  )
+  const networkSpecification = specification.NetworkSpecification.parse({
+    networkIdentifier: 'goerli',
+    gateway: {
+      url: 'http://localhost:8030/',
+    },
+    networkProvider: { url: 'http://test-url.xyz' },
+    indexerOptions: {
+      address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
+      mnemonic: 'foo',
+      url: 'http://test-indexer.xyz',
+    },
+    subgraphs: {
+      networkSubgraph: { url: 'http://test-url.xyz' },
+      epochSubgraph: { url: 'http://test-url.xyz' },
+    },
+    transactionMonitoring: {
+      gasIncreaseTimeout: 240000,
+      gasIncreaseFactor: 1.2,
+      baseFeePerGasMax: 100 * 10 ** 9,
+      maxTransactionAttempts: 0,
+    },
+    dai: {
+      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+      inject: false,
+    },
+  })
+
+  operator = new Operator(logger, indexerManagementClient, networkSpecification)
 }
 
 const teardown = async () => {
@@ -208,7 +231,7 @@ describe('Indexer tests', () => {
 
     const disputes = [badDispute]
 
-    await expect(graphNode.storePoiDisputes(disputes)).rejects.toThrow(
+    await expect(operator.storePoiDisputes(disputes)).rejects.toThrow(
       'Failed to store potential POI disputes',
     )
   })
@@ -220,13 +243,13 @@ describe('Indexer tests', () => {
     const expectedResult = disputes.map((dispute: Record<string, any>) => {
       return disputeFromGraphQL(dispute)
     })
-    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
   })
@@ -239,11 +262,11 @@ describe('Indexer tests', () => {
       return disputeFromGraphQL(dispute)
     })
     const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
-    await expect(graphNode.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
     await expect(
-      graphNode.fetchPOIDisputes('potential', 205, 'goerli'),
+      operator.fetchPOIDisputes('potential', 205, 'goerli'),
     ).resolves.toEqual(expectedFilteredResult)
   })
 })

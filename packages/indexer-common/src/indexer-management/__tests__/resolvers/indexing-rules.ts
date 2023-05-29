@@ -21,7 +21,7 @@ import {
   INDEXING_RULE_GLOBAL,
 } from '../../models'
 import {
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   SubgraphIdentifierType,
   getTestProvider,
@@ -119,7 +119,7 @@ let models: IndexerManagementModels
 let address: string
 let contracts: NetworkContracts
 let logger: Logger
-let indexingStatusResolver: IndexingStatusResolver
+let graphNode: GraphNode
 let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 
@@ -146,10 +146,13 @@ const setupAll = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
   const statusEndpoint = 'http://localhost:8030/graphql'
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
-  })
+    [],
+  )
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
@@ -161,7 +164,7 @@ const setupAll = async () => {
     models,
     address,
     contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
     deploymentManagementEndpoint: statusEndpoint,
     networkSubgraph,

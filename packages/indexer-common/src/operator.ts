@@ -28,20 +28,20 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
   (x: never) => string | BigNumber | number | null
 > = {
-  allocationID: x => x,
-  subgraphDeploymentID: x => x,
-  allocationIndexer: x => x,
-  allocationAmount: x => x,
-  allocationProof: x => x,
-  closedEpoch: x => +x,
-  closedEpochStartBlockHash: x => x,
-  closedEpochStartBlockNumber: x => +x,
-  closedEpochReferenceProof: x => x,
-  previousEpochStartBlockHash: x => x,
-  previousEpochStartBlockNumber: x => +x,
-  previousEpochReferenceProof: x => x,
-  status: x => x,
-  protocolNetwork: x => x,
+  allocationID: (x) => x,
+  subgraphDeploymentID: (x) => x,
+  allocationIndexer: (x) => x,
+  allocationAmount: (x) => x,
+  allocationProof: (x) => x,
+  closedEpoch: (x) => +x,
+  closedEpochStartBlockHash: (x) => x,
+  closedEpochStartBlockNumber: (x) => +x,
+  closedEpochReferenceProof: (x) => x,
+  previousEpochStartBlockHash: (x) => x,
+  previousEpochStartBlockNumber: (x) => +x,
+  previousEpochReferenceProof: (x) => x,
+  status: (x) => x,
+  protocolNetwork: (x) => x,
 }
 
 /**
@@ -63,6 +63,8 @@ const disputeFromGraphQL = (
   return obj as POIDisputeAttributes
 }
 
+// This component is responsible for managing indexing rules, actions, allocations, and
+// POI disputes.
 export class Operator {
   logger: Logger
   indexerManagement: IndexerManagementClient
@@ -81,6 +83,7 @@ export class Operator {
   // --------------------------------------------------------------------------------
   // * Indexing Rules
   // --------------------------------------------------------------------------------
+  // Retrieves the indexing rules from the indexer management API.
   async indexingRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
     try {
       const result = await this.indexerManagement
@@ -251,9 +254,7 @@ export class Operator {
     let status = ActionStatus.QUEUED
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
-        throw Error(
-          `Cannot queue actions when AllocationManagementMode = 'MANUAL'`,
-        )
+        throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
       case AllocationManagementMode.AUTO:
         status = ActionStatus.APPROVED
         break
@@ -322,9 +323,7 @@ export class Operator {
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
-      ? BigNumber.from(
-          deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
-        )
+      ? BigNumber.from(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
       : this.specification.indexerOptions.defaultAllocationAmount
 
     logger.info(`No active allocation for deployment, creating one now`, {
@@ -368,10 +367,9 @@ export class Operator {
     activeDeploymentAllocations: Allocation[],
     epoch: number,
   ): Promise<void> {
-    const activeDeploymentAllocationsEligibleForClose =
-      activeDeploymentAllocations
-        .filter(allocation => allocation.createdAtEpoch < epoch)
-        .map(allocation => allocation.id)
+    const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations
+      .filter((allocation) => allocation.createdAtEpoch < epoch)
+      .map((allocation) => allocation.id)
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocationsEligibleForClose.length > 0) {
       logger.info(
@@ -384,7 +382,7 @@ export class Operator {
         // We can only close allocations from a previous epoch;
         // try the others again later
         activeDeploymentAllocationsEligibleForClose,
-        async allocation => {
+        async (allocation) => {
           // Send unallocate action to the queue
           await this.queueAction({
             params: {
@@ -411,18 +409,16 @@ export class Operator {
     if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
       logger.info(`Reallocating expired allocations`, {
         number: expiredAllocations.length,
-        expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+        expiredAllocations: expiredAllocations.map((allocation) => allocation.id),
       })
 
-      const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch
-        .rule?.allocationAmount
-        ? BigNumber.from(
-            deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
-          )
+      const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
+        ?.allocationAmount
+        ? BigNumber.from(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
         : this.specification.indexerOptions.defaultAllocationAmount
 
       // Queue reallocate actions to be picked up by the worker
-      await pMap(expiredAllocations, async allocation => {
+      await pMap(expiredAllocations, async (allocation) => {
         await this.queueAction({
           params: {
             allocationID: allocation.id,
@@ -439,9 +435,7 @@ export class Operator {
         `Skipping reallocating expired allocation since the corresponding rule has 'autoRenewal' = False`,
         {
           number: expiredAllocations.length,
-          expiredAllocations: expiredAllocations.map(
-            allocation => allocation.id,
-          ),
+          expiredAllocations: expiredAllocations.map((allocation) => allocation.id),
         },
       )
     }

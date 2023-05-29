@@ -25,7 +25,7 @@ import {
   EpochSubgraph,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkMonitor,
   NetworkSubgraph,
   resolveChainAlias,
@@ -45,7 +45,7 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let ethereum: ethers.providers.BaseProvider
 let contracts: NetworkContracts
-let indexingStatusResolver: IndexingStatusResolver
+let graphNode: GraphNode
 let networkSubgraph: NetworkSubgraph
 let epochSubgraph: EpochSubgraph
 let networkMonitor: NetworkMonitor
@@ -79,10 +79,13 @@ const setupMonitor = async () => {
   epochSubgraph = await EpochSubgraph.create(
     'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
   )
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
-  })
+    [],
+  )
 
   const indexerOptions = spec.IndexerOptions.parse({
     address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
@@ -96,7 +99,7 @@ const setupMonitor = async () => {
     contracts,
     indexerOptions,
     logger,
-    indexingStatusResolver,
+    graphNode,
     networkSubgraph,
     ethereum,
     epochSubgraph,

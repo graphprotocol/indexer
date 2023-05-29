@@ -26,7 +26,7 @@ import {
   IndexerManagementResolverContext,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
@@ -289,7 +289,7 @@ async function queryAllocations(
 async function resolvePOI(
   networkMonitor: NetworkMonitor,
   transactionManager: TransactionManager,
-  indexingStatusResolver: IndexingStatusResolver,
+  graphNode: GraphNode,
   allocation: Allocation,
   poi: string | undefined,
   force: boolean,
@@ -306,7 +306,7 @@ async function resolvePOI(
           return poi!
         case false:
           return (
-            (await indexingStatusResolver.proofOfIndexing(
+            (await graphNode.proofOfIndexing(
               allocation.subgraphDeployment.id,
               await networkMonitor.fetchPOIBlockPointer(allocation),
               allocation.indexer,
@@ -316,7 +316,7 @@ async function resolvePOI(
       break
     case false: {
       const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
-      const generatedPOI = await indexingStatusResolver.proofOfIndexing(
+      const generatedPOI = await graphNode.proofOfIndexing(
         allocation.subgraphDeployment.id,
         currentEpochStartBlock,
         allocation.indexer,
@@ -324,7 +324,7 @@ async function resolvePOI(
       switch (poi == generatedPOI) {
         case true:
           if (poi == undefined) {
-            const deploymentStatus = await indexingStatusResolver.indexingStatus([
+            const deploymentStatus = await graphNode.indexingStatus([
               allocation.subgraphDeployment.id,
             ])
             throw indexerError(
@@ -650,7 +650,7 @@ export default {
     },
     {
       contracts,
-      indexingStatusResolver,
+      graphNode,
       logger,
       models,
       networkMonitor,
@@ -683,7 +683,7 @@ export default {
       poi = await resolvePOI(
         networkMonitor,
         transactionManager,
-        indexingStatusResolver,
+        graphNode,
         allocationData,
         poi,
         force,
@@ -835,7 +835,7 @@ export default {
     {
       address,
       contracts,
-      indexingStatusResolver,
+      graphNode,
       logger,
       models,
       networkMonitor,
@@ -889,7 +889,7 @@ export default {
       const allocationPOI = await resolvePOI(
         networkMonitor,
         transactionManager,
-        indexingStatusResolver,
+        graphNode,
         allocationData,
         poi,
         force,
