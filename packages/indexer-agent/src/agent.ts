@@ -6,9 +6,16 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
+  formatGRT,
 } from '@graphprotocol/common-ts'
 import {
+  Action,
+  ActionInput,
+  ActionItem,
   ActionStatus,
+  ActionType,
+  ActionFilter,
+  ActionResult,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
@@ -16,7 +23,9 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexingDecisionBasis,
+  IndexerManagementClient,
   IndexingRuleAttributes,
+  INDEXING_RULE_GLOBAL,
   Network,
   POIDisputeAttributes,
   RewardsPool,
@@ -25,7 +34,10 @@ import {
   evaluateDeployments,
   AllocationDecision,
 } from '@graphprotocol/indexer-common'
-import { Indexer } from './indexer'
+import { BigNumber, utils } from 'ethers'
+import gql from 'graphql-tag'
+import { CombinedError } from '@urql/core'
+import { GraphNode } from './indexer'
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
@@ -115,37 +127,39 @@ const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
 export class Agent {
   logger: Logger
   metrics: Metrics
-  indexer: Indexer
+  graphNode: GraphNode
   network: Network
+  indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
 
   constructor(
     logger: Logger,
     metrics: Metrics,
-    indexer: Indexer,
+    graphNode: GraphNode,
+    indexerManagement: IndexerManagementClient,
     network: Network,
     offchainSubgraphs: SubgraphDeploymentID[],
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
-    this.indexer = indexer
+    this.graphNode = graphNode
+    this.indexerManagement = indexerManagement
     this.network = network
     this.offchainSubgraphs = offchainSubgraphs
   }
 
   async start(): Promise<Agent> {
     // --------------------------------------------------------------------------------
-    // * Connect to graph node
-    // QUESTION: what does it mean to connect to it?
+    // * Connect to Graph Node
     // --------------------------------------------------------------------------------
     this.logger.info(`Connect to Graph node(s)`)
-    await this.indexer.connect()
+    await this.graphNode.connect()
     this.logger.info(`Connected to Graph node(s)`)
 
     // --------------------------------------------------------------------------------
     // * Ensure there is a 'global' indexing rule
     // --------------------------------------------------------------------------------
-    await this.indexer.ensureGlobalIndexingRule()
+    await this.ensureGlobalIndexingRule()
 
     // --------------------------------------------------------------------------------
     // * Register the Indexer in the Network
@@ -185,7 +199,7 @@ export class Agent {
 
     const indexingRules = timer(20_000).tryMap(
       async () => {
-        let rules = await this.indexer.indexingRules(true)
+        let rules = await this.indexingRules(true)
         const subgraphRuleIds = rules
           .filter(
             rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
@@ -216,7 +230,7 @@ export class Agent {
     )
 
     const activeDeployments = timer(60_000).tryMap(
-      () => this.indexer.subgraphDeployments(),
+      () => this.graphNode.subgraphDeployments(),
       {
         onError: error =>
           this.logger.warn(
@@ -422,7 +436,7 @@ export class Agent {
         }
 
         // Do nothing if there are already approved actions in the queue awaiting execution
-        const approvedActions = await this.indexer.fetchActions({
+        const approvedActions = await this.fetchActions({
           status: ActionStatus.APPROVED,
         })
         if (approvedActions.length > 0) {
@@ -477,6 +491,136 @@ export class Agent {
     )
   }
 
+  async indexingRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
+    try {
+      const result = await this.indexerManagement
+        .query(
+          gql`
+            query indexingRules($merged: Boolean!) {
+              indexingRules(merged: $merged) {
+                identifier
+                identifierType
+                allocationAmount
+                allocationLifetime
+                autoRenewal
+                parallelAllocations
+                maxAllocationPercentage
+                minSignal
+                maxSignal
+                minStake
+                minAverageQueryFees
+                custom
+                decisionBasis
+                requireSupported
+                protocolNetwork
+              }
+            }
+          `,
+          { merged },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+      this.logger.trace('Fetched indexing rules', {
+        count: result.data.indexingRules.length,
+        rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
+          return {
+            identifier: rule.identifier,
+            identifierType: rule.identifierType,
+            decisionBasis: rule.decisionBasis,
+          }
+        }),
+      })
+      return result.data.indexingRules
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE025, error)
+      this.logger.error(`Failed to query indexer management API`, { err })
+      throw err
+    }
+  }
+
+  async ensureGlobalIndexingRule(): Promise<void> {
+    try {
+      const globalRule = await this.indexerManagement
+        .query(
+          gql`
+            query indexingRule($identifier: String!) {
+              indexingRule(identifier: $identifier, merged: false) {
+                identifier
+                identifierType
+                allocationAmount
+                decisionBasis
+                requireSupported
+                protocolNetwork
+              }
+            }
+          `,
+          { identifier: INDEXING_RULE_GLOBAL },
+        )
+        .toPromise()
+
+      if (!globalRule.data.indexingRule) {
+        this.logger.info(`Creating default "global" indexing rule`)
+
+        const defaults = {
+          identifier: INDEXING_RULE_GLOBAL,
+          identifierType: SubgraphIdentifierType.GROUP,
+          allocationAmount:
+            // TODO:L2: Perform this procedure for all configured networks, not just one
+            this.network.specification.indexerOptions.defaultAllocationAmount.toString(),
+          parallelAllocations: 1,
+          decisionBasis: 'rules',
+          requireSupported: true,
+          safety: true,
+        }
+
+        const defaultGlobalRule = await this.indexerManagement
+          .mutation(
+            gql`
+              mutation setIndexingRule($rule: IndexingRuleInput!) {
+                setIndexingRule(rule: $rule) {
+                  identifier
+                  identifierType
+                  allocationAmount
+                  allocationLifetime
+                  autoRenewal
+                  parallelAllocations
+                  maxAllocationPercentage
+                  minSignal
+                  maxSignal
+                  minStake
+                  minAverageQueryFees
+                  custom
+                  decisionBasis
+                  requireSupported
+                  safety
+                  protocolNetwork
+                }
+              }
+            `,
+            { rule: defaults },
+          )
+          .toPromise()
+
+        if (defaultGlobalRule.error) {
+          throw defaultGlobalRule.error
+        }
+
+        this.logger.info(`Created default "global" indexing rule`, {
+          rule: defaultGlobalRule.data.setIndexingRule,
+        })
+      }
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE017, error)
+      this.logger.warn('Failed to ensure default "global" indexing rule', {
+        err,
+      })
+      throw err
+    }
+  }
+
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
     if (allocations.length > 0) {
       this.logger.info(`Claim rebate rewards`, {
@@ -501,17 +645,9 @@ export class Agent {
     const protocolNetwork = this.network.networkMonitor.networkCAIPID
 
     const alreadyProcessed = (
-      await this.indexer.fetchPOIDisputes(
-        'potential',
-        disputableEpoch,
-        protocolNetwork,
-      )
+      await this.fetchPOIDisputes('potential', disputableEpoch, protocolNetwork)
     ).concat(
-      await this.indexer.fetchPOIDisputes(
-        'valid',
-        disputableEpoch,
-        protocolNetwork,
-      ),
+      await this.fetchPOIDisputes('valid', disputableEpoch, protocolNetwork),
     )
 
     const newDisputableAllocations = disputableAllocations.filter(
@@ -552,18 +688,19 @@ export class Agent {
               pool.previousEpochStartBlockHash!,
             )
           pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
-          pool.referencePOI = await this.indexer.statusResolver.proofOfIndexing(
-            pool.subgraphDeployment,
-            {
-              number: closedAtEpochStartBlock.number,
-              hash: closedAtEpochStartBlock.hash,
-            },
-            pool.allocationIndexer,
-          )
+          pool.referencePOI =
+            await this.graphNode.statusResolver.proofOfIndexing(
+              pool.subgraphDeployment,
+              {
+                number: closedAtEpochStartBlock.number,
+                hash: closedAtEpochStartBlock.hash,
+              },
+              pool.allocationIndexer,
+            )
           pool.previousEpochStartBlockHash = previousEpochStartBlock.hash
           pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
           pool.referencePreviousPOI =
-            await this.indexer.statusResolver.proofOfIndexing(
+            await this.graphNode.statusResolver.proofOfIndexing(
               pool.subgraphDeployment,
               {
                 number: previousEpochStartBlock.number,
@@ -626,7 +763,7 @@ export class Agent {
     const potentialDisputes = disputes.filter(
       dispute => dispute.status == 'potential',
     ).length
-    const stored = await this.indexer.storePoiDisputes(disputes)
+    const stored = await this.storePoiDisputes(disputes)
 
     this.logger.info(`Disputable allocations' POIs validated`, {
       potentialDisputes: potentialDisputes,
@@ -713,13 +850,13 @@ export class Agent {
         // Ensure the deployment is deployed to the indexer
         // Note: we're not waiting here, as sometimes indexing a subgraph
         // will block if the IPFS files cannot be retrieved
-        this.indexer.ensure(name, deployment)
+        this.graphNode.ensure(name, deployment)
       }),
     )
 
     // Stop indexing deployments that are no longer worth indexing
     await queue.addAll(
-      remove.map(deployment => async () => this.indexer.remove(deployment)),
+      remove.map(deployment => async () => this.graphNode.remove(deployment)),
     )
 
     await queue.onIdle()
@@ -768,6 +905,199 @@ export class Agent {
     )
     return expiredAllocations
   }
+
+  async fetchActions(actionFilter: ActionFilter): Promise<ActionResult[]> {
+    const result = await this.indexerManagement
+      .query(
+        gql`
+          query actions($filter: ActionFilter!) {
+            actions(filter: $filter) {
+              id
+              type
+              allocationID
+              deploymentID
+              amount
+              poi
+              force
+              source
+              reason
+              priority
+              transaction
+              status
+              failureReason
+            }
+          }
+        `,
+        { filter: actionFilter },
+      )
+      .toPromise()
+
+    if (result.error) {
+      throw result.error
+    }
+
+    return result.data.actions
+  }
+
+  async queueAction(action: ActionItem): Promise<Action[]> {
+    let status = ActionStatus.QUEUED
+    switch (
+      // TODO:L2: Perform this procedure for all configured networks, not just one
+      this.network.specification.indexerOptions.allocationManagementMode
+    ) {
+      case AllocationManagementMode.MANUAL:
+        throw Error(
+          `Cannot queue actions when AllocationManagementMode = 'MANUAL'`,
+        )
+      case AllocationManagementMode.AUTO:
+        status = ActionStatus.APPROVED
+        break
+      case AllocationManagementMode.OVERSIGHT:
+        status = ActionStatus.QUEUED
+    }
+
+    const actionInput = {
+      ...action.params,
+      status,
+      type: action.type,
+      source: 'indexerAgent',
+      reason: action.reason,
+      priority: 0,
+    } as ActionInput
+
+    const actionResult = await this.indexerManagement
+      .mutation(
+        gql`
+          mutation queueActions($actions: [ActionInput!]!) {
+            queueActions(actions: $actions) {
+              id
+              type
+              deploymentID
+              source
+              reason
+              priority
+              status
+            }
+          }
+        `,
+        { actions: [actionInput] },
+      )
+      .toPromise()
+
+    if (actionResult.error) {
+      if (
+        actionResult.error instanceof CombinedError &&
+        actionResult.error.message.includes('Duplicate')
+      ) {
+        this.logger.warn(
+          `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
+          { action },
+        )
+        return []
+      }
+      throw actionResult.error
+    }
+
+    if (actionResult.data.queueActions.length > 0) {
+      this.logger.info(`Queued ${action.type} action for execution`, {
+        queuedAction: actionResult.data.queueActions,
+      })
+    }
+
+    return actionResult.data.queueActions
+  }
+
+  // TODO:L2: This procedure is network-specific. Put this method in the Network class
+  async createAllocation(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    mostRecentlyClosedAllocation: Allocation,
+  ): Promise<void> {
+    const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
+      ?.allocationAmount
+      ? BigNumber.from(
+          deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
+        )
+      : // TODO:L2: Perform this procedure for all configured networks, not just one
+        this.network.specification.indexerOptions.defaultAllocationAmount
+
+    logger.info(`No active allocation for deployment, creating one now`, {
+      allocationAmount: formatGRT(desiredAllocationAmount),
+    })
+
+    // Skip allocating if the previous allocation for this deployment was closed with 0x00 POI but rules set to un-safe
+    if (
+      deploymentAllocationDecision.ruleMatch.rule?.safety &&
+      mostRecentlyClosedAllocation &&
+      mostRecentlyClosedAllocation.poi === utils.hexlify(Array(32).fill(0))
+    ) {
+      logger.warn(
+        `Skipping allocation to this deployment as the last allocation to it was closed with a zero POI`,
+        {
+          notSafe: !deploymentAllocationDecision.ruleMatch.rule?.safety,
+          deployment: deploymentAllocationDecision.deployment,
+          closedAllocation: mostRecentlyClosedAllocation.id,
+        },
+      )
+      return
+    }
+
+    // Send AllocateAction to the queue
+    await this.queueAction({
+      params: {
+        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+        amount: formatGRT(desiredAllocationAmount),
+      },
+      type: ActionType.ALLOCATE,
+      reason: deploymentAllocationDecision.reasonString(),
+      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+    })
+
+    return
+  }
+
+  // TODO:L2: This procedure is network-specific. Put this method in the Network class
+  async closeEligibleAllocations(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    activeDeploymentAllocations: Allocation[],
+    epoch: number,
+  ): Promise<void> {
+    const activeDeploymentAllocationsEligibleForClose =
+      activeDeploymentAllocations
+        .filter(allocation => allocation.createdAtEpoch < epoch)
+        .map(allocation => allocation.id)
+    // Make sure to close all active allocations on the way out
+    if (activeDeploymentAllocationsEligibleForClose.length > 0) {
+      logger.info(
+        `Deployment is not (or no longer) worth allocating towards, close allocation`,
+        {
+          eligibleForClose: activeDeploymentAllocationsEligibleForClose,
+        },
+      )
+      await pMap(
+        // We can only close allocations from a previous epoch;
+        // try the others again later
+        activeDeploymentAllocationsEligibleForClose,
+        async allocation => {
+          // Send unallocate action to the queue
+          await this.queueAction({
+            params: {
+              allocationID: allocation,
+              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+              poi: undefined,
+              force: false,
+            },
+            type: ActionType.UNALLOCATE,
+            reason: deploymentAllocationDecision.reasonString(),
+            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+          } as ActionItem)
+        },
+        { concurrency: 1 },
+      )
+    }
+  }
+
   async reconcileDeploymentAllocationAction(
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
@@ -791,7 +1121,7 @@ export class Agent {
 
     switch (deploymentAllocationDecision.toAllocate) {
       case false:
-        return await this.indexer.closeEligibleAllocations(
+        return await this.closeEligibleAllocations(
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
@@ -800,7 +1130,7 @@ export class Agent {
       case true: {
         // If no active allocations, create one
         if (activeDeploymentAllocations.length === 0) {
-          return await this.indexer.createAllocation(
+          return await this.createAllocation(
             logger,
             deploymentAllocationDecision,
             (
@@ -820,13 +1150,174 @@ export class Agent {
           maxAllocationEpochs,
         )
         if (expiringAllocations.length > 0) {
-          await this.indexer.refreshExpiredAllocations(
+          await this.refreshExpiredAllocations(
             logger,
             deploymentAllocationDecision,
             expiringAllocations,
           )
         }
       }
+    }
+  }
+
+  // TODO:L2: This procedure is network-specific. Put this method in the Network class
+  async refreshExpiredAllocations(
+    logger: Logger,
+    deploymentAllocationDecision: AllocationDecision,
+    expiredAllocations: Allocation[],
+  ): Promise<void> {
+    if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
+      logger.info(`Reallocating expired allocations`, {
+        number: expiredAllocations.length,
+        expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+      })
+
+      const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch
+        .rule?.allocationAmount
+        ? BigNumber.from(
+            deploymentAllocationDecision.ruleMatch.rule.allocationAmount,
+          )
+        : // TODO:L2: Perform this procedure for all configured networks, not just one
+          this.network.specification.indexerOptions.defaultAllocationAmount
+
+      // Queue reallocate actions to be picked up by the worker
+      await pMap(expiredAllocations, async allocation => {
+        await this.queueAction({
+          params: {
+            allocationID: allocation.id,
+            deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+            amount: formatGRT(desiredAllocationAmount),
+          },
+          type: ActionType.REALLOCATE,
+          reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+          protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+        })
+      })
+    } else {
+      logger.info(
+        `Skipping reallocating expired allocation since the corresponding rule has 'autoRenewal' = False`,
+        {
+          number: expiredAllocations.length,
+          expiredAllocations: expiredAllocations.map(
+            allocation => allocation.id,
+          ),
+        },
+      )
+    }
+    return
+  }
+
+  // TODO:L2: This procedure is network-specific. Put this method in the Network class
+  async storePoiDisputes(
+    disputes: POIDisputeAttributes[],
+  ): Promise<POIDisputeAttributes[]> {
+    try {
+      const result = await this.indexerManagement
+        .mutation(
+          gql`
+            mutation storeDisputes($disputes: [POIDisputeInput!]!) {
+              storeDisputes(disputes: $disputes) {
+                allocationID
+                subgraphDeploymentID
+                allocationIndexer
+                allocationAmount
+                allocationProof
+                closedEpoch
+                closedEpochStartBlockHash
+                closedEpochStartBlockNumber
+                closedEpochReferenceProof
+                previousEpochStartBlockHash
+                previousEpochStartBlockNumber
+                previousEpochReferenceProof
+                status
+                protocolNetwork
+              }
+            }
+          `,
+          { disputes: disputes },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return result.data.storeDisputes.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (dispute: Record<string, any>) => {
+          return disputeFromGraphQL(dispute)
+        },
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE039, error)
+      this.logger.error('Failed to store potential POI disputes', {
+        err,
+      })
+      throw err
+    }
+  }
+
+  // TODO:L2: This procedure is network-specific. Put this method in the Network class
+  async fetchPOIDisputes(
+    status: string,
+    minClosedEpoch: number,
+    protocolNetwork: string | undefined,
+  ): Promise<POIDisputeAttributes[]> {
+    try {
+      const result = await this.indexerManagement
+        .query(
+          gql`
+            query disputes(
+              $status: String!
+              $minClosedEpoch: Int!
+              $protocolNetwork: String
+            ) {
+              disputes(
+                status: $status
+                minClosedEpoch: $minClosedEpoch
+                protocolNetwork: $protocolNetwork
+              ) {
+                allocationID
+                subgraphDeploymentID
+                allocationIndexer
+                allocationAmount
+                allocationProof
+                closedEpoch
+                closedEpochStartBlockHash
+                closedEpochStartBlockNumber
+                closedEpochReferenceProof
+                previousEpochStartBlockHash
+                previousEpochStartBlockNumber
+                previousEpochReferenceProof
+                status
+                protocolNetwork
+              }
+            }
+          `,
+          {
+            status,
+            minClosedEpoch,
+            protocolNetwork,
+          },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return result.data.disputes.map(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (dispute: Record<string, any>) => {
+          return disputeFromGraphQL(dispute)
+        },
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE039, error)
+      this.logger.error('Failed to store potential POI disputes', {
+        err,
+      })
+      throw err
     }
   }
 
@@ -837,7 +1328,9 @@ export class Agent {
     maxAllocationEpochs: number,
   ): Promise<void> {
     if (
-      this.indexer.allocationManagementMode == AllocationManagementMode.MANUAL
+      // TODO:L2: Perform this procedure for all configured networks, not just one
+      this.network.specification.indexerOptions.allocationManagementMode ==
+      AllocationManagementMode.MANUAL
     ) {
       this.logger.trace(
         `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
@@ -891,4 +1384,46 @@ export class Agent {
       )
     })
   }
+}
+
+// --------------------------------------------------------------------------------
+// * DISPUTES
+// --------------------------------------------------------------------------------
+const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
+  keyof POIDisputeAttributes,
+  (x: never) => string | BigNumber | number | null
+> = {
+  allocationID: x => x,
+  subgraphDeploymentID: x => x,
+  allocationIndexer: x => x,
+  allocationAmount: x => x,
+  allocationProof: x => x,
+  closedEpoch: x => +x,
+  closedEpochStartBlockHash: x => x,
+  closedEpochStartBlockNumber: x => +x,
+  closedEpochReferenceProof: x => x,
+  previousEpochStartBlockHash: x => x,
+  previousEpochStartBlockNumber: x => +x,
+  previousEpochReferenceProof: x => x,
+  status: x => x,
+  protocolNetwork: x => x,
+}
+
+/**
+ * Parses a POI dispute returned from the indexer management GraphQL
+ * API into normalized form.
+ */
+const disputeFromGraphQL = (
+  dispute: Partial<POIDisputeAttributes>,
+): POIDisputeAttributes => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = {} as any
+  for (const [key, value] of Object.entries(dispute)) {
+    if (key === '__typename') {
+      continue
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    obj[key] = (POI_DISPUTES_CONVERTERS_FROM_GRAPHQL as any)[key](value)
+  }
+  return obj as POIDisputeAttributes
 }

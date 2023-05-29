@@ -19,7 +19,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { BigNumber, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
-import { Indexer } from '../indexer'
+import { GraphNode } from '../indexer'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
@@ -112,7 +112,7 @@ let address: string
 let contracts: NetworkContracts
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
-let indexer: Indexer
+let indexer: GraphNode
 
 const setup = async () => {
   logger = createLogger({
@@ -162,7 +162,7 @@ const setup = async () => {
     },
   })
 
-  indexer = new Indexer(
+  indexer = new GraphNode(
     logger,
     'test',
     indexingStatusResolver,
