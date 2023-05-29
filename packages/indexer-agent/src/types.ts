@@ -3,8 +3,8 @@ import {
   Network,
   NetworkSubgraph,
   ReceiptCollector,
+  GraphNode,
 } from '@graphprotocol/indexer-common'
-import { GraphNode } from './graph-node'
 import { NetworkMonitor } from '@graphprotocol/indexer-common'
 
 export interface AgentConfig {

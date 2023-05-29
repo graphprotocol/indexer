@@ -25,8 +25,8 @@ import {
   SubgraphIdentifierType,
   evaluateDeployments,
   AllocationDecision,
+  GraphNode,
 } from '@graphprotocol/indexer-common'
-import { GraphNode } from './graph-node'
 import { Operator } from './operator'
 
 import PQueue from 'p-queue'
