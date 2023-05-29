@@ -386,15 +386,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Metrics Server
   // --------------------------------------------------------------------------------
-  /* Currently in use by:
-   - Network Provider
-   - Network
-   - Allocation Receipt Collector
-   - ETH Balance Monitor
-   - Cost Model Automation
-   - The Agent itself
-  */
-  // Spin up a metrics server
   const metrics = createMetrics()
   createMetricsServer({
     logger: logger.child({ component: 'MetricsServer' }),
@@ -506,7 +497,7 @@ async function _oldHandler(
     metrics,
   )
   logger.info('Successfully connected to network', {
-    // QUESTION: Why do we (only) log this?
+    // QUESTION: Why do we (only) log this restakeRewards field?
     restakeRewards: networkSpecification.indexerOptions.restakeRewards,
   })
 
@@ -514,8 +505,6 @@ async function _oldHandler(
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
   logger.info('Launch indexer management API server')
-
-  // * Indexer Management Client
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     address: networkSpecification.indexerOptions.address,
@@ -716,6 +705,8 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   }
 }
 
+// Retrieves the netowrk identifier in contexts where we haven't yet instantiated the JSON
+// RPC Provider, which has additional and more complex dependencies.
 async function fetchChainId(url: string): Promise<number> {
   const payload = {
     jsonrpc: '2.0',
