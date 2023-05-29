@@ -17,7 +17,7 @@
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
     "start": "node ./dist/index.js start",
-    "test": "jest --colors --verbose",
+    "test": "jest --colors --verbose --detectOpenHandles",
     "test:ci": "jest --verbose --ci",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
     "migrator:pending": "node src/db/cli/migrator pending",
