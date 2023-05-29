@@ -427,23 +427,6 @@ async function _oldHandler(
   const networkChainId = resolveChainId(networkMeta.chainId)
 
   // --------------------------------------------------------------------------------
-  // * Network
-  // --------------------------------------------------------------------------------
-  logger.info('Connect to network')
-
-  const network = await Network.create(
-    logger,
-    networkSpecification,
-    argv.graphNodeQueryEndpoint,
-    argv.graphNodeStatusEndpoint,
-    metrics,
-  )
-  logger.info('Successfully connected to network', {
-    // QUESTION: Why do we (only) log this?
-    restakeRewards: networkSpecification.indexerOptions.restakeRewards,
-  })
-
-  // --------------------------------------------------------------------------------
   // * Database - Connection
   // --------------------------------------------------------------------------------
   logger.info('Connect to database', {
@@ -483,7 +466,6 @@ async function _oldHandler(
         logger,
         indexingStatusResolver,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-        networkMonitor: network.networkMonitor,
         networkChainId,
       },
       storage: new SequelizeStorage({ sequelize }),
@@ -509,6 +491,24 @@ async function _oldHandler(
   const queryFeeModels = defineQueryFeeModels(sequelize)
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
+
+  // --------------------------------------------------------------------------------
+  // * Network
+  // --------------------------------------------------------------------------------
+  logger.info('Connect to network')
+
+  const network = await Network.create(
+    logger,
+    networkSpecification,
+    queryFeeModels,
+    argv.graphNodeQueryEndpoint,
+    argv.graphNodeStatusEndpoint,
+    metrics,
+  )
+  logger.info('Successfully connected to network', {
+    // QUESTION: Why do we (only) log this?
+    restakeRewards: networkSpecification.indexerOptions.restakeRewards,
+  })
 
   // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
