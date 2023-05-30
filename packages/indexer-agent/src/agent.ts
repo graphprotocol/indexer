@@ -27,6 +27,7 @@ import {
   AllocationDecision,
   GraphNode,
   Operator,
+  validateProviderNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -154,6 +155,11 @@ export class Agent {
     // * Ensure there is a 'global' indexing rule
     // --------------------------------------------------------------------------------
     await this.operator.ensureGlobalIndexingRule()
+
+    // --------------------------------------------------------------------------------
+    // * Ensure NetworkSubgraph is indexing
+    // --------------------------------------------------------------------------------
+    await this.ensureNetworkSubgraphIsIndexing()
 
     // --------------------------------------------------------------------------------
     // * Register the Indexer in the Network
@@ -485,6 +491,7 @@ export class Agent {
     )
   }
 
+  // TODO: Move this to the Operator class
   async claimRebateRewards(allocations: Allocation[]): Promise<void> {
     if (allocations.length > 0) {
       this.logger.info(`Claim rebate rewards`, {
@@ -898,5 +905,37 @@ export class Agent {
         maxAllocationEpochs,
       )
     })
+  }
+
+  // TODO:L2: Perform this procedure for all configured networks, not just one
+  async ensureNetworkSubgraphIsIndexing() {
+    if (
+      this.network.specification.subgraphs.networkSubgraph.deployment !==
+      undefined
+    ) {
+      // Make sure the network subgraph is being indexed
+      await this.graphNode.ensure(
+        `indexer-agent/${this.network.specification.subgraphs.networkSubgraph.deployment.slice(
+          -10,
+        )}`,
+        new SubgraphDeploymentID(
+          this.network.specification.subgraphs.networkSubgraph.deployment,
+        ),
+      )
+
+      // Validate if the Network Subgraph belongs to the current provider's network.
+      // This check must be performed after we ensure the Network Subgraph is being indexed.
+      try {
+        await validateProviderNetworkIdentifier(
+          this.network.specification.networkIdentifier,
+          this.network.specification.subgraphs.networkSubgraph.deployment,
+          this.graphNode,
+          this.logger,
+        )
+      } catch (e) {
+        this.logger.critical('Failed to validate Network Subgraph. Exiting.', e)
+        process.exit(1)
+      }
+    }
   }
 }

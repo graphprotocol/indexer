@@ -25,7 +25,7 @@ import {
   NetworkSubgraph,
   registerIndexerErrorMetrics,
   resolveChainId,
-  validateNetworkId,
+  validateProviderNetworkIdentifier,
   validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 
@@ -313,13 +313,18 @@ export default {
       argv.ethereumPollingInterval,
     )
     const network = await networkProvider.getNetwork()
+    const protocolNetwork = resolveChainId(network.chainId)
 
     // If the network subgraph deployment is present, validate if the `chainId` we get from our
     // provider is consistent.
     if (argv.networkSubgraphDeployment) {
-      validateNetworkId(network, argv.networkSubgraphDeployment, graphNode, logger)
+      validateProviderNetworkIdentifier(
+        protocolNetwork,
+        argv.networkSubgraphDeployment,
+        graphNode,
+        logger,
+      )
     }
-    const protocolNetwork = resolveChainId(network.chainId)
 
     logger.info('Connect to contracts', {
       network: network.name,

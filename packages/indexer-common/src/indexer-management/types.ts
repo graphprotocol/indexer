@@ -237,8 +237,8 @@ export function resolveChainAlias(id: string): string {
 
 // Compares the CAIP-2 chain ID between the Ethereum provider and the Network Subgraph and requires
 // they are equal.
-export async function validateNetworkId(
-  providerNetwork: NetworkMetadata,
+export async function validateProviderNetworkIdentifier(
+  providerNetworkIdentifier: string,
   networkSubgraphDeploymentIpfsHash: string,
   graphNode: GraphNode,
   logger: Logger,
@@ -255,7 +255,7 @@ export async function validateNetworkId(
     throw new Error(errorMsg)
   }
 
-  const providerChainId = resolveChainId(providerNetwork.chainId)
+  const providerChainId = resolveChainId(providerNetworkIdentifier)
   const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
   if (providerChainId !== networkSubgraphChainId) {
     const errorMsg =
