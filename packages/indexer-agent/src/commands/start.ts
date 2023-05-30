@@ -23,7 +23,7 @@ import {
   Operator,
   registerIndexerErrorMetrics,
   resolveChainId,
-  validateNetworkId,
+  validateProviderNetworkIdentifier,
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
@@ -542,34 +542,6 @@ async function _oldHandler(
     port: argv.indexerManagementPort,
   })
   logger.info(`Successfully launched indexer management API server`)
-
-  // * Index the Network Subgraph
-  // TODO: put this routine inside the Indexer class
-  if (networkSpecification.subgraphs.networkSubgraph.deployment !== undefined) {
-    // Make sure the network subgraph is being indexed
-    await graphNode.ensure(
-      `indexer-agent/${networkSpecification.subgraphs.networkSubgraph.deployment.slice(
-        -10,
-      )}`,
-      new SubgraphDeploymentID(
-        networkSpecification.subgraphs.networkSubgraph.deployment,
-      ),
-    )
-
-    // Validate if the Network Subgraph belongs to the current provider's network.
-    // This check must be performed after we ensure the Network Subgraph is being indexed.
-    try {
-      await validateNetworkId(
-        networkMeta,
-        networkSpecification.subgraphs.networkSubgraph.deployment,
-        graphNode,
-        logger,
-      )
-    } catch (e) {
-      logger.critical('Failed to validate Network Subgraph. Exiting.', e)
-      process.exit(1)
-    }
-  }
 
   // --------------------------------------------------------------------------------
   // * Syncing Server
