@@ -33,6 +33,7 @@ import {
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
+import isEqual from 'lodash.isequal'
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -646,6 +647,9 @@ export class Agent {
     })
   }
 
+  // Note regarding multi-network operation: The code provided here assumes that the
+  // deployments passed to this function have already been evaluated to account for
+  // allocations across multiple networks.
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
@@ -653,20 +657,17 @@ export class Agent {
   ): Promise<void> {
     activeDeployments = uniqueDeployments(activeDeployments)
     targetDeployments = uniqueDeployments(targetDeployments)
-    // Note eligibleAllocations are active or recently closed allocations still eligible for queries from the gateway
+    // Note eligibleAllocations are active or recently closed allocations still eligible
+    // for queries from the gateway
     const eligibleAllocationDeployments = uniqueDeployments(
       eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
     )
 
     // Ensure the network subgraph deployment is _always_ indexed
     if (this.network.networkSubgraph.deployment) {
-      if (
-        !deploymentInList(
-          targetDeployments,
-          this.network.networkSubgraph.deployment.id,
-        )
-      ) {
-        targetDeployments.push(this.network.networkSubgraph.deployment.id)
+      const networkDeploymentID = this.network.networkSubgraph.deployment.id
+      if (!deploymentInList(targetDeployments, networkDeploymentID)) {
+        targetDeployments.push(networkDeploymentID)
       }
     }
 
@@ -677,12 +678,13 @@ export class Agent {
       }
     }
 
-    // only show Reconcile when active ids != target ids
-    // TODO: Fix this check, always returning true
-    if (
-      deploymentIDSet(activeDeployments) != deploymentIDSet(targetDeployments)
-    ) {
-      // Turning to trace until the above conditional is fixed
+    // Log details if active deployments are different from target deployments
+    const isReconciliationNeeded = !isEqual(
+      deploymentIDSet(activeDeployments),
+      deploymentIDSet(targetDeployments),
+    )
+    // QUESTION: should we return early in here case reconciliation is not needed?
+    if (isReconciliationNeeded) {
       this.logger.debug('Reconcile deployments', {
         syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
@@ -702,6 +704,8 @@ export class Agent {
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
+    // QUESTION: Same as before: should we return early in here case reconciliation is
+    // not needed?
     if (deploy.length + remove.length !== 0) {
       this.logger.info('Deployment changes', {
         deploy: deploy.map(id => id.display),
