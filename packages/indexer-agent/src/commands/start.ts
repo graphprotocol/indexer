@@ -332,8 +332,8 @@ export async function createNetworkSpecification(
     url: argv.networkProvider,
   }
 
-  // TODO: We can't infer the network identifier, so we must ask the
-  // configured JSON RPC provider for its `chainID`.
+  // Since we can't infer the network identifier, we must ask the configured
+  // JSON RPC provider for its `chainID`.
   const chainId = await fetchChainId(networkProvider.url)
   const networkIdentifier = resolveChainId(chainId)
 
@@ -369,7 +369,8 @@ async function _oldHandler(
   reviewArgumentsForWarnings(argv, logger)
 
   // --------------------------------------------------------------------------------
-  // * NodeJS process stuff
+  // * Configure event  listeners for unhandled promise  rejections and uncaught
+  // exceptions.
   // --------------------------------------------------------------------------------
   process.on('unhandledRejection', err => {
     logger.warn(`Unhandled promise rejection`, {
@@ -411,8 +412,7 @@ async function _oldHandler(
 
   // --------------------------------------------------------------------------------
   // * Graph Node
-  // --------------------------------------------------------------------------------
-
+  // ---------------------------------------------------------------- ----------------
   const graphNode = new GraphNode(
     logger,
     argv.graphNodeAdminEndpoint,
@@ -442,8 +442,6 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Database - Migrations
   // --------------------------------------------------------------------------------
-
-  // Automatic database migrations
   logger.info(`Run database migrations`)
 
   // If the application is being executed using ts-node __dirname may be in /src rather than /dist
