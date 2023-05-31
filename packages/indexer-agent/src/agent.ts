@@ -795,11 +795,14 @@ export class Agent {
       epoch,
     })
 
-    // Acuracy check: re-fetch allocations to ensure that we have a fresh state since the start of the reconciliation loop
+    // Acuracy check: re-fetch allocations to ensure that we have a fresh state since
+    // the start of the reconciliation loop
     const activeAllocations = await this.network.networkMonitor.allocations(
       AllocationStatus.ACTIVE,
     )
 
+    // QUESTION: Can we replace `filter` for `find` here? Is there such a case when we
+    // would have multiple allocations for the same subgraph?
     const activeDeploymentAllocations = activeAllocations.filter(
       allocation =>
         allocation.subgraphDeployment.id.bytes32 ===
@@ -817,14 +820,16 @@ export class Agent {
       case true: {
         // If no active allocations, create one
         if (activeDeploymentAllocations.length === 0) {
+          // Fetch the latest closed allocation, if any
+          const mostRecentlyClosedAllocation = (
+            await this.network.networkMonitor.closedAllocations(
+              deploymentAllocationDecision.deployment,
+            )
+          )[0]
           return await this.operator.createAllocation(
             logger,
             deploymentAllocationDecision,
-            (
-              await this.network.networkMonitor.closedAllocations(
-                deploymentAllocationDecision.deployment,
-              )
-            )[0],
+            mostRecentlyClosedAllocation,
           )
         }
 
@@ -871,16 +876,15 @@ export class Agent {
     }
 
     // Ensure the network subgraph is never allocated towards
+    const networkSubgraphDeployment = this.network.networkSubgraph.deployment
     if (
-      !this.network.specification.indexerOptions.allocateOnNetworkSubgraph &&
-      this.network.networkSubgraph.deployment?.id.bytes32
+      networkSubgraphDeployment &&
+      !this.network.specification.indexerOptions.allocateOnNetworkSubgraph
     ) {
-      const networkSubgraphDeploymentId =
-        this.network.networkSubgraph.deployment.id
       const networkSubgraphIndex =
         networkDeploymentAllocationDecisions.findIndex(
           decision =>
-            decision.deployment.bytes32 == networkSubgraphDeploymentId.bytes32,
+            decision.deployment.bytes32 == networkSubgraphDeployment.id.bytes32,
         )
       if (networkSubgraphIndex >= 0) {
         networkDeploymentAllocationDecisions[networkSubgraphIndex].toAllocate =

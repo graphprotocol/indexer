@@ -319,7 +319,7 @@ export class Operator {
   async createAllocation(
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
-    mostRecentlyClosedAllocation: Allocation,
+    mostRecentlyClosedAllocation: Allocation | undefined,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
