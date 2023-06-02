@@ -344,6 +344,13 @@ export class Network {
       geoHash,
     })
 
+    if (!this.specification.indexerOptions.register) {
+      logger.debug(
+        "Indexer was not registered because it was explicitly disabled in this Network's configuration.",
+      )
+      return
+    }
+
     await pRetry(
       async () => {
         try {
@@ -410,6 +417,24 @@ export class Network {
       },
       { retries: 5 } as pRetry.Options,
     )
+  }
+
+  async claimRebateRewards(allocations: Allocation[]): Promise<void> {
+    if (allocations.length > 0) {
+      this.logger.info(`Claim rebate rewards`, {
+        claimable: allocations.map((allocation) => ({
+          id: allocation.id,
+          deployment: allocation.subgraphDeployment.id.display,
+          createdAtEpoch: allocation.createdAtEpoch,
+          amount: allocation.queryFeeRebates,
+        })),
+      })
+      try {
+        await this.claimMany(allocations)
+      } catch (err) {
+        this.logger.warn(`Failed to claim rebate rewards`, { err })
+      }
+    }
   }
 
   async claimMany(allocations: Allocation[]): Promise<boolean> {
