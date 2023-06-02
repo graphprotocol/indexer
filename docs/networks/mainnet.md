@@ -103,7 +103,7 @@ upgrade window: 795
 | eip155:42220             | celo         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:43114             | avalanche    | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:250               | fantom       | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:137               | polygon      | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:137               | matic        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features** |              |             |              |                   |                      |                  |
 | ipfs.cat in mappings     |              | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |              | Yes         | Yes          | No                | No                   | No               |
