@@ -23,7 +23,6 @@ import {
   Operator,
   registerIndexerErrorMetrics,
   resolveChainId,
-  validateProviderNetworkIdentifier,
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
@@ -582,9 +581,9 @@ async function _oldHandler(
     logger,
     metrics,
     graphNode,
-    operator,
+    [operator],
     indexerManagementClient,
-    network,
+    [network],
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
   )
   await agent.start()
