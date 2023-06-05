@@ -36,6 +36,7 @@ import pMap from 'p-map'
 import pFilter from 'p-filter'
 import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
+import isEmpty from 'lodash.isempty'
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -162,7 +163,9 @@ export class Agent {
     // --------------------------------------------------------------------------------
     // * Ensure NetworkSubgraph is indexing
     // --------------------------------------------------------------------------------
-    await this.ensureNetworkSubgraphIsIndexing()
+    await this.multiNetworks.mapNetworks(async (network: Network) =>
+      this.ensureNetworkSubgraphIsIndexing(network),
+    )
 
     // --------------------------------------------------------------------------------
     // * Register the Indexer in the Network
@@ -287,7 +290,7 @@ export class Agent {
       indexingRules,
     }).tryMap(
       ({ indexingRules, networkDeployments }) => {
-        const rulesAndDeploymentsByNetwork = this.multiNetworks.zipNetworkMaps(
+        const rulesAndDeploymentsByNetwork = this.multiNetworks.zip(
           indexingRules,
           networkDeployments,
         )
@@ -418,7 +421,7 @@ export class Agent {
       channelDisputeEpochs,
     }).tryMap(
       async ({ currentEpochNumber, channelDisputeEpochs }) => {
-        const zipped = this.multiNetworks.zipNetworkMaps(
+        const zipped = this.multiNetworks.zip(
           currentEpochNumber,
           channelDisputeEpochs,
         )
@@ -512,7 +515,7 @@ export class Agent {
           )
 
           // Find disputable allocations
-          const zipped = this.multiNetworks.zipNetworkMaps(
+          const zipped = this.multiNetworks.zip(
             disputableEpochs,
             disputableAllocations,
           )
@@ -533,12 +536,17 @@ export class Agent {
           this.logger.warn(`Failed POI dispute monitoring`, { err })
         }
 
+        const eligibleAllocations: Allocation[] = [
+          ...recentlyClosedAllocations,
+          ...Object.values(activeAllocations).flat(),
+        ]
+
         try {
           // Reconcile deployments
           await this.reconcileDeployments(
             activeDeployments,
             targetDeployments,
-            [...recentlyClosedAllocations, ...activeAllocations],
+            eligibleAllocations,
           )
 
           // Reconcile allocation actions
@@ -702,45 +710,50 @@ export class Agent {
     })
   }
 
-  // Note regarding multi-network operation: The code provided here assumes that the
-  // deployments passed to this function have already been evaluated to account for
-  // allocations across multiple networks.
+  // This function assumes that allocations and deployments passed to it have already
+  // been retrieved from multiple networks.
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
     eligibleAllocations: Allocation[],
-    network: Network,
   ): Promise<void> {
-    activeDeployments = uniqueDeployments(activeDeployments)
-    targetDeployments = uniqueDeployments(targetDeployments)
-    // Note eligibleAllocations are active or recently closed allocations still eligible
-    // for queries from the gateway
-    const eligibleAllocationDeployments = uniqueDeployments(
-      eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
-    )
-
+    // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
-    if (network.networkSubgraph.deployment) {
-      const networkDeploymentID = network.networkSubgraph.deployment.id
-      if (!deploymentInList(targetDeployments, networkDeploymentID)) {
-        targetDeployments.push(networkDeploymentID)
+    // ----------------------------------------------------------------------------------------
+    this.multiNetworks.mapNetworks(async (n: Network) => {
+      if (n.networkSubgraph.deployment) {
+        const networkDeploymentID = n.networkSubgraph.deployment.id
+        if (!deploymentInList(targetDeployments, networkDeploymentID)) {
+          targetDeployments.push(networkDeploymentID)
+        }
       }
-    }
+    })
 
+    // ----------------------------------------------------------------------------------------
+    // Inspect Deployments and Networks
+    // ----------------------------------------------------------------------------------------
     // Ensure all subgraphs in offchain subgraphs list are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
         targetDeployments.push(offchainSubgraph)
       }
     }
+    activeDeployments = uniqueDeployments(activeDeployments)
+    targetDeployments = uniqueDeployments(targetDeployments)
+
+    // Note eligibleAllocations are active or recently closed allocations still eligible
+    // for queries from the gateway
+    const eligibleAllocationDeployments = uniqueDeployments(
+      eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
+    )
 
     // Log details if active deployments are different from target deployments
     const isReconciliationNeeded = !isEqual(
       deploymentIDSet(activeDeployments),
       deploymentIDSet(targetDeployments),
     )
-    // QUESTION: should we return early in here case reconciliation is not needed?
     if (isReconciliationNeeded) {
+      // QUESTION: should we return early in here case reconciliation is not needed?
       this.logger.debug('Reconcile deployments', {
         syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
@@ -768,6 +781,10 @@ export class Agent {
         remove: remove.map(id => id.display),
       })
     }
+
+    // ----------------------------------------------------------------------------------------
+    // Execute Deployments (Add, Remove)
+    // ----------------------------------------------------------------------------------------
 
     // Deploy/remove up to 10 subgraphs in parallel
     const queue = new PQueue({ concurrency: 10 })
@@ -803,6 +820,7 @@ export class Agent {
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
     maxAllocationEpochs: number,
+    network: Network,
   ): Promise<Allocation[]> {
     const desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
       .rule?.allocationLifetime
@@ -823,9 +841,7 @@ export class Agent {
       async (allocation: Allocation) => {
         try {
           const onChainAllocation =
-            await this.multiNetworks.contracts.staking.getAllocation(
-              allocation.id,
-            )
+            await network.contracts.staking.getAllocation(allocation.id)
           return onChainAllocation.closedAtEpoch.eq('0')
         } catch (err) {
           this.logger.warn(
@@ -847,6 +863,8 @@ export class Agent {
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
     maxAllocationEpochs: number,
+    network: Network,
+    operator: Operator,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -871,7 +889,7 @@ export class Agent {
 
     switch (deploymentAllocationDecision.toAllocate) {
       case false:
-        return await this.operator.closeEligibleAllocations(
+        return await operator.closeEligibleAllocations(
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
@@ -882,11 +900,11 @@ export class Agent {
         if (activeDeploymentAllocations.length === 0) {
           // Fetch the latest closed allocation, if any
           const mostRecentlyClosedAllocation = (
-            await this.multiNetworks.networkMonitor.closedAllocations(
+            await network.networkMonitor.closedAllocations(
               deploymentAllocationDecision.deployment,
             )
           )[0]
-          return await this.operator.createAllocation(
+          return await operator.createAllocation(
             logger,
             deploymentAllocationDecision,
             mostRecentlyClosedAllocation,
@@ -900,9 +918,10 @@ export class Agent {
           deploymentAllocationDecision,
           epoch,
           maxAllocationEpochs,
+          network,
         )
         if (expiringAllocations.length > 0) {
-          await this.operator.refreshExpiredAllocations(
+          await operator.refreshExpiredAllocations(
             logger,
             deploymentAllocationDecision,
             expiringAllocations,
@@ -912,83 +931,137 @@ export class Agent {
     }
   }
 
+  // QUESTION: the `activeAllocations` parameter is used only for logging. Should we
+  // remove it from this function?
   async reconcileActions(
-    networkDeploymentAllocationDecisions: AllocationDecision[],
-    activeAllocations: Allocation[],
-    epoch: number,
-    maxAllocationEpochs: number,
+    networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
+    activeAllocations: NetworkMapped<Allocation[]>,
+    epoch: NetworkMapped<number>,
+    maxAllocationEpochs: NetworkMapped<number>,
   ): Promise<void> {
-    if (
-      // TODO:L2: Perform this procedure for all configured networks, not just one
-      this.multiNetworks.specification.indexerOptions
-        .allocationManagementMode == AllocationManagementMode.MANUAL
-    ) {
-      this.logger.trace(
-        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-        {
-          activeAllocations,
-          targetDeployments: networkDeploymentAllocationDecisions
-            .filter(decision => decision.toAllocate)
-            .map(decision => decision.deployment.ipfsHash),
-        },
-      )
-      return
-    }
+    // ----------------------------------------------------------------------------------------
+    // Filter out networks set to `manual` allocation management mode
+    // ----------------------------------------------------------------------------------------
+    const manualModeNetworks = this.multiNetworks.mapNetworkMapped(
+      networkDeploymentAllocationDecisions,
+      async (network: Network, _: Operator, __: unknown) =>
+        network.specification.indexerOptions.allocationManagementMode ==
+        AllocationManagementMode.MANUAL,
+    )
 
-    // Ensure the network subgraph is never allocated towards
-    const networkSubgraphDeployment =
-      this.multiNetworks.networkSubgraph.deployment
-    if (
-      networkSubgraphDeployment &&
-      !this.multiNetworks.specification.indexerOptions.allocateOnNetworkSubgraph
-    ) {
-      const networkSubgraphIndex =
-        networkDeploymentAllocationDecisions.findIndex(
-          decision =>
-            decision.deployment.bytes32 == networkSubgraphDeployment.id.bytes32,
+    for (const [networkIdentifier, isManualMode] of Object.entries(
+      manualModeNetworks,
+    )) {
+      if (isManualMode) {
+        const allocationDecisions =
+          networkDeploymentAllocationDecisions[networkIdentifier]
+        this.logger.trace(
+          `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+          {
+            protocolNetwork: networkIdentifier,
+            activeAllocations,
+            targetDeployments: allocationDecisions
+              .filter(decision => decision.toAllocate)
+              .map(decision => decision.deployment.ipfsHash),
+          },
         )
-      if (networkSubgraphIndex >= 0) {
-        networkDeploymentAllocationDecisions[networkSubgraphIndex].toAllocate =
-          false
+        delete networkDeploymentAllocationDecisions[networkIdentifier]
       }
     }
 
-    this.logger.trace(`Reconcile allocation actions`, {
+    if (isEmpty(networkDeploymentAllocationDecisions)) {
+      return
+    }
+
+    // ----------------------------------------------------------------------------------------
+    // Ensure the network subgraph is NEVER allocated towards
+    // ----------------------------------------------------------------------------------------
+    const mutated = await this.multiNetworks.mapNetworkMapped(
+      networkDeploymentAllocationDecisions,
+      async (
+        n: Network,
+        _: Operator,
+        allocationDecisions: AllocationDecision[],
+      ) => {
+        const networkSubgraphDeployment = n.networkSubgraph.deployment
+        if (
+          networkSubgraphDeployment &&
+          !n.specification.indexerOptions.allocateOnNetworkSubgraph
+        ) {
+          // QUESTION: Could we just remove this allocation decision from the set?
+          const networkSubgraphIndex = allocationDecisions.findIndex(
+            decision =>
+              decision.deployment.bytes32 ==
+              networkSubgraphDeployment.id.bytes32,
+          )
+          if (networkSubgraphIndex >= 0) {
+            allocationDecisions[networkSubgraphIndex].toAllocate = false
+          }
+        }
+        return allocationDecisions
+      },
+    )
+
+    //----------------------------------------------------------------------------------------
+    // For every network, loop through all deployments and queue allocation actions if needed
+    //----------------------------------------------------------------------------------------
+    const zipped = this.multiNetworks.zip4(
+      mutated,
+      activeAllocations,
       epoch,
       maxAllocationEpochs,
-      targetDeployments: networkDeploymentAllocationDecisions
-        .filter(decision => decision.toAllocate)
-        .map(decision => decision.deployment.ipfsHash),
-      activeAllocations: activeAllocations.map(allocation => ({
-        id: allocation.id,
-        deployment: allocation.subgraphDeployment.id.ipfsHash,
-        createdAtEpoch: allocation.createdAtEpoch,
-      })),
-    })
+    )
+    await this.multiNetworks.mapNetworkMapped(
+      zipped,
+      async (
+        network: Network,
+        operator: Operator,
+        [allocationDecisions, activeAllocations, epoch, maxAllocationEpochs]: [
+          AllocationDecision[],
+          Allocation[],
+          number,
+          number,
+        ],
+      ) => {
+        this.logger.trace(`Reconcile allocation actions`, {
+          protocolNetwork: network.specification.networkIdentifier,
+          epoch,
+          maxAllocationEpochs,
+          targetDeployments: allocationDecisions
+            .filter(decision => decision.toAllocate)
+            .map(decision => decision.deployment.ipfsHash),
+          activeAllocations: activeAllocations.map(allocation => ({
+            id: allocation.id,
+            deployment: allocation.subgraphDeployment.id.ipfsHash,
+            createdAtEpoch: allocation.createdAtEpoch,
+          })),
+        })
 
-    // Loop through all deployments on network and queue allocation actions if needed
-    await pMap(networkDeploymentAllocationDecisions, async decision => {
-      await this.reconcileDeploymentAllocationAction(
-        decision,
-        epoch,
-        maxAllocationEpochs,
-      )
-    })
+        return pMap(allocationDecisions, async decision =>
+          this.reconcileDeploymentAllocationAction(
+            decision,
+            epoch,
+            maxAllocationEpochs,
+            network,
+            operator,
+          ),
+        )
+      },
+    )
   }
 
   // TODO:L2: Perform this procedure for all configured networks, not just one
-  async ensureNetworkSubgraphIsIndexing() {
+  async ensureNetworkSubgraphIsIndexing(network: Network) {
     if (
-      this.multiNetworks.specification.subgraphs.networkSubgraph.deployment !==
-      undefined
+      network.specification.subgraphs.networkSubgraph.deployment !== undefined
     ) {
       // Make sure the network subgraph is being indexed
       await this.graphNode.ensure(
-        `indexer-agent/${this.multiNetworks.specification.subgraphs.networkSubgraph.deployment.slice(
+        `indexer-agent/${network.specification.subgraphs.networkSubgraph.deployment.slice(
           -10,
         )}`,
         new SubgraphDeploymentID(
-          this.multiNetworks.specification.subgraphs.networkSubgraph.deployment,
+          network.specification.subgraphs.networkSubgraph.deployment,
         ),
       )
 
@@ -996,8 +1069,8 @@ export class Agent {
       // This check must be performed after we ensure the Network Subgraph is being indexed.
       try {
         await validateProviderNetworkIdentifier(
-          this.multiNetworks.specification.networkIdentifier,
-          this.multiNetworks.specification.subgraphs.networkSubgraph.deployment,
+          network.specification.networkIdentifier,
+          network.specification.subgraphs.networkSubgraph.deployment,
           this.graphNode,
           this.logger,
         )

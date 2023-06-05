@@ -77,13 +77,23 @@ export class MultiNetworks {
     )
   }
 
-  zipNetworkMaps<T, U>(
-    a: NetworkMapped<T>,
-    b: NetworkMapped<U>,
-  ): NetworkMapped<[T, U]> {
+  zip<T, U>(a: NetworkMapped<T>, b: NetworkMapped<U>): NetworkMapped<[T, U]> {
     const result = {} as NetworkMapped<[T, U]>
     for (const key in a) {
       result[key] = [a[key], b[key]]
+    }
+    return result
+  }
+
+  zip4<T, U, V, W>(
+    a: NetworkMapped<T>,
+    b: NetworkMapped<U>,
+    c: NetworkMapped<V>,
+    d: NetworkMapped<W>,
+  ): NetworkMapped<[T, U, V, W]> {
+    const result = {} as NetworkMapped<[T, U, V, W]>
+    for (const key in a) {
+      result[key] = [a[key], b[key], c[key], d[key]]
     }
     return result
   }
