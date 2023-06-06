@@ -3,13 +3,12 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { printObjectOrArray } from '../../../command-helpers'
-import { buildActionInput, queueActions, validateActionType } from '../../../actions'
 import {
-  ActionInput,
-  ActionStatus,
-  validateNetworkIdentifier,
-} from '@graphprotocol/indexer-common'
+  extractProtocolNetworkOption,
+  printObjectOrArray,
+} from '../../../command-helpers'
+import { buildActionInput, queueActions, validateActionType } from '../../../actions'
+import { ActionInput, ActionStatus } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -46,8 +45,7 @@ module.exports = {
     const defaultReason = 'manual'
     const defaultPriority = 0
 
-    const { h, help, o, output, s, source, r, reason, p, priority, n, network } =
-      parameters.options
+    const { h, help, o, output, s, source, r, reason, p, priority } = parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
@@ -71,10 +69,7 @@ module.exports = {
         )
       }
 
-      if (!n || !network) {
-        throw Error('The required `network` parameter was not present')
-      }
-      const networkIdentifier = validateNetworkIdentifier(n || network)
+      const networkIdentifier = extractProtocolNetworkOption(parameters.options)
 
       actionInputParams = await buildActionInput(
         validateActionType(type),

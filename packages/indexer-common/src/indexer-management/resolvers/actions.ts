@@ -325,6 +325,11 @@ export default {
 
 // Helper function to assess equality among a enqueued and a proposed actions
 function compareActions(enqueued: Action, proposed: ActionInput): boolean {
+  // actions are not the same if they target different protocol networks
+  if (enqueued.protocolNetwork !== proposed.protocolNetwork) {
+    return false
+  }
+
   // actions are not the same if they target different deployments
   if (enqueued.deploymentID !== proposed.deploymentID) {
     return false

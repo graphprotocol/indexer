@@ -329,7 +329,6 @@ export class AllocationManager {
     // Ensure subgraph is deployed before allocating
     await this.subgraphManager.ensure(
       logger,
-      this.models,
       `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
       deployment,
       indexNode,

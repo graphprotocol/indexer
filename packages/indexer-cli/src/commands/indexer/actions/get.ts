@@ -9,17 +9,19 @@ import {
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, printObjectOrArray } from '../../../command-helpers'
+import {
+  fixParameters,
+  printObjectOrArray,
+  extractProtocolNetworkOption,
+} from '../../../command-helpers'
 import { fetchAction, fetchActions } from '../../../actions'
 
 const HELP = `
 ${chalk.bold('graph indexer actions get')} [options]
-${chalk.bold('graph indexer allocations get')} [options] <action-id>
-${chalk.bold('graph indexer allocations get')} [options] all
-
 ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
+  -n, --network                                                     Filter by protocol network
       --type    allocate|unallocate|reallocate|collect              Filter by type
       --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
@@ -33,6 +35,7 @@ ${chalk.dim('Options:')}
 
 const actionFields: (keyof Action)[] = [
   'id',
+  'protocolNetwork',
   'type',
   'deploymentID',
   'allocationID',
@@ -86,6 +89,7 @@ module.exports = {
       first,
       fields,
     } = parameters.options
+    let protocolNetwork: string | undefined = undefined
 
     const [action] = fixParameters(parameters, { h, help }) || []
     let orderByParam = ActionParams.ID
@@ -125,9 +129,11 @@ module.exports = {
         if (action == 'all') {
           if (type || status || source || reason) {
             throw Error(
-              `Invalid query, cannot specify '--type', '--status', '--source' or '--reason' filters in addition to 'action = all'`,
+              `Invalid query, cannot specify '--type', '--status', '--source', or '--reason' filters in addition to 'action = all'`,
             )
           }
+        } else {
+          protocolNetwork = extractProtocolNetworkOption(parameters.options)
         }
       }
 
@@ -186,6 +192,7 @@ module.exports = {
             status,
             source,
             reason,
+            protocolNetwork,
           },
           first,
           orderByParam,

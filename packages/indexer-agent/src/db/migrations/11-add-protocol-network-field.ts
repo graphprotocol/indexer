@@ -24,18 +24,15 @@ interface MigrationTarget extends MigrationInput {
   newPrimaryKeyConstraint: string
 }
 
-type AddColumnTarget = Pick<MigrationTarget, 'table' | 'newColumn'>
-
 const defaults: Pick<MigrationTarget, 'newColumn'> = {
   newColumn: 'protocolNetwork',
 }
 
-const actionsTarget: AddColumnTarget = {
-  table: 'Actions',
-  ...defaults,
-}
-
 const migrationInputs: MigrationInput[] = [
+  {
+    table: 'Actions',
+    oldPrimaryKeyColumns: ['id'],
+  },
   {
     table: 'IndexingRules',
     oldPrimaryKeyColumns: ['identifier'],
@@ -73,8 +70,6 @@ export async function up({ context }: Context): Promise<void> {
   for (const input of migrationInputs) {
     await m.addPrimaryKeyMigration(input, networkChainId)
   }
-
-  await m.addColumnMigration(actionsTarget, networkChainId)
 }
 
 export async function down({ context }: Context): Promise<void> {
@@ -84,8 +79,6 @@ export async function down({ context }: Context): Promise<void> {
   for (const input of migrationInputs) {
     await m.removePrimaryKeyMigration(input)
   }
-
-  await m.dropColumn(actionsTarget)
 }
 
 // Helper migration class
@@ -139,22 +132,6 @@ class Migration {
 
     // Restore the old primary key constraint
     await this.restoreOldPrimaryKeyConstraint(target)
-  }
-
-  // Actions follow a different path because they don't use the new
-  // column as a primary key
-  async addColumnMigration(
-    input: AddColumnTarget,
-    networkChainId: string,
-  ): Promise<void> {
-    // Add protocolNetwork columns
-    await this.addColumn(input)
-
-    // Populate the `protocolNetwork` columns with the provided network ID
-    await this.updateTable(input, networkChainId)
-
-    // Alter the `protocolNetwork` columns to be NOT NULL
-    await this.alterColumn(input)
   }
 
   async checkTableExists(
@@ -239,7 +216,7 @@ WHERE
     return result.constraint
   }
 
-  async addColumn(target: AddColumnTarget): Promise<void> {
+  async addColumn(target: MigrationTarget): Promise<void> {
     this.logger.info(
       `Add '${target.newColumn}' column to ${target.table} table`,
     )
@@ -249,7 +226,7 @@ WHERE
     })
   }
 
-  async dropColumn(target: AddColumnTarget): Promise<void> {
+  async dropColumn(target: MigrationTarget): Promise<void> {
     const tables = await this.queryInterface.showAllTables()
     if (tables.includes(target.table)) {
       this.logger.info(
@@ -259,7 +236,7 @@ WHERE
     }
   }
 
-  async updateTable(target: AddColumnTarget, value: string) {
+  async updateTable(target: MigrationTarget, value: string) {
     const values = { [target.newColumn]: value }
     const where = { [target.newColumn]: null }
     this.logger.info(
@@ -268,7 +245,7 @@ WHERE
     await this.queryInterface.bulkUpdate(target.table, values, where)
   }
 
-  async alterColumn(target: AddColumnTarget) {
+  async alterColumn(target: MigrationTarget) {
     this.logger.info(
       `Altering ${target.table} table ${target.newColumn} to be non-nullable`,
     )
