@@ -28,8 +28,9 @@ import {
   GraphNode,
   Operator,
   validateProviderNetworkIdentifier,
+  MultiNetworks,
+  NetworkMapped,
 } from '@graphprotocol/indexer-common'
-import { MultiNetworks, NetworkMapped } from './multi-networks'
 
 import PQueue from 'p-queue'
 import pMap from 'p-map'

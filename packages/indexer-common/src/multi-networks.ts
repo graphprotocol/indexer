@@ -32,9 +32,7 @@ export class MultiNetworks {
     )
   }
 
-  async mapNetworks<T>(
-    func: (n: Network) => Promise<T>,
-  ): Promise<NetworkMapped<T>> {
+  async mapNetworks<T>(func: (n: Network) => Promise<T>): Promise<NetworkMapped<T>> {
     return pReduce(
       this.networks,
       async (acc, network) => {
@@ -46,9 +44,7 @@ export class MultiNetworks {
     )
   }
 
-  async mapOperators<T>(
-    func: (o: Operator) => Promise<T>,
-  ): Promise<NetworkMapped<T>> {
+  async mapOperators<T>(func: (o: Operator) => Promise<T>): Promise<NetworkMapped<T>> {
     return pReduce(
       this.operators,
       async (acc, operator) => {
@@ -107,8 +103,7 @@ export class MultiNetworks {
       async (acc, [networkIdentifier, value]: [string, T]) => {
         // Get the Network and Operator objects for this network identifier
         const index = this.networks.findIndex(
-          (n: Network) =>
-            n.specification.networkIdentifier === networkIdentifier,
+          (n: Network) => n.specification.networkIdentifier === networkIdentifier,
         )
         const network = this.networks[index]
         const operator = this.operators[index]
