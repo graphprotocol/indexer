@@ -146,6 +146,7 @@ export interface ActionFilter {
   source?: string
   reason?: string
   updatedAt?: WhereOperators
+  protocolNetwork?: string
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -209,4 +210,5 @@ export enum ActionParams {
   PRIORITY = 'priority',
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
+  PROTOCOL_NETWORK = 'protocolNetwork',
 }

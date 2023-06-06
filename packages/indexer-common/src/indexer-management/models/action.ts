@@ -145,8 +145,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       },
       protocolNetwork: {
         type: DataTypes.STRING(50),
-        allowNull: false,
-        defaultValue: null,
+        primaryKey: true,
       },
     },
     {

@@ -344,6 +344,7 @@ export async function fetchAction(
         query action($actionID: Int!) {
           action(actionID: $actionID) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -392,6 +393,7 @@ export async function fetchActions(
             first: $first
           ) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID

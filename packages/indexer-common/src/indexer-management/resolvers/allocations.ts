@@ -10,7 +10,6 @@ import {
   Address,
   formatGRT,
   Logger,
-  NetworkContracts,
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
@@ -30,7 +29,6 @@ import {
   NetworkSubgraph,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
-  TransactionManager,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 
@@ -180,7 +178,6 @@ const ALLOCATION_QUERIES = {
 async function queryAllocations(
   logger: Logger,
   networkSubgraph: NetworkSubgraph,
-  contracts: NetworkContracts,
   variables: {
     indexer: Address
     disputableEpoch: number
@@ -288,7 +285,6 @@ async function queryAllocations(
 
 async function resolvePOI(
   networkMonitor: NetworkMonitor,
-  transactionManager: TransactionManager,
   graphNode: GraphNode,
   allocation: Allocation,
   poi: string | undefined,
@@ -397,7 +393,7 @@ export default {
     }
 
     allocations.push(
-      ...(await queryAllocations(logger, networkSubgraph, contracts, variables, context)),
+      ...(await queryAllocations(logger, networkSubgraph, variables, context)),
     )
     return allocations
   },
@@ -485,7 +481,6 @@ export default {
       // Ensure subgraph is deployed before allocating
       await subgraphManager.ensure(
         logger,
-        models,
         `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
         subgraphDeployment,
         indexNode,
@@ -680,14 +675,7 @@ export default {
         )
       }
 
-      poi = await resolvePOI(
-        networkMonitor,
-        transactionManager,
-        graphNode,
-        allocationData,
-        poi,
-        force,
-      )
+      poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi, force)
 
       // Double-check whether the allocation is still active on chain, to
       // avoid unnecessary transactions.
@@ -888,7 +876,6 @@ export default {
       logger.debug('Resolving POI')
       const allocationPOI = await resolvePOI(
         networkMonitor,
-        transactionManager,
         graphNode,
         allocationData,
         poi,

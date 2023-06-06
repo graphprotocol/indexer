@@ -222,10 +222,12 @@ const SCHEMA_SDL = gql`
     transaction: String
     failureReason: String
     priority: Int
+    protocolNetwork: String
   }
 
   input ActionFilter {
     id: Int
+    protocolNetwork: String
     type: ActionType
     status: String
     source: String

@@ -40,7 +40,6 @@ export class SubgraphManager {
 
   async deploy(
     logger: Logger,
-    models: IndexerManagementModels,
     name: string,
     deployment: SubgraphDeploymentID,
     indexNode: string | undefined,
@@ -192,14 +191,13 @@ export class SubgraphManager {
 
   async ensure(
     logger: Logger,
-    models: IndexerManagementModels,
     name: string,
     deployment: SubgraphDeploymentID,
     indexNode: string | undefined,
   ): Promise<void> {
     try {
       await this.createSubgraph(logger, name)
-      await this.deploy(logger, models, name, deployment, indexNode)
+      await this.deploy(logger, name, deployment, indexNode)
       await this.reassign(logger, deployment, indexNode)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE020, error)
