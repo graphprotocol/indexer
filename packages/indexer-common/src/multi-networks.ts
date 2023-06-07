@@ -1,5 +1,10 @@
 import pReduce from 'p-reduce'
 import zip from 'lodash.zip'
+import isEqual from 'lodash.isequal'
+import xor from 'lodash.xor'
+
+// TODO: standardize network identifiers
+// TODO: Make this class generic, so we can use it for Networks, Operators and both.
 
 import { Network, Operator } from '@graphprotocol/indexer-common'
 
@@ -30,6 +35,15 @@ export class MultiNetworks {
           operators[index].specification.networkIdentifier,
       )
     )
+  }
+
+  private checkEqualKeys<T, U>(a: NetworkMapped<T>, b: NetworkMapped<U>) {
+    const aKeys = Object.keys(a)
+    const bKeys = Object.keys(b)
+    if (!isEqual(aKeys, bKeys)) {
+      const differentKeys = xor(aKeys, bKeys)
+      throw new Error(`Network Mapped objects have different keys: ${differentKeys}`)
+    }
   }
 
   async mapNetworks<T>(func: (n: Network) => Promise<T>): Promise<NetworkMapped<T>> {
@@ -74,6 +88,7 @@ export class MultiNetworks {
   }
 
   zip<T, U>(a: NetworkMapped<T>, b: NetworkMapped<U>): NetworkMapped<[T, U]> {
+    this.checkEqualKeys(a, b)
     const result = {} as NetworkMapped<[T, U]>
     for (const key in a) {
       result[key] = [a[key], b[key]]
@@ -87,6 +102,7 @@ export class MultiNetworks {
     c: NetworkMapped<V>,
     d: NetworkMapped<W>,
   ): NetworkMapped<[T, U, V, W]> {
+    this.checkEqualKeys(a, b)
     const result = {} as NetworkMapped<[T, U, V, W]>
     for (const key in a) {
       result[key] = [a[key], b[key], c[key], d[key]]
