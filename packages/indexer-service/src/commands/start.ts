@@ -27,6 +27,7 @@ import {
   resolveChainId,
   validateProviderNetworkIdentifier,
   validateNetworkIdentifier,
+  MultiNetworks,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -399,14 +400,15 @@ export default {
       queryTimingLogs: argv.queryTimingLogs,
     })
 
+    // TODO:L2: Build the new Network type here
+    const multiNetworks = new MultiNetworks(
+      [network],
+      (n: Network) => n.specification.networkIdentifier,
+    )
     const indexerManagementClient = await createIndexerManagementClient({
       models,
-      address,
-      contracts,
       graphNode,
       indexNodeIDs: ['node_1'], // This is just a dummy since the indexer-service doesn't manage deployments,
-      deploymentManagementEndpoint: argv.graphNodeStatusEndpoint,
-      networkSubgraph,
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management
@@ -415,9 +417,7 @@ export default {
           allocationAmount: BigNumber.from('0'),
         },
       },
-      features: {
-        injectDai: true,
-      },
+      multiNetworks,
     })
 
     // Spin up a basic webserver

@@ -95,7 +95,7 @@ export default {
 
   setCostModel: async (
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
-    { models, features, dai }: IndexerManagementResolverContext,
+    { models, multiNetworks, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
     const update = parseGraphQLCostModel(costModel)
 
@@ -107,6 +107,17 @@ export default {
     } catch (err) {
       throw new Error(`Invalid cost model or variables: ${err.message}`)
     }
+
+    // TODO:L2: FIXME: Since DAI prices should be consistent across networks, we will
+    // naively pick the first available network that enables DAI injection and use it
+    // for all Cost Model decisions. Ideally we should refactor all Cost Models code to
+    // handle DAI contracts for each configured protocol network, but we don't have the
+    // bandwidth to implement that at this time.
+
+    const network = Object.values(multiNetworks.inner)
+      .flat()
+      .find((network) => network.specification.dai.inject)
+    const injectDai = Boolean(network?.specification?.dai.inject)
 
     const [model] = await models.CostModel.findOrBuild({
       where: { deployment: update.deployment },
@@ -120,7 +131,7 @@ export default {
     // Update the model variables (fall back to current value if unchanged)
     let variables = update.variables || model.variables
 
-    if (features.injectDai) {
+    if (injectDai) {
       const oldDai = getVariable(model.variables, 'DAI')
       const newDai = getVariable(update.variables, 'DAI')
 
