@@ -1,40 +1,31 @@
 import pReduce from 'p-reduce'
-import zip from 'lodash.zip'
 import isEqual from 'lodash.isequal'
 import xor from 'lodash.xor'
 
-// TODO: standardize network identifiers
-// TODO: Make this class generic, so we can use it for Networks, Operators and both.
-
-import { Network, Operator } from '@graphprotocol/indexer-common'
-
+// A mapping of different values of type T keyed by their network identifiers
 export type NetworkMapped<T> = Record<string, T>
 
-// Wrapper type for performing calls over multiple Network and Operator objects.
-// All public-facing methods should return a `NetworkMapped<T>` or `void`.
-export class MultiNetworks {
-  networks: Network[]
-  operators: Operator[]
-  constructor(networks: Network[], operators: Operator[]) {
-    // Make sure both networks and operators have matching networkIdentifiers
-    if (!this.checkInputs(networks, operators)) {
-      throw new Error(
-        "Malconfigured Multi-Network input: Networks and Operators don't match",
-      )
-    }
-    this.networks = networks
-    this.operators = operators
-  }
+// Function to extract the network identifier from a value of type T
+type NetworkIdentity<T> = (element: T) => string
 
-  private checkInputs(networks: Network[], operators: Operator[]): boolean {
-    return (
-      networks.length === operators.length &&
-      networks.every(
-        (network, index) =>
-          network.specification.networkIdentifier ===
-          operators[index].specification.networkIdentifier,
-      )
-    )
+// Wrapper type for performing calls over multiple values of any type, most notably
+// Network and Operator instances.
+// All public-facing methods should return a `NetworkMapped<T>` or `void`.
+export class MultiNetworks<T> {
+  inner: NetworkMapped<T>
+  constructor(elements: T[], networkIdentity: NetworkIdentity<T>) {
+    function reducer(accumulator: NetworkMapped<T>, current: T): NetworkMapped<T> {
+      const key = networkIdentity(current)
+      if (key in accumulator) {
+        throw new Error(
+          `Duplicate network identifier found while mapping value's network: ${key}`,
+        )
+      }
+      // TODO: parse and validate network identifiers to standardize them
+      accumulator[key] = current
+      return accumulator
+    }
+    this.inner = elements.reduce(reducer, {})
   }
 
   private checkEqualKeys<T, U>(a: NetworkMapped<T>, b: NetworkMapped<U>) {
@@ -46,88 +37,58 @@ export class MultiNetworks {
     }
   }
 
-  async mapNetworks<T>(func: (n: Network) => Promise<T>): Promise<NetworkMapped<T>> {
+  async map<U>(func: (value: T) => Promise<U>): Promise<NetworkMapped<U>> {
+    const entries: [string, T][] = Object.entries(this.inner)
     return pReduce(
-      this.networks,
-      async (acc, network) => {
-        const result = await func(network)
-        acc[network.specification.networkIdentifier] = result
+      entries,
+      async (acc, pair) => {
+        const [networkIdentifier, element]: [string, T] = pair
+        const result = await func(element)
+        acc[networkIdentifier] = result
         return acc
       },
-      {} as NetworkMapped<T>,
+      {} as NetworkMapped<U>,
     )
   }
 
-  async mapOperators<T>(func: (o: Operator) => Promise<T>): Promise<NetworkMapped<T>> {
-    return pReduce(
-      this.operators,
-      async (acc, operator) => {
-        const result = await func(operator)
-        acc[operator.specification.networkIdentifier] = result
-        return acc
-      },
-      {} as NetworkMapped<T>,
-    )
-  }
-
-  async mapNetworkAndOperatorPairs<T>(
-    func: (n: Network, o: Operator) => Promise<T>,
-  ): Promise<NetworkMapped<T>> {
-    return pReduce(
-      zip(this.networks, this.operators),
-      // Note on undefineds: `lodash.zip` can return `undefined` if array lengths are
-      // uneven, but we have validated that this won't happen.
-      async (acc, pair: [Network | undefined, Operator | undefined]) => {
-        const [network, operator] = pair
-        const result = await func(network!, operator!)
-        acc[operator!.specification.networkIdentifier] = result
-        return acc
-      },
-      {} as NetworkMapped<T>,
-    )
-  }
-
-  zip<T, U>(a: NetworkMapped<T>, b: NetworkMapped<U>): NetworkMapped<[T, U]> {
+  zip<U, V>(a: NetworkMapped<U>, b: NetworkMapped<V>): NetworkMapped<[U, V]> {
     this.checkEqualKeys(a, b)
-    const result = {} as NetworkMapped<[T, U]>
+    const result = {} as NetworkMapped<[U, V]>
     for (const key in a) {
       result[key] = [a[key], b[key]]
     }
     return result
   }
 
-  zip4<T, U, V, W>(
-    a: NetworkMapped<T>,
-    b: NetworkMapped<U>,
-    c: NetworkMapped<V>,
-    d: NetworkMapped<W>,
-  ): NetworkMapped<[T, U, V, W]> {
+  zip4<U, V, W, Y>(
+    a: NetworkMapped<U>,
+    b: NetworkMapped<V>,
+    c: NetworkMapped<W>,
+    d: NetworkMapped<Y>,
+  ): NetworkMapped<[U, V, W, Y]> {
     this.checkEqualKeys(a, b)
-    const result = {} as NetworkMapped<[T, U, V, W]>
+    const result = {} as NetworkMapped<[U, V, W, Y]>
     for (const key in a) {
       result[key] = [a[key], b[key], c[key], d[key]]
     }
     return result
   }
 
-  async mapNetworkMapped<T, U>(
-    nmap: NetworkMapped<T>,
-    func: (n: Network, o: Operator, value: T) => Promise<U>,
-  ): Promise<NetworkMapped<U>> {
+  async mapNetworkMapped<U, V>(
+    nmap: NetworkMapped<U>,
+    func: (inner: T, value: U) => Promise<V>,
+  ): Promise<NetworkMapped<V>> {
     return pReduce(
       Object.entries(nmap),
-      async (acc, [networkIdentifier, value]: [string, T]) => {
-        // Get the Network and Operator objects for this network identifier
-        const index = this.networks.findIndex(
-          (n: Network) => n.specification.networkIdentifier === networkIdentifier,
-        )
-        const network = this.networks[index]
-        const operator = this.operators[index]
-
-        acc[networkIdentifier] = await func(network, operator, value)
+      async (acc, [networkIdentifier, value]: [string, U]) => {
+        const inner = this.inner[networkIdentifier]
+        if (!inner) {
+          throw new Error(`Network identifier not found: ${networkIdentifier}`)
+        }
+        acc[networkIdentifier] = await func(inner, value)
         return acc
       },
-      {} as NetworkMapped<U>,
+      {} as NetworkMapped<V>,
     )
   }
 }
