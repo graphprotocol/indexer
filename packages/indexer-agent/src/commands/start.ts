@@ -351,7 +351,7 @@ export async function createNetworkSpecification(
 // TODO: Split this code into two functions:
 // 1. [X] Create NetworkSpecification
 // 2. [ ] Start Agent with NetworkSpecification as input.
-async function _oldHandler(
+export async function oldHandler(
   argv: AgentOptions,
   networkSpecification: spec.NetworkSpecification,
 ): Promise<void> {
@@ -363,10 +363,12 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * CLI Argument review
   //
-  // Note: it only lives here and not on yargs.check because we don't have a
-  // logger in that context
+  // Note: it only lives here and not on yargs.check because we don't have a logger in
+  // that context
+  // TODO:L2: This is disabled for debugging, but we should add those in the parsing
+  // stage.
   // --------------------------------------------------------------------------------
-  reviewArgumentsForWarnings(argv, logger)
+  // reviewArgumentsForWarnings(argv, logger)
 
   // --------------------------------------------------------------------------------
   // * Configure event  listeners for unhandled promise  rejections and uncaught
@@ -623,7 +625,6 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
       { gasIncreaseFactor: gasIncreaseFactor },
     )
   }
-
   if (rebateClaimThreshold.lt(voucherRedemptionThreshold)) {
     logger.warn(
       'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
