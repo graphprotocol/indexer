@@ -5,6 +5,7 @@ import {
   start,
   createNetworkSpecification,
   AgentOptions,
+  oldHandler,
 } from './commands/start'
 import {
   startMultiNetwork,
@@ -39,6 +40,7 @@ async function processArguments(
 ): Promise<spec.NetworkSpecification[]> {
   if (args['_'].includes('start')) {
     const specification = await createNetworkSpecification(args)
+    await oldHandler(args, specification)
     return [specification]
   } else if (args['_'].includes('start-multiple')) {
     return parseNetworkSpecifications(args)
