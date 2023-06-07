@@ -19,6 +19,7 @@ import {
   GraphNode,
   indexerError,
   IndexerErrorCode,
+  MultiNetworks,
   Network,
   Operator,
   registerIndexerErrorMetrics,
@@ -503,15 +504,15 @@ async function _oldHandler(
   // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
-  logger.info('Launch indexer management API server')
+  const multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
-    address: networkSpecification.indexerOptions.address,
-    contracts: network.contracts,
     graphNode,
     indexNodeIDs: argv.indexNodeIds,
-    deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
-    networkSubgraph: network.networkSubgraph,
     logger,
     defaults: {
       globalIndexingRule: {
@@ -520,19 +521,11 @@ async function _oldHandler(
         parallelAllocations: 1,
       },
     },
-    features: {
-      injectDai: networkSpecification.dai.inject,
-    },
-    transactionManager: network.transactionManager,
-    receiptCollector: network.receiptCollector,
-    networkMonitor: network.networkMonitor,
-    allocationManagementMode:
-      networkSpecification.indexerOptions.allocationManagementMode,
-    autoAllocationMinBatchSize:
-      networkSpecification.indexerOptions.autoAllocationMinBatchSize,
+    multiNetworks,
   })
 
   // * Indexer Management Server
+  logger.info('Launch indexer management API server')
   await createIndexerManagementServer({
     logger,
     client: indexerManagementClient,

@@ -2,15 +2,7 @@ import { buildSchema, print } from 'graphql'
 import gql from 'graphql-tag'
 import { executeExchange } from '@urql/exchange-execute'
 import { Client, ClientOptions } from '@urql/core'
-import {
-  equal,
-  Eventual,
-  Logger,
-  mutable,
-  NetworkContracts,
-  WritableEventual,
-} from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from '../network-subgraph'
+import { equal, Logger, mutable, WritableEventual } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
@@ -20,38 +12,18 @@ import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
-import { BigNumber, ethers } from 'ethers'
+import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { GraphNode } from '../graph-node'
-import { TransactionManager } from '../transactions'
-import { SubgraphManager } from './subgraphs'
-import { AllocationReceiptCollector } from '../allocations/query-fees'
-import {
-  ActionManager,
-  AllocationManagementMode,
-  AllocationManager,
-  NetworkMonitor,
-} from '@graphprotocol/indexer-common'
-
-export interface IndexerManagementFeatures {
-  injectDai: boolean
-}
+import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
-  address: string
-  contracts: NetworkContracts
   graphNode: GraphNode
-  subgraphManager: SubgraphManager
-  networkMonitor: NetworkMonitor
-  networkSubgraph: NetworkSubgraph
   logger: Logger
   defaults: IndexerManagementDefaults
-  features: IndexerManagementFeatures
-  dai: Eventual<string>
   actionManager: ActionManager
-  transactionManager: TransactionManager
-  receiptCollector: AllocationReceiptCollector
+  multiNetworks: MultiNetworks<Network>
 }
 
 const SCHEMA_SDL = gql`
@@ -475,22 +447,14 @@ export interface IndexerManagementDefaults {
 }
 
 export interface IndexerManagementClientOptions {
-  models: IndexerManagementModels
-  address: string
-  contracts: NetworkContracts
-  graphNode: GraphNode
-  indexNodeIDs: string[]
-  deploymentManagementEndpoint: string
-  networkSubgraph: NetworkSubgraph
   logger: Logger
+  models: IndexerManagementModels
+  graphNode: GraphNode
+  // TODO:L2: Do we need this information? The GraphNode class auto-selects nodes based
+  // on availability.
+  indexNodeIDs: string[]
+  multiNetworks: MultiNetworks<Network>
   defaults: IndexerManagementDefaults
-  features: IndexerManagementFeatures
-  ethereum?: ethers.providers.BaseProvider
-  transactionManager?: TransactionManager
-  receiptCollector?: AllocationReceiptCollector
-  networkMonitor?: NetworkMonitor
-  allocationManagementMode?: AllocationManagementMode
-  autoAllocationMinBatchSize?: number
 }
 
 export class IndexerManagementClient extends Client {
@@ -537,26 +501,12 @@ export class IndexerManagementClient extends Client {
   }
 }
 
+// TODO:L2: Put the IndexerManagementClient creation inside the Agent, and receive
+// MultiNetworks form it
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const {
-    models,
-    address,
-    contracts,
-    graphNode,
-    indexNodeIDs,
-    deploymentManagementEndpoint,
-    networkSubgraph,
-    logger,
-    defaults,
-    features,
-    transactionManager,
-    receiptCollector,
-    networkMonitor,
-    allocationManagementMode,
-    autoAllocationMinBatchSize,
-  } = options
+  const { models, graphNode, indexNodeIDs, logger, defaults, multiNetworks } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -567,58 +517,31 @@ export const createIndexerManagementClient = async (
     ...actionResolvers,
   }
 
+  // TODO:L2: this should be wrapped in a NetworkMapped type
   const dai: WritableEventual<string> = mutable()
 
-  const subgraphManager = new SubgraphManager(deploymentManagementEndpoint, indexNodeIDs)
-  let allocationManager: AllocationManager | undefined = undefined
-  let actionManager: ActionManager | undefined = undefined
+  const actionManager = await ActionManager.create(
+    multiNetworks,
+    logger.child({ component: 'ActionManager' }),
+    models,
+    graphNode,
+  )
 
-  if (transactionManager && networkMonitor) {
-    if (receiptCollector) {
-      // TODO: AllocationManager construction inside ActionManager
-      allocationManager = new AllocationManager(
-        contracts,
-        logger.child({ component: 'AllocationManager' }),
-        address,
-        models,
-        networkMonitor,
-        receiptCollector,
-        subgraphManager,
-        transactionManager,
-      )
-      actionManager = new ActionManager(
-        allocationManager,
-        networkMonitor,
-        logger.child({ component: 'ActionManager' }),
-        models,
-        allocationManagementMode,
-        autoAllocationMinBatchSize,
-      )
-
-      logger.info('Begin monitoring the queue for approved actions to execute')
-      await actionManager.monitorQueue()
-    }
+  const context: IndexerManagementResolverContext = {
+    models,
+    graphNode,
+    defaults,
+    logger: logger.child({ component: 'IndexerManagementClient' }),
+    // dai,
+    multiNetworks,
+    actionManager,
   }
 
   const exchange = executeExchange({
     schema,
     rootValue: resolvers,
-    context: {
-      models,
-      address,
-      contracts,
-      graphNode,
-      subgraphManager,
-      networkMonitor,
-      networkSubgraph,
-      logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
-      defaults,
-      features,
-      dai,
-      transactionManager,
-      actionManager,
-      receiptCollector,
-    },
+
+    context,
   })
 
   return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options, {
