@@ -14,6 +14,10 @@ type NetworkIdentity<T> = (element: T) => string
 export class MultiNetworks<T> {
   inner: NetworkMapped<T>
   constructor(elements: T[], networkIdentity: NetworkIdentity<T>) {
+    if (elements.length === 0) {
+      throw new Error('MultiNetworks component was initialized with empty values')
+    }
+
     function reducer(accumulator: NetworkMapped<T>, current: T): NetworkMapped<T> {
       const key = networkIdentity(current)
       if (key in accumulator) {
