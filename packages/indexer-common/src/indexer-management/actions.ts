@@ -5,6 +5,7 @@ import {
   ActionParams,
   ActionStatus,
   ActionUpdateInput,
+  AllocationManager,
   AllocationManagementMode,
   AllocationResult,
   AllocationStatus,
@@ -12,24 +13,64 @@ import {
   IndexerErrorCode,
   IndexerManagementModels,
   isActionFailure,
-  NetworkMonitor,
+  MultiNetworks,
+  NetworkMapped,
+  Network,
   OrderDirection,
+  GraphNode,
 } from '@graphprotocol/indexer-common'
-import { AllocationManager } from './allocations'
+
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
+import groupBy from 'lodash.groupby'
 
 export class ActionManager {
-  constructor(
-    public allocationManager: AllocationManager,
-    public networkMonitor: NetworkMonitor,
-    private logger: Logger,
-    private models: IndexerManagementModels,
-    private allocationManagementMode?: AllocationManagementMode,
-    private autoAllocationMinBatchSize?: number,
-  ) {}
+  declare multiNetworks: MultiNetworks<Network>
+  declare logger: Logger
+  declare models: IndexerManagementModels
+  declare allocationManagers: NetworkMapped<AllocationManager>
 
-  private async batchReady(approvedActions: Action[]): Promise<boolean> {
+  static async create(
+    multiNetworks: MultiNetworks<Network>,
+    logger: Logger,
+    models: IndexerManagementModels,
+    graphNode: GraphNode,
+  ): Promise<ActionManager> {
+    const actionManager = new ActionManager()
+    actionManager.multiNetworks = multiNetworks
+    actionManager.logger = logger
+    actionManager.models = models
+
+    // TODO:L2: In the single-network version of this code, the creation of
+    // `AllocationManager` and `ActionManager` can be optional based on the presence of:
+    // - TransactionManager
+    // - NetworkMonitor
+    // - AllocationReceiptCollector
+    // With network specifications, those would all be created, so we must consider
+    // introducing a boolean flag in the specification file to make their omission
+    // optional again.
+    actionManager.allocationManagers = await multiNetworks.map(async (network) => {
+      return new AllocationManager(
+        logger.child({
+          component: 'AllocationManager',
+          networkIdentifier: network.specification.networkIdentifier,
+        }),
+        models,
+        graphNode,
+        network,
+      )
+    })
+
+    logger.info('Begin monitoring the queue for approved actions to execute')
+    await actionManager.monitorQueue()
+
+    return actionManager
+  }
+
+  private async batchReady(
+    approvedActions: Action[],
+    network: Network,
+  ): Promise<boolean> {
     if (approvedActions.length < 1) {
       return false
     }
@@ -37,18 +78,22 @@ export class ActionManager {
     // In auto management mode the worker will execute the batch if:
     // 1) Number of approved actions >= minimum batch size
     // or 2) Oldest affected allocation will expiring after the current epoch
-    if (this.allocationManagementMode === AllocationManagementMode.AUTO) {
+    if (
+      network.specification.indexerOptions.allocationManagementMode ===
+      AllocationManagementMode.AUTO
+    ) {
       const meetsMinBatchSize =
-        approvedActions.length >= (this.autoAllocationMinBatchSize ?? 1)
+        approvedActions.length >=
+        (network.specification.indexerOptions.autoAllocationMinBatchSize ?? 1)
 
       const approvedDeploymentIDs = approvedActions.map((action) => action.deploymentID)
       const affectedAllocations = (
-        await this.networkMonitor.allocations(AllocationStatus.ACTIVE)
+        await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
       ).filter((a) => approvedDeploymentIDs.includes(a.subgraphDeployment.id.ipfsHash))
       let affectedAllocationExpiring = false
       if (affectedAllocations.length) {
-        const currentEpoch = await this.networkMonitor.currentEpochNumber()
-        const maxAllocationEpoch = await this.networkMonitor.maxAllocationEpoch()
+        const currentEpoch = await network.networkMonitor.currentEpochNumber()
+        const maxAllocationEpoch = await network.networkMonitor.maxAllocationEpoch()
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
         affectedAllocationExpiring =
           currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationEpoch
@@ -86,24 +131,34 @@ export class ActionManager {
     )
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
-      if (await this.batchReady(approvedActions)) {
-        this.logger.info('Executing batch of approved actions', {
-          actions: approvedActions,
-          note: 'If actions were approved very recently they may be missing from this list but will still be taken',
-        })
+      const approvedActionsByNetwork: NetworkMapped<Action[]> = groupBy(
+        approvedActions,
+        (action: Action) => action.protocolNetwork,
+      )
 
-        try {
-          const attemptedActions = await this.executeApprovedActions()
+      await this.multiNetworks.mapNetworkMapped(
+        approvedActionsByNetwork,
+        async (network: Network, approvedActions: Action[]) => {
+          if (await this.batchReady(approvedActions, network)) {
+            this.logger.info('Executing batch of approved actions', {
+              actions: approvedActions,
+              note: 'If actions were approved very recently they may be missing from this list but will still be taken',
+            })
 
-          this.logger.trace('Attempted to execute all approved actions', {
-            actions: attemptedActions,
-          })
-        } catch (error) {
-          this.logger.error('Failed to execute batch of approved actions', {
-            error,
-          })
-        }
-      }
+            try {
+              const attemptedActions = await this.executeApprovedActions(network)
+
+              this.logger.trace('Attempted to execute all approved actions', {
+                actions: attemptedActions,
+              })
+            } catch (error) {
+              this.logger.error('Failed to execute batch of approved actions', {
+                error,
+              })
+            }
+          }
+        },
+      )
     })
   }
 
@@ -131,7 +186,7 @@ export class ActionManager {
     return updatedActions
   }
 
-  async executeApprovedActions(): Promise<Action[]> {
+  async executeApprovedActions(network: Network): Promise<Action[]> {
     let updatedActions: Action[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -146,7 +201,10 @@ export class ActionManager {
         const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
         const approvedActions = (
           await this.models.Action.findAll({
-            where: { status: ActionStatus.APPROVED },
+            where: {
+              status: ActionStatus.APPROVED,
+              protocolNetwork: network.specification.networkIdentifier,
+            },
             order: [['priority', 'ASC']],
             transaction,
             lock: transaction.LOCK.UPDATE,
@@ -157,7 +215,9 @@ export class ActionManager {
 
         try {
           // This will return all results if successful, if failed it will return the failed actions
-          const results = await this.allocationManager.executeBatch(approvedActions)
+          const allocationManager =
+            this.allocationManagers[network.specification.networkIdentifier]
+          const results = await allocationManager.executeBatch(approvedActions)
 
           this.logger.debug('Completed batch action execution', {
             results,
