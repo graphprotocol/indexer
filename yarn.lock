@@ -2863,6 +2863,13 @@
   dependencies:
     "@types/lodash" "*"
 
+"@types/lodash.xor@^4.5.7":
+  version "4.5.7"
+  resolved "https://registry.npmjs.org/@types/lodash.xor/-/lodash.xor-4.5.7.tgz#a8f218586005476b5bfe14a824aca33ae3b26161"
+  integrity sha512-Drr3ZdJWjpo7dNR17QdBwgfQRh7kEhhVVdeTVX0v35bT47zpfGSDYo40Ei0oOqk5DQzzxAYuNuW0s/N3mqBwxw==
+  dependencies:
+    "@types/lodash" "*"
+
 "@types/lodash.zip@^4.2.7":
   version "4.2.7"
   resolved "https://registry.npmjs.org/@types/lodash.zip/-/lodash.zip-4.2.7.tgz#7f59b70e20d957a0fdbdbb907334ac2c470655f2"
@@ -7696,6 +7703,11 @@ lodash.upperfirst@^4.3.1:
   version "4.3.1"
   resolved "https://registry.npmjs.org/lodash.upperfirst/-/lodash.upperfirst-4.3.1.tgz"
   integrity sha1-E2Xt9DFIBIHvDRxolXpe2Z1J984=
+
+lodash.xor@^4.5.0:
+  version "4.5.0"
+  resolved "https://registry.npmjs.org/lodash.xor/-/lodash.xor-4.5.0.tgz#4d48ed7e98095b0632582ba714d3ff8ae8fb1db6"
+  integrity sha512-sVN2zimthq7aZ5sPGXnSz32rZPuqcparVW50chJQe+mzTYV+IsxSsl/2gnkWWE2Of7K3myBQBqtLKOUEHJKRsQ==
 
 lodash.zip@^4.2.0:
   version "4.2.0"
