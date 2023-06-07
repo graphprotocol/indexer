@@ -38,6 +38,7 @@ import pFilter from 'p-filter'
 import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
 import isEmpty from 'lodash.isempty'
+import zip from 'lodash.zip'
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -121,11 +122,61 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
 const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
   new Set(deployments.map(id => id.bytes32))
 
+// Represents a pair of Network and Operator instances belonging to the same protocol
+// network. Used when mapping over multiple protocol networks.
+type NetworkAndOperator = {
+  network: Network
+  operator: Operator
+}
+
+// Extracts the network identifier from a pair of matching Network and Operator objects.
+function networkAndOperatorIdentity({
+  network,
+  operator,
+}: NetworkAndOperator): string {
+  const networkId = network.specification.networkIdentifier
+  const operatorId = operator.specification.networkIdentifier
+  if (networkId !== operatorId) {
+    throw new Error(
+      `Network and Operator pairs have different network identifiers: ${networkId} != ${operatorId}`,
+    )
+  }
+  return networkId
+}
+
+// Helper function to produce a `MultiNetworks<NetworkAndOperator>` while validating its
+// inputs.
+function createMultiNetworks(
+  networks: Network[],
+  operators: Operator[],
+): MultiNetworks<NetworkAndOperator> {
+  // Check if inputs have uneven lenghts and if they have the same network identifiers
+  const validInputs =
+    networks.length === operators.length &&
+    networks.every(
+      (network, index) =>
+        network.specification.networkIdentifier ===
+        operators[index].specification.networkIdentifier,
+    )
+  if (!validInputs) {
+    throw new Error(
+      'Invalid Networks and Operator pairs used in Agent initialization',
+    )
+  }
+  // Note on undefineds: `lodash.zip` can return `undefined` if array lengths are
+  // uneven, but we have just checked that.
+  const networksAndOperators = zip(networks, operators).map(pair => {
+    const [network, operator] = pair
+    return { network: network!, operator: operator! }
+  })
+  return new MultiNetworks(networksAndOperators, networkAndOperatorIdentity)
+}
+
 export class Agent {
   logger: Logger
   metrics: Metrics
   graphNode: GraphNode
-  multiNetworks: MultiNetworks
+  multiNetworks: MultiNetworks<NetworkAndOperator>
   indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
 
@@ -142,7 +193,7 @@ export class Agent {
     this.metrics = metrics
     this.graphNode = graphNode
     this.indexerManagement = indexerManagement
-    this.multiNetworks = new MultiNetworks(networks, operators)
+    this.multiNetworks = createMultiNetworks(networks, operators)
     this.offchainSubgraphs = offchainSubgraphs
   }
 
@@ -157,21 +208,21 @@ export class Agent {
     // --------------------------------------------------------------------------------
     // * Ensure there is a 'global' indexing rule
     // --------------------------------------------------------------------------------
-    await this.multiNetworks.mapOperators((o: Operator) =>
-      o.ensureGlobalIndexingRule(),
+    await this.multiNetworks.map(({ operator }) =>
+      operator.ensureGlobalIndexingRule(),
     )
 
     // --------------------------------------------------------------------------------
     // * Ensure NetworkSubgraph is indexing
     // --------------------------------------------------------------------------------
-    await this.multiNetworks.mapNetworks(async (network: Network) =>
+    await this.multiNetworks.map(async ({ network }) =>
       this.ensureNetworkSubgraphIsIndexing(network),
     )
 
     // --------------------------------------------------------------------------------
     // * Register the Indexer in the Network
     // --------------------------------------------------------------------------------
-    await this.multiNetworks.mapNetworks((n: Network) => n.register())
+    await this.multiNetworks.map(({ network }) => network.register())
 
     this.buildEventualTree()
     return this
@@ -182,8 +233,8 @@ export class Agent {
       600_000,
     ).tryMap(
       async () =>
-        await this.multiNetworks.mapNetworks((n: Network) =>
-          n.networkMonitor.currentEpochNumber(),
+        await this.multiNetworks.map(({ network }) =>
+          network.networkMonitor.currentEpochNumber(),
         ),
       {
         onError: error =>
@@ -195,8 +246,8 @@ export class Agent {
       600_000,
     ).tryMap(
       () =>
-        this.multiNetworks.mapNetworks((n: Network) =>
-          n.contracts.staking.channelDisputeEpochs(),
+        this.multiNetworks.map(({ network }) =>
+          network.contracts.staking.channelDisputeEpochs(),
         ),
       {
         onError: error =>
@@ -208,8 +259,8 @@ export class Agent {
       600_000,
     ).tryMap(
       () =>
-        this.multiNetworks.mapNetworks((n: Network) =>
-          n.contracts.staking.maxAllocationEpochs(),
+        this.multiNetworks.map(({ network }) =>
+          network.contracts.staking.maxAllocationEpochs(),
         ),
       {
         onError: error =>
@@ -220,31 +271,28 @@ export class Agent {
     const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
       timer(20_000).tryMap(
         async () => {
-          return this.multiNetworks.mapNetworkAndOperatorPairs(
-            async (network: Network, operator: Operator) => {
-              let rules = await operator.indexingRules(true)
-              const subgraphRuleIds = rules
-                .filter(
-                  rule =>
-                    rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
-                )
-                .map(rule => rule.identifier!)
-              const subgraphsMatchingRules =
-                await network.networkMonitor.subgraphs(subgraphRuleIds)
-              if (subgraphsMatchingRules.length >= 1) {
-                const epochLength =
-                  await network.contracts.epochManager.epochLength()
-                const blockPeriod = 15
-                const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
-                rules = convertSubgraphBasedRulesToDeploymentBased(
-                  rules,
-                  subgraphsMatchingRules,
-                  bufferPeriod,
-                )
-              }
-              return rules
-            },
-          )
+          return this.multiNetworks.map(async ({ network, operator }) => {
+            let rules = await operator.indexingRules(true)
+            const subgraphRuleIds = rules
+              .filter(
+                rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
+              )
+              .map(rule => rule.identifier!)
+            const subgraphsMatchingRules =
+              await network.networkMonitor.subgraphs(subgraphRuleIds)
+            if (subgraphsMatchingRules.length >= 1) {
+              const epochLength =
+                await network.contracts.epochManager.epochLength()
+              const blockPeriod = 15
+              const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+              rules = convertSubgraphBasedRulesToDeploymentBased(
+                rules,
+                subgraphsMatchingRules,
+                bufferPeriod,
+              )
+            }
+            return rules
+          })
         },
         {
           onError: error =>
@@ -270,8 +318,8 @@ export class Agent {
     const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
       timer(240_000).tryMap(
         async () =>
-          await this.multiNetworks.mapNetworks((n: Network) =>
-            n.networkMonitor.subgraphDeployments(),
+          await this.multiNetworks.map(({ network }) =>
+            network.networkMonitor.subgraphDeployments(),
           ),
         {
           onError: error =>
@@ -370,8 +418,8 @@ export class Agent {
       120_000,
     ).tryMap(
       () =>
-        this.multiNetworks.mapNetworks((n: Network) =>
-          n.networkMonitor.allocations(AllocationStatus.ACTIVE),
+        this.multiNetworks.map(({ network }) =>
+          network.networkMonitor.allocations(AllocationStatus.ACTIVE),
         ),
       {
         onError: () =>
@@ -388,27 +436,18 @@ export class Agent {
       currentEpochNumber,
     }).tryMap(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async ({ activeAllocations: _, currentEpochNumber }) =>
-        (
-          await pMap(
-            // Iterate over all currentEpochs for every network
-            Object.entries(currentEpochNumber),
-            async ([networkIdentifier, currentEpochNumber_1]: [
-              string,
-              number,
-            ]) => {
-              // Get the Network object for this network identifier
-              const network = this.multiNetworks.networks.find(
-                n => n.specification.networkIdentifier === networkIdentifier,
-              )
-              // TODO: Add some error handling here, although this is unlikely to fail.
-              return await network!.networkMonitor.recentlyClosedAllocations(
-                currentEpochNumber_1,
-                1,
-              )
-            },
-          )
-        ).flat(),
+      async ({ activeAllocations: _, currentEpochNumber }) => {
+        const allocationsByNetwork = await this.multiNetworks.mapNetworkMapped(
+          currentEpochNumber,
+          async ({ network }, epochNumber): Promise<Allocation[]> => {
+            return await network.networkMonitor.recentlyClosedAllocations(
+              epochNumber,
+              1,
+            )
+          },
+        )
+        return Object.values(allocationsByNetwork).flat()
+      },
       {
         onError: () =>
           this.logger.warn(
@@ -428,11 +467,10 @@ export class Agent {
         )
 
         const mapper = async (
-          n: Network,
-          _: Operator,
+          { network }: NetworkAndOperator,
           [currentEpochNumber, channelDisputeEpochs]: [number, number],
         ): Promise<Allocation[]> =>
-          n.networkMonitor.claimableAllocations(
+          network.networkMonitor.claimableAllocations(
             currentEpochNumber - channelDisputeEpochs,
           )
 
@@ -457,8 +495,8 @@ export class Agent {
       async ({ currentEpochNumber, activeDeployments }) =>
         this.multiNetworks.mapNetworkMapped(
           currentEpochNumber,
-          (n: Network, _: Operator, currentEpochNumber: number) =>
-            n.networkMonitor.disputableAllocations(
+          ({ network }: NetworkAndOperator, currentEpochNumber: number) =>
+            network.networkMonitor.disputableAllocations(
               currentEpochNumber,
               activeDeployments,
               0,
@@ -503,16 +541,19 @@ export class Agent {
         // Claim rebate pool rewards from finalized allocations
         await this.multiNetworks.mapNetworkMapped(
           claimableAllocations,
-          (n: Network, _: Operator, allocations: Allocation[]) =>
-            n.claimRebateRewards(allocations),
+          ({ network }: NetworkAndOperator, allocations: Allocation[]) =>
+            network.claimRebateRewards(allocations),
         )
 
         try {
           const disputableEpochs = await this.multiNetworks.mapNetworkMapped(
             currentEpochNumber,
-            async (n: Network, _: Operator, currentEpochNumber: number) =>
+            async (
+              { network }: NetworkAndOperator,
+              currentEpochNumber: number,
+            ) =>
               currentEpochNumber -
-              n.specification.indexerOptions.poiDisputableEpochs,
+              network.specification.indexerOptions.poiDisputableEpochs,
           )
 
           // Find disputable allocations
@@ -521,8 +562,7 @@ export class Agent {
             disputableAllocations,
           )
           const mapper = async (
-            network: Network,
-            operator: Operator,
+            { network, operator }: NetworkAndOperator,
             [disputableEpoch, disputableAllocations]: [number, Allocation[]],
           ): Promise<void> => {
             await this.identifyPotentialDisputes(
@@ -721,9 +761,9 @@ export class Agent {
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
-    this.multiNetworks.mapNetworks(async (n: Network) => {
-      if (n.networkSubgraph.deployment) {
-        const networkDeploymentID = n.networkSubgraph.deployment.id
+    this.multiNetworks.map(async ({ network }) => {
+      if (network.networkSubgraph.deployment) {
+        const networkDeploymentID = network.networkSubgraph.deployment.id
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
           targetDeployments.push(networkDeploymentID)
         }
@@ -875,8 +915,8 @@ export class Agent {
     // Acuracy check: re-fetch allocations to ensure that we have a fresh state since
     // the start of the reconciliation loop
     const activeAllocations: Allocation[] = Object.values(
-      await this.multiNetworks.mapNetworks((n: Network) =>
-        n.networkMonitor.allocations(AllocationStatus.ACTIVE),
+      await this.multiNetworks.map(({ network }) =>
+        network.networkMonitor.allocations(AllocationStatus.ACTIVE),
       ),
     ).flat()
 
@@ -945,7 +985,7 @@ export class Agent {
     // ----------------------------------------------------------------------------------------
     const manualModeNetworks = this.multiNetworks.mapNetworkMapped(
       networkDeploymentAllocationDecisions,
-      async (network: Network, _: Operator, __: unknown) =>
+      async ({ network }, __: unknown) =>
         network.specification.indexerOptions.allocationManagementMode ==
         AllocationManagementMode.MANUAL,
     )
@@ -980,14 +1020,13 @@ export class Agent {
     const mutated = await this.multiNetworks.mapNetworkMapped(
       networkDeploymentAllocationDecisions,
       async (
-        n: Network,
-        _: Operator,
+        { network }: NetworkAndOperator,
         allocationDecisions: AllocationDecision[],
       ) => {
-        const networkSubgraphDeployment = n.networkSubgraph.deployment
+        const networkSubgraphDeployment = network.networkSubgraph.deployment
         if (
           networkSubgraphDeployment &&
-          !n.specification.indexerOptions.allocateOnNetworkSubgraph
+          !network.specification.indexerOptions.allocateOnNetworkSubgraph
         ) {
           // QUESTION: Could we just remove this allocation decision from the set?
           const networkSubgraphIndex = allocationDecisions.findIndex(
@@ -1015,8 +1054,7 @@ export class Agent {
     await this.multiNetworks.mapNetworkMapped(
       zipped,
       async (
-        network: Network,
-        operator: Operator,
+        { network, operator }: NetworkAndOperator,
         [allocationDecisions, activeAllocations, epoch, maxAllocationEpochs]: [
           AllocationDecision[],
           Allocation[],
