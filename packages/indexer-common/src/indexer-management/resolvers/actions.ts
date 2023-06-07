@@ -144,13 +144,15 @@ export default {
 
   queueActions: async (
     { actions }: { actions: ActionInput[] },
-    { actionManager, logger, networkMonitor, models }: IndexerManagementResolverContext,
+    { actionManager, logger, multiNetworks, models }: IndexerManagementResolverContext,
   ): Promise<ActionResult[]> => {
     logger.debug(`Execute 'queueActions' mutation`, {
       actions,
     })
 
-    await validateActionInputs(actions, actionManager, networkMonitor)
+    await multiNetworks.map((network) =>
+      validateActionInputs(actions, actionManager, network.networkMonitor),
+    )
 
     const alreadyQueuedActions = await ActionManager.fetchActions(models, {
       status: ActionStatus.QUEUED,
@@ -319,7 +321,10 @@ export default {
     { logger, actionManager }: IndexerManagementResolverContext,
   ): Promise<ActionResult[]> => {
     logger.debug(`Execute 'executeApprovedActions' mutation`)
-    return await actionManager.executeApprovedActions()
+    const result = await actionManager.multiNetworks.map((network) =>
+      actionManager.executeApprovedActions(network),
+    )
+    return Object.values(result).flat()
   },
 }
 

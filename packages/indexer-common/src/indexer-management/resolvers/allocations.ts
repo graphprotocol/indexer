@@ -31,11 +31,13 @@ import {
   SubgraphIdentifierType,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
+import { extractNetwork } from './utils'
 
 interface AllocationFilter {
   status: 'active' | 'closed' | 'claimable'
   allocation: string | null
   subgraphDeployment: string | null
+  protocolNetwork: string
 }
 
 enum AllocationQuery {
@@ -356,17 +358,16 @@ async function resolvePOI(
 export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
-    {
-      address,
-      contracts,
-      logger,
-      networkSubgraph,
-      networkMonitor,
-    }: IndexerManagementResolverContext,
+    { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     logger.debug('Execute allocations() query', {
       filter,
     })
+    const network = extractNetwork(filter.protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const networkSubgraph = network.networkSubgraph
+    const contracts = network.contracts
+    const address = network.specification.indexerOptions.address
 
     const allocations: AllocationInfo[] = []
 
@@ -410,18 +411,14 @@ export default {
       indexNode: string | undefined
       protocolNetwork: string
     },
-    {
-      address,
-      contracts,
-      subgraphManager,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-    }: IndexerManagementResolverContext,
+    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', { deployment, amount })
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const address = network.specification.indexerOptions.address
 
     const allocationAmount = parseGRT(amount)
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -479,11 +476,9 @@ export default {
       }
 
       // Ensure subgraph is deployed before allocating
-      await subgraphManager.ensure(
-        logger,
+      await graphNode.ensure(
         `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
         subgraphDeployment,
-        indexNode,
       )
 
       logger.debug('Obtain a unique Allocation ID')
@@ -643,21 +638,17 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    {
-      contracts,
-      graphNode,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-      receiptCollector,
-    }: IndexerManagementResolverContext,
+    { graphNode, logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
     })
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const receiptCollector = network.receiptCollector
 
     const allocationData = await networkMonitor.allocation(allocation)
 
@@ -820,16 +811,7 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    {
-      address,
-      contracts,
-      graphNode,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-      receiptCollector,
-    }: IndexerManagementResolverContext,
+    { graphNode, logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
     // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     logger = logger.child({
@@ -842,6 +824,13 @@ export default {
       amount,
       force,
     })
+
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const receiptCollector = network.receiptCollector
+    const address = network.specification.indexerOptions.address
 
     const allocationAmount = parseGRT(amount)
 

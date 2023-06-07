@@ -24,6 +24,7 @@ export interface IndexerManagementResolverContext {
   defaults: IndexerManagementDefaults
   actionManager: ActionManager
   multiNetworks: MultiNetworks<Network>
+  dai: WritableEventual<string>
 }
 
 const SCHEMA_SDL = gql`
@@ -345,6 +346,7 @@ const SCHEMA_SDL = gql`
   type IndexerEndpoint {
     url: String
     healthy: Boolean!
+    protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
   }
 
@@ -371,10 +373,10 @@ const SCHEMA_SDL = gql`
       merged: Boolean! = false
     ): IndexingRule
     indexingRules(merged: Boolean! = false): [IndexingRule!]!
-    indexerRegistration: IndexerRegistration!
+    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
-    indexerAllocations: [IndexerAllocation]!
-    indexerEndpoints: IndexerEndpoints!
+    indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
+    indexerEndpoints(protocolNetwork: String!): [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
@@ -532,7 +534,7 @@ export const createIndexerManagementClient = async (
     graphNode,
     defaults,
     logger: logger.child({ component: 'IndexerManagementClient' }),
-    // dai,
+    dai,
     multiNetworks,
     actionManager,
   }
@@ -540,7 +542,6 @@ export const createIndexerManagementClient = async (
   const exchange = executeExchange({
     schema,
     rootValue: resolvers,
-
     context,
   })
 
