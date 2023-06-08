@@ -10,7 +10,7 @@ Network information can be found at https://thegraph.com/explorer/network. The G
 | indexer-agent   | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-cli     | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
 | indexer-service | [0.18.6](https://github.com/graphprotocol/indexer/releases/tag/v0.18.6)    |
-| graph-node      | [0.30.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0) |
+| graph-node      | [0.31.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.31.0) |
 
 ## Network Parameters
 
@@ -81,9 +81,9 @@ option can be used.
 > This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
 
 ```
-graph-node: ≥0.30.0 <0.31.0
-valid from: 787
-upgrade window: 795
+graph-node: ≥0.31.0 <0.32.0
+valid from: 891
+upgrade window: 900
 ```
 
 | Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |

@@ -30,11 +30,10 @@ An example:
 The accepted `graph-node` version range is also specificied, with an "upgrade window" from the previous version.
 
 ```
-graph-node: ≥0.30.0 <0.31.0
-valid from: 787
-upgrade window: 795
+graph-node: ≥0.31.0 <0.32.0
+valid from: 891
+upgrade window: 900
 ```
-
 
 - Aliases can be used in subgraph manifest files to refer to specific networks.
 - Experimental features are generally not fully supported for indexing rewards and arbitration, and usage of experimental features will be considered during any arbitration that does occur.
