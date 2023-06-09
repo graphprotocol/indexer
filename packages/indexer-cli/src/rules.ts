@@ -250,6 +250,7 @@ export const indexingRules = async (
         query indexingRules($merged: Boolean!) {
           indexingRules(merged: $merged) {
             identifier
+            protocolNetwork
             identifierType
             allocationAmount
             allocationLifetime
@@ -264,7 +265,6 @@ export const indexingRules = async (
             decisionBasis
             requireSupported
             safety
-            protocolNetowrk
           }
         }
       `,
