@@ -1,31 +1,23 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
 import {
-  connectDatabase,
-  connectContracts,
   createLogger,
   Logger,
-  NetworkContracts,
-  parseGRT,
 } from '@graphprotocol/common-ts'
 
 import {
-  createIndexerManagementClient,
   IndexerManagementClient,
-  IndexerManagementDefaults,
 } from '../../client'
 import {
-  defineIndexerManagementModels,
   IndexerManagementModels,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../../models'
 import {
-  GraphNode,
-  NetworkSubgraph,
   SubgraphIdentifierType,
-  getTestProvider,
 } from '@graphprotocol/indexer-common'
+
+import { createTestManagementClient, defaults } from '../util'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -116,64 +108,16 @@ const INDEXING_RULES_QUERY = gql`
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let address: string
-let contracts: NetworkContracts
 let logger: Logger
-let graphNode: GraphNode
-let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 
-const defaults: IndexerManagementDefaults = {
-  globalIndexingRule: {
-    allocationAmount: parseGRT('100'),
-    parallelAllocations: 1,
-    requireSupported: true,
-    safety: true,
-    protocolNetwork: 'goerli',
-  },
-}
-
 const setupAll = async () => {
-  // Spin up db
-  sequelize = await connectDatabase(__DATABASE__)
-  models = defineIndexerManagementModels(sequelize)
-  address = '0xtest'
-  contracts = await connectContracts(getTestProvider('goerli'), 5)
-  await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  const statusEndpoint = 'http://localhost:8030/graphql'
-  graphNode = new GraphNode(
-    logger,
-    'http://test-admin-endpoint.xyz',
-    'https://test-query-endpoint.xyz',
-    statusEndpoint,
-    [],
-  )
-  networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
-    deployment: undefined,
-  })
-  const indexNodeIDs = ['node_1']
-  client = await createIndexerManagementClient({
-    models,
-    address,
-    contracts,
-    graphNode,
-    indexNodeIDs,
-    deploymentManagementEndpoint: statusEndpoint,
-    networkSubgraph,
-    logger,
-    defaults,
-    features: {
-      injectDai: true,
-    },
-  })
+  client = await createTestManagementClient(__DATABASE__, logger, true)
 }
 
 const teardownAll = async () => {

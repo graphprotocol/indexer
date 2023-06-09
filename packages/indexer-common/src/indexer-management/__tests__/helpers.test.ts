@@ -13,7 +13,7 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from '../models'
-import { specification as spec } from '../../'
+import { specification as spec } from '../../index'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
 import { SubgraphIdentifierType } from '../../subgraphs'
 import { ActionManager } from '../actions'
@@ -94,7 +94,7 @@ const setupMonitor = async () => {
     url: 'http://test-url.xyz',
   })
 
-  const networkMonitor = new NetworkMonitor(
+  networkMonitor = new NetworkMonitor(
     resolveChainId('goerli'),
     contracts,
     indexerOptions,
