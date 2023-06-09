@@ -363,6 +363,11 @@ export default {
     logger.debug('Execute allocations() query', {
       filter,
     })
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
     const network = extractNetwork(filter.protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const networkSubgraph = network.networkSubgraph
@@ -414,6 +419,11 @@ export default {
     { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', { deployment, amount })
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
@@ -644,6 +654,11 @@ export default {
       allocationID: allocation,
       poi: poi || 'none provided',
     })
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
@@ -824,6 +839,12 @@ export default {
       amount,
       force,
     })
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
 
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor

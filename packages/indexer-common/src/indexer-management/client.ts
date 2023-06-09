@@ -22,8 +22,8 @@ export interface IndexerManagementResolverContext {
   graphNode: GraphNode
   logger: Logger
   defaults: IndexerManagementDefaults
-  actionManager: ActionManager
-  multiNetworks: MultiNetworks<Network>
+  actionManager: ActionManager | undefined
+  multiNetworks: MultiNetworks<Network> | undefined
   dai: WritableEventual<string>
 }
 
@@ -454,8 +454,9 @@ export interface IndexerManagementClientOptions {
   graphNode: GraphNode
   // TODO:L2: Do we need this information? The GraphNode class auto-selects nodes based
   // on availability.
+  // Ford: there were some edge cases where the GraphNode was not able to auto handle it on its own
   indexNodeIDs: string[]
-  multiNetworks: MultiNetworks<Network>
+  multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
 }
 
@@ -504,7 +505,7 @@ export class IndexerManagementClient extends Client {
 }
 
 // TODO:L2: Put the IndexerManagementClient creation inside the Agent, and receive
-// MultiNetworks form it
+// MultiNetworks from it
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
@@ -520,14 +521,17 @@ export const createIndexerManagementClient = async (
   }
 
   // TODO:L2: this should be wrapped in a NetworkMapped type
+  // f: or keep to single DAI conversion rate?
   const dai: WritableEventual<string> = mutable()
 
-  const actionManager = await ActionManager.create(
-    multiNetworks,
-    logger.child({ component: 'ActionManager' }),
-    models,
-    graphNode,
-  )
+  const actionManager = multiNetworks
+    ? await ActionManager.create(
+        multiNetworks,
+        logger.child({ component: 'ActionManager' }),
+        models,
+        graphNode,
+      )
+    : undefined
 
   const context: IndexerManagementResolverContext = {
     models,
