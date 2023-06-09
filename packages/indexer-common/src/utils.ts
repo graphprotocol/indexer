@@ -27,9 +27,9 @@ export function getTestProvider(network: string): BaseProvider {
   }
 }
 
-const registerMetrics = (metrics: Metrics) => ({
+const registerMetrics = (metrics: Metrics, networkIdentifier: string) => ({
   operatorEthBalance: new metrics.client.Gauge({
-    name: 'indexer_agent_operator_eth_balance',
+    name: `indexer_agent_operator_eth_balance_${networkIdentifier}`,
     help: 'Amount of ETH in the operator wallet; a low amount could cause transactions to fail',
     registers: [metrics.registry],
   }),
@@ -39,12 +39,13 @@ export async function monitorEthBalance(
   logger: Logger,
   wallet: Wallet,
   metrics: Metrics,
+  networkIdentifier: string,
 ): Promise<void> {
   logger = logger.child({ component: 'ETHBalanceMonitor' })
 
   logger.info('Monitor operator ETH balance (refreshes every 120s)')
 
-  const balanceMetrics = registerMetrics(metrics)
+  const balanceMetrics = registerMetrics(metrics, networkIdentifier)
 
   timer(120_000).pipe(async () => {
     try {

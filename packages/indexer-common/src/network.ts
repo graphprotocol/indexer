@@ -123,7 +123,7 @@ export class Network {
     })
 
     // Monitor ETH balance of the operator and write the latest value to a metric
-    await monitorEthBalance(logger, wallet, metrics)
+    await monitorEthBalance(logger, wallet, metrics, specification.networkIdentifier)
 
     const contracts = await connectToProtocolContracts(
       wallet,
