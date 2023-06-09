@@ -842,6 +842,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     contracts: NetworkContracts,
     networkSubgraph: NetworkSubgraph,
   ): Promise<Eventual<boolean>> {
+    const initialPauseValue = await contracts.controller.paused().catch((_) => {
+      return false
+    })
     return timer(60_000)
       .reduce(async (currentlyPaused) => {
         try {
@@ -874,7 +877,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           })
           return currentlyPaused
         }
-      }, await contracts.controller.paused())
+      }, initialPauseValue)
       .map((paused) => {
         logger.info(paused ? `Network paused` : `Network active`)
         return paused
