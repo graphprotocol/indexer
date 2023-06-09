@@ -79,7 +79,7 @@ export default {
       throw Error('Cannot set indexingRule without protocolNetwork')
     } else {
       try {
-        validateNetworkIdentifier(rule.protocolNetwork)
+        rule.protocolNetwork = validateNetworkIdentifier(rule.protocolNetwork)
       } catch (e) {
         throw Error(`Invalid protocolNetwork. ${e}`)
       }
