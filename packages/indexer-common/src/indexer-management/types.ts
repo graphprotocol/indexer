@@ -8,7 +8,6 @@ import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
-import { Network as NetworkMetadata } from '@ethersproject/networks'
 
 export interface CreateAllocationResult {
   actionID: number
@@ -208,9 +207,14 @@ export function resolveChainId(key: number | string): string {
     if (chainId !== undefined) {
       return chainId
     }
-  } else {
-    // If chain is a string, it must be a chain alias
-    const chainId = Caip2ByChainAlias[key]
+  } else if (typeof key === 'string') {
+    const splitKey = key.split(':')
+    let chainId
+    if (splitKey.length === 2) {
+      chainId = Caip2ByChainId[+splitKey[1]]
+    } else {
+      chainId = Caip2ByChainAlias[key]
+    }
     if (chainId !== undefined) {
       return chainId
     }
