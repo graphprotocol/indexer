@@ -123,6 +123,7 @@ export class Operator {
             identifier: rule.identifier,
             identifierType: rule.identifierType,
             decisionBasis: rule.decisionBasis,
+            protocolNetwork: rule.protocolNetwork
           }
         }),
       })
@@ -273,7 +274,8 @@ export class Operator {
       source: 'indexerAgent',
       reason: action.reason,
       priority: 0,
-    } as ActionInput
+      protocolNetwork: action.protocolNetwork
+    }
 
     const actionResult = await this.indexerManagement
       .mutation(
@@ -287,6 +289,7 @@ export class Operator {
               reason
               priority
               status
+              protocolNetwork
             }
           }
         `,
@@ -359,7 +362,7 @@ export class Operator {
       },
       type: ActionType.ALLOCATE,
       reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+      protocolNetwork: deploymentAllocationDecision.protocolNetwork
     })
 
     return
