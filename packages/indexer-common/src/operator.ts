@@ -135,11 +135,15 @@ export class Operator {
   }
 
   async ensureGlobalIndexingRule(): Promise<void> {
+    const identifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: this.specification.networkIdentifier,
+    }
     try {
       const globalRule = await this.indexerManagement
         .query(
           gql`
-            query indexingRule($identifier: String!) {
+            query indexingRule($identifier: IndexingRuleIdentifier!) {
               indexingRule(identifier: $identifier, merged: false) {
                 identifier
                 identifierType
@@ -150,7 +154,7 @@ export class Operator {
               }
             }
           `,
-          { identifier: INDEXING_RULE_GLOBAL },
+          { identifier },
         )
         .toPromise()
 
@@ -158,7 +162,7 @@ export class Operator {
         this.logger.info(`Creating default "global" indexing rule`)
 
         const defaults = {
-          identifier: INDEXING_RULE_GLOBAL,
+          identifier,
           identifierType: SubgraphIdentifierType.GROUP,
           allocationAmount:
             this.specification.indexerOptions.defaultAllocationAmount.toString(),
