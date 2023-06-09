@@ -13,10 +13,19 @@ interface Context {
   context: MigrationContext
 }
 
+interface ForeignKey {
+  table: string
+  // This table's column that holds the FK
+  columnName: string
+  // Could also be composite, but we don't have any of that kind at this moment
+  refColumnName: string
+}
+
 interface MigrationInput {
   table: string
   oldPrimaryKeyColumns: string[]
   newColumn: string
+  referencedBy?: ForeignKey[]
 }
 
 interface MigrationTarget extends MigrationInput {
@@ -60,6 +69,23 @@ const migrationInputs: MigrationInput[] = [
   {
     table: 'allocation_summaries',
     oldPrimaryKeyColumns: ['allocation'],
+    referencedBy: [
+      {
+        table: 'allocation_receipts',
+        columnName: 'allocation',
+        refColumnName: 'allocation',
+      },
+      {
+        table: 'transfers',
+        columnName: 'allocation',
+        refColumnName: 'allocation',
+      },
+      {
+        table: 'vouchers',
+        columnName: 'allocation',
+        refColumnName: 'allocation',
+      },
+    ],
   },
 ].map(input => ({ ...input, ...defaults }))
 
@@ -77,6 +103,9 @@ export async function down({ context }: Context): Promise<void> {
 
   for (const input of migrationInputs) {
     await m.removePrimaryKeyMigration(input)
+
+    // TODO: Cascade the removal of primary keys
+    // TODO: Restore the foreign keys of cascaded constraint removals
   }
 }
 
@@ -122,6 +151,9 @@ class Migration {
 
     // Alter the `protocolNetwork` columns to be NOT NULL
     await this.alterColumn(target)
+
+    // Restore broken foreign keys
+    await this.restoreBrokenForeignKeys(target)
   }
 
   // Main migration steps in the DOWN direction
@@ -295,10 +327,8 @@ WHERE
     this.logger.info(
       `Temporarily removing primary key constraints from ${target.table}`,
     )
-    await this.queryInterface.removeConstraint(
-      target.table,
-      target.oldPrimaryKeyConstraint,
-    )
+    const sql = `ALTER TABLE "${target.table}" DROP CONSTRAINT "${target.oldPrimaryKeyConstraint}" CASCADE`
+    await this.queryInterface.sequelize.query(sql)
   }
 
   async restorePrimaryKeyConstraint(target: MigrationTarget) {
@@ -308,6 +338,33 @@ WHERE
       type: 'primary key',
       name: target.newPrimaryKeyConstraint,
     })
+  }
+
+  async restoreBrokenForeignKeys(target: MigrationTarget) {
+    if (!target.referencedBy || target.referencedBy.length === 0) {
+      return
+    }
+    this.logger.info(
+      `Restoring broken foreign keys for tables that depend on table '${target.table}'`,
+    )
+    for (const dependent of target.referencedBy) {
+      this.logger.debug(
+        `Restoring foreing key between tables '${dependent.table}' and '${target.table}'`,
+      )
+      const constraintName = '${dependent.table}_${target.table}_fkey'
+
+      const createConstraintSql = `
+      ALTER TABLE "${dependent.table}"
+      ADD CONSTRAINT "${constraintName}" FOREIGN KEY ("${dependent.columnName}", "${target.newColumn}")
+      REFERENCES "${target.table}" ("${dependent.refColumnName}", "${target.newColumn}")
+      ON UPDATE CASCADE ON DELETE CASCADE NOT VALID;
+`
+      // PostgreSQL docs suggests doing this in two steps to avoid unecessary locks
+      const validateConstraintSql = `ALTER TABLE "${dependent.table}" VALIDATE CONSTRAINT "${constraintName}";`
+
+      await this.queryInterface.sequelize.query(createConstraintSql)
+      await this.queryInterface.sequelize.query(validateConstraintSql)
+    }
   }
 
   // Only for the DOWN step
