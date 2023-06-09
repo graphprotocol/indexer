@@ -187,6 +187,7 @@ export async function queueActions(
             reason
             priority
             status
+            protocolNetwork
           }
         }
       `,
