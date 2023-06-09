@@ -1,21 +1,14 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import {
-  createLogger,
-  Logger,
-} from '@graphprotocol/common-ts'
+import { createLogger, Logger } from '@graphprotocol/common-ts'
 
-import {
-  IndexerManagementClient,
-} from '../../client'
+import { IndexerManagementClient } from '../../client'
 import {
   IndexerManagementModels,
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../../models'
-import {
-  SubgraphIdentifierType,
-} from '@graphprotocol/indexer-common'
+import { SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 
 import { createTestManagementClient, defaults } from '../util'
 
