@@ -38,7 +38,7 @@ const migrationInputs: MigrationInput[] = [
     oldPrimaryKeyColumns: ['identifier'],
   },
   {
-    table: 'POIDispute',
+    table: 'POIDisputes',
     oldPrimaryKeyColumns: ['allocationID'],
   },
   {
@@ -253,6 +253,9 @@ WHERE
     this.logger.info(
       `Add '${target.newColumn}' column to ${target.table} table`,
     )
+
+    // Note: we set it to be nullable, but it is only for this migration. At the end we
+    // set it back to not null.
     await this.queryInterface.addColumn(target.table, target.newColumn, {
       type: DataTypes.STRING,
       allowNull: true,
@@ -284,7 +287,7 @@ WHERE
     )
     await this.queryInterface.changeColumn(target.table, target.newColumn, {
       type: DataTypes.STRING,
-      allowNull: true,
+      allowNull: false,
     })
   }
 
