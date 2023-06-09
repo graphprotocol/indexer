@@ -4,17 +4,17 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from '@graphprotocol/indexer-common'
+import { NetworkMapped, NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {
   logger: Logger
-  networkSubgraph: NetworkSubgraph
+  networkSubgraphs: NetworkMapped<NetworkSubgraph>
   port: number
 }
 
 export const createSyncingServer = async ({
   logger,
-  networkSubgraph,
+  networkSubgraphs,
   port,
 }: CreateSyncingServerOptions): Promise<express.Express> => {
   logger = logger.child({ component: 'SyncingServer' })
@@ -38,21 +38,27 @@ export const createSyncingServer = async ({
   })
 
   // Network subgraph endpoint
-  server.post('/network', bodyParser.json(), async (req, res) => {
-    const { query, variables } = req.body
+  server.post(
+    '/network/:networkIdentifier',
+    bodyParser.json(),
+    async (req, res) => {
+      const { query, variables } = req.body
+      const { networkIdentifier } = req.params
+      if (query.startsWith('mutation') || query.startsWith('subscription')) {
+        return res.status(405).send('Only queries are supported')
+      }
 
-    if (query.startsWith('mutation') || query.startsWith('subscription')) {
-      return res.status(405).send('Only queries are supported')
-    }
+      const networkSubgraph = networkSubgraphs[networkIdentifier]
 
-    const result = await networkSubgraph.query(query, variables)
+      const result = await networkSubgraph.query(query, variables)
 
-    res.status(200).send({
-      data: result.data,
-      errors: result.error ? result.error.graphQLErrors : null,
-      extensions: result.extensions,
-    })
-  })
+      res.status(200).send({
+        data: result.data,
+        errors: result.error ? result.error.graphQLErrors : null,
+        extensions: result.extensions,
+      })
+    },
+  )
 
   server.listen(port, () => {
     logger.debug(`Listening on port ${port}`)

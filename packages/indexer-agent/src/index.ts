@@ -5,7 +5,7 @@ import {
   start,
   createNetworkSpecification,
   AgentOptions,
-  oldHandler,
+  run,
 } from './commands/start'
 import {
   startMultiNetwork,
@@ -40,10 +40,10 @@ async function processArguments(
 ): Promise<spec.NetworkSpecification[]> {
   if (args['_'].includes('start')) {
     const specification = await createNetworkSpecification(args)
-    await oldHandler(args, specification)
-    return [specification]
+    await run(args, [specification])
   } else if (args['_'].includes('start-multiple')) {
-    return parseNetworkSpecifications(args)
+    const specifications = parseNetworkSpecifications(args)
+    await run(args, specifications)
   }
   // Should be unreachable
   throw new Error('Bad invocation')
@@ -51,8 +51,8 @@ async function processArguments(
 
 async function main(): Promise<void> {
   const args = parseArguments()
-  const specs = await processArguments(args)
-  console.log(inspect(specs, { colors: true }))
+  await processArguments(args)
+  // console.log(inspect(specs, { colors: true }))
 }
 
 main()

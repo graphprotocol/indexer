@@ -14,7 +14,7 @@
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
-    "compile": "tsc",
+    "compile": "tsc --build",
     "prepare": "yarn format && yarn lint && yarn compile",
     "start": "node ./dist/index.js start",
     "test": "jest --colors --verbose --detectOpenHandles",
