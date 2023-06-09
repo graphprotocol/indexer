@@ -12,6 +12,8 @@ import {
   ActionType,
   ActionUpdateInput,
   IndexerManagementModels,
+  Network,
+  NetworkMapped,
   OrderDirection,
   validateActionInputs,
 } from '@graphprotocol/indexer-common'
@@ -150,8 +152,12 @@ export default {
       actions,
     })
 
+    if (!actionManager || !multiNetworks) {
+      throw Error('IndexerManagementClient must be in `network` mode to modify actions')
+    }
+
     await multiNetworks.map((network) =>
-      validateActionInputs(actions, actionManager, network.networkMonitor),
+      validateActionInputs(actions, network.networkMonitor),
     )
 
     const alreadyQueuedActions = await ActionManager.fetchActions(models, {
@@ -319,10 +325,14 @@ export default {
   executeApprovedActions: async (
     _: unknown,
     { logger, actionManager }: IndexerManagementResolverContext,
-  ): Promise<ActionResult[]> => {
+  ): Promise<Action[]> => {
     logger.debug(`Execute 'executeApprovedActions' mutation`)
-    const result = await actionManager.multiNetworks.map((network) =>
-      actionManager.executeApprovedActions(network),
+    if (!actionManager) {
+      throw Error('IndexerManagementClient must be in `network` mode to modify actions')
+    }
+
+    const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
+      (network: Network) => actionManager.executeApprovedActions(network),
     )
     return Object.values(result).flat()
   },

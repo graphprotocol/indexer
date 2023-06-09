@@ -61,6 +61,13 @@ export default {
     { multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     // TODO:L2: Parse protocolNetwork into a network identifier
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch indexer registration information',
+      )
+    }
+
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
@@ -102,6 +109,12 @@ export default {
     { protocolNetwork }: { protocolNetwork: string },
     { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch indexer allocations',
+      )
+    }
+
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const address = network.specification.indexerOptions.address
 
@@ -152,6 +165,11 @@ export default {
     { protocolNetwork }: { protocolNetwork: string },
     { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<Endpoints[] | null> => {
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch indexer endpoints',
+      )
+    }
     const endpoints: Endpoints[] = []
     await multiNetworks.map(async (network: Network) => {
       try {

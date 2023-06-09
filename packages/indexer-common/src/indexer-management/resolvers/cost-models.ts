@@ -97,6 +97,10 @@ export default {
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
     { models, multiNetworks, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
+    if (!multiNetworks) {
+      throw Error('IndexerManagementClient must be in `network` mode to set cost models')
+    }
+
     const update = parseGraphQLCostModel(costModel)
 
     // Validate cost model
@@ -114,6 +118,7 @@ export default {
     // handle DAI contracts for each configured protocol network, but we don't have the
     // bandwidth to implement that at this time.
 
+    // TODO: is there lighter way to import injectDai: boolean?
     const network = Object.values(multiNetworks.inner)
       .flat()
       .find((network) => network.specification.dai.inject)

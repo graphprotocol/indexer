@@ -79,7 +79,6 @@ export const isValidActionInput = (
 
 export const validateActionInputs = async (
   actions: ActionInput[],
-  actionManager: ActionManager,
   networkMonitor: NetworkMonitor,
 ): Promise<void> => {
   // Validate actions before adding to queue
