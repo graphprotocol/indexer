@@ -99,7 +99,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     networkSpecification,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
-    this.metrics = registerReceiptMetrics(metrics)
+    this.metrics = registerReceiptMetrics(metrics, networkSpecification.networkIdentifier)
     this.transactionManager = transactionManager
     this.models = models
     this.allocationExchange = allocationExchange
@@ -644,78 +644,78 @@ export function encodePartialVouchers(
   }
 }
 
-const registerReceiptMetrics = (metrics: Metrics) => ({
+const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => ({
   receiptsToCollect: new metrics.client.Gauge({
-    name: 'indexer_agent_receipts_to_collect',
+    name: `indexer_agent_receipts_to_collect_${networkIdentifier}`,
     help: 'Individual receipts to collect',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   failedReceipts: new metrics.client.Counter({
-    name: 'indexer_agent_receipts_failed',
+    name: `indexer_agent_receipts_failed_${networkIdentifier}`,
     help: 'Failed to queue receipts to collect',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   partialVouchersToExchange: new metrics.client.Gauge({
-    name: 'indexer_agent_vouchers_to_exchange',
+    name: `indexer_agent_vouchers_to_exchange_${networkIdentifier}`,
     help: 'Individual partial vouchers to exchange',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   receiptsCollectDuration: new metrics.client.Histogram({
-    name: 'indexer_agent_receipts_exchange_duration',
+    name: `indexer_agent_receipts_exchange_duration_${networkIdentifier}`,
     help: 'Duration of processing and exchanging receipts to voucher',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchers: new metrics.client.Counter({
-    name: 'indexer_agent_vouchers',
+    name: `indexer_agent_vouchers_${networkIdentifier}`,
     help: 'Individual vouchers to redeem',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   successVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_exchanges_ok',
+    name: `indexer_agent_voucher_exchanges_ok_${networkIdentifier}`,
     help: 'Successfully redeemed vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   invalidVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_exchanges_invalid',
+    name: `indexer_agent_voucher_exchanges_invalid_${networkIdentifier}`,
     help: 'Invalid vouchers redeems - tx paused or unauthorized',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   failedVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_redeems_failed',
+    name: `indexer_agent_voucher_redeems_failed_${networkIdentifier}`,
     help: 'Failed redeems for vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchersRedeemDuration: new metrics.client.Histogram({
-    name: 'indexer_agent_vouchers_redeem_duration',
+    name: `indexer_agent_vouchers_redeem_duration_${networkIdentifier}`,
     help: 'Duration of redeeming vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchersBatchRedeemSize: new metrics.client.Gauge({
-    name: 'indexer_agent_vouchers_redeem',
+    name: `indexer_agent_vouchers_redeem_${networkIdentifier}`,
     help: 'Size of redeeming batched vouchers',
     registers: [metrics.registry],
   }),
 
   voucherCollectedFees: new metrics.client.Gauge({
-    name: 'indexer_agent_voucher_collected_fees',
+    name: `indexer_agent_voucher_collected_fees_${networkIdentifier}`,
     help: 'Amount of query fees collected for a voucher',
     registers: [metrics.registry],
     labelNames: ['allocation'],
