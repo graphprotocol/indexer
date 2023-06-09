@@ -8,18 +8,11 @@ import {
   Metrics,
 } from '@graphprotocol/common-ts'
 
-import {
-  IndexerManagementClient,
-  IndexerManagementDefaults,
-} from '../../client'
+import { IndexerManagementClient, IndexerManagementDefaults } from '../../client'
 import { IndexerManagementModels } from '../../models'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
-import {
-  GraphNode,
-  NetworkSubgraph,
-  QueryFeeModels,
-} from '@graphprotocol/indexer-common'
+import { GraphNode, NetworkSubgraph, QueryFeeModels } from '@graphprotocol/indexer-common'
 import { createTestManagementClient } from '../util'
 
 // Make global Jest variable available
