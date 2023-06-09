@@ -429,7 +429,7 @@ export class Agent {
       },
     )
 
-    // `activeAllocaitons` is used to trigger this Eventual, but not really needed
+    // `activeAllocations` is used to trigger this Eventual, but not really needed
     // inside.
     const recentlyClosedAllocations: Eventual<Allocation[]> = join({
       activeAllocations,

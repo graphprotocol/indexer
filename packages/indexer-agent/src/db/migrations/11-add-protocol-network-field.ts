@@ -39,10 +39,6 @@ const defaults: Pick<MigrationTarget, 'newColumn'> = {
 
 const migrationInputs: MigrationInput[] = [
   {
-    table: 'Actions',
-    oldPrimaryKeyColumns: ['id'],
-  },
-  {
     table: 'IndexingRules',
     oldPrimaryKeyColumns: ['identifier'],
   },
