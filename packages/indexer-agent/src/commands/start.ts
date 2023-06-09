@@ -12,6 +12,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
+  Action,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -30,6 +31,9 @@ import { Agent } from '../agent'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
+import pMap from 'p-map'
+import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
+import { BigNumber } from 'ethers'
 
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
@@ -222,7 +226,7 @@ export const start = {
         default: false,
         group: 'Disputes',
       })
-      .option('gateway-endopoint', {
+      .option('gateway-endpoint', {
         description: 'Gateway endpoint base URL',
         alias: 'collect-receipts-endpoint',
         type: 'string',
@@ -351,9 +355,9 @@ export async function createNetworkSpecification(
 // TODO: Split this code into two functions:
 // 1. [X] Create NetworkSpecification
 // 2. [ ] Start Agent with NetworkSpecification as input.
-export async function oldHandler(
+export async function run(
   argv: AgentOptions,
-  networkSpecification: spec.NetworkSpecification,
+  networkSpecifications: spec.NetworkSpecification[],
 ): Promise<void> {
   const logger = createLogger({
     name: 'IndexerAgent',
@@ -401,18 +405,6 @@ export async function oldHandler(
   registerIndexerErrorMetrics(metrics)
 
   // --------------------------------------------------------------------------------
-  // * NetworkProvider and NetworkIdentifier
-  // --------------------------------------------------------------------------------
-  const networkProvider = await Network.provider(
-    logger,
-    metrics,
-    networkSpecification.networkProvider.url,
-    networkSpecification.networkProvider.pollingInterval,
-  )
-  const networkMeta = await networkProvider.getNetwork()
-  const networkChainId = resolveChainId(networkMeta.chainId)
-
-  // --------------------------------------------------------------------------------
   // * Graph Node
   // ---------------------------------------------------------------- ----------------
   const graphNode = new GraphNode(
@@ -445,6 +437,22 @@ export async function oldHandler(
   // * Database - Migrations
   // --------------------------------------------------------------------------------
   logger.info(`Run database migrations`)
+
+  // TODO: This is a bit of a hack to assume the lowest chain ID (preference for Mainnet). Instead let's look at allocation ids and see what network they're on?
+  const minChainID = Math.min(
+    ...networkSpecifications.map(spec => +spec.networkIdentifier.split(':')[1]),
+  )
+  const networkSpecification = networkSpecifications.filter(
+    spec => +spec.networkIdentifier.split(':')[1] === minChainID,
+  )
+  const networkProvider = await Network.provider(
+    logger,
+    metrics,
+    networkSpecification[0].networkProvider.url,
+    networkSpecification[0].networkProvider.pollingInterval,
+  )
+  const networkMeta = await networkProvider.getNetwork()
+  const networkChainId = resolveChainId(networkMeta.chainId)
 
   // If the application is being executed using ts-node __dirname may be in /src rather than /dist
   const migrations_path = __dirname.includes('dist')
@@ -487,27 +495,37 @@ export async function oldHandler(
   logger.info(`Successfully synced database models`)
 
   // --------------------------------------------------------------------------------
-  // * Network
+  // * Networks
   // --------------------------------------------------------------------------------
-  logger.info('Connect to network')
+  logger.info('Connect to network/s')
 
-  const network = await Network.create(
-    logger,
-    networkSpecification,
-    queryFeeModels,
-    graphNode,
-    metrics,
+  const networks: Network[] = await pMap(
+    networkSpecifications,
+    async (spec: NetworkSpecification) =>
+      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
   )
-  logger.info('Successfully connected to network', {
-    // QUESTION: Why do we (only) log this restakeRewards field?
-    restakeRewards: networkSpecification.indexerOptions.restakeRewards,
-  })
+
+  // --------------------------------------------------------------------------------
+  // * Cost Model Automation
+  // --------------------------------------------------------------------------------
+
+  // TODO: Update this to multiNetwork environment
+  //  - could have this run per network BUT we probably only need to run it for Mainnet
+  // startCostModelAutomation({
+  //   logger,
+  //   ethereum: networkProvider,
+  //   contracts: network.contracts,
+  //   indexerManagement: indexerManagementClient,
+  //   injectDai: networkSpecification.dai.inject,
+  //   daiContractAddress: networkSpecification.dai.contractAddress,
+  //   metrics,
+  // })
 
   // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
   const multiNetworks = new MultiNetworks(
-    [network],
+    networks,
     (n: Network) => n.specification.networkIdentifier,
   )
 
@@ -518,8 +536,8 @@ export async function oldHandler(
     logger,
     defaults: {
       globalIndexingRule: {
-        allocationAmount:
-          networkSpecification.indexerOptions.defaultAllocationAmount,
+        // TODO: Update this, there will be defaults per network
+        allocationAmount: BigNumber.from(100),
         parallelAllocations: 1,
       },
     },
@@ -540,33 +558,27 @@ export async function oldHandler(
   // QUESTION: What does this component do?
   // --------------------------------------------------------------------------------
   logger.info(`Launch syncing server`)
+
   await createSyncingServer({
     logger,
-    networkSubgraph: network.networkSubgraph,
+    networkSubgraphs: await multiNetworks.map(
+      async network => network.networkSubgraph,
+    ),
     port: argv.syncingPort,
   })
   logger.info(`Successfully launched syncing server`)
 
   // --------------------------------------------------------------------------------
-  // * Cost Model Automation
-  // --------------------------------------------------------------------------------
-  startCostModelAutomation({
-    logger,
-    ethereum: networkProvider,
-    contracts: network.contracts,
-    indexerManagement: indexerManagementClient,
-    injectDai: networkSpecification.dai.inject,
-    daiContractAddress: networkSpecification.dai.contractAddress,
-    metrics,
-  })
-
-  // --------------------------------------------------------------------------------
   // * Operator
   // --------------------------------------------------------------------------------
-  const operator = new Operator(
-    logger.child({ component: 'Operator' }),
-    indexerManagementClient,
-    networkSpecification,
+  const operators: Operator[] = await pMap(
+    networkSpecifications,
+    async (spec: NetworkSpecification) =>
+      new Operator(
+        logger.child({ component: `Operator-${spec.networkIdentifier}` }),
+        indexerManagementClient,
+        spec,
+      ),
   )
 
   // --------------------------------------------------------------------------------
@@ -576,9 +588,9 @@ export async function oldHandler(
     logger,
     metrics,
     graphNode,
-    [operator],
+    operators,
     indexerManagementClient,
-    [network],
+    networks,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
   )
   await agent.start()
@@ -665,7 +677,7 @@ function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   }
 }
 
-// Retrieves the netowrk identifier in contexts where we haven't yet instantiated the JSON
+// Retrieves the network identifier in contexts where we haven't yet instantiated the JSON
 // RPC Provider, which has additional and more complex dependencies.
 async function fetchChainId(url: string): Promise<number> {
   const payload = {
