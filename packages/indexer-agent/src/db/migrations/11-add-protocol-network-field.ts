@@ -185,7 +185,7 @@ class Migration {
 
   async checkColumnExists(input: MigrationInput): Promise<boolean> {
     this.logger.debug(
-      `Checking if table '${input.table}' has the '${input.newColumn}'`,
+      `Checking if table '${input.table}' has the '${input.newColumn}' column`,
     )
     const tableSpecification = await this.queryInterface.describeTable(
       input.table,
