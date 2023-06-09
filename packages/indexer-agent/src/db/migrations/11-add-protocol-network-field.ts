@@ -66,7 +66,6 @@ const migrationInputs: MigrationInput[] = [
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, networkChainId, logger } = context
   const m = new Migration(queryInterface, logger)
-
   for (const input of migrationInputs) {
     await m.addPrimaryKeyMigration(input, networkChainId)
   }
@@ -95,8 +94,14 @@ class Migration {
     input: MigrationInput,
     networkChainId: string,
   ): Promise<void> {
+    // Skip migration for this table if it doesn't exist.
     const tableExists = await this.checkTableExists(input)
     if (!tableExists) {
+      return
+    }
+    // Skip migration for this table if it already has the 'protocolNetwork' column
+    const columnExists = await this.checkColumnExists(input)
+    if (columnExists) {
       return
     }
 
@@ -134,27 +139,55 @@ class Migration {
     await this.restoreOldPrimaryKeyConstraint(target)
   }
 
-  async checkTableExists(
-    target: Pick<MigrationTarget, 'table'>,
-  ): Promise<boolean> {
-    this.logger.debug(`Checking if ${target.table} table exists`)
-    const exists = await this.queryInterface.tableExists(target.table)
-    if (exists) {
+  async checkTableExists(input: MigrationInput): Promise<boolean> {
+    this.logger.debug(`Checking if table '${input.table}' exists`)
+    const exists = await this.queryInterface.tableExists(input.table)
+    if (!exists) {
       this.logger.info(
-        `${target.table} table does not exist, migration not necessary`,
+        `Table '${input.table}' does not exist, migration not necessary`,
       )
       return false
     }
     return true
   }
 
+  async checkColumnExists(input: MigrationInput): Promise<boolean> {
+    this.logger.debug(
+      `Checking if table '${input.table}' has the '${input.newColumn}'`,
+    )
+    const tableSpecification = await this.queryInterface.describeTable(
+      input.table,
+    )
+    const column = tableSpecification[input.newColumn]
+    if (!column) {
+      return false
+    }
+    // Check if the existing column is a primary key (it should be)
+    if (!column.primaryKey) {
+      throw new Error(
+        `Column '${input.newColumn}' of table '${input.table}' exists, but it is not a primary key.`,
+      )
+    }
+    this.logger.info(
+      `Column '${input.newColumn}' of table '${input.table}' already exists, migration not necessary`,
+    )
+    return true
+  }
+
   // Only for the UP step
   async processMigrationInput(input: MigrationInput): Promise<MigrationTarget> {
+    this.logger.debug(`Inferring primary key name for table '${input.table}'`)
     const oldPrimaryKeyConstraint = await this.getPrimaryKeyConstraintName(
       input,
     )
+    this.logger.debug(
+      `Table '${input.table}' existing primary key name is '${oldPrimaryKeyConstraint}'`,
+    )
     const newPrimaryKeyConstraint =
       oldPrimaryKeyConstraint + MANUAL_CONSTRAINT_NAME_FRAGMENT
+    this.logger.debug(
+      `Table '${input.table}' updated primary key name will be '${newPrimaryKeyConstraint}'`,
+    )
     return {
       ...input,
       oldPrimaryKeyConstraint,
