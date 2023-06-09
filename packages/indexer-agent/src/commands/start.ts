@@ -439,20 +439,7 @@ export async function run(
   logger.info(`Run database migrations`)
 
   // TODO: This is a bit of a hack to assume the lowest chain ID (preference for Mainnet). Instead let's look at allocation ids and see what network they're on?
-  const minChainID = Math.min(
-    ...networkSpecifications.map(spec => +spec.networkIdentifier.split(':')[1]),
-  )
-  const networkSpecification = networkSpecifications.filter(
-    spec => +spec.networkIdentifier.split(':')[1] === minChainID,
-  )
-  const networkProvider = await Network.provider(
-    logger,
-    metrics,
-    networkSpecification[0].networkProvider.url,
-    networkSpecification[0].networkProvider.pollingInterval,
-  )
-  const networkMeta = await networkProvider.getNetwork()
-  const networkChainId = resolveChainId(networkMeta.chainId)
+  const networkChainId = 'eip155:421613'
 
   // If the application is being executed using ts-node __dirname may be in /src rather than /dist
   const migrations_path = __dirname.includes('dist')
@@ -497,7 +484,9 @@ export async function run(
   // --------------------------------------------------------------------------------
   // * Networks
   // --------------------------------------------------------------------------------
-  logger.info('Connect to network/s')
+  logger.info('Connect to network/s', {
+    networks: networkSpecifications.map(spec => spec.networkIdentifier),
+  })
 
   const networks: Network[] = await pMap(
     networkSpecifications,
@@ -545,7 +534,9 @@ export async function run(
   })
 
   // * Indexer Management Server
-  logger.info('Launch indexer management API server')
+  logger.info('Launch indexer management API server', {
+    port: argv.indexerManagementPort,
+  })
   await createIndexerManagementServer({
     logger,
     client: indexerManagementClient,
