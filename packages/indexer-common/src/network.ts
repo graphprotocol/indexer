@@ -102,6 +102,7 @@ export class Network {
     const networkProvider = await Network.provider(
       logger,
       metrics,
+      specification.networkIdentifier,
       specification.networkProvider.url,
       specification.networkProvider.pollingInterval,
     )
@@ -213,11 +214,13 @@ export class Network {
   static async provider(
     logger: Logger,
     metrics: Metrics,
+    networkIdentifier: string,
     networkURL: string,
     pollingInterval: number,
   ): Promise<providers.StaticJsonRpcProvider> {
     logger.info(`Connect to Network chain`, {
       provider: networkURL,
+      pollingInterval
     })
 
     let providerUrl
@@ -231,9 +234,11 @@ export class Network {
       process.exit(1)
     }
 
+    const provider_requests_metric_name = `eth_provider_requests_${networkIdentifier}`
+    logger.info('Metric name: ', { provider_requests_metric_name })
     const ethProviderMetrics = {
       requests: new metrics.client.Counter({
-        name: 'eth_provider_requests',
+        name: provider_requests_metric_name,
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
         labelNames: ['method'],
