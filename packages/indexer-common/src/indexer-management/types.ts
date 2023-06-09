@@ -162,7 +162,7 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   'arbitrum-one': 'eip155:42161',
   'arbitrum-goerli': 'eip155:421613',
   avalanche: 'eip155:43114',
-  polygon: 'eip155:137',
+  matic: 'eip155:137',
   celo: 'eip155:42220',
   optimism: 'eip155:10',
   fantom: 'eip155:250',
