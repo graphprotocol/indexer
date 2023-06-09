@@ -35,23 +35,21 @@ function parseArguments(): AgentOptions {
     .help().argv
 }
 
-async function processArguments(
-  args: AgentOptions,
-): Promise<spec.NetworkSpecification[]> {
+async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
   if (args['_'].includes('start')) {
     const specification = await createNetworkSpecification(args)
     await run(args, [specification])
   } else if (args['_'].includes('start-multiple')) {
     const specifications = parseNetworkSpecifications(args)
     await run(args, specifications)
+  } else {
+    throw new Error('Invalid command line usage for Indexer Agent')
   }
-  // Should be unreachable
-  throw new Error('Bad invocation')
 }
 
 async function main(): Promise<void> {
   const args = parseArguments()
-  await processArguments(args)
+  await processArgumentsAndRun(args)
   // console.log(inspect(specs, { colors: true }))
 }
 
