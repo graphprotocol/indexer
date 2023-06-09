@@ -27,7 +27,6 @@ import {
   resolveChainId,
   validateProviderNetworkIdentifier,
   validateNetworkIdentifier,
-  MultiNetworks,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -313,8 +312,8 @@ export default {
       argv.networkProvider,
       argv.ethereumPollingInterval,
     )
-    const network = await networkProvider.getNetwork()
-    const protocolNetwork = resolveChainId(network.chainId)
+    const networkIdentifier = await networkProvider.getNetwork()
+    const protocolNetwork = resolveChainId(networkIdentifier.chainId)
 
     // If the network subgraph deployment is present, validate if the `chainId` we get from our
     // provider is consistent.
@@ -328,13 +327,13 @@ export default {
     }
 
     logger.info('Connect to contracts', {
-      network: network.name,
-      chainId: network.chainId,
+      network: networkIdentifier.name,
+      chainId: networkIdentifier.chainId,
     })
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(networkProvider, network.chainId)
+      contracts = await connectContracts(networkProvider, networkIdentifier.chainId)
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
@@ -386,7 +385,7 @@ export default {
       logger,
       allocations,
       wallet,
-      chainId: network.chainId,
+      chainId: networkIdentifier.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
     })
 
@@ -400,11 +399,6 @@ export default {
       queryTimingLogs: argv.queryTimingLogs,
     })
 
-    // TODO:L2: Build the new Network type here
-    const multiNetworks = new MultiNetworks(
-      [network],
-      (n: Network) => n.specification.networkIdentifier,
-    )
     const indexerManagementClient = await createIndexerManagementClient({
       models,
       graphNode,
@@ -417,7 +411,7 @@ export default {
           allocationAmount: BigNumber.from('0'),
         },
       },
-      multiNetworks,
+      multiNetworks: undefined,
     })
 
     // Spin up a basic webserver
