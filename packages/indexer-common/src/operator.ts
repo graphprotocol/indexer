@@ -162,7 +162,7 @@ export class Operator {
         this.logger.info(`Creating default "global" indexing rule`)
 
         const defaults = {
-          identifier,
+          ...identifier,
           identifierType: SubgraphIdentifierType.GROUP,
           allocationAmount:
             this.specification.indexerOptions.defaultAllocationAmount.toString(),

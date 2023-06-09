@@ -66,6 +66,7 @@ export const TransactionMonitoring = z
       .default(100)
       .transform((x) => x * 10 ** 9),
     baseFeePerGasMax: positiveNumber()
+      .default(100)
       .transform((x) => x * 10 ** 9)
       .optional(),
     maxTransactionAttempts: z.number().nonnegative().finite().default(0),

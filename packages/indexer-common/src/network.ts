@@ -220,7 +220,7 @@ export class Network {
   ): Promise<providers.StaticJsonRpcProvider> {
     logger.info(`Connect to Network chain`, {
       provider: networkURL,
-      pollingInterval
+      pollingInterval,
     })
 
     let providerUrl
