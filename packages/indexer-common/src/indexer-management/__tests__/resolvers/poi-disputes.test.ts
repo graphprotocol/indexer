@@ -1,29 +1,10 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import {
-  connectDatabase,
-  connectContracts,
-  createLogger,
-  Logger,
-  NetworkContracts,
-  parseGRT,
-} from '@graphprotocol/common-ts'
+import { createLogger, Logger } from '@graphprotocol/common-ts'
 
-import {
-  createIndexerManagementClient,
-  IndexerManagementClient,
-  IndexerManagementDefaults,
-} from '../../client'
-import {
-  defineIndexerManagementModels,
-  IndexerManagementModels,
-  POIDisputeAttributes,
-} from '../../models'
-import {
-  GraphNode,
-  NetworkSubgraph,
-  getTestProvider,
-} from '@graphprotocol/indexer-common'
+import { IndexerManagementClient } from '../../client'
+import { IndexerManagementModels, POIDisputeAttributes } from '../../models'
+import { createTestManagementClient } from '../util'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,60 +168,16 @@ function toObjectArray(disputes: POIDisputeAttributes[]): Record<string, any>[] 
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let address: string
-let contracts: NetworkContracts
 let logger: Logger
-let graphNode: GraphNode
-let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
 
-const defaults = {
-  globalIndexingRule: {
-    allocationAmount: parseGRT('100'),
-  },
-} as IndexerManagementDefaults
-
 const setupAll = async () => {
-  // Spin up db
-  sequelize = await connectDatabase(__DATABASE__)
-  models = defineIndexerManagementModels(sequelize)
-  address = '0xtest'
-  contracts = await connectContracts(getTestProvider('goerli'), 5)
-  await sequelize.sync({ force: true })
   logger = createLogger({
-    name: 'POI dispute tests',
+    name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  const statusEndpoint = 'http://localhost:8030/graphql'
-  graphNode = new GraphNode(
-    logger,
-    'http://test-admin-endpoint.xyz',
-    'https://test-query-endpoint.xyz',
-    statusEndpoint,
-    [],
-  )
-  networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    deployment: undefined,
-  })
-  const indexNodeIDs = ['node_1']
-  client = await createIndexerManagementClient({
-    models,
-    address,
-    contracts,
-    graphNode,
-    indexNodeIDs,
-    networkSubgraph,
-    deploymentManagementEndpoint: statusEndpoint,
-    logger,
-    defaults,
-    features: {
-      injectDai: true,
-    },
-  })
+  client = await createTestManagementClient(__DATABASE__, logger, true)
 }
 
 const setupEach = async () => {

@@ -2,51 +2,31 @@
 
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { ethers, Wallet } from 'ethers'
-import {
-  connectContracts,
-  connectDatabase,
-  createLogger,
-  createMetrics,
-  Logger,
-  Metrics,
-  mutable,
-  NetworkContracts,
-  parseGRT,
-} from '@graphprotocol/common-ts'
+import { createLogger, Logger, Metrics, parseGRT } from '@graphprotocol/common-ts'
 
+import { IndexerManagementClient, IndexerManagementDefaults } from '../../client'
+import { Action, IndexerManagementModels } from '../../models'
 import {
-  createIndexerManagementClient,
-  IndexerManagementClient,
-  IndexerManagementDefaults,
-} from '../../client'
-import {
-  Action,
-  defineIndexerManagementModels,
-  IndexerManagementModels,
-} from '../../models'
-import {
-  defineQueryFeeModels,
   ActionInput,
   ActionParams,
   ActionStatus,
   ActionType,
-  AllocationReceiptCollector,
-  GraphNode,
-  NetworkSubgraph,
   OrderDirection,
   QueryFeeModels,
-  TransactionManager,
-  NetworkMonitor,
-  EpochSubgraph,
-  resolveChainId,
-  AllocationManager,
-  SubgraphManager,
-  getTestProvider,
-  specification,
 } from '@graphprotocol/indexer-common'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
+import {
+  allocateToNotPublishedDeployment,
+  createTestManagementClient,
+  invalidReallocateAction,
+  invalidUnallocateAction,
+  queuedAllocateAction,
+  subgraphDeployment1,
+  subgraphDeployment2,
+  subgraphDeployment3,
+  notPublishedSubgraphDeployment,
+} from '../util'
 
 const QUEUE_ACTIONS_MUTATION = gql`
   mutation queueActions($actions: [ActionInput!]!) {
@@ -179,104 +159,11 @@ async function actionInputToExpected(
   return expected
 }
 
-const defaults: IndexerManagementDefaults = {
-  globalIndexingRule: {
-    allocationAmount: parseGRT('100'),
-    parallelAllocations: 1,
-    requireSupported: true,
-    safety: true,
-  },
-}
-
-const subgraphDeployment1 = 'Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy'
-const subgraphDeployment2 = 'QmWq1pmnhEvx25qxpYYj9Yp6E1xMKMVoUjXVQBxUJmreSe'
-const subgraphDeployment3 = 'QmRhH2nhNibDVPZmYqq3TUZZARZ77vgjYCvPNiGBCogtgM'
-const notPublishedSubgraphDeployment = 'QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6'
-
-const queuedAllocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.ALLOCATE,
-  deploymentID: subgraphDeployment1,
-  amount: '10000',
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'goerli',
-} as ActionInput
-
-const allocateToNotPublishedDeployment = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.ALLOCATE,
-  deploymentID: notPublishedSubgraphDeployment,
-  amount: '10000',
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'goerli',
-} as ActionInput
-
-const invalidUnallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.UNALLOCATE,
-  allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
-  deploymentID: subgraphDeployment1,
-  amount: undefined,
-  poi: undefined,
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'goerli',
-} as ActionInput
-
-// const queuedReallocateAction = {
-//   status: ActionStatus.QUEUED,
-//   type: ActionType.REALLOCATE,
-//   allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
-//   deploymentID: subgraphDeployment1,
-//   poi: undefined,
-//   amount: '27000',
-//   force: false,
-//   source: 'indexerAgent',
-//   reason: 'indexingRule',
-//   priority: 0,
-// } as ActionInput
-
-const invalidReallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.REALLOCATE,
-  deploymentID: subgraphDeployment1,
-  allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
-  poi: undefined,
-  amount: undefined,
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'goerli',
-} as ActionInput
-
-const indexNodeIDs = ['node_1']
-
-let ethereum: ethers.providers.BaseProvider
 let sequelize: Sequelize
 let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
-let address: string
-let contracts: NetworkContracts
 let logger: Logger
-let graphNode: GraphNode
-let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
-let transactionManager: TransactionManager
-let wallet: Wallet
-let epochSubgraph: EpochSubgraph
-let networkMonitor: NetworkMonitor
-let receiptCollector: AllocationReceiptCollector
-let mockedSubgraphManager: SubgraphManager
-let allocationManager: AllocationManager
 let metrics: Metrics
 
 // Make global Jest variables available
@@ -285,125 +172,12 @@ declare const __DATABASE__: any
 declare const __LOG_LEVEL__: never
 
 const setup = async () => {
-  const statusEndpoint = 'http://localhost:8030/graphql'
-  const deploymentManagementEndpoint = 'http://localhost:8020/'
-  address = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
-
-  sequelize = await connectDatabase(__DATABASE__)
-  queryFeeModels = defineQueryFeeModels(sequelize)
-  managementModels = defineIndexerManagementModels(sequelize)
-  sequelize = await sequelize.sync({ force: true })
-  ethereum = getTestProvider('goerli')
-  wallet = Wallet.createRandom()
-  contracts = await connectContracts(ethereum, 5)
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-
-  graphNode = new GraphNode(
-    logger,
-    'https://test-admin-endpoint.xyz',
-    'https://test-query-endpoint.xyz',
-    statusEndpoint,
-    [],
-  )
-  networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
-    deployment: undefined,
-  })
-
-  const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'goerli',
-    gateway: {
-      url: 'http://localhost:8030/',
-    },
-    networkProvider: { url: 'http://test-url.xyz' },
-    indexerOptions: {
-      address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
-      mnemonic: 'foo',
-      url: 'http://test-indexer.xyz',
-    },
-    subgraphs: {
-      networkSubgraph: { url: 'http://test-url.xyz' },
-      epochSubgraph: { url: 'http://test-url.xyz' },
-    },
-    transactionMonitoring: {
-      gasIncreaseTimeout: 240000,
-      gasIncreaseFactor: 1.2,
-      baseFeePerGasMax: 100 * 10 ** 9,
-      maxTransactionAttempts: 0,
-    },
-    dai: {
-      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-      inject: false,
-    },
-  })
-
-  transactionManager = new TransactionManager(
-    ethereum,
-    wallet,
-    mutable(false),
-    mutable(true),
-    networkSpecification.transactionMonitoring,
-  )
-
-  epochSubgraph = await EpochSubgraph.create(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
-  )
-
-  metrics = createMetrics()
-  receiptCollector = new AllocationReceiptCollector({
-    logger,
-    metrics,
-    transactionManager: transactionManager,
-    models: queryFeeModels,
-    allocationExchange: contracts.allocationExchange,
-    networkSpecification,
-  })
-
-  networkMonitor = new NetworkMonitor(
-    resolveChainId('goerli'),
-    contracts,
-    networkSpecification.indexerOptions,
-    logger,
-    graphNode,
-    networkSubgraph,
-    ethereum,
-    epochSubgraph,
-  )
-
-  client = await createIndexerManagementClient({
-    models: managementModels,
-    address,
-    contracts,
-    graphNode,
-    indexNodeIDs,
-    deploymentManagementEndpoint,
-    networkSubgraph,
-    receiptCollector,
-    transactionManager,
-    networkMonitor,
-    logger,
-    defaults,
-    features: {
-      injectDai: true,
-    },
-  })
-  mockedSubgraphManager = new SubgraphManager('fake endpoint', ['fake node id'])
-  allocationManager = new AllocationManager(
-    contracts,
-    logger,
-    address,
-    managementModels,
-    networkMonitor,
-    receiptCollector,
-    mockedSubgraphManager,
-    transactionManager,
-  )
+  client = await createTestManagementClient(__DATABASE__, logger, true)
 }
 
 const setupEach = async () => {
@@ -1084,74 +858,5 @@ describe('Actions', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.updateActions', updatedExpecteds)
-  })
-})
-
-describe('Allocation Manager', () => {
-  beforeAll(setup)
-  beforeEach(setupEach)
-  afterEach(teardownEach)
-  afterAll(teardownAll)
-
-  // We have been rate-limited on CI as this test uses RPC providers,
-  // so we set its timeout to a higher value than usual.
-  jest.setTimeout(30_000)
-
-  // Reuse an existing allocation with 25 sextillion allocated GRT
-  const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
-
-  // Redefine test actions to use that allocation ID
-  const unallocateAction = {
-    ...invalidUnallocateAction,
-    poi: '0x1', // non-zero POI
-    allocationID,
-  }
-  const reallocateAction = {
-    ...invalidReallocateAction,
-    amount: '10000',
-    allocationID,
-  }
-
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore: Mocking the Action type for this test
-  const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
-
-  test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
-    const balances = await Promise.all(
-      actions.map((action) => allocationManager.stakeUsageSummary(action)),
-    )
-    const allocate = balances[0]
-    const unallocate = balances[1]
-    const reallocate = balances[2]
-
-    // Allocate test action
-    expect(allocate.action.type).toBe(ActionType.ALLOCATE)
-    expect(allocate.allocates).toStrictEqual(parseGRT('10000'))
-    expect(allocate.rewards.isZero()).toBeTruthy()
-    expect(allocate.unallocates.isZero()).toBeTruthy()
-    expect(allocate.balance).toStrictEqual(parseGRT('10000'))
-
-    // Unallocate test action
-    expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
-    expect(unallocate.allocates.isZero()).toBeTruthy()
-    expect(unallocate.rewards.isZero()).toBeFalsy()
-    expect(unallocate.unallocates).toStrictEqual(parseGRT('25000'))
-    expect(unallocate.balance).toStrictEqual(
-      unallocate.allocates.sub(unallocate.unallocates).sub(unallocate.rewards),
-    )
-
-    // This Reallocate test Action intentionally uses a null or zeroed POI, so it should not accrue rewards.
-    expect(reallocate.action.type).toBe(ActionType.REALLOCATE)
-    expect(reallocate.allocates).toStrictEqual(parseGRT('10000'))
-    expect(reallocate.rewards.isZero()).toBeTruthy()
-    expect(reallocate.unallocates).toStrictEqual(parseGRT('25000'))
-    expect(reallocate.balance).toStrictEqual(parseGRT('-15000'))
-  })
-
-  test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {
-    const reordered = await allocationManager.validateActionBatchFeasibilty(actions)
-    expect(reordered[0]).toStrictEqual(unallocateAction)
-    expect(reordered[1]).toStrictEqual(reallocateAction)
-    expect(reordered[2]).toStrictEqual(queuedAllocateAction)
   })
 })
