@@ -99,9 +99,9 @@ module.exports = {
       const queuedAction = await queueActions(client, [actionInputParams])
 
       actionSpinner.succeed(`${type} action added to queue`)
-
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
+        'protocolNetwork',
         'type',
         'deploymentID',
         'allocationID',

@@ -76,12 +76,12 @@ export default {
     }
 
     if (!rule.protocolNetwork) {
-      throw Error('Cannot set indexingRule without protocolNetwork')
+      throw Error("Cannot set an indexing rule without the field 'protocolNetwork'")
     } else {
       try {
         rule.protocolNetwork = validateNetworkIdentifier(rule.protocolNetwork)
       } catch (e) {
-        throw Error(`Invalid protocolNetwork. ${e}`)
+        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
       }
     }
 
@@ -95,7 +95,7 @@ export default {
 
     // Since upsert succeeded, we _must_ have a rule
     const updatedRule = await models.IndexingRule.findOne({
-      where: { identifier: rule.identifier },
+      where: { identifier: rule.identifier, protocolNetwork: rule.protocolNetwork },
     })
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return updatedRule!.toGraphQL()
