@@ -7,7 +7,12 @@ import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
 import { displayRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
-import { formatData, parseOutputFormat, pickFields } from '../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  formatData,
+  parseOutputFormat,
+  pickFields,
+} from '../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}
@@ -15,6 +20,7 @@ ${chalk.bold('graph indexer status')}
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 [Required] the rule's protocol network
 `
 
 module.exports = {
@@ -36,6 +42,14 @@ module.exports = {
       return
     }
 
+    let protocolNetwork: string
+    try {
+      protocolNetwork = extractProtocolNetworkOption(toolbox.parameters.options)
+    } catch (error) {
+      print.error(error.message)
+      process.exit(1)
+    }
+
     const config = loadValidatedConfig()
 
     // Create indexer API client
@@ -47,10 +61,11 @@ module.exports = {
       result = await client
         .query(
           gql`
-            query {
-              indexerRegistration {
+            query ($protocolNetwork: String!) {
+              indexerRegistration(protocolNetwork: $protocolNetwork) {
                 url
                 address
+                protocolNetwork
                 registered
                 location {
                   latitude
@@ -81,8 +96,9 @@ module.exports = {
                 }
               }
 
-              indexerAllocations {
+              indexerAllocations(protocolNetwork: $protocolNetwork) {
                 id
+                protocolNetwork
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
@@ -91,10 +107,11 @@ module.exports = {
                 stakedTokens
               }
 
-              indexerEndpoints {
+              indexerEndpoints(protocolNetwork: $protocolNetwork) {
                 service {
                   url
                   healthy
+                  protocolNetwork
                   tests {
                     test
                     error
@@ -112,8 +129,9 @@ module.exports = {
                 }
               }
 
-              indexingRules(merged: true) {
+              indexingRules(merged: true, protocolNetwork: $protocolNetwork) {
                 identifier
+                protocolNetwork
                 identifierType
                 allocationAmount
                 allocationLifetime
@@ -131,7 +149,7 @@ module.exports = {
               }
             }
           `,
-          {},
+          { protocolNetwork },
         )
         .toPromise()
     } catch (error) {
@@ -234,9 +252,11 @@ module.exports = {
           ),
         )
         if (
-          data.endpoints.find((endpoint: any) =>
-            endpoint.tests.find((test: any) => test.error !== null),
-          )
+          data.endpoints.find((endpoint: any) => {
+            if (endpoint.tests) {
+              return endpoint.tests.find((test: any) => test.error !== null)
+            }
+          })
         ) {
           print.error('The following endpoint tests failed:\n')
           for (const endpoint of data.endpoints) {

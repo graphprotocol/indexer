@@ -296,6 +296,7 @@ const SCHEMA_SDL = gql`
 
   type IndexerRegistration {
     url: String
+    protocolNetwork: String
     address: String
     registered: Boolean!
     location: GeoLocation
