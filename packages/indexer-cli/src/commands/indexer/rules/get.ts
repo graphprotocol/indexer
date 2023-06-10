@@ -59,7 +59,8 @@ module.exports = {
       const ruleIdentifier = { identifier, protocolNetwork }
       const ruleOrRules =
         identifier === 'all'
-          ? await indexingRules(client, !!merged)
+          ? // TODO:L2: Find a way to return all rules from all protocol networks when the user issues the 'all' identifier.
+            await indexingRules(client, !!merged, protocolNetwork)
           : await indexingRule(client, ruleIdentifier, !!merged)
 
       print.info(

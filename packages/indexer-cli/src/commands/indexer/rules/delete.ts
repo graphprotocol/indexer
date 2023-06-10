@@ -53,7 +53,7 @@ module.exports = {
       const client = await createIndexerManagementClient({ url: config.api })
 
       if (identifier === 'all') {
-        const rules = await indexingRules(client, false)
+        const rules = await indexingRules(client, false, protocolNetwork)
 
         const rulesIdentifiers = await Promise.all(
           rules.map(async function (rule) {

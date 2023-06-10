@@ -243,12 +243,13 @@ export const displayRules = (
 export const indexingRules = async (
   client: IndexerManagementClient,
   merged: boolean,
+  protocolNetwork: string,
 ): Promise<Partial<IndexingRuleAttributes>[]> => {
   const result = await client
     .query(
       gql`
-        query indexingRules($merged: Boolean!) {
-          indexingRules(merged: $merged) {
+        query indexingRules($merged: Boolean!, $protocolNetwork: String!) {
+          indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
             identifier
             protocolNetwork
             identifierType
@@ -268,7 +269,7 @@ export const indexingRules = async (
           }
         }
       `,
-      { merged: !!merged },
+      { merged: !!merged, protocolNetwork },
     )
     .toPromise()
 

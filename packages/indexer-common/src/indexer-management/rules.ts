@@ -10,8 +10,10 @@ import { parseIndexingRule } from '../rules'
 export const fetchIndexingRules = async (
   models: IndexerManagementModels,
   merged: boolean,
+  protocolNetwork: string,
 ): Promise<IndexingRuleAttributes[]> => {
   const rules = await models.IndexingRule.findAll({
+    where: { protocolNetwork },
     order: [
       ['identifierType', 'DESC'],
       ['identifier', 'ASC'],
@@ -19,7 +21,7 @@ export const fetchIndexingRules = async (
   })
   if (merged) {
     const global = await models.IndexingRule.findOne({
-      where: { identifier: INDEXING_RULE_GLOBAL },
+      where: { identifier: INDEXING_RULE_GLOBAL, protocolNetwork },
     })
     return rules.map((rule) => rule.mergeGlobal(global))
   } else {
@@ -37,7 +39,10 @@ export const upsertIndexingRule = async (
 
   // Since upsert succeeded, we _must_ have a rule
   const updatedRule = await models.IndexingRule.findOne({
-    where: { identifier: indexingRule.identifier },
+    where: {
+      identifier: indexingRule.identifier,
+      protocolNetwork: indexingRule.protocolNetwork,
+    },
   })
 
   logger.debug(
