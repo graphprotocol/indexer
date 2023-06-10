@@ -438,9 +438,6 @@ export async function run(
   // --------------------------------------------------------------------------------
   logger.info(`Run database migrations`)
 
-  // TODO: This is a bit of a hack to assume the lowest chain ID (preference for Mainnet). Instead let's look at allocation ids and see what network they're on?
-  const networkChainId = 'eip155:421613'
-
   // If the application is being executed using ts-node __dirname may be in /src rather than /dist
   const migrations_path = __dirname.includes('dist')
     ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
@@ -455,7 +452,7 @@ export async function run(
         queryInterface: sequelize.getQueryInterface(),
         logger,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-        networkChainId,
+        networkSpecifications,
       },
       storage: new SequelizeStorage({ sequelize }),
       logger: console,

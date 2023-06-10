@@ -1,4 +1,5 @@
 import { Logger } from '@graphprotocol/common-ts'
+import { specification } from '@graphprotocol/indexer-common'
 import { QueryTypes, DataTypes, QueryInterface } from 'sequelize'
 
 const MANUAL_CONSTRAINT_NAME_FRAGMENT = '_composite_manual'
@@ -6,7 +7,7 @@ const MANUAL_CONSTRAINT_NAME_FRAGMENT = '_composite_manual'
 interface MigrationContext {
   queryInterface: QueryInterface
   logger: Logger
-  networkChainId: string
+  networkSpecifications: specification.NetworkSpecification[]
 }
 
 interface Context {
@@ -90,7 +91,17 @@ const migrationInputs: MigrationInput[] = [
 ].map(input => ({ ...input, ...defaults }))
 
 export async function up({ context }: Context): Promise<void> {
-  const { queryInterface, networkChainId, logger } = context
+  const { queryInterface, networkSpecifications, logger } = context
+
+  // This migration requires that just one network is used
+  if (networkSpecifications.length !== 1) {
+    throw new Error(
+      `Migration expects only one network specification, but found ${networkSpecifications.length}. ` +
+        `Please avoid using other network specifications until this migration completes.`,
+    )
+  }
+  const networkChainId = networkSpecifications[0].networkIdentifier
+
   const m = new Migration(queryInterface, logger)
   for (const input of migrationInputs) {
     await m.addPrimaryKeyMigration(input, networkChainId)
