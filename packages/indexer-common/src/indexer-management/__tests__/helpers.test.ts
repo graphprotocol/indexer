@@ -167,7 +167,7 @@ describe('Indexing Rules', () => {
       IndexingDecisionBasis.ALWAYS,
     )
 
-    await expect(fetchIndexingRules(models, false)).resolves.toHaveLength(1)
+    await expect(fetchIndexingRules(models, false, 'goerli')).resolves.toHaveLength(1)
   })
 })
 

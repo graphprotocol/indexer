@@ -61,10 +61,10 @@ export default {
   },
 
   indexingRules: async (
-    { merged }: { merged: boolean },
+    { merged, protocolNetwork }: { merged: boolean; protocolNetwork: string },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    return await fetchIndexingRules(models, merged)
+    return await fetchIndexingRules(models, merged, protocolNetwork)
   },
 
   setIndexingRule: async (
