@@ -60,8 +60,6 @@ export default {
     { protocolNetwork }: { protocolNetwork: string },
     { multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    // TODO:L2: Parse protocolNetwork into a network identifier
-
     if (!multiNetworks) {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch indexer registration information',
@@ -78,6 +76,7 @@ export default {
       const service = await contracts.serviceRegistry.services(address)
       return {
         address,
+        protocolNetwork: network.specification.networkIdentifier,
         url: service.url,
         location: geohash.decode(service.geohash),
         registered,
@@ -151,6 +150,7 @@ export default {
           .ipfsHash,
         signalledTokens: allocation.subgraphDeployment.signalledTokens,
         stakedTokens: allocation.subgraphDeployment.stakedTokens,
+        protocolNetwork: network.specification.networkIdentifier,
       }))
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
