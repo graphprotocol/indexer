@@ -36,6 +36,7 @@ export enum OutputFormat {
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
 import { utils } from 'ethers'
+import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -223,5 +224,11 @@ export function extractProtocolNetworkOption(options: { [key: string]: any }): s
   if (!allowedUsages) {
     throw new Error("Invalid usage of the option '--network'")
   }
-  return (network ?? n) as string
+  const input = (network ?? n) as string
+
+  try {
+    return validateNetworkIdentifier(input)
+  } catch (parseError) {
+    throw new Error(`Invalid value for the option '--network'. ${parseError}`)
+  }
 }
