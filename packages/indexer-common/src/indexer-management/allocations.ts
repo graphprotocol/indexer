@@ -487,68 +487,6 @@ export class AllocationManager {
     )
   }
 
-  async allocate(
-    deployment: SubgraphDeploymentID,
-    amount: BigNumber,
-    indexNode: string | undefined,
-    protocolNetwork: string,
-  ): Promise<CreateAllocationResult> {
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
-    try {
-      const params = await this.prepareAllocateParams(
-        this.logger,
-        deployment,
-        amount,
-        indexNode,
-      )
-
-      this.logger.debug(`Sending allocateFrom transaction`, {
-        indexer: params.indexer,
-        subgraphDeployment: deployment.ipfsHash,
-        amount: formatGRT(params.tokens),
-        allocation: params.allocationID,
-        proof: params.proof,
-      })
-
-      const receipt = await this.network.transactionManager.executeTransaction(
-        async () =>
-          this.network.contracts.staking.estimateGas.allocateFrom(
-            params.indexer,
-            params.subgraphDeploymentID,
-            params.tokens,
-            params.allocationID,
-            params.metadata,
-            params.proof,
-          ),
-        async (gasLimit) =>
-          this.network.contracts.staking.allocateFrom(
-            params.indexer,
-            params.subgraphDeploymentID,
-            params.tokens,
-            params.allocationID,
-            params.metadata,
-            params.proof,
-            { gasLimit },
-          ),
-        this.logger.child({ function: 'staking.allocate' }),
-      )
-
-      return await this.confirmAllocate(
-        0,
-        deployment.ipfsHash,
-        amount.toString(),
-        receipt,
-        protocolNetwork,
-      )
-    } catch (error) {
-      this.logger.error(`Failed to allocate`, {
-        amount: formatGRT(amount),
-        error,
-      })
-      throw error
-    }
-  }
-
   async prepareUnallocateParams(
     logger: Logger,
     allocationID: string,
@@ -709,51 +647,6 @@ export class AllocationManager {
   ): Promise<PopulatedTransaction> {
     const params = await this.prepareUnallocateParams(logger, allocationID, poi, force)
     return await this.populateUnallocateTransaction(logger, params)
-  }
-
-  async unallocate(
-    allocationID: string,
-    poi: string | undefined,
-    force: boolean,
-    protocolNetwork: string,
-  ): Promise<CloseAllocationResult> {
-    try {
-      const params = await this.prepareUnallocateParams(
-        this.logger,
-        allocationID,
-        poi,
-        force,
-      )
-      const allocation = await this.network.networkMonitor.allocation(allocationID)
-      this.logger.debug('Sending closeAllocation transaction')
-      const receipt = await this.network.transactionManager.executeTransaction(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () =>
-          this.network.contracts.staking.estimateGas.closeAllocation(
-            params.allocationID,
-            params.poi,
-          ),
-        (gasLimit) =>
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.network.contracts.staking.closeAllocation(
-            params.allocationID,
-            params.poi,
-            {
-              gasLimit,
-            },
-          ),
-        this.logger.child({ function: 'staking.closeAllocation' }),
-      )
-
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return await this.confirmUnallocate(0, allocation.id!, receipt, protocolNetwork)
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE015, error)
-      this.logger.warn(`Failed to close allocation`, {
-        err,
-      })
-      throw err
-    }
   }
 
   async prepareReallocateParams(
@@ -1048,62 +941,6 @@ export class AllocationManager {
         params.proof,
       ),
     ]
-  }
-
-  async reallocate(
-    allocationID: string,
-    poi: string | undefined,
-    amount: BigNumber,
-    force: boolean,
-    protocolNetwork: string,
-  ): Promise<ReallocateAllocationResult> {
-    try {
-      const params = await this.prepareReallocateParams(
-        this.logger,
-        allocationID,
-        poi,
-        amount,
-        force,
-      )
-
-      this.logger.info(`Sending close and allocate multicall transaction`, {
-        indexer: params.indexer,
-        oldAllocation: params.closingAllocationID,
-        newAllocation: params.newAllocationID,
-        newAllocationAmount: formatGRT(params.tokens),
-        deployment: params.subgraphDeploymentID,
-        poi: params.poi,
-        proof: params.proof,
-      })
-
-      const callData = [
-        await this.network.contracts.staking.populateTransaction.closeAllocation(
-          params.closingAllocationID,
-          params.poi,
-        ),
-        await this.network.contracts.staking.populateTransaction.allocate(
-          params.subgraphDeploymentID,
-          params.tokens,
-          params.newAllocationID,
-          params.metadata,
-          params.proof,
-        ),
-      ].map((tx) => tx.data as string)
-
-      const receipt = await this.network.transactionManager.executeTransaction(
-        async () => this.network.contracts.staking.estimateGas.multicall(callData),
-        async (gasLimit) =>
-          this.network.contracts.staking.multicall(callData, { gasLimit }),
-        this.logger.child({
-          function: 'closeAndAllocate',
-        }),
-      )
-
-      return await this.confirmReallocate(0, allocationID, receipt, protocolNetwork)
-    } catch (error) {
-      this.logger.error(error.toString())
-      throw error
-    }
   }
 
   async matchingRuleExists(
