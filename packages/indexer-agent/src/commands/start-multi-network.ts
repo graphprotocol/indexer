@@ -75,21 +75,35 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
   return yamlFiles
 }
 
-function readYamlFile(filePath: string): string {
+function readYamlFile(filePath: string): any {
   const text = fs.readFileSync(filePath, 'utf8')
-  return YAML.parse(text)
+  let content: any
+  try {
+    content = YAML.parse(text)
+  } catch (yamlParseError) {
+    throw new Error(
+      `Failed to parse network specification YAML file at ${filePath}.\n${yamlParseError}`,
+    )
+  }
+  if (!content) {
+    throw new Error(
+      `Failed to parse network specification YAML file: ${filePath}.\nFile is empty.`,
+    )
+  }
+  return content
 }
 
 function parseYamlFile(filePath: string): spec.NetworkSpecification {
-  let yamlString: string
+  let yamlContent: any
   try {
-    yamlString = readYamlFile(filePath)
+    yamlContent = readYamlFile(filePath)
   } catch (error) {
+    console.log(error.message)
     process.exit(1)
   }
 
   try {
-    return spec.NetworkSpecification.parse(yamlString)
+    return spec.NetworkSpecification.parse(yamlContent)
   } catch (error) {
     displayZodParsingError(error, filePath)
     process.exit(1)
