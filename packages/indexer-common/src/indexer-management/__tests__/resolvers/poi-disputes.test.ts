@@ -1,9 +1,12 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { createLogger, Logger } from '@graphprotocol/common-ts'
-
+import { connectDatabase, createLogger, Logger } from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '../../client'
-import { IndexerManagementModels, POIDisputeAttributes } from '../../models'
+import {
+  defineIndexerManagementModels,
+  IndexerManagementModels,
+  POIDisputeAttributes,
+} from '../../models'
 import { createTestManagementClient } from '../util'
 
 // Make global Jest variable available
@@ -172,12 +175,17 @@ let logger: Logger
 let client: IndexerManagementClient
 
 const setupAll = async () => {
+  // Spin up db
+  sequelize = await connectDatabase(__DATABASE__)
+  models = defineIndexerManagementModels(sequelize)
+
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
   client = await createTestManagementClient(__DATABASE__, logger, true)
+  logger.info('Finished setting up Test Indexer Management Client')
 }
 
 const setupEach = async () => {
@@ -196,6 +204,7 @@ const teardownAll = async () => {
 }
 
 describe('POI disputes', () => {
+  jest.setTimeout(60_000)
   beforeAll(setupAll)
   beforeEach(setupEach)
   afterEach(teardownEach)

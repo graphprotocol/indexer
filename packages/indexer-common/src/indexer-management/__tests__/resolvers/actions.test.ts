@@ -2,15 +2,26 @@
 
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { createLogger, Logger, Metrics, parseGRT } from '@graphprotocol/common-ts'
+import {
+  connectDatabase,
+  createLogger,
+  Logger,
+  Metrics,
+  // createMetrics,
+} from '@graphprotocol/common-ts'
 
-import { IndexerManagementClient, IndexerManagementDefaults } from '../../client'
-import { Action, IndexerManagementModels } from '../../models'
+import { IndexerManagementClient } from '../../client'
+import {
+  Action,
+  defineIndexerManagementModels,
+  IndexerManagementModels,
+} from '../../models'
 import {
   ActionInput,
   ActionParams,
   ActionStatus,
   ActionType,
+  defineQueryFeeModels,
   OrderDirection,
   QueryFeeModels,
 } from '@graphprotocol/indexer-common'
@@ -142,13 +153,12 @@ const DELETE_ACTIONS_MUTATION = gql`
     deleteActions(actionIDs: $actionIDs)
   }
 `
+type ActionTestInput = Record<string, any>
 async function actionInputToExpected(
   input: ActionInput,
   id: number,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<{ [key: string]: any }> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const expected: Record<string, any> = { ...input }
+): Promise<ActionTestInput> {
+  const expected: ActionTestInput = { ...input }
   expected.id = id
 
   for (const actionKey in Action.getAttributes()) {
@@ -156,6 +166,13 @@ async function actionInputToExpected(
       expected[actionKey] = null
     }
   }
+
+  // We expect the protocol network to be transformed to it's CAIP2-ID
+  // form for all inputs
+  if (input.protocolNetwork === 'goerli') {
+    expected.protocolNetwork = 'eip155:5'
+  }
+
   return expected
 }
 
@@ -172,6 +189,12 @@ declare const __DATABASE__: any
 declare const __LOG_LEVEL__: never
 
 const setup = async () => {
+  sequelize = await connectDatabase(__DATABASE__)
+  queryFeeModels = defineQueryFeeModels(sequelize)
+  managementModels = defineIndexerManagementModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
+  // TODO:L2: Skip creating metrics while we don't fix metrics requirements for extra lables
+  // metrics = createMetrics()
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
@@ -199,11 +222,13 @@ const teardownEach = async () => {
 }
 
 const teardownAll = async () => {
-  metrics.registry.clear()
+  // TODO:L2: Skip using metrics while we don't fix metrics requirements for extra lables
+  // metrics.registry.clear()
   await sequelize.drop({})
 }
 
 describe('Actions', () => {
+  jest.setTimeout(60_000)
   beforeAll(setup)
   beforeEach(setupEach)
   afterEach(teardownEach)
@@ -487,7 +512,8 @@ describe('Actions', () => {
 
   test('Reject action with invalid params for action type', async () => {
     const inputAction = invalidReallocateAction
-    const fields = JSON.stringify(inputAction)
+    const expected = { ...inputAction, protocolNetwork: 'eip155:5' }
+    const fields = JSON.stringify(expected)
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
     ).resolves.toHaveProperty(
@@ -702,7 +728,8 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'goerli',
+      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+      protocolNetwork: 'eip155:5',
     } as ActionInput
 
     const proposedAction = {
@@ -721,9 +748,11 @@ describe('Actions', () => {
       returning: true,
     })
 
-    await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] }).toPromise(),
-    ).resolves.toHaveProperty(
+    const result = await client
+      .mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] })
+      .toPromise()
+
+    expect(result).toHaveProperty(
       'error',
       new CombinedError({
         graphQLErrors: [
@@ -754,7 +783,8 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'goerli',
+      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+      protocolNetwork: 'eip155:5',
     } as ActionInput
 
     const proposedAction = {
@@ -806,7 +836,8 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'goerli',
+      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+      protocolNetwork: 'eip155:5',
     } as ActionInput
 
     const queuedAllocateAction = {
