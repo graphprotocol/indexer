@@ -446,6 +446,7 @@ export class AllocationManager {
         allocationAmount: amount,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
       await upsertIndexingRule(logger, this.models, indexingRule)
@@ -667,6 +668,7 @@ export class AllocationManager {
     )
     const offchainIndexingRule = {
       identifier: allocation.subgraphDeployment.id.ipfsHash,
+      protocolNetwork: this.network.specification.networkIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     } as Partial<IndexingRuleAttributes>
@@ -681,7 +683,7 @@ export class AllocationManager {
       allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
       indexingRewards: formatGRT(rewardsAssigned),
       receiptsWorthCollecting: isCollectingQueryFees,
-      protocolNetwork,
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
@@ -999,6 +1001,7 @@ export class AllocationManager {
         allocationAmount: formatGRT(createAllocationEventLogs.tokens),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
       await upsertIndexingRule(logger, this.models, indexingRule)
@@ -1013,7 +1016,7 @@ export class AllocationManager {
       receiptsWorthCollecting: isCollectingQueryFees,
       createdAllocation: createAllocationEventLogs.allocationID,
       createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
-      protocolNetwork,
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
