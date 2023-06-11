@@ -2,6 +2,7 @@
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
+import { caip2IdRegex } from '../../parsers'
 
 export interface POIDisputeAttributes {
   allocationID: string
@@ -258,6 +259,9 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     {
