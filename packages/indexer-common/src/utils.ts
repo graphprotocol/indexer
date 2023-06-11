@@ -3,6 +3,7 @@ import {
   BaseProvider,
   JsonRpcProvider,
   getDefaultProvider,
+  getNetwork,
 } from '@ethersproject/providers'
 import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from './errors'

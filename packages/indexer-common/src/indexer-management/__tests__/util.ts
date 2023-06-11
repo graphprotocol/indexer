@@ -19,6 +19,51 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+
+function getTestProviderUrl(): string {
+  const testJsonRpcProviderUrl = process.env.INDEXER_TEST_JRPC_PROVIDER_URL
+  if (testJsonRpcProviderUrl) {
+    return testJsonRpcProviderUrl
+  } else {
+    return PUBLIC_JSON_RPC_ENDPOINT
+  }
+}
+
+export const testNetworkSpecification = specification.NetworkSpecification.parse({
+  networkIdentifier: 'goerli',
+  gateway: {
+    url: 'http://localhost:8030/',
+  },
+  networkProvider: {
+    url: getTestProviderUrl(),
+  },
+  indexerOptions: {
+    address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
+    mnemonic:
+      'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
+    url: 'http://test-indexer.xyz',
+  },
+  subgraphs: {
+    networkSubgraph: {
+      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+    },
+    epochSubgraph: {
+      url: 'http://test-url.xyz',
+    },
+  },
+  transactionMonitoring: {
+    gasIncreaseTimeout: 240000,
+    gasIncreaseFactor: 1.2,
+    baseFeePerGasMax: 100 * 10 ** 9,
+    maxTransactionAttempts: 0,
+  },
+  dai: {
+    contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+    inject: false,
+  },
+})
+
 export const createTestManagementClient = async (
   databaseOptions: any,
   logger: Logger,
@@ -40,6 +85,9 @@ export const createTestManagementClient = async (
   )
   const indexNodeIDs = ['node_1']
 
+  const networkSpecification = { ...testNetworkSpecification }
+  networkSpecification.dai.inject = injectDai
+
   const defaults: IndexerManagementDefaults = {
     globalIndexingRule: {
       allocationAmount: parseGRT('100'),
@@ -49,36 +97,6 @@ export const createTestManagementClient = async (
       protocolNetwork: 'goerli',
     },
   }
-
-  // TODO: QUESTION: how do we setup a test provider? In the past we did getTestProvider('goerli') but here you can only provide the url string?
-  const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'goerli',
-    gateway: {
-      url: 'http://localhost:8030/',
-    },
-    networkProvider: { url: 'http://test-url.xyz' },
-    indexerOptions: {
-      address: '0xtest',
-      mnemonic: 'foo',
-      url: 'http://test-indexer.xyz',
-    },
-    subgraphs: {
-      networkSubgraph: {
-        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
-      },
-      epochSubgraph: { url: 'http://test-url.xyz' },
-    },
-    transactionMonitoring: {
-      gasIncreaseTimeout: 240000,
-      gasIncreaseFactor: 1.2,
-      baseFeePerGasMax: 100 * 10 ** 9,
-      maxTransactionAttempts: 0,
-    },
-    dai: {
-      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-      inject: injectDai,
-    },
-  })
 
   const network = await Network.create(
     logger,

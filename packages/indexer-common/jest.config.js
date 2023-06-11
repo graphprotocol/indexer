@@ -6,7 +6,7 @@ module.exports = {
   collectCoverage: true,
   preset: 'ts-jest',
   testEnvironment: 'node',
-  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.yalc'],
+    testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.yalc', 'util.ts'],
   globals: {
     __DATABASE__: {
       host: process.env.POSTGRES_TEST_HOST || bail('POSTGRES_TEST_HOST is not defined'),

@@ -167,7 +167,8 @@ describe('Indexing Rules', () => {
       IndexingDecisionBasis.ALWAYS,
     )
 
-    await expect(fetchIndexingRules(models, false, 'goerli')).resolves.toHaveLength(1)
+    //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+    await expect(fetchIndexingRules(models, false, 'eip155:5')).resolves.toHaveLength(1)
   })
 })
 
@@ -216,7 +217,8 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'goerli',
+      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+      protocolNetwork: 'eip155:5',
     }
 
     await models.Action.upsert(action)

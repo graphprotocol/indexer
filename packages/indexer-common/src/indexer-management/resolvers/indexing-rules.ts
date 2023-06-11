@@ -41,13 +41,14 @@ export default {
       all: false,
       global: true,
     })
-    const validatedIdentifier = {
-      ...indexingRuleIdentifier,
-      identifier: identifier,
-    }
+
+    // Sanitize protocol network identifier
+    const protocolNetwork = validateNetworkIdentifier(
+      indexingRuleIdentifier.protocolNetwork,
+    )
 
     const rule = await models.IndexingRule.findOne({
-      where: validatedIdentifier,
+      where: { identifier, protocolNetwork },
     })
     if (rule && merged) {
       return rule.mergeToGraphQL(
@@ -61,9 +62,14 @@ export default {
   },
 
   indexingRules: async (
-    { merged, protocolNetwork }: { merged: boolean; protocolNetwork: string },
+    {
+      merged,
+      protocolNetwork: uncheckedProtocolNetwork,
+    }: { merged: boolean; protocolNetwork: string },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
+    // Convert the input `protocolNetwork` value to a CAIP2-ID
+    const protocolNetwork = validateNetworkIdentifier(uncheckedProtocolNetwork)
     return await fetchIndexingRules(models, merged, protocolNetwork)
   },
 
@@ -91,14 +97,8 @@ export default {
     })
     rule.identifier = identifier
 
-    await models.IndexingRule.upsert(rule)
-
-    // Since upsert succeeded, we _must_ have a rule
-    const updatedRule = await models.IndexingRule.findOne({
-      where: { identifier: rule.identifier, protocolNetwork: rule.protocolNetwork },
-    })
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return updatedRule!.toGraphQL()
+    const [updatedRule, _created] = await models.IndexingRule.upsert(rule)
+    return updatedRule.toGraphQL()
   },
 
   deleteIndexingRule: async (
@@ -109,17 +109,21 @@ export default {
       all: false,
       global: true,
     })
+
+    // Sanitize protocol network identifier
+    const protocolNetwork = validateNetworkIdentifier(
+      indexingRuleIdentifier.protocolNetwork,
+    )
+
     const validatedRuleIdentifier = {
-      ...indexingRuleIdentifier,
+      protocolNetwork,
       identifier,
     }
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
-        where: {
-          ...validatedRuleIdentifier,
-        },
+        where: validatedRuleIdentifier,
         transaction,
       })
 
@@ -142,6 +146,12 @@ export default {
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
     let totalNumDeleted = 0
+
+    // Sanitize protocol network identifiers
+    for (const identifier of indexingRuleIdentifiers) {
+      identifier.protocolNetwork = validateNetworkIdentifier(identifier.protocolNetwork)
+    }
+
     // Batch deletions by the `IndexingRuleIdentifier.protocolNetwork` attribute .
     const batches = groupBy(
       indexingRuleIdentifiers,

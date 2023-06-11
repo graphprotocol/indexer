@@ -8,7 +8,6 @@ import {
   IndexerManagementModels,
   Network,
   QueryFeeModels,
-  specification,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -22,6 +21,7 @@ import {
   invalidReallocateAction,
   invalidUnallocateAction,
   queuedAllocateAction,
+  testNetworkSpecification,
 } from './util'
 import { Sequelize } from 'sequelize'
 
@@ -48,46 +48,17 @@ const setup = async () => {
   managementModels = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
 
-  const statusEndpoint = 'http://localhost:8030/graphql'
-
-  const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'goerli',
-    gateway: {
-      url: 'http://localhost:8030/',
-    },
-    networkProvider: { url: 'http://test-url.xyz' },
-    indexerOptions: {
-      address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
-      mnemonic: 'foo',
-      url: 'http://test-indexer.xyz',
-    },
-    subgraphs: {
-      networkSubgraph: { url: 'http://test-url.xyz' },
-      epochSubgraph: { url: 'http://test-url.xyz' },
-    },
-    transactionMonitoring: {
-      gasIncreaseTimeout: 240000,
-      gasIncreaseFactor: 1.2,
-      baseFeePerGasMax: 100 * 10 ** 9,
-      maxTransactionAttempts: 0,
-    },
-    dai: {
-      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-      inject: false,
-    },
-  })
-
   const graphNode = new GraphNode(
     logger,
     'https://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
-    statusEndpoint,
+    'https://test-status-endpoint.xyz',
     [],
   )
 
   const network = await Network.create(
     logger,
-    networkSpecification,
+    testNetworkSpecification,
     queryFeeModels,
     graphNode,
     metrics,
