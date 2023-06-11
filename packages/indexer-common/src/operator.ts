@@ -513,7 +513,7 @@ export class Operator {
             query disputes(
               $status: String!
               $minClosedEpoch: Int!
-              $protocolNetwork: String
+              $protocolNetwork: String!
             ) {
               disputes(
                 status: $status
