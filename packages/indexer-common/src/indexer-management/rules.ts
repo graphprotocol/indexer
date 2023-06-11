@@ -35,15 +35,7 @@ export const upsertIndexingRule = async (
   newRule: Partial<IndexingRuleAttributes>,
 ): Promise<IndexingRule> => {
   const indexingRule = parseIndexingRule(newRule)
-  await models.IndexingRule.upsert(indexingRule)
-
-  // Since upsert succeeded, we _must_ have a rule
-  const updatedRule = await models.IndexingRule.findOne({
-    where: {
-      identifier: indexingRule.identifier,
-      protocolNetwork: indexingRule.protocolNetwork,
-    },
-  })
+  const [updatedRule, _created] = await models.IndexingRule.upsert(indexingRule)
 
   logger.debug(
     `DecisionBasis.${indexingRule.decisionBasis} rule merged into indexing rules`,
