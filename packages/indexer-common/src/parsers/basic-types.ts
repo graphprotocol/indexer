@@ -18,12 +18,9 @@ export const url = P.regex(/^https?:.*/)
   .map((x) => new URL(x))
   .desc('a valid URL')
 
-// Intermediary parser to tag either CAIP-2 ids or network aliases like 'mainnet' and 'arbitrum-one'.
 // Source: https://github.com/ChainAgnostic/CAIPs/blob/master/CAIPs/caip-2.md
-const namespace_ = P.regex(/[-a-z0-9]{3,8}/).desc('a CAIP2 namespace, like eip155')
-const colon = P.string(':').desc('a colon, separating CAIP2 namespace from its reference')
-const reference = P.regex(/[-_a-zA-Z0-9]{1,32}/).desc('a CAIP2 reference')
-const caip2Id = namespace_.then(colon).then(reference).chain(validateNetworkIdentifier)
+export const caip2IdRegex = /^[-a-z0-9]{3,8}:[-_a-zA-Z0-9]{1,32}$/
+const caip2Id = P.regex(caip2IdRegex).chain(validateNetworkIdentifier)
 
 // A valid human friendly network name / alias.
 const networkAlias = P.regex(/[a-z-]+/).chain(validateNetworkIdentifier)

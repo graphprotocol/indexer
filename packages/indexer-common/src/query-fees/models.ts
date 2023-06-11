@@ -1,5 +1,6 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { Address } from '@graphprotocol/common-ts'
+import { caip2IdRegex } from '../parsers'
 
 export interface AllocationReceiptAttributes {
   id: string
@@ -188,6 +189,9 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     { sequelize, tableName: 'allocation_receipts' },
@@ -215,6 +219,9 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     { sequelize, tableName: 'vouchers' },
@@ -247,6 +254,9 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     { sequelize, tableName: 'transfer_receipts' },
@@ -285,6 +295,9 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     { sequelize, tableName: 'transfers' },
@@ -329,6 +342,9 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     { sequelize, tableName: 'allocation_summaries' },
