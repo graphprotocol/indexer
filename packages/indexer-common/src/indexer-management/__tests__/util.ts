@@ -21,14 +21,8 @@ import {
 
 const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
 
-function getTestProviderUrl(): string {
-  const testJsonRpcProviderUrl = process.env.INDEXER_TEST_JRPC_PROVIDER_URL
-  if (testJsonRpcProviderUrl) {
-    return testJsonRpcProviderUrl
-  } else {
-    return PUBLIC_JSON_RPC_ENDPOINT
-  }
-}
+const testProviderUrl =
+  process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
 
 export const testNetworkSpecification = specification.NetworkSpecification.parse({
   networkIdentifier: 'goerli',
@@ -36,7 +30,7 @@ export const testNetworkSpecification = specification.NetworkSpecification.parse
     url: 'http://localhost:8030/',
   },
   networkProvider: {
-    url: getTestProviderUrl(),
+    url: testProviderUrl,
   },
   indexerOptions: {
     address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',

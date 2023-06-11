@@ -1,11 +1,10 @@
 import {
-  connectContracts,
   connectDatabase,
   createLogger,
+  createMetrics,
   Logger,
-  NetworkContracts,
+  Metrics,
   parseGRT,
-  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   createIndexerManagementClient,
@@ -14,11 +13,14 @@ import {
   IndexerManagementModels,
   GraphNode,
   Operator,
-  NetworkSubgraph,
+  Network,
   POIDisputeAttributes,
   specification,
+  QueryFeeModels,
+  defineQueryFeeModels,
+  MultiNetworks,
 } from '@graphprotocol/indexer-common'
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
@@ -107,13 +109,21 @@ declare const __DATABASE__: never
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let wallet: Wallet
-let address: string
-let contracts: NetworkContracts
+let queryFeeModels: QueryFeeModels
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
 let graphNode: GraphNode
 let operator: Operator
+let metrics: Metrics
+
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+
+const testProviderUrl =
+  process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
+
+const setupAll = async () => {
+  metrics = createMetrics()
+}
 
 const setup = async () => {
   logger = createLogger({
@@ -121,66 +131,42 @@ const setup = async () => {
     async: false,
     level: 'trace',
   })
-  wallet = Wallet.createRandom()
-
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  address = '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55'
-  contracts = await connectContracts(wallet, 5)
+  queryFeeModels = defineQueryFeeModels(sequelize)
   await sequelize.sync({ force: true })
 
-  const statusEndpoint = 'http://localhost:8030/graphql'
   const indexNodeIDs = ['node_1']
 
   graphNode = new GraphNode(
     logger,
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
-    statusEndpoint,
+    'https://test-status-endpoint.xyz',
     indexNodeIDs,
   )
-
-  const networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    deployment: undefined,
-  })
-
-  indexerManagementClient = await createIndexerManagementClient({
-    models,
-    address: toAddress(address),
-    contracts: contracts,
-    graphNode,
-    indexNodeIDs,
-    deploymentManagementEndpoint: statusEndpoint,
-    networkSubgraph,
-    logger,
-    defaults: {
-      globalIndexingRule: {
-        allocationAmount: parseGRT('1000'),
-        parallelAllocations: 1,
-      },
-    },
-    features: {
-      injectDai: false,
-    },
-  })
 
   const networkSpecification = specification.NetworkSpecification.parse({
     networkIdentifier: 'goerli',
     gateway: {
       url: 'http://localhost:8030/',
     },
-    networkProvider: { url: 'http://test-url.xyz' },
+    networkProvider: {
+      url: testProviderUrl,
+    },
     indexerOptions: {
-      address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
-      mnemonic: 'foo',
+      address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
+      mnemonic:
+        'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
       url: 'http://test-indexer.xyz',
     },
     subgraphs: {
-      networkSubgraph: { url: 'http://test-url.xyz' },
-      epochSubgraph: { url: 'http://test-url.xyz' },
+      networkSubgraph: {
+        url: 'http://test-url.xyz',
+      },
+      epochSubgraph: {
+        url: 'http://test-url.xyz',
+      },
     },
     transactionMonitoring: {
       gasIncreaseTimeout: 240000,
@@ -194,6 +180,33 @@ const setup = async () => {
     },
   })
 
+  const network = await Network.create(
+    logger,
+    networkSpecification,
+    queryFeeModels,
+    graphNode,
+    metrics,
+  )
+
+  const multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
+  indexerManagementClient = await createIndexerManagementClient({
+    models,
+    graphNode,
+    indexNodeIDs,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        allocationAmount: parseGRT('1000'),
+        parallelAllocations: 1,
+      },
+    },
+    multiNetworks,
+  })
+
   operator = new Operator(logger, indexerManagementClient, networkSpecification)
 }
 
@@ -202,6 +215,8 @@ const teardown = async () => {
 }
 
 describe('Indexer tests', () => {
+  jest.setTimeout(60_000)
+  beforeAll(setupAll)
   beforeEach(setup)
   afterEach(teardown)
 

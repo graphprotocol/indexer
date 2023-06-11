@@ -1,5 +1,4 @@
 import { exec, ExecOptions } from 'child_process'
-import { Wallet } from 'ethers'
 import fs from 'fs'
 import http from 'http'
 import { Socket } from 'net'
@@ -14,16 +13,20 @@ import {
   IndexerManagementClient,
   IndexerManagementModels,
   GraphNode,
-  NetworkSubgraph,
+  specification,
+  IndexerManagementDefaults,
+  Network,
+  MultiNetworks,
+  QueryFeeModels,
+  defineQueryFeeModels,
 } from '@graphprotocol/indexer-common'
 import {
-  connectContracts,
+  createMetrics,
+  Metrics,
   connectDatabase,
   createLogger,
   Logger,
-  NetworkContracts,
   parseGRT,
-  toAddress,
 } from '@graphprotocol/common-ts'
 
 declare const __DATABASE__: never
@@ -32,13 +35,51 @@ declare const __LOG_LEVEL__: never
 let defaultMaxEventListeners: number
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let wallet: Wallet
-let address: string
-let contracts: NetworkContracts
+let queryFeeModels: QueryFeeModels
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
 let server: http.Server
 let sockets: Socket[] = []
+let metrics: Metrics
+
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+
+const testProviderUrl =
+  process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
+
+export const testNetworkSpecification = specification.NetworkSpecification.parse({
+  networkIdentifier: 'goerli',
+  gateway: {
+    url: 'http://localhost:8030/',
+  },
+  networkProvider: {
+    url: testProviderUrl,
+  },
+  indexerOptions: {
+    address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
+    mnemonic:
+      'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
+    url: 'http://test-indexer.xyz',
+  },
+  subgraphs: {
+    networkSubgraph: {
+      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+    },
+    epochSubgraph: {
+      url: 'http://test-url.xyz',
+    },
+  },
+  transactionMonitoring: {
+    gasIncreaseTimeout: 240000,
+    gasIncreaseFactor: 1.2,
+    baseFeePerGasMax: 100 * 10 ** 9,
+    maxTransactionAttempts: 0,
+  },
+  dai: {
+    contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+    inject: false,
+  },
+})
 
 export const setup = async () => {
   logger = createLogger({
@@ -49,10 +90,9 @@ export const setup = async () => {
 
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  address = '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55'
-  contracts = await connectContracts(wallet, 5)
+  queryFeeModels = defineQueryFeeModels(sequelize)
+  metrics = createMetrics()
   await sequelize.sync({ force: true })
-  wallet = Wallet.createRandom()
 
   const statusEndpoint = 'http://localhost:8030/graphql'
   const indexNodeIDs = ['node_1']
@@ -64,31 +104,35 @@ export const setup = async () => {
     indexNodeIDs,
   )
 
-  const networkSubgraph = await NetworkSubgraph.create({
+  const network = await Network.create(
     logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    deployment: undefined,
-  })
+    testNetworkSpecification,
+    queryFeeModels,
+    graphNode,
+    metrics,
+  )
+
+  const multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
+  const defaults: IndexerManagementDefaults = {
+    globalIndexingRule: {
+      allocationAmount: parseGRT('100'),
+      parallelAllocations: 1,
+      requireSupported: true,
+      safety: true,
+    },
+  }
 
   indexerManagementClient = await createIndexerManagementClient({
     models,
-    address: toAddress(address),
-    contracts: contracts,
     graphNode,
     indexNodeIDs,
-    deploymentManagementEndpoint: statusEndpoint,
-    networkSubgraph,
     logger,
-    defaults: {
-      globalIndexingRule: {
-        allocationAmount: parseGRT('1000'),
-        parallelAllocations: 1,
-      },
-    },
-    features: {
-      injectDai: false,
-    },
+    defaults,
+    multiNetworks,
   })
 
   server = await createIndexerManagementServer({
