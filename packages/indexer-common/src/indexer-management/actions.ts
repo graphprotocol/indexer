@@ -53,7 +53,7 @@ export class ActionManager {
       return new AllocationManager(
         logger.child({
           component: 'AllocationManager',
-          networkIdentifier: network.specification.networkIdentifier,
+          protocolNetwork: network.specification.networkIdentifier,
         }),
         models,
         graphNode,
