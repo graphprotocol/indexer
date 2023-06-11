@@ -4,6 +4,7 @@ import { specification as spec } from '@graphprotocol/indexer-common'
 import * as YAML from 'yaml'
 import { Argv } from 'yargs'
 import { injectCommonStartupOptions } from './common-options'
+import { displayZodParsingError } from './error-handling'
 
 export const startMultiNetwork = {
   command: 'start-multiple',
@@ -12,7 +13,7 @@ export const startMultiNetwork = {
     const updatedArgs = injectCommonStartupOptions(args)
     return updatedArgs.option('network-specifications-directory', {
       alias: 'dir',
-      description: 'Path to a directory containing network specificaiton files',
+      description: 'Path to a directory containing network specification files',
       type: 'string',
       required: true,
     })
@@ -34,13 +35,13 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
 
   // Check if the directory exists
   if (!fs.existsSync(directoryPath)) {
-    throw new Error('Directory does not exist.')
+    throw new Error(`Directory does not exist: ${directoryPath}`)
   }
 
   // Check if the provided path is a directory
   const isDirectory = fs.lstatSync(directoryPath).isDirectory()
   if (!isDirectory) {
-    throw new Error('Provided path is not a directory.')
+    throw new Error(`Provided path is not a directory: ${directoryPath}`)
   }
 
   // Read the directory
@@ -79,8 +80,22 @@ function readYamlFile(filePath: string): string {
   return YAML.parse(text)
 }
 
+function parseYamlFile(filePath: string): spec.NetworkSpecification {
+  let yamlString: string
+  try {
+    yamlString = readYamlFile(filePath)
+  } catch (error) {
+    process.exit(1)
+  }
+
+  try {
+    return spec.NetworkSpecification.parse(yamlString)
+  } catch (error) {
+    displayZodParsingError(error, filePath)
+    process.exit(1)
+  }
+}
+
 function parseYamlFiles(filePaths: string[]): spec.NetworkSpecification[] {
-  return filePaths
-    .map(readYamlFile)
-    .map(x => spec.NetworkSpecification.parse(x))
+  return filePaths.map(parseYamlFile)
 }

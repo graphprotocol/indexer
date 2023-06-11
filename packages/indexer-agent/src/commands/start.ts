@@ -34,6 +34,7 @@ import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { BigNumber } from 'ethers'
+import { displayZodParsingError } from './error-handling'
 
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
@@ -341,15 +342,20 @@ export async function createNetworkSpecification(
   const chainId = await fetchChainId(networkProvider.url)
   const networkIdentifier = resolveChainId(chainId)
 
-  return spec.NetworkSpecification.parse({
-    networkIdentifier,
-    gateway,
-    indexerOptions,
-    transactionMonitoring,
-    subgraphs,
-    networkProvider,
-    dai,
-  })
+  try {
+    return spec.NetworkSpecification.parse({
+      networkIdentifier,
+      gateway,
+      indexerOptions,
+      transactionMonitoring,
+      subgraphs,
+      networkProvider,
+      dai,
+    })
+  } catch (parsingError) {
+    displayZodParsingError(parsingError)
+    process.exit(1)
+  }
 }
 
 // TODO: Split this code into two functions:
