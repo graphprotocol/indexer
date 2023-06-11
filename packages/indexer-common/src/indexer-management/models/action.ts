@@ -8,6 +8,7 @@ import {
   Model,
   Sequelize,
 } from 'sequelize'
+import { caip2IdRegex } from '../../parsers'
 import { ActionStatus, ActionType } from '@graphprotocol/indexer-common'
 
 export class Action extends Model<
@@ -146,6 +147,9 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       protocolNetwork: {
         type: DataTypes.STRING(50),
         primaryKey: true,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     {

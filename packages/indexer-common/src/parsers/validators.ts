@@ -4,6 +4,7 @@
 import P from 'parsimmon'
 
 import { networkIdentifier, base58 } from './basic-types'
+export { caip2IdRegex } from './basic-types'
 
 // Generic function that takes a parser of type T and attempts to parse it from a string. If it
 // fails, then it will throw an error with an explanation of what was expected, as well as the

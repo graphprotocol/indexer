@@ -2,6 +2,7 @@
 
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
 import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
+import { caip2IdRegex } from '../../parsers'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -262,6 +263,9 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         type: DataTypes.STRING,
         primaryKey: true,
         allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     {
