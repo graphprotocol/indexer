@@ -64,7 +64,13 @@ const setup = async () => {
     metrics,
   )
   // TODO: Can we expose AllocationManager from client so we don't need to build this separately?
-  allocationManager = new AllocationManager(logger, managementModels, graphNode, network)
+
+  allocationManager = new AllocationManager(
+    logger.child({ protocolNetwork: network.specification.networkIdentifier }),
+    managementModels,
+    graphNode,
+    network,
+  )
 }
 
 const setupEach = async () => {
