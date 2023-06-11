@@ -58,7 +58,7 @@ const GET_POI_DISPUTE_QUERY = gql`
 `
 
 const GET_POI_DISPUTES_QUERY = gql`
-  query disputes($status: String!, $minClosedEpoch: Int!, $protocolNetwork: String) {
+  query disputes($status: String!, $minClosedEpoch: Int!, $protocolNetwork: String!) {
     disputes(
       status: $status
       minClosedEpoch: $minClosedEpoch
@@ -157,6 +157,9 @@ function toObject(dispute: POIDisputeAttributes): Record<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expected: Record<string, any> = Object.assign({}, dispute)
   expected.allocationAmount = expected.allocationAmount.toString()
+  if (expected.protocolNetwork === 'goerli') {
+    expected.protocolNetwork = 'eip155:5'
+  }
   return expected
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -241,11 +244,12 @@ describe('POI disputes', () => {
     for (const dispute of disputes) {
       const identifier = {
         allocationID: dispute.allocationID,
-        protocolNetwork: dispute.protocolNetwork,
+        protocolNetwork: 'eip155:5',
       }
+      const expected = { ...dispute, protocolNetwork: 'eip155:5' }
       await expect(
         client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
-      ).resolves.toHaveProperty('data.dispute', dispute)
+      ).resolves.toHaveProperty('data.dispute', expected)
     }
   })
 
@@ -253,6 +257,12 @@ describe('POI disputes', () => {
     const disputes = TEST_DISPUTES_ARRAY
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
 
     await expect(
       client
@@ -262,13 +272,16 @@ describe('POI disputes', () => {
           protocolNetwork: 'goerli',
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Get disputes with closed epoch greater than', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = [{ ...TEST_DISPUTE_2, protocolNetwork: 'eip155:5' }]
 
     await expect(
       client
@@ -278,7 +291,7 @@ describe('POI disputes', () => {
           protocolNetwork: 'goerli',
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', [TEST_DISPUTE_2])
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove dispute from store', async () => {
@@ -301,6 +314,12 @@ describe('POI disputes', () => {
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
     disputes.splice(0, 1)
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
+
     await expect(
       client
         .query(GET_POI_DISPUTES_QUERY, {
@@ -309,7 +328,7 @@ describe('POI disputes', () => {
           protocolNetwork: 'goerli',
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove multiple disputes from store', async () => {
@@ -333,6 +352,12 @@ describe('POI disputes', () => {
     ).resolves.toHaveProperty('data.deleteDisputes', 2)
     disputes.splice(0, 2)
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
+
     await expect(
       client
         .query(GET_POI_DISPUTES_QUERY, {
@@ -341,6 +366,6 @@ describe('POI disputes', () => {
           protocolNetwork: 'goerli',
         })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 })
