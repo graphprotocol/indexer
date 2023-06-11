@@ -191,6 +191,15 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     action: Action,
   ): Promise<AllocationResult> {
+    // Ensure we are handling an action for the same configured network
+    if (action.protocolNetwork !== this.network.specification.networkIdentifier) {
+      const errorMessage = `AllocationManager is configured for '${this.network.specification.networkIdentifier}' but got an Action targeting '${action.protocolNetwork}' `
+      this.logger.crit(errorMessage, {
+        action,
+      })
+      throw new Error(errorMessage)
+    }
+
     switch (action.type) {
       case ActionType.ALLOCATE:
         return await this.confirmAllocate(
@@ -200,7 +209,6 @@ export class AllocationManager {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.amount!,
           receipt,
-          action.protocolNetwork,
         )
       case ActionType.UNALLOCATE:
         return await this.confirmUnallocate(
@@ -208,7 +216,6 @@ export class AllocationManager {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
-          action.protocolNetwork,
         )
       case ActionType.REALLOCATE:
         return await this.confirmReallocate(
@@ -216,7 +223,6 @@ export class AllocationManager {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
-          action.protocolNetwork,
         )
     }
   }
@@ -388,7 +394,6 @@ export class AllocationManager {
     deployment: string,
     amount: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
-    protocolNetwork: string,
   ): Promise<CreateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -449,7 +454,7 @@ export class AllocationManager {
       deployment: deployment,
       allocation: createAllocationEventLogs.allocationID,
       allocatedTokens: amount,
-      protocolNetwork,
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
@@ -586,9 +591,7 @@ export class AllocationManager {
     actionID: number,
     allocationID: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
-    protocolNetwork: string,
   ): Promise<CloseAllocationResult> {
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming 'closeAllocation' transaction`)
 
@@ -898,9 +901,7 @@ export class AllocationManager {
     actionID: number,
     allocationID: string,
     receipt: ContractReceipt | 'paused' | 'unauthorized',
-    protocolNetwork: string,
   ): Promise<ReallocateAllocationResult> {
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming 'closeAndAllocate' transaction`, {
       allocationID,

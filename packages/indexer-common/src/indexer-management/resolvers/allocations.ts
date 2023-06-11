@@ -418,7 +418,11 @@ export default {
     },
     { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
-    logger.debug('Execute createAllocation() mutation', { deployment, amount })
+    logger.debug('Execute createAllocation() mutation', {
+      deployment,
+      amount,
+      protocolNetwork,
+    })
     if (!multiNetworks) {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch allocations',
@@ -539,6 +543,7 @@ export default {
         amount: formatGRT(allocationAmount),
         allocation: allocationId,
         proof,
+        protocolNetwork,
       })
 
       const receipt = await transactionManager.executeTransaction(
