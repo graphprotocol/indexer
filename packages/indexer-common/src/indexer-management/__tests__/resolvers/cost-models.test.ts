@@ -559,8 +559,7 @@ describe('Cost models', () => {
   })
 })
 
-// TODO:L2: Skip DAI tests while we don't fix the metrics requirements for extra lables
-describe.skip('Feature: Inject $DAI variable', () => {
+describe('Feature: Inject $DAI variable', () => {
   beforeEach(setupAll)
   afterEach(teardownAll)
 
