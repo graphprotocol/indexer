@@ -6,19 +6,23 @@ import { createIndexerManagementClient } from '../../../client'
 import { fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import {
+  validateNetworkIdentifier,
+  processIdentifier,
+  SubgraphIdentifierType,
+} from '@graphprotocol/indexer-common'
 import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
 import { utils } from 'ethers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
-${chalk.bold('graph indexer allocations get')} [options] <allocation-id>
-${chalk.bold('graph indexer allocations get')} [options] all
+${chalk.bold('graph indexer allocations get')} [options] <network> <allocation-id>
+${chalk.bold('graph indexer allocations get')} [options] <network> all
 
 ${chalk.dim('Options:')}
 
   -h, --help                                Show usage information
-      --status active|closed|claimable      Filter by status 
+      --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML
 `
@@ -34,7 +38,7 @@ module.exports = {
 
     const { status, deployment, h, help, o, output } = parameters.options
 
-    const [allocation] = fixParameters(parameters, { h, help }) || []
+    const [network, allocation] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -53,6 +57,17 @@ module.exports = {
         throw Error(
           `Invalid '--status' provided, must be one of 'active', 'closed' or 'claimable'`,
         )
+      }
+
+      let protocolNetwork: string
+      if (!network) {
+        throw Error(`Missing required argument: 'network'`)
+      } else {
+        try {
+          protocolNetwork = validateNetworkIdentifier(network)
+        } catch (error) {
+          throw Error(`Invalid value for argument 'network': '${network}' `)
+        }
       }
 
       if (allocation) {
@@ -96,6 +111,7 @@ module.exports = {
             query allocations($filter: AllocationFilter!) {
               allocations(filter: $filter) {
                 id
+                protocolNetwork
                 indexer
                 subgraphDeployment
                 allocatedTokens
@@ -117,6 +133,7 @@ module.exports = {
             filter: {
               status: status ? status : null,
               allocation: allocation ? allocation : null,
+              protocolNetwork,
             },
           },
         )
@@ -140,6 +157,7 @@ module.exports = {
 
       let displayProperties: (keyof IndexerAllocation)[] = [
         'id',
+        'protocolNetwork',
         'indexer',
         'subgraphDeployment',
         'allocatedTokens',
