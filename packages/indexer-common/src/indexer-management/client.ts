@@ -422,14 +422,14 @@ const SCHEMA_SDL = gql`
       allocation: String!
       poi: String
       force: Boolean
-      protocoNetwork: String!
+      protocolNetwork: String!
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
       poi: String
       amount: String!
       force: Boolean
-      protocoNetwork: String!
+      protocolNetwork: String!
     ): ReallocateAllocationResult!
 
     updateAction(action: ActionInput!): Action!
