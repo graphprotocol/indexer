@@ -40,6 +40,13 @@ import mapValues from 'lodash.mapvalues'
 import isEmpty from 'lodash.isempty'
 import zip from 'lodash.zip'
 
+type ActionReconciliationContext = [
+  AllocationDecision[],
+  Allocation[],
+  number,
+  number,
+]
+
 const deploymentInList = (
   list: SubgraphDeploymentID[],
   deployment: SubgraphDeploymentID,
@@ -589,7 +596,16 @@ export class Agent {
             targetDeployments,
             eligibleAllocations,
           )
-
+        } catch (err) {
+          this.logger.warn(
+            `Exited early while reconciling deployments. Skipped reconciling actions.`,
+            {
+              err: indexerError(IndexerErrorCode.IE005, err),
+            },
+          )
+          return
+        }
+        try {
           // Reconcile allocation actions
           await this.reconcileActions(
             networkDeploymentAllocationDecisions,
@@ -598,12 +614,10 @@ export class Agent {
             maxAllocationEpochs,
           )
         } catch (err) {
-          this.logger.warn(
-            `Exited early while reconciling deployments/allocations`,
-            {
-              err: indexerError(IndexerErrorCode.IE005, err),
-            },
-          )
+          this.logger.warn(`Exited early while reconciling actions`, {
+            err: indexerError(IndexerErrorCode.IE005, err),
+          })
+          return
         }
       },
     )
@@ -909,16 +923,14 @@ export class Agent {
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
+      protocolNetwork: network.specification.networkIdentifier,
       epoch,
     })
 
     // Acuracy check: re-fetch allocations to ensure that we have a fresh state since
     // the start of the reconciliation loop
-    const activeAllocations: Allocation[] = Object.values(
-      await this.multiNetworks.map(({ network }) =>
-        network.networkMonitor.allocations(AllocationStatus.ACTIVE),
-      ),
-    ).flat()
+    const activeAllocations: Allocation[] =
+      await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     // QUESTION: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
@@ -985,15 +997,15 @@ export class Agent {
     // ----------------------------------------------------------------------------------------
     const manualModeNetworks = this.multiNetworks.mapNetworkMapped(
       networkDeploymentAllocationDecisions,
-      async ({ network }, __: unknown) =>
+      async ({ network }) =>
         network.specification.indexerOptions.allocationManagementMode ==
         AllocationManagementMode.MANUAL,
     )
 
-    for (const [networkIdentifier, isManualMode] of Object.entries(
+    for (const [networkIdentifier, isOnManualMode] of Object.entries(
       manualModeNetworks,
     )) {
-      if (isManualMode) {
+      if (isOnManualMode) {
         const allocationDecisions =
           networkDeploymentAllocationDecisions[networkIdentifier]
         this.logger.trace(
@@ -1017,50 +1029,51 @@ export class Agent {
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph is NEVER allocated towards
     // ----------------------------------------------------------------------------------------
-    const mutated = await this.multiNetworks.mapNetworkMapped(
-      networkDeploymentAllocationDecisions,
-      async (
-        { network }: NetworkAndOperator,
-        allocationDecisions: AllocationDecision[],
-      ) => {
-        const networkSubgraphDeployment = network.networkSubgraph.deployment
-        if (
-          networkSubgraphDeployment &&
-          !network.specification.indexerOptions.allocateOnNetworkSubgraph
-        ) {
-          // QUESTION: Could we just remove this allocation decision from the set?
-          const networkSubgraphIndex = allocationDecisions.findIndex(
-            decision =>
-              decision.deployment.bytes32 ==
-              networkSubgraphDeployment.id.bytes32,
-          )
-          if (networkSubgraphIndex >= 0) {
-            allocationDecisions[networkSubgraphIndex].toAllocate = false
+
+    const filteredNetworkDeploymentAllocationDecisions =
+      await this.multiNetworks.mapNetworkMapped(
+        networkDeploymentAllocationDecisions,
+        async (
+          { network }: NetworkAndOperator,
+          allocationDecisions: AllocationDecision[],
+        ) => {
+          const networkSubgraphDeployment = network.networkSubgraph.deployment
+          if (
+            networkSubgraphDeployment &&
+            !network.specification.indexerOptions.allocateOnNetworkSubgraph
+          ) {
+            // QUESTION: Could we just remove this allocation decision from the set?
+            const networkSubgraphIndex = allocationDecisions.findIndex(
+              decision =>
+                decision.deployment.bytes32 ==
+                networkSubgraphDeployment.id.bytes32,
+            )
+            if (networkSubgraphIndex >= 0) {
+              allocationDecisions[networkSubgraphIndex].toAllocate = false
+            }
           }
-        }
-        return allocationDecisions
-      },
-    )
+          return allocationDecisions
+        },
+      )
 
     //----------------------------------------------------------------------------------------
     // For every network, loop through all deployments and queue allocation actions if needed
     //----------------------------------------------------------------------------------------
-    const zipped = this.multiNetworks.zip4(
-      mutated,
-      activeAllocations,
-      epoch,
-      maxAllocationEpochs,
-    )
     await this.multiNetworks.mapNetworkMapped(
-      zipped,
+      this.multiNetworks.zip4(
+        filteredNetworkDeploymentAllocationDecisions,
+        activeAllocations,
+        epoch,
+        maxAllocationEpochs,
+      ),
       async (
         { network, operator }: NetworkAndOperator,
-        [allocationDecisions, activeAllocations, epoch, maxAllocationEpochs]: [
-          AllocationDecision[],
-          Allocation[],
-          number,
-          number,
-        ],
+        [
+          allocationDecisions,
+          activeAllocations,
+          epoch,
+          maxAllocationEpochs,
+        ]: ActionReconciliationContext,
       ) => {
         this.logger.trace(`Reconcile allocation actions`, {
           protocolNetwork: network.specification.networkIdentifier,
