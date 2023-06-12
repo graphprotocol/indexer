@@ -94,6 +94,7 @@ module.exports = {
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
         'type',
+        'protocolNetwork',
         'deploymentID',
         'allocationID',
         'amount',

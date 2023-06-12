@@ -230,7 +230,12 @@ export const closeAllocation = async (
           $force: Boolean
           $protocolNetwork: String!
         ) {
-          closeAllocation(allocation: $allocation, poi: $poi, force: $force, $protocolNetwork) {
+          closeAllocation(
+            allocation: $allocation
+            poi: $poi
+            force: $force
+            protocolNetwork: $protocolNetwork
+          ) {
             allocation
             allocatedTokens
             indexingRewards
@@ -238,7 +243,6 @@ export const closeAllocation = async (
             protocolNetwork
           }
         }
-
       `,
       {
         allocation: allocationID,

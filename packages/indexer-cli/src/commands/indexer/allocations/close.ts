@@ -3,7 +3,6 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { utils } from 'ethers'
 import { closeAllocation } from '../../../allocations'
 import { validatePOI, printObjectOrArray } from '../../../command-helpers'
 import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
@@ -46,18 +45,27 @@ module.exports = {
 
     const [network, id, unformattedPoi] = parameters.array || []
 
-    if (network === undefined) {
-      spinner.fail(`Missing required argument: 'network'`)
-      print.info(HELP)
-      process.exitCode = 1
-      return
-    }
-
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
       print.info(HELP)
       process.exitCode = 1
       return
+    }
+
+    let protocolNetwork: string
+    if (!network) {
+      spinner.fail(`Missing required argument: 'network'`)
+      print.info(HELP)
+      process.exitCode = 1
+      return
+    } else {
+      try {
+        protocolNetwork = validateNetworkIdentifier(network)
+      } catch (error) {
+        spinner.fail(`Invalid value for argument 'network': '${network}' `)
+        process.exitCode = 1
+        return
+      }
     }
 
     let poi: string | undefined
@@ -73,7 +81,7 @@ module.exports = {
     try {
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
-      const closeResult = await closeAllocation(client, id, poi, toForce, network)
+      const closeResult = await closeAllocation(client, id, poi, toForce, protocolNetwork)
 
       spinner.succeed('Allocation closed')
       printObjectOrArray(print, outputFormat, closeResult, [

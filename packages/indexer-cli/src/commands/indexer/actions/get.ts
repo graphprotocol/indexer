@@ -89,12 +89,19 @@ module.exports = {
       first,
       fields,
     } = parameters.options
-    let protocolNetwork: string | undefined = undefined
 
     const [action] = fixParameters(parameters, { h, help }) || []
     let orderByParam = ActionParams.ID
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
+
+    // TODO: This is too clumsy. Separate extraction from validation/enforcement.
+    let protocolNetwork: string | undefined = undefined
+    try {
+      protocolNetwork = extractProtocolNetworkOption(parameters.options)
+    } catch (_) {
+      // Let protocol network be undefined
+    }
 
     if (help || h) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -132,8 +139,6 @@ module.exports = {
               `Invalid query, cannot specify '--type', '--status', '--source', or '--reason' filters in addition to 'action = all'`,
             )
           }
-        } else {
-          protocolNetwork = extractProtocolNetworkOption(parameters.options)
         }
       }
 

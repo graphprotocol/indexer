@@ -286,6 +286,7 @@ export async function approveActions(
             priority
             transaction
             status
+            protocolNetwork
           }
         }
       `,
@@ -480,6 +481,7 @@ export async function updateActions(
             transaction
             status
             failureReason
+            protocolNetwork
           }
         }
       `,
