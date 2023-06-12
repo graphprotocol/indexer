@@ -64,6 +64,7 @@ interface AllocationInfo {
   indexingRewards: string
   queryFeesCollected: string
   status: string
+  protocolNetwork: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -193,6 +194,7 @@ async function queryAllocations(
     maxAllocationEpochs: number
     blocksPerEpoch: number
     avgBlockTime: number
+    protocolNetwork: string
   },
 ): Promise<AllocationInfo[]> {
   logger.trace('Query Allocations', {
@@ -280,6 +282,7 @@ async function queryAllocations(
         indexingRewards: allocation.indexingRewards,
         queryFeesCollected: allocation.queryFeesCollected,
         status: allocation.status,
+        protocolNetwork: context.protocolNetwork,
       }
     },
   )
@@ -396,6 +399,7 @@ export default {
       maxAllocationEpochs: await contracts.staking.maxAllocationEpochs(),
       blocksPerEpoch: (await contracts.epochManager.epochLength()).toNumber(),
       avgBlockTime: 13_000,
+      protocolNetwork: network.specification.networkIdentifier,
     }
 
     allocations.push(
@@ -809,7 +813,7 @@ export default {
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
         receiptsWorthCollecting: isCollectingQueryFees,
-        protocolNetwork,
+        protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
       logger.error(error.toString())

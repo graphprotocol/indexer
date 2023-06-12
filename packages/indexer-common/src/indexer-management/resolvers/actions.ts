@@ -15,9 +15,11 @@ import {
   NetworkMapped,
   OrderDirection,
   validateActionInputs,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
+import groupBy from 'lodash.groupby'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -155,8 +157,20 @@ export default {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
 
-    await multiNetworks.map((network) =>
-      validateActionInputs(actions, network.networkMonitor),
+    // Sanitize protocol network identifier
+    actions.forEach((action) => {
+      try {
+        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
+      } catch (e) {
+        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
+      }
+    })
+
+    // Let Network Monitors validate actions based on their protocol networks
+    await multiNetworks.mapNetworkMapped(
+      groupBy(actions, (action) => action.protocolNetwork),
+      (network: Network, actions: ActionInput[]) =>
+        validateActionInputs(actions, network.networkMonitor),
     )
 
     const alreadyQueuedActions = await ActionManager.fetchActions(models, {
