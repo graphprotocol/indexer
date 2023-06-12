@@ -927,7 +927,7 @@ export class Agent {
       epoch,
     })
 
-    // Acuracy check: re-fetch allocations to ensure that we have a fresh state since
+    // Accuracy check: re-fetch allocations to ensure that we have a fresh state since
     // the start of the reconciliation loop
     const activeAllocations: Allocation[] =
       await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
