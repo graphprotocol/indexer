@@ -74,7 +74,7 @@ export class Network {
     let logger = parentLogger.child({
       component: 'Network',
       indexer: specification.indexerOptions.address,
-      networkIdentifier: specification.networkIdentifier,
+      protocolNetwork: specification.networkIdentifier,
     })
 
     // * -----------------------------------------------------------------------
