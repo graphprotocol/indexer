@@ -201,29 +201,27 @@ export class NetworkMonitor {
       const result = await this.networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
-            indexer(id: $indexer) {
-              allocations: totalAllocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  closedAtEpoch_gte: $closedAtEpochThreshold
-                }
-                first: 1000
-              ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                status: Closed
+                closedAtEpoch_gte: $closedAtEpochThreshold
+              }
+              first: 1000
+            ) {
+              id
+              indexer {
                 id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
               }
             }
           }
@@ -238,15 +236,18 @@ export class NetworkMonitor {
         throw result.error
       }
 
-      if (!result.data) {
-        throw new Error(`No data / indexer not found on chain`)
+      if (
+        !result.data.allocations ||
+        result.data.length === 0 ||
+        result.data.allocations.length === 0
+      ) {
+        this.logger.warn(
+          `No recently closed allocations found for indexer '${this.indexerOptions.address}'`,
+        )
+        return []
       }
 
-      if (!result.data.indexer) {
-        throw new Error(`Indexer not found on chain`)
-      }
-
-      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer's recently closed allocations`, {
@@ -263,32 +264,30 @@ export class NetworkMonitor {
       const result = await this.networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $subgraphDeploymentId: String!) {
-            indexer(id: $indexer) {
-              allocations: totalAllocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  subgraphDeployment: $subgraphDeploymentId
-                }
-                first: 5
-                orderBy: closedAtBlockNumber
-                orderDirection: desc
-              ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                status: Closed
+                subgraphDeployment: $subgraphDeploymentId
+              }
+              first: 5
+              orderBy: closedAtBlockNumber
+              orderDirection: desc
+            ) {
+              id
+              poi
+              indexer {
                 id
-                poi
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
               }
             }
           }
@@ -303,15 +302,19 @@ export class NetworkMonitor {
         throw result.error
       }
 
-      if (!result.data) {
-        throw new Error(`No data / indexer not found on chain`)
+      if (
+        !result.data.allocations ||
+        result.data.length === 0 ||
+        result.data.allocations.length === 0
+      ) {
+        this.logger.warn('No closed allocations found for deployment', {
+          id: subgraphDeploymentId.display.bytes32,
+          ipfsHash: subgraphDeploymentId.display,
+        })
+        return []
       }
 
-      if (!result.data.indexer) {
-        throw new Error(`Indexer not found on chain`)
-      }
-
-      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
@@ -330,7 +333,7 @@ export class NetworkMonitor {
     }
     let subgraphs: Subgraph[] = []
     const queryProgress = {
-      lastId: '',
+      lastCreatedAt: 0,
       first: 20,
       fetched: 0,
       exhausted: false,
@@ -346,14 +349,15 @@ export class NetworkMonitor {
       try {
         const result = await this.networkSubgraph.query(
           gql`
-            query subgraphs($first: Int!, $lastId: String!, $subgraphs: [String!]!) {
+            query subgraphs($first: Int!, $lastCreatedAt: Int!, $subgraphs: [String!]!) {
               subgraphs(
-                where: { id_gt: $lastId, id_in: $subgraphs }
-                orderBy: id
+                where: { id_gt: $lastCreatedAt, id_in: $subgraphs }
+                orderBy: createdAt
                 orderDirection: asc
                 first: $first
               ) {
                 id
+                createdAt
                 versionCount
                 versions {
                   version
@@ -367,7 +371,7 @@ export class NetworkMonitor {
           `,
           {
             first: queryProgress.first,
-            lastId: queryProgress.lastId,
+            lastCreatedAt: queryProgress.lastCreatedAt,
             subgraphs: ids,
           },
         )
@@ -403,7 +407,7 @@ export class NetworkMonitor {
 
         queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
-        queryProgress.lastId = results[results.length - 1].id
+        queryProgress.lastCreatedAt = results[results.length - 1].createdAt
 
         subgraphs = subgraphs.concat(results)
       } catch (error) {
@@ -487,7 +491,7 @@ export class NetworkMonitor {
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
     const deployments = []
     const queryProgress = {
-      lastId: '',
+      lastCreatedAt: 0,
       first: 10,
       fetched: 0,
       exhausted: false,
@@ -500,15 +504,17 @@ export class NetworkMonitor {
         queryProgress: queryProgress,
       })
       try {
+        // TODO: Do we need the indexerAllocations being fetched here? It would likely speed up query to remove
         const result = await this.networkSubgraph.query(
           gql`
-            query subgraphDeployments($first: Int!, $lastId: String!) {
+            query subgraphDeployments($first: Int!, $lastCreatedAt: Int!) {
               subgraphDeployments(
-                where: { id_gt: $lastId }
-                orderBy: id
+                where: { createdAt_gt: $lastCreatedAt }
+                orderBy: createdAt
                 orderDirection: asc
                 first: $first
               ) {
+                createdAt
                 id
                 ipfsHash
                 deniedAt
@@ -523,7 +529,7 @@ export class NetworkMonitor {
               }
             }
           `,
-          { first: queryProgress.first, lastId: queryProgress.lastId },
+          { first: queryProgress.first, lastCreatedAt: queryProgress.lastCreatedAt },
         )
 
         if (result.error) {
@@ -542,7 +548,8 @@ export class NetworkMonitor {
 
         queryProgress.exhausted = networkDeployments.length < queryProgress.first
         queryProgress.fetched += networkDeployments.length
-        queryProgress.lastId = networkDeployments[networkDeployments.length - 1].id
+        queryProgress.lastCreatedAt =
+          networkDeployments[networkDeployments.length - 1].createdAt
         deployments.push(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           ...networkDeployments.map((x: any) =>
