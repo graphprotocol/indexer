@@ -197,6 +197,7 @@ export class NetworkMonitor {
     range: number,
   ): Promise<Allocation[]> {
     try {
+      this.logger.debug('Fetch recently closed allocations')
       const result = await this.networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
@@ -848,6 +849,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     return timer(60_000)
       .reduce(async (currentlyPaused) => {
         try {
+          logger.debug('Query network subgraph isPaused state')
           const result = await networkSubgraph.query(
             gql`
               {
@@ -900,6 +902,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     return timer(60_000)
       .reduce(async (isOperator) => {
         try {
+          logger.debug('Check operator status')
           return await contracts.staking.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
@@ -921,6 +924,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
     try {
+      this.logger.debug('Fetch claimable allocations', {
+        closedAtEpoch_lte: disputableEpoch,
+        queryFeesCollected_gte: this.indexerOptions.rebateClaimThreshold.toString(),
+      })
       const result = await this.networkSubgraph.query(
         gql`
           query allocations(
@@ -1025,9 +1032,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return Promise.resolve([])
     }
 
-    logger.debug(
-      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference POIs)',
-    )
+    logger.debug('Query network for any potentially disputable allocations')
 
     let dataRemaining = true
     let allocations: Allocation[] = []

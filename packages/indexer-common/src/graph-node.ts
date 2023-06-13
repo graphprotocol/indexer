@@ -69,7 +69,7 @@ export class GraphNode {
     statusEndpoint: string,
     indexNodeIDs: string[],
   ) {
-    this.logger = logger
+    this.logger = logger.child({ component: 'GraphNode' })
     this.status = createClient({
       url: statusEndpoint,
       fetch,
@@ -121,6 +121,7 @@ export class GraphNode {
 
   public async subgraphDeploymentsAssignments(): Promise<SubgraphDeploymentAssignment[]> {
     try {
+      this.logger.debug('Fetch subgraph deployment assignments')
       const result = await this.status
         .query(
           gql`
