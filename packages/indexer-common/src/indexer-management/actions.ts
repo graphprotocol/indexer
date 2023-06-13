@@ -148,7 +148,6 @@ export class ActionManager {
 
             try {
               const attemptedActions = await this.executeApprovedActions(network)
-
               this.logger.trace('Attempted to execute all approved actions', {
                 actions: attemptedActions,
               })
@@ -214,6 +213,13 @@ export class ActionManager {
         ).sort(function (a, b) {
           return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
         })
+
+        if (approvedActions.length === 0) {
+          this.logger.info('No approved actions were found for this network', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          return []
+        }
 
         try {
           // This will return all results if successful, if failed it will return the failed actions
