@@ -97,6 +97,7 @@ export class NetworkMonitor {
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
+      this.logger.debug(`Fetch ${status} allocations`)
       const result = await this.networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $status: AllocationStatus!) {

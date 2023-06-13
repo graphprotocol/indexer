@@ -75,7 +75,7 @@ export class Operator {
     indexerManagement: IndexerManagementClient,
     specification: spec.NetworkSpecification,
   ) {
-    this.logger = logger
+    this.logger = logger.child({ component: 'Operator' })
     this.indexerManagement = indexerManagement
     this.specification = specification
   }
@@ -86,6 +86,7 @@ export class Operator {
   // Retrieves the indexing rules from the indexer management API.
   async indexingRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
     try {
+      this.logger.debug('Fetching indexing rules')
       const result = await this.indexerManagement
         .query(
           gql`
