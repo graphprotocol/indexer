@@ -113,7 +113,6 @@ const createMockAllocation = (): Allocation => {
     stakedTokens: BigNumber.from(50000),
     signalledTokens: BigNumber.from(100000),
     queryFeesAmount: BigNumber.from(0),
-    activeAllocations: 2,
   } as SubgraphDeployment
   const mockAllocation = {
     id: toAddress('0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'),

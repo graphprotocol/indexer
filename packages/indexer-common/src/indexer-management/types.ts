@@ -69,7 +69,6 @@ export const parseGraphQLSubgraphDeployment = (
   stakedTokens: BigNumber.from(subgraphDeployment.stakedTokens),
   signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
   queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
-  activeAllocations: subgraphDeployment.indexerAllocations.length,
   protocolNetwork,
 })
 
@@ -87,9 +86,6 @@ export const parseGraphQLAllocation = (
     stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
     signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
     queryFeesAmount: BigNumber.from(allocation.subgraphDeployment.queryFeesAmount),
-    activeAllocations: allocation.subgraphDeployment.indexerAllocations
-      ? allocation.subgraphDeployment.indexerAllocations.length
-      : 0,
     protocolNetwork,
   },
   indexer: toAddress(allocation.indexer.id),
