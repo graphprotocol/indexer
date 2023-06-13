@@ -526,12 +526,7 @@ export const createIndexerManagementClient = async (
   const dai: WritableEventual<string> = mutable()
 
   const actionManager = multiNetworks
-    ? await ActionManager.create(
-        multiNetworks,
-        logger.child({ component: 'ActionManager' }),
-        models,
-        graphNode,
-      )
+    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
     : undefined
 
   const context: IndexerManagementResolverContext = {
