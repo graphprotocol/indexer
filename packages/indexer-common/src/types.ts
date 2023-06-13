@@ -58,7 +58,6 @@ export interface SubgraphDeployment {
   stakedTokens: BigNumber
   signalledTokens: BigNumber
   queryFeesAmount: BigNumber
-  activeAllocations: number
   protocolNetwork: string
 }
 

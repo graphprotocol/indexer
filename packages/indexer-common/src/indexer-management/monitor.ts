@@ -521,11 +521,6 @@ export class NetworkMonitor {
                 stakedTokens
                 signalledTokens
                 queryFeesAmount
-                indexerAllocations {
-                  indexer {
-                    id
-                  }
-                }
               }
             }
           `,
