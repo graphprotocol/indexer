@@ -142,7 +142,7 @@ export class ActionManager {
           if (await this.batchReady(approvedActions, network)) {
             this.logger.info('Executing batch of approved actions', {
               actions: approvedActions,
-              network: network.specification.networkIdentifier,
+              protocolNetwork: network.specification.networkIdentifier,
               note: 'If actions were approved very recently they may be missing from this list but will still be taken',
             })
 
@@ -155,7 +155,7 @@ export class ActionManager {
             } catch (error) {
               this.logger.error('Failed to execute batch of approved actions', {
                 error,
-                network: network.specification.networkIdentifier,
+                protocolNetwork: network.specification.networkIdentifier,
               })
             }
           }

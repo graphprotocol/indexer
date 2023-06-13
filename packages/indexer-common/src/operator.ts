@@ -75,7 +75,10 @@ export class Operator {
     indexerManagement: IndexerManagementClient,
     specification: spec.NetworkSpecification,
   ) {
-    this.logger = logger.child({ component: 'Operator' })
+    this.logger = logger.child({
+      component: 'Operator',
+      protocolNetwork: specification.networkIdentifier,
+    })
     this.indexerManagement = indexerManagement
     this.specification = specification
   }

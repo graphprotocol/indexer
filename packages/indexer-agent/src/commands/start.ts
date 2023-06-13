@@ -568,11 +568,7 @@ export async function run(
   const operators: Operator[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      new Operator(
-        logger.child({ component: `Operator-${spec.networkIdentifier}` }),
-        indexerManagementClient,
-        spec,
-      ),
+      new Operator(logger, indexerManagementClient, spec),
   )
 
   // --------------------------------------------------------------------------------
