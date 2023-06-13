@@ -125,9 +125,10 @@ describe('Allocation Manager', () => {
   // @ts-ignore: Mocking the Action type for this test
   const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
 
-  test('resolveActionDelta() correctly calculates token balances for array of actions', async () => {
-    const mapper = (x: Action) => allocationManager.resolveActionDelta(x)
-    const balances = await Promise.all(actions.map(mapper))
+  test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
+    const balances = await Promise.all(
+      actions.map((action: Action) => allocationManager.stakeUsageSummary(action)),
+    )
 
     const allocate = balances[0]
     const unallocate = balances[1]

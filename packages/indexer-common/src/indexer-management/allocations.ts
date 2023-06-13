@@ -1009,7 +1009,9 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    const indexerFreeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    const indexerFreeStake = await this.network.contracts.staking.getIndexerCapacity(
+      this.network.specification.indexerOptions.address,
+    )
     const actionsBatchStakeusageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )
