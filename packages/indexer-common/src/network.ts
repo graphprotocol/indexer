@@ -150,7 +150,10 @@ export class Network {
       specification.networkIdentifier,
       contracts,
       specification.indexerOptions,
-      logger.child({ component: 'NetworkMonitor' }),
+      logger.child({
+        component: 'NetworkMonitor',
+        protocolNetwork: specification.networkIdentifier,
+      }),
       graphNode,
       networkSubgraph,
       networkProvider,
