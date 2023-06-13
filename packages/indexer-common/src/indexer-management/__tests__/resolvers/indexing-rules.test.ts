@@ -1,4 +1,3 @@
-import { inspect } from 'node:util'
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
 import { connectDatabase, createLogger, Logger } from '@graphprotocol/common-ts'
