@@ -114,10 +114,24 @@ export const start = {
       .options('indexer-geo-coordinates', {
         description: `Coordinates describing the Indexer's location using latitude and longitude`,
         type: 'string',
-        array: true,
+        nargs: 2,
         default: ['31.780715', '-41.179504'],
         group: 'Indexer Infrastructure',
-        coerce: coordinates => coordinates.map(parseFloat),
+        coerce: function (
+          coordinates: string | [string, string],
+        ): [number, number] {
+          if (typeof coordinates === 'string') {
+            // When this value is set in an enviromnent variable, yarns passes
+            // it as a single string.
+
+            // Yargs should have passed 2 arguments to this functions, so we
+            // expect this array has two elements
+            return coordinates.split(' ').map(parseFloat) as [number, number]
+          }
+          // When this value is set in the command line, yargs passes it as an
+          // array of two strings.
+          return coordinates.map(parseFloat) as [number, number]
+        },
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
