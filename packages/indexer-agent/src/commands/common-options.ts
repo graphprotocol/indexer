@@ -121,6 +121,15 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
         return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
       },
     })
+    .check(argv => {
+      // Unset arguments set to empty strings
+      for (const [key, value] of Object.entries(argv)) {
+        if (value === '') {
+          delete argv[key]
+        }
+      }
+      return true
+    })
 
   return argv
 }
