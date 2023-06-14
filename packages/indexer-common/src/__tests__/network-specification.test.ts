@@ -1,7 +1,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as YAML from 'yaml'
-import { NetworkSpecification } from '../network-specification'
+import { NetworkSpecification, IndexerOptions } from '../network-specification'
 
 function readYamlFile(p: string): string {
   const filePath = path.join(__dirname, 'network-specification-files', p)
@@ -68,4 +68,15 @@ describe('Failed deserialization', () => {
       }
     },
   )
+})
+
+describe('Specificaiton parts parsing', () => {
+  test('Valid Indexer Options should parse successfully', () => {
+    IndexerOptions.parse({
+      address: '0xdf9CAc44924C21a6c874ee3C727b1c9Ccd5b58cc',
+      mnemonic: 'any valid string can work',
+      url: 'http://example.com',
+      geoCoordinates: [60.16952, 24.93545], // Must be numbers
+    })
+  })
 })
