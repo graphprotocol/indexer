@@ -8,6 +8,7 @@ import {
   timer,
 } from '@graphprotocol/common-ts'
 import {
+  ActionStatus,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
@@ -1088,6 +1089,18 @@ export class Agent {
             createdAtEpoch: allocation.createdAtEpoch,
           })),
         })
+
+        // Do nothing if there are already approved actions in the queue awaiting execution
+        const approvedActions = await operator.fetchActions({
+          status: ActionStatus.APPROVED,
+        })
+        if (approvedActions.length > 0) {
+          this.logger.info(
+            `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
+            { protocolNetwork: network.specification.networkIdentifier },
+          )
+          return
+        }
 
         return pMap(allocationDecisions, async decision =>
           this.reconcileDeploymentAllocationAction(

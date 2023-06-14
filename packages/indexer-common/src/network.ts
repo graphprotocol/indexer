@@ -4,6 +4,7 @@ import {
   NetworkContracts,
   SubgraphDeploymentID,
   connectContracts,
+  Eventual,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -40,6 +41,8 @@ export class Network {
   networkMonitor: NetworkMonitor
   receiptCollector: AllocationReceiptCollector
   specification: spec.NetworkSpecification
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
 
   private constructor(
     logger: Logger,
@@ -51,6 +54,8 @@ export class Network {
     networkMonitor: NetworkMonitor,
     receiptCollector: AllocationReceiptCollector,
     specification: spec.NetworkSpecification,
+    paused: Eventual<boolean>,
+    isOperator: Eventual<boolean>,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -61,6 +66,8 @@ export class Network {
     this.networkMonitor = networkMonitor
     this.receiptCollector = receiptCollector
     this.specification = specification
+    this.paused = paused
+    this.isOperator = isOperator
   }
 
   static async create(
@@ -211,6 +218,8 @@ export class Network {
       networkMonitor,
       receiptCollector,
       specification,
+      paused,
+      isOperator,
     )
   }
 

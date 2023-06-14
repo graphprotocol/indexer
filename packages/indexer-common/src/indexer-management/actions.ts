@@ -139,22 +139,42 @@ export class ActionManager {
       await this.multiNetworks.mapNetworkMapped(
         approvedActionsByNetwork,
         async (network: Network, approvedActions: Action[]) => {
+          const logger = this.logger.child({
+            protocolNetwork: network.specification.networkIdentifier,
+            indexer: network.specification.indexerOptions.address,
+            operator: network.transactionManager.wallet.address,
+          })
+
           if (await this.batchReady(approvedActions, network)) {
-            this.logger.info('Executing batch of approved actions', {
+            // Do nothing else if the network is paused
+            if (network.paused) {
+              logger.info(
+                `The network is currently paused, not doing anything until it resumes`,
+              )
+              return
+            }
+
+            // Do nothing if we're not authorized as an operator for the indexer
+            if (!network.isOperator) {
+              logger.error(`Not authorized as an operator for the indexer`, {
+                err: indexerError(IndexerErrorCode.IE034),
+              })
+              return
+            }
+
+            logger.info('Executing batch of approved actions', {
               actions: approvedActions,
-              protocolNetwork: network.specification.networkIdentifier,
               note: 'If actions were approved very recently they may be missing from this list but will still be taken',
             })
 
             try {
               const attemptedActions = await this.executeApprovedActions(network)
-              this.logger.trace('Attempted to execute all approved actions', {
+              logger.trace('Attempted to execute all approved actions', {
                 actions: attemptedActions,
               })
             } catch (error) {
-              this.logger.error('Failed to execute batch of approved actions', {
+              logger.error('Failed to execute batch of approved actions', {
                 error,
-                protocolNetwork: network.specification.networkIdentifier,
               })
             }
           }
