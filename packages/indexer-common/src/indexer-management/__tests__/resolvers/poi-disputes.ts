@@ -1,6 +1,5 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { ethers } from 'ethers'
 import {
   connectDatabase,
   connectContracts,

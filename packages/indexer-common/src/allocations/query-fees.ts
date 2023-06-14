@@ -160,7 +160,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
 
     try {
-      logger.debug(`Queue allocation receipts for collecting`)
+      logger.debug(`Queue allocation receipts for collecting`, { actionID, allocation })
 
       const now = new Date()
 
@@ -191,7 +191,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         receipts.length,
       )
       if (receipts.length <= 0) {
-        logger.debug(`No receipts to collect for allocation`)
+        logger.debug(`No receipts to collect for allocation`, { actionID, allocation })
         return false
       }
 
@@ -205,6 +205,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       logger.info(`Successfully queued allocation receipts for collecting`, {
         receipts: receipts.length,
         timeout: new Date(timeout).toLocaleString(),
+        actionID,
+        allocation,
       })
       return true
     } catch (err) {
@@ -212,6 +214,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       this.metrics.failedReceipts.inc({ allocation: allocation.id })
       this.logger.error(`Failed to queue allocation receipts for collecting`, {
         error,
+        actionID,
+        allocation,
       })
       throw error
     }
