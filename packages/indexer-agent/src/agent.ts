@@ -914,6 +914,7 @@ export class Agent {
 
   async reconcileDeploymentAllocationAction(
     deploymentAllocationDecision: AllocationDecision,
+    activeAllocations: Allocation[],
     epoch: number,
     maxAllocationEpochs: number,
     network: Network,
@@ -924,11 +925,6 @@ export class Agent {
       protocolNetwork: network.specification.networkIdentifier,
       epoch,
     })
-
-    // Accuracy check: re-fetch allocations to ensure that we have a fresh state since
-    // the start of the reconciliation loop
-    const activeAllocations: Allocation[] =
-      await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     // QUESTION: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
@@ -1068,11 +1064,29 @@ export class Agent {
         { network, operator }: NetworkAndOperator,
         [
           allocationDecisions,
-          activeAllocations,
+          _activeAllocations,
           epoch,
           maxAllocationEpochs,
         ]: ActionReconciliationContext,
       ) => {
+        // Do nothing if there are already approved actions in the queue awaiting execution
+        const approvedActions = await operator.fetchActions({
+          status: ActionStatus.APPROVED,
+        })
+        if (approvedActions.length > 0) {
+          this.logger.info(
+            `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
+            { protocolNetwork: network.specification.networkIdentifier },
+          )
+          return
+        }
+
+        // Accuracy check: re-fetch allocations to ensure that we have a fresh state since the
+        // start of the reconciliation loop. This means we don't use the allocations coming from
+        // the Eventual input.
+        const activeAllocations: Allocation[] =
+          await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
+
         this.logger.trace(`Reconcile allocation actions`, {
           protocolNetwork: network.specification.networkIdentifier,
           epoch,
@@ -1087,21 +1101,10 @@ export class Agent {
           })),
         })
 
-        // Do nothing if there are already approved actions in the queue awaiting execution
-        const approvedActions = await operator.fetchActions({
-          status: ActionStatus.APPROVED,
-        })
-        if (approvedActions.length > 0) {
-          this.logger.info(
-            `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
-            { protocolNetwork: network.specification.networkIdentifier },
-          )
-          return
-        }
-
         return pMap(allocationDecisions, async decision =>
           this.reconcileDeploymentAllocationAction(
             decision,
+            activeAllocations,
             epoch,
             maxAllocationEpochs,
             network,
