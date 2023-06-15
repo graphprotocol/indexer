@@ -565,22 +565,20 @@ export class Agent {
           )
 
           // Find disputable allocations
-          const zipped = this.multiNetworks.zip(
-            disputableEpochs,
-            disputableAllocations,
+          await this.multiNetworks.mapNetworkMapped(
+            this.multiNetworks.zip(disputableEpochs, disputableAllocations),
+            async (
+              { network, operator }: NetworkAndOperator,
+              [disputableEpoch, disputableAllocations]: [number, Allocation[]],
+            ): Promise<void> => {
+              await this.identifyPotentialDisputes(
+                disputableAllocations,
+                disputableEpoch,
+                operator,
+                network,
+              )
+            },
           )
-          const mapper = async (
-            { network, operator }: NetworkAndOperator,
-            [disputableEpoch, disputableAllocations]: [number, Allocation[]],
-          ): Promise<void> => {
-            await this.identifyPotentialDisputes(
-              disputableAllocations,
-              disputableEpoch,
-              operator,
-              network,
-            )
-          }
-          await this.multiNetworks.mapNetworkMapped(zipped, mapper)
         } catch (err) {
           this.logger.warn(`Failed POI dispute monitoring`, { err })
         }
@@ -624,7 +622,6 @@ export class Agent {
     )
   }
 
-  // TODO:L2: Perform this procedure for all configured networks, not just one
   async identifyPotentialDisputes(
     disputableAllocations: Allocation[],
     disputableEpoch: number,
@@ -1115,7 +1112,6 @@ export class Agent {
     )
   }
 
-  // TODO:L2: Perform this procedure for all configured networks, not just one
   async ensureNetworkSubgraphIsIndexing(network: Network) {
     if (
       network.specification.subgraphs.networkSubgraph.deployment !== undefined
