@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
-import { extractProtocolNetworkOption, parseOutputFormat } from '../../../command-helpers'
+import { requireProtocolNetworkOption, parseOutputFormat } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -53,7 +53,10 @@ module.exports = {
     let protocolNetwork: string | null = null
     if (n || network) {
       try {
-        protocolNetwork = extractProtocolNetworkOption(parameters.options)
+        // TODO:L2: Protocol Network should be optional in this case. To make it so, we
+        // also need to relax the requirement for the protocol network field on all
+        // GrapQL quieries and respective resolvers  involving POI disputes.
+        protocolNetwork = requireProtocolNetworkOption(parameters.options)
       } catch (error) {
         print.error(`Failed to parse network option: ${error.message()}`)
         process.exitCode = 1

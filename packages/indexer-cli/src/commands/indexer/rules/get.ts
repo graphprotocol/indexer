@@ -19,7 +19,7 @@ ${chalk.bold('graph indexer rules get')} [options] <deployment-id> [<key1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 [Required] the rule's protocol network
+  -n, --network                 Filter by the rule's protocol network
       --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -56,12 +56,18 @@ module.exports = {
       // Create indexer API client
       const client = await createIndexerManagementClient({ url: config.api })
 
-      const ruleIdentifier = { identifier, protocolNetwork }
-      const ruleOrRules =
-        identifier === 'all'
-          ? // TODO:L2: Find a way to return all rules from all protocol networks when the user issues the 'all' identifier.
-            await indexingRules(client, !!merged, protocolNetwork)
-          : await indexingRule(client, ruleIdentifier, !!merged)
+      let ruleOrRules
+      if (identifier === 'all') {
+        ruleOrRules = await indexingRules(client, !!merged, protocolNetwork)
+      } else {
+        if (!protocolNetwork) {
+          throw Error(
+            'The --netowrk option must be used when quering for a single Indexing Rule',
+          )
+        }
+        const ruleIdentifier = { identifier, protocolNetwork }
+        ruleOrRules = await indexingRule(client, ruleIdentifier, !!merged)
+      }
 
       print.info(
         displayRules(

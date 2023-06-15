@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
-  extractProtocolNetworkOption,
+  requireProtocolNetworkOption,
   printObjectOrArray,
 } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
@@ -69,7 +69,7 @@ module.exports = {
         )
       }
 
-      const networkIdentifier = extractProtocolNetworkOption(parameters.options)
+      const networkIdentifier = requireProtocolNetworkOption(parameters.options)
 
       actionInputParams = await buildActionInput(
         validateActionType(type),

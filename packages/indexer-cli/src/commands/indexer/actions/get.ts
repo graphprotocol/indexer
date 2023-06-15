@@ -95,13 +95,9 @@ module.exports = {
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
 
-    // TODO: This is too clumsy. Separate extraction from validation/enforcement.
-    let protocolNetwork: string | undefined = undefined
-    try {
-      protocolNetwork = extractProtocolNetworkOption(parameters.options)
-    } catch (_) {
-      // Let protocol network be undefined
-    }
+    const protocolNetwork: string | undefined = extractProtocolNetworkOption(
+      parameters.options,
+    )
 
     if (help || h) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })

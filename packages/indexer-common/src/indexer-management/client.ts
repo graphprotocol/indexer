@@ -373,7 +373,7 @@ const SCHEMA_SDL = gql`
       identifier: IndexingRuleIdentifier!
       merged: Boolean! = false
     ): IndexingRule
-    indexingRules(merged: Boolean! = false, protocolNetwork: String!): [IndexingRule!]!
+    indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
     indexerRegistration(protocolNetwork: String!): IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
     indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!

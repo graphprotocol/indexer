@@ -5,7 +5,7 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
-  extractProtocolNetworkOption,
+  requireProtocolNetworkOption,
   fixParameters,
   parseOutputFormat,
   suggestCommands,
@@ -51,7 +51,7 @@ module.exports = {
     }
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
