@@ -40,15 +40,6 @@ export class ActionManager {
     actionManager.multiNetworks = multiNetworks
     actionManager.logger = logger.child({ component: 'ActionManager' })
     actionManager.models = models
-
-    // TODO:L2: In the single-network version of this code, the creation of
-    // `AllocationManager` and `ActionManager` can be optional based on the presence of:
-    // - TransactionManager
-    // - NetworkMonitor
-    // - AllocationReceiptCollector
-    // With network specifications, those would all be created, so we must consider
-    // introducing a boolean flag in the specification file to make their omission
-    // optional again.
     actionManager.allocationManagers = await multiNetworks.map(async (network) => {
       return new AllocationManager(
         logger.child({
