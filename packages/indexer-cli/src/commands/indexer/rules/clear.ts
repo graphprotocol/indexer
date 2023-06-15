@@ -5,7 +5,7 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
-  extractProtocolNetworkOption,
+  requireProtocolNetworkOption,
   fixParameters,
   parseOutputFormat,
 } from '../../../command-helpers'
@@ -71,7 +71,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,

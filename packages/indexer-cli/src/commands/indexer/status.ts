@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import { displayRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
 import {
-  extractProtocolNetworkOption,
+  requireProtocolNetworkOption,
   formatData,
   parseOutputFormat,
   pickFields,
@@ -44,7 +44,10 @@ module.exports = {
 
     let protocolNetwork: string
     try {
-      protocolNetwork = extractProtocolNetworkOption(toolbox.parameters.options)
+      // TODO:L2: Protocol Network should be optional in this case. To make it so, we
+      // also need to relax the requirement for the protocol network field on the
+      // GrapQL quieries and the respective resolvers for the indexer status.
+      protocolNetwork = requireProtocolNetworkOption(toolbox.parameters.options)
     } catch (error) {
       print.error(error.message)
       process.exit(1)

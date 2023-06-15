@@ -65,11 +65,13 @@ export default {
     {
       merged,
       protocolNetwork: uncheckedProtocolNetwork,
-    }: { merged: boolean; protocolNetwork: string },
+    }: { merged: boolean; protocolNetwork: string | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     // Convert the input `protocolNetwork` value to a CAIP2-ID
-    const protocolNetwork = validateNetworkIdentifier(uncheckedProtocolNetwork)
+    const protocolNetwork = uncheckedProtocolNetwork
+      ? validateNetworkIdentifier(uncheckedProtocolNetwork)
+      : undefined
     return await fetchIndexingRules(models, merged, protocolNetwork)
   },
 

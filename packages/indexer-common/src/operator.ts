@@ -1,6 +1,5 @@
 import {
   ActionFilter,
-  ActionInput,
   ActionItem,
   ActionResult,
   ActionStatus,
@@ -93,7 +92,7 @@ export class Operator {
       const result = await this.indexerManagement
         .query(
           gql`
-            query indexingRules($merged: Boolean!, $protocolNetwork: String!) {
+            query indexingRules($merged: Boolean!, $protocolNetwork: String) {
               indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
                 identifier
                 identifierType

@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
-  extractProtocolNetworkOption,
+  requireProtocolNetworkOption,
   fixParameters,
   parseOutputFormat,
 } from '../../../command-helpers'
@@ -46,7 +46,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
