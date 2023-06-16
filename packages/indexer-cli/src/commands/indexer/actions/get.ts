@@ -6,6 +6,7 @@ import {
   ActionParams,
   ActionResult,
   OrderDirection,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
@@ -210,6 +211,12 @@ module.exports = {
       const displayProperties = actionFields.filter(field =>
         selectedFields.includes(field),
       )
+
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      actions.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
+
       printObjectOrArray(print, outputFormat, actions, displayProperties)
     } catch (error) {
       actionSpinner.fail(error.toString())

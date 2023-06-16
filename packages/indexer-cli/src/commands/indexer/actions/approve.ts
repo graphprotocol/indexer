@@ -9,7 +9,7 @@ import {
   parseOutputFormat,
 } from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
-import { ActionStatus } from '@graphprotocol/indexer-common'
+import { ActionStatus, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
@@ -89,6 +89,11 @@ module.exports = {
     const actionSpinner = toolbox.print.spin(`Approving ${actionIDs.length} actions`)
     try {
       const queuedAction = await approveActions(client, numericActionIDs)
+
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      queuedAction.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
 
       actionSpinner.succeed(`Actions approved`)
       printObjectOrArray(print, outputFormat, queuedAction, [

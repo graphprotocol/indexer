@@ -7,6 +7,7 @@ import {
   IndexingRuleAttributes,
   IndexingDecisionBasis,
   IndexingRuleIdentifier,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
@@ -59,7 +60,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
-  protocolNetwork: x => x,
+  protocolNetwork: resolveChainAlias,
 }
 
 const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
