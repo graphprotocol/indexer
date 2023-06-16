@@ -26,7 +26,6 @@ import {
   registerIndexerErrorMetrics,
   resolveChainId,
   validateProviderNetworkIdentifier,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -181,11 +180,6 @@ export default {
       .check(argv => {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
           return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
-        }
-        try {
-          argv['network-provider'] = validateNetworkIdentifier(argv['network-provider'])
-        } catch (parseError) {
-          return parseError.message
         }
 
         return true
