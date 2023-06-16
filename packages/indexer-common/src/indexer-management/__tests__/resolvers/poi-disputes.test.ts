@@ -1,6 +1,11 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { connectDatabase, createLogger, Logger } from '@graphprotocol/common-ts'
+import {
+  createMetrics,
+  connectDatabase,
+  createLogger,
+  Logger,
+} from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '../../client'
 import {
   defineIndexerManagementModels,
@@ -176,18 +181,18 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let logger: Logger
 let client: IndexerManagementClient
+const metrics = createMetrics()
 
 const setupAll = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true)
+  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
   logger.info('Finished setting up Test Indexer Management Client')
 }
 
