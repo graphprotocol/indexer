@@ -7,7 +7,7 @@ import {
   createLogger,
   Logger,
   Metrics,
-  // createMetrics,
+  createMetrics,
 } from '@graphprotocol/common-ts'
 
 import { IndexerManagementClient } from '../../client'
@@ -181,7 +181,7 @@ let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
 let client: IndexerManagementClient
-let metrics: Metrics
+const metrics: Metrics = createMetrics()
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -200,7 +200,7 @@ const setup = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true)
+  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
 }
 
 const setupEach = async () => {

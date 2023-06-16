@@ -12,12 +12,7 @@ import {
   Network,
   specification,
 } from '@graphprotocol/indexer-common'
-import {
-  connectDatabase,
-  createMetrics,
-  Logger,
-  parseGRT,
-} from '@graphprotocol/common-ts'
+import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
 
 const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
 
@@ -62,13 +57,15 @@ export const createTestManagementClient = async (
   databaseOptions: any,
   logger: Logger,
   injectDai: boolean,
+  metrics: Metrics,
 ): Promise<IndexerManagementClient> => {
+  metrics.registry.clear()
+
   // Spin up db
   const sequelize = await connectDatabase(databaseOptions)
   const queryFeeModels = defineQueryFeeModels(sequelize)
   const managementModels = defineIndexerManagementModels(sequelize)
   await sequelize.sync({ force: true })
-  const metrics = createMetrics()
   const statusEndpoint = 'http://localhost:8030/graphql'
   const graphNode = new GraphNode(
     logger,

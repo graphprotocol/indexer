@@ -1,6 +1,11 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { createLogger, Logger, connectDatabase } from '@graphprotocol/common-ts'
+import {
+  createLogger,
+  Logger,
+  connectDatabase,
+  createMetrics,
+} from '@graphprotocol/common-ts'
 import { IndexerManagementClient } from '../../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../../models'
 import { CombinedError } from '@urql/core'
@@ -66,6 +71,7 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let logger: Logger
 let client: IndexerManagementClient
+const metrics = createMetrics()
 
 const setupAll = async () => {
   logger = createLogger({
@@ -84,7 +90,7 @@ const setupAll = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
 
-  client = await createTestManagementClient(__DATABASE__, logger, true)
+  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
 }
 
 const teardownAll = async () => {
@@ -709,6 +715,7 @@ describe('Feature: Inject $DAI variable', () => {
       __DATABASE__,
       logger,
       false,
+      metrics,
     )
 
     const initial = {
