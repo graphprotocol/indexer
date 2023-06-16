@@ -10,6 +10,7 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   ReallocateAllocationResult,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 
 export interface IndexerAllocation {
@@ -75,7 +76,7 @@ const ALLOCATION_FORMATTERS: Record<
   indexingRewards: x => utils.commify(formatGRT(x)),
   queryFeesCollected: x => utils.commify(formatGRT(x)),
   status: x => x,
-  protocolNetwork: x => x,
+  protocolNetwork: resolveChainAlias,
 }
 
 /**

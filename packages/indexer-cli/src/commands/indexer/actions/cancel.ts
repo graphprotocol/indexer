@@ -1,6 +1,6 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
-
+import { resolveChainAlias } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, printObjectOrArray } from '../../../command-helpers'
@@ -12,7 +12,7 @@ ${chalk.bold('graph indexer actions cancel')} [options] [<actionID1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
 module.exports = {
@@ -66,6 +66,12 @@ module.exports = {
       const queuedAction = await cancelActions(client, numericActionIDs)
 
       actionSpinner.succeed(`Actions canceled`)
+
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      queuedAction.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
+
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
         'type',
