@@ -9,7 +9,7 @@ import {
   mutable,
   NetworkContracts,
   WritableEventual,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import { NetworkSubgraph } from '../network-subgraph'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'

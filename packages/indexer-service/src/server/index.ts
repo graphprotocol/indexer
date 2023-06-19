@@ -11,7 +11,7 @@ import {
   Metrics,
   SubgraphDeploymentID,
   secureExpressApp,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   indexerError,
   IndexerErrorCode,

@@ -1,6 +1,6 @@
 import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@tokene-q/common-ts'
 import { SubgraphDeployment } from './types'
 import {
   INDEXING_RULE_GLOBAL,

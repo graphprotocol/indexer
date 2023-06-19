@@ -3,7 +3,7 @@ import express from 'express'
 import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
-import { Logger } from '@graphprotocol/common-ts'
+import { Logger } from '@tokene-q/common-ts'
 import { NetworkSubgraph } from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {

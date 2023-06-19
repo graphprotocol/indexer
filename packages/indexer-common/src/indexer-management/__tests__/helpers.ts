@@ -6,7 +6,7 @@ import {
   NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,

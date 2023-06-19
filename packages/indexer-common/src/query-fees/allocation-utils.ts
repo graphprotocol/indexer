@@ -1,4 +1,4 @@
-import { Address } from '@graphprotocol/common-ts'
+import { Address } from '@tokene-q/common-ts'
 import { Transaction } from 'sequelize'
 import { AllocationSummary, QueryFeeModels } from './models'
 

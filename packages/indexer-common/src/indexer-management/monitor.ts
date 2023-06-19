@@ -28,7 +28,7 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
 import pRetry from 'p-retry'

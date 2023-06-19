@@ -1,11 +1,13 @@
 ########################################################################
 # Build image
 
-FROM node:16.15-bullseye-slim as build
+FROM node:14-bullseye-slim as build
 
 ENV NODE_ENV production
 
-RUN apt-get update && apt-get install -y python build-essential git curl
+RUN apt-get update && apt-get install -y python build-essential git curl python3
+ARG CI_JOB_TOKEN
+RUN echo ${CI_JOB_TOKEN}
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
@@ -14,29 +16,33 @@ ENV PATH="/root/.cargo/bin:$PATH"
 WORKDIR /opt/indexer
 
 # Copy root files
+COPY .yarn/ .yarn/
 COPY package.json .
-COPY yarn.lock .
 COPY tsconfig.json .
 COPY lerna.json .
+COPY .yarnrc.yml .
 
 # Copy shared and package files
 COPY packages/indexer-common/ ./packages/indexer-common
 COPY packages/indexer-agent/ ./packages/indexer-agent
 
+
 # Install dependencies; include dev dependencies
-RUN yarn --frozen-lockfile --non-interactive --production=false
+RUN yarn install
+RUN yarn compile
 
 ########################################################################
 # Runtime image
 
-FROM node:16.15-bullseye-slim
+FROM node:14-bullseye-slim
 
 ENV NODE_ENV production
 # When simulating large transactions, sometimes indexer-agent runs out of memory.
 # This flag seems force node into GC earlier, preventing the crash
 # 1536mb is 1.5GB, which is appropriate for an environment with 2GB RAM
 ENV NODE_OPTIONS="--max-old-space-size=1536"
-
+ARG CI_JOB_TOKEN
+RUN echo ${CI_JOB_TOKEN}
 
 RUN apt-get update && apt-get install -y python build-essential git curl
 
@@ -47,10 +53,11 @@ ENV PATH="/root/.cargo/bin:$PATH"
 WORKDIR /opt/indexer
 
 # Copy root files
+COPY .yarn/ .yarn/
 COPY package.json .
-COPY yarn.lock .
 COPY tsconfig.json .
 COPY lerna.json .
+COPY .yarnrc.yml .
 
 # Copy build output
 COPY --from=build /opt/indexer/packages/indexer-common/package.json /opt/indexer/packages/indexer-common/package.json
@@ -59,7 +66,8 @@ COPY --from=build /opt/indexer/packages/indexer-agent/package.json /opt/indexer/
 COPY --from=build /opt/indexer/packages/indexer-agent/dist /opt/indexer/packages/indexer-agent/dist
 
 # Install dependencies; exclude dev dependencies
-RUN yarn --frozen-lockfile --non-interactive
+RUN yarn install
+RUN yarn compile
 
 ENV ETHEREUM ""
 

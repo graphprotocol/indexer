@@ -1,4 +1,4 @@
-import { Address } from '@graphprotocol/common-ts'
+import { Address } from '@tokene-q/common-ts'
 import { BigNumber } from 'ethers'
 import { SubgraphDeployment } from '@graphprotocol/indexer-common'
 

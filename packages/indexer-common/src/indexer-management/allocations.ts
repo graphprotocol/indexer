@@ -5,7 +5,7 @@ import {
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   Action,
   ActionFailure,

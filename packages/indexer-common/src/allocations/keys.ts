@@ -1,5 +1,5 @@
 import { Wallet, utils, Signer } from 'ethers'
-import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
+import { Address, SubgraphDeploymentID, toAddress } from '@tokene-q/common-ts'
 import { Allocation } from './types'
 
 const deriveKeyPair = (

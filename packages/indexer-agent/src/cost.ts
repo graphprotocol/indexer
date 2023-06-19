@@ -7,7 +7,7 @@ import {
   NetworkContracts,
   timer,
   Address,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import { Contract, providers } from 'ethers'
 

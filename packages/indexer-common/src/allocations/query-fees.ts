@@ -8,7 +8,7 @@ import {
   formatGRT,
   Address,
   Metrics,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   Allocation,
   AllocationReceipt,

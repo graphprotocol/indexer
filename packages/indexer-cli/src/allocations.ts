@@ -1,4 +1,4 @@
-import { SubgraphDeploymentID, formatGRT } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID, formatGRT } from '@tokene-q/common-ts'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'

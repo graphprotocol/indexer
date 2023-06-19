@@ -1,4 +1,4 @@
-import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
+import { Address, SubgraphDeploymentID, toAddress } from '@tokene-q/common-ts'
 import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
 import { SubgraphDeployment } from '../types'
@@ -155,21 +155,25 @@ export function epochElapsedBlocks(networkEpoch: NetworkEpoch): number {
 }
 
 const Caip2ByChainAlias: { [key: string]: string } = {
-  mainnet: 'eip155:1',
+  // FIXME: This is a hack to make the indexer work with the current
+  // Vitiya deployment. We should remove this once we have a proper chain
+  mainnet: 'eip155:3243243243',
   goerli: 'eip155:5',
   gnosis: 'eip155:100',
   hardhat: 'eip155:1337',
   'arbitrum-one': 'eip155:42161',
   'arbitrum-goerli': 'eip155:421613',
   avalanche: 'eip155:43114',
-  matic: 'eip155:137',
+  polygon: 'eip155:137',
   celo: 'eip155:42220',
   optimism: 'eip155:10',
   fantom: 'eip155:250',
+  tokene: 'eip155:3243243243',
 }
 
 const Caip2ByChainId: { [key: number]: string } = {
   1: 'eip155:1',
+  3243243243: 'eip155:3243243243',
   5: 'eip155:5',
   100: 'eip155:100',
   1337: 'eip155:1337',

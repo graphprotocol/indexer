@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.20.16",
+  "version": "0.21.0",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,16 +15,16 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "test": "LOG_LEVEL=info jest --colors --verbose --forceExit --runInBand",
+    "test": "POSTGRES_TEST_HOST=\"localhost\" POSTGRES_TEST_PORT=\"5432\" POSTGRES_TEST_USERNAME=\"root\" POSTGRES_TEST_PASSWORD=\"root\" POSTGRES_TEST_DATABASE=\"blobs\" LOG_LEVEL=info jest --colors --verbose --forceExit --runInBand",
     "test:ci": "LOG_LEVEL=error jest --verbose --runInBand --forceExit --ci",
     "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose --forceExit",
     "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.1",
     "@graphprotocol/cost-model": "0.1.16",
     "@thi.ng/heaps": "1.2.38",
+    "@tokene-q/common-ts": "^2.0.4",
     "@urql/core": "2.4.4",
     "@urql/exchange-execute": "1.2.2",
     "axios": "0.26.1",

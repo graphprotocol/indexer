@@ -16,7 +16,7 @@ import {
   Logger,
   NetworkContracts,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 
 import { createServer } from '..'
 import { QueryProcessor } from '../../queries'
@@ -106,7 +106,7 @@ const setup = async () => {
   const release = {
     version: '0.0.1',
     dependencies: {
-      '@graphprotocol/common-ts': '1.8.0',
+      '@tokene-q/common-ts': '2.0.4',
     },
   }
 

@@ -1,6 +1,6 @@
 import { IndexingDecisionBasis, IndexingRuleAttributes } from './indexer-management'
 import { nullPassThrough, parseBoolean } from './utils'
-import { parseGRT } from '@graphprotocol/common-ts'
+import { parseGRT } from '@tokene-q/common-ts'
 
 export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
   if (!['always', 'never', 'rules', 'offchain'].includes(s)) {

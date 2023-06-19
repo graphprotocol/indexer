@@ -1,4 +1,4 @@
-import { SubgraphDeploymentID, parseGRT, formatGRT } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID, parseGRT, formatGRT } from '@tokene-q/common-ts'
 import {
   nullPassThrough,
   parseBoolean,

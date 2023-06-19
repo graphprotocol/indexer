@@ -9,7 +9,7 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   Allocation,
   Epoch,

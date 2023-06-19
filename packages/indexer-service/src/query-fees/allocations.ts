@@ -7,7 +7,7 @@ import {
   ensureAllocationSummary,
 } from '@graphprotocol/indexer-common'
 import { NativeSignatureVerifier } from '@graphprotocol/indexer-native'
-import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
+import { Address, Logger, timer, toAddress } from '@tokene-q/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import pRetry from 'p-retry'
 import { ReceiptManager } from '.'

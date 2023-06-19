@@ -1,11 +1,13 @@
 ########################################################################
 # Build image
 
-FROM node:16.15-bullseye-slim as build
+FROM node:14-bullseye-slim as build
 
 ENV NODE_ENV production
 
 RUN apt-get update && apt-get install -y python build-essential git curl
+ARG CI_JOB_TOKEN
+RUN echo ${CI_JOB_TOKEN}
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
@@ -14,10 +16,11 @@ ENV PATH="/root/.cargo/bin:$PATH"
 WORKDIR /opt/indexer
 
 # Copy root files
+COPY .yarn/ .yarn/
 COPY package.json .
-COPY yarn.lock .
-COPY lerna.json .
 COPY tsconfig.json .
+COPY lerna.json .
+COPY .yarnrc.yml .
 
 # Copy shared and package files
 COPY packages/indexer-common/ ./packages/indexer-common
@@ -25,15 +28,17 @@ COPY packages/indexer-native/ ./packages/indexer-native
 COPY packages/indexer-service/ ./packages/indexer-service
 
 # Install dependencies; include dev dependencies
-RUN yarn --frozen-lockfile --non-interactive --production=false
+RUN yarn install
+RUN yarn compile
 
 ########################################################################
 # Runtime image
 
-FROM node:16.15-bullseye-slim
+FROM node:14-bullseye-slim
 
 ENV NODE_ENV production
-
+ARG CI_JOB_TOKEN
+RUN echo ${CI_JOB_TOKEN}
 RUN apt-get update && apt-get install -y python build-essential git curl
 
 # Install Rust
@@ -43,10 +48,11 @@ ENV PATH="/root/.cargo/bin:$PATH"
 WORKDIR /opt/indexer
 
 # Copy root files
+COPY .yarn/ .yarn/
 COPY package.json .
-COPY yarn.lock .
-COPY lerna.json .
 COPY tsconfig.json .
+COPY lerna.json .
+COPY .yarnrc.yml .
 
 # Copy build output
 COPY --from=build /opt/indexer/packages/indexer-common/package.json /opt/indexer/packages/indexer-common/package.json
@@ -58,7 +64,8 @@ COPY --from=build /opt/indexer/packages/indexer-service/package.json /opt/indexe
 COPY --from=build /opt/indexer/packages/indexer-service/dist /opt/indexer/packages/indexer-service/dist
 
 # Install dependencies; exclude dev dependencies
-RUN yarn --frozen-lockfile --non-interactive
+RUN yarn install
+RUN yarn compile
 
 ENV ETHEREUM ""
 

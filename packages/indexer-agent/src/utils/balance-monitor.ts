@@ -1,6 +1,6 @@
 import { Wallet, utils } from 'ethers'
 
-import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
+import { Logger, Metrics, timer } from '@tokene-q/common-ts'
 import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 
 const registerMetrics = (metrics: Metrics) => ({

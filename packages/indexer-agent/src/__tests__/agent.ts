@@ -6,7 +6,7 @@ import {
   SubgraphIdentifierType,
   SubgraphVersion,
 } from '@graphprotocol/indexer-common'
-import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID } from '@tokene-q/common-ts'
 
 describe('Agent convenience function tests', () => {
   test('Convert subgraph based rules to deployment based - success', async () => {

@@ -1,7 +1,7 @@
 import path from 'path'
 import { Umzug, SequelizeStorage } from 'umzug'
 import { Sequelize } from 'sequelize'
-import { createLogger } from '@graphprotocol/common-ts'
+import { createLogger } from '@tokene-q/common-ts'
 
 const verbose_logging = process.env.VERBOSE === 'true'
 const log_level = verbose_logging ? 'trace' : 'info'

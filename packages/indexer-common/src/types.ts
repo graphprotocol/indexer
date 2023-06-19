@@ -1,4 +1,4 @@
-import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID } from '@tokene-q/common-ts'
 import { BigNumber, providers } from 'ethers'
 
 export enum AllocationManagementMode {

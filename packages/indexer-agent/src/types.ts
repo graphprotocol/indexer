@@ -1,4 +1,4 @@
-import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger, Metrics, SubgraphDeploymentID } from '@tokene-q/common-ts'
 import {
   Network,
   NetworkSubgraph,

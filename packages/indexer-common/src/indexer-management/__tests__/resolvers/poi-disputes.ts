@@ -7,7 +7,7 @@ import {
   Logger,
   NetworkContracts,
   parseGRT,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 
 import {
   createIndexerManagementClient,

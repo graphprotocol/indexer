@@ -1,7 +1,7 @@
 import fetch from 'isomorphic-fetch'
 import gql from 'graphql-tag'
 import { Client, createClient } from '@urql/core'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@tokene-q/common-ts'
 import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
 import { indexerError, IndexerErrorCode, INDEXER_ERROR_MESSAGES } from './errors'
 import pRetry from 'p-retry'

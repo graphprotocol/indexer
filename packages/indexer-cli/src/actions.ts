@@ -14,7 +14,7 @@ import {
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
 import { utils } from 'ethers'
-import { parseGRT } from '@graphprotocol/common-ts'
+import { parseGRT } from '@tokene-q/common-ts'
 
 export interface GenericActionInputParams {
   targetDeployment: string

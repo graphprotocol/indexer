@@ -1,0 +1,195 @@
+default:
+  image:
+    name: "tokend/werf:0.0.15"
+    entrypoint: [""]
+  services:
+    - name: docker:20-dind
+      alias: docker
+      # in our experience although you'd assume this would be sufficient, this did
+      # nothing to prevent connection errors without `DOCKER_TLS_CERTDIR` being set
+      # to an empty string, and I would call that beyond mildly infuriating.
+      command: ["--tls=false"]
+  tags:
+    - "tokend"
+
+
+variables:
+  DOCKER_DRIVER: overlay2
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  SERVICE: $CI_PROJECT_NAME
+  REGISTRY: registry.gitlab.com/$CI_PROJECT_NAMESPACE/$CI_PROJECT_NAME
+  IMAGE_NAME_SERVICE: $REGISTRY:service-$CI_COMMIT_SHA
+  IMAGE_NAME_AGENT: $REGISTRY:agent-$CI_COMMIT_SHA
+  IMAGE_NAME_TAG: $REGISTRY:$CI_COMMIT_TAG
+  DH_IMAGE_NAME: $CI_PROJECT_ROOT_NAMESPACE/$CI_PROJECT_NAME
+  WERF_LOG_COLOR_MODE: "on"
+  WERF_IMAGES_REPO: $CI_REGISTRY_IMAGE
+  WERF_BUILDAH_MODE: auto
+
+.before_script_template: &before_script_templ
+  before_script:
+    - werf version
+    - docker version
+    - echo $CI_REGISTRY
+    - echo $CI_REGISTRY_USER
+    - echo $CI_REGISTRY_PASSWORD
+    - echo $WERF_IMAGES_REPO
+    - echo $WERF_ADD_CUSTOM_TAG_1
+
+stages:
+  - build-and-publish
+  - code-review
+  #- docs
+  #- deploy
+  #- update
+  - cleanup
+
+Build and Publish:
+  stage: build-and-publish
+  <<: *before_script_templ
+  script:
+    # - type werf && source $(werf ci-env gitlab --as-file)
+    # - werf build --report-path=images-report.json
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker build -f Dockerfile.indexer-agent -t $IMAGE_NAME_AGENT  --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN .
+    - docker push $IMAGE_NAME_AGENT
+    - docker build -f Dockerfile.indexer-service -t $IMAGE_NAME_SERVICE --build-arg CI_JOB_TOKEN=$CI_JOB_TOKEN .
+    - docker push $IMAGE_NAME_SERVICE
+  except: [schedules]
+  interruptible: true
+
+# Build and Publish Tag:
+#   stage: build-and-publish
+#   only:
+#     - tags
+#   <<: *before_script_templ
+#   script:
+#     - type werf && source $(werf ci-env gitlab --as-file)
+#     - werf build --report-path=images-report.json
+#     - docker pull $(cat images-report.json | jq -r .Images.service.DockerImageName)
+#     - docker tag $(cat images-report.json | jq -r .Images.service.DockerImageName) $IMAGE_NAME_TAG
+#     - docker push $IMAGE_NAME_TAG
+#   except: [schedules]
+#   interruptible: true
+
+# Code-Review:
+#   image: golang:1.16
+#   stage: code-review
+#   only:
+#     - merge_requests
+#   except: [schedules]
+#   interruptible: true
+#   variables:
+#     GIT_STRATEGY: clone
+#     GIT_CHECKOUT: "true"
+#     GIT_DEPTH: "0"
+#   before_script:
+#     - |
+#       raw='runner:
+#       \n\tgolangci-lint:
+#       \n\t\tcmd: golangci-lint run
+#       \n\t\terrorformat:
+#       \n\t\t\t- "%f:%l:%c: %m"'
+#     - echo -e $raw > reviewdog.yml
+#     - curl -sfL https://raw.githubusercontent.com/reviewdog/reviewdog/master/install.sh | sh -s -- -b ./bin
+#     - curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.43.0
+#   script:
+#     - if [ -f reviewdog.yml ]; then ./bin/reviewdog -reporter=gitlab-mr-discussion -tee; fi
+#   needs: []
+
+# pages:
+#   image: node:8
+#   stage: docs
+#   only:
+#     - master
+#   script:
+#     - cd docs
+#     - npm install
+#     - mkdir -p ../public
+#     - npm run release-build
+#   artifacts:
+#     paths:
+#       - public
+#   except: [schedules]
+#   interruptible: true
+
+##########################
+# use for deployment via # 
+# helm chart must be in  #
+# the .helm directory    #
+##########################
+
+# Deploy to Staging:
+#   services:
+#       - docker:18-dind
+#   image: dtzar/helm-kubectl:latest
+#   tags:
+#     - tokend-deploy
+#   stage: deploy
+#   script:
+#     - mkdir ~/.kube/
+#     - echo ${k8sconfig} | base64 -d > config
+#     - mv config ~/.kube/
+#     - helm upgrade -i "webclient" ".helm" --set global.IngressDomain=stage.${DOMAIN} --set "image.repository=${REGISTRY}" --set "image.tag=${CI_COMMIT_SHA}" --create-namespace --namespace $CI_PROJECT_NAME-stage
+#   interruptible: true
+
+# Deploy to Production:
+#   services:
+#       - docker:18-dind
+#   image: dtzar/helm-kubectl:latest
+#   tags:
+#     - tokend-deploy
+#   stage: deploy
+#   script:
+#     - mkdir ~/.kube/
+#     - echo ${k8sconfig} | base64 -d > config
+#     - mv config ~/.kube/
+#     - helm upgrade -i "webclient" ".helm" --set global.IngressDomain=${DOMAIN} --set "image.repository=${REGISTRY}" --set "image.tag=${CI_COMMIT_TAG}" --create-namespace --namespace $CI_PROJECT_NAME-prod
+#   when: manual
+#   interruptible: true
+
+##############################
+# can be used if deployment  #
+# via helm was not initially #
+# configured                  #
+##############################
+
+# Update to Staging:
+#   services:
+#       - docker:18-dind
+#   image: dtzar/helm-kubectl:latest
+#   tags:
+#     - tokend-deploy
+#   stage: update
+#   script:
+#     - mkdir ~/.kube/
+#     - echo ${k8sconfig} | base64 -d > config
+#     - mv config ~/.kube/
+#     - kubectl set image deployment/my-deployment mycontainer=myimage:1.9.1 -n mynamespace
+#   interruptible: true
+
+# Update to Production:
+#   services:
+#       - docker:18-dind
+#   image: dtzar/helm-kubectl:latest
+#   tags:
+#     - tokend-deploy
+#   stage: update
+#   script:
+#     - mkdir ~/.kube/
+#     - echo ${k8sconfig} | base64 -d > config
+#     - mv config ~/.kube/
+#     - kubectl set image deployment/my-deployment mycontainer=myimage:1.9.1 -n mynamespace
+#   when: manual
+#   interruptible: true
+
+Cleanup:
+  stage: cleanup
+  <<: *before_script_templ
+  script:
+    - type multiwerf && . $(multiwerf use 1.1 stable --as-file)
+    - type werf && source $(werf ci-env gitlab --as-file)
+    - docker login -u nobody -p ${WERF_IMAGES_CLEANUP_PASSWORD} ${WERF_IMAGES_REPO}
+    - werf cleanup --dev
+  only: [schedules]

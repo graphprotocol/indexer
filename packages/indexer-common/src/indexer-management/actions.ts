@@ -17,7 +17,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { AllocationManager } from './allocations'
 import { Order, Transaction } from 'sequelize'
-import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
+import { Eventual, join, Logger, timer } from '@tokene-q/common-ts'
 
 export class ActionManager {
   constructor(

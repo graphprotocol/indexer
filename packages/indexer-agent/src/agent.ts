@@ -6,7 +6,7 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   ActionStatus,
   Allocation,

@@ -1,5 +1,5 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
-import { Address } from '@graphprotocol/common-ts'
+import { Address } from '@tokene-q/common-ts'
 
 export interface AllocationReceiptAttributes {
   id: string

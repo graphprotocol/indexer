@@ -1,4 +1,4 @@
-import { Logger } from '@graphprotocol/common-ts'
+import { Logger } from '@tokene-q/common-ts'
 import { QueryInterface } from 'sequelize'
 
 interface MigrationContext {

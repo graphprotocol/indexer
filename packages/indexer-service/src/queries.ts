@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosResponse, AxiosRequestConfig } from 'axios'
 
-import { Logger, Metrics, Eventual } from '@graphprotocol/common-ts'
+import { Logger, Metrics, Eventual } from '@tokene-q/common-ts'
 import {
   QueryProcessor as QueryProcessorInterface,
   PaidQuery,

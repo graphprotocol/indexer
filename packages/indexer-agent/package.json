@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-agent",
-  "version": "0.20.16",
+  "version": "0.21.0",
   "description": "Indexer agent",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,7 +10,6 @@
   ],
   "repository": "https://github.com/graphprotocol/indexer",
   "author": "Graph Protocol",
-  "private": false,
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",

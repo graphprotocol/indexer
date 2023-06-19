@@ -1,6 +1,6 @@
 import { CustomError } from 'ts-custom-error'
 import { Counter } from 'prom-client'
-import { Metrics } from '@graphprotocol/common-ts'
+import { Metrics } from '@tokene-q/common-ts'
 
 interface IndexerErrorMetrics {
   error: Counter<string>

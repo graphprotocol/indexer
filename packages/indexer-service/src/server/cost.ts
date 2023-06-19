@@ -3,7 +3,7 @@ import { Request, Response } from 'express'
 import { makeExecutableSchema } from '@graphql-tools/schema'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
-import { Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Metrics, SubgraphDeploymentID } from '@tokene-q/common-ts'
 
 export interface GraphQLServerOptions {
   indexerManagementClient: IndexerManagementClient

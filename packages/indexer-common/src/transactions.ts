@@ -15,7 +15,7 @@ import {
   NetworkContracts,
   timer,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import delay from 'delay'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'

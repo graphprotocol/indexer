@@ -5,7 +5,7 @@ import {
   formatGRT,
   Logger,
   SubgraphDeploymentID,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   IndexingRuleAttributes,
   IndexerManagementClient,

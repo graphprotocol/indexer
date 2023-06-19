@@ -3,7 +3,7 @@ import pMap from 'p-map'
 import { Wallet } from 'ethers'
 import { NativeAttestationSigner } from '@graphprotocol/indexer-native'
 
-import { Logger, Eventual, timer, Address } from '@graphprotocol/common-ts'
+import { Logger, Eventual, timer, Address } from '@tokene-q/common-ts'
 
 import { LRUCache } from '@thi.ng/cache'
 import {

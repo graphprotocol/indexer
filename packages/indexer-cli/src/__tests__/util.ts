@@ -24,7 +24,7 @@ import {
   NetworkContracts,
   parseGRT,
   toAddress,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 
 declare const __DATABASE__: never
 declare const __LOG_LEVEL__: never

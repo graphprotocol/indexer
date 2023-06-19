@@ -3,7 +3,7 @@ import {
   IndexerErrorCode,
   IndexerManagementModels,
 } from '@graphprotocol/indexer-common'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@tokene-q/common-ts'
 import jayson, { Client as RpcClient } from 'jayson/promise'
 import pTimeout from 'p-timeout'
 

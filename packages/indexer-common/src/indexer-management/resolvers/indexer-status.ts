@@ -3,7 +3,7 @@
 import geohash from 'ngeohash'
 import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
-import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID } from '@tokene-q/common-ts'
 import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 
 interface Test {

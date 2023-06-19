@@ -9,6 +9,6 @@ fi
 
 for pkg in $(ls -1 packages); do
     pushd packages/$pkg
-    yarn add @graphprotocol/common-ts@$VERSION
+    yarn add @tokene-q/common-ts@$VERSION
     popd
 done

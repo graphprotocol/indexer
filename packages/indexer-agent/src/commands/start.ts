@@ -6,7 +6,6 @@ import { SequelizeStorage, Umzug } from 'umzug'
 
 import {
   connectContracts,
-  connectDatabase,
   createLogger,
   createMetrics,
   createMetricsServer,
@@ -15,7 +14,7 @@ import {
   SubgraphDeploymentID,
   toAddress,
   Logger,
-} from '@graphprotocol/common-ts'
+} from '@tokene-q/common-ts'
 import {
   AllocationReceiptCollector,
   createIndexerManagementClient,
@@ -32,6 +31,7 @@ import {
   NetworkMonitor,
   EpochSubgraph,
   resolveChainId,
+  connectDatabase,
 } from '@graphprotocol/indexer-common'
 import { startAgent } from '../agent'
 import { Indexer } from '../indexer'
