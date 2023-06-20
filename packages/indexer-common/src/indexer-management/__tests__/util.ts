@@ -59,6 +59,7 @@ export const createTestManagementClient = async (
   injectDai: boolean,
   metrics: Metrics,
 ): Promise<IndexerManagementClient> => {
+  // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
 
   // Spin up db

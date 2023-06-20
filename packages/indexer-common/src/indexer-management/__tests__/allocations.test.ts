@@ -44,6 +44,8 @@ const setup = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
   metrics = createMetrics()
+  // Clearing the registry prevents duplicate metric registration in the default registry.
+  metrics.registry.clear()
   sequelize = await connectDatabase(__DATABASE__)
   managementModels = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
@@ -92,7 +94,6 @@ const teardownEach = async () => {
 }
 
 const teardownAll = async () => {
-  metrics.registry.clear()
   await sequelize.drop({})
 }
 
