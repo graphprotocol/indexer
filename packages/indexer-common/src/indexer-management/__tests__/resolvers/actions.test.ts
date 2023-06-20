@@ -181,7 +181,7 @@ let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
 let client: IndexerManagementClient
-const metrics: Metrics = createMetrics()
+let metrics: Metrics
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -193,8 +193,9 @@ const setup = async () => {
   queryFeeModels = defineQueryFeeModels(sequelize)
   managementModels = defineIndexerManagementModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
-  // TODO:L2: Skip creating metrics while we don't fix metrics requirements for extra lables
-  // metrics = createMetrics()
+  metrics = createMetrics()
+  // Clearing the registry prevents duplicate metric registration in the default registry.
+  metrics.registry.clear()
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
@@ -222,8 +223,6 @@ const teardownEach = async () => {
 }
 
 const teardownAll = async () => {
-  // TODO:L2: Skip using metrics while we don't fix metrics requirements for extra lables
-  // metrics.registry.clear()
   await sequelize.drop({})
 }
 

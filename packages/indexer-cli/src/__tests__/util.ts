@@ -92,6 +92,9 @@ export const setup = async () => {
   models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
   metrics = createMetrics()
+  // Clearing the registry prevents duplicate metric registration in the default registry.
+  metrics.registry.clear()
+
   await sequelize.sync({ force: true })
 
   const statusEndpoint = 'http://localhost:8030/graphql'

@@ -126,6 +126,7 @@ const setupAll = async () => {
 }
 
 const setup = async () => {
+  // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
   logger = createLogger({
     name: 'IndexerAgent',
