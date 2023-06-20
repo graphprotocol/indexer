@@ -9,7 +9,7 @@ import {
   parseOutputFormat,
 } from '../../../command-helpers'
 import { indexingRules, deleteIndexingRules } from '../../../rules'
-import { processIdentifier } from '@graphprotocol/indexer-common'
+import { processIdentifier, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer rules delete')} [options] all
@@ -45,6 +45,7 @@ module.exports = {
 
     try {
       const protocolNetwork = requireProtocolNetworkOption(parameters.options)
+      const chainAlias = resolveChainAlias(protocolNetwork)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: true,
         global: true,
@@ -70,11 +71,13 @@ module.exports = {
         /* eslint-disable @typescript-eslint/no-non-null-assertion */
         await deleteIndexingRules(client, rulesIdentifiers)
         /* eslint-enable @typescript-eslint/no-non-null-assertion */
-        print.success(`Deleted all indexing rules`)
+        print.success(`Deleted all indexing rules for network '${chainAlias}'`)
       } else if (identifier === 'global') {
         const globalIdentifier = { identifier, protocolNetwork }
         await deleteIndexingRules(client, [globalIdentifier])
-        print.warning(`Reset global indexing rules (the global rules cannot be deleted)`)
+        print.warning(
+          `Reset global indexing rules for network '${chainAlias}' (global rules cannot be deleted)`,
+        )
       } else {
         const ruleIdentifier = { identifier, protocolNetwork }
         await deleteIndexingRules(client, [ruleIdentifier])
