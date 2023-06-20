@@ -5,8 +5,9 @@ const bail = (s) => {
 module.exports = {
   collectCoverage: true,
   preset: 'ts-jest',
+  forceExit: true,
   testEnvironment: 'node',
-    testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.yalc', 'util.ts'],
+  testPathIgnorePatterns: ['/node_modules/', '/dist/', '/.yalc', 'util.ts'],
   globals: {
     __DATABASE__: {
       host: process.env.POSTGRES_TEST_HOST || bail('POSTGRES_TEST_HOST is not defined'),
@@ -21,6 +22,6 @@ module.exports = {
         process.env.POSTGRES_TEST_DATABASE ||
         bail('POSTGRES_TEST_DATABASE is not defined'),
     },
-    __LOG_LEVEL__: process.env.LOG_LEVEL || 'info'
+    __LOG_LEVEL__: process.env.LOG_LEVEL || 'info',
   },
 }
