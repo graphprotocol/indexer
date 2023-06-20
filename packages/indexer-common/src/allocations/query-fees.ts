@@ -116,8 +116,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     this.voucherRedemptionBatchThreshold = indexerOptions.voucherRedemptionBatchThreshold
     this.voucherRedemptionMaxBatchSize = indexerOptions.voucherRedemptionMaxBatchSize
 
+    // Start the AllocationReceiptCollector
+    // TODO: Consider calling methods conditionally based on a boolean
+    // flag during startup.
     this.startReceiptCollecting()
     this.startVoucherProcessing()
+    this.queuePendingReceiptsFromDatabase()
   }
 
   async rememberAllocations(

@@ -203,8 +203,6 @@ export class Network {
       networkSpecification: specification,
     })
 
-    await receiptCollector.queuePendingReceiptsFromDatabase()
-
     // --------------------------------------------------------------------------------
     // * Network
     // --------------------------------------------------------------------------------
