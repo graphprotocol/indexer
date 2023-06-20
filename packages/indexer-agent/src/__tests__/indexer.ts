@@ -42,7 +42,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'eip155:5',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -63,7 +63,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'eip155:5',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -126,6 +126,7 @@ const setupAll = async () => {
 }
 
 const setup = async () => {
+  metrics.registry.clear()
   logger = createLogger({
     name: 'IndexerAgent',
     async: false,
@@ -147,7 +148,7 @@ const setup = async () => {
   )
 
   const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'goerli',
+    networkIdentifier: 'eip155:5',
     gateway: {
       url: 'http://localhost:8030/',
     },
@@ -241,7 +242,7 @@ describe('Indexer tests', () => {
       previousEpochReferenceProof:
         '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
       status: 'potential',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'eip155:5',
     }
 
     const disputes = [badDispute]
@@ -281,7 +282,7 @@ describe('Indexer tests', () => {
       expectedResult,
     )
     await expect(
-      operator.fetchPOIDisputes('potential', 205, 'goerli'),
+      operator.fetchPOIDisputes('potential', 205, 'eip155:5'),
     ).resolves.toEqual(expectedFilteredResult)
   })
 })
