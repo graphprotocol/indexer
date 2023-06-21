@@ -46,7 +46,7 @@ module.exports = {
 
     try {
       const protocolNetwork = extractProtocolNetworkOption(parameters.options)
-      const [identifier] = await processIdentifier(id, {
+      const [identifier] = await processIdentifier(id ?? 'all', {
         all: true,
         global: true,
       })
