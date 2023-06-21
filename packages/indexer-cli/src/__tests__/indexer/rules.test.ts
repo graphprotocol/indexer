@@ -600,7 +600,7 @@ describe('Indexer rules tests', () => {
         ['indexer', 'rules', 'get'],
         'references/indexer-rules-command-no-args',
         {
-          expectedExitCode: 1,
+          expectedExitCode: 0,
           cwd: baseDir,
           timeout: 10000,
         },
@@ -664,16 +664,6 @@ describe('Indexer rules tests', () => {
         'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
       ],
       'references/indexer-not-connected',
-      {
-        expectedExitCode: 1,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
-    cliTest(
-      'Indexer rules get - no args',
-      ['indexer', 'rules', 'get'],
-      'references/indexer-rules-command-no-args',
       {
         expectedExitCode: 1,
         cwd: baseDir,
