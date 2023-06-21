@@ -19,39 +19,40 @@ const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
 const testProviderUrl =
   process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
 
-export const testNetworkSpecification = specification.NetworkSpecification.parse({
-  networkIdentifier: 'goerli',
-  gateway: {
-    url: 'http://localhost:8030/',
-  },
-  networkProvider: {
-    url: testProviderUrl,
-  },
-  indexerOptions: {
-    address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
-    mnemonic:
-      'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
-    url: 'http://test-indexer.xyz',
-  },
-  subgraphs: {
-    networkSubgraph: {
-      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+export const testNetworkSpecification: specification.NetworkSpecification =
+  specification.NetworkSpecification.parse({
+    networkIdentifier: 'goerli',
+    gateway: {
+      url: 'http://localhost:8030/',
     },
-    epochSubgraph: {
-      url: 'http://test-url.xyz',
+    networkProvider: {
+      url: testProviderUrl,
     },
-  },
-  transactionMonitoring: {
-    gasIncreaseTimeout: 240000,
-    gasIncreaseFactor: 1.2,
-    baseFeePerGasMax: 100 * 10 ** 9,
-    maxTransactionAttempts: 0,
-  },
-  dai: {
-    contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-    inject: false,
-  },
-})
+    indexerOptions: {
+      address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
+      mnemonic:
+        'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
+      url: 'http://test-indexer.xyz',
+    },
+    subgraphs: {
+      networkSubgraph: {
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+      },
+      epochSubgraph: {
+        url: 'http://test-url.xyz',
+      },
+    },
+    transactionMonitoring: {
+      gasIncreaseTimeout: 240000,
+      gasIncreaseFactor: 1.2,
+      baseFeePerGasMax: 100 * 10 ** 9,
+      maxTransactionAttempts: 0,
+    },
+    dai: {
+      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+      inject: false,
+    },
+  })
 
 export const createTestManagementClient = async (
   databaseOptions: any,
