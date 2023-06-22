@@ -1,6 +1,6 @@
 import { Logger } from '@graphprotocol/common-ts'
 import { specification } from '@graphprotocol/indexer-common'
-import { QueryTypes, DataTypes, QueryInterface } from 'sequelize'
+import { QueryTypes, DataTypes, QueryInterface, Op } from 'sequelize'
 
 const MANUAL_CONSTRAINT_NAME_FRAGMENT = '_composite_manual'
 
@@ -109,11 +109,20 @@ export async function up({ context }: Context): Promise<void> {
 }
 
 export async function down({ context }: Context): Promise<void> {
-  const { queryInterface, logger } = context
+  const { queryInterface, networkSpecifications, logger } = context
   const m = new Migration(queryInterface, logger)
 
+  // This migration requires that just one network is used
+  if (networkSpecifications.length !== 1) {
+    throw new Error(
+      `Migration expects only one network specification, but found ${networkSpecifications.length}. ` +
+        `Please avoid using other network specifications until this migration completes.`,
+    )
+  }
+  const networkChainId = networkSpecifications[0].networkIdentifier
+
   for (const input of migrationInputs) {
-    await m.removePrimaryKeyMigration(input)
+    await m.removePrimaryKeyMigration(input, networkChainId)
 
     // TODO: Cascade the removal of primary keys
     // TODO: Restore the foreign keys of cascaded constraint removals
@@ -168,12 +177,18 @@ class Migration {
   }
 
   // Main migration steps in the DOWN direction
-  async removePrimaryKeyMigration(input: MigrationInput): Promise<void> {
+  async removePrimaryKeyMigration(
+    input: MigrationInput,
+    networkChainId: string,
+  ): Promise<void> {
     // Infer primary key constraint names
     const target = await this.processMigrationInputDown(input)
 
     // Drop the new primary key constraint
     await this.removeNewConstraint(target)
+
+    // Delete rows from other protocol networks
+    await this.deleteRowsFromOtherNetworks(target, networkChainId)
 
     // Drop the new columns
     await this.dropColumn(target)
@@ -384,6 +399,18 @@ WHERE
       target.table,
       target.newPrimaryKeyConstraint,
     )
+  }
+
+  // Only for the DOWN step
+  async deleteRowsFromOtherNetworks(
+    target: MigrationTarget,
+    networkChainId: string,
+  ) {
+    await this.queryInterface.bulkDelete(target.table, {
+      [target.newColumn]: {
+        [Op.ne]: networkChainId,
+      },
+    })
   }
 
   // Only for the DOWN step
