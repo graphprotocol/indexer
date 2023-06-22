@@ -49,9 +49,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules start - no args',
+        'Indexer rules start - no network',
         ['indexer', 'rules', 'start'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules start - no identifier',
+        ['indexer', 'rules', 'start', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -106,9 +116,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules prepare - no args',
+        'Indexer rules prepare - no network',
         ['indexer', 'rules', 'prepare'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules prepare - no identifier',
+        ['indexer', 'rules', 'prepare', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -146,9 +166,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules stop - no args',
+        'Indexer rules stop - no network',
         ['indexer', 'rules', 'stop'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules stop - no identifier',
+        ['indexer', 'rules', 'stop', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -186,9 +216,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules maybe - no args',
+        'Indexer rules maybe - no network',
         ['indexer', 'rules', 'maybe'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules maybe - no identifier',
+        ['indexer', 'rules', 'maybe', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -226,9 +266,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules clear - no args',
+        'Indexer rules clear - no network',
         ['indexer', 'rules', 'clear'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules clear - no identifier',
+        ['indexer', 'rules', 'clear', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -283,9 +333,19 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules delete - no args',
+        'Indexer rules delete - no network',
         ['indexer', 'rules', 'delete'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
+        {
+          expectedExitCode: 1,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
+      cliTest(
+        'Indexer rules delete - no identifier',
+        ['indexer', 'rules', 'delete', '--network', 'goerli'],
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
