@@ -13,6 +13,7 @@ import {
   parseOutputFormat,
   pickFields,
 } from '../../command-helpers'
+import { resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}
@@ -22,6 +23,18 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
   -n, --network                 [Required] the rule's protocol network
 `
+
+interface Endpoint {
+  url: string | null
+  healthy: boolean
+  protocolNetwork: string
+  tests: any[]
+}
+
+interface Endpoints {
+  service: Endpoint
+  status: Endpoint
+}
 
 module.exports = {
   name: 'status',
@@ -42,17 +55,6 @@ module.exports = {
       return
     }
 
-    let protocolNetwork: string
-    try {
-      // TODO:L2: Protocol Network should be optional in this case. To make it so, we
-      // also need to relax the requirement for the protocol network field on the
-      // GrapQL quieries and the respective resolvers for the indexer status.
-      protocolNetwork = requireProtocolNetworkOption(toolbox.parameters.options)
-    } catch (error) {
-      print.error(error.message)
-      process.exit(1)
-    }
-
     const config = loadValidatedConfig()
 
     // Create indexer API client
@@ -61,6 +63,10 @@ module.exports = {
     // Query status information
     let result: any | undefined
     try {
+      // TODO:L2: Consider making Protocol Network optional, showing status for all
+      // networks, combined.
+      const protocolNetwork = requireProtocolNetworkOption(toolbox.parameters.options)
+
       result = await client
         .query(
           gql`
@@ -124,6 +130,7 @@ module.exports = {
                 status {
                   url
                   healthy
+                  protocolNetwork
                   tests {
                     test
                     error
@@ -188,24 +195,25 @@ module.exports = {
     }
 
     if (result.data.indexerEndpoints) {
-      const keys = Object.keys(pickFields(result.data.indexerEndpoints, []))
-      keys.sort()
-
-      const statusUp = outputFormat == 'table' ? chalk.green('up') : 'up'
-      const statusDown = outputFormat == 'table' ? chalk.red('down') : 'down'
-
-      data.endpoints = keys.reduce(
-        (out, key) => [
-          ...out,
+      data.endpoints = result.data.indexerEndpoints.flatMap((endpoints: Endpoints) => {
+        const { service, status } = endpoints
+        return [
           {
-            name: key,
-            url: result.data.indexerEndpoints[key].url,
-            status: result.data.indexerEndpoints[key].healthy ? statusUp : statusDown,
-            tests: result.data.indexerEndpoints[key].tests,
+            name: 'service',
+            url: service.url,
+            tests: service.tests,
+            protocolNetwork: resolveChainAlias(service.protocolNetwork),
+            status: formatStatus(outputFormat, service.healthy),
           },
-        ],
-        [] as any,
-      )
+          {
+            name: 'status',
+            url: status.url,
+            tests: status.tests,
+            protocolNetwork: resolveChainAlias(status.protocolNetwork),
+            status: formatStatus(outputFormat, status.healthy),
+          },
+        ]
+      })
     } else {
       data.endpoints = {
         error:
@@ -249,7 +257,7 @@ module.exports = {
         print.info(
           formatData(
             data.endpoints.map((endpoint: any) =>
-              pickFields(endpoint, ['name', 'url', 'status']),
+              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status']),
             ),
             outputFormat,
           ),
@@ -322,4 +330,14 @@ module.exports = {
       print.info(formatData(data, outputFormat))
     }
   },
+}
+
+function formatStatus(outputFormat: string, status: boolean) {
+  return outputFormat === 'table'
+    ? status
+      ? chalk.green('up')
+      : chalk.red('down')
+    : status
+    ? 'up'
+    : 'down'
 }
