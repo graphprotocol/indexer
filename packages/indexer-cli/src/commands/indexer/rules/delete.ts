@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
-  requireProtocolNetworkOption,
+  extractProtocolNetworkOption,
   fixParameters,
   parseOutputFormat,
 } from '../../../command-helpers'
@@ -44,8 +44,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
-      const chainAlias = resolveChainAlias(protocolNetwork)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: true,
         global: true,
@@ -64,15 +63,40 @@ module.exports = {
                 global: true,
               })
             )[0]
-            return { identifier, protocolNetwork }
+
+            // All rules returned from `indexingRules` are have a `protocolNetwork` field, so we
+            // don't expect to see this error.
+            if (!rule.protocolNetwork) {
+              throw Error(
+                `Indexing Rule is missing a 'protocolNetwork' attribute: ${JSON.stringify(
+                  rule,
+                )}`,
+              )
+            }
+
+            return {
+              identifier,
+              protocolNetwork: rule.protocolNetwork,
+            }
           }),
         )
 
         /* eslint-disable @typescript-eslint/no-non-null-assertion */
         await deleteIndexingRules(client, rulesIdentifiers)
         /* eslint-enable @typescript-eslint/no-non-null-assertion */
-        print.success(`Deleted all indexing rules for network '${chainAlias}'`)
-      } else if (identifier === 'global') {
+        print.success('Deleted all indexing rules')
+        return
+      }
+
+      // Since we are not deleting all rules, we must require a protocol network from the user
+      if (!protocolNetwork) {
+        throw Error(
+          'The --netowrk option must be used when deleting a glboal Indexing Rule',
+        )
+      }
+      const chainAlias = resolveChainAlias(protocolNetwork)
+
+      if (identifier === 'global') {
         const globalIdentifier = { identifier, protocolNetwork }
         await deleteIndexingRules(client, [globalIdentifier])
         print.warning(
@@ -81,7 +105,9 @@ module.exports = {
       } else {
         const ruleIdentifier = { identifier, protocolNetwork }
         await deleteIndexingRules(client, [ruleIdentifier])
-        print.success(`Deleted indexing rules for "${identifier}" (${identifierType})`)
+        print.success(
+          `Deleted indexing rules for "${identifier}" (${identifierType}) on network: '${chainAlias}'`,
+        )
       }
     } catch (error) {
       print.error(error.toString())
