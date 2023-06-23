@@ -27,7 +27,7 @@ An example:
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
 | File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
 
-The accepted `graph-node` version range is also specificied, with an "upgrade window" from the previous version.
+The accepted `graph-node` version range is also specificied, with an "upgrade window" from the previous version. Here's an example:
 
 ```
 graph-node: ≥0.30.0 <0.31.0
