@@ -241,6 +241,7 @@ export async function executeApprovedActions(
         mutation executeApprovedActions {
           executeApprovedActions {
             id
+            protocolNetwork
             status
             type
             deploymentID
