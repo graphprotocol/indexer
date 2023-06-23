@@ -61,8 +61,15 @@ export class ActionManager {
   private async batchReady(
     approvedActions: Action[],
     network: Network,
+    logger: Logger,
   ): Promise<boolean> {
+    logger.info('Batch ready?', {
+      approvedActions,
+      network,
+    })
+
     if (approvedActions.length < 1) {
+      logger.info('Batch not ready: No approved actions found')
       return false
     }
 
@@ -90,7 +97,7 @@ export class ActionManager {
           currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationEpoch
       }
 
-      this.logger.debug(
+      logger.debug(
         'Auto allocation management executes the batch if at least one requirement is met',
         {
           currentBatchSize: approvedActions.length,
@@ -109,19 +116,23 @@ export class ActionManager {
   }
 
   async monitorQueue(): Promise<void> {
+    const logger = this.logger.child({ component: 'QueueMonitor' })
     const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
-      async () =>
-        await ActionManager.fetchActions(this.models, {
+      async () => {
+        this.logger.trace('Fetching approved actions')
+        return await ActionManager.fetchActions(this.models, {
           status: ActionStatus.APPROVED,
-        }),
+        })
+      },
       {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onError: (err: any) =>
-          this.logger.warn('Failed to fetch approved actions from queue', { err }),
+          logger.warn('Failed to fetch approved actions from queue', { err }),
       },
     )
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
+      logger.debug('Approved actions found, evaluating batch')
       const approvedActionsByNetwork: NetworkMapped<Action[]> = groupBy(
         approvedActions,
         (action: Action) => action.protocolNetwork,
@@ -130,41 +141,47 @@ export class ActionManager {
       await this.multiNetworks.mapNetworkMapped(
         approvedActionsByNetwork,
         async (network: Network, approvedActions: Action[]) => {
-          const logger = this.logger.child({
+          const networkLogger = logger.child({
             protocolNetwork: network.specification.networkIdentifier,
             indexer: network.specification.indexerOptions.address,
             operator: network.transactionManager.wallet.address,
           })
 
-          if (await this.batchReady(approvedActions, network)) {
+          if (await this.batchReady(approvedActions, network, networkLogger)) {
+            const paused = await network.paused.value()
+            const isOperator = await network.isOperator.value()
+            logger.debug('Batch ready, preparing to execute', {
+              paused,
+              isOperator,
+            })
             // Do nothing else if the network is paused
-            if (network.paused) {
-              logger.info(
+            if (paused) {
+              networkLogger.info(
                 `The network is currently paused, not doing anything until it resumes`,
               )
               return
             }
 
             // Do nothing if we're not authorized as an operator for the indexer
-            if (!network.isOperator) {
-              logger.error(`Not authorized as an operator for the indexer`, {
+            if (!isOperator) {
+              networkLogger.error(`Not authorized as an operator for the indexer`, {
                 err: indexerError(IndexerErrorCode.IE034),
               })
               return
             }
 
-            logger.info('Executing batch of approved actions', {
+            networkLogger.info('Executing batch of approved actions', {
               actions: approvedActions,
-              note: 'If actions were approved very recently they may be missing from this list but will still be taken',
+              note: 'If actions were approved very recently they may be missing from this batch',
             })
 
             try {
               const attemptedActions = await this.executeApprovedActions(network)
-              logger.trace('Attempted to execute all approved actions', {
+              networkLogger.trace('Attempted to execute all approved actions', {
                 actions: attemptedActions,
               })
             } catch (error) {
-              logger.error('Failed to execute batch of approved actions', {
+              networkLogger.error('Failed to execute batch of approved actions', {
                 error,
               })
             }
