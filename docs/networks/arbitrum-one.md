@@ -83,9 +83,7 @@ option can be used.
 > This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
 
 ```
-graph-node: ≥0.31.0 <0.32.0
-valid from: 891
-upgrade window: 914
+graph-node: >=0.30 <0.32
 ```
 
 | Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |
