@@ -77,7 +77,10 @@ export interface ActionStakeUsageSummary {
   balance: BigNumber
 }
 
-export type PopulateTransactionResult = PopulatedTransaction | PopulatedTransaction[] | ActionFailure
+export type PopulateTransactionResult =
+  | PopulatedTransaction
+  | PopulatedTransaction[]
+  | ActionFailure
 
 export type TransactionResult =
   | ContractReceipt
