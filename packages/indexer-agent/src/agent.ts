@@ -630,6 +630,10 @@ export class Agent {
   ): Promise<void> {
     // TODO: Support supplying status = 'any' to fetchPOIDisputes() to fetch all previously processed allocations in a single query
 
+    this.logger.trace(`Identifying potential disputes`, {
+      protocolNetwork: network.specification.networkIdentifier,
+    })
+
     const alreadyProcessed = (
       await operator.fetchPOIDisputes(
         'potential',
@@ -653,12 +657,14 @@ export class Agent {
     if (newDisputableAllocations.length == 0) {
       this.logger.trace(
         'No new disputable allocations to process for potential disputes',
+        { protocolNetwork: network.specification.networkIdentifier },
       )
       return
     }
 
     this.logger.debug(
       `Found new allocations onchain for subgraphs we have indexed. Let's compare POIs to identify any potential indexing disputes`,
+      { protocolNetwork: network.specification.networkIdentifier },
     )
 
     const uniqueRewardsPools: RewardsPool[] = await Promise.all(
@@ -833,6 +839,8 @@ export class Agent {
         deploy: deploy.map(id => id.display),
         remove: remove.map(id => id.display),
       })
+    } else {
+      this.logger.debug('No deployment changes are necessary')
     }
 
     // ----------------------------------------------------------------------------------------
@@ -865,6 +873,7 @@ export class Agent {
     )
 
     await queue.onIdle()
+    this.logger.debug('Finished reconciling deployments')
   }
 
   async identifyExpiringAllocations(

@@ -449,6 +449,8 @@ export class Network {
       } catch (err) {
         this.logger.warn(`Failed to claim rebate rewards`, { err })
       }
+    } else {
+      this.logger.info(`No allocations to claim rebate rewards for`)
     }
   }
 
