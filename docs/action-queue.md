@@ -41,7 +41,7 @@ Local usage from source
 # Queue allocate action (allocateFrom())
 ./bin/graph-indexer indexer actions queue allocate QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 5000
 
-# Queue reallocate action (closeAndAllocate())
+# Queue reallocate action (close and allocate using multicall())
 ./bin/graph-indexer indexer actions queue reallocate QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 0x4a58d33e27d3acbaecc92c15101fbc82f47c2ae5 55000
 
 # Queue unallocate action (closeAllocation())
