@@ -77,7 +77,7 @@ export interface ActionStakeUsageSummary {
   balance: BigNumber
 }
 
-export type PopulateTransactionResult = PopulatedTransaction | ActionFailure
+export type PopulateTransactionResult = PopulatedTransaction | PopulatedTransaction[] | ActionFailure
 
 export type TransactionResult =
   | ContractReceipt
@@ -118,6 +118,7 @@ export class AllocationManager {
     }
 
     const callData = populateTransactionsResults
+      .flat()
       .map((tx) => tx as PopulatedTransaction)
       .filter((tx: PopulatedTransaction) => !!tx.data)
       .map((tx) => tx.data as string)
@@ -768,7 +769,7 @@ export class AllocationManager {
       allocationIDProof: proof,
     })
 
-    logger.info(`Prepared closeAndAllocate transaction`, {
+    logger.info(`Prepared close and allocate multicall transaction`, {
       indexer: this.network.specification.indexerOptions.address,
       oldAllocationAmount: formatGRT(allocation.allocatedTokens),
       oldAllocation: allocation.id,
@@ -798,7 +799,7 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
   ): Promise<ReallocateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
-    logger.info(`Confirming 'closeAndAllocate' transaction`, {
+    logger.info(`Confirming close and allocate 'multicall' transaction`, {
       allocationID,
     })
     if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -915,7 +916,7 @@ export class AllocationManager {
     poi: string | undefined,
     amount: BigNumber,
     force: boolean,
-  ): Promise<PopulatedTransaction> {
+  ): Promise<PopulatedTransaction[]> {
     const params = await this.prepareReallocateParams(
       logger,
       allocationID,
@@ -923,16 +924,20 @@ export class AllocationManager {
       amount,
       force,
     )
-    return await this.network.contracts.staking.populateTransaction.closeAndAllocate(
-      params.closingAllocationID,
-      params.poi,
-      params.indexer,
-      params.subgraphDeploymentID,
-      params.tokens,
-      params.newAllocationID,
-      params.metadata,
-      params.proof,
-    )
+
+  return [
+      await this.network.contracts.staking.populateTransaction.closeAllocation(
+        params.closingAllocationID,
+        params.poi,
+      ),
+      await this.network.contracts.staking.populateTransaction.allocate(
+        params.subgraphDeploymentID,
+        params.tokens,
+        params.newAllocationID,
+        params.metadata,
+        params.proof,
+      ),
+    ]
   }
 
   async matchingRuleExists(
