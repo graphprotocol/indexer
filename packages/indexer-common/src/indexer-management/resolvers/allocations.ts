@@ -967,7 +967,7 @@ export default {
         allocationIDProof: proof,
       })
 
-      logger.info(`Sending closeAndAllocate transaction`, {
+      logger.info(`Sending close and allocate multicall transaction`, {
         indexer: address,
         amount: formatGRT(allocationAmount),
         oldAllocation: allocationData.id,
@@ -979,31 +979,26 @@ export default {
         epoch: currentEpoch.toString(),
       })
 
+      const callData = [
+        await contracts.staking.populateTransaction.closeAllocation(
+          allocationData.id,
+          allocationPOI,
+        ),
+        await contracts.staking.populateTransaction.allocate(
+          allocationData.subgraphDeployment.id.bytes32,
+          allocationAmount,
+          newAllocationId,
+          utils.hexlify(Array(32).fill(0)), // metadata
+          proof,
+        ),
+      ].map((tx) => tx.data as string)
+
       const receipt = await transactionManager.executeTransaction(
-        async () =>
-          contracts.staking.estimateGas.closeAndAllocate(
-            allocationData.id,
-            allocationPOI,
-            address,
-            allocationData.subgraphDeployment.id.bytes32,
-            allocationAmount,
-            newAllocationId,
-            utils.hexlify(Array(32).fill(0)), // metadata
-            proof,
-          ),
-        async (gasLimit) =>
-          contracts.staking.closeAndAllocate(
-            allocationData.id,
-            allocationPOI,
-            address,
-            allocationData.subgraphDeployment.id.bytes32,
-            allocationAmount,
-            newAllocationId,
-            utils.hexlify(Array(32).fill(0)), // metadata
-            proof,
-            { gasLimit },
-          ),
-        logger.child({ action: 'closeAndAllocate' }),
+        async () => contracts.staking.estimateGas.multicall(callData),
+        async (gasLimit) => contracts.staking.multicall(callData, { gasLimit }),
+        logger.child({
+          function: 'closeAndAllocate',
+        }),
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
