@@ -312,6 +312,7 @@ export async function cancelActions(
         mutation cancelActions($actionIDs: [Int!]!) {
           cancelActions(actionIDs: $actionIDs) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -433,6 +434,7 @@ export async function deleteActions(
         mutation deleteActions($actionIDs: [Int!]!) {
           deleteActions(actionIDs: $actionIDs) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
