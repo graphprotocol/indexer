@@ -38,15 +38,9 @@ import pMap from 'p-map'
 import pFilter from 'p-filter'
 import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
-import isEmpty from 'lodash.isempty'
 import zip from 'lodash.zip'
 
-type ActionReconciliationContext = [
-  AllocationDecision[],
-  Allocation[],
-  number,
-  number,
-]
+type ActionReconciliationContext = [AllocationDecision[], number, number]
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -608,7 +602,6 @@ export class Agent {
           // Reconcile allocation actions
           await this.reconcileActions(
             networkDeploymentAllocationDecisions,
-            activeAllocations,
             currentEpochNumber,
             maxAllocationEpochs,
           )
@@ -654,7 +647,7 @@ export class Agent {
           dispute => dispute.allocationID == allocation.id,
         ),
     )
-    if (newDisputableAllocations.length == 0) {
+    if (newDisputableAllocations.length === 0) {
       this.logger.trace(
         'No new disputable allocations to process for potential disputes',
         { protocolNetwork: network.specification.networkIdentifier },
@@ -991,61 +984,43 @@ export class Agent {
   // remove it from this function?
   async reconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
-    activeAllocations: NetworkMapped<Allocation[]>,
     epoch: NetworkMapped<number>,
     maxAllocationEpochs: NetworkMapped<number>,
   ): Promise<void> {
-    // ----------------------------------------------------------------------------------------
-    // Filter out networks set to `manual` allocation management mode
-    // ----------------------------------------------------------------------------------------
-    const manualModeNetworks = this.multiNetworks.mapNetworkMapped(
-      networkDeploymentAllocationDecisions,
-      async ({ network }) =>
-        network.specification.indexerOptions.allocationManagementMode ==
-        AllocationManagementMode.MANUAL,
-    )
-
-    for (const [networkIdentifier, isOnManualMode] of Object.entries(
-      manualModeNetworks,
-    )) {
-      if (isOnManualMode) {
-        const allocationDecisions =
-          networkDeploymentAllocationDecisions[networkIdentifier]
-        this.logger.trace(
-          `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-          {
-            protocolNetwork: networkIdentifier,
-            activeAllocations,
-            targetDeployments: allocationDecisions
-              .filter(decision => decision.toAllocate)
-              .map(decision => decision.deployment.ipfsHash),
-          },
-        )
-        delete networkDeploymentAllocationDecisions[networkIdentifier]
-      }
-    }
-
-    if (isEmpty(networkDeploymentAllocationDecisions)) {
-      return
-    }
-
-    // ----------------------------------------------------------------------------------------
-    // Ensure the network subgraph is NEVER allocated towards
-    // ----------------------------------------------------------------------------------------
-
-    const filteredNetworkDeploymentAllocationDecisions =
+    // --------------------------------------------------------------------------------
+    // Filter out networks set to `manual` allocation management mode, and ensure the
+    // Network Subgraph is NEVER allocated towards
+    // --------------------------------------------------------------------------------
+    const validatedAllocationDecisions =
       await this.multiNetworks.mapNetworkMapped(
         networkDeploymentAllocationDecisions,
         async (
           { network }: NetworkAndOperator,
           allocationDecisions: AllocationDecision[],
         ) => {
+          if (
+            network.specification.indexerOptions.allocationManagementMode ===
+            AllocationManagementMode.MANUAL
+          ) {
+            this.logger.trace(
+              `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+              {
+                protocolNetwork: network.specification.networkIdentifier,
+                targetDeployments: allocationDecisions
+                  .filter(decision => decision.toAllocate)
+                  .map(decision => decision.deployment.ipfsHash),
+              },
+            )
+            allocationDecisions.forEach(
+              allocation => (allocation.toAllocate = false),
+            )
+            return allocationDecisions
+          }
           const networkSubgraphDeployment = network.networkSubgraph.deployment
           if (
             networkSubgraphDeployment &&
             !network.specification.indexerOptions.allocateOnNetworkSubgraph
           ) {
-            // QUESTION: Could we just remove this allocation decision from the set?
             const networkSubgraphIndex = allocationDecisions.findIndex(
               decision =>
                 decision.deployment.bytes32 ==
@@ -1063,9 +1038,8 @@ export class Agent {
     // For every network, loop through all deployments and queue allocation actions if needed
     //----------------------------------------------------------------------------------------
     await this.multiNetworks.mapNetworkMapped(
-      this.multiNetworks.zip4(
-        filteredNetworkDeploymentAllocationDecisions,
-        activeAllocations,
+      this.multiNetworks.zip3(
+        validatedAllocationDecisions,
         epoch,
         maxAllocationEpochs,
       ),
@@ -1073,7 +1047,6 @@ export class Agent {
         { network, operator }: NetworkAndOperator,
         [
           allocationDecisions,
-          _activeAllocations,
           epoch,
           maxAllocationEpochs,
         ]: ActionReconciliationContext,

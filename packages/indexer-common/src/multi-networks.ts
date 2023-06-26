@@ -64,6 +64,19 @@ export class MultiNetworks<T> {
     return result
   }
 
+  zip3<U, V, W>(
+    a: NetworkMapped<U>,
+    b: NetworkMapped<V>,
+    c: NetworkMapped<W>,
+  ): NetworkMapped<[U, V, W]> {
+    this.checkEqualKeys(a, b)
+    const result = {} as NetworkMapped<[U, V, W]>
+    for (const key in a) {
+      result[key] = [a[key], b[key], c[key]]
+    }
+    return result
+  }
+
   zip4<U, V, W, Y>(
     a: NetworkMapped<U>,
     b: NetworkMapped<V>,
