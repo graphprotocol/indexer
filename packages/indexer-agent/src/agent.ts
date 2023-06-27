@@ -487,9 +487,6 @@ export class Agent {
       },
     )
 
-    // TODO: this log line seems out of place
-    this.logger.info(`Waiting for network data before reconciling every 120s`)
-
     const disputableAllocations: Eventual<NetworkMapped<Allocation[]>> = join({
       currentEpochNumber,
       activeDeployments,
@@ -512,6 +509,8 @@ export class Agent {
           ),
       },
     )
+
+
 
     join({
       ticker: timer(240_000),
