@@ -84,6 +84,7 @@ export enum IndexerErrorCode {
   IE071 = 'IE071',
   IE072 = 'IE072',
   IE073 = 'IE073',
+  IE074 = 'IE074',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -161,6 +162,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE071: 'Add Epoch subgraph support for non-protocol chains',
   IE072: 'Failed to execute batch tx (contract: staking)',
   IE073: 'Failed to query subgraph features from indexing statuses endpoint',
+  IE074: 'Failed to deploy subgraph: network not supported',
 }
 
 export type IndexerErrorCause = unknown

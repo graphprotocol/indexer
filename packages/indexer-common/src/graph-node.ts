@@ -2,7 +2,7 @@ import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Client, createClient } from '@urql/core'
-import { indexerError, IndexerErrorCode, INDEXER_ERROR_MESSAGES } from './errors'
+import { INDEXER_ERROR_MESSAGES, IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
 import pRetry from 'p-retry'
 import axios, { AxiosInstance } from 'axios'
@@ -215,7 +215,7 @@ export class GraphNode {
       this.logger.info(`Successfully created subgraph name`, { name })
     } catch (error) {
       if (error.message.includes('already exists')) {
-        this.logger.debug(`Subgraph name already exists`, { name })
+        this.logger.debug(`Subgraph name already exists, will deploy to existing name`, { name })
         return
       }
       throw error
@@ -245,8 +245,15 @@ export class GraphNode {
         deployment: deployment.display,
       })
     } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE026, error)
-      this.logger.error(`Failed to deploy subgraph deployment`, {
+      // If more specific error not found use the generic 'Failed to deploy' error code
+      let errorCode = IndexerErrorCode.IE026
+
+      if(error.includes("network not supported")) {
+        errorCode = IndexerErrorCode.IE074
+      }
+
+      const err = indexerError(errorCode, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
         name,
         deployment: deployment.display,
         err,
@@ -271,10 +278,10 @@ export class GraphNode {
         deployment: deployment.display,
       })
     } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE027, error)
-      this.logger.error(`Failed to remove subgraph deployment`, {
+      const errorCode = IndexerErrorCode.IE027
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
         deployment: deployment.display,
-        err,
+        error: indexerError(errorCode, error),
       })
     }
   }
@@ -300,10 +307,11 @@ export class GraphNode {
         })
         return
       }
-      const err = indexerError(IndexerErrorCode.IE028, error)
-      this.logger.error(`Failed to reassign subgraph deployment`, {
+      const errorCode = IndexerErrorCode.IE028
+      const err = indexerError(errorCode, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
         deployment: deployment.display,
-        err,
+        err
       })
       throw err
     }
@@ -332,12 +340,15 @@ export class GraphNode {
       await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
     } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE020, error)
-      this.logger.error(`Failed to ensure subgraph deployment is indexing`, {
-        name,
-        deployment: deployment.display,
-        err,
-      })
+      if(!(error instanceof IndexerError)) {
+        const errorCode = IndexerErrorCode.IE020
+        this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
+          name,
+          deployment: deployment.display,
+          error: indexerError(errorCode, error),
+        })
+      }
+      return
     }
   }
 
