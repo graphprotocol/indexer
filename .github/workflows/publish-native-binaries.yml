@@ -15,7 +15,7 @@ jobs:
       # (https://github.com/bchr02/node-pre-gyp-github/issues/42)
       fail-fast: false
       matrix:
-        node_version: [14, 16, 17]
+        node_version: [16, 17, 18, 19, 20]
         system:
           - os: macos-latest
             target: x86_64-apple-darwin
