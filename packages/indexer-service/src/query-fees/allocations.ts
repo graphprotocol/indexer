@@ -20,19 +20,23 @@ function readNumber(data: string, start: number, end: number): BigNumber {
 const allocationReceiptValidator = /^[0-9A-Fa-f]{264}$/
 
 async function validateSignature(
-  signer: NativeSignatureVerifier,
+  signers: NativeSignatureVerifier[],
   receiptData: string,
 ): Promise<string> {
   const message = receiptData.slice(0, 134)
   const signature = receiptData.slice(134, 264)
 
-  if (!(await signer.verify(message, signature))) {
-    throw indexerError(
-      IndexerErrorCode.IE031,
-      `Invalid signature: expected signer "${signer.address}"`,
-    )
+  for (const signer of signers) {
+    if (await signer.verify(message, signature)) {
+      return '0x' + signature
+    }
   }
-  return '0x' + signature
+  throw indexerError(
+    IndexerErrorCode.IE031,
+    `Invalid signature: expected one of the following signers: "${signers
+      .map(s => s.address)
+      .join(', ')}"`,
+  )
 }
 
 export class AllocationReceiptManager implements ReceiptManager {
@@ -40,19 +44,21 @@ export class AllocationReceiptManager implements ReceiptManager {
   private readonly _queryFeeModels: QueryFeeModels
   private readonly _cache: Map<string, Readonly<AllocationReceiptAttributes>> = new Map()
   private readonly _flushQueue: string[] = []
-  private readonly _allocationReceiptVerifier: NativeSignatureVerifier
+  private readonly _allocationReceiptVerifiers: NativeSignatureVerifier[]
 
   constructor(
     sequelize: Sequelize,
     queryFeeModels: QueryFeeModels,
     logger: Logger,
-    clientSignerAddress: Address,
+    clientSignerAddresses: Address[],
   ) {
     logger = logger.child({ component: 'ReceiptManager' })
 
     this._sequelize = sequelize
     this._queryFeeModels = queryFeeModels
-    this._allocationReceiptVerifier = new NativeSignatureVerifier(clientSignerAddress)
+    this._allocationReceiptVerifiers = clientSignerAddresses.map(clientSignerAddress => {
+      return new NativeSignatureVerifier(clientSignerAddress)
+    })
 
     timer(30_000).pipe(async () => {
       try {
@@ -105,7 +111,7 @@ export class AllocationReceiptManager implements ReceiptManager {
 
     const receipt = this._parseAllocationReceipt(receiptData)
     const signature = await validateSignature(
-      this._allocationReceiptVerifier,
+      this._allocationReceiptVerifiers,
       receiptData,
     )
 

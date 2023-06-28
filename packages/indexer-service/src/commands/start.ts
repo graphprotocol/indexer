@@ -169,7 +169,8 @@ export default {
         group: 'Network Subgraph',
       })
       .option('client-signer-address', {
-        description: 'Address that signs query fee receipts from a known client',
+        description:
+          'Address that signs query fee receipts from a known client. Use a comma-separated list for multiple signers.',
         type: 'string',
         required: false,
       })
@@ -327,11 +328,15 @@ export default {
       token: contracts.token.address,
     })
 
+    // Turn the comma-separated argv.clientSignerAddress into an array
+    // of addresses
+    const clientSignerAddresses = argv.clientSignerAddress.split(',').map(toAddress)
+
     const receiptManager = new AllocationReceiptManager(
       sequelize,
       queryFeeModels,
       logger,
-      toAddress(argv.clientSignerAddress),
+      clientSignerAddresses,
     )
 
     // Ensure the address is checksummed
