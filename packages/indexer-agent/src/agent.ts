@@ -152,14 +152,25 @@ function createMultiNetworks(
   networks: Network[],
   operators: Operator[],
 ): MultiNetworks<NetworkAndOperator> {
-  // Check if inputs have uneven lenghts and if they have the same network identifiers
+  // Validate that Networks and Operator arrays have even lengths and
+  // contain unique, matching network identifiers.
+  const visited = new Set()
   const validInputs =
     networks.length === operators.length &&
-    networks.every(
-      (network, index) =>
+    networks.every((network, index) => {
+      const sameIdentifier =
         network.specification.networkIdentifier ===
-        operators[index].specification.networkIdentifier,
-    )
+        operators[index].specification.networkIdentifier
+      if (!sameIdentifier) {
+        return false
+      }
+      if (visited.has(network.specification.networkIdentifier)) {
+        return false
+      }
+      visited.add(network.specification.networkIdentifier)
+      return true
+    })
+
   if (!validInputs) {
     throw new Error(
       'Invalid Networks and Operator pairs used in Agent initialization',
@@ -509,8 +520,6 @@ export class Agent {
           ),
       },
     )
-
-
 
     join({
       ticker: timer(240_000),
