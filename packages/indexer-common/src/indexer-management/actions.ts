@@ -119,10 +119,12 @@ export class ActionManager {
     const logger = this.logger.child({ component: 'QueueMonitor' })
     const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
       async () => {
-        this.logger.trace('Fetching approved actions')
-        return await ActionManager.fetchActions(this.models, {
+        logger.trace('Fetching approved actions')
+        const actions = await ActionManager.fetchActions(this.models, {
           status: ActionStatus.APPROVED,
         })
+        logger.trace(`Fetched ${actions.length} approved actions`)
+        return actions
       },
       {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
