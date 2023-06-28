@@ -2,7 +2,12 @@ import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Client, createClient } from '@urql/core'
-import { INDEXER_ERROR_MESSAGES, IndexerError, indexerError, IndexerErrorCode } from './errors'
+import {
+  INDEXER_ERROR_MESSAGES,
+  IndexerError,
+  indexerError,
+  IndexerErrorCode,
+} from './errors'
 import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
 import pRetry from 'p-retry'
 import axios, { AxiosInstance } from 'axios'
@@ -215,7 +220,9 @@ export class GraphNode {
       this.logger.info(`Successfully created subgraph name`, { name })
     } catch (error) {
       if (error.message.includes('already exists')) {
-        this.logger.debug(`Subgraph name already exists, will deploy to existing name`, { name })
+        this.logger.debug(`Subgraph name already exists, will deploy to existing name`, {
+          name,
+        })
         return
       }
       throw error
@@ -248,7 +255,7 @@ export class GraphNode {
       // If more specific error not found use the generic 'Failed to deploy' error code
       let errorCode = IndexerErrorCode.IE026
 
-      if(error.includes("network not supported")) {
+      if (error.includes('network not supported')) {
         errorCode = IndexerErrorCode.IE074
       }
 
@@ -311,7 +318,7 @@ export class GraphNode {
       const err = indexerError(errorCode, error)
       this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
         deployment: deployment.display,
-        err
+        err,
       })
       throw err
     }
@@ -340,7 +347,7 @@ export class GraphNode {
       await this.deploy(name, deployment, targetNode)
       await this.reassign(deployment, targetNode)
     } catch (error) {
-      if(!(error instanceof IndexerError)) {
+      if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020
         this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
           name,
@@ -348,7 +355,6 @@ export class GraphNode {
           error: indexerError(errorCode, error),
         })
       }
-      return
     }
   }
 
