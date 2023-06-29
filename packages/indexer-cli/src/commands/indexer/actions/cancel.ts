@@ -74,6 +74,7 @@ module.exports = {
 
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
+        'protocolNetwork',
         'type',
         'deploymentID',
         'allocationID',

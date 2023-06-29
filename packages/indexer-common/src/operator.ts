@@ -279,7 +279,9 @@ export class Operator {
       priority: 0,
       protocolNetwork: action.protocolNetwork,
     }
-
+    this.logger.trace(`Queueing action input`, {
+      actionInput,
+    })
     const actionResult = await this.indexerManagement
       .mutation(
         gql`
