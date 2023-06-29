@@ -185,6 +185,12 @@ export class GraphNode {
         data: result.data,
       })
 
+      if (!result.data.indexingStatuses) {
+        throw new Error(
+          "Received invalid results when querying indexing statuses: Response is missing a value for the 'indexingStatus' field",
+        )
+      }
+
       const indexNodes: indexNode[] = []
       result.data.indexingStatuses.map(
         (status: { subgraphDeployment: string; node: string }) => {
