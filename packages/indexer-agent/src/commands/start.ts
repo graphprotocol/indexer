@@ -319,7 +319,7 @@ export async function createNetworkSpecification(
     voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
-    allocationManagementMode: argv.allocationManagementMode,
+    allocationManagementMode: argv.allocationManagement,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
   }
 
