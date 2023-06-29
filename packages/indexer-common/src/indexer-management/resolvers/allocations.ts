@@ -984,7 +984,8 @@ export default {
           allocationData.id,
           allocationPOI,
         ),
-        await contracts.staking.populateTransaction.allocate(
+        await contracts.staking.populateTransaction.allocateFrom(
+          address,
           allocationData.subgraphDeployment.id.bytes32,
           allocationAmount,
           newAllocationId,
