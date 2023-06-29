@@ -933,7 +933,8 @@ export class AllocationManager {
         params.closingAllocationID,
         params.poi,
       ),
-      await this.network.contracts.staking.populateTransaction.allocate(
+      await this.contracts.staking.populateTransaction.allocateFrom(
+        params.indexer,
         params.subgraphDeploymentID,
         params.tokens,
         params.newAllocationID,
