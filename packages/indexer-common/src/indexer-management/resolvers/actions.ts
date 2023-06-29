@@ -54,6 +54,7 @@ async function executeQueueOperation(
     (a) => a.deploymentID === action.deploymentID,
   )
   if (duplicateActions.length === 0) {
+    logger.trace('Inserting Action in database', { action })
     return [
       await models.Action.create(action, {
         validate: true,
