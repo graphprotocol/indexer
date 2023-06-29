@@ -163,6 +163,7 @@ export class GraphNode {
 
   async indexNodes(): Promise<indexNode[]> {
     try {
+      this.logger.trace(`Querying indexing statuses`)
       const result = await this.status
         .query(
           gql`
@@ -179,6 +180,10 @@ export class GraphNode {
       if (result.error) {
         throw result.error
       }
+
+      this.logger.trace(`Queried indexing statuses`, {
+        data: result.data,
+      })
 
       const indexNodes: indexNode[] = []
       result.data.indexingStatuses.map(
