@@ -67,6 +67,7 @@ module.exports = {
 
       printObjectOrArray(print, outputFormat, executedActions, [
         'id',
+        'protocolNetwork',
         'status',
         'type',
         'deploymentID',
