@@ -837,7 +837,6 @@ export default {
     },
     { graphNode, logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
-    // TODO:L2: Make use of the protocolNetwork argument in method calls (NetworkMonitor, TransactionMonitor, Contracts, etc)
     logger = logger.child({
       component: 'reallocateAllocationResolver',
     })
@@ -855,6 +854,7 @@ export default {
       )
     }
 
+    // Obtain the Network object and its associated components and data
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts

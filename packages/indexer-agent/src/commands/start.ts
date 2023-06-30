@@ -389,10 +389,8 @@ export async function run(
   //
   // Note: it only lives here and not on yargs.check because we don't have a logger in
   // that context
-  // TODO:L2: This is disabled for debugging, but we should add those in the parsing
-  // stage.
   // --------------------------------------------------------------------------------
-  // reviewArgumentsForWarnings(argv, logger)
+  reviewArgumentsForWarnings(argv, logger)
 
   // --------------------------------------------------------------------------------
   // * Configure event  listeners for unhandled promise  rejections and uncaught
