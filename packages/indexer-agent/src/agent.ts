@@ -220,22 +220,16 @@ export class Agent {
 
     // --------------------------------------------------------------------------------
     // * Ensure there is a 'global' indexing rule
-    // --------------------------------------------------------------------------------
-    await this.multiNetworks.map(({ operator }) =>
-      operator.ensureGlobalIndexingRule(),
-    )
-
-    // --------------------------------------------------------------------------------
     // * Ensure NetworkSubgraph is indexing
-    // --------------------------------------------------------------------------------
-    await this.multiNetworks.map(async ({ network }) =>
-      this.ensureNetworkSubgraphIsIndexing(network),
-    )
-
-    // --------------------------------------------------------------------------------
     // * Register the Indexer in the Network
     // --------------------------------------------------------------------------------
-    await this.multiNetworks.map(({ network }) => network.register())
+    await this.multiNetworks.map(
+      async ({ network, operator }: NetworkAndOperator) => {
+        operator.ensureGlobalIndexingRule()
+        this.ensureNetworkSubgraphIsIndexing(network)
+        network.register()
+      },
+    )
 
     this.buildEventualTree()
     return this
