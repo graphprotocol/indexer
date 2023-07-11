@@ -179,14 +179,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             await this.models.allocationSummaries.update(
               { closedAt: now },
               {
-                where: { allocation: allocation.id },
+                where: {
+                  allocation: allocation.id,
+                  protocolNetwork: this.protocolNetwork,
+                },
                 transaction,
               },
             )
 
             // Return all receipts for the just-closed allocation
             return this.models.allocationReceipts.findAll({
-              where: { allocation: allocation.id },
+              where: { allocation: allocation.id, protocolNetwork: this.protocolNetwork },
               order: ['id'],
               transaction,
             })
@@ -269,7 +272,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
             try {
               await this.models.vouchers.destroy({
-                where: { allocation: voucher.allocation },
+                where: {
+                  allocation: voucher.allocation,
+                  protocolNetwork: this.protocolNetwork,
+                },
               })
               logger.warn(
                 `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
@@ -345,6 +351,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private async pendingVouchers(): Promise<Voucher[]> {
     return this.models.vouchers.findAll({
+      where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
       limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
     })
@@ -458,6 +465,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         await this.models.allocationReceipts.destroy({
           where: {
             id: receipts.map((receipt) => receipt.id),
+            protocolNetwork: this.protocolNetwork,
           },
           transaction,
         })
@@ -480,7 +488,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
         // Add the voucher to the database
         await this.models.vouchers.findOrCreate({
-          where: { allocation: toAddress(voucher.allocation) },
+          where: {
+            allocation: toAddress(voucher.allocation),
+            protocolNetwork: this.protocolNetwork,
+          },
           defaults: {
             allocation: toAddress(voucher.allocation),
             amount: voucher.fees,
@@ -569,7 +580,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     logger.info(`Successfully redeemed query fee voucher, delete local copy`)
     try {
       await this.models.vouchers.destroy({
-        where: { allocation: vouchers.map((voucher) => voucher.allocation) },
+        where: {
+          allocation: vouchers.map((voucher) => voucher.allocation),
+          protocolNetwork: this.protocolNetwork,
+        },
       })
       this.metrics.successVoucherRedeems.inc({ allocation: vouchers[0].allocation })
       logger.info(`Successfully deleted local voucher copy`)
@@ -583,7 +597,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
     // Obtain all closed allocations
     const closedAllocations = await this.models.allocationSummaries.findAll({
-      where: { closedAt: { [Op.not]: null } },
+      where: { closedAt: { [Op.not]: null }, protocolNetwork: this.protocolNetwork },
     })
 
     // Create a receipts batch for each of these allocations
@@ -601,6 +615,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     const uncollectedReceipts = await this.models.allocationReceipts.findAll({
       where: {
         allocation: closedAllocations.map((summary) => summary.allocation),
+        protocolNetwork: this.protocolNetwork,
       },
       order: ['id'],
     })
