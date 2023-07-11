@@ -4,7 +4,6 @@ import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
   connectDatabase,
-  createLogger,
   createMetrics,
   createMetricsServer,
   formatGRT,
@@ -378,20 +377,8 @@ export async function createNetworkSpecification(
 export async function run(
   argv: AgentOptions,
   networkSpecifications: spec.NetworkSpecification[],
+  logger: Logger,
 ): Promise<void> {
-  const logger = createLogger({
-    name: 'IndexerAgent',
-    async: false,
-    level: argv.logLevel,
-  })
-  // --------------------------------------------------------------------------------
-  // * CLI Argument review
-  //
-  // Note: it only lives here and not on yargs.check because we don't have a logger in
-  // that context
-  // --------------------------------------------------------------------------------
-  reviewArgumentsForWarnings(argv, logger)
-
   // --------------------------------------------------------------------------------
   // * Configure event  listeners for unhandled promise  rejections and uncaught
   // exceptions.
@@ -600,7 +587,9 @@ export async function run(
 
 // Review CLI arguments, emit non-interrupting warnings about expected behavior.
 // Perform this check immediately after parsing the command line arguments.
-function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
+// Ideally, this check could be made inside yargs.check, but we can't access a Logger
+// instance in that context.
+export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   const {
     gasIncreaseTimeout,
     gasIncreaseFactor,

@@ -1,9 +1,9 @@
+import { createLogger } from '@graphprotocol/common-ts'
 import * as yargs from 'yargs'
-import { inspect } from 'util'
-import { specification as spec } from '@graphprotocol/indexer-common'
 import {
   start,
   createNetworkSpecification,
+  reviewArgumentsForWarnings,
   AgentOptions,
   run,
 } from './commands/start'
@@ -36,12 +36,18 @@ function parseArguments(): AgentOptions {
 }
 
 async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
+  const logger = createLogger({
+    name: 'IndexerAgent',
+    async: false,
+    level: args.logLevel,
+  })
   if (args['_'].includes('start')) {
+    reviewArgumentsForWarnings(args, logger)
     const specification = await createNetworkSpecification(args)
-    await run(args, [specification])
+    await run(args, [specification], logger)
   } else if (args['_'].includes('start-multiple')) {
     const specifications = parseNetworkSpecifications(args)
-    await run(args, specifications)
+    await run(args, specifications, logger)
   } else {
     throw new Error('Invalid command line usage for Indexer Agent')
   }
