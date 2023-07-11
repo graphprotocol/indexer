@@ -249,12 +249,21 @@ export class GraphNode {
       this.logger.info(`Deploy subgraph deployment`, {
         name,
         deployment: deployment.display,
+        node_id,
       })
       const response = await this.admin.request('subgraph_deploy', {
         name,
         ipfs_hash: deployment.ipfsHash,
         node_id: node_id,
       })
+
+      this.logger.trace(`Response from 'subgraph_deploy' call`, {
+        deployment: deployment.display,
+        name,
+        node_id,
+        response,
+      })
+
       if (response.error) {
         throw response.error
       }
