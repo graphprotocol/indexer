@@ -600,6 +600,8 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
     collectReceiptsEndpoint,
   } = argv
 
+  logger.debug('Reviewing Indexer Agent configuration')
+
   const advisedGasIncreaseTimeout = 90000
   const advisedGasIncreaseFactor = 1.5
   const advisedRebateClaimMaxBatchSize = 200
@@ -628,7 +630,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
       { gasIncreaseFactor: gasIncreaseFactor },
     )
   }
-  if (rebateClaimThreshold.lt(voucherRedemptionThreshold)) {
+  if (rebateClaimThreshold < voucherRedemptionThreshold) {
     logger.warn(
       'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
         'but claims depend on redemptions',
@@ -639,7 +641,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
     )
   }
 
-  if (rebateClaimThreshold.eq(0)) {
+  if (rebateClaimThreshold === 0) {
     logger.warn(
       `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
     )
@@ -653,7 +655,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
     )
   }
 
-  if (voucherRedemptionThreshold.eq(0)) {
+  if (voucherRedemptionThreshold == 0) {
     logger.warn(
       `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
     )
