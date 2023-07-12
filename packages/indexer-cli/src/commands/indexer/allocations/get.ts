@@ -3,7 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters } from '../../../command-helpers'
+import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
@@ -16,12 +16,13 @@ import { utils } from 'ethers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
-${chalk.bold('graph indexer allocations get')} [options] <network> <allocation-id>
-${chalk.bold('graph indexer allocations get')} [options] <network> all
+${chalk.bold('graph indexer allocations get')} [options] <allocation-id>
+${chalk.bold('graph indexer allocations get')} [options] all
 
 ${chalk.dim('Options:')}
 
   -h, --help                                Show usage information
+  -n, --network                             Filter allocations by their protocol network
       --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML
@@ -47,6 +48,8 @@ module.exports = {
     }
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
           `Invalid output format "${outputFormat}" must be one of 'json', 'yaml' or 'table'`,
@@ -57,17 +60,6 @@ module.exports = {
         throw Error(
           `Invalid '--status' provided, must be one of 'active', 'closed' or 'claimable'`,
         )
-      }
-
-      let protocolNetwork: string
-      if (!network) {
-        throw Error(`Missing required argument: 'network'`)
-      } else {
-        try {
-          protocolNetwork = validateNetworkIdentifier(network)
-        } catch (error) {
-          throw Error(`Invalid value for argument 'network': '${network}' `)
-        }
       }
 
       if (allocation) {

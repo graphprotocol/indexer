@@ -1,4 +1,8 @@
-import { NetworkMonitor, epochElapsedBlocks } from '@graphprotocol/indexer-common'
+import {
+  NetworkMonitor,
+  epochElapsedBlocks,
+  Network,
+} from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
@@ -37,7 +41,7 @@ interface AllocationFilter {
   status: 'active' | 'closed' | 'claimable'
   allocation: string | null
   subgraphDeployment: string | null
-  protocolNetwork: string
+  protocolNetwork: string | null
 }
 
 enum AllocationQuery {
@@ -362,7 +366,7 @@ export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
     { multiNetworks, logger }: IndexerManagementResolverContext,
-  ): Promise<object[]> => {
+  ): Promise<AllocationInfo[]> => {
     logger.debug('Execute allocations() query', {
       filter,
     })
@@ -371,41 +375,63 @@ export default {
         'IndexerManagementClient must be in `network` mode to fetch allocations',
       )
     }
-    const network = extractNetwork(filter.protocolNetwork, multiNetworks)
-    const networkMonitor = network.networkMonitor
-    const networkSubgraph = network.networkSubgraph
-    const contracts = network.contracts
-    const address = network.specification.indexerOptions.address
 
-    const allocations: AllocationInfo[] = []
+    const allocationsByNetwork = await multiNetworks.map(
+      async (network: Network): Promise<AllocationInfo[]> => {
+        // Return early if a different protocol network is specifically requested
+        if (
+          filter.protocolNetwork &&
+          filter.protocolNetwork !== network.specification.networkIdentifier
+        ) {
+          return []
+        }
 
-    const currentEpoch = await networkMonitor.networkCurrentEpoch()
-    const disputeEpochs = await contracts.staking.channelDisputeEpochs()
-    const variables = {
-      indexer: toAddress(address),
-      disputableEpoch: currentEpoch.epochNumber - disputeEpochs,
-      allocation: filter.allocation
-        ? filter.allocation === 'all'
-          ? null
-          : toAddress(filter.allocation)
-        : null,
-      status: filter.status,
-    }
-    const context = {
-      currentEpoch: currentEpoch.epochNumber,
-      currentEpochStartBlock: currentEpoch.startBlockNumber,
-      currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
-      latestBlock: currentEpoch.latestBlock,
-      maxAllocationEpochs: await contracts.staking.maxAllocationEpochs(),
-      blocksPerEpoch: (await contracts.epochManager.epochLength()).toNumber(),
-      avgBlockTime: 13_000,
-      protocolNetwork: network.specification.networkIdentifier,
-    }
+        const {
+          networkMonitor,
+          networkSubgraph,
+          contracts,
+          specification: {
+            indexerOptions: { address },
+          },
+        } = network
 
-    allocations.push(
-      ...(await queryAllocations(logger, networkSubgraph, variables, context)),
+        const [currentEpoch, disputeEpochs, maxAllocationEpochs, epochLength] =
+          await Promise.all([
+            networkMonitor.networkCurrentEpoch(),
+            contracts.staking.channelDisputeEpochs(),
+            contracts.staking.maxAllocationEpochs(),
+            contracts.epochManager.epochLength(),
+          ])
+
+        const allocation = filter.allocation
+          ? filter.allocation === 'all'
+            ? null
+            : toAddress(filter.allocation)
+          : null
+
+        const variables = {
+          indexer: toAddress(address),
+          disputableEpoch: currentEpoch.epochNumber - disputeEpochs,
+          allocation,
+          status: filter.status,
+        }
+
+        const context = {
+          currentEpoch: currentEpoch.epochNumber,
+          currentEpochStartBlock: currentEpoch.startBlockNumber,
+          currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
+          latestBlock: currentEpoch.latestBlock,
+          maxAllocationEpochs,
+          blocksPerEpoch: epochLength.toNumber(),
+          avgBlockTime: 13000,
+          protocolNetwork: network.specification.networkIdentifier,
+        }
+
+        return queryAllocations(logger, networkSubgraph, variables, context)
+      },
     )
-    return allocations
+
+    return Object.values(allocationsByNetwork).flat()
   },
 
   createAllocation: async (
