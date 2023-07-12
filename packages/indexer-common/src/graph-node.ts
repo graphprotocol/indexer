@@ -275,7 +275,7 @@ export class GraphNode {
       // If more specific error not found use the generic 'Failed to deploy' error code
       let errorCode = IndexerErrorCode.IE026
 
-      if (error.includes('network not supported')) {
+      if (error.message && error.message.includes('network not supported')) {
         errorCode = IndexerErrorCode.IE074
       }
 
