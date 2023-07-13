@@ -1056,6 +1056,7 @@ export class Agent {
         // Do nothing if there are already approved actions in the queue awaiting execution
         const approvedActions = await operator.fetchActions({
           status: ActionStatus.APPROVED,
+          protocolNetwork: network.specification.networkIdentifier,
         })
         if (approvedActions.length > 0) {
           this.logger.info(
