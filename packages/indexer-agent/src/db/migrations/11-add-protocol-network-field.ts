@@ -92,17 +92,19 @@ const migrationInputs: MigrationInput[] = [
 
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, networkSpecifications, logger } = context
+  const m = new Migration(queryInterface, logger)
 
-  // This migration requires that just one network is used
-  if (networkSpecifications.length !== 1) {
+  // This migration requires that just one network is used if the database holds previous data.
+  const hasExistingRows = await m.hasExistingRows(migrationInputs)
+  if (hasExistingRows && networkSpecifications.length !== 1) {
     throw new Error(
       `Migration expects only one network specification, but found ${networkSpecifications.length}. ` +
-        `Please avoid using other network specifications until this migration completes.`,
+        `Please avoid using other network specifications until this migration completes. ` +
+        `Make sure to use the same network specification that matches the data in the database.`,
     )
   }
   const networkChainId = networkSpecifications[0].networkIdentifier
 
-  const m = new Migration(queryInterface, logger)
   for (const input of migrationInputs) {
     await m.addPrimaryKeyMigration(input, networkChainId)
   }
@@ -112,14 +114,12 @@ export async function down({ context }: Context): Promise<void> {
   const { queryInterface, networkSpecifications, logger } = context
   const m = new Migration(queryInterface, logger)
 
-  // This migration requires that just one network is used if the database holds previous
-  // data.
-  const hasExistingRows = await m.hasExistingRows(migrationInputs)
-  if (hasExistingRows && networkSpecifications.length !== 1) {
+  // This migration requires that just one network is used
+  if (networkSpecifications.length !== 1) {
     throw new Error(
       `Migration expects only one network specification, but found ${networkSpecifications.length}. ` +
         `Please avoid using other network specifications until this migration completes. ` +
-        `Make sure to use the same network specification that matches the data in the database.`,
+        `Make sure to use the same network specification for the network data that will be left in the database.`,
     )
   }
   const networkChainId = networkSpecifications[0].networkIdentifier
