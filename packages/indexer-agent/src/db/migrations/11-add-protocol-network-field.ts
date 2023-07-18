@@ -112,11 +112,14 @@ export async function down({ context }: Context): Promise<void> {
   const { queryInterface, networkSpecifications, logger } = context
   const m = new Migration(queryInterface, logger)
 
-  // This migration requires that just one network is used
-  if (networkSpecifications.length !== 1) {
+  // This migration requires that just one network is used if the database holds previous
+  // data.
+  const hasExistingRows = await m.hasExistingRows(migrationInputs)
+  if (hasExistingRows && networkSpecifications.length !== 1) {
     throw new Error(
       `Migration expects only one network specification, but found ${networkSpecifications.length}. ` +
-        `Please avoid using other network specifications until this migration completes.`,
+        `Please avoid using other network specifications until this migration completes. ` +
+        `Make sure to use the same network specification that matches the data in the database.`,
     )
   }
   const networkChainId = networkSpecifications[0].networkIdentifier
@@ -420,5 +423,40 @@ WHERE
       type: 'primary key',
       name: target.oldPrimaryKeyConstraint,
     })
+  }
+
+  // Checks if a table has at least one row
+  async tableHaveRows(table: string): Promise<boolean> {
+    try {
+      const result: null | { count?: number } =
+        await this.queryInterface.sequelize.query(
+          `SELECT COUNT(*) AS count FROM ${table}`,
+          {
+            type: QueryTypes.SELECT,
+            plain: true,
+            raw: true,
+          },
+        )
+      if (!result || !result.count) {
+        throw new Error(`Invalid query result: ${result}`)
+      }
+      this.logger.debug(`Table '${table}' has ${result.count} row(s)`)
+      return result.count > 0
+    } catch (error) {
+      // Return false to continue the migration if the table doesn't exist.
+      // It will be ignored later if so.
+      this.logger.warning(
+        `Failed to check row count for table '${table}'. Assuming it does not exist.`,
+        { error },
+      )
+      return false
+    }
+  }
+
+  // Checks if input tables have at least one row
+  async hasExistingRows(targets: MigrationInput[]): Promise<Boolean> {
+    return (
+      await Promise.all(targets.map(t => this.tableHaveRows(t.table)))
+    ).some(Boolean)
   }
 }
