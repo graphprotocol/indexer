@@ -77,34 +77,3 @@ option can be used.
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`   |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
-
-## Feature support
-
-> This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
-
-```
-graph-node: >=0.30 <0.32
-```
-
-| Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |
-|--------------------------|---------|-------------|--------------|-------------------|----------------------|------------------|
-| **Core Features**        |         |             |              |                   |                      |                  |
-| Full-text Search         |         | Yes         | No           | No                | Yes                  | Yes              |
-| Non-Fatal Errors         |         | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| Grafting                 |         | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| **Data Source Types**    |         |             |              |                   |                      |                  |
-| eip155:*                 | *       | Yes         | No           | No                | No                   | No               |
-| eip155:1                 | mainnet | Yes         | No           | Yes               | Yes                  | Yes              |
-| eip155:100               | gnosis  | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| near:*                   | *       | Yes         | Yes          | No                | No                   | No               |
-| cosmos:*                 | *       | Yes         | Yes          | No                | No                   | No               |
-| arweave:*                | *       | Yes         | Yes          | No                | No                   | No               |
-| eip155:42161             | arbitrum-one  | Yes   | Yes          | Yes               | Yes                  | Yes              |
-| eip155:42220             | celo    | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:43114             | avalanche | Yes       | Yes          | Yes               | Yes                  | Yes              |
-| **Data Source Features** |         |             |              |                   |                      |                  |
-| ipfs.cat in mappings     |         | Yes         | Yes          | No                | No                   | No               |
-| ENS                      |         | Yes         | Yes          | No                | No                   | No               |
-| File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
-
-[Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x80c55bb8697d16fedb71ccdce40704f24e931cc28f289a029e0717f3b729e6a8)
