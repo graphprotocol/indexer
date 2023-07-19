@@ -7,7 +7,7 @@ import { injectCommonStartupOptions } from './common-options'
 import { displayZodParsingError } from './error-handling'
 
 export const startMultiNetwork = {
-  command: 'start-multiple',
+  command: 'start',
   describe: 'Start the Agent in multiple Protocol Networks',
   builder: (args: Argv): Argv => {
     const updatedArgs = injectCommonStartupOptions(args)

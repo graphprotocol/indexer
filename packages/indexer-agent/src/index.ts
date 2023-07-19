@@ -12,12 +12,23 @@ import {
   parseNetworkSpecifications,
 } from './commands/start-multi-network'
 
+const MULTINETWORK_MODE: boolean =
+  !!process.env.INDEXER_AGENT_MULTINETWORK_MODE &&
+  process.env.INDEXER_AGENT_MULTINETWORK_MODE.toLowerCase() !== 'false'
+
 function parseArguments(): AgentOptions {
-  return yargs
-    .scriptName('indexer-agent')
-    .env('INDEXER_AGENT')
-    .command(start)
-    .command(startMultiNetwork)
+  let builder = yargs.scriptName('indexer-agent').env('INDEXER_AGENT')
+
+  // Dynamic argument parser construction based on network mode
+  if (MULTINETWORK_MODE) {
+    console.log('Starting the Indexer Agent in multi-network mode')
+    builder = builder.command(startMultiNetwork)
+  } else {
+    console.log('Starting the Indexer Agent in single-network mode')
+    builder = builder.command(start)
+  }
+
+  return builder
     .fail(function (msg, err, _yargs) {
       console.error('The Indexer Agent command has failed.')
       if (err) {
@@ -41,22 +52,19 @@ async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
     async: false,
     level: args.logLevel,
   })
-  if (args['_'].includes('start')) {
-    reviewArgumentsForWarnings(args, logger)
-    const specification = await createNetworkSpecification(args)
-    await run(args, [specification], logger)
-  } else if (args['_'].includes('start-multiple')) {
+  if (MULTINETWORK_MODE) {
     const specifications = parseNetworkSpecifications(args)
     await run(args, specifications, logger)
   } else {
-    throw new Error('Invalid command line usage for Indexer Agent')
+    reviewArgumentsForWarnings(args, logger)
+    const specification = await createNetworkSpecification(args)
+    await run(args, [specification], logger)
   }
 }
 
 async function main(): Promise<void> {
   const args = parseArguments()
   await processArgumentsAndRun(args)
-  // console.log(inspect(specs, { colors: true }))
 }
 
 main()
