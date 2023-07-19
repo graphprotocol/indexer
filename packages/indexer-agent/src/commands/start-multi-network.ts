@@ -68,7 +68,7 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
   // Check if at least one YAMl file was found
   if (yamlFiles.length === 0) {
     throw new Error(
-      'No YAML file was found in `{directoryPath}`. At least one file is required.',
+      `No YAML file was found in '${directoryPath}'. At least one file is required.`,
     )
   }
 
