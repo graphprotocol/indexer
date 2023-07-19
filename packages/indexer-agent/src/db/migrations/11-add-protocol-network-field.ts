@@ -454,7 +454,7 @@ WHERE
   }
 
   // Checks if input tables have at least one row
-  async hasExistingRows(targets: MigrationInput[]): Promise<Boolean> {
+  async hasExistingRows(targets: MigrationInput[]): Promise<boolean> {
     return (
       await Promise.all(targets.map(t => this.tableHaveRows(t.table)))
     ).some(Boolean)
