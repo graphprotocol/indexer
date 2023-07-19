@@ -13,7 +13,7 @@ jobs:
   build:
     strategy:
       matrix:
-        node-version: [16, 18, 20]
+        node-version: [18, 20]
         system:
           - os: ubuntu-20.04
         include:
