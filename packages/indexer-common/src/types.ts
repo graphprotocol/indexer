@@ -61,6 +61,16 @@ export interface SubgraphDeployment {
   protocolNetwork: string
 }
 
+export interface TransferredSubgraphDeployment {
+  transferredToL2: boolean
+  transferredToL2At: BigNumber
+  transferredToL2AtTx: string
+  transferredToL2AtBlockNumber: BigNumber
+  ipfsHash: string
+  protocolNetwork: string
+  ready: boolean | null
+}
+
 export enum TransactionType {
   ZERO,
   TWO,

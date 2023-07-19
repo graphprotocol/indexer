@@ -18,6 +18,7 @@ import {
   BlockPointer,
   resolveChainId,
   resolveChainAlias,
+  TransferredSubgraphDeployment,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -489,6 +490,51 @@ export class NetworkMonitor {
     }
   }
 
+  async transferredDeployments() : Promise<TransferredSubgraphDeployment[]> {
+      try {
+          const result = await this.networkSubgraph.query(
+            gql`
+              query subgraphDeployments {
+                subgraphDeployments(
+                  where: { transferredToL2: true }
+                  orderBy: transferredToL2At
+                  orderDirection: asc
+                ) {
+                  transferredToL2
+                  transferredToL2At
+                  transferredToL2AtTx
+                  transferredToL2AtBlockNumber
+                  ipfsHash
+                }
+              }
+            `,
+          )
+
+        if (result.error) {
+          throw result.error
+        }
+
+        const transferredDeployments = result.data.subgraphDeployments
+
+        // There may be no transferred subgraphs, handle gracefully
+        if (transferredDeployments.length == 0) {
+          this.logger.warn('Failed to query subgraph deployments transferred to L2: no deployments found')
+          throw new Error('No transferred subgraph deployments returned')
+        }
+
+        return transferredDeployments.map((deployment: any) => {
+          deployment.protocolNetwork = this.networkCAIPID
+          return deployment
+        })
+      } catch (err) {
+        const error = indexerError(IndexerErrorCode.IE009, err.message)
+        this.logger.error(`Failed to query transferred subgraph deployments`, {
+          error,
+        })
+        throw error
+      }
+  }
+
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
     const deployments = []
     const queryProgress = {
@@ -505,7 +551,6 @@ export class NetworkMonitor {
         queryProgress: queryProgress,
       })
       try {
-        // TODO: Do we need the indexerAllocations being fetched here? It would likely speed up query to remove
         const result = await this.networkSubgraph.query(
           gql`
             query subgraphDeployments($first: Int!, $lastCreatedAt: Int!) {

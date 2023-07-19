@@ -96,7 +96,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE006: 'Failed to cross-check allocation state with contracts',
   IE007: 'Failed to check for network pause',
   IE008: 'Failed to check operator status for indexer',
-  IE009: 'Failed to query subgraph deployments worth indexing',
+  IE009: 'Failed to query subgraph deployments',
   IE010: 'Failed to query indexer allocations',
   IE011: 'Failed to query claimable indexer allocations',
   IE012: 'Failed to register indexer',
