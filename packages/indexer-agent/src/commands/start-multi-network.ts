@@ -52,8 +52,8 @@ function scanDirectoryForYamlFiles(
   // Read the directory
   const files = fs.readdirSync(directoryPath)
   logger.trace(
-    `Network configuration directory '${files}' contains ${files.length} file(s)`,
-    { files },
+    `Network configuration directory contains ${files.length} file(s)`,
+    { directoryPath, files },
   )
 
   // Iterate over each file in the directory
