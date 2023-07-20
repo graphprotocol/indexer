@@ -53,7 +53,7 @@ async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
     level: args.logLevel,
   })
   if (MULTINETWORK_MODE) {
-    const specifications = parseNetworkSpecifications(args)
+    const specifications = parseNetworkSpecifications(args, logger)
     await run(args, specifications, logger)
   } else {
     reviewArgumentsForWarnings(args, logger)

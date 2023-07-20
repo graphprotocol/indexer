@@ -5,6 +5,7 @@ import * as YAML from 'yaml'
 import { Argv } from 'yargs'
 import { injectCommonStartupOptions } from './common-options'
 import { displayZodParsingError } from './error-handling'
+import { Logger } from '@graphprotocol/common-ts'
 
 export const startMultiNetwork = {
   command: 'start',
@@ -24,13 +25,17 @@ export const startMultiNetwork = {
 
 export function parseNetworkSpecifications(
   argv: any,
+  logger: Logger,
 ): spec.NetworkSpecification[] {
   const dir: string = argv.dir
-  const yamlFiles = scanDirectoryForYamlFiles(dir)
+  const yamlFiles = scanDirectoryForYamlFiles(dir, logger)
   return parseYamlFiles(yamlFiles)
 }
 
-function scanDirectoryForYamlFiles(directoryPath: string): string[] {
+function scanDirectoryForYamlFiles(
+  directoryPath: string,
+  logger: Logger,
+): string[] {
   const yamlFiles: string[] = []
 
   // Check if the directory exists
@@ -46,6 +51,10 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
 
   // Read the directory
   const files = fs.readdirSync(directoryPath)
+  logger.trace(
+    `Network configuration directory '${files}' contains ${files.length} file(s)`,
+    { files },
+  )
 
   // Iterate over each file in the directory
   for (const file of files) {
@@ -53,7 +62,11 @@ function scanDirectoryForYamlFiles(directoryPath: string): string[] {
 
     // Check if the file is a regular file and has a YAML extension
     const isFile = fs.lstatSync(filePath).isFile()
-    const isYaml = file.endsWith('.yaml') || file.endsWith('.yml')
+    const isYaml = /\.ya?ml$/i.test(file)
+    logger.trace(`Network specification candidate file found: '${file}'`, {
+      isFile,
+      isYaml,
+    })
     if (isFile && isYaml) {
       try {
         // Check if the file can be read
