@@ -153,8 +153,10 @@ export const setup = async () => {
   process.setMaxListeners(100)
   process.on('SIGTERM', shutdownIndexerManagementServer)
   process.on('SIGINT', shutdownIndexerManagementServer)
+}
 
-  // Set global, deployment, and subgraph based test rules and cost model
+// Set global, deployment, and subgraph based test rules and cost model
+export const seed = async () => {
   const commands: string[][] = [
     ['indexer', 'connect', 'http://localhost:18000'],
     [
@@ -261,6 +263,12 @@ export const teardown = async () => {
   process.setMaxListeners(defaultMaxEventListeners)
   await shutdownIndexerManagementServer()
   await dropSequelizeModels()
+}
+
+export const deleteFromAllTables = async () => {
+  const queryInterface = sequelize.getQueryInterface()
+  const allTables = await queryInterface.showAllTables()
+  await Promise.all(allTables.map(tableName => queryInterface.bulkDelete(tableName, {})))
 }
 
 export interface CommandResult {

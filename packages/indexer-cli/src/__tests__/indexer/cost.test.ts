@@ -1,11 +1,14 @@
-import { cliTest, setup, teardown } from '../util'
+import { cliTest, setup, seed, teardown } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
 
 describe('Indexer cost tests', () => {
   describe('With indexer management server', () => {
-    beforeEach(setup)
+    beforeEach(async () => {
+      await setup()
+      await seed()
+    })
     afterEach(teardown)
     describe('Cost help', () => {
       cliTest('Indexer cost', ['indexer', 'cost'], 'references/indexer-cost', {

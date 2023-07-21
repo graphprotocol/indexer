@@ -1,12 +1,16 @@
-import { cliTest, setup, teardown } from '../util'
+import { cliTest, setup, seed, teardown, deleteFromAllTables } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
 
 describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
-    beforeEach(setup)
-    afterEach(teardown)
+    beforeAll(setup)
+    beforeEach(async () => {
+      await deleteFromAllTables()
+      await seed()
+    })
+    afterAll(teardown)
     describe('Rules help', () => {
       cliTest(
         'Indexer rules',
@@ -509,7 +513,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules set - no args',
         ['indexer', 'rules', 'set'],
-        'references/indexer-rules-command-no-args',
+        'references/indexer-rules-no-network',
         {
           expectedExitCode: 1,
           cwd: baseDir,
