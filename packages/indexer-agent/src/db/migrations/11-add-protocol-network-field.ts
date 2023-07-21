@@ -430,7 +430,7 @@ WHERE
     try {
       const result: null | { count?: number } =
         await this.queryInterface.sequelize.query(
-          `SELECT COUNT(*) AS count FROM ${table}`,
+          `SELECT COUNT(*) AS count FROM "${table}"`,
           {
             type: QueryTypes.SELECT,
             plain: true,
