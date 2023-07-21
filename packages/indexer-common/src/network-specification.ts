@@ -72,6 +72,8 @@ export const TransactionMonitoring = z
     maxTransactionAttempts: z.number().nonnegative().finite().default(0),
   })
   .strict()
+  .default({}) // defaults will be used for instantiation when the TransactionMonitoring group is absent.
+
 export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
 
 // Generic subgraph specification
@@ -118,6 +120,7 @@ export const Dai = z
     inject: z.boolean().default(true),
   })
   .strict()
+  .default({}) // defaults will be used for instantiation when the Dai group is absent.
 export type Dai = z.infer<typeof Dai>
 
 // All necessary information to describe a Protocol Network
@@ -132,6 +135,7 @@ export const NetworkSpecification = z
     dai: Dai,
   })
   .strict()
+
 export type NetworkSpecification = z.infer<typeof NetworkSpecification>
 
 function transformNetworkIdentifier(input: string, ctx: z.RefinementCtx): string {

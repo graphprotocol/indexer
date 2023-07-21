@@ -1,7 +1,11 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as YAML from 'yaml'
-import { NetworkSpecification, IndexerOptions } from '../network-specification'
+import {
+  NetworkSpecification,
+  IndexerOptions,
+  TransactionMonitoring,
+} from '../network-specification'
 
 function readYamlFile(p: string): string {
   const filePath = path.join(__dirname, 'network-specification-files', p)
@@ -14,6 +18,16 @@ describe('Network Specification deserialization', () => {
     test('Valid specification file', () => {
       const validFile = readYamlFile('valid.yml')
       NetworkSpecification.parse(validFile)
+    })
+  })
+
+  describe('Successful deserialization with missing defaults', () => {
+    test('Valid specification file', () => {
+      const validFile = readYamlFile('valid-missing.yml')
+      const parsed = NetworkSpecification.parse(validFile)
+      const expectedDefaults = TransactionMonitoring.parse({})
+      expect(expectedDefaults).not.toEqual({}) // Ensures default is not an empty object
+      expect(parsed.transactionMonitoring).toStrictEqual(expectedDefaults)
     })
   })
 })
