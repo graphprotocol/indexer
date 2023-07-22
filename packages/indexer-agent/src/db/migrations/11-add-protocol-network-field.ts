@@ -149,6 +149,9 @@ class Migration {
     // Skip migration for this table if it doesn't exist.
     const tableExists = await this.checkTableExists(input)
     if (!tableExists) {
+      this.logger.info(
+        `Table '${input.table}' does not exist, migration not necessary`,
+      )
       return
     }
     // Skip migration for this table if it already has the 'protocolNetwork' column
@@ -200,13 +203,11 @@ class Migration {
     await this.restoreOldPrimaryKeyConstraint(target)
   }
 
-  async checkTableExists(input: MigrationInput): Promise<boolean> {
-    this.logger.debug(`Checking if table '${input.table}' exists`)
+  async checkTableExists(
+    input: Pick<MigrationInput, 'table'>,
+  ): Promise<boolean> {
     const exists = await this.queryInterface.tableExists(input.table)
     if (!exists) {
-      this.logger.info(
-        `Table '${input.table}' does not exist, migration not necessary`,
-      )
       return false
     }
     return true
@@ -427,30 +428,24 @@ WHERE
 
   // Checks if a table has at least one row
   async tableHaveRows(table: string): Promise<boolean> {
-    try {
-      const result: null | { count?: number } =
-        await this.queryInterface.sequelize.query(
-          `SELECT COUNT(*) AS count FROM "${table}"`,
-          {
-            type: QueryTypes.SELECT,
-            plain: true,
-            raw: true,
-          },
-        )
-      if (!result || !result.count) {
-        throw new Error(`Invalid query result: ${result}`)
-      }
-      this.logger.debug(`Table '${table}' has ${result.count} row(s)`)
-      return result.count > 0
-    } catch (error) {
-      // Return false to continue the migration if the table doesn't exist.
-      // It will be ignored later if so.
-      this.logger.warning(
-        `Failed to check row count for table '${table}'. Assuming it does not exist.`,
-        { error },
-      )
+    if (!(await this.checkTableExists({ table }))) {
+      this.logger.trace(`Table '${table}' does not exist, ignoring row check.`)
       return false
     }
+    const result: null | { count?: number } =
+      await this.queryInterface.sequelize.query(
+        `SELECT COUNT(*) AS count FROM "${table}"`,
+        {
+          type: QueryTypes.SELECT,
+          plain: true,
+          raw: true,
+        },
+      )
+    if (!result || !result.count) {
+      throw new Error(`Invalid query result: ${result}`)
+    }
+    this.logger.debug(`Table '${table}' has ${result.count} row(s)`)
+    return result.count > 0
   }
 
   // Checks if input tables have at least one row
