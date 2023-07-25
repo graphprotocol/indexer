@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
-import { requireProtocolNetworkOption, parseOutputFormat } from '../../../command-helpers'
+import { parseOutputFormat, extractProtocolNetworkOption } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -25,7 +25,7 @@ module.exports = {
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
-    const { h, help, o, output, n, network } = parameters.options
+    const { h, help, o, output } = parameters.options
     const [status, minAllocationClosedEpoch] = parameters.array || []
     const outputFormat = parseOutputFormat(print, o || output || 'table')
 
@@ -50,32 +50,18 @@ module.exports = {
       return
     }
 
-    let protocolNetwork: string | null = null
-    if (n || network) {
-      try {
-        // TODO:L2: Protocol Network should be optional in this case. To make it so, we
-        // also need to relax the requirement for the protocol network field on all
-        // GrapQL quieries and respective resolvers  involving POI disputes.
-        protocolNetwork = requireProtocolNetworkOption(parameters.options)
-      } catch (error) {
-        print.error(`Failed to parse network option: ${error.message()}`)
-        process.exitCode = 1
-        return
-      }
-    }
-
     const config = loadValidatedConfig()
 
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
       const storedDisputes = await disputes(
         client,
         status,
         +minAllocationClosedEpoch,
         protocolNetwork,
       )
-
       printDisputes(print, outputFormat, storedDisputes)
     } catch (error) {
       print.error(error.toString())

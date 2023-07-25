@@ -3,7 +3,7 @@
 import { POIDispute, POIDisputeIdentifier, POIDisputeCreationAttributes } from '../models'
 import { IndexerManagementResolverContext } from '../client'
 import { validateNetworkIdentifier } from '../../parsers'
-import { Op } from 'sequelize'
+import { Op, WhereOptions } from 'sequelize'
 import groupBy from 'lodash.groupby'
 
 export default {
@@ -22,24 +22,25 @@ export default {
       status,
       minClosedEpoch,
       protocolNetwork: uncheckedProtocolNetwork,
-    }: { status: string; minClosedEpoch: number; protocolNetwork: string },
+    }: { status: string; minClosedEpoch: number; protocolNetwork: string | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     // Sanitize protocol network identifier
-    const protocolNetwork = validateNetworkIdentifier(uncheckedProtocolNetwork)
+    const protocolNetwork = uncheckedProtocolNetwork
+      ? validateNetworkIdentifier(uncheckedProtocolNetwork)
+      : undefined
+
+    const sqlAndExpression: WhereOptions<any> = [
+      { status },
+      { closedEpoch: { [Op.gte]: minClosedEpoch } },
+    ]
+
+    if (protocolNetwork) {
+      sqlAndExpression.push({ protocolNetwork })
+    }
 
     const disputes = await models.POIDispute.findAll({
-      where: {
-        [Op.and]: [
-          { status },
-          {
-            closedEpoch: {
-              [Op.gte]: minClosedEpoch,
-            },
-          },
-          { protocolNetwork },
-        ],
-      },
+      where: { [Op.and]: sqlAndExpression },
       order: [['allocationAmount', 'DESC']],
     })
     return disputes.map((dispute) => dispute.toGraphQL())

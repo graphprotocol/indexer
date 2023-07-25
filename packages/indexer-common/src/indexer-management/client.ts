@@ -386,7 +386,7 @@ const SCHEMA_SDL = gql`
     disputes(
       status: String!
       minClosedEpoch: Int!
-      protocolNetwork: String!
+      protocolNetwork: String
     ): [POIDispute]!
     disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
