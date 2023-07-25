@@ -195,7 +195,7 @@ const SCHEMA_SDL = gql`
     transaction: String
     failureReason: String
     priority: Int
-    protocolNetwork: String
+    protocolNetwork: String!
   }
 
   input ActionFilter {
@@ -296,7 +296,7 @@ const SCHEMA_SDL = gql`
 
   type IndexerRegistration {
     url: String
-    protocolNetwork: String
+    protocolNetwork: String!
     address: String
     registered: Boolean!
     location: GeoLocation
@@ -416,7 +416,7 @@ const SCHEMA_SDL = gql`
       deployment: String!
       amount: String!
       indexNode: String
-      protocolNetwork: String
+      protocolNetwork: String!
     ): CreateAllocationResult!
     closeAllocation(
       allocation: String!

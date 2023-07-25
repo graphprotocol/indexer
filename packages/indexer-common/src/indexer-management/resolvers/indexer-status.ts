@@ -57,7 +57,7 @@ const URL_VALIDATION_TEST: Test = {
 
 export default {
   indexerRegistration: async (
-    { protocolNetwork }: { protocolNetwork: string },
+    { protocolNetwork: unvalidateProtocolNetwork }: { protocolNetwork: string },
     { multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!multiNetworks) {
@@ -66,17 +66,17 @@ export default {
       )
     }
 
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = extractNetwork(unvalidateProtocolNetwork, multiNetworks)
+    const protocolNetwork = network.specification.networkIdentifier
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
-
     const registered = await contracts.serviceRegistry.isRegistered(address)
 
     if (registered) {
       const service = await contracts.serviceRegistry.services(address)
       return {
         address,
-        protocolNetwork: network.specification.networkIdentifier,
+        protocolNetwork,
         url: service.url,
         location: geohash.decode(service.geohash),
         registered,
@@ -87,6 +87,7 @@ export default {
         address,
         url: null,
         registered,
+        protocolNetwork,
         location: null,
         __typename: 'IndexerRegistration',
       }
