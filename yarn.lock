@@ -1044,9 +1044,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@graphprotocol/indexer-agent@workspace:packages/indexer-agent"
   dependencies:
-    "@graphprotocol/common-ts": 2.0.1
-    "@graphprotocol/indexer-common": ^0.20.16
+    "@graphprotocol/indexer-common": "*"
     "@thi.ng/heaps": ^1.3.1
+    "@tokene-q/common-ts": ^2.0.4
     "@types/bs58": 4.0.1
     "@types/isomorphic-fetch": 0.0.36
     "@types/jest": 27.4.1
@@ -1059,6 +1059,8 @@ __metadata:
     axios: 0.26.1
     bs58: 5.0.0
     delay: ^5.0.0
+    dotenv: ^16.0.3
+    dotenv-cli: ^7.2.1
     eslint: 8.13.0
     eslint-config-prettier: ^8.5.0
     ethers: 5.7.0
@@ -1163,38 +1165,6 @@ __metadata:
     typescript: 4.6.3
   languageName: unknown
   linkType: soft
-
-"@graphprotocol/indexer-common@npm:^0.20.16":
-  version: 0.20.16
-  resolution: "@graphprotocol/indexer-common@npm:0.20.16"
-  dependencies:
-    "@graphprotocol/common-ts": 2.0.1
-    "@graphprotocol/cost-model": 0.1.16
-    "@thi.ng/heaps": 1.2.38
-    "@urql/core": 2.4.4
-    "@urql/exchange-execute": 1.2.2
-    axios: 0.26.1
-    body-parser: 1.19.1
-    cors: 2.8.5
-    ethers: 5.7.0
-    evt: 1.10.1
-    express: 4.17.3
-    fastify: 3.25.0
-    graphql: 16.3.0
-    graphql-tag: 2.12.6
-    jayson: 3.6.6
-    morgan: 1.10.0
-    ngeohash: 0.6.3
-    p-filter: 2.1.0
-    p-map: 4.0.0
-    p-reduce: 2.1.0
-    p-retry: 4.6.1
-    p-timeout: 4.1.0
-    sequelize: 6.19.0
-    ts-custom-error: ^3.2.0
-  checksum: 206facb5555b6003f23e6254e67ea72fea1c5168c63cf1cb4c9fb51e0ed4c88def7735c73a87101560c0d1f7128e1f7f60b218b574a628058b08cafa55d09f61
-  languageName: node
-  linkType: hard
 
 "@graphprotocol/indexer-native@*, @graphprotocol/indexer-native@workspace:packages/indexer-native":
   version: 0.0.0-use.local

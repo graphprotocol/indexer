@@ -97,12 +97,15 @@ export default {
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
     { models, features, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
+    console.log('setCostModel')
     const update = parseGraphQLCostModel(costModel)
 
     // Validate cost model
     try {
       const modelForValidation = update.model || 'default => 1;'
       const variablesForValidation = JSON.stringify(update.variables || {})
+      console.log(modelForValidation, 'modelForValidation')
+      console.log(variablesForValidation, 'variablesForValidation')
       await compileAsync(modelForValidation, variablesForValidation)
     } catch (err) {
       throw new Error(`Invalid cost model or variables: ${err.message}`)

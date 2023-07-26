@@ -567,6 +567,7 @@ export class NetworkMonitor {
     const networkAlias = resolveChainAlias(networkID)
 
     const queryEpochSubgraph = async () => {
+      console.log(networkID, 'networ kid')
       // We know it is non-null because of the check above for a null case that will end execution of fn if true
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const result = await this.epochSubgraph!.query(
@@ -599,6 +600,7 @@ export class NetworkMonitor {
           networkID,
         },
       )
+      console.log(result.error)
 
       if (result.error) {
         throw result.error
@@ -687,6 +689,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
 
     try {
+      console.log('querying epoch subgraph test')
       return await pRetry(queryEpochSubgraph, {
         retries: 5,
         maxTimeout: 10000,

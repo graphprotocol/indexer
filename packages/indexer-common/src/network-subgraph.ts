@@ -51,7 +51,6 @@ export class NetworkSubgraph {
 
   private constructor(options: NetworkSubgraphOptions) {
     this.logger = options.logger
-
     if (options.endpoint) {
       this.endpointClient = axios.create({
         baseURL: options.endpoint,

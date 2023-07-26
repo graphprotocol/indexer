@@ -404,6 +404,7 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
+    console.log('handler')
     const logger = createLogger({
       name: 'IndexerAgent',
       async: false,

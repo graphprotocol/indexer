@@ -168,7 +168,7 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   celo: 'eip155:42220',
   optimism: 'eip155:10',
   fantom: 'eip155:250',
-  tokene: 'eip155:3243243243',
+  // tokene: 'eip155:3243243243',
 }
 
 const Caip2ByChainId: { [key: number]: string } = {

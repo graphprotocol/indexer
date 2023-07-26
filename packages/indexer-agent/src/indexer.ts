@@ -806,6 +806,7 @@ export class Indexer {
         node_id: 'removed',
         ipfs_hash: deployment.ipfsHash,
       })
+      console.log(response, 'response remove depl')
       if (response.error) {
         throw response.error
       }
