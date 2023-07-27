@@ -32,6 +32,8 @@ import {
   MultiNetworks,
   NetworkMapped,
   TransferredSubgraphDeployment,
+  networkIsL2,
+  networkIsL1,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -340,32 +342,39 @@ export class Agent {
         },
       )
 
-    const eligibleTransferDeployments: Eventual<NetworkMapped<TransferredSubgraphDeployment[]>> =
-      timer(300_000).tryMap(
-        async () => {
-          const statuses = await this.graphNode.indexingStatus([])
-          return await this.multiNetworks.map(async ({network}) => {
-            const transfers = await network.networkMonitor.transferredDeployments()
+    const eligibleTransferDeployments: Eventual<
+      NetworkMapped<TransferredSubgraphDeployment[]>
+    > = timer(300_000).tryMap(
+      async () => {
+        const statuses = await this.graphNode.indexingStatus([])
+        return await this.multiNetworks.map(async ({ network }) => {
+          const transfers =
+            await network.networkMonitor.transferredDeployments()
 
-            return transfers.map(transfer => {
-              const status = statuses.find(status => status.subgraphDeployment.ipfsHash == transfer.ipfsHash)
-              if(status) {
+          return transfers
+            .map(transfer => {
+              const status = statuses.find(
+                status =>
+                  status.subgraphDeployment.ipfsHash == transfer.ipfsHash,
+              )
+              if (status) {
                 transfer.ready = status.synced && status.health == 'healthy'
               }
               return transfer
-            }).filter(transfer => transfer.ready == true)
-          })
-        },
-        {
-          onError: error =>
-            this.logger.warn(
-              `Failed to obtain transferred deployments, trying again later`,
-              {
-                error,
-              },
-            ),
-        },
-      )
+            })
+            .filter(transfer => transfer.ready == true)
+        })
+      },
+      {
+        onError: error =>
+          this.logger.warn(
+            `Failed to obtain transferred deployments, trying again later`,
+            {
+              error,
+            },
+          ),
+      },
+    )
 
     // While in the L1 -> L2 transfer period this will be an intermediate value
     // with the final value including transfer considerations
@@ -412,50 +421,55 @@ export class Agent {
     // Update targetDeployments and networkDeplomentAllocationDecisions using transferredSubgraphDeployments data
     // This will be somewhat custom and will likely be yanked out later after the transfer stage is complete
     // Cases:
-    // L1 subgraph that has been transferred: keep synced and allocated to for at least 24 hours post transfer
+    // L1 subgraph that had the transfer started: keep synced and allocated to for at least 48 hours post transfer
     // L2 subgraph that has been transferred:
     //     if already synced, allocate to it immediately using default allocation amount
     //     if not synced, no changes
-    const networkDeploymentAllocationDecisions: Eventual<NetworkMapped<AllocationDecision[]>> = join({
+    const networkDeploymentAllocationDecisions: Eventual<
+      NetworkMapped<AllocationDecision[]>
+    > = join({
       intermediateNetworkDeploymentAllocationDecisions,
       eligibleTransferDeployments,
     }).tryMap(
-        ({ intermediateNetworkDeploymentAllocationDecisions, eligibleTransferDeployments }) => {
-        const zipped = this.multiNetworks.zip(
-          intermediateNetworkDeploymentAllocationDecisions,
-          eligibleTransferDeployments,
-        )
-
+      ({
+        intermediateNetworkDeploymentAllocationDecisions,
+        eligibleTransferDeployments,
+      }) =>
         mapValues(
-          zipped,
-          async ([allocationDecisions, eligibleTransferDeployments]: [
+          this.multiNetworks.zip(
+            intermediateNetworkDeploymentAllocationDecisions,
+            eligibleTransferDeployments,
+          ),
+          ([allocationDecisions, eligibleTransferDeployments]: [
             AllocationDecision[],
             TransferredSubgraphDeployment[],
           ]) => {
-
-            allocationDecisions.map(async decision => {
-              const matchingTransfer = eligibleTransferDeployments.find(deployment => deployment.ipfsHash == decision.deployment.ipfsHash)
-
-              if (matchingTransfer) {
-                const dayAgo = Math.floor(Date.now() / 1000) - 86400
-                const fourDaysAgo = Math.floor(Date.now() / 1000) - 86400 * 4
-                // L1 deployments being transferred need to be supported for 24hrs post transfer to ensure continued support
-                if (+matchingTransfer.protocolNetwork < 10 && matchingTransfer.transferredToL2At.toNumber() > dayAgo) {
-                    decision.toAllocate = true
+            const twoDaysAgo = Math.floor(Date.now() / 1000) - 86400 * 2
+            return allocationDecisions.map(decision => {
+              const matchingTransfer = eligibleTransferDeployments.find(
+                deployment =>
+                  deployment.ipfsHash == decision.deployment.ipfsHash,
+              )
+              if (
+                matchingTransfer &&
+                matchingTransfer.startedTransferToL2At.toNumber() > twoDaysAgo
+              ) {
+                // L1 deployments being transferred need to be supported for 48hrs post transfer to ensure continued support.
+                if (networkIsL1(matchingTransfer.protocolNetwork)) {
+                  decision.toAllocate = true
                 }
                 // L2 Deployments
-                if (+matchingTransfer.protocolNetwork > 10 && matchingTransfer.transferredToL2At.toNumber() > fourDaysAgo) {
-                    decision.toAllocate = true
+                if (
+                  networkIsL2(matchingTransfer.protocolNetwork) &&
+                  !!matchingTransfer.transferredToL2
+                ) {
+                  decision.toAllocate = true
                 }
               }
+              return decision
             })
-
-            return allocationDecisions
           },
-        )
-
-        return a
-      },
+        ),
       {
         onError: error =>
           this.logger.warn(

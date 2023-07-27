@@ -490,49 +490,79 @@ export class NetworkMonitor {
     }
   }
 
-  async transferredDeployments() : Promise<TransferredSubgraphDeployment[]> {
-      try {
-          const result = await this.networkSubgraph.query(
-            gql`
-              query subgraphDeployments {
-                subgraphDeployments(
-                  where: { transferredToL2: true }
-                  orderBy: transferredToL2At
-                  orderDirection: asc
-                ) {
-                  transferredToL2
-                  transferredToL2At
-                  transferredToL2AtTx
-                  transferredToL2AtBlockNumber
+  async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
+    try {
+      const result = await this.networkSubgraph.query(
+        gql`
+          {
+            subgraphs(
+              where: { startedTransferToL2: true }
+              orderBy: startedTransferToL2At
+              orderDirection: asc
+            ) {
+              id
+              idOnL1
+              idOnL2
+              startedTransferToL2
+              startedTransferToL2At
+              startedTransferToL2AtBlockNumber
+              startedTransferToL2AtTx
+              transferredToL2
+              transferredToL2At
+              transferredToL2AtBlockNumber
+              transferredToL2AtTx
+              versions {
+                subgraphDeployment {
                   ipfsHash
                 }
               }
-            `,
-          )
+            }
+          }
+        `,
+      )
 
-        if (result.error) {
-          throw result.error
-        }
-
-        const transferredDeployments = result.data.subgraphDeployments
-
-        // There may be no transferred subgraphs, handle gracefully
-        if (transferredDeployments.length == 0) {
-          this.logger.warn('Failed to query subgraph deployments transferred to L2: no deployments found')
-          throw new Error('No transferred subgraph deployments returned')
-        }
-
-        return transferredDeployments.map((deployment: any) => {
-          deployment.protocolNetwork = this.networkCAIPID
-          return deployment
-        })
-      } catch (err) {
-        const error = indexerError(IndexerErrorCode.IE009, err.message)
-        this.logger.error(`Failed to query transferred subgraph deployments`, {
-          error,
-        })
-        throw error
+      if (result.error) {
+        throw result.error
       }
+
+      const transferredDeployments = result.data.subgraphs
+
+      // There may be no transferred subgraphs, handle gracefully
+      if (transferredDeployments.length == 0) {
+        this.logger.warn(
+          'Failed to query subgraph deployments transferred to L2: no deployments found',
+        )
+        throw new Error('No transferred subgraph deployments returned')
+      }
+
+      // Flatten multiple subgraphDeployment versions into a single `TransferredSubgraphDeployment` object
+      return transferredDeployments.flatMap((deployment: any) => {
+        return deployment.versions.map((version: any) => {
+          return {
+            id: deployment.id,
+            idOnL1: deployment.idOnL1,
+            idOnL2: deployment.idOnL2,
+            startedTransferToL2: deployment.startedTransferToL2,
+            startedTransferToL2At: deployment.startedTransferToL2At,
+            startedTransferToL2AtBlockNumber: deployment.startedTransferToL2AtBlockNumber,
+            startedTransferToL2AtTx: deployment.startedTransferToL2AtTx,
+            transferredToL2: deployment.transferredToL2,
+            transferredToL2At: deployment.transferredToL2At,
+            transferredToL2AtTx: deployment.transferredToL2AtTx,
+            transferredToL2AtBlockNumber: deployment.transferredToL2AtBlockNumber,
+            ipfsHash: version.subgraphDeployment.ipfsHash,
+            protocolNetwork: this.networkCAIPID,
+            ready: null,
+          }
+        })
+      })
+    } catch (err) {
+      const error = indexerError(IndexerErrorCode.IE009, err.message)
+      this.logger.error(`Failed to query transferred subgraph deployments`, {
+        error,
+      })
+      throw error
+    }
   }
 
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
