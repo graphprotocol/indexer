@@ -64,10 +64,10 @@ export const createTestManagementClient = async (
   metrics.registry.clear()
 
   // Spin up db
-  const sequelize = await connectDatabase(databaseOptions)
+  let sequelize = await connectDatabase(databaseOptions)
   const queryFeeModels = defineQueryFeeModels(sequelize)
   const managementModels = defineIndexerManagementModels(sequelize)
-  await sequelize.sync({ force: true })
+  sequelize = await sequelize.sync({ force: true })
   const statusEndpoint = 'http://localhost:8030/graphql'
   const graphNode = new GraphNode(
     logger,

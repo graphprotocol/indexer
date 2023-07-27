@@ -49,6 +49,7 @@ const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   managementModels = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
 
   const graphNode = new GraphNode(
     logger,
@@ -99,7 +100,9 @@ const teardownAll = async () => {
 
 describe('Allocation Manager', () => {
   beforeAll(setup)
-  beforeEach(setupEach)
+  beforeEach(() => {
+    return setupEach()
+  })
   afterEach(teardownEach)
   afterAll(teardownAll)
 

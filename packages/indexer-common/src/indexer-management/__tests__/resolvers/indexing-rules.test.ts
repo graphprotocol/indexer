@@ -13,7 +13,10 @@ import {
   IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../../models'
-import { SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import {
+  SubgraphIdentifierType,
+  defineQueryFeeModels,
+} from '@graphprotocol/indexer-common'
 
 import { createTestManagementClient, defaults } from '../util'
 
@@ -113,6 +116,7 @@ const metrics = createMetrics()
 const setupAll = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
+  defineQueryFeeModels(sequelize)
   await sequelize.sync({ force: true })
 
   logger = createLogger({

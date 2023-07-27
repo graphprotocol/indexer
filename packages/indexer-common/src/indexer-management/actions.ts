@@ -120,10 +120,16 @@ export class ActionManager {
     const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
       async () => {
         logger.trace('Fetching approved actions')
-        const actions = await ActionManager.fetchActions(this.models, {
-          status: ActionStatus.APPROVED,
-        })
-        logger.trace(`Fetched ${actions.length} approved actions`)
+        let actions: Action[] = []
+        try {
+          actions = await ActionManager.fetchActions(this.models, {
+            status: ActionStatus.APPROVED,
+          })
+          logger.trace(`Fetched ${actions.length} approved actions`)
+        } catch (err) {
+          logger.warn('Failed to fetch approved actions from queue', { err })
+        }
+
         return actions
       },
       {

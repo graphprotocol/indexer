@@ -262,7 +262,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private startVoucherProcessing() {
     timer(30_000).pipe(async () => {
-      const pendingVouchers = await this.pendingVouchers() // Ordered by value
+      let pendingVouchers: Voucher[] = []
+      try {
+        pendingVouchers = await this.pendingVouchers() // Ordered by value
+      } catch (err) {
+        this.logger.warn(`Failed to query pending vouchers`, { err })
+        return
+      }
 
       const logger = this.logger.child({})
 

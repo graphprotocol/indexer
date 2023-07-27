@@ -13,7 +13,7 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from '../models'
-import { specification as spec } from '../../index'
+import { defineQueryFeeModels, specification as spec } from '../../index'
 import { networkIsL1, networkIsL2 } from '../types'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
 import { SubgraphIdentifierType } from '../../subgraphs'
@@ -58,7 +58,8 @@ const setupModels = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  await sequelize.sync({ force: true })
+  defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
 }
 
 const setupMonitor = async () => {

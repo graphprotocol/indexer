@@ -136,7 +136,7 @@ const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
-  await sequelize.sync({ force: true })
+  sequelize = await sequelize.sync({ force: true })
 
   const indexNodeIDs = ['node_1']
 

@@ -95,7 +95,7 @@ export const setup = async () => {
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
 
-  await sequelize.sync({ force: true })
+  sequelize = await sequelize.sync({ force: true })
 
   const statusEndpoint = 'http://localhost:8030/graphql'
   const indexNodeIDs = ['node_1']

@@ -16,7 +16,7 @@
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
     "test": "LOG_LEVEL=info jest --colors --verbose --runInBand --detectOpenHandles",
-    "test:ci": "LOG_LEVEL=error jest --verbose --runInBand --ci",
+    "test:ci": "LOG_LEVEL=info jest --verbose --maxWorkers=1 --ci",
     "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose",
     "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"

@@ -13,6 +13,7 @@ import {
   POIDisputeAttributes,
 } from '../../models'
 import { createTestManagementClient } from '../util'
+import { defineQueryFeeModels } from '../../../query-fees/models'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -187,6 +188,8 @@ const setupAll = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
+  defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
