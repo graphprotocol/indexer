@@ -4,7 +4,12 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
-import { NetworkMapped, NetworkSubgraph } from '@graphprotocol/indexer-common'
+import { parse } from 'graphql'
+import {
+  NetworkMapped,
+  NetworkSubgraph,
+  resolveChainId,
+} from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {
   logger: Logger
@@ -43,16 +48,46 @@ export const createSyncingServer = async ({
     bodyParser.json(),
     async (req, res) => {
       const { query, variables } = req.body
-      const { networkIdentifier } = req.params
+      const { networkIdentifier: unvalidatedNetworkIdentifier } = req.params
+
       if (query.startsWith('mutation') || query.startsWith('subscription')) {
         return res.status(405).send('Only queries are supported')
       }
 
+      let networkIdentifier
+      try {
+        networkIdentifier = resolveChainId(unvalidatedNetworkIdentifier)
+      } catch (e) {
+        return res
+          .status(404)
+          .send(`Unknown network identifier: '${unvalidatedNetworkIdentifier}'`)
+      }
+
       const networkSubgraph = networkSubgraphs[networkIdentifier]
+      if (!networkSubgraph) {
+        return res
+          .status(404)
+          .send(
+            `Indexer Agent not configured for network '${networkIdentifier}'`,
+          )
+      }
 
-      const result = await networkSubgraph.query(query, variables)
+      let parsedQuery
+      try {
+        parsedQuery = parse(query)
+      } catch (e) {
+        return res.status(400).send('Malformed GraphQL query')
+      }
 
-      res.status(200).send({
+      let result
+      try {
+        result = await networkSubgraph.query(parsedQuery, variables)
+      } catch (err) {
+        logger.error(err)
+        return res.status(400).send({ error: err.message })
+      }
+
+      return res.status(200).send({
         data: result.data,
         errors: result.error ? result.error.graphQLErrors : null,
         extensions: result.extensions,
