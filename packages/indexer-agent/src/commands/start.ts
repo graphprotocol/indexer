@@ -497,22 +497,6 @@ export async function run(
   )
 
   // --------------------------------------------------------------------------------
-  // * Cost Model Automation
-  // --------------------------------------------------------------------------------
-
-  // TODO: Update this to multiNetwork environment
-  //  - could have this run per network BUT we probably only need to run it for Mainnet
-  // startCostModelAutomation({
-  //   logger,
-  //   ethereum: networkProvider,
-  //   contracts: network.contracts,
-  //   indexerManagement: indexerManagementClient,
-  //   injectDai: networkSpecification.dai.inject,
-  //   daiContractAddress: networkSpecification.dai.contractAddress,
-  //   metrics,
-  // })
-
-  // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
   const multiNetworks = new MultiNetworks(
@@ -547,8 +531,17 @@ export async function run(
   logger.info(`Successfully launched indexer management API server`)
 
   // --------------------------------------------------------------------------------
+  // * Cost Model Automation
+  // --------------------------------------------------------------------------------
+  startCostModelAutomation({
+    logger,
+    networks,
+    indexerManagement: indexerManagementClient,
+    metrics,
+  })
+
+  // --------------------------------------------------------------------------------
   // * Syncing Server
-  // QUESTION: What does this component do?
   // --------------------------------------------------------------------------------
   logger.info(`Launch syncing server`)
 
