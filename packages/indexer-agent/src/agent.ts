@@ -359,9 +359,15 @@ export class Agent {
 
         const statuses = await this.graphNode.indexingStatus([])
         return await this.multiNetworks.map(async ({ network }) => {
+          const protocolNetwork = network.specification.networkIdentifier
           const transfers =
             await network.networkMonitor.transferredDeployments()
-
+          this.logger.trace(
+            `Found ${transfers.length} transferred subgraphs in the network`,
+            {
+              protocolNetwork,
+            },
+          )
           return transfers
             .map(transfer => {
               const status = statuses.find(
@@ -455,6 +461,10 @@ export class Agent {
             AllocationDecision[],
             TransferredSubgraphDeployment[],
           ]) => {
+            console.debug(
+              `Found ${eligibleTransferDeployments.length} deployments eligible for transfer`,
+              { eligibleTransferDeployments },
+            )
             const twoDaysAgo = Math.floor(Date.now() / 1000) - 86400 * 2
             return allocationDecisions.map(decision => {
               const matchingTransfer = eligibleTransferDeployments.find(
@@ -465,9 +475,16 @@ export class Agent {
                 matchingTransfer &&
                 matchingTransfer.startedTransferToL2At.toNumber() > twoDaysAgo
               ) {
+                this.logger.debug('Found a matching subgraph transfer', {
+                  matchingTransfer,
+                })
                 // L1 deployments being transferred need to be supported for 48hrs post transfer to ensure continued support.
                 if (networkIsL1(matchingTransfer.protocolNetwork)) {
                   decision.toAllocate = true
+                  this.logger.debug(
+                    `Allocating towards L1 subgraph deployment to support its transfer`,
+                    { subgraphDeployment: matchingTransfer },
+                  )
                 }
                 // L2 Deployments
                 if (
@@ -475,6 +492,10 @@ export class Agent {
                   !!matchingTransfer.transferredToL2
                 ) {
                   decision.toAllocate = true
+                  this.logger.debug(
+                    `Allocating towards L2 subgraph deployment after transfer finished`,
+                    { subgraphDeployment: matchingTransfer },
+                  )
                 }
               }
               return decision
