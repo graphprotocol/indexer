@@ -19,11 +19,12 @@ export const startMultiNetwork = {
       required: true,
     })
   },
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   handler: (_argv: any) => {},
 }
 
 export function parseNetworkSpecifications(
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   argv: any,
   logger: Logger,
 ): spec.NetworkSpecification[] {
@@ -88,9 +89,10 @@ function scanDirectoryForYamlFiles(
   return yamlFiles
 }
 
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 function readYamlFile(filePath: string): any {
   const text = fs.readFileSync(filePath, 'utf8')
-  let content: any
+  let content
   try {
     content = YAML.parse(text)
   } catch (yamlParseError) {
@@ -107,7 +109,7 @@ function readYamlFile(filePath: string): any {
 }
 
 function parseYamlFile(filePath: string): spec.NetworkSpecification {
-  let yamlContent: any
+  let yamlContent
   try {
     yamlContent = readYamlFile(filePath)
   } catch (error) {

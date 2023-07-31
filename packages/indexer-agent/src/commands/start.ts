@@ -11,7 +11,6 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  Action,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -35,6 +34,7 @@ import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network
 import { BigNumber } from 'ethers'
 import { displayZodParsingError } from './error-handling'
 
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
 export const start = {
@@ -292,7 +292,7 @@ export const start = {
         return true
       })
   },
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
   handler: (_argv: any) => {},
 }
 

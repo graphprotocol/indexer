@@ -28,22 +28,25 @@ function parseArguments(): AgentOptions {
     builder = builder.command(start)
   }
 
-  return builder
-    .fail(function (msg, err, _yargs) {
-      console.error('The Indexer Agent command has failed.')
-      if (err) {
-        console.error(err)
-      } else {
-        console.error(msg)
-      }
-      process.exit(1)
-    })
-    .demandCommand(
-      1,
-      'You need at least one command before continuing.' +
-        " See 'indexer-agent --help' for usage instructions.",
-    )
-    .help().argv
+  return (
+    builder
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .fail(function (msg, err, _yargs) {
+        console.error('The Indexer Agent command has failed.')
+        if (err) {
+          console.error(err)
+        } else {
+          console.error(msg)
+        }
+        process.exit(1)
+      })
+      .demandCommand(
+        1,
+        'You need at least one command before continuing.' +
+          " See 'indexer-agent --help' for usage instructions.",
+      )
+      .help().argv
+  )
 }
 
 async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
