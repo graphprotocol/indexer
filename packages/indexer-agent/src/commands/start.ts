@@ -574,6 +574,7 @@ export async function run(
     indexerManagementClient,
     networks,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
+    argv.enableAutoMigrationSupport,
   )
   await agent.start()
 }

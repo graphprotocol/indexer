@@ -114,6 +114,14 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       required: true,
       group: 'Indexer Infrastructure',
     })
+    .option('enable-auto-migration-support', {
+      description:
+        'Auto migrate allocations from L1 to L2 (multi-network mode must be enabled)',
+      type: 'boolean',
+      required: false,
+      default: false,
+      group: 'Indexer Infrastructure',
+    })
     .config({
       key: 'config-file',
       description: 'Indexer agent configuration file (YAML format)',

@@ -195,6 +195,7 @@ export class Agent {
   multiNetworks: MultiNetworks<NetworkAndOperator>
   indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
+  autoMigrationSupport: boolean
 
   constructor(
     logger: Logger,
@@ -204,6 +205,7 @@ export class Agent {
     indexerManagement: IndexerManagementClient,
     networks: Network[],
     offchainSubgraphs: SubgraphDeploymentID[],
+    autoMigrationSupport: boolean,
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
@@ -211,6 +213,7 @@ export class Agent {
     this.indexerManagement = indexerManagement
     this.multiNetworks = createMultiNetworks(networks, operators)
     this.offchainSubgraphs = offchainSubgraphs
+    this.autoMigrationSupport = !!autoMigrationSupport
   }
 
   async start(): Promise<Agent> {
@@ -346,6 +349,14 @@ export class Agent {
       NetworkMapped<TransferredSubgraphDeployment[]>
     > = timer(300_000).tryMap(
       async () => {
+        // Return early if the auto migration feature is disabled.
+        if (!this.autoMigrationSupport) {
+          this.logger.trace(
+            'Auto Migration feature is disabled, skipping querying transferred subgraphs',
+          )
+          return this.multiNetworks.map(async () => [])
+        }
+
         const statuses = await this.graphNode.indexingStatus([])
         return await this.multiNetworks.map(async ({ network }) => {
           const transfers =
