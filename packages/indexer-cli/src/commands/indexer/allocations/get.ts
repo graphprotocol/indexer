@@ -6,11 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  validateNetworkIdentifier,
-  processIdentifier,
-  SubgraphIdentifierType,
-} from '@graphprotocol/indexer-common'
+import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
 import { utils } from 'ethers'
 
@@ -39,7 +35,7 @@ module.exports = {
 
     const { status, deployment, h, help, o, output } = parameters.options
 
-    const [network, allocation] = fixParameters(parameters, { h, help }) || []
+    const [allocation] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
 
     if (help || h) {

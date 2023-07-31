@@ -58,10 +58,14 @@ module.exports = {
         const rulesIdentifiers = await Promise.all(
           rules.map(async function (rule) {
             const identifier = (
-              await processIdentifier(rule.identifier!, {
-                all: true,
-                global: true,
-              })
+              await processIdentifier(
+                // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+                rule.identifier!,
+                {
+                  all: true,
+                  global: true,
+                },
+              )
             )[0]
 
             // All rules returned from `indexingRules` are have a `protocolNetwork` field, so we
