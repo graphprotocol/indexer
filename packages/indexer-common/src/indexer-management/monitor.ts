@@ -921,6 +921,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     contracts: NetworkContracts,
     networkSubgraph: NetworkSubgraph,
   ): Promise<Eventual<boolean>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const initialPauseValue = await contracts.controller.paused().catch((_) => {
       return false
     })

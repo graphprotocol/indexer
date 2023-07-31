@@ -192,6 +192,7 @@ interface Endpoint {
   url: string | null
   healthy: boolean
   protocolNetwork: string
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   tests: any[]
 }
 

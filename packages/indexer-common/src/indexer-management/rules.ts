@@ -44,6 +44,7 @@ export const upsertIndexingRule = async (
   newRule: Partial<IndexingRuleAttributes>,
 ): Promise<IndexingRule> => {
   const indexingRule = parseIndexingRule(newRule)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [updatedRule, _created] = await models.IndexingRule.upsert(indexingRule)
 
   logger.debug(

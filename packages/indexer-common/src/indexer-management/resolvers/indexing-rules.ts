@@ -99,6 +99,7 @@ export default {
     })
     rule.identifier = identifier
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [updatedRule, _created] = await models.IndexingRule.upsert(rule)
     return updatedRule.toGraphQL()
   },

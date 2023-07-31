@@ -55,6 +55,7 @@ export const testNetworkSpecification: specification.NetworkSpecification =
   })
 
 export const createTestManagementClient = async (
+  // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   databaseOptions: any,
   logger: Logger,
   injectDai: boolean,

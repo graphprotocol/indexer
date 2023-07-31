@@ -30,6 +30,7 @@ export default {
       ? validateNetworkIdentifier(uncheckedProtocolNetwork)
       : undefined
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sqlAndExpression: WhereOptions<any> = [
       { status },
       { closedEpoch: { [Op.gte]: minClosedEpoch } },
