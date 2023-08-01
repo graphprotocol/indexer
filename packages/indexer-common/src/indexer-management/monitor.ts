@@ -491,8 +491,11 @@ export class NetworkMonitor {
   }
 
   async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
+    this.logger.debug('Querying the Network for transferred subgraph deployments')
     try {
       const result = await this.networkSubgraph.query(
+        // TODO: Consider querying for the same time range as the Agent's evaluation, limiting
+        // results to recent transfers.
         gql`
           {
             subgraphs(
