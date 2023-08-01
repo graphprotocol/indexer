@@ -29,6 +29,10 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 
+const INDEXER_SAVE_CLI_TEST_OUTPUT: boolean =
+  !!process.env.INDEXER_SAVE_CLI_TEST_OUTPUT &&
+  process.env.INDEXER_SAVE_CLI_TEST_OUTPUT.toLowerCase() !== 'false'
+
 declare const __DATABASE__: never
 declare const __LOG_LEVEL__: never
 
@@ -320,17 +324,22 @@ export const cliTest = (
             `Make sure there is least one expected output located at the defined 'outputReferencePath', '${outputReferencePath}'`,
         )
       }
-      // TEMPORARY DEGBUG
-      const outfile = outputReferencePath.replace('references/', '')
-      if (stdout) {
-        fs.writeFile(`/tmp/idx-${outfile}.stdout`, stripAnsi(stdout), 'utf8', err => {
-          err ? console.error('test: %s, error: %s', outfile, err) : null
-        })
-      }
-      if (stderr) {
-        fs.writeFile(`/tmp/idx-${outfile}.stderr`, stripAnsi(stderr), 'utf8', err => {
-          err ? console.error('test: %s, error: %s', outfile, err) : null
-        })
+
+      if (INDEXER_SAVE_CLI_TEST_OUTPUT) {
+        // To aid debugging, persist the output of CLI test commands for reviewing potential issues when tests fail.
+        // Requires setting the environment variable INDEXER_SAVE_CLI_TEST_OUTPUT.
+        const outfile = outputReferencePath.replace('references/', '')
+        const prefix = `/tmp/indexer-cli-test`
+        if (stdout) {
+          fs.writeFile(`${prefix}-${outfile}.stdout`, stripAnsi(stdout), 'utf8', err => {
+            err ? console.error('test: %s, error: %s', outfile, err) : null
+          })
+        }
+        if (stderr) {
+          fs.writeFile(`${prefix}-${outfile}.stderr`, stripAnsi(stderr), 'utf8', err => {
+            err ? console.error('test: %s, error: %s', outfile, err) : null
+          })
+        }
       }
 
       if (expectedExitCode !== undefined) {
