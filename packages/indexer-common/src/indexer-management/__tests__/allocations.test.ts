@@ -100,9 +100,7 @@ const teardownAll = async () => {
 
 describe('Allocation Manager', () => {
   beforeAll(setup)
-  beforeEach(() => {
-    return setupEach()
-  })
+  beforeEach(setupEach)
   afterEach(teardownEach)
   afterAll(teardownAll)
 
