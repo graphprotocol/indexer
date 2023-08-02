@@ -43,6 +43,14 @@ import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 
+// Temporary marker used to signal that the following contract calls have been deprecated in the
+// network it appears:
+// - channelDisputeEpochs
+// - claimRebateRewards
+// Once Exponential Rebates have been deployed to all networks, these calls should be removed from
+// the code.
+const EXPONENTIAL_REBATES_MARKER = -1
+
 type ActionReconciliationContext = [AllocationDecision[], number, number]
 
 const deploymentInList = (
@@ -257,15 +265,24 @@ export class Agent {
 
     const channelDisputeEpochs: Eventual<NetworkMapped<number>> = timer(
       600_000,
-    ).tryMap(
-      () =>
-        this.multiNetworks.map(({ network }) =>
-          network.contracts.staking.channelDisputeEpochs(),
-        ),
-      {
-        onError: error =>
-          this.logger.warn(`Failed to fetch channel dispute epochs`, { error }),
-      },
+    ).map(() =>
+      this.multiNetworks.map(async ({ network }) => {
+        try {
+          return network.contracts.staking.channelDisputeEpochs()
+        } catch (error) {
+          // Disregards `channelDisputeEpochs` value from this point forward.
+          // TODO: Investigate error to confirm it comes from a reverted call.
+          this.logger.warn(
+            'Failed to fetch channel dispute epochs. ' +
+              'Ignoring claimable allocations for this reconciliation cycle.',
+            {
+              error,
+              protocolNetwork: network.specification.networkIdentifier,
+            },
+          )
+          return EXPONENTIAL_REBATES_MARKER
+        }
+      }),
     )
 
     const maxAllocationEpochs: Eventual<NetworkMapped<number>> = timer(
@@ -601,22 +618,22 @@ export class Agent {
       currentEpochNumber,
       channelDisputeEpochs,
     }).tryMap(
-      async ({ currentEpochNumber, channelDisputeEpochs }) => {
-        const zipped = this.multiNetworks.zip(
-          currentEpochNumber,
-          channelDisputeEpochs,
-        )
-
-        const mapper = async (
-          { network }: NetworkAndOperator,
-          [currentEpochNumber, channelDisputeEpochs]: [number, number],
-        ): Promise<Allocation[]> =>
-          network.networkMonitor.claimableAllocations(
-            currentEpochNumber - channelDisputeEpochs,
-          )
-
-        return this.multiNetworks.mapNetworkMapped(zipped, mapper)
-      },
+      async ({ currentEpochNumber, channelDisputeEpochs }) =>
+        this.multiNetworks.mapNetworkMapped(
+          this.multiNetworks.zip(currentEpochNumber, channelDisputeEpochs),
+          async (
+            { network }: NetworkAndOperator,
+            [currentEpochNumber, channelDisputeEpochs]: [number, number],
+          ): Promise<Allocation[]> => {
+            if (channelDisputeEpochs === EXPONENTIAL_REBATES_MARKER) {
+              return [] // Ignore claimable allocations in Exponential Rebates context
+            } else {
+              return network.networkMonitor.claimableAllocations(
+                currentEpochNumber - channelDisputeEpochs,
+              )
+            }
+          },
+        ),
 
       {
         onError: () =>
@@ -679,8 +696,24 @@ export class Agent {
         // Claim rebate pool rewards from finalized allocations
         await this.multiNetworks.mapNetworkMapped(
           claimableAllocations,
-          ({ network }: NetworkAndOperator, allocations: Allocation[]) =>
-            network.claimRebateRewards(allocations),
+          async (
+            { network }: NetworkAndOperator,
+            allocations: Allocation[],
+          ) => {
+            const protocolNetwork = network.specification.networkIdentifier
+            if (allocations.length) {
+              this.logger.debug(
+                `Claiming rebate rewards for ${allocations.length} allocations`,
+                { allocations, protocolNetwork },
+              )
+              return network.claimRebateRewards(allocations)
+            } else {
+              this.logger.debug(
+                'Found no allocations to claim rebate rewards for',
+                { protocolNetwork },
+              )
+            }
+          },
         )
 
         try {
