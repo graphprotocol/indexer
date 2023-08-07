@@ -18,7 +18,8 @@ import {
   Voucher,
   ensureAllocationSummary,
   TransactionManager,
-} from '@graphprotocol/indexer-common'
+  specification as spec,
+} from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
@@ -66,10 +67,7 @@ export interface AllocationReceiptCollectorOptions {
   transactionManager: TransactionManager
   allocationExchange: Contract
   models: QueryFeeModels
-  collectEndpoint: string
-  voucherRedemptionThreshold: BigNumber
-  voucherRedemptionBatchThreshold: BigNumber
-  voucherRedemptionMaxBatchSize: number
+  networkSpecification: spec.NetworkSpecification
 }
 
 export interface ReceiptCollector {
@@ -90,37 +88,40 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private voucherRedemptionThreshold: BigNumber
   private voucherRedemptionBatchThreshold: BigNumber
   private voucherRedemptionMaxBatchSize: number
+  private protocolNetwork: string
 
   constructor({
     logger,
     metrics,
     transactionManager,
     models,
-    collectEndpoint,
     allocationExchange,
-    voucherRedemptionThreshold,
-    voucherRedemptionBatchThreshold,
-    voucherRedemptionMaxBatchSize,
+    networkSpecification,
   }: AllocationReceiptCollectorOptions) {
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
-    this.metrics = registerReceiptMetrics(metrics)
+    this.metrics = registerReceiptMetrics(metrics, networkSpecification.networkIdentifier)
     this.transactionManager = transactionManager
     this.models = models
-    this.collectEndpoint = new URL(collectEndpoint)
     this.allocationExchange = allocationExchange
-    this.partialVoucherEndpoint = new URL(
-      collectEndpoint.replace('/collect-receipts', '/partial-voucher'),
-    )
-    this.voucherEndpoint = new URL(
-      collectEndpoint.replace('/collect-receipts', '/voucher'),
-    )
+    this.protocolNetwork = networkSpecification.networkIdentifier
 
-    this.voucherRedemptionThreshold = voucherRedemptionThreshold
-    this.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
-    this.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
+    // Process Gateway routes
+    const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
+    this.collectEndpoint = gatewayUrls.collectReceipts
+    this.voucherEndpoint = gatewayUrls.voucher
+    this.partialVoucherEndpoint = gatewayUrls.partialVoucher
 
+    const { indexerOptions } = networkSpecification
+    this.voucherRedemptionThreshold = indexerOptions.voucherRedemptionThreshold
+    this.voucherRedemptionBatchThreshold = indexerOptions.voucherRedemptionBatchThreshold
+    this.voucherRedemptionMaxBatchSize = indexerOptions.voucherRedemptionMaxBatchSize
+
+    // Start the AllocationReceiptCollector
+    // TODO: Consider calling methods conditionally based on a boolean
+    // flag during startup.
     this.startReceiptCollecting()
     this.startVoucherProcessing()
+    this.queuePendingReceiptsFromDatabase()
   }
 
   async rememberAllocations(
@@ -143,6 +144,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               this.models,
               allocation,
               transaction,
+              this.protocolNetwork,
             )
             await summary.save()
           }
@@ -177,14 +179,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             await this.models.allocationSummaries.update(
               { closedAt: now },
               {
-                where: { allocation: allocation.id },
+                where: {
+                  allocation: allocation.id,
+                  protocolNetwork: this.protocolNetwork,
+                },
                 transaction,
               },
             )
 
             // Return all receipts for the just-closed allocation
             return this.models.allocationReceipts.findAll({
-              where: { allocation: allocation.id },
+              where: { allocation: allocation.id, protocolNetwork: this.protocolNetwork },
               order: ['id'],
               transaction,
             })
@@ -257,7 +262,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private startVoucherProcessing() {
     timer(30_000).pipe(async () => {
-      const pendingVouchers = await this.pendingVouchers() // Ordered by value
+      let pendingVouchers: Voucher[] = []
+      try {
+        pendingVouchers = await this.pendingVouchers() // Ordered by value
+      } catch (err) {
+        this.logger.warn(`Failed to query pending vouchers`, { err })
+        return
+      }
 
       const logger = this.logger.child({})
 
@@ -267,7 +278,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           if (await this.allocationExchange.allocationsRedeemed(voucher.allocation)) {
             try {
               await this.models.vouchers.destroy({
-                where: { allocation: voucher.allocation },
+                where: {
+                  allocation: voucher.allocation,
+                  protocolNetwork: this.protocolNetwork,
+                },
               })
               logger.warn(
                 `Query fee voucher for allocation already redeemed, deleted local voucher copy`,
@@ -343,6 +357,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private async pendingVouchers(): Promise<Voucher[]> {
     return this.models.vouchers.findAll({
+      where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
       limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
     })
@@ -433,11 +448,23 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
       }
 
-      const voucher = response.data as {
+      logger.trace('Gateway response', {
+        response,
+        allocation,
+      })
+
+      // Depending of which Gateway endpoint was used, fee information can come in different fields
+      const fees = response.data.fees ?? response.data.amount
+      if (!fees || !response.data.allocation || !response.data.signature) {
+        throw new Error('Failed to parse response from Gateay')
+      }
+
+      const voucher = { ...response.data, fees } as {
         allocation: string
         fees: string
         signature: string
       }
+
       this.metrics.vouchers.inc({
         allocation,
       })
@@ -456,6 +483,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         await this.models.allocationReceipts.destroy({
           where: {
             id: receipts.map((receipt) => receipt.id),
+            protocolNetwork: this.protocolNetwork,
           },
           transaction,
         })
@@ -469,6 +497,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           this.models,
           toAddress(voucher.allocation),
           transaction,
+          this.protocolNetwork,
         )
         summary.collectedFees = BigNumber.from(summary.collectedFees)
           .add(voucher.fees)
@@ -477,11 +506,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
         // Add the voucher to the database
         await this.models.vouchers.findOrCreate({
-          where: { allocation: toAddress(voucher.allocation) },
+          where: {
+            allocation: toAddress(voucher.allocation),
+            protocolNetwork: this.protocolNetwork,
+          },
           defaults: {
             allocation: toAddress(voucher.allocation),
             amount: voucher.fees,
             signature: voucher.signature,
+            protocolNetwork: this.protocolNetwork,
           },
           transaction,
         })
@@ -543,6 +576,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               this.models,
               toAddress(voucher.allocation),
               transaction,
+              this.protocolNetwork,
             )
             summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
               .add(voucher.amount)
@@ -564,7 +598,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     logger.info(`Successfully redeemed query fee voucher, delete local copy`)
     try {
       await this.models.vouchers.destroy({
-        where: { allocation: vouchers.map((voucher) => voucher.allocation) },
+        where: {
+          allocation: vouchers.map((voucher) => voucher.allocation),
+          protocolNetwork: this.protocolNetwork,
+        },
       })
       this.metrics.successVoucherRedeems.inc({ allocation: vouchers[0].allocation })
       logger.info(`Successfully deleted local voucher copy`)
@@ -578,7 +615,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
     // Obtain all closed allocations
     const closedAllocations = await this.models.allocationSummaries.findAll({
-      where: { closedAt: { [Op.not]: null } },
+      where: { closedAt: { [Op.not]: null }, protocolNetwork: this.protocolNetwork },
     })
 
     // Create a receipts batch for each of these allocations
@@ -596,6 +633,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     const uncollectedReceipts = await this.models.allocationReceipts.findAll({
       where: {
         allocation: closedAllocations.map((summary) => summary.allocation),
+        protocolNetwork: this.protocolNetwork,
       },
       order: ['id'],
     })
@@ -643,80 +681,110 @@ export function encodePartialVouchers(
   }
 }
 
-const registerReceiptMetrics = (metrics: Metrics) => ({
+const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => ({
   receiptsToCollect: new metrics.client.Gauge({
-    name: 'indexer_agent_receipts_to_collect',
+    name: `indexer_agent_receipts_to_collect_${networkIdentifier}`,
     help: 'Individual receipts to collect',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   failedReceipts: new metrics.client.Counter({
-    name: 'indexer_agent_receipts_failed',
+    name: `indexer_agent_receipts_failed_${networkIdentifier}`,
     help: 'Failed to queue receipts to collect',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   partialVouchersToExchange: new metrics.client.Gauge({
-    name: 'indexer_agent_vouchers_to_exchange',
+    name: `indexer_agent_vouchers_to_exchange_${networkIdentifier}`,
     help: 'Individual partial vouchers to exchange',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   receiptsCollectDuration: new metrics.client.Histogram({
-    name: 'indexer_agent_receipts_exchange_duration',
+    name: `indexer_agent_receipts_exchange_duration_${networkIdentifier}`,
     help: 'Duration of processing and exchanging receipts to voucher',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchers: new metrics.client.Counter({
-    name: 'indexer_agent_vouchers',
+    name: `indexer_agent_vouchers_${networkIdentifier}`,
     help: 'Individual vouchers to redeem',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   successVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_exchanges_ok',
+    name: `indexer_agent_voucher_exchanges_ok_${networkIdentifier}`,
     help: 'Successfully redeemed vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   invalidVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_exchanges_invalid',
+    name: `indexer_agent_voucher_exchanges_invalid_${networkIdentifier}`,
     help: 'Invalid vouchers redeems - tx paused or unauthorized',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   failedVoucherRedeems: new metrics.client.Counter({
-    name: 'indexer_agent_voucher_redeems_failed',
+    name: `indexer_agent_voucher_redeems_failed_${networkIdentifier}`,
     help: 'Failed redeems for vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchersRedeemDuration: new metrics.client.Histogram({
-    name: 'indexer_agent_vouchers_redeem_duration',
+    name: `indexer_agent_vouchers_redeem_duration_${networkIdentifier}`,
     help: 'Duration of redeeming vouchers',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 
   vouchersBatchRedeemSize: new metrics.client.Gauge({
-    name: 'indexer_agent_vouchers_redeem',
+    name: `indexer_agent_vouchers_redeem_${networkIdentifier}`,
     help: 'Size of redeeming batched vouchers',
     registers: [metrics.registry],
   }),
 
   voucherCollectedFees: new metrics.client.Gauge({
-    name: 'indexer_agent_voucher_collected_fees',
+    name: `indexer_agent_voucher_collected_fees_${networkIdentifier}`,
     help: 'Amount of query fees collected for a voucher',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
 })
+
+interface GatewayRoutes {
+  collectReceipts: URL
+  voucher: URL
+  partialVoucher: URL
+}
+
+function processGatewayRoutes(input: string): GatewayRoutes {
+  const GATEWAY_ROUTES = {
+    collectReceipts: 'collect-receipts',
+    voucher: 'voucher',
+    partialVoucher: 'partial-voucher',
+  }
+
+  // Strip existing information except for protocol and host
+  const inputURL = new URL(input)
+  const base = `${inputURL.protocol}//${inputURL.host}`
+
+  function route(pathname: string): URL {
+    const url = new URL(base)
+    url.pathname = pathname
+    return url
+  }
+
+  return {
+    collectReceipts: route(GATEWAY_ROUTES.collectReceipts),
+    voucher: route(GATEWAY_ROUTES.voucher),
+    partialVoucher: route(GATEWAY_ROUTES.partialVoucher),
+  }
+}
