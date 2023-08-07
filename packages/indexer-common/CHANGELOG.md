@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+
+- The `Network` type now holds references to all network-specific components, such as the `NetworkMonitor` and `Contracts` classes.
+
+- Introduced `GraphNode` class to replace `Indexer`, `Subgraph`, and `IndexingStatus` classes.
+
+- New general purpose `parser` module, used for input validation.
+
+- New `NetworkSpecification` type, which holds all information required to represent a protocol network.
+
+### Changed
+- Added `protocolNetwork` field to most types.
+
+
 
 ## [0.20.17] - 2023-06-19
 ### Changed
