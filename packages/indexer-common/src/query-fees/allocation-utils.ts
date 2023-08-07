@@ -6,6 +6,7 @@ export const ensureAllocationSummary = async (
   models: QueryFeeModels,
   allocation: Address,
   transaction: Transaction,
+  protocolNetwork: string,
 ): Promise<[AllocationSummary, boolean]> => {
   const [summary, isNew] = await models.allocationSummaries.findOrBuild({
     where: { allocation },
@@ -18,6 +19,7 @@ export const ensureAllocationSummary = async (
       openTransfers: 0,
       collectedFees: '0',
       withdrawnFees: '0',
+      protocolNetwork,
     },
     transaction,
   })
