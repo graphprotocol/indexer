@@ -6,6 +6,8 @@ import {
   IndexerManagementClient,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
+  IndexingRuleIdentifier,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
@@ -34,6 +36,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   custom: nullPassThrough(JSON.parse),
   requireSupported: x => parseBoolean(x),
   safety: x => parseBoolean(x),
+  protocolNetwork: x => x,
 }
 
 const INDEXING_RULE_FORMATTERS: Record<
@@ -57,6 +60,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: resolveChainAlias,
 }
 
 const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
@@ -80,6 +84,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
@@ -103,6 +108,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
   safety: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -238,13 +244,15 @@ export const displayRules = (
 export const indexingRules = async (
   client: IndexerManagementClient,
   merged: boolean,
+  protocolNetwork?: string,
 ): Promise<Partial<IndexingRuleAttributes>[]> => {
   const result = await client
     .query(
       gql`
-        query indexingRules($merged: Boolean!) {
-          indexingRules(merged: $merged) {
+        query indexingRules($merged: Boolean!, $protocolNetwork: String) {
+          indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
             identifier
+            protocolNetwork
             identifierType
             allocationAmount
             allocationLifetime
@@ -262,7 +270,7 @@ export const indexingRules = async (
           }
         }
       `,
-      { merged: !!merged },
+      { merged: !!merged, protocolNetwork },
     )
     .toPromise()
 
@@ -275,13 +283,13 @@ export const indexingRules = async (
 
 export const indexingRule = async (
   client: IndexerManagementClient,
-  identifier: string,
+  identifier: IndexingRuleIdentifier,
   merged: boolean,
 ): Promise<Partial<IndexingRuleAttributes> | null> => {
   const result = await client
     .query(
       gql`
-        query indexingRule($identifier: String!, $merged: Boolean!) {
+        query indexingRule($identifier: IndexingRuleIdentifier!, $merged: Boolean!) {
           indexingRule(identifier: $identifier, merged: $merged) {
             identifier
             identifierType
@@ -298,6 +306,7 @@ export const indexingRule = async (
             decisionBasis
             requireSupported
             safety
+            protocolNetwork
           }
         }
       `,
@@ -340,6 +349,7 @@ export const setIndexingRule = async (
             decisionBasis
             requireSupported
             safety
+            protocolNetwork
           }
         }
       `,
@@ -356,16 +366,16 @@ export const setIndexingRule = async (
 
 export const deleteIndexingRules = async (
   client: IndexerManagementClient,
-  identifiers: string[],
+  deployments: IndexingRuleIdentifier[],
 ): Promise<void> => {
   const result = await client
     .mutation(
       gql`
-        mutation deleteIndexingRules($deployments: [String!]!) {
+        mutation deleteIndexingRules($deployments: [IndexingRuleIdentifier!]!) {
           deleteIndexingRules(identifiers: $deployments)
         }
       `,
-      { deployments: identifiers.map(identifier => identifier.toString()) },
+      { deployments },
     )
     .toPromise()
 

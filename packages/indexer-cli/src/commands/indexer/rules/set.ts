@@ -5,6 +5,7 @@ import { partition } from '@thi.ng/iterators'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import {
+  requireProtocolNetworkOption,
   fixParameters,
   parseOutputFormat,
   suggestCommands,
@@ -25,6 +26,7 @@ ${chalk.bold('graph indexer rules set')} [options] <deployment-id> <key1> <value
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 [Required] the rule's protocol network
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
@@ -49,6 +51,7 @@ module.exports = {
     }
 
     try {
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
@@ -76,6 +79,7 @@ module.exports = {
           ...Object.fromEntries([...partition(2, 2, kvs)]),
           identifier,
           identifierType,
+          protocolNetwork,
         })
         if (inputRule.parallelAllocations && inputRule.parallelAllocations >= 2) {
           print.error(
@@ -88,7 +92,8 @@ module.exports = {
       } catch (error) {
         // Failed to parse input, make suggestions
         // Generate a instance of indexing rules for valid attributes
-        const tmpRules = await indexingRule(client, 'global', false)
+        const globalRule = { identifier: 'global', protocolNetwork }
+        const tmpRules = await indexingRule(client, globalRule, false)
         if (!tmpRules) {
           throw new Error(
             `Global indexing rules missing, try again after the agent ensures global rule`,
