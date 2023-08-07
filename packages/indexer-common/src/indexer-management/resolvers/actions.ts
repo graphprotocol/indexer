@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/ban-types */
-
 import { IndexerManagementResolverContext } from '../client'
 import { Logger } from '@graphprotocol/common-ts'
 import {
@@ -12,11 +11,15 @@ import {
   ActionType,
   ActionUpdateInput,
   IndexerManagementModels,
+  Network,
+  NetworkMapped,
   OrderDirection,
   validateActionInputs,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
+import groupBy from 'lodash.groupby'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -51,6 +54,7 @@ async function executeQueueOperation(
     (a) => a.deploymentID === action.deploymentID,
   )
   if (duplicateActions.length === 0) {
+    logger.trace('Inserting Action in database', { action })
     return [
       await models.Action.create(action, {
         validate: true,
@@ -144,13 +148,31 @@ export default {
 
   queueActions: async (
     { actions }: { actions: ActionInput[] },
-    { actionManager, logger, networkMonitor, models }: IndexerManagementResolverContext,
+    { actionManager, logger, multiNetworks, models }: IndexerManagementResolverContext,
   ): Promise<ActionResult[]> => {
     logger.debug(`Execute 'queueActions' mutation`, {
       actions,
     })
 
-    await validateActionInputs(actions, actionManager, networkMonitor)
+    if (!actionManager || !multiNetworks) {
+      throw Error('IndexerManagementClient must be in `network` mode to modify actions')
+    }
+
+    // Sanitize protocol network identifier
+    actions.forEach((action) => {
+      try {
+        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
+      } catch (e) {
+        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
+      }
+    })
+
+    // Let Network Monitors validate actions based on their protocol networks
+    await multiNetworks.mapNetworkMapped(
+      groupBy(actions, (action) => action.protocolNetwork),
+      (network: Network, actions: ActionInput[]) =>
+        validateActionInputs(actions, network.networkMonitor),
+    )
 
     const alreadyQueuedActions = await ActionManager.fetchActions(models, {
       status: ActionStatus.QUEUED,
@@ -317,14 +339,26 @@ export default {
   executeApprovedActions: async (
     _: unknown,
     { logger, actionManager }: IndexerManagementResolverContext,
-  ): Promise<ActionResult[]> => {
+  ): Promise<Action[]> => {
     logger.debug(`Execute 'executeApprovedActions' mutation`)
-    return await actionManager.executeApprovedActions()
+    if (!actionManager) {
+      throw Error('IndexerManagementClient must be in `network` mode to modify actions')
+    }
+
+    const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
+      (network: Network) => actionManager.executeApprovedActions(network),
+    )
+    return Object.values(result).flat()
   },
 }
 
 // Helper function to assess equality among a enqueued and a proposed actions
 function compareActions(enqueued: Action, proposed: ActionInput): boolean {
+  // actions are not the same if they target different protocol networks
+  if (enqueued.protocolNetwork !== proposed.protocolNetwork) {
+    return false
+  }
+
   // actions are not the same if they target different deployments
   if (enqueued.deploymentID !== proposed.deploymentID) {
     return false

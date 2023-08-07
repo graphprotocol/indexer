@@ -1,6 +1,12 @@
-import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
+import {
+  Address,
+  Logger,
+  SubgraphDeploymentID,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
+import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
 
 export interface CreateAllocationResult {
@@ -10,6 +16,7 @@ export interface CreateAllocationResult {
   allocation: string
   deployment: string
   allocatedTokens: string
+  protocolNetwork: string
 }
 
 export interface CloseAllocationResult {
@@ -20,6 +27,7 @@ export interface CloseAllocationResult {
   allocatedTokens: string
   indexingRewards: string
   receiptsWorthCollecting: boolean
+  protocolNetwork: string
 }
 
 export interface ReallocateAllocationResult {
@@ -31,12 +39,14 @@ export interface ReallocateAllocationResult {
   receiptsWorthCollecting: boolean
   createdAllocation: string
   createdAllocationStake: string
+  protocolNetwork: string
 }
 
 export interface ActionFailure {
   actionID: number
   transactionID?: string
   failureReason: string
+  protocolNetwork: string
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -52,17 +62,21 @@ export type AllocationResult =
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const parseGraphQLSubgraphDeployment = (
   subgraphDeployment: any,
+  protocolNetwork: string,
 ): SubgraphDeployment => ({
   id: new SubgraphDeploymentID(subgraphDeployment.id),
   deniedAt: subgraphDeployment.deniedAt,
   stakedTokens: BigNumber.from(subgraphDeployment.stakedTokens),
   signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
   queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
-  activeAllocations: subgraphDeployment.indexerAllocations.length,
+  protocolNetwork,
 })
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const parseGraphQLAllocation = (allocation: any): Allocation => ({
+export const parseGraphQLAllocation = (
+  allocation: any,
+  protocolNetwork: string,
+): Allocation => ({
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
   status: allocation.status,
@@ -72,9 +86,7 @@ export const parseGraphQLAllocation = (allocation: any): Allocation => ({
     stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
     signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
     queryFeesAmount: BigNumber.from(allocation.subgraphDeployment.queryFeesAmount),
-    activeAllocations: allocation.subgraphDeployment.indexerAllocations
-      ? allocation.subgraphDeployment.indexerAllocations.length
-      : 0,
+    protocolNetwork,
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigNumber.from(allocation.allocatedTokens),
@@ -154,7 +166,7 @@ export function epochElapsedBlocks(networkEpoch: NetworkEpoch): number {
   return networkEpoch.startBlockNumber - networkEpoch.latestBlock
 }
 
-const Caip2ByChainAlias: { [key: string]: string } = {
+export const Caip2ByChainAlias: { [key: string]: string } = {
   mainnet: 'eip155:1',
   goerli: 'eip155:5',
   gnosis: 'eip155:100',
@@ -168,7 +180,7 @@ const Caip2ByChainAlias: { [key: string]: string } = {
   fantom: 'eip155:250',
 }
 
-const Caip2ByChainId: { [key: number]: string } = {
+export const Caip2ByChainId: { [key: number]: string } = {
   1: 'eip155:1',
   5: 'eip155:5',
   100: 'eip155:100',
@@ -191,9 +203,14 @@ export function resolveChainId(key: number | string): string {
     if (chainId !== undefined) {
       return chainId
     }
-  } else {
-    // If chain is a string, it must be a chain alias
-    const chainId = Caip2ByChainAlias[key]
+  } else if (typeof key === 'string') {
+    const splitKey = key.split(':')
+    let chainId
+    if (splitKey.length === 2) {
+      chainId = Caip2ByChainId[+splitKey[1]]
+    } else {
+      chainId = Caip2ByChainAlias[key]
+    }
     if (chainId !== undefined) {
       return chainId
     }
@@ -216,4 +233,53 @@ export function resolveChainAlias(id: string): string {
       `Something has gone wrong, chain id, '${id}', matched more than one network alias in Caip2ByChainAlias`,
     )
   }
+}
+
+// Compares the CAIP-2 chain ID between the Ethereum provider and the Network Subgraph and requires
+// they are equal.
+export async function validateProviderNetworkIdentifier(
+  providerNetworkIdentifier: string,
+  networkSubgraphDeploymentIpfsHash: string,
+  graphNode: GraphNode,
+  logger: Logger,
+) {
+  const subgraphNetworkId = new SubgraphDeploymentID(networkSubgraphDeploymentIpfsHash)
+  const { network: subgraphNetworkChainName } = await graphNode.subgraphFeatures(
+    subgraphNetworkId,
+  )
+
+  if (!subgraphNetworkChainName) {
+    // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.
+    const errorMsg = 'Failed to fetch the networkId for the Network Subgraph'
+    logger.error(errorMsg, { networkSubgraphDeploymentIpfsHash })
+    throw new Error(errorMsg)
+  }
+
+  const providerChainId = resolveChainId(providerNetworkIdentifier)
+  const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
+  if (providerChainId !== networkSubgraphChainId) {
+    const errorMsg =
+      'The configured provider and the Network Subgraph have different CAIP-2 chain IDs. ' +
+      'Please ensure that both Network Subgraph and the Ethereum provider are correctly configured.'
+    logger.error(errorMsg, {
+      networkSubgraphDeploymentIpfsHash,
+      networkSubgraphChainId,
+      providerChainId,
+    })
+    throw new Error(errorMsg)
+  }
+}
+
+// Convenience function to check if a given network identifier is a supported Layer-1 protocol network
+export function networkIsL1(networkIdentifier: string): boolean {
+  // Normalize network identifier
+  networkIdentifier = resolveChainId(networkIdentifier)
+  return networkIdentifier === 'eip155:1' || networkIdentifier === 'eip155:5'
+}
+
+// Convenience function to check if a given network identifier is a supported Layer-2 protocol network
+export function networkIsL2(networkIdentifier: string): boolean {
+  // Normalize network identifier
+  networkIdentifier = resolveChainId(networkIdentifier)
+  return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421613'
 }
