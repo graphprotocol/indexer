@@ -8,7 +8,7 @@ import {
   timer,
   Address,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
+import { IndexerManagementClient, Network } from '@graphprotocol/indexer-common'
 import { Contract, providers } from 'ethers'
 
 interface CostModelAutomationMetrics {
@@ -30,37 +30,46 @@ const registerMetrics = (metrics: Metrics): CostModelAutomationMetrics => ({
   }),
 })
 
-export interface CostModelAutomationOptions {
+// Public API
+export interface StartCostModelAutomationOptions {
+  logger: Logger
+  networks: Network[]
+  indexerManagement: IndexerManagementClient
+  metrics: Metrics
+}
+
+// Internal API
+interface CostModelAutomationOptions {
   logger: Logger
   ethereum: providers.BaseProvider
   contracts: NetworkContracts
   indexerManagement: IndexerManagementClient
-  injectDai: boolean
   daiContractAddress: Address
-  metrics: Metrics
+  metrics: CostModelAutomationMetrics
 }
 
 export const startCostModelAutomation = ({
   logger,
-  ethereum,
-  contracts,
+  networks,
   indexerManagement,
-  injectDai,
-  daiContractAddress,
   metrics,
-}: CostModelAutomationOptions): void => {
+}: StartCostModelAutomationOptions): void => {
   logger = logger.child({ component: 'CostModelAutomation' })
 
   const automationMetrics = registerMetrics(metrics)
 
-  if (injectDai) {
+  // We could have this run per network but we probably only need to run it for Mainnet
+  const mainnet = networks.find(
+    n => n.specification.networkIdentifier === 'eip155:1',
+  )
+  if (mainnet && mainnet.specification.dai.inject) {
     monitorAndInjectDai({
       logger,
-      ethereum,
-      contracts,
+      ethereum: mainnet.networkProvider,
+      contracts: mainnet.contracts,
       indexerManagement,
       metrics: automationMetrics,
-      daiContractAddress,
+      daiContractAddress: mainnet.specification.dai.contractAddress,
     })
   }
 }
@@ -74,9 +83,7 @@ const monitorAndInjectDai = async ({
   indexerManagement,
   metrics,
   daiContractAddress,
-}: Omit<CostModelAutomationOptions, 'injectDai' | 'metrics'> & {
-  metrics: CostModelAutomationMetrics
-}): Promise<void> => {
+}: CostModelAutomationOptions): Promise<void> => {
   // Identify the decimals used by the DAI or USDC contract
   const chainId = ethereum.network.chainId
   const stableCoin = new Contract(daiContractAddress, ERC20_ABI, ethereum)

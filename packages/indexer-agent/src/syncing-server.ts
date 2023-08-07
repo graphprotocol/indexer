@@ -4,17 +4,22 @@ import cors from 'cors'
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from '@graphprotocol/indexer-common'
+import { parse } from 'graphql'
+import {
+  NetworkMapped,
+  NetworkSubgraph,
+  resolveChainId,
+} from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {
   logger: Logger
-  networkSubgraph: NetworkSubgraph
+  networkSubgraphs: NetworkMapped<NetworkSubgraph>
   port: number
 }
 
 export const createSyncingServer = async ({
   logger,
-  networkSubgraph,
+  networkSubgraphs,
   port,
 }: CreateSyncingServerOptions): Promise<express.Express> => {
   logger = logger.child({ component: 'SyncingServer' })
@@ -38,21 +43,57 @@ export const createSyncingServer = async ({
   })
 
   // Network subgraph endpoint
-  server.post('/network', bodyParser.json(), async (req, res) => {
-    const { query, variables } = req.body
+  server.post(
+    '/network/:networkIdentifier',
+    bodyParser.json(),
+    async (req, res) => {
+      const { query, variables } = req.body
+      const { networkIdentifier: unvalidatedNetworkIdentifier } = req.params
 
-    if (query.startsWith('mutation') || query.startsWith('subscription')) {
-      return res.status(405).send('Only queries are supported')
-    }
+      if (query.startsWith('mutation') || query.startsWith('subscription')) {
+        return res.status(405).send('Only queries are supported')
+      }
 
-    const result = await networkSubgraph.query(query, variables)
+      let networkIdentifier
+      try {
+        networkIdentifier = resolveChainId(unvalidatedNetworkIdentifier)
+      } catch (e) {
+        return res
+          .status(404)
+          .send(`Unknown network identifier: '${unvalidatedNetworkIdentifier}'`)
+      }
 
-    res.status(200).send({
-      data: result.data,
-      errors: result.error ? result.error.graphQLErrors : null,
-      extensions: result.extensions,
-    })
-  })
+      const networkSubgraph = networkSubgraphs[networkIdentifier]
+      if (!networkSubgraph) {
+        return res
+          .status(404)
+          .send(
+            `Indexer Agent not configured for network '${networkIdentifier}'`,
+          )
+      }
+
+      let parsedQuery
+      try {
+        parsedQuery = parse(query)
+      } catch (e) {
+        return res.status(400).send('Malformed GraphQL query')
+      }
+
+      let result
+      try {
+        result = await networkSubgraph.query(parsedQuery, variables)
+      } catch (err) {
+        logger.error(err)
+        return res.status(400).send({ error: err.message })
+      }
+
+      return res.status(200).send({
+        data: result.data,
+        errors: result.error ? result.error.graphQLErrors : null,
+        extensions: result.extensions,
+      })
+    },
+  )
 
   server.listen(port, () => {
     logger.debug(`Listening on port ${port}`)

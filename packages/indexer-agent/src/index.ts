@@ -1,22 +1,73 @@
+import { createLogger } from '@graphprotocol/common-ts'
 import * as yargs from 'yargs'
+import {
+  start,
+  createNetworkSpecification,
+  reviewArgumentsForWarnings,
+  AgentOptions,
+  run,
+} from './commands/start'
+import {
+  startMultiNetwork,
+  parseNetworkSpecifications,
+} from './commands/start-multi-network'
 
-import start from './commands/start'
+const MULTINETWORK_MODE: boolean =
+  !!process.env.INDEXER_AGENT_MULTINETWORK_MODE &&
+  process.env.INDEXER_AGENT_MULTINETWORK_MODE.toLowerCase() !== 'false'
 
-yargs
-  .scriptName('indexer-agent')
-  .env('INDEXER_AGENT')
-  .command(start)
-  .fail(function (msg, err, yargs) {
-    if (err) {
-      console.error(err)
-    } else {
-      console.error(msg)
-      console.error(`
-Usage help...
-`)
-      console.error(yargs.help())
-    }
-    process.exit(1)
+function parseArguments(): AgentOptions {
+  let builder = yargs.scriptName('indexer-agent').env('INDEXER_AGENT')
+
+  // Dynamic argument parser construction based on network mode
+  if (MULTINETWORK_MODE) {
+    console.log('Starting the Indexer Agent in multi-network mode')
+    builder = builder.command(startMultiNetwork)
+  } else {
+    console.log('Starting the Indexer Agent in single-network mode')
+    builder = builder.command(start)
+  }
+
+  return (
+    builder
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .fail(function (msg, err, _yargs) {
+        console.error('The Indexer Agent command has failed.')
+        if (err) {
+          console.error(err)
+        } else {
+          console.error(msg)
+        }
+        process.exit(1)
+      })
+      .demandCommand(
+        1,
+        'You need at least one command before continuing.' +
+          " See 'indexer-agent --help' for usage instructions.",
+      )
+      .help().argv
+  )
+}
+
+async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
+  const logger = createLogger({
+    name: 'IndexerAgent',
+    async: false,
+    level: args.logLevel,
   })
-  .demandCommand(1, 'Choose a command from the above list')
-  .help().argv
+  if (MULTINETWORK_MODE) {
+    const specifications = parseNetworkSpecifications(args, logger)
+    await run(args, specifications, logger)
+  } else {
+    reviewArgumentsForWarnings(args, logger)
+    const specification = await createNetworkSpecification(args)
+    await run(args, [specification], logger)
+  }
+}
+
+async function main(): Promise<void> {
+  const args = parseArguments()
+  await processArgumentsAndRun(args)
+}
+
+main()
