@@ -8,6 +8,7 @@ import {
   Model,
   Sequelize,
 } from 'sequelize'
+import { caip2IdRegex } from '../../parsers'
 import { ActionStatus, ActionType } from '@graphprotocol/indexer-common'
 
 export class Action extends Model<
@@ -33,6 +34,8 @@ export class Action extends Model<
 
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
+
+  declare protocolNetwork: string
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
@@ -140,6 +143,13 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         type: DataTypes.STRING(1000),
         allowNull: true,
         defaultValue: null,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING(50),
+        primaryKey: true,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     {

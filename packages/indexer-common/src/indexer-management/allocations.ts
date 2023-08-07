@@ -1,7 +1,6 @@
 import {
   formatGRT,
   Logger,
-  NetworkContracts,
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
@@ -16,6 +15,7 @@ import {
   CloseAllocationResult,
   CreateAllocationResult,
   fetchIndexingRules,
+  GraphNode,
   indexerError,
   IndexerError,
   IndexerErrorCode,
@@ -24,10 +24,9 @@ import {
   IndexingRuleAttributes,
   isActionFailure,
   isDeploymentWorthAllocatingTowards,
+  Network,
   ReallocateAllocationResult,
-  ReceiptCollector,
   SubgraphIdentifierType,
-  TransactionManager,
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
@@ -40,8 +39,7 @@ import {
   providers,
   utils,
 } from 'ethers'
-import { NetworkMonitor } from './monitor'
-import { SubgraphManager } from './subgraphs'
+
 import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
 
@@ -92,14 +90,10 @@ export type TransactionResult =
 
 export class AllocationManager {
   constructor(
-    private contracts: NetworkContracts,
     private logger: Logger,
-    private indexer: string,
     private models: IndexerManagementModels,
-    private networkMonitor: NetworkMonitor,
-    private receiptCollector: ReceiptCollector,
-    private subgraphManager: SubgraphManager,
-    private transactionManager: TransactionManager,
+    private graphNode: GraphNode,
+    private network: Network,
   ) {}
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
@@ -132,9 +126,10 @@ export class AllocationManager {
       .filter((tx: PopulatedTransaction) => !!tx.data)
       .map((tx) => tx.data as string)
 
-    return await this.transactionManager.executeTransaction(
-      async () => this.contracts.staking.estimateGas.multicall(callData),
-      async (gasLimit) => this.contracts.staking.multicall(callData, { gasLimit }),
+    return await this.network.transactionManager.executeTransaction(
+      async () => this.network.contracts.staking.estimateGas.multicall(callData),
+      async (gasLimit) =>
+        this.network.contracts.staking.multicall(callData, { gasLimit }),
       this.logger.child({
         actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
         function: 'staking.multicall',
@@ -166,6 +161,7 @@ export class AllocationManager {
               error instanceof IndexerError
                 ? error.code
                 : `Failed to confirm transactions: ${error.message}`,
+            protocolNetwork: action.protocolNetwork,
           }
         }
       },
@@ -199,6 +195,15 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     action: Action,
   ): Promise<AllocationResult> {
+    // Ensure we are handling an action for the same configured network
+    if (action.protocolNetwork !== this.network.specification.networkIdentifier) {
+      const errorMessage = `AllocationManager is configured for '${this.network.specification.networkIdentifier}' but got an Action targeting '${action.protocolNetwork}' `
+      this.logger.crit(errorMessage, {
+        action,
+      })
+      throw new Error(errorMessage)
+    }
+
     switch (action.type) {
       case ActionType.ALLOCATE:
         return await this.confirmAllocate(
@@ -210,11 +215,19 @@ export class AllocationManager {
           receipt,
         )
       case ActionType.UNALLOCATE:
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return await this.confirmUnallocate(action.id, action.allocationID!, receipt)
+        return await this.confirmUnallocate(
+          action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          action.allocationID!,
+          receipt,
+        )
       case ActionType.REALLOCATE:
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return await this.confirmReallocate(action.id, action.allocationID!, receipt)
+        return await this.confirmReallocate(
+          action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          action.allocationID!,
+          receipt,
+        )
     }
   }
 
@@ -272,6 +285,7 @@ export class AllocationManager {
           error instanceof IndexerError
             ? error.code
             : `Failed to prepare tx call data: ${error.message}`,
+        protocolNetwork: action.protocolNetwork,
       }
     }
   }
@@ -287,7 +301,7 @@ export class AllocationManager {
       amount: amount.toString(),
     })
 
-    const activeAllocations = await this.networkMonitor.allocations(
+    const activeAllocations = await this.network.networkMonitor.allocations(
       AllocationStatus.ACTIVE,
     )
     const allocation = activeAllocations.find(
@@ -315,22 +329,19 @@ export class AllocationManager {
       )
     }
 
-    const currentEpoch = await this.contracts.epochManager.currentEpoch()
+    const currentEpoch = await this.network.contracts.epochManager.currentEpoch()
 
     // Ensure subgraph is deployed before allocating
-    await this.subgraphManager.ensure(
-      logger,
-      this.models,
+    await this.graphNode.ensure(
       `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
       deployment,
-      indexNode,
     )
 
     logger.debug('Obtain a unique Allocation ID')
 
     // Obtain a unique allocation ID
     const { allocationSigner, allocationId } = uniqueAllocationID(
-      this.transactionManager.wallet.mnemonic.phrase,
+      this.network.transactionManager.wallet.mnemonic.phrase,
       currentEpoch.toNumber(),
       deployment,
       activeAllocations.map((allocation) => allocation.id),
@@ -343,10 +354,10 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.contracts.staking.getAllocationState(allocationId)
+    const state = await this.network.contracts.staking.getAllocationState(allocationId)
     if (state !== 0) {
       logger.debug(`Skipping allocation as it already exists onchain`, {
-        indexer: this.indexer,
+        indexer: this.network.specification.indexerOptions.address,
         allocation: allocationId,
         state,
       })
@@ -359,17 +370,21 @@ export class AllocationManager {
     logger.debug('Generating new allocation ID proof', {
       newAllocationSigner: allocationSigner,
       newAllocationID: allocationId,
-      indexerAddress: this.indexer,
+      indexerAddress: this.network.specification.indexerOptions.address,
     })
 
-    const proof = await allocationIdProof(allocationSigner, this.indexer, allocationId)
+    const proof = await allocationIdProof(
+      allocationSigner,
+      this.network.specification.indexerOptions.address,
+      allocationId,
+    )
 
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
     })
 
     return {
-      indexer: this.indexer,
+      indexer: this.network.specification.indexerOptions.address,
       subgraphDeploymentID: deployment.bytes32,
       tokens: amount,
       allocationID: allocationId,
@@ -398,7 +413,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.findEvent(
       'AllocationCreated',
-      this.contracts.staking.interface,
+      this.network.contracts.staking.interface,
       'subgraphDeploymentID',
       subgraphDeployment.bytes32,
       receipt,
@@ -416,7 +431,7 @@ export class AllocationManager {
     })
 
     // Remember allocation
-    await this.receiptCollector.rememberAllocations(actionID, [
+    await this.network.receiptCollector.rememberAllocations(actionID, [
       createAllocationEventLogs.allocationID,
     ])
 
@@ -431,6 +446,7 @@ export class AllocationManager {
         allocationAmount: amount,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
       await upsertIndexingRule(logger, this.models, indexingRule)
@@ -443,6 +459,7 @@ export class AllocationManager {
       deployment: deployment,
       allocation: createAllocationEventLogs.allocationID,
       allocatedTokens: amount,
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
@@ -460,7 +477,7 @@ export class AllocationManager {
       allocation: params.allocationID,
       proof: params.proof,
     })
-    return await this.contracts.staking.populateTransaction.allocateFrom(
+    return await this.network.contracts.staking.populateTransaction.allocateFrom(
       params.indexer,
       params.subgraphDeploymentID,
       params.tokens,
@@ -468,65 +485,6 @@ export class AllocationManager {
       params.metadata,
       params.proof,
     )
-  }
-
-  async allocate(
-    deployment: SubgraphDeploymentID,
-    amount: BigNumber,
-    indexNode: string | undefined,
-  ): Promise<CreateAllocationResult> {
-    try {
-      const params = await this.prepareAllocateParams(
-        this.logger,
-        deployment,
-        amount,
-        indexNode,
-      )
-
-      this.logger.debug(`Sending allocateFrom transaction`, {
-        indexer: params.indexer,
-        subgraphDeployment: deployment.ipfsHash,
-        amount: formatGRT(params.tokens),
-        allocation: params.allocationID,
-        proof: params.proof,
-      })
-
-      const receipt = await this.transactionManager.executeTransaction(
-        async () =>
-          this.contracts.staking.estimateGas.allocateFrom(
-            params.indexer,
-            params.subgraphDeploymentID,
-            params.tokens,
-            params.allocationID,
-            params.metadata,
-            params.proof,
-          ),
-        async (gasLimit) =>
-          this.contracts.staking.allocateFrom(
-            params.indexer,
-            params.subgraphDeploymentID,
-            params.tokens,
-            params.allocationID,
-            params.metadata,
-            params.proof,
-            { gasLimit },
-          ),
-        this.logger.child({ function: 'staking.allocate' }),
-      )
-
-      return await this.confirmAllocate(
-        0,
-        deployment.ipfsHash,
-        amount.toString(),
-        receipt,
-      )
-    } catch (error) {
-      this.logger.error(`Failed to allocate`, {
-        amount: formatGRT(amount),
-        error,
-      })
-      throw error
-    }
   }
 
   async prepareUnallocateParams(
@@ -539,9 +497,9 @@ export class AllocationManager {
       allocationID: allocationID,
       poi: poi || 'none provided',
     })
-    const allocation = await this.networkMonitor.allocation(allocationID)
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
     // Ensure allocation is old enough to close
-    const currentEpoch = await this.contracts.epochManager.currentEpoch()
+    const currentEpoch = await this.network.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
       throw indexerError(
         IndexerErrorCode.IE064,
@@ -551,7 +509,7 @@ export class AllocationManager {
       )
     }
 
-    poi = await this.networkMonitor.resolvePOI(allocation, poi, force)
+    poi = await this.network.networkMonitor.resolvePOI(allocation, poi, force)
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
@@ -560,7 +518,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.contracts.staking.getAllocationState(allocation.id)
+    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
     if (state !== 1) {
       throw indexerError(IndexerErrorCode.IE065)
     }
@@ -589,7 +547,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.findEvent(
       'AllocationClosed',
-      this.contracts.staking.interface,
+      this.network.contracts.staking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -604,7 +562,7 @@ export class AllocationManager {
 
     const rewardsEventLogs = this.findEvent(
       'RewardsAssigned',
-      this.contracts.rewardsManager.interface,
+      this.network.contracts.rewardsManager.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -635,9 +593,9 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.networkMonitor.allocation(allocationID)
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
     // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
+    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
       actionID,
       allocation,
     )
@@ -648,6 +606,7 @@ export class AllocationManager {
     )
     const offchainIndexingRule = {
       identifier: allocation.subgraphDeployment.id.ipfsHash,
+      protocolNetwork: this.network.specification.networkIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
     } as Partial<IndexingRuleAttributes>
@@ -662,6 +621,7 @@ export class AllocationManager {
       allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
       indexingRewards: formatGRT(rewardsAssigned),
       receiptsWorthCollecting: isCollectingQueryFees,
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
@@ -673,7 +633,7 @@ export class AllocationManager {
       allocationID: params.allocationID,
       POI: params.poi,
     })
-    return await this.contracts.staking.populateTransaction.closeAllocation(
+    return await this.network.contracts.staking.populateTransaction.closeAllocation(
       params.allocationID,
       params.poi,
     )
@@ -687,46 +647,6 @@ export class AllocationManager {
   ): Promise<PopulatedTransaction> {
     const params = await this.prepareUnallocateParams(logger, allocationID, poi, force)
     return await this.populateUnallocateTransaction(logger, params)
-  }
-
-  async unallocate(
-    allocationID: string,
-    poi: string | undefined,
-    force: boolean,
-  ): Promise<CloseAllocationResult> {
-    try {
-      const params = await this.prepareUnallocateParams(
-        this.logger,
-        allocationID,
-        poi,
-        force,
-      )
-      const allocation = await this.networkMonitor.allocation(allocationID)
-      this.logger.debug('Sending closeAllocation transaction')
-      const receipt = await this.transactionManager.executeTransaction(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () =>
-          this.contracts.staking.estimateGas.closeAllocation(
-            params.allocationID,
-            params.poi,
-          ),
-        (gasLimit) =>
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          this.contracts.staking.closeAllocation(params.allocationID, params.poi, {
-            gasLimit,
-          }),
-        this.logger.child({ function: 'staking.closeAllocation' }),
-      )
-
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      return await this.confirmUnallocate(0, allocation.id!, receipt)
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE015, error)
-      this.logger.warn(`Failed to close allocation`, {
-        err,
-      })
-      throw err
-    }
   }
 
   async prepareReallocateParams(
@@ -746,7 +666,7 @@ export class AllocationManager {
     /* Fetch all active allocations and search for our input parameter `allocationID`.
      * We don't call `fetchAllocations` here because all allocations will be required
      * later when generating a new `uniqueAllocationID`. */
-    const activeAllocations = await this.networkMonitor.allocations(
+    const activeAllocations = await this.network.networkMonitor.allocations(
       AllocationStatus.ACTIVE,
     )
     const allocationAddress = toAddress(allocationID)
@@ -762,7 +682,7 @@ export class AllocationManager {
     }
 
     // Ensure allocation is old enough to close
-    const currentEpoch = await this.contracts.epochManager.currentEpoch()
+    const currentEpoch = await this.network.contracts.epochManager.currentEpoch()
     if (BigNumber.from(allocation.createdAtEpoch).eq(currentEpoch)) {
       throw indexerError(
         IndexerErrorCode.IE064,
@@ -773,7 +693,11 @@ export class AllocationManager {
     }
 
     logger.debug('Resolving POI')
-    const allocationPOI = await this.networkMonitor.resolvePOI(allocation, poi, force)
+    const allocationPOI = await this.network.networkMonitor.resolvePOI(
+      allocation,
+      poi,
+      force,
+    )
     logger.debug('POI resolved', {
       userProvidedPOI: poi,
       poi: allocationPOI,
@@ -786,7 +710,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const state = await this.contracts.staking.getAllocationState(allocation.id)
+    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
     if (state !== 1) {
       logger.warn(`Allocation has already been closed`)
       throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
@@ -804,7 +728,7 @@ export class AllocationManager {
 
     logger.debug('Generating a new unique Allocation ID')
     const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
-      this.transactionManager.wallet.mnemonic.phrase,
+      this.network.transactionManager.wallet.mnemonic.phrase,
       currentEpoch.toNumber(),
       allocation.subgraphDeployment.id,
       activeAllocations.map((allocation) => allocation.id),
@@ -822,12 +746,12 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const newAllocationState = await this.contracts.staking.getAllocationState(
+    const newAllocationState = await this.network.contracts.staking.getAllocationState(
       newAllocationId,
     )
     if (newAllocationState !== 0) {
       logger.warn(`Skipping Allocation as it already exists onchain`, {
-        indexer: this.indexer,
+        indexer: this.network.specification.indexerOptions.address,
         allocation: newAllocationId,
         newAllocationState,
       })
@@ -837,15 +761,19 @@ export class AllocationManager {
     logger.debug('Generating new allocation ID proof', {
       newAllocationSigner: allocationSigner,
       newAllocationID: newAllocationId,
-      indexerAddress: this.indexer,
+      indexerAddress: this.network.specification.indexerOptions.address,
     })
-    const proof = await allocationIdProof(allocationSigner, this.indexer, newAllocationId)
+    const proof = await allocationIdProof(
+      allocationSigner,
+      this.network.specification.indexerOptions.address,
+      newAllocationId,
+    )
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
     })
 
     logger.info(`Prepared close and allocate multicall transaction`, {
-      indexer: this.indexer,
+      indexer: this.network.specification.indexerOptions.address,
       oldAllocationAmount: formatGRT(allocation.allocatedTokens),
       oldAllocation: allocation.id,
       newAllocation: newAllocationId,
@@ -859,7 +787,7 @@ export class AllocationManager {
     return {
       closingAllocationID: allocation.id,
       poi: allocationPOI,
-      indexer: this.indexer,
+      indexer: this.network.specification.indexerOptions.address,
       subgraphDeploymentID: allocation.subgraphDeployment.id.bytes32,
       tokens: amount,
       newAllocationID: newAllocationId,
@@ -886,7 +814,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.findEvent(
       'AllocationClosed',
-      this.contracts.staking.interface,
+      this.network.contracts.staking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -901,7 +829,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.findEvent(
       'AllocationCreated',
-      this.contracts.staking.interface,
+      this.network.contracts.staking.interface,
       'subgraphDeploymentID',
       closeAllocationEventLogs.subgraphDeploymentID,
       receipt,
@@ -916,7 +844,7 @@ export class AllocationManager {
 
     const rewardsEventLogs = this.findEvent(
       'RewardsAssigned',
-      this.contracts.rewardsManager.interface,
+      this.network.contracts.rewardsManager.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -949,9 +877,9 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.networkMonitor.allocation(allocationID)
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
     // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.receiptCollector.collectReceipts(
+    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
       actionID,
       allocation,
     )
@@ -966,6 +894,7 @@ export class AllocationManager {
         allocationAmount: formatGRT(createAllocationEventLogs.tokens),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
       await upsertIndexingRule(logger, this.models, indexingRule)
@@ -980,6 +909,7 @@ export class AllocationManager {
       receiptsWorthCollecting: isCollectingQueryFees,
       createdAllocation: createAllocationEventLogs.allocationID,
       createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
+      protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
 
@@ -997,12 +927,14 @@ export class AllocationManager {
       amount,
       force,
     )
+
     return [
-      await this.contracts.staking.populateTransaction.closeAllocation(
+      await this.network.contracts.staking.populateTransaction.closeAllocation(
         params.closingAllocationID,
         params.poi,
       ),
-      await this.contracts.staking.populateTransaction.allocate(
+      await this.network.contracts.staking.populateTransaction.allocateFrom(
+        params.indexer,
         params.subgraphDeploymentID,
         params.tokens,
         params.newAllocationID,
@@ -1012,66 +944,16 @@ export class AllocationManager {
     ]
   }
 
-  async reallocate(
-    allocationID: string,
-    poi: string | undefined,
-    amount: BigNumber,
-    force: boolean,
-  ): Promise<ReallocateAllocationResult> {
-    try {
-      const params = await this.prepareReallocateParams(
-        this.logger,
-        allocationID,
-        poi,
-        amount,
-        force,
-      )
-
-      this.logger.info(`Sending close and allocate multicall transaction`, {
-        indexer: params.indexer,
-        oldAllocation: params.closingAllocationID,
-        newAllocation: params.newAllocationID,
-        newAllocationAmount: formatGRT(params.tokens),
-        deployment: params.subgraphDeploymentID,
-        poi: params.poi,
-        proof: params.proof,
-      })
-
-      const callData = [
-        await this.contracts.staking.populateTransaction.closeAllocation(
-          params.closingAllocationID,
-          params.poi,
-        ),
-        await this.contracts.staking.populateTransaction.allocate(
-          params.subgraphDeploymentID,
-          params.tokens,
-          params.newAllocationID,
-          params.metadata,
-          params.proof,
-        ),
-      ].map((tx) => tx.data as string)
-
-      const receipt = await this.transactionManager.executeTransaction(
-        async () => this.contracts.staking.estimateGas.multicall(callData),
-        async (gasLimit) => this.contracts.staking.multicall(callData, { gasLimit }),
-        this.logger.child({
-          function: 'closeAndAllocate',
-        }),
-      )
-
-      return await this.confirmReallocate(0, allocationID, receipt)
-    } catch (error) {
-      this.logger.error(error.toString())
-      throw error
-    }
-  }
-
   async matchingRuleExists(
     logger: Logger,
     subgraphDeploymentID: SubgraphDeploymentID,
   ): Promise<boolean> {
-    const indexingRules = await fetchIndexingRules(this.models, true)
-    const subgraphDeployment = await this.networkMonitor.subgraphDeployment(
+    const indexingRules = await fetchIndexingRules(
+      this.models,
+      true,
+      this.network.specification.networkIdentifier,
+    )
+    const subgraphDeployment = await this.network.networkMonitor.subgraphDeployment(
       subgraphDeploymentID.ipfsHash,
     )
     if (!subgraphDeployment) {
@@ -1109,14 +991,14 @@ export class AllocationManager {
       }
 
       // Fetch the allocation on chain to inspect its amount
-      const allocation = await this.networkMonitor.allocation(action.allocationID)
+      const allocation = await this.network.networkMonitor.allocation(action.allocationID)
 
       // Accrue rewards, except for null or zeroed POI
       const zeroHexString = utils.hexlify(Array(32).fill(0))
       rewards =
         !action.poi || action.poi === zeroHexString
           ? BigNumber.from(0)
-          : await this.contracts.rewardsManager.getRewards(action.allocationID)
+          : await this.network.contracts.rewardsManager.getRewards(action.allocationID)
 
       unallocates = unallocates.add(allocation.allocatedTokens)
     }
@@ -1136,7 +1018,9 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    const indexerFreeStake = await this.contracts.staking.getIndexerCapacity(this.indexer)
+    const indexerFreeStake = await this.network.contracts.staking.getIndexerCapacity(
+      this.network.specification.indexerOptions.address,
+    )
     const actionsBatchStakeusageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )

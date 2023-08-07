@@ -2,6 +2,7 @@
 
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
 import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
+import { caip2IdRegex } from '../../parsers'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -29,6 +30,14 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
+  protocolNetwork: string
+}
+
+// Unambiguously identify a Indexing Rule in the Database.
+// This type should match the IndexingRules primary key columns.
+export interface IndexingRuleIdentifier {
+  identifier: string
+  protocolNetwork: string
 }
 
 export interface IndexingRuleCreationAttributes
@@ -50,6 +59,7 @@ export interface IndexingRuleCreationAttributes
     | 'decisionBasis'
     | 'requireSupported'
     | 'safety'
+    | 'protocolNetwork'
   > {}
 
 export class IndexingRule
@@ -72,6 +82,7 @@ export class IndexingRule
   public decisionBasis!: IndexingDecisionBasis
   public requireSupported!: boolean
   public safety!: boolean
+  public protocolNetwork!: string
 
   public createdAt!: Date
   public updatedAt!: Date
@@ -144,7 +155,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
       identifier: {
         type: DataTypes.STRING,
         primaryKey: true,
-        unique: true,
+        unique: false,
         allowNull: false,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -247,6 +258,14 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        primaryKey: true,
+        allowNull: false,
+        validate: {
+          is: caip2IdRegex,
+        },
       },
     },
     {
