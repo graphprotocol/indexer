@@ -20,10 +20,12 @@ import {
   defineQueryFeeModels,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
+  resolveChainId,
+  validateProviderNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -36,7 +38,9 @@ export default {
   describe: 'Start the service',
   builder: (yargs: Argv): Argv => {
     return yargs
-      .option('ethereum', {
+      .option('network-provider', {
+        //TODO:FIXME: uptrade this field as we did for Agent
+        alias: 'ethereum',
         description: 'Ethereum node or provider URL',
         type: 'string',
         required: true,
@@ -177,6 +181,7 @@ export default {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
           return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
         }
+
         return true
       })
       .config({
@@ -273,18 +278,23 @@ export default {
     logger.info('Successfully connected to database')
 
     logger.info(`Connect to network subgraph`)
-    const indexingStatusResolver = new IndexingStatusResolver({
+    const graphNode = new GraphNode(
       logger,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-    })
+      // We use a fake Graph Node admin endpoint here because we don't
+      // want the Indexer Service to perform management actions on
+      // Graph Node.
+      'http://fake-graph-node-admin-endpoint',
+      argv.graphNodeQueryEndpoint,
+      argv.graphNodeStatusEndpoint,
+      argv.indexNodeIds,
+    )
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
       endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment
         ? {
-            indexingStatusResolver,
+            graphNode,
             deployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
-            graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
           }
         : undefined,
     })
@@ -293,19 +303,32 @@ export default {
     const networkProvider = await Network.provider(
       logger,
       metrics,
-      argv.ethereum,
+      '_',
+      argv.networkProvider,
       argv.ethereumPollingInterval,
     )
-    const network = await networkProvider.getNetwork()
+    const networkIdentifier = await networkProvider.getNetwork()
+    const protocolNetwork = resolveChainId(networkIdentifier.chainId)
+
+    // If the network subgraph deployment is present, validate if the `chainId` we get from our
+    // provider is consistent.
+    if (argv.networkSubgraphDeployment) {
+      validateProviderNetworkIdentifier(
+        protocolNetwork,
+        argv.networkSubgraphDeployment,
+        graphNode,
+        logger,
+      )
+    }
 
     logger.info('Connect to contracts', {
-      network: network.name,
-      chainId: network.chainId,
+      network: networkIdentifier.name,
+      chainId: networkIdentifier.chainId,
     })
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(networkProvider, network.chainId)
+      contracts = await connectContracts(networkProvider, networkIdentifier.chainId)
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
@@ -332,6 +355,7 @@ export default {
       queryFeeModels,
       logger,
       toAddress(argv.clientSignerAddress),
+      protocolNetwork,
     )
 
     // Ensure the address is checksummed
@@ -347,6 +371,7 @@ export default {
       indexer: indexerAddress,
       logger,
       networkSubgraph,
+      protocolNetwork,
       interval: argv.allocationSyncingInterval,
     })
 
@@ -355,7 +380,7 @@ export default {
       logger,
       allocations,
       wallet,
-      chainId: network.chainId,
+      chainId: networkIdentifier.chainId,
       disputeManagerAddress: contracts.disputeManager.address,
     })
 
@@ -371,12 +396,8 @@ export default {
 
     const indexerManagementClient = await createIndexerManagementClient({
       models,
-      address,
-      contracts,
-      indexingStatusResolver,
+      graphNode,
       indexNodeIDs: ['node_1'], // This is just a dummy since the indexer-service doesn't manage deployments,
-      deploymentManagementEndpoint: argv.graphNodeStatusEndpoint,
-      networkSubgraph,
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management
@@ -385,9 +406,7 @@ export default {
           allocationAmount: BigNumber.from('0'),
         },
       },
-      features: {
-        injectDai: true,
-      },
+      multiNetworks: undefined,
     })
 
     // Spin up a basic webserver
