@@ -3,7 +3,11 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, parseOutputFormat } from '../../../command-helpers'
+import {
+  requireProtocolNetworkOption,
+  fixParameters,
+  parseOutputFormat,
+} from '../../../command-helpers'
 import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
 import { setIndexingRule, displayRules, parseIndexingRule } from '../../../rules'
 
@@ -16,6 +20,7 @@ ${chalk.bold('graph indexer rules never')} [options] <deployment-id>
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 [Required] the rule's protocol network
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
@@ -42,6 +47,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
@@ -51,6 +57,7 @@ module.exports = {
         identifier,
         identifierType,
         decisionBasis: IndexingDecisionBasis.NEVER,
+        protocolNetwork,
       })
 
       const client = await createIndexerManagementClient({ url: config.api })

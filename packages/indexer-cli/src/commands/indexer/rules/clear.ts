@@ -4,7 +4,11 @@ import { partition } from '@thi.ng/iterators'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, parseOutputFormat } from '../../../command-helpers'
+import {
+  requireProtocolNetworkOption,
+  fixParameters,
+  parseOutputFormat,
+} from '../../../command-helpers'
 import { setIndexingRule, displayRules, parseIndexingRule } from '../../../rules'
 import { processIdentifier } from '@graphprotocol/indexer-common'
 
@@ -17,6 +21,7 @@ ${chalk.bold('graph indexer rules reset')} [options] <subgraph-identifier> [<key
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 [Required] the rule's protocol network
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 
 ${chalk.dim('Hints:')}
@@ -66,6 +71,7 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
+      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
@@ -86,6 +92,7 @@ module.exports = {
         identifierType,
         autoRenewal: true,
         safety: true,
+        protocolNetwork,
       })
 
       const client = await createIndexerManagementClient({ url: config.api })

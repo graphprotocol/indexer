@@ -9,7 +9,7 @@ import {
   parseOutputFormat,
 } from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
-import { ActionStatus } from '@graphprotocol/indexer-common'
+import { ActionStatus, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
@@ -18,7 +18,7 @@ ${chalk.bold('graph indexer actions approve')} [options] queued
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
 module.exports = {
@@ -67,6 +67,17 @@ module.exports = {
         numericActionIDs = actionIDs.map(action => +action)
       }
 
+      // Ensure all provided actionIDs are positive numbers
+      const invalidActionIDs: string[] = []
+      numericActionIDs.forEach((id, index) => {
+        if (isNaN(id) || id < 1) {
+          invalidActionIDs.push(actionIDs[index])
+        }
+      })
+      if (invalidActionIDs.length > 0) {
+        throw Error(`Invaild action IDs: ${invalidActionIDs}`)
+      }
+
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
       inputSpinner.fail(error.toString())
@@ -79,10 +90,16 @@ module.exports = {
     try {
       const queuedAction = await approveActions(client, numericActionIDs)
 
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      queuedAction.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
+
       actionSpinner.succeed(`Actions approved`)
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
         'type',
+        'protocolNetwork',
         'deploymentID',
         'allocationID',
         'amount',

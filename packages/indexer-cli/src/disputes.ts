@@ -3,12 +3,13 @@ import {
   POIDisputeAttributes,
   indexerError,
   IndexerErrorCode,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { parseOutputFormat, OutputFormat } from './command-helpers'
+import { OutputFormat } from './command-helpers'
 
 const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => string> = {
   allocationID: x => x,
@@ -24,6 +25,7 @@ const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => strin
   previousEpochStartBlockHash: x => x,
   previousEpochStartBlockNumber: x => x,
   status: x => x,
+  protocolNetwork: resolveChainAlias,
 }
 
 const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -43,6 +45,7 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockHash: x => x,
   previousEpochStartBlockNumber: x => +x,
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -129,13 +132,22 @@ export const disputes = async (
   client: IndexerManagementClient,
   status: string,
   minClosedEpoch: number,
+  protocolNetwork: string | undefined,
 ): Promise<Partial<POIDisputeAttributes>[]> => {
   try {
     const result = await client
       .query(
         gql`
-          query disputes($status: String!, $minClosedEpoch: Int!) {
-            disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
+          query disputes(
+            $status: String!
+            $minClosedEpoch: Int!
+            $protocolNetwork: String
+          ) {
+            disputes(
+              status: $status
+              minClosedEpoch: $minClosedEpoch
+              protocolNetwork: $protocolNetwork
+            ) {
               allocationID
               allocationIndexer
               allocationAmount
@@ -148,12 +160,14 @@ export const disputes = async (
               previousEpochStartBlockNumber
               previousEpochReferenceProof
               status
+              protocolNetwork
             }
           }
         `,
         {
           status,
           minClosedEpoch,
+          protocolNetwork,
         },
       )
       .toPromise()

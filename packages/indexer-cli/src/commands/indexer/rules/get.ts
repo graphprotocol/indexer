@@ -3,7 +3,11 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, parseOutputFormat } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  fixParameters,
+  parseOutputFormat,
+} from '../../../command-helpers'
 import { indexingRule, indexingRules, displayRules } from '../../../rules'
 import { IndexingRuleAttributes, processIdentifier } from '@graphprotocol/indexer-common'
 
@@ -15,6 +19,7 @@ ${chalk.bold('graph indexer rules get')} [options] <deployment-id> [<key1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 Filter by the rule's protocol network
       --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -40,8 +45,8 @@ module.exports = {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [identifier, identifierType] = await processIdentifier(id, {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const [identifier] = await processIdentifier(id ?? 'all', {
         all: true,
         global: true,
       })
@@ -51,10 +56,18 @@ module.exports = {
       // Create indexer API client
       const client = await createIndexerManagementClient({ url: config.api })
 
-      const ruleOrRules =
-        identifier === 'all'
-          ? await indexingRules(client, !!merged)
-          : await indexingRule(client, identifier, !!merged)
+      let ruleOrRules
+      if (identifier === 'all') {
+        ruleOrRules = await indexingRules(client, !!merged, protocolNetwork)
+      } else {
+        if (!protocolNetwork) {
+          throw Error(
+            'The --netowrk option must be used when quering for a single Indexing Rule',
+          )
+        }
+        const ruleIdentifier = { identifier, protocolNetwork }
+        ruleOrRules = await indexingRule(client, ruleIdentifier, !!merged)
+      }
 
       print.info(
         displayRules(

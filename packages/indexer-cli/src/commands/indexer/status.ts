@@ -7,7 +7,13 @@ import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
 import { displayRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
-import { formatData, parseOutputFormat, pickFields } from '../../command-helpers'
+import {
+  requireProtocolNetworkOption,
+  formatData,
+  parseOutputFormat,
+  pickFields,
+} from '../../command-helpers'
+import { resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer status')}
@@ -15,7 +21,20 @@ ${chalk.bold('graph indexer status')}
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network                 [Required] the rule's protocol network
 `
+
+interface Endpoint {
+  url: string | null
+  healthy: boolean
+  protocolNetwork: string
+  tests: any[]
+}
+
+interface Endpoints {
+  service: Endpoint
+  status: Endpoint
+}
 
 module.exports = {
   name: 'status',
@@ -44,13 +63,18 @@ module.exports = {
     // Query status information
     let result: any | undefined
     try {
+      // TODO:L2: Consider making Protocol Network optional, showing status for all
+      // networks, combined.
+      const protocolNetwork = requireProtocolNetworkOption(toolbox.parameters.options)
+
       result = await client
         .query(
           gql`
-            query {
-              indexerRegistration {
+            query ($protocolNetwork: String!) {
+              indexerRegistration(protocolNetwork: $protocolNetwork) {
                 url
                 address
+                protocolNetwork
                 registered
                 location {
                   latitude
@@ -81,8 +105,9 @@ module.exports = {
                 }
               }
 
-              indexerAllocations {
+              indexerAllocations(protocolNetwork: $protocolNetwork) {
                 id
+                protocolNetwork
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
@@ -91,10 +116,11 @@ module.exports = {
                 stakedTokens
               }
 
-              indexerEndpoints {
+              indexerEndpoints(protocolNetwork: $protocolNetwork) {
                 service {
                   url
                   healthy
+                  protocolNetwork
                   tests {
                     test
                     error
@@ -104,6 +130,7 @@ module.exports = {
                 status {
                   url
                   healthy
+                  protocolNetwork
                   tests {
                     test
                     error
@@ -112,8 +139,9 @@ module.exports = {
                 }
               }
 
-              indexingRules(merged: true) {
+              indexingRules(merged: true, protocolNetwork: $protocolNetwork) {
                 identifier
+                protocolNetwork
                 identifierType
                 allocationAmount
                 allocationLifetime
@@ -131,7 +159,7 @@ module.exports = {
               }
             }
           `,
-          {},
+          { protocolNetwork },
         )
         .toPromise()
     } catch (error) {
@@ -167,24 +195,25 @@ module.exports = {
     }
 
     if (result.data.indexerEndpoints) {
-      const keys = Object.keys(pickFields(result.data.indexerEndpoints, []))
-      keys.sort()
-
-      const statusUp = outputFormat == 'table' ? chalk.green('up') : 'up'
-      const statusDown = outputFormat == 'table' ? chalk.red('down') : 'down'
-
-      data.endpoints = keys.reduce(
-        (out, key) => [
-          ...out,
+      data.endpoints = result.data.indexerEndpoints.flatMap((endpoints: Endpoints) => {
+        const { service, status } = endpoints
+        return [
           {
-            name: key,
-            url: result.data.indexerEndpoints[key].url,
-            status: result.data.indexerEndpoints[key].healthy ? statusUp : statusDown,
-            tests: result.data.indexerEndpoints[key].tests,
+            name: 'service',
+            url: service.url,
+            tests: service.tests,
+            protocolNetwork: resolveChainAlias(service.protocolNetwork),
+            status: formatStatus(outputFormat, service.healthy),
           },
-        ],
-        [] as any,
-      )
+          {
+            name: 'status',
+            url: status.url,
+            tests: status.tests,
+            protocolNetwork: resolveChainAlias(status.protocolNetwork),
+            status: formatStatus(outputFormat, status.healthy),
+          },
+        ]
+      })
     } else {
       data.endpoints = {
         error:
@@ -228,15 +257,17 @@ module.exports = {
         print.info(
           formatData(
             data.endpoints.map((endpoint: any) =>
-              pickFields(endpoint, ['name', 'url', 'status']),
+              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status']),
             ),
             outputFormat,
           ),
         )
         if (
-          data.endpoints.find((endpoint: any) =>
-            endpoint.tests.find((test: any) => test.error !== null),
-          )
+          data.endpoints.find((endpoint: any) => {
+            if (endpoint.tests) {
+              return endpoint.tests.find((test: any) => test.error !== null)
+            }
+          })
         ) {
           print.error('The following endpoint tests failed:\n')
           for (const endpoint of data.endpoints) {
@@ -299,4 +330,14 @@ module.exports = {
       print.info(formatData(data, outputFormat))
     }
   },
+}
+
+function formatStatus(outputFormat: string, status: boolean) {
+  return outputFormat === 'table'
+    ? status
+      ? chalk.green('up')
+      : chalk.red('down')
+    : status
+    ? 'up'
+    : 'down'
 }
