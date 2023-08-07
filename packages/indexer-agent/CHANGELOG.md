@@ -5,6 +5,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- A new migration to add the `protocolNetwork` column as a composite primary key to the following tables:
+    - Actions
+    - IndexingRules
+    - POIDisputes
+    - allocation_receipts
+    - vouchers
+    - transfer_receipts
+    - transfers
+    - allocation_summaries
+
+- The Agent can now be configured for multiple protocol networks.
+  To enable this feature, start the agent with the environment variable `INDEXER_AGENT_MULTINETWORK_MODE` set to
+  `true` and specify a directory containing YAML network specification files, one per network.
+
+- The Agent can be configured to automatically support subgraph transfers from L1 to L2. To enable
+  this feature, set the `enable-auto-migration-support` startup option to `true`.
+
+### Changed
+
+- The Agent GraphQL API was updated to accept (and in some cases require) a `protocolNetwork`
+  parameter to determine which network should be used for queries or mutations.
+
+- The `/network` endpoint exposed by the Agent now requires an additional path segment to disambiguate
+  which protocol network it should target, like `/network/mainnet` or `/network/arbitrum-one`.
 
 ## [0.20.17] - 2023-06-19
 ### Changed
