@@ -36,7 +36,6 @@ export const monitorEligibleAllocations = ({
     logger.debug('Refresh eligible allocations')
 
     try {
-      console.log(networkSubgraph, '')
       const currentEpochResult = await networkSubgraph.query(
         gql`
           query {

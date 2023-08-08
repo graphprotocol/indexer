@@ -104,7 +104,6 @@ export class IndexingStatusResolver {
           }`
 
     const queryIndexingStatuses = async () => {
-      console.log(deployments, 'deployments test')
       const result = await this.statuses
         .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
         .toPromise()

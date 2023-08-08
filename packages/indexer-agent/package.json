@@ -15,7 +15,7 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "start": "dotenv -e .env node ./dist/index.js start --allocation-management auto --graph-node-admin-endpoint http://143.198.251.157:8020/ --default-allocation-amount 100 pino-pretty",
+    "start": "dotenv -e .env node ./dist/index.js start",
     "test": "jest --colors --verbose",
     "test:ci": "jest --verbose --ci",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",

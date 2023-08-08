@@ -468,9 +468,7 @@ class Agent {
             currentEpochNumber,
             maxAllocationEpochs,
           )
-            console.log('after reconcile actions')
         } catch (err) {
-            console.log(err, 'errer')
           this.logger.warn(
             `Exited early while reconciling deployments/allocations`,
             {

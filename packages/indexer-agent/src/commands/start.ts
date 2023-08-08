@@ -164,7 +164,7 @@ export default {
       .option('epoch-subgraph-endpoint', {
         description: 'Endpoint to query the epoch block oracle subgraph from',
         type: 'string',
-        required: true,
+        required: false,
         group: 'Protocol',
       })
       .option('index-node-ids', {
@@ -404,7 +404,6 @@ export default {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     argv: { [key: string]: any } & Argv['argv'],
   ): Promise<void> => {
-    console.log('handler')
     const logger = createLogger({
       name: 'IndexerAgent',
       async: false,
@@ -558,7 +557,9 @@ export default {
 
     const indexerAddress = toAddress(argv.indexerAddress)
 
-    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
+    let epochSubgraph
+    console.log(argv.epochSubgraphEndpoint, 'epoch subgraph ------------------')
+    if(argv.epochSubgraphEndpoint) epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
     const networkMonitor = new NetworkMonitor(
       resolveChainId(networkMeta.chainId),
