@@ -11,3 +11,5 @@
 [Arbitrum Goerli configuration](./networks/arbitrum-goerli.md)
 
 [Testnet setup instructions](./testnet-setup.md)
+
+[Feature Support Matrix (Ethereum & Arbitrum One)](./feature-support-matrix.md)
