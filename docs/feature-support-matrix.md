@@ -27,14 +27,11 @@ An example:
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
 | File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
 
-The accepted `graph-node` version range is also specificied, with an "upgrade window" from the previous version.
+The accepted `graph-node` version range is also specificied; it always comprises of the latest available version and the one immediately preceding it. Here's an example of a version range which includes both 0.30.X and 0.31.X:
 
 ```
-graph-node: ≥0.30.0 <0.31.0
-valid from: 787
-upgrade window: 795
+graph-node: >=0.30 <0.32
 ```
-
 
 - Aliases can be used in subgraph manifest files to refer to specific networks.
 - Experimental features are generally not fully supported for indexing rewards and arbitration, and usage of experimental features will be considered during any arbitration that does occur.

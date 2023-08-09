@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.17] - 2023-06-19
+### Changed
+- Check action batch feasibility at batch level only, improve batche efficiency
+- Improved logging detail when queueing allocation receipts for collecting
+- Update network alias value, polygon -> matic
+- Update partial-vouchers encoding scheme
+
 ## [0.20.12] - 2023-02-19
 ### Added
 - New `ReceiptMetrics` metric for allocation receipt collector
@@ -247,7 +254,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.17...HEAD
+[0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.10...v0.20.11
 [0.20.10]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.10

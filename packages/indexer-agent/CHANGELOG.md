@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.17] - 2023-06-19
+### Changed
+- Use updated batch stake feasibility check, improve potential action batch efficiency
+
 ## [0.20.12] - 2023-02-19
 ### Changed
 - Only require network current epoch resolutio if indexing a subgraph on network chain
@@ -430,8 +434,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.14...HEAD
-[0.20.14]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.14
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.17...HEAD
+[0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9

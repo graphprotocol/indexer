@@ -4,13 +4,13 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 
 ## Latest Releases
 
-| Component       | Release                                                                    |
-| --------------- | -------------------------------------------------------------------------- |
-| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)  |
+| Component       | Release                                                                      |
+| --------------- | ---------------------------------------------------------------------------- |
+| contracts       | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)    |
 | indexer-agent   | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
 | indexer-cli     | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
 | indexer-service | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
-| graph-node      | [0.30.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0) |
+| graph-node      | [0.31.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.31.0)   |
 
 ## Network Parameters
 
@@ -83,9 +83,7 @@ option can be used.
 > This defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration ([read more](../feature-support-matrix.md)).
 
 ```
-graph-node: ≥0.30.0 <0.31.0
-valid from: 787
-upgrade window: 795
+graph-node: >=0.30 <0.32
 ```
 
 | Subgraph Feature         | Aliases | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards |
@@ -109,4 +107,4 @@ upgrade window: 795
 | ENS                      |         | Yes         | Yes          | No                | No                   | No               |
 | File data sources: IPFS  |         | Yes         | Yes          | No                | Yes                  | Yes              |
 
-[Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x4fa76f9ae541bf883e547407270866ffeb8448f3b3fca90bb9c5bc46e31499c2)
+[Council snapshot](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x80c55bb8697d16fedb71ccdce40704f24e931cc28f289a029e0717f3b729e6a8)
