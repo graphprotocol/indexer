@@ -71,11 +71,5 @@
     "typechain": "8.0.0",
     "typescript": "4.6.3"
   },
-  "resolutions": {
-    "ethers": "5.7.0",
-    "sequelize": "6.19.0",
-    "@ethersproject/bignumber": "5.7.0",
-    "@ethersproject/providers": "5.7.0"
-  },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }

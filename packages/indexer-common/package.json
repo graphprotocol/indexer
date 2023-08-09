@@ -63,11 +63,5 @@
     "ts-jest": "27.1.4",
     "typescript": "4.6.3"
   },
-  "resolutions": {
-    "ethers": "5.7.0",
-    "sequelize": "6.19.0",
-    "@ethersproject/bignumber": "5.7.0",
-    "@urql/exchange-execute/@urql/core": "2.4.4"
-  },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }

@@ -1,15 +1,6 @@
 {
   "name": "root",
   "private": true,
-  "workspaces": {
-    "packages": [
-      "packages/indexer-common",
-      "packages/indexer-cli",
-      "packages/indexer-agent",
-      "packages/indexer-service",
-      "packages/indexer-native"
-    ]
-  },
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
@@ -21,27 +12,22 @@
     "compile": "lerna run compile"
   },
   "devDependencies": {
-    "@octokit/core": "3.2.0",
-    "lerna": "6.1.0"
+    "@octokit/core": "3.2.0"
   },
-  "resolutions": {
-    "ethers": "5.7.0",
-    "sequelize": "6.19.0",
-    "@ethersproject/bignumber": "5.7.0",
-    "@ethersproject/providers": "5.7.0",
-    "@urql/core": "2.4.4",
-    "@urql/exchange-execute": "1.2.2"
+  "pnpm": {
+    "overrides": {
+      "ethers": "5.7.0",
+      "sequelize": "6.19.0",
+      "@ethersproject/bignumber": "5.7.0",
+      "@ethersproject/providers": "5.7.0",
+      "@urql/core": "2.4.4",
+      "@urql/exchange-execute": "1.2.2",
+      "graphql": "16.3.0"
+    }
   },
-  "overrides": {
-    "ethers": "5.7.0",
-    "sequelize": "6.19.0",
-    "@ethersproject/bignumber": "5.7.0",
-    "@ethersproject/providers": "5.7.0",
-    "@urql/core": "2.4.4",
-    "@urql/exchange-execute": "1.2.2",
-    "graphql": "16.3.0"
-  },
+  "packageManager": "pnpm@8.3.1",
   "engines": {
-    "node": ">=12.22.0"
+    "node": ">=12.22.0",
+    "pnpm": ">=8"
   }
 }
