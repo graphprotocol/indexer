@@ -92,7 +92,13 @@ const setupAll = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
 
-  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  client = await createTestManagementClient(
+    __DATABASE__,
+    logger,
+    true,
+    metrics,
+    'eip155:1', // Override with mainnet to enable the Cost Model feature
+  )
 }
 
 const teardownAll = async () => {
@@ -718,6 +724,7 @@ describe('Feature: Inject $DAI variable', () => {
       logger,
       false,
       metrics,
+      'eip155:1', // Override with mainnet to enable the Cost Model feature
     )
 
     const initial = {

@@ -44,12 +44,15 @@ import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 
-// Temporary marker used to signal that the following contract calls have been deprecated in the
-// network it appears:
+// The new Exponential Rebates for Indexes brought changes to the protocol contracts that deprecated
+// the following methods:
 // - channelDisputeEpochs
 // - claimRebateRewards
-// Once Exponential Rebates have been deployed to all networks, these calls should be removed from
-// the code.
+// This variable acts as a signal to other parts of the code, showing that we've ignored the results
+// of these calls early in the current process.
+// This is important because the Exponential Rebates aren't active on the mainnet yet, which still
+// uses their results. Once those contract changes have been deployed to all networks, these calls
+// can be removed from the code.
 const EXPONENTIAL_REBATES_MARKER = -1
 
 type ActionReconciliationContext = [AllocationDecision[], number, number]
@@ -246,12 +249,12 @@ export class Agent {
       },
     )
 
-    this.buildEventualTree()
+    this.reconciliationLoop()
     return this
   }
 
-  buildEventualTree() {
-    const logger = this.logger.child({ context: 'reconciliation-loop' })
+  reconciliationLoop() {
+    const logger = this.logger.child({ component: 'ReconciliationLoop' })
     const currentEpochNumber: Eventual<NetworkMapped<number>> = timer(
       600_000,
     ).tryMap(
@@ -315,7 +318,6 @@ export class Agent {
           return this.multiNetworks.map(async ({ network, operator }) => {
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
-              context: 'reconciliation-loop',
             })
             let rules = await operator.indexingRules(true)
             const subgraphRuleIds = rules
@@ -1007,7 +1009,7 @@ export class Agent {
       deploymentIDSet(targetDeployments),
     )
     if (isReconciliationNeeded) {
-      // QUESTION: should we return early in here case reconciliation is not needed?
+      // TODO: Return early in here case reconciliation is not needed
       this.logger.debug('Reconcile deployments', {
         syncing: activeDeployments.map(id => id.display),
         target: targetDeployments.map(id => id.display),
@@ -1027,8 +1029,9 @@ export class Agent {
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
-    // QUESTION: Same as before: should we return early in here case reconciliation is
-    // not needed?
+    // TODO: Same as before: Should we return early in here case reconciliation is not needed? Also,
+    // this conditional seems the be doing the same work as the previous one, we should consolidate
+    // them.
     if (deploy.length + remove.length !== 0) {
       this.logger.info('Deployment changes', {
         deploy: deploy.map(id => id.display),
@@ -1130,7 +1133,7 @@ export class Agent {
       epoch,
     })
 
-    // QUESTION: Can we replace `filter` for `find` here? Is there such a case when we
+    // TODO: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
     const activeDeploymentAllocations = activeAllocations.filter(
       allocation =>
@@ -1182,8 +1185,6 @@ export class Agent {
     }
   }
 
-  // QUESTION: the `activeAllocations` parameter is used only for logging. Should we
-  // remove it from this function?
   async reconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
     epoch: NetworkMapped<number>,

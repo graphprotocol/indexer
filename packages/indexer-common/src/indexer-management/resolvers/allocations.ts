@@ -398,7 +398,15 @@ export default {
         const [currentEpoch, disputeEpochs, maxAllocationEpochs, epochLength] =
           await Promise.all([
             networkMonitor.networkCurrentEpoch(),
-            contracts.staking.channelDisputeEpochs(),
+            contracts.staking.channelDisputeEpochs().catch((error) => {
+              logger.warn(
+                'Failed to fetch channel dispute epochs. Ignoring claimable allocations',
+                { error, protocolNetwork: network.specification.networkIdentifier },
+              )
+              // Remove this call to channelDisputeEpochs once Exponential Rebates are deployed to
+              // all networks. Using a default value of zero on failure for now.
+              return 0
+            }),
             contracts.staking.maxAllocationEpochs(),
             contracts.epochManager.epochLength(),
           ])

@@ -4,7 +4,12 @@ import geohash from 'ngeohash'
 import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { indexerError, IndexerErrorCode, Network } from '@graphprotocol/indexer-common'
+import {
+  indexerError,
+  IndexerErrorCode,
+  Network,
+  validateNetworkIdentifier,
+} from '@graphprotocol/indexer-common'
 import { extractNetwork } from './utils'
 interface Test {
   test: (url: string) => string
@@ -57,7 +62,7 @@ const URL_VALIDATION_TEST: Test = {
 
 export default {
   indexerRegistration: async (
-    { protocolNetwork: unvalidateProtocolNetwork }: { protocolNetwork: string },
+    { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string },
     { multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!multiNetworks) {
@@ -66,7 +71,7 @@ export default {
       )
     }
 
-    const network = extractNetwork(unvalidateProtocolNetwork, multiNetworks)
+    const network = extractNetwork(unvalidatedProtocolNetwork, multiNetworks)
     const protocolNetwork = network.specification.networkIdentifier
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
@@ -163,7 +168,7 @@ export default {
   },
 
   indexerEndpoints: async (
-    { protocolNetwork }: { protocolNetwork: string },
+    { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string | null },
     { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<Endpoints[] | null> => {
     if (!multiNetworks) {
@@ -172,7 +177,27 @@ export default {
       )
     }
     const endpoints: Endpoints[] = []
+    let networkIdentifier: string | null = null
+
+    // Validate protocol network
+    try {
+      if (unvalidatedProtocolNetwork) {
+        networkIdentifier = validateNetworkIdentifier(unvalidatedProtocolNetwork)
+      }
+    } catch (parseError) {
+      throw new Error(
+        `Invalid protocol network identifier: '${unvalidatedProtocolNetwork}'. Error: ${parseError}`,
+      )
+    }
+
     await multiNetworks.map(async (network: Network) => {
+      // Skip if this query asks for another protocol network
+      if (
+        networkIdentifier &&
+        networkIdentifier !== network.specification.networkIdentifier
+      ) {
+        return
+      }
       try {
         const networkEndpoints = await endpointForNetwork(network)
         endpoints.push(networkEndpoints)
