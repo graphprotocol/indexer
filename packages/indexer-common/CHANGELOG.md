@@ -5,20 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.18] - 2023-08-11
 ### Added
-
 - The `Network` type now holds references to all network-specific components, such as the `NetworkMonitor` and `Contracts` classes.
-
 - Introduced `GraphNode` class to replace `Indexer`, `Subgraph`, and `IndexingStatus` classes.
-
 - New general purpose `parser` module, used for input validation.
-
 - New `NetworkSpecification` type, which holds all information required to represent a protocol network.
 
 ### Changed
 - Added `protocolNetwork` field to most types.
-
-
 
 ## [0.20.17] - 2023-06-19
 ### Changed
@@ -268,7 +264,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.17...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.18...HEAD
+[0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
 [0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.10...v0.20.11
