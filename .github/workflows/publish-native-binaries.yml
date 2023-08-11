@@ -4,9 +4,11 @@
 name: "Publish binaries"
 
 on:
+  workflow_dispatch:
   release:
     types:
       - created
+      - published
 
 jobs:
   publish-github:
