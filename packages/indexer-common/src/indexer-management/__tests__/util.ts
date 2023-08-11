@@ -60,6 +60,7 @@ export const createTestManagementClient = async (
   logger: Logger,
   injectDai: boolean,
   metrics: Metrics,
+  networkIdentifierOverride?: string,
 ): Promise<IndexerManagementClient> => {
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
@@ -99,6 +100,10 @@ export const createTestManagementClient = async (
     graphNode,
     metrics,
   )
+
+  if (networkIdentifierOverride) {
+    network.specification.networkIdentifier = networkIdentifierOverride
+  }
 
   const multiNetworks = new MultiNetworks(
     [network],

@@ -371,9 +371,6 @@ export async function createNetworkSpecification(
   }
 }
 
-// TODO: Split this code into two functions:
-// 1. [X] Create NetworkSpecification
-// 2. [ ] Start Agent with NetworkSpecification as input.
 export async function run(
   argv: AgentOptions,
   networkSpecifications: spec.NetworkSpecification[],
@@ -519,7 +516,9 @@ export async function run(
     multiNetworks,
   })
 
+  // --------------------------------------------------------------------------------
   // * Indexer Management Server
+  // --------------------------------------------------------------------------------
   logger.info('Launch indexer management API server', {
     port: argv.indexerManagementPort,
   })

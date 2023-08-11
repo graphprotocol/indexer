@@ -377,7 +377,7 @@ const SCHEMA_SDL = gql`
     indexerRegistration(protocolNetwork: String!): IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
     indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
-    indexerEndpoints(protocolNetwork: String!): [IndexerEndpoints!]!
+    indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel

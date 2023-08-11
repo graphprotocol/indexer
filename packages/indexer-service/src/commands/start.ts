@@ -39,7 +39,6 @@ export default {
   builder: (yargs: Argv): Argv => {
     return yargs
       .option('network-provider', {
-        //TODO:FIXME: uptrade this field as we did for Agent
         alias: 'ethereum',
         description: 'Ethereum node or provider URL',
         type: 'string',

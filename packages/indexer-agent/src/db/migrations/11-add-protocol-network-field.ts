@@ -18,7 +18,6 @@ interface ForeignKey {
   table: string
   // This table's column that holds the FK
   columnName: string
-  // Could also be composite, but we don't have any of that kind at this moment
   refColumnName: string
 }
 

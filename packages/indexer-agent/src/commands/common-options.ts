@@ -132,7 +132,7 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
     .check(argv => {
       // Unset arguments set to empty strings.
       // This can happen when users set their options as enviroment variables and don't
-      // assign any vaule to them.
+      // assign any value to them.
       //
       // For example:
       // ```sh

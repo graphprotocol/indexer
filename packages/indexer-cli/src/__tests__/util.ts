@@ -28,6 +28,7 @@ import {
   Logger,
   parseGRT,
 } from '@graphprotocol/common-ts'
+import cloneDeep from 'lodash.clonedeep'
 
 const INDEXER_SAVE_CLI_TEST_OUTPUT: boolean =
   !!process.env.INDEXER_SAVE_CLI_TEST_OUTPUT &&
@@ -119,8 +120,11 @@ export const setup = async () => {
     metrics,
   )
 
+  const fakeMainnetNetwork = cloneDeep(network) as Network
+  fakeMainnetNetwork.specification.networkIdentifier = 'eip155:1'
+
   const multiNetworks = new MultiNetworks(
-    [network],
+    [network, fakeMainnetNetwork],
     (n: Network) => n.specification.networkIdentifier,
   )
 
