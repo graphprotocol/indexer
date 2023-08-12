@@ -5,7 +5,7 @@ FROM node:18.17-bullseye-slim as build
 
 ENV NODE_ENV production
 
-RUN apt-get update && apt-get install -y python build-essential git curl
+RUN apt-get update && apt-get install -y python3 build-essential git curl
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
@@ -34,7 +34,7 @@ FROM node:18.17-bullseye-slim
 
 ENV NODE_ENV production
 
-RUN apt-get update && apt-get install -y python build-essential git curl
+RUN apt-get update && apt-get install -y python3 build-essential git curl
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
