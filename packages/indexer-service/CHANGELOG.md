@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.19] - 2023-08-12
+## Changed
+- Revert indexer-native to 0.20.11 (newer builds are broken)
+
+## [0.20.18] - 2023-08-11
+## Changed
+- Changes to support the multi-network changes from indexer-common
+
 ## [0.20.17] - 2023-06-19
 ### Changed
 - Use new partial-vouchers encoding, json
