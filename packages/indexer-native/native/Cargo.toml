@@ -3,7 +3,6 @@ name = "indexer-native"
 version = "0.1.0"
 authors = ["Zac Burns <That3Percent@gmail.com>"]
 license = "MIT"
-build = "build.rs"
 edition = "2018"
 exclude = ["artifacts.json", "index.node"]
 
@@ -11,12 +10,8 @@ exclude = ["artifacts.json", "index.node"]
 name = "indexer_native"
 crate-type = ["cdylib"]
 
-[build-dependencies]
-neon-build = "0.9.1"
-
 [dependencies]
-neon = "0.9"
-neon-utils = { git = "https://github.com/edgeandnode/neon-utils", rev = "2507d4f" }
+neon-utils = { git = "https://github.com/edgeandnode/neon-utils", rev = "484d139" }
 secp256k1 = { version = "0.20", features = ["recovery"] }
 never = "0.1"
 keccak-hash = "0.5.1"
@@ -25,3 +20,8 @@ arc-swap = "1.2"
 eip-712-derive = { git = "https://github.com/graphprotocol/eip-712-derive" }
 hex = "0.4.2"
 primitive-types = "0.8"
+
+[dependencies.neon]
+version = "0.10.1"
+default-features = false
+features = ["napi-6"]

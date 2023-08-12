@@ -22,31 +22,31 @@ use std::convert::TryInto as _;
 type Address = [u8; 20];
 
 pub type SignatureVerifierProxy = Proxy<SignatureVerifier>;
-impl SignatureVerifierImpl for SignatureVerifierProxy {}
-// The actual implementation of the JS proxy class. This serves to deserialize arguments
-// and forward the work to the SignatureVerifier
-trait SignatureVerifierImpl: Sized + From<SignatureVerifier> {
-    fn _init<'c>(cx: &mut CallContext<'c, JsUndefined>) -> SafeResult<Self> {
-        let address: Address = cx.arg(0)?;
-        let inner = SignatureVerifier::new(address);
-        Ok(inner.into())
-    }
+// impl SignatureVerifierImpl for SignatureVerifierProxy {}
+// // The actual implementation of the JS proxy class. This serves to deserialize arguments
+// // and forward the work to the SignatureVerifier
+// trait SignatureVerifierImpl: Sized + From<SignatureVerifier> {
+//     fn _init<'c>(cx: &mut CallContext<'c, JsUndefined>) -> SafeResult<Self> {
+//         let address: Address = cx.arg(0)?;
+//         let inner = SignatureVerifier::new(address);
+//         Ok(inner.into())
+//     }
 
-    fn _verify<'c, 'b>(cx: &'b mut MethodContext<'c, NativeSignatureVerifier>) -> SafeResult<()> {
-        let this = Proxy::this(cx);
-        let callback = cx.argument::<JsFunction>(0)?;
-        // TODO: Performance
-        // The Arg Trait encourages doing more work than is necessary in the main thread.
-        // For example, this message comes in as a JsString. The JsString -> String must
-        // happen in the main thread, but the decoding of hex to Vec<u8> can be deferred.
-        let message: Vec<u8> = cx.arg(1)?;
-        let signature: RecoverableSignature = cx.arg(2)?;
+//     fn _verify<'c, 'b>(cx: &'b mut MethodContext<'c, NativeSignatureVerifier>) -> SafeResult<()> {
+//         let this = Proxy::this(cx);
+//         let callback = cx.argument::<JsFunction>(0)?;
+//         // TODO: Performance
+//         // The Arg Trait encourages doing more work than is necessary in the main thread.
+//         // For example, this message comes in as a JsString. The JsString -> String must
+//         // happen in the main thread, but the decoding of hex to Vec<u8> can be deferred.
+//         let message: Vec<u8> = cx.arg(1)?;
+//         let signature: RecoverableSignature = cx.arg(2)?;
 
-        run_async(callback, move || this.verify(&message, &signature));
+//         run_async(callback, move || this.verify(&message, &signature));
 
-        Ok(())
-    }
-}
+//         Ok(())
+//     }
+// }
 
 pub type AttestationSignerProxy = Proxy<AttestationSigner>;
 impl AttestationSignerImpl for AttestationSignerProxy {}
@@ -80,21 +80,44 @@ pub trait AttestationSignerImpl: Sized + From<AttestationSigner> {
     }
 }
 
+impl Finalize for SignatureVerifierProxy { }
+impl Finalize for AttestationSignerProxy { }
+
 // This macro is annoying in that it leaves out type declarations.
 // So it's just being used as a thin wrapper to the actual code.
-declare_types! {
-    pub class NativeSignatureVerifier for SignatureVerifierProxy {
-        init(mut cx) { SignatureVerifierProxy::_init(&mut cx).finish(cx) }
-        method verify(mut cx) { SignatureVerifierProxy::_verify(&mut cx).finish(cx).map(|v| v.upcast()) }
-    }
+// declare_types! {
+//     pub class NativeSignatureVerifier for SignatureVerifierProxy {
+//         init(mut cx) { SignatureVerifierProxy::_init(&mut cx).finish(cx) }
+//         method verify(mut cx) { SignatureVerifierProxy::_verify(&mut cx).finish(cx).map(|v| v.upcast()) }
+//     }
 
-    pub class NativeAttestationSigner for AttestationSignerProxy {
-        init(mut cx) { AttestationSignerProxy::_init(&mut cx).finish(cx) }
-        method createAttestation(mut cx) { AttestationSignerProxy::_create_attestation(&mut cx).finish(cx).map(|v| v.upcast()) }
-    }
+//     pub class NativeAttestationSigner for AttestationSignerProxy {
+//         init(mut cx) { AttestationSignerProxy::_init(&mut cx).finish(cx) }
+//         method createAttestation(mut cx) { AttestationSignerProxy::_create_attestation(&mut cx).finish(cx).map(|v| v.upcast()) }
+//     }
+// }
+
+fn create_signature_verifier(mut cx: FunctionContext) -> JsResult<JsBox<SignatureVerifierProxy>> {
+    let addr = cx.argument::<JsString>(0)?.value(&mut cx);
+    Ok(cx.boxed(SignatureVerifier::new(addr)))
 }
 
-register_module!(mut cx, {
-    cx.export_class::<NativeSignatureVerifier>("NativeSignatureVerifier")?;
-    cx.export_class::<NativeAttestationSigner>("NativeAttestationSigner")
-});
+fn verify_signature(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    let verifier = cx.argument::<JsBox<SignatureVerifierProxy>>(0).clone()?;
+    let callback = cx.argument::<JsFunction>(1)?;
+    let message: Vec<u8> = cx.arg(2)?;
+    let signature: RecoverableSignature = cx.arg(3)?;
+    run_async(callback, move || verifier.verify(&message, &signature));
+    Ok(cx.boolean(result))
+}
+
+fn create_attestation_signer
+
+#[neon::main]
+fn main(mut cx: ModuleContext) -> NeonResult<()> {
+    cx.export_function("create_signature_verifier", create_signature_verifier)?;
+    cx.export_function("verify_signature", verify_signature)?;
+    cx.export_function("create_attestation_signer", create_attestation_signer)?;
+    cx.export_function("create_attestation", create_attestation)?;
+    Ok(());
+}
