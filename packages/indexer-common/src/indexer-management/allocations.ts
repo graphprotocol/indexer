@@ -108,11 +108,15 @@ export class AllocationManager {
   }
 
   async executeTransactions(actions: Action[]): Promise<TransactionResult> {
+    const logger = this.logger.child({ function: 'executeTransactions' })
+    logger.trace('Begin executing transactions', { actions })
     if (actions.length < 1) {
       throw Error('Failed to populate batch transaction: no transactions supplied')
     }
 
     const validatedActions = await this.validateActionBatchFeasibilty(actions)
+    logger.trace('Validated actions', { validatedActions })
+
     const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
     const failedTransactionPreparations = populateTransactionsResults
@@ -120,14 +124,20 @@ export class AllocationManager {
       .map((result) => result as ActionFailure)
 
     if (failedTransactionPreparations.length > 0) {
+      logger.trace('Failed to prepare transactions', { failedTransactionPreparations })
       return failedTransactionPreparations
     }
+
+    logger.trace('Prepared transactions ', {
+      preparedTransactions: populateTransactionsResults,
+    })
 
     const callData = populateTransactionsResults
       .flat()
       .map((tx) => tx as PopulatedTransaction)
       .filter((tx: PopulatedTransaction) => !!tx.data)
       .map((tx) => tx.data as string)
+    logger.trace('Prepared transaction calldata', { callData })
 
     return await this.network.transactionManager.executeTransaction(
       async () => this.network.contracts.staking.estimateGas.multicall(callData),
@@ -1059,6 +1069,14 @@ export class AllocationManager {
       .map((summary: ActionStakeUsageSummary) => summary.balance)
       .reduce((a: BigNumber, b: BigNumber) => a.add(b))
     const indexerNewBalance = indexerFreeStake.sub(batchDelta)
+
+    logger.trace('Action batch stake usage summary', {
+      indexerFreeStake,
+      actionsBatchStakeusageSummaries,
+      batchDelta,
+      indexerNewBalance,
+    })
+
     if (indexerNewBalance.isNegative()) {
       {
         throw indexerError(
