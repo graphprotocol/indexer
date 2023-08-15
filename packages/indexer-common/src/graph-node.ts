@@ -97,10 +97,25 @@ export class GraphNode {
   async connect(): Promise<void> {
     try {
       this.logger.info(`Check if indexing status API is available`)
-      const currentDeployments = await this.subgraphDeployments()
-      this.logger.info(`Successfully connected to indexing status API`, {
-        currentDeployments: currentDeployments.map((deployment) => deployment.display),
-      })
+      await pRetry(
+        async () => {
+          const deployments = await this.subgraphDeployments()
+          this.logger.info(`Successfully connected to indexing status API`, {
+            currentDeployments: deployments.map((deployment) => deployment.display),
+          })
+        },
+        {
+          retries: 10,
+          maxTimeout: 10000,
+          onFailedAttempt: (err) => {
+            this.logger.warn(`Indexing statuses could not be queried`, {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            })
+          },
+        } as pRetry.Options,
+      )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE024, error)
       this.logger.error(`Failed to connect to indexing status API`, {
@@ -142,6 +157,13 @@ export class GraphNode {
 
       if (result.error) {
         throw result.error
+      }
+
+      if (!result.data.indexingStatuses || result.data.length === 0) {
+        this.logger.warn(`No 'indexingStatuses' data returned from index nodes`, {
+          data: result.data,
+        })
+        return []
       }
 
       type QueryResult = { subgraphDeployment: string; node: string }
