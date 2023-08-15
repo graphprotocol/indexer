@@ -279,7 +279,7 @@ export class Agent {
           protocolNetwork: network.specification.networkIdentifier,
         })
         try {
-          return network.contracts.staking.channelDisputeEpochs()
+          return await network.contracts.staking.channelDisputeEpochs()
         } catch (error) {
           // Disregards `channelDisputeEpochs` value from this point forward.
           // TODO: Investigate error to confirm it comes from a reverted call.
