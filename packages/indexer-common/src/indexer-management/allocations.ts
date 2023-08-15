@@ -178,17 +178,39 @@ export class AllocationManager {
   ): utils.Result | undefined {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
 
-    return events
+    const decodedEvents: utils.Result[] = []
+
+    const result = events
       .filter((event) =>
         event.topics.includes(contractInterface.getEventTopic(eventType)),
       )
-      .map((event) =>
-        contractInterface.decodeEventLog(eventType, event.data, event.topics),
-      )
+      .map((event) => {
+        const decoded = contractInterface.decodeEventLog(
+          eventType,
+          event.data,
+          event.topics,
+        )
+        decodedEvents.push(decoded)
+        return decoded
+      })
       .find(
         (eventLogs: utils.Result) =>
           eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
       )
+
+    this.logger.trace('Searched for event logs', {
+      function: 'findEvent',
+      events,
+      decodedEvents,
+      eventType,
+      logKey,
+      logValue,
+      receipt,
+      found: !!result,
+      result,
+    })
+
+    return result
   }
 
   async confirmActionExecution(
