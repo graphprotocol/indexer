@@ -36,6 +36,11 @@ jobs:
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
+      - name: update OS
+        run: |
+          sudo apt-get update
+          sudo apt install -y --no-install-recommends gcc g++ make build-essential
+        if: ${{ runner.os == 'Linux' }}
       - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2.1.5
         with:
