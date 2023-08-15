@@ -36,6 +36,7 @@ import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
 import pRetry from 'p-retry'
 import { IndexerOptions } from '../network-specification'
+import pMap from 'p-map'
 
 // The new read only Network class
 export class NetworkMonitor {
@@ -988,7 +989,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return mutable(true)
     }
 
-    return timer(60_000)
+    return timer(300_000)
       .reduce(async (isOperator) => {
         try {
           logger.debug('Check operator status')
@@ -1195,34 +1196,52 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       }
 
       // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
-      let disputableEpochs = await this.epochs([
+      const disputableEpochs = await this.epochs([
         ...allocations.reduce((epochNumbers: Set<number>, allocation: Allocation) => {
           epochNumbers.add(allocation.closedAtEpoch)
           epochNumbers.add(allocation.closedAtEpoch - 1)
           return epochNumbers
         }, new Set()),
       ])
+      const availableEpochs = await pMap(
+        disputableEpochs,
+        async (epoch) => {
+          try {
+            const startBlock = await this.ethereum.getBlock(epoch.startBlock)
+            epoch.startBlockHash = startBlock?.hash
+          } catch {
+            logger.debug('Failed to fetch block hash for startBlock of epoch', {
+              epoch: epoch.id,
+              startBlock: epoch.startBlock,
+            })
+          }
 
-      disputableEpochs = await Promise.all(
-        disputableEpochs.map(async (epoch: Epoch): Promise<Epoch> => {
-          // TODO: May need to retry or skip epochs where obtaining start block fails
-          epoch.startBlockHash = (await this.ethereum.getBlock(epoch.startBlock))?.hash
           return epoch
-        }),
+        },
+        {
+          stopOnError: true,
+          concurrency: 1,
+        },
       )
+      availableEpochs.filter((epoch) => !!epoch.startBlockHash)
 
-      return await Promise.all(
-        allocations.map(async (allocation) => {
+      return await pMap(
+        allocations,
+        async (allocation) => {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.closedAtEpochStartBlockHash = disputableEpochs.find(
+          allocation.closedAtEpochStartBlockHash = availableEpochs.find(
             (epoch) => epoch.id == allocation.closedAtEpoch,
-          )!.startBlockHash
+          )?.startBlockHash
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.previousEpochStartBlockHash = disputableEpochs.find(
+          allocation.previousEpochStartBlockHash = availableEpochs.find(
             (epoch) => epoch.id == allocation.closedAtEpoch - 1,
-          )!.startBlockHash
+          )?.startBlockHash
           return allocation
-        }),
+        },
+        {
+          stopOnError: true,
+          concurrency: 1,
+        },
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE037, error)

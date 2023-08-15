@@ -309,42 +309,6 @@ export class Network {
     return networkProvider
   }
 
-  async epochs(epochNumbers: number[]): Promise<Epoch[]> {
-    try {
-      const result = await this.networkSubgraph.query(
-        gql`
-          query epochs($epochs: [Int!]!) {
-            epoches(where: { id_in: $epochs }, first: 1000) {
-              id
-              startBlock
-              endBlock
-              signalledTokens
-              stakeDeposited
-              queryFeeRebates
-              totalRewards
-              totalIndexerRewards
-              totalDelegatorRewards
-            }
-          }
-        `,
-        {
-          epochs: epochNumbers,
-        },
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-      return result.data.epoches.map(parseGraphQLEpochs)
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE038, error)
-      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE038], {
-        err,
-      })
-      throw err
-    }
-  }
-
   // Start of SEND functions
   async register(): Promise<void> {
     const geoHash = geohash.encode(
