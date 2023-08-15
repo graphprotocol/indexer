@@ -51,7 +51,9 @@ async function executeQueueOperation(
 
   // Check for duplicated actions
   const duplicateActions = actionsAwaitingExecution.filter(
-    (a) => a.deploymentID === action.deploymentID,
+    (a) =>
+      a.deploymentID === action.deploymentID &&
+      a.protocolNetwork === action.protocolNetwork,
   )
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
