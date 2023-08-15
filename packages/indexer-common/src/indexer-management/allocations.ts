@@ -97,8 +97,11 @@ export class AllocationManager {
   ) {}
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
+    const logger = this.logger.child({ function: 'executeBatch' })
+    logger.trace('Executing action batch', { actions })
     const result = await this.executeTransactions(actions)
     if (Array.isArray(result)) {
+      logger.trace('Execute batch transaction failed', { actionBatchResult: result })
       return result as ActionFailure[]
     }
     return await this.confirmTransactions(result, actions)
@@ -141,6 +144,12 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     actions: Action[],
   ): Promise<AllocationResult[]> {
+    const logger = this.logger.child({
+      function: 'confirmTransactions',
+      receipt,
+      actions,
+    })
+    logger.trace('Confirming transaction')
     return pMap(
       actions,
       async (action: Action) => {
