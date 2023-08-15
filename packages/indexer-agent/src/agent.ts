@@ -233,7 +233,14 @@ export class Agent {
     // * Connect to Graph Node
     // --------------------------------------------------------------------------------
     this.logger.info(`Connect to Graph node(s)`)
-    await this.graphNode.connect()
+    try {
+      await this.graphNode.connect()
+    } catch {
+      this.logger.critical(
+        `Could not connect to Graph node(s) and query indexing statuses. Exiting. `,
+      )
+      process.exit(1)
+    }
     this.logger.info(`Connected to Graph node(s)`)
 
     // --------------------------------------------------------------------------------
@@ -243,9 +250,19 @@ export class Agent {
     // --------------------------------------------------------------------------------
     await this.multiNetworks.map(
       async ({ network, operator }: NetworkAndOperator) => {
-        operator.ensureGlobalIndexingRule()
-        this.ensureNetworkSubgraphIsIndexing(network)
-        network.register()
+        try {
+          await operator.ensureGlobalIndexingRule()
+          await this.ensureNetworkSubgraphIsIndexing(network)
+          await network.register()
+        } catch (err) {
+          this.logger.critical(
+            `Failed to prepare indexer for ${network.specification.networkIdentifier}`,
+            {
+              error: err.message,
+            },
+          )
+          process.exit(1)
+        }
       },
     )
 
@@ -527,7 +544,7 @@ export class Agent {
                   decision.ruleMatch.activationCriteria =
                     ActivationCriteria.L2_TRANSFER_SUPPORT
                   logger.debug(
-                    `Allocating towards L2 subgraph deployment after transfer finished`,
+                    `Allocating towards transferred L2 subgraph deployment`,
                     {
                       subgraphDeployment: matchingTransfer,
                       allocationDecision: decision,
@@ -1305,19 +1322,20 @@ export class Agent {
     if (
       network.specification.subgraphs.networkSubgraph.deployment !== undefined
     ) {
-      // Make sure the network subgraph is being indexed
-      await this.graphNode.ensure(
-        `indexer-agent/${network.specification.subgraphs.networkSubgraph.deployment.slice(
-          -10,
-        )}`,
-        new SubgraphDeploymentID(
-          network.specification.subgraphs.networkSubgraph.deployment,
-        ),
-      )
-
-      // Validate if the Network Subgraph belongs to the current provider's network.
-      // This check must be performed after we ensure the Network Subgraph is being indexed.
       try {
+        // TODO: Check both the local deployment and the external subgraph endpoint
+        // Make sure the network subgraph is being indexed
+        await this.graphNode.ensure(
+          `indexer-agent/${network.specification.subgraphs.networkSubgraph.deployment.slice(
+            -10,
+          )}`,
+          new SubgraphDeploymentID(
+            network.specification.subgraphs.networkSubgraph.deployment,
+          ),
+        )
+
+        // Validate if the Network Subgraph belongs to the current provider's network.
+        // This check must be performed after we ensure the Network Subgraph is being indexed.
         await validateProviderNetworkIdentifier(
           network.specification.networkIdentifier,
           network.specification.subgraphs.networkSubgraph.deployment,
@@ -1325,8 +1343,10 @@ export class Agent {
           this.logger,
         )
       } catch (e) {
-        this.logger.critical('Failed to validate Network Subgraph. Exiting.', e)
-        process.exit(1)
+        this.logger.warn(
+          'Failed to deploy and validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
+          e,
+        )
       }
     }
   }
