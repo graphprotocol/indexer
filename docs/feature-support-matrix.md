@@ -29,16 +29,17 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | File data sources: IPFS  |               | Yes         | Yes          | No                | Yes                  | Yes              |
 | Substreams data sources  | mainnet       | Yes         | Yes          | Yes               | Yes                  | Yes              | 
 
-The accepted `graph-node` version range must always be specificied; it always comprises of the latest available version and the one immediately preceding it. 
+The accepted `graph-node` version range must always be specified; it always comprises the latest available version and the one immediately preceding it. 
 The latest for the feature matrix above:
 
 ```
-graph-node: >=0.31 <0.32
+graph-node: >=0.32 <0.33
 ```
 
 ### Latest Council snapshot
-[GGP-0026: Updated Feature Matrix Support (Graph Node v0.31.0)
-](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x80c55bb8697d16fedb71ccdce40704f24e931cc28f289a029e0717f3b729e6a8)
+[GPP-0025 Update Feature Support Matrix (Graph Node v0.31.0) Substreams Data Sources](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xb4b297e553a1ed29bfa9a0e0ad121947c186e332df3dfff2a6526ddd545bd796)
+
+
 
 
 ### Other notes
