@@ -340,15 +340,28 @@ export default {
 
   executeApprovedActions: async (
     _: unknown,
-    { logger, actionManager }: IndexerManagementResolverContext,
+    { logger: parentLogger, actionManager }: IndexerManagementResolverContext,
   ): Promise<Action[]> => {
-    logger.debug(`Execute 'executeApprovedActions' mutation`)
+    const logger = parentLogger.child({ function: 'executeApprovedActions' })
+    logger.trace(`Begin executing 'executeApprovedActions' mutation`)
     if (!actionManager) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
-
     const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
-      (network: Network) => actionManager.executeApprovedActions(network),
+      (network: Network) => {
+        logger.debug(`Execute 'executeApprovedActions' mutation`, {
+          protocolNetwork: network.specification.networkIdentifier,
+        })
+        try {
+          return await actionManager.executeApprovedActions(network)
+        } catch (error) {
+          logger.error('Failed to execute approved actions for network', {
+            protocolNetwork: network.specification.networkIdentifier,
+            error,
+          })
+          return []
+        }
+      },
     )
     return Object.values(result).flat()
   },
