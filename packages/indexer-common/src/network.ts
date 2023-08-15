@@ -8,12 +8,10 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
-  Epoch,
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
   NetworkSubgraph,
-  parseGraphQLEpochs,
   TransactionManager,
   specification as spec,
   GraphNode,
@@ -23,7 +21,6 @@ import {
 } from '.'
 import { BigNumber, providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
-import gql from 'graphql-tag'
 import geohash from 'ngeohash'
 import pFilter from 'p-filter'
 import pRetry from 'p-retry'

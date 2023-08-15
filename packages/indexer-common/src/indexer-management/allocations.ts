@@ -97,19 +97,26 @@ export class AllocationManager {
   ) {}
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
+    const logger = this.logger.child({ function: 'executeBatch' })
+    logger.trace('Executing action batch', { actions })
     const result = await this.executeTransactions(actions)
     if (Array.isArray(result)) {
+      logger.trace('Execute batch transaction failed', { actionBatchResult: result })
       return result as ActionFailure[]
     }
     return await this.confirmTransactions(result, actions)
   }
 
   async executeTransactions(actions: Action[]): Promise<TransactionResult> {
+    const logger = this.logger.child({ function: 'executeTransactions' })
+    logger.trace('Begin executing transactions', { actions })
     if (actions.length < 1) {
       throw Error('Failed to populate batch transaction: no transactions supplied')
     }
 
     const validatedActions = await this.validateActionBatchFeasibilty(actions)
+    logger.trace('Validated actions', { validatedActions })
+
     const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
     const failedTransactionPreparations = populateTransactionsResults
@@ -117,14 +124,20 @@ export class AllocationManager {
       .map((result) => result as ActionFailure)
 
     if (failedTransactionPreparations.length > 0) {
+      logger.trace('Failed to prepare transactions', { failedTransactionPreparations })
       return failedTransactionPreparations
     }
+
+    logger.trace('Prepared transactions ', {
+      preparedTransactions: populateTransactionsResults,
+    })
 
     const callData = populateTransactionsResults
       .flat()
       .map((tx) => tx as PopulatedTransaction)
       .filter((tx: PopulatedTransaction) => !!tx.data)
       .map((tx) => tx.data as string)
+    logger.trace('Prepared transaction calldata', { callData })
 
     return await this.network.transactionManager.executeTransaction(
       async () => this.network.contracts.staking.estimateGas.multicall(callData),
@@ -141,6 +154,12 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     actions: Action[],
   ): Promise<AllocationResult[]> {
+    const logger = this.logger.child({
+      function: 'confirmTransactions',
+      receipt,
+      actions,
+    })
+    logger.trace('Confirming transaction')
     return pMap(
       actions,
       async (action: Action) => {
@@ -178,17 +197,39 @@ export class AllocationManager {
   ): utils.Result | undefined {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
 
-    return events
-      .filter((event) =>
-        event.topics.includes(contractInterface.getEventTopic(eventType)),
-      )
-      .map((event) =>
-        contractInterface.decodeEventLog(eventType, event.data, event.topics),
-      )
+    const decodedEvents: utils.Result[] = []
+    const topic = contractInterface.getEventTopic(eventType)
+
+    const result = events
+      .filter((event) => event.topics.includes(topic))
+      .map((event) => {
+        const decoded = contractInterface.decodeEventLog(
+          eventType,
+          event.data,
+          event.topics,
+        )
+        decodedEvents.push(decoded)
+        return decoded
+      })
       .find(
         (eventLogs: utils.Result) =>
           eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
       )
+
+    this.logger.trace('Searched for event logs', {
+      function: 'findEvent',
+      topic,
+      events,
+      decodedEvents,
+      eventType,
+      logKey,
+      logValue,
+      receipt,
+      found: !!result,
+      result,
+    })
+
+    return result
   }
 
   async confirmActionExecution(
@@ -877,12 +918,21 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.network.networkMonitor.allocation(allocationID)
-    // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-      actionID,
-      allocation,
-    )
+    let isCollectingQueryFees = false
+    try {
+      const allocation = await this.network.networkMonitor.allocation(allocationID)
+      // Collect query fees for this allocation
+      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+        actionID,
+        allocation,
+      )
+      logger.debug('Finished receipt collection')
+    } catch(err) {
+      logger.error('Failed to collect receipts', {
+        err,
+      })
+      throw err
+    }
 
     // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
     if (!(await this.matchingRuleExists(logger, subgraphDeploymentID))) {
@@ -1028,6 +1078,14 @@ export class AllocationManager {
       .map((summary: ActionStakeUsageSummary) => summary.balance)
       .reduce((a: BigNumber, b: BigNumber) => a.add(b))
     const indexerNewBalance = indexerFreeStake.sub(batchDelta)
+
+    logger.trace('Action batch stake usage summary', {
+      indexerFreeStake,
+      actionsBatchStakeusageSummaries,
+      batchDelta,
+      indexerNewBalance,
+    })
+
     if (indexerNewBalance.isNegative()) {
       {
         throw indexerError(

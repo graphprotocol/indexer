@@ -225,56 +225,68 @@ export class ActionManager {
 
   async executeApprovedActions(network: Network): Promise<Action[]> {
     let updatedActions: Action[] = []
+    const protocolNetwork = network.specification.networkIdentifier
+    const logger = this.logger.child({
+      function: 'executeApprovedActions',
+      protocolNetwork,
+    })
 
+    logger.trace('Begin database transaction for executing approved actions')
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await this.models.Action.sequelize!.transaction(
       { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
       async (transaction) => {
-        // Execute already approved actions in the order of type and priority.
-        // Unallocate actions are prioritized to free up stake that can be used
-        // in subsequent reallocate and allocate actions.
-        // Reallocate actions are prioritized before allocate as they are for
-        // existing syncing deployments with relatively smaller changes made.
-        const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
-        const approvedActions = (
-          await this.models.Action.findAll({
-            where: {
-              status: ActionStatus.APPROVED,
-              protocolNetwork: network.specification.networkIdentifier,
-            },
-            order: [['priority', 'ASC']],
-            transaction,
-            lock: transaction.LOCK.UPDATE,
+        let approvedActions
+        try {
+          // Execute already approved actions in the order of type and priority.
+          // Unallocate actions are prioritized to free up stake that can be used
+          // in subsequent reallocate and allocate actions.
+          // Reallocate actions are prioritized before allocate as they are for
+          // existing syncing deployments with relatively smaller changes made.
+          const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
+          approvedActions = (
+            await this.models.Action.findAll({
+              where: {
+                status: ActionStatus.APPROVED,
+                protocolNetwork,
+              },
+              order: [['priority', 'ASC']],
+              transaction,
+              lock: transaction.LOCK.UPDATE,
+            })
+          ).sort(function (a, b) {
+            return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
           })
-        ).sort(function (a, b) {
-          return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
-        })
 
-        if (approvedActions.length === 0) {
-          this.logger.info('No approved actions were found for this network', {
-            protocolNetwork: network.specification.networkIdentifier,
-          })
+          if (approvedActions.length === 0) {
+            logger.debug('No approved actions were found for this network')
+            return []
+          }
+          logger.debug(
+            `Found ${approvedActions.length} approved actions for this network `,
+            { approvedActions },
+          )
+        } catch (error) {
+          logger.error('Failed to query approved actions for network', { error })
           return []
         }
-
         try {
           // This will return all results if successful, if failed it will return the failed actions
           const allocationManager =
             this.allocationManagers[network.specification.networkIdentifier]
           const results = await allocationManager.executeBatch(approvedActions)
 
-          this.logger.debug('Completed batch action execution', {
+          logger.debug('Completed batch action execution', {
             results,
           })
-
           updatedActions = await this.updateActionStatuses(results, transaction)
         } catch (error) {
-          this.logger.error(`Failed to execute batch tx on staking contract: ${error}`)
+          logger.error(`Failed to execute batch tx on staking contract: ${error}`)
           throw indexerError(IndexerErrorCode.IE072, error)
         }
       },
     )
-
+    logger.trace('End database transaction for executing approved actions')
     return updatedActions
   }
 
