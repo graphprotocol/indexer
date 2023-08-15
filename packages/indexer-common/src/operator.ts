@@ -385,9 +385,10 @@ export class Operator {
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocationsEligibleForClose.length > 0) {
       logger.info(
-        `Deployment is not (or no longer) worth allocating towards, close allocation`,
+        `Deployment is not (or no longer) worth allocating towards, close allocations`,
         {
           eligibleForClose: activeDeploymentAllocationsEligibleForClose,
+          reason: deploymentAllocationDecision.reasonString(),
         },
       )
       await pMap(
