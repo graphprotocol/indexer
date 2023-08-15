@@ -307,10 +307,17 @@ export class Operator {
         actionResult.error instanceof CombinedError &&
         actionResult.error.message.includes('Duplicate')
       ) {
-        this.logger.warn(
-          `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
-          { action },
-        )
+        if (actionResult.error.message.includes('Duplicate')) {
+          this.logger.warn(
+            `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
+            { action },
+          )
+        } else if (actionResult.error.message.includes('Recently executed')) {
+          this.logger.warn(
+            `Action not queued: A recently executed action was found targeting ${actionInput.deploymentID}`,
+            { action },
+          )
+        }
         return []
       }
       throw actionResult.error
@@ -431,18 +438,25 @@ export class Operator {
         : this.specification.indexerOptions.defaultAllocationAmount
 
       // Queue reallocate actions to be picked up by the worker
-      await pMap(expiredAllocations, async (allocation) => {
-        await this.queueAction({
-          params: {
-            allocationID: allocation.id,
-            deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-            amount: formatGRT(desiredAllocationAmount),
-          },
-          type: ActionType.REALLOCATE,
-          reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-          protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-        })
-      })
+      await pMap(
+        expiredAllocations,
+        async (allocation) => {
+          await this.queueAction({
+            params: {
+              allocationID: allocation.id,
+              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+              amount: formatGRT(desiredAllocationAmount),
+            },
+            type: ActionType.REALLOCATE,
+            reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+          })
+        },
+        {
+          stopOnError: false,
+          concurrency: 1,
+        },
+      )
     } else {
       logger.info(
         `Skipping reallocating expired allocation since the corresponding rule has 'autoRenewal' = False`,
