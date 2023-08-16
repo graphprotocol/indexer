@@ -250,9 +250,6 @@ export class ActionManager {
             order: [['priority', 'ASC']],
             transaction,
             lock: transaction.LOCK.UPDATE,
-            // Since concurrent access will be scoped by `protocolNetwork`, it should be
-            // safe to skip locked rows
-            skipLocked: true,
           })
         ).sort(function (a, b) {
           return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
