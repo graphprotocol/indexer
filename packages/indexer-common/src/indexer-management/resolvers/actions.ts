@@ -348,11 +348,11 @@ export default {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
     const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
-      (network: Network) => {
+      async (network: Network) => {
         logger.debug(`Execute 'executeApprovedActions' mutation`, {
           protocolNetwork: network.specification.networkIdentifier,
         })
-        return actionManager.executeApprovedActions(network)
+        return await actionManager.executeApprovedActions(network)
       },
     )
     return Object.values(result).flat()
