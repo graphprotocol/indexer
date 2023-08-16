@@ -198,11 +198,10 @@ export class AllocationManager {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
 
     const decodedEvents: utils.Result[] = []
+    const topic = contractInterface.getEventTopic(eventType)
 
     const result = events
-      .filter((event) =>
-        event.topics.includes(contractInterface.getEventTopic(eventType)),
-      )
+      .filter((event) => event.topics.includes(topic))
       .map((event) => {
         const decoded = contractInterface.decodeEventLog(
           eventType,
@@ -219,6 +218,7 @@ export class AllocationManager {
 
     this.logger.trace('Searched for event logs', {
       function: 'findEvent',
+      topic,
       events,
       decodedEvents,
       eventType,
