@@ -16,7 +16,8 @@
       "es2020.promise",
       "es2015.iterable",
       "es2015.promise"
-    ]
+    ],
+    "resolveJsonModule": true
   },
   "include": ["src/**/*.ts"],
   "exclude": [],

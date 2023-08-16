@@ -44,7 +44,7 @@ import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
 import intersection from 'lodash.intersection'
 
-const updatedStakingAbi = require('./abi/updatedStakingAbi.json')
+import updatedStakingAbi from './abi/updatedStakingAbi.json'
 const updatedStakingIface = new utils.Interface(updatedStakingAbi)
 
 export interface AllocateTransactionParams {
