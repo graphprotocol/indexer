@@ -23,12 +23,14 @@ import {
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
+import AsyncLock from 'async-lock'
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
   declare logger: Logger
   declare models: IndexerManagementModels
   declare allocationManagers: NetworkMapped<AllocationManager>
+  declare dbLock: AsyncLock
 
   static async create(
     multiNetworks: MultiNetworks<Network>,
@@ -51,6 +53,7 @@ export class ActionManager {
         network,
       )
     })
+    actionManager.dbLock = new AsyncLock()
 
     logger.info('Begin monitoring the queue for approved actions to execute')
     await actionManager.monitorQueue()
@@ -230,56 +233,58 @@ export class ActionManager {
       function: 'executeApprovedActions',
       protocolNetwork,
     })
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    await this.models.Action.sequelize!.transaction(
-      { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
-      async (transaction) => {
-        logger.trace('Begin database transaction for executing approved actions')
-        // Execute already approved actions in the order of type and priority.
-        // Unallocate actions are prioritized to free up stake that can be used
-        // in subsequent reallocate and allocate actions.
-        // Reallocate actions are prioritized before allocate as they are for
-        // existing syncing deployments with relatively smaller changes made.
-        const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
-        const approvedActions = (
-          await this.models.Action.findAll({
-            where: {
-              status: ActionStatus.APPROVED,
-              protocolNetwork,
-            },
-            order: [['priority', 'ASC']],
-            transaction,
-            lock: transaction.LOCK.UPDATE,
+    await this.dbLock.acquire('executeApprovedActions', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.Action.sequelize!.transaction(
+        { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+        async (transaction) => {
+          logger.trace('Begin database transaction for executing approved actions')
+          // Execute already approved actions in the order of type and priority.
+          // Unallocate actions are prioritized to free up stake that can be used
+          // in subsequent reallocate and allocate actions.
+          // Reallocate actions are prioritized before allocate as they are for
+          // existing syncing deployments with relatively smaller changes made.
+          const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
+          const approvedActions = (
+            await this.models.Action.findAll({
+              where: {
+                status: ActionStatus.APPROVED,
+                protocolNetwork,
+              },
+              order: [['priority', 'ASC']],
+              transaction,
+              lock: transaction.LOCK.UPDATE,
+            })
+          ).sort(function (a, b) {
+            return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
           })
-        ).sort(function (a, b) {
-          return actionTypePriority.indexOf(a.type) - actionTypePriority.indexOf(b.type)
-        })
 
-        if (approvedActions.length === 0) {
-          logger.debug('No approved actions were found for this network')
-          return []
-        }
-        logger.debug(
-          `Found ${approvedActions.length} approved actions for this network `,
-          { approvedActions },
-        )
+          if (approvedActions.length === 0) {
+            logger.debug('No approved actions were found for this network')
+            return []
+          }
+          logger.debug(
+            `Found ${approvedActions.length} approved actions for this network `,
+            { approvedActions },
+          )
 
-        try {
-          // This will return all results if successful, if failed it will return the failed actions
-          const allocationManager =
-            this.allocationManagers[network.specification.networkIdentifier]
-          const results = await allocationManager.executeBatch(approvedActions)
+          try {
+            // This will return all results if successful, if failed it will return the failed actions
+            const allocationManager =
+              this.allocationManagers[network.specification.networkIdentifier]
+            const results = await allocationManager.executeBatch(approvedActions)
 
-          logger.debug('Completed batch action execution', {
-            results,
-          })
-          updatedActions = await this.updateActionStatuses(results, transaction)
-        } catch (error) {
-          logger.error(`Failed to execute batch tx on staking contract: ${error}`)
-          throw indexerError(IndexerErrorCode.IE072, error)
-        }
-      },
-    )
+            logger.debug('Completed batch action execution', {
+              results,
+            })
+            updatedActions = await this.updateActionStatuses(results, transaction)
+          } catch (error) {
+            logger.error(`Failed to execute batch tx on staking contract: ${error}`)
+            throw indexerError(IndexerErrorCode.IE072, error)
+          }
+        },
+      )
+    })
     logger.trace('End database transaction for executing approved actions')
     return updatedActions
   }
