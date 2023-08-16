@@ -935,16 +935,17 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
+    let allocation
     let isCollectingQueryFees = false
     try {
-      const allocation = await this.network.networkMonitor.allocation(allocationID)
+      allocation = await this.network.networkMonitor.allocation(allocationID)
       // Collect query fees for this allocation
       isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
         actionID,
         allocation,
       )
       logger.debug('Finished receipt collection')
-    } catch(err) {
+    } catch (err) {
       logger.error('Failed to collect receipts', {
         err,
       })
