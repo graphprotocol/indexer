@@ -935,12 +935,21 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    const allocation = await this.network.networkMonitor.allocation(allocationID)
-    // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-      actionID,
-      allocation,
-    )
+    let isCollectingQueryFees = false
+    try {
+      const allocation = await this.network.networkMonitor.allocation(allocationID)
+      // Collect query fees for this allocation
+      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+        actionID,
+        allocation,
+      )
+      logger.debug('Finished receipt collection')
+    } catch(err) {
+      logger.error('Failed to collect receipts', {
+        err,
+      })
+      throw err
+    }
 
     // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
     if (!(await this.matchingRuleExists(logger, subgraphDeploymentID))) {
