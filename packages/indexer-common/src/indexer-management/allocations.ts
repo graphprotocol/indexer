@@ -206,7 +206,7 @@ export class AllocationManager {
     // so it has a different topic. Until these changes are deployed in both mainnet and
     // testnet, we need to search for both.
     // TODO: Update to a new common-ts and remove this hack once exponential rebates is on mainnet
-    const newAbiTopic = updatedStakingIface.getEventTopic(eventType)
+    const newAbiTopic = updatedStakingIface.getEventTopic('AllocationClosed')
     const expectedTopics = [contractInterface.getEventTopic(eventType)]
     if (eventType == 'AllocationClosed') {
       expectedTopics.push(newAbiTopic)
