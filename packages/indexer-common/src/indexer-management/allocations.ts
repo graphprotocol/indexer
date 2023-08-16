@@ -42,6 +42,10 @@ import {
 
 import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
+import intersection from 'lodash.intersection'
+
+import updatedStakingAbi from '../abi/stakingUpdatedABI.json'
+const updatedStakingIface = new utils.Interface(updatedStakingAbi)
 
 export interface AllocateTransactionParams {
   indexer: string
@@ -196,18 +200,31 @@ export class AllocationManager {
     receipt: ContractReceipt,
   ): utils.Result | undefined {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
-
     const decodedEvents: utils.Result[] = []
-    const topic = contractInterface.getEventTopic(eventType)
+
+    // With exponential rebates, the AllocationClosed event changed signature
+    // so it has a different topic. Until these changes are deployed in both mainnet and
+    // testnet, we need to search for both.
+    // TODO: Update to a new common-ts and remove this hack once exponential rebates is on mainnet
+    const newAbiTopic = updatedStakingIface.getEventTopic('AllocationClosed')
+    const expectedTopics = [contractInterface.getEventTopic(eventType)]
+    if (eventType == 'AllocationClosed') {
+      expectedTopics.push(newAbiTopic)
+    }
 
     const result = events
-      .filter((event) => event.topics.includes(topic))
+      .filter((event) => intersection(event.topics, expectedTopics).length > 0)
       .map((event) => {
-        const decoded = contractInterface.decodeEventLog(
-          eventType,
-          event.data,
-          event.topics,
-        )
+        let decoded: utils.Result
+        if (eventType == 'AllocationClosed' && event.topics.includes(newAbiTopic)) {
+          decoded = updatedStakingIface.decodeEventLog(
+            eventType,
+            event.data,
+            event.topics,
+          )
+        } else {
+          decoded = contractInterface.decodeEventLog(eventType, event.data, event.topics)
+        }
         decodedEvents.push(decoded)
         return decoded
       })
@@ -218,7 +235,7 @@ export class AllocationManager {
 
     this.logger.trace('Searched for event logs', {
       function: 'findEvent',
-      topic,
+      expectedTopics,
       events,
       decodedEvents,
       eventType,
