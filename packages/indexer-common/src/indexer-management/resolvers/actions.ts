@@ -352,7 +352,15 @@ export default {
         logger.debug(`Execute 'executeApprovedActions' mutation`, {
           protocolNetwork: network.specification.networkIdentifier,
         })
-        return await actionManager.executeApprovedActions(network)
+        try {
+          return await actionManager.executeApprovedActions(network)
+        } catch (error) {
+          logger.error('Failed to execute approved actions for network', {
+            protocolNetwork: network.specification.networkIdentifier,
+            error,
+          })
+          return []
+        }
       },
     )
     return Object.values(result).flat()
