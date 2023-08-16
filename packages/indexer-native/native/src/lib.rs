@@ -9,7 +9,7 @@ use neon_utils::{
     task::run_async,
 };
 use never::Never;
-use secp256k1::{recovery::RecoverableSignature, Message, PublicKey, Secp256k1, VerifyOnly};
+use secp256k1::{ecdsa::RecoverableSignature, Message, PublicKey, Secp256k1, VerifyOnly};
 use std::sync::Arc;
 mod attestation;
 mod signature_verification;
