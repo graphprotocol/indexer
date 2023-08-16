@@ -44,7 +44,7 @@ import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
 import intersection from 'lodash.intersection'
 
-import updatedStakingAbi from './abi/updatedStakingAbi.json'
+import updatedStakingAbi from '../abi/stakingUpdatedABI.json'
 const updatedStakingIface = new utils.Interface(updatedStakingAbi)
 
 export interface AllocateTransactionParams {
@@ -207,7 +207,7 @@ export class AllocationManager {
     // testnet, we need to search for both.
     // TODO: Update to a new common-ts and remove this hack once exponential rebates is on mainnet
     const newAbiTopic = updatedStakingIface.getEventTopic(eventType)
-    let expectedTopics = [contractInterface.getEventTopic(eventType)]
+    const expectedTopics = [contractInterface.getEventTopic(eventType)]
     if (eventType == 'AllocationClosed') {
       expectedTopics.push(newAbiTopic)
     }
@@ -223,11 +223,7 @@ export class AllocationManager {
             event.topics,
           )
         } else {
-          decoded = contractInterface.decodeEventLog(
-            eventType,
-            event.data,
-            event.topics,
-          )
+          decoded = contractInterface.decodeEventLog(eventType, event.data, event.topics)
         }
         decodedEvents.push(decoded)
         return decoded
