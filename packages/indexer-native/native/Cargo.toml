@@ -12,16 +12,16 @@ name = "indexer_native"
 crate-type = ["cdylib"]
 
 [build-dependencies]
-neon-build = "0.9.1"
+neon-build = "0.10.1"
 
 [dependencies]
-neon = "0.9"
-neon-utils = { git = "https://github.com/edgeandnode/neon-utils", rev = "2507d4f" }
-secp256k1 = { version = "0.20", features = ["recovery"] }
+neon = "0.10"
+neon-utils = { git = "https://github.com/edgeandnode/neon-utils", rev = "b757548" }
+secp256k1 = { version = "0.27", features = ["recovery"] }
 never = "0.1"
-keccak-hash = "0.5.1"
+keccak-hash = "0.10.0"
 lazy_static = "1.4"
 arc-swap = "1.2"
 eip-712-derive = { git = "https://github.com/graphprotocol/eip-712-derive" }
 hex = "0.4.2"
-primitive-types = "0.8"
+primitive-types = "0.12.1"
