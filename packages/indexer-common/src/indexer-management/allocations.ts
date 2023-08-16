@@ -641,9 +641,9 @@ export class AllocationManager {
       allocation: closeAllocationEventLogs.allocationID,
       indexer: closeAllocationEventLogs.indexer,
       amountGRT: formatGRT(closeAllocationEventLogs.tokens),
-      effectiveAllocation: closeAllocationEventLogs.effectiveAllocation.toString(),
+      // effectiveAllocation: closeAllocationEventLogs.effectiveAllocation.toString(),
       poi: closeAllocationEventLogs.poi,
-      epoch: closeAllocationEventLogs.epoch.toString(),
+      // epoch: closeAllocationEventLogs.epoch.toString(),
       transaction: receipt.transactionHash,
       indexingRewards: rewardsAssigned,
     })

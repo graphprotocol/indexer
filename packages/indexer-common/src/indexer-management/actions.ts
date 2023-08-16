@@ -68,7 +68,6 @@ export class ActionManager {
   ): Promise<boolean> {
     logger.info('Batch ready?', {
       approvedActions,
-      network,
     })
 
     if (approvedActions.length < 1) {
@@ -161,7 +160,7 @@ export class ActionManager {
           if (await this.batchReady(approvedActions, network, networkLogger)) {
             const paused = await network.paused.value()
             const isOperator = await network.isOperator.value()
-            logger.debug('Batch ready, preparing to execute', {
+            networkLogger.debug('Batch ready, preparing to execute', {
               paused,
               isOperator,
             })
