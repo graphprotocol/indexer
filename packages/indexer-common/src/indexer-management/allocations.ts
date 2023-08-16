@@ -44,6 +44,9 @@ import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
 import intersection from 'lodash.intersection'
 
+const updatedStakingAbi = require('./abi/updatedStakingAbi.json')
+const updatedStakingIface = new utils.Interface(updatedStakingAbi)
+
 export interface AllocateTransactionParams {
   indexer: string
   subgraphDeploymentID: BytesLike
@@ -67,30 +70,6 @@ export interface ReallocateTransactionParams {
   newAllocationID: string
   metadata: BytesLike
   proof: BytesLike
-}
-
-/*
- * This mapping addresses an issue caused by an event signature change in the Staking contracts due
- * to the Exponential Rebates upgrade.
- *
- * It holds hardcoded event topic IDs for the affected event types. These IDs will be used in place
- * of results from `getEventTopic()` called on outdated Staking contract interfaces.
- *
- * Withouth this workaround, the AllocationManager would miss events in logs of successful
- * transactions.
- *
- * TODO: This shuold be used only during the transition period and must be cleaned up after the
- * Exponential Rebates are deployed to mainnet contracts.
- */
-const TOPIC_SIGNATURES: Record<string, string[]> = {
-  AllocationClosed: [
-    '0x7203ffa6902c4c2a85ac2612321460fa20e29a972c272ecedfdf95f944616269',
-    '0xf6725dd105a6fc88bb79a6e4627f128577186c567a17c94818d201c2a4ce1403',
-  ],
-  AllocationCreated: [
-    '0x0f73ab5f706106366951b51f760e0a6f60c794f233d90958d81c82ad84fa6e87',
-  ],
-  RewardsAssigned: ['0x315d9cdbc182c9118c140c78a121ebb9f24bf73f841339a8a41cdc3586c34e18'],
 }
 
 // An Action with resolved Allocation and Unallocation values
@@ -223,22 +202,33 @@ export class AllocationManager {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
     const decodedEvents: utils.Result[] = []
 
-    // Build a list with all possible event topics
-    const hardcodedTopics = TOPIC_SIGNATURES[eventType]
-    if (!hardcodedTopics) {
-      throw new Error(`Event type not supported: ${eventType}`)
+    // With exponential rebates, the AllocationClosed event changed signature
+    // so it has a different topic. Until these changes are deployed in both mainnet and
+    // testnet, we need to search for both.
+    // TODO: Update to a new common-ts and remove this hack once exponential rebates is on mainnet
+    const newAbiTopic = updatedStakingIface.getEventTopic(eventType)
+    let expectedTopics = [contractInterface.getEventTopic(eventType)]
+    if (eventType == 'AllocationClosed') {
+      expectedTopics.push(newAbiTopic)
     }
-    const topicFromContractInterface = contractInterface.getEventTopic(eventType)
-    const expectedTopics = [...hardcodedTopics, topicFromContractInterface]
 
     const result = events
       .filter((event) => intersection(event.topics, expectedTopics).length > 0)
       .map((event) => {
-        const decoded = contractInterface.decodeEventLog(
-          eventType,
-          event.data,
-          event.topics,
-        )
+        let decoded: utils.Result
+        if (eventType == 'AllocationClosed' && event.topics.includes(newAbiTopic)) {
+          decoded = updatedStakingIface.decodeEventLog(
+            eventType,
+            event.data,
+            event.topics,
+          )
+        } else {
+          decoded = contractInterface.decodeEventLog(
+            eventType,
+            event.data,
+            event.topics,
+          )
+        }
         decodedEvents.push(decoded)
         return decoded
       })
