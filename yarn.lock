@@ -2849,6 +2849,13 @@
   dependencies:
     "@types/lodash" "*"
 
+"@types/lodash.intersection@^4.4.7":
+  version "4.4.7"
+  resolved "https://registry.npmjs.org/@types/lodash.intersection/-/lodash.intersection-4.4.7.tgz#fb7850d59e3259238dfe0ecb20952c589dd31dc5"
+  integrity sha512-7ukD2s54bmRNNpiH9ApEErO4H6mB8+WmXFr/6RpP3e/n7h3UFhEJC7QwLcoWAqOrYCIRFMAAwDf3ambSsW8c5Q==
+  dependencies:
+    "@types/lodash" "*"
+
 "@types/lodash.isequal@^4.5.6":
   version "4.5.6"
   resolved "https://registry.npmjs.org/@types/lodash.isequal/-/lodash.isequal-4.5.6.tgz"
@@ -7598,6 +7605,11 @@ lodash.groupby@^4.6.0:
   version "4.6.0"
   resolved "https://registry.npmjs.org/lodash.groupby/-/lodash.groupby-4.6.0.tgz"
   integrity sha512-5dcWxm23+VAoz+awKmBaiBvzox8+RqMgFhi7UvX9DHZr2HdxHXM/Wrf8cfKpsW37RNrvtPn6hSwNqurSILbmJw==
+
+lodash.intersection@^4.4.0:
+  version "4.4.0"
+  resolved "https://registry.npmjs.org/lodash.intersection/-/lodash.intersection-4.4.0.tgz#0a11ba631d0e95c23c7f2f4cbb9a692ed178e705"
+  integrity sha512-N+L0cCfnqMv6mxXtSPeKt+IavbOBBSiAEkKyLasZ8BVcP9YXQgxLO12oPR8OyURwKV8l5vJKiE1M8aS70heuMg==
 
 lodash.isequal@^4.5.0:
   version "4.5.0"
