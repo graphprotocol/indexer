@@ -197,7 +197,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
       this.metrics.receiptsToCollect.set(
-        { allocation: receipts[0].allocation },
+        { allocation: receipts[0]?.allocation },
         receipts.length,
       )
       if (receipts.length <= 0) {
