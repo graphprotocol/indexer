@@ -6,6 +6,18 @@ import {
 } from '@ethersproject/providers'
 import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from './errors'
+import { Sequelize } from 'sequelize'
+
+interface ConnectOptions {
+  host: string
+  port?: number
+  username: string
+  password: string
+  database: string
+  logging?: (sql: string, timing?: number) => void
+  poolMin?: number
+  poolMax?: number
+}
 
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
@@ -61,4 +73,36 @@ export async function monitorEthBalance(
       })
     }
   })
+}
+
+// Copied from @graphprotocol/common-ts, but adding pool size options
+// TODO: Add these options in common-ts and remove this
+export const connectDatabase = async (options: ConnectOptions): Promise<Sequelize> => {
+  const { host, username, password, database, logging } = options
+
+  // Use port 5432 by default
+  const port = options.port || 5432
+  const poolMin = options.poolMin || 0
+  const poolMax = options.poolMax || 10
+
+  // Connect to the database
+  const sequelize = new Sequelize({
+    dialect: 'postgres',
+    host,
+    port,
+    username,
+    password,
+    database,
+    pool: {
+      max: poolMax,
+      min: poolMin,
+    },
+    logging,
+  })
+
+  // Test the connection
+  await sequelize.authenticate()
+
+  // All good, return the connection
+  return sequelize
 }

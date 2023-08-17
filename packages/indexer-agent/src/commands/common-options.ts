@@ -95,6 +95,12 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       required: true,
       group: 'Postgres',
     })
+    .option('postgres-pool-size', {
+      description: 'Postgres maximum connection pool size',
+      type: 'number',
+      default: 50,
+      group: 'Postgres',
+    })
     .option('graph-node-query-endpoint', {
       description: 'Graph Node endpoint for querying subgraphs',
       type: 'string',
