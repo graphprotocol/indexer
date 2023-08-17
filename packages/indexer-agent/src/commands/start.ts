@@ -262,12 +262,6 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
-      .option('postgres-pool-size', {
-        description: 'Postgres maximum connection pool size',
-        type: 'number',
-        default: 50,
-        group: 'Postgres',
-      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
