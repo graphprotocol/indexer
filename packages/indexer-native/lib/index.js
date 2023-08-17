@@ -15,11 +15,11 @@ function promisify(f) {
 class NativeSignatureVerifier {
   constructor(address) {
     this.address = address;
-    this._native = new addon.NativeSignatureVerifier(address);
+    this._native = addon.create_signature_verifier(address);
   }
 
   async verify(message, signature) {
-    return await promisify((cb) => this._native.verify(cb, message, signature));
+    return await promisify((cb) => addon.verify_signature(this._native, cb, message, signature));
   }
 }
 
@@ -30,7 +30,7 @@ class NativeAttestationSigner {
     privateKey,
     subgraphDeploymentId
   ) {
-    this._native = new addon.NativeAttestationSigner(
+    this._native = new addon.create_attestation_signer(
       chainId,
       disputeManagerAddress,
       privateKey,
@@ -39,7 +39,7 @@ class NativeAttestationSigner {
   }
   async createAttestation(request, response) {
     return await promisify((cb) =>
-      this._native.createAttestation(cb, request, response)
+      addon.create_attestation(this._native, cb, request, response)
     );
   }
 }
