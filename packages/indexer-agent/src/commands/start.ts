@@ -3,7 +3,6 @@ import axios from 'axios'
 import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
-  connectDatabase,
   createMetrics,
   createMetricsServer,
   formatGRT,
@@ -11,6 +10,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
+  connectDatabase,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -262,6 +262,12 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
+      .option('postgres-pool-size', {
+        description: 'Postgres maximum connection pool size',
+        type: 'number',
+        default: 50,
+        group: 'Postgres',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -424,6 +430,7 @@ export async function run(
     host: argv.postgresHost,
     port: argv.postgresPort,
     database: argv.postgresDatabase,
+    poolMax: argv.postgresPoolSize,
   })
   const sequelize = await connectDatabase({
     logging: undefined,
@@ -432,6 +439,8 @@ export async function run(
     username: argv.postgresUsername,
     password: argv.postgresPassword,
     database: argv.postgresDatabase,
+    poolMin: 0,
+    poolMax: argv.postgresPoolSize,
   })
   logger.info('Successfully connected to database')
 
