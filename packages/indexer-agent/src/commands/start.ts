@@ -3,7 +3,6 @@ import axios from 'axios'
 import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
-  connectDatabase,
   createMetrics,
   createMetricsServer,
   formatGRT,
@@ -11,6 +10,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
+  connectDatabase,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -424,6 +424,7 @@ export async function run(
     host: argv.postgresHost,
     port: argv.postgresPort,
     database: argv.postgresDatabase,
+    poolMax: argv.postgresPoolSize,
   })
   const sequelize = await connectDatabase({
     logging: undefined,
@@ -432,6 +433,8 @@ export async function run(
     username: argv.postgresUsername,
     password: argv.postgresPassword,
     database: argv.postgresDatabase,
+    poolMin: 0,
+    poolMax: argv.postgresPoolSize,
   })
   logger.info('Successfully connected to database')
 
