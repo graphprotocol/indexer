@@ -7,7 +7,6 @@ import { parse as yaml_parse } from 'yaml'
 
 import {
   connectContracts,
-  connectDatabase,
   createLogger,
   createMetrics,
   createMetricsServer,
@@ -15,6 +14,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
+  connectDatabase,
   createIndexerManagementClient,
   defineIndexerManagementModels,
   defineQueryFeeModels,
@@ -100,6 +100,12 @@ export default {
         description: 'Postgres host',
         type: 'string',
         required: true,
+        group: 'Postgres',
+      })
+      .option('postgres-pool-size', {
+        description: 'Postgres maximum connection pool size',
+        type: 'number',
+        default: 50,
         group: 'Postgres',
       })
       .option('postgres-port', {
@@ -259,6 +265,7 @@ export default {
       host: argv.postgresHost,
       port: argv.postgresPort,
       database: argv.postgresDatabase,
+      poolMax: argv.postgresPoolSize,
     })
     const sequelize = await connectDatabase({
       logging: undefined,
@@ -267,6 +274,8 @@ export default {
       username: argv.postgresUsername,
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
+      poolMin: 0,
+      poolMax: argv.postgresPoolSize,
     })
     const queryFeeModels = defineQueryFeeModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
