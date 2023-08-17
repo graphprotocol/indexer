@@ -9,14 +9,14 @@ import { indexerError, IndexerErrorCode } from './errors'
 import { Sequelize } from 'sequelize'
 
 interface ConnectOptions {
-  host: string;
-  port?: number;
-  username: string;
-  password: string;
-  database: string;
-  logging?: (sql: string, timing?: number) => void;
-  poolMin?: number;
-  poolMax?: number;
+  host: string
+  port?: number
+  username: string
+  password: string
+  database: string
+  logging?: (sql: string, timing?: number) => void
+  poolMin?: number
+  poolMax?: number
 }
 
 export const parseBoolean = (
