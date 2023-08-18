@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Fixed
+- Contract interface changes involving Exponential Rebates
+- Included the protocolNetwork field when checking for duplicate action targets
+
+### Added
+- Enforced active connections with Graph-Node and the database during startup
+- PostgreSQL connection pool size can be configured with the `postgres-pool-size` *(defaults to `50`)*.
+
+### Changed
+- Skip dispute checking on epochs with unavailable start block hash
 
 ## [0.20.18] - 2023-08-11
 ### Added
