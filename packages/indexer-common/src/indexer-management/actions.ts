@@ -160,7 +160,7 @@ export class ActionManager {
             networkLogger.debug('Batch ready, preparing to execute', {
               paused,
               isOperator,
-              protocolNetwork: network.specification.networkIdentifier
+              protocolNetwork: network.specification.networkIdentifier,
             })
             // Do nothing else if the network is paused
             if (paused) {
