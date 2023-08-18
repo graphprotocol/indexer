@@ -303,10 +303,7 @@ export class Operator {
       .toPromise()
 
     if (actionResult.error) {
-      if (
-        actionResult.error instanceof CombinedError &&
-        actionResult.error.message.includes('Duplicate')
-      ) {
+      if (actionResult.error instanceof CombinedError) {
         if (actionResult.error.message.includes('Duplicate')) {
           this.logger.warn(
             `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
