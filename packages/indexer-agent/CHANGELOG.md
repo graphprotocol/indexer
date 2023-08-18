@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.19] - 2023-08-18
 ### Fixed
 - Contract interface changes involving Exponential Rebates
 - Included the protocolNetwork field when checking for duplicate action targets
@@ -467,7 +469,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.18...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.19...HEAD
+[0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
 [0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
 [0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
