@@ -1231,10 +1231,7 @@ export class Agent {
                   .map(decision => decision.deployment.ipfsHash),
               },
             )
-            allocationDecisions.forEach(
-              allocation => (allocation.toAllocate = false),
-            )
-            return allocationDecisions
+            return [] as AllocationDecision[]
           }
           const networkSubgraphDeployment = network.networkSubgraph.deployment
           if (
