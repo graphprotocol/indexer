@@ -605,8 +605,8 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
 
   if (collectReceiptsEndpoint) {
     logger.warn(
-      "The option '--collect-receipts-endpoint' is depracated. " +
-        "Please use the option '--gateway-endpoint' to inform the Gatway base URL.",
+      "The option '--collect-receipts-endpoint' is deprecated. " +
+        "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
     )
   }
 
