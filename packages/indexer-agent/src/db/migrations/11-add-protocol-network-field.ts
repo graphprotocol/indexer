@@ -380,7 +380,7 @@ WHERE
       this.logger.debug(
         `Restoring foreing key between tables '${dependent.table}' and '${target.table}'`,
       )
-      const constraintName = '${dependent.table}_${target.table}_fkey'
+      const constraintName = `${dependent.table}_${target.table}_fkey`
 
       const createConstraintSql = `
       ALTER TABLE "${dependent.table}"
