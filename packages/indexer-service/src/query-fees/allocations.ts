@@ -154,7 +154,7 @@ export class AllocationReceiptManager implements ReceiptManager {
               this.protocolNetwork,
             )
             if (isNewSummary) {
-              await summary.save()
+              await summary.save({ transaction })
             }
 
             const [state, isNew] =
