@@ -42,6 +42,7 @@ export class AllocationReceiptManager implements ReceiptManager {
   private readonly _flushQueue: string[] = []
   private readonly _allocationReceiptVerifier: NativeSignatureVerifier
   private readonly protocolNetwork: string
+  logger: Logger
 
   constructor(
     sequelize: Sequelize,
@@ -50,7 +51,10 @@ export class AllocationReceiptManager implements ReceiptManager {
     clientSignerAddress: Address,
     protocolNetwork: string,
   ) {
-    logger = logger.child({ component: 'ReceiptManager' })
+    this.logger = logger.child({
+      component: 'ReceiptManager',
+      protocolNetwork,
+    })
 
     this._sequelize = sequelize
     this._queryFeeModels = queryFeeModels
@@ -125,6 +129,10 @@ export class AllocationReceiptManager implements ReceiptManager {
 
   /// Flushes all receipts that have been registered by this moment in time.
   private async _flushOutstanding(): Promise<void> {
+    this.logger.trace('Flushing outsdanding receipts', {
+      function: 'flushOutstanding',
+      queueLength: this._flushQueue.length,
+    })
     let count = this._flushQueue.length
 
     while (count > 0) {
@@ -141,18 +149,25 @@ export class AllocationReceiptManager implements ReceiptManager {
       const receipt = this._cache.get(id)!
       this._cache.delete(id)
 
+      const logger = this.logger.child({ function: 'flushOutstanding', receipt })
+
       const transact = async () => {
         // Put this in a transaction because this has a write which is
         // dependent on a read and must be atomic or receipt updates could be dropped.
         await this._sequelize.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
           async (transaction: Transaction) => {
+            logger.trace('Begin database transaction to process receipt')
             const [summary, isNewSummary] = await ensureAllocationSummary(
               this._queryFeeModels,
               receipt.allocation,
               transaction,
               this.protocolNetwork,
             )
+            logger.trace('Built allocation summary', {
+              allocationSummary: summary,
+              new: isNewSummary,
+            })
             if (isNewSummary) {
               await summary.save({ transaction })
             }
@@ -169,12 +184,26 @@ export class AllocationReceiptManager implements ReceiptManager {
                 },
                 transaction,
               })
+            logger.trace('Built allocation receipt', {
+              allocationReceipt: state,
+              new: isNew,
+              relatedAllocationSummary: summary,
+            })
 
             // Don't save if we already have a version of the receipt
             // with a higher amount of fees
             if (!isNew) {
               const storedFees = BigNumber.from(state.getDataValue('fees'))
               if (storedFees.gte(receipt.fees)) {
+                logger.trace(
+                  `Stored fees found in allocation receipt are greater than the current receipt, ignoring.`,
+                  {
+                    storedFees,
+                    receiptFees: receipt.fees,
+                    allocationReceipt: state,
+                    relatedAllocationSummary: summary,
+                  },
+                )
                 return
               }
             }
@@ -182,11 +211,17 @@ export class AllocationReceiptManager implements ReceiptManager {
             // Make sure the new receipt fee amount and signature are set
             state.set('fees', receipt.fees)
             state.set('signature', receipt.signature)
+            logger.trace('Saving allocation')
 
             // Save the new or updated receipt to the db
             await state.save({ transaction })
+            logger.trace('Saved allocation receipt', {
+              allocationReceipt: state,
+              relatedAllocationSummary: summary,
+            })
           },
         )
+        logger.trace('End database transaction to process receipt')
       }
 
       // Save to the db
