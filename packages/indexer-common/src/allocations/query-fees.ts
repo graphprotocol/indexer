@@ -146,7 +146,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               transaction,
               this.protocolNetwork,
             )
-            await summary.save()
+            await summary.save({ transaction })
           }
         },
       )
@@ -581,7 +581,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
               .add(voucher.amount)
               .toString()
-            await summary.save()
+            await summary.save({ transaction })
           }
         },
       )
