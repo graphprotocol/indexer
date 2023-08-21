@@ -823,6 +823,7 @@ export default {
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
       )
       const offchainIndexingRule = {
+        protocolNetwork: network.specification.networkIdentifier,
         identifier: allocationData.subgraphDeployment.id.ipfsHash,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.OFFCHAIN,
