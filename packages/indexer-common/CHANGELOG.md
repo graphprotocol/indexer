@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.20] - 2023-08-21
+### Fixed
+- Ensure some database operations run inside their transactions
+- More helpful error message when parsing network specification files
+- Protocol network missing when creating offchain rules and allocations via the GraphQL interface
+
 ## [0.20.18] - 2023-08-11
 ### Added
 - The `Network` type now holds references to all network-specific components, such as the `NetworkMonitor` and `Contracts` classes.
@@ -264,7 +270,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.18...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.20...HEAD
+[0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.20
 [0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
 [0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12

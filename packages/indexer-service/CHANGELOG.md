@@ -6,12 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.20] - 2023-08-21
+### Added
+- Add TRACE logs to `AllocationReceiptManager._flushOutstanding` method
+
+### Fixed
+- Ensure some database operations run inside their transactions
+
 ## [0.20.19] - 2023-08-12
-## Changed
+### Changed
 - Revert indexer-native to 0.20.11 (newer builds are broken)
 
 ## [0.20.18] - 2023-08-11
-## Changed
+### Changed
 - Changes to support the multi-network changes from indexer-common
 
 ## [0.20.17] - 2023-06-19

@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.20] - 2023-08-21
+### Fixed
+- Properly skip reconciling allocations on a network in MANUAL mode
+- Missing string interpolation in migration file
+- Indexer registration was running for already registered indexers
+
 ## [0.20.19] - 2023-08-18
 ### Fixed
 - Contract interface changes involving Exponential Rebates
@@ -20,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.20.18] - 2023-08-11
 ### Added
-- A new migration to add the 
+- A new migration to add the
   - Actions
   - IndexingRules
   - POIDisputes
@@ -469,7 +475,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.19...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.20...HEAD
+[0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
 [0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
 [0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
 [0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
