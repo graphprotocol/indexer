@@ -347,10 +347,10 @@ export class Network {
             ) {
               if (await this.transactionManager.isOperator.value()) {
                 logger.info(`Indexer already registered, operator status already granted`)
-                return
               } else {
                 logger.info(`Indexer already registered, operator status not yet granted`)
               }
+              return
             }
           }
           const receipt = await this.transactionManager.executeTransaction(
