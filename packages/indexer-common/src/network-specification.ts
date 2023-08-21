@@ -3,6 +3,7 @@ import { BigNumber } from 'ethers'
 import { validateNetworkIdentifier, validateIpfsHash } from './parsers'
 import { AllocationManagementMode } from './types'
 import { z } from 'zod'
+import { utils } from 'ethers'
 
 // TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
 const ALLOCATION_MANAGEMENT_MODE = ['auto', 'manual', 'oversight'] as const
@@ -30,7 +31,12 @@ export type Gateway = z.infer<typeof Gateway>
 // Indexer identification and network behavior options
 export const IndexerOptions = z
   .object({
-    address: z.string().transform(toAddress),
+    address: z
+      .string()
+      .refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      })
+      .transform(toAddress),
     mnemonic: z.string(),
     url: z.string().url(),
     geoCoordinates: z.number().array().length(2).default([31.780715, -41.179504]),
@@ -116,6 +122,9 @@ export const Dai = z
     contractAddress: z
       .string()
       .default('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
+      .refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      })
       .transform(toAddress),
     inject: z.boolean().default(true),
   })

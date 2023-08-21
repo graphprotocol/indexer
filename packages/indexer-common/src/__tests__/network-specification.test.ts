@@ -65,6 +65,11 @@ describe('Failed deserialization', () => {
       path: ['subgraphs', 'networkSubgraph', 'deployment'],
       message: 'Invalid IPFS hash',
     },
+    {
+      file: 'invalid-address.yml',
+      path: ['dai', 'contractAddress'],
+      message: 'Invalid contract address',
+    },
   ]
 
   test.each(failedTests)(
