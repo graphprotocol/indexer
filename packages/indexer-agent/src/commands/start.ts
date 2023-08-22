@@ -320,11 +320,14 @@ export async function createNetworkSpecification(
     voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
     allocationManagementMode: argv.allocationManagement,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+    allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
+    register: argv.register,
   }
 
   const transactionMonitoring = {
     gasIncreaseTimeout: argv.gasIncreaseTimeout,
     gasIncreaseFactor: argv.gasIncreaseFactor,
+    gasPriceMax: argv.gasPriceMax,
     baseFeePerGasMax: argv.baseFeeGasMax,
     maxTransactionAttempts: argv.maxTransactionAttempts,
   }
@@ -348,6 +351,7 @@ export async function createNetworkSpecification(
 
   const networkProvider = {
     url: argv.networkProvider,
+    pollingInterval: argv.ethereumPollingInterval,
   }
 
   // Since we can't infer the network identifier, we must ask the configured
