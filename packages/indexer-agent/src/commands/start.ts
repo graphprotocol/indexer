@@ -4,13 +4,13 @@ import { Argv } from 'yargs'
 import { SequelizeStorage, Umzug } from 'umzug'
 import {
   createMetrics,
+  connectDatabase,
   createMetricsServer,
   formatGRT,
   Logger,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  connectDatabase,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
