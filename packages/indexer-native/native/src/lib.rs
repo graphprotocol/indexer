@@ -1,100 +1,87 @@
-use arc_swap::ArcSwap;
-use keccak_hash::keccak;
-use lazy_static::lazy_static;
+use alloy_primitives::{Address, Bytes, FixedBytes, B256, U256};
 use neon::prelude::*;
-use neon_utils::{
-    errors::{SafeResult, Terminal},
-    marshalling::Arg,
-    proxy::{Proxy, ProxyTerminal},
-    task::run_async,
+use secp256k1::{
+    ecdsa::{RecoverableSignature, RecoveryId},
+    SecretKey,
 };
-use never::Never;
-use secp256k1::{ecdsa::RecoverableSignature, Message, PublicKey, Secp256k1, VerifyOnly};
-use std::sync::Arc;
+
 mod attestation;
 mod signature_verification;
 
-use attestation::AttestationSigner;
-use primitive_types::U256;
+use attestation::{Attestation, AttestationSigner};
 use signature_verification::SignatureVerifier;
-use std::convert::TryInto as _;
 
-type Address = [u8; 20];
+pub struct SignatureVerifierProxy;
 
-pub type SignatureVerifierProxy = Proxy<SignatureVerifier>;
-impl SignatureVerifierImpl for SignatureVerifierProxy {}
-// The actual implementation of the JS proxy class. This serves to deserialize arguments
-// and forward the work to the SignatureVerifier
-trait SignatureVerifierImpl: Sized + From<SignatureVerifier> {
-    fn _init<'c>(cx: &mut CallContext<'c, JsUndefined>) -> SafeResult<Self> {
-        let address: Address = cx.arg(0)?;
-        let inner = SignatureVerifier::new(address);
-        Ok(inner.into())
-    }
-
-    fn _verify<'c, 'b>(cx: &'b mut MethodContext<'c, NativeSignatureVerifier>) -> SafeResult<()> {
-        let this = Proxy::this(cx);
-        let callback = cx.argument::<JsFunction>(0)?;
-        // TODO: Performance
-        // The Arg Trait encourages doing more work than is necessary in the main thread.
-        // For example, this message comes in as a JsString. The JsString -> String must
-        // happen in the main thread, but the decoding of hex to Vec<u8> can be deferred.
-        let message: Vec<u8> = cx.arg(1)?;
-        let signature: RecoverableSignature = cx.arg(2)?;
-
-        run_async(callback, move || this.verify(&message, &signature));
-
-        Ok(())
-    }
+fn signature_verifier_new(mut cx: FunctionContext) -> JsResult<JsBox<SignatureVerifier>> {
+    let address: Address = cx.argument::<JsString>(0)?.value(&mut cx).parse().unwrap();
+    Ok(cx.boxed(SignatureVerifier::new(address)))
 }
 
-pub type AttestationSignerProxy = Proxy<AttestationSigner>;
-impl AttestationSignerImpl for AttestationSignerProxy {}
-pub trait AttestationSignerImpl: Sized + From<AttestationSigner> {
-    fn _init<'c>(cx: &mut CallContext<'c, JsUndefined>) -> SafeResult<Self> {
-        let chain_id: U256 = cx.arg(0)?;
-        let mut chain_id_bytes = [0u8; 32];
-        chain_id.to_big_endian(&mut chain_id_bytes);
-        let chain_id = eip_712_derive::U256(chain_id_bytes);
-        let dispute_manager = cx.arg(1)?;
-        let signer = cx.arg(2)?;
-        let subgraph_deployment_id = cx.arg(3)?;
-        let inner =
-            AttestationSigner::new(chain_id, dispute_manager, signer, subgraph_deployment_id);
-        Ok(inner.into())
-    }
-
-    fn _create_attestation<'c>(
-        cx: &mut MethodContext<'c, NativeAttestationSigner>,
-    ) -> SafeResult<()> {
-        let this = Proxy::this(cx);
-        let callback = cx.argument(0)?;
-        let request: String = cx.arg(1)?;
-        let response: String = cx.arg(2)?;
-
-        run_async::<_, _, Never>(callback, move || {
-            Ok(this.create_attestation(&request, &response))
-        });
-
-        Ok(())
-    }
+fn signature_verifier_verify(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    let this = cx.argument::<JsBox<SignatureVerifier>>(0)?;
+    let message: Bytes = cx.argument::<JsString>(1)?.value(&mut cx).parse().unwrap();
+    let signature: FixedBytes<65> = cx.argument::<JsString>(2)?.value(&mut cx).parse().unwrap();
+    let recovery_id = signature[64] as i32;
+    let recovery_id = match recovery_id {
+        0 | 1 => RecoveryId::from_i32(recovery_id).unwrap(),
+        27 | 28 => RecoveryId::from_i32(recovery_id - 27).unwrap(),
+        _ => panic!("Invalid recovery id"),
+    };
+    let signature = RecoverableSignature::from_compact(&signature[..64], recovery_id).unwrap();
+    Ok(cx.boolean(this.verify(&message, &signature).unwrap()))
 }
 
-// This macro is annoying in that it leaves out type declarations.
-// So it's just being used as a thin wrapper to the actual code.
-declare_types! {
-    pub class NativeSignatureVerifier for SignatureVerifierProxy {
-        init(mut cx) { SignatureVerifierProxy::_init(&mut cx).finish(cx) }
-        method verify(mut cx) { SignatureVerifierProxy::_verify(&mut cx).finish(cx).map(|v| v.upcast()) }
-    }
-
-    pub class NativeAttestationSigner for AttestationSignerProxy {
-        init(mut cx) { AttestationSignerProxy::_init(&mut cx).finish(cx) }
-        method createAttestation(mut cx) { AttestationSignerProxy::_create_attestation(&mut cx).finish(cx).map(|v| v.upcast()) }
-    }
+fn attestation_signer_new(mut cx: FunctionContext) -> JsResult<JsBox<AttestationSigner>> {
+    let chain_id = cx.argument::<JsNumber>(0)?.value(&mut cx) as u64;
+    let dispute_manager: Address = cx.argument::<JsString>(1)?.value(&mut cx).parse().unwrap();
+    let signer: B256 = cx.argument::<JsString>(2)?.value(&mut cx).parse().unwrap();
+    let subgraph_deployment_id: B256 = cx.argument::<JsString>(3)?.value(&mut cx).parse().unwrap();
+    Ok(cx.boxed(AttestationSigner::new(
+        U256::from(chain_id),
+        dispute_manager,
+        SecretKey::from_slice(signer.as_slice()).unwrap(),
+        subgraph_deployment_id,
+    )))
 }
 
-register_module!(mut cx, {
-    cx.export_class::<NativeSignatureVerifier>("NativeSignatureVerifier")?;
-    cx.export_class::<NativeAttestationSigner>("NativeAttestationSigner")
-});
+fn attestation_signer_create_attestation(mut cx: FunctionContext) -> JsResult<JsObject> {
+    let this = cx.argument::<JsBox<AttestationSigner>>(0)?;
+    let request: String = cx.argument::<JsString>(1)?.value(&mut cx);
+    let response: String = cx.argument::<JsString>(2)?.value(&mut cx);
+    let Attestation {
+        request_cid,
+        response_cid,
+        subgraph_deployment_id,
+        v,
+        r,
+        s,
+    } = this.create_attestation(&request, &response);
+
+    let result = cx.empty_object();
+    let request_cid = cx.string(request_cid.to_string());
+    result.set(&mut cx, "requestCID", request_cid)?;
+    let response_cid = cx.string(response_cid.to_string());
+    result.set(&mut cx, "responseCID", response_cid)?;
+    let subgraph_deployment_id = cx.string(subgraph_deployment_id.to_string());
+    result.set(&mut cx, "subgraphDeploymentID", subgraph_deployment_id)?;
+    let v = cx.number(v);
+    result.set(&mut cx, "v", v)?;
+    let r = cx.string(r.to_string());
+    result.set(&mut cx, "r", r)?;
+    let s = cx.string(s.to_string());
+    result.set(&mut cx, "s", s)?;
+    Ok(result)
+}
+
+#[neon::main]
+fn main(mut cx: ModuleContext) -> NeonResult<()> {
+    cx.export_function("signature_verifier_new", signature_verifier_new)?;
+    cx.export_function("signature_verifier_verify", signature_verifier_verify)?;
+    cx.export_function("attestation_signer_new", attestation_signer_new)?;
+    cx.export_function(
+        "attestation_signer_create_attestation",
+        attestation_signer_create_attestation,
+    )?;
+    Ok(())
+}
