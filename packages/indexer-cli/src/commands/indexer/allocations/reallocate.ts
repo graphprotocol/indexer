@@ -16,6 +16,9 @@ ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
+
+${chalk.dim('Networks:')}
+  mainnet, arbitrum-one, goerli or arbitrum goerli
 `
 
 module.exports = {

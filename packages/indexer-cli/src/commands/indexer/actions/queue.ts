@@ -29,7 +29,7 @@ ${chalk.bold(
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage informatio
-  -n, --network <STRING>        [REQUIRED] The protocol network for this action
+  -n, --network <STRING>        [Required] The protocol network for this action (mainnet, arbitrum-one, goerli, arbitrum-goerli)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision
   -r, --reason <STRING>         Specify the reason for the action to be taken

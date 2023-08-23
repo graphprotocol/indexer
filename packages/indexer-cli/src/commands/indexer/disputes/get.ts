@@ -13,7 +13,7 @@ ${chalk.bold(
 
 ${chalk.dim('Options:')}
 
-  -n, --network                 Filter by protocol network
+  -n, --network                 Filter by protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli) 
   -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
