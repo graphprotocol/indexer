@@ -21,7 +21,7 @@ ${chalk.bold('graph indexer rules reset')} [options] <subgraph-identifier> [<key
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 [Required] the rule's protocol network
+  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 
 ${chalk.dim('Hints:')}

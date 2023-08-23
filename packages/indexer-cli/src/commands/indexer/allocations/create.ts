@@ -22,6 +22,9 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
+
+${chalk.dim('Networks:')}
+  mainnet, arbitrum-one, goerli or arbitrum goerli
 `
 
 module.exports = {
