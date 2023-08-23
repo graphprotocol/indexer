@@ -129,4 +129,4 @@ yalc.lock
 .envrc
 
 # Temp
-/temp
+temp/

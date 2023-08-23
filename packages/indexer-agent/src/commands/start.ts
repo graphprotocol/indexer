@@ -558,7 +558,6 @@ export default {
     const indexerAddress = toAddress(argv.indexerAddress)
 
     let epochSubgraph
-    console.log(argv.epochSubgraphEndpoint, 'epoch subgraph ------------------')
     if(argv.epochSubgraphEndpoint) epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
 
     const networkMonitor = new NetworkMonitor(

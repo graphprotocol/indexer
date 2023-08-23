@@ -102,7 +102,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize,
   }: AllocationReceiptCollectorOptions) {
-    console.log(collectEndpoint, 'collectEndpoint ------------------------------------')
     this.logger = logger.child({ component: 'AllocationReceiptCollector' })
     this.metrics = registerReceiptMetrics(metrics)
     this.transactionManager = transactionManager
