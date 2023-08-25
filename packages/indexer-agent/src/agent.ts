@@ -994,7 +994,7 @@ export class Agent {
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
-    this.multiNetworks.map(async ({ network }) => {
+    await this.multiNetworks.map(async ({ network }) => {
       if (network.networkSubgraph.deployment) {
         const networkDeploymentID = network.networkSubgraph.deployment.id
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
