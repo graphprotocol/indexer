@@ -48,12 +48,12 @@ interface CostModelAutomationOptions {
   metrics: CostModelAutomationMetrics
 }
 
-export const startCostModelAutomation = ({
+export const startCostModelAutomation = async ({
   logger,
   networks,
   indexerManagement,
   metrics,
-}: StartCostModelAutomationOptions): void => {
+}: StartCostModelAutomationOptions): Promise<void> => {
   logger = logger.child({ component: 'CostModelAutomation' })
 
   const automationMetrics = registerMetrics(metrics)
@@ -63,7 +63,7 @@ export const startCostModelAutomation = ({
     n => n.specification.networkIdentifier === 'eip155:1',
   )
   if (mainnet && mainnet.specification.dai.inject) {
-    monitorAndInjectDai({
+    await monitorAndInjectDai({
       logger,
       ethereum: mainnet.networkProvider,
       contracts: mainnet.contracts,

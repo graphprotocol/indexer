@@ -539,7 +539,7 @@ export async function run(
   // --------------------------------------------------------------------------------
   // * Cost Model Automation
   // --------------------------------------------------------------------------------
-  startCostModelAutomation({
+  await startCostModelAutomation({
     logger,
     networks,
     indexerManagement: indexerManagementClient,
