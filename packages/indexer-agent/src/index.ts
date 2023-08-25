@@ -70,4 +70,4 @@ async function main(): Promise<void> {
   await processArgumentsAndRun(args)
 }
 
-main()
+void main()

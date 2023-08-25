@@ -40,7 +40,6 @@ import {
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import isEqual from 'lodash.isequal'
 import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 
@@ -135,9 +134,6 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
   rules.push(...toAdd)
   return rules
 }
-
-const deploymentIDSet = (deployments: SubgraphDeploymentID[]): Set<string> =>
-  new Set(deployments.map(id => id.bytes32))
 
 // Represents a pair of Network and Operator instances belonging to the same protocol
 // network. Used when mapping over multiple protocol networks.
