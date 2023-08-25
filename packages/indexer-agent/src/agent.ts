@@ -996,7 +996,7 @@ export class Agent {
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
     let indexingNetworkSubgraph = false
-    this.multiNetworks.map(async ({ network }) => {
+    await this.multiNetworks.map(async ({ network }) => {
       if (network.networkSubgraph.deployment) {
         const networkDeploymentID = network.networkSubgraph.deployment.id
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
@@ -1069,7 +1069,7 @@ export class Agent {
         // Ensure the deployment is deployed to the indexer
         // Note: we're not waiting here, as sometimes indexing a subgraph
         // will block if the IPFS files cannot be retrieved
-        this.graphNode.ensure(name, deployment)
+        await this.graphNode.ensure(name, deployment)
       }),
     )
 
