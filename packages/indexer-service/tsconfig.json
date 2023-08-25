@@ -14,6 +14,6 @@
     "downlevelIteration": true
   },
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/__tests__/*.ts"],
+  "exclude": [],
   "references": [{ "path": "../indexer-common" }]
 }
