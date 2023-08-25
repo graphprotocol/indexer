@@ -312,7 +312,7 @@ export default {
     // If the network subgraph deployment is present, validate if the `chainId` we get from our
     // provider is consistent.
     if (argv.networkSubgraphDeployment) {
-      validateProviderNetworkIdentifier(
+      await validateProviderNetworkIdentifier(
         protocolNetwork,
         argv.networkSubgraphDeployment,
         graphNode,
