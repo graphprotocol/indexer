@@ -991,17 +991,17 @@ export class Agent {
     eligibleAllocations: Allocation[],
   ): Promise<void> {
     const logger = this.logger.child({ function: 'reconcileDeployments' })
+    logger.debug('Reconcile deployments')
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
-    await this.multiNetworks.map(async ({ network }) => {
+    let indexingNetworkSubgraph = false
+    this.multiNetworks.map(async ({ network }) => {
       if (network.networkSubgraph.deployment) {
         const networkDeploymentID = network.networkSubgraph.deployment.id
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
-          logger.trace('Ensuring Network Subgraph is indexed', {
-            networkDeploymentID,
-          })
           targetDeployments.push(networkDeploymentID)
+          indexingNetworkSubgraph = true
         }
       }
     })
@@ -1012,9 +1012,6 @@ export class Agent {
     // Ensure all subgraphs in offchain subgraphs list are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
-        logger.trace('Ensuring offchain subgraph is indexed', {
-          offchainSubgraph,
-        })
         targetDeployments.push(offchainSubgraph)
       }
     }
@@ -1026,14 +1023,6 @@ export class Agent {
     const eligibleAllocationDeployments = uniqueDeployments(
       eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
     )
-
-    logger.debug('Reconcile deployments', {
-      syncing: activeDeployments.map(id => id.display),
-      target: targetDeployments.map(id => id.display),
-      withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
-        id => id.display,
-      ),
-    })
 
     // Identify which subgraphs to deploy and which to remove
     const deploy = targetDeployments.filter(
@@ -1047,6 +1036,12 @@ export class Agent {
 
     if (deploy.length + remove.length !== 0) {
       logger.info('Deployment changes', {
+        indexingNetworkSubgraph,
+        syncing: activeDeployments.map(id => id.display),
+        target: targetDeployments.map(id => id.display),
+        withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
+          id => id.display,
+        ),
         deploy: deploy.map(id => id.display),
         remove: remove.map(id => id.display),
       })
