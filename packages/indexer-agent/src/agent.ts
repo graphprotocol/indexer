@@ -990,6 +990,7 @@ export class Agent {
     targetDeployments: SubgraphDeploymentID[],
     eligibleAllocations: Allocation[],
   ): Promise<void> {
+    const logger = this.logger.child({ function: 'reconcileDeployments' })
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
@@ -997,6 +998,9 @@ export class Agent {
       if (network.networkSubgraph.deployment) {
         const networkDeploymentID = network.networkSubgraph.deployment.id
         if (!deploymentInList(targetDeployments, networkDeploymentID)) {
+          logger.trace('Ensuring Network Subgraph is indexed', {
+            networkDeploymentID,
+          })
           targetDeployments.push(networkDeploymentID)
         }
       }
@@ -1008,6 +1012,9 @@ export class Agent {
     // Ensure all subgraphs in offchain subgraphs list are _always_ indexed
     for (const offchainSubgraph of this.offchainSubgraphs) {
       if (!deploymentInList(targetDeployments, offchainSubgraph)) {
+        logger.trace('Ensuring offchain subgraph is indexed', {
+          offchainSubgraph,
+        })
         targetDeployments.push(offchainSubgraph)
       }
     }
@@ -1020,21 +1027,13 @@ export class Agent {
       eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
     )
 
-    // Log details if active deployments are different from target deployments
-    const isReconciliationNeeded = !isEqual(
-      deploymentIDSet(activeDeployments),
-      deploymentIDSet(targetDeployments),
-    )
-    if (isReconciliationNeeded) {
-      // TODO: Return early in here case reconciliation is not needed
-      this.logger.debug('Reconcile deployments', {
-        syncing: activeDeployments.map(id => id.display),
-        target: targetDeployments.map(id => id.display),
-        withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
-          id => id.display,
-        ),
-      })
-    }
+    logger.debug('Reconcile deployments', {
+      syncing: activeDeployments.map(id => id.display),
+      target: targetDeployments.map(id => id.display),
+      withActiveOrRecentlyClosedAllocation: eligibleAllocationDeployments.map(
+        id => id.display,
+      ),
+    })
 
     // Identify which subgraphs to deploy and which to remove
     const deploy = targetDeployments.filter(
@@ -1046,16 +1045,13 @@ export class Agent {
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
-    // TODO: Same as before: Should we return early in here case reconciliation is not needed? Also,
-    // this conditional seems the be doing the same work as the previous one, we should consolidate
-    // them.
     if (deploy.length + remove.length !== 0) {
-      this.logger.info('Deployment changes', {
+      logger.info('Deployment changes', {
         deploy: deploy.map(id => id.display),
         remove: remove.map(id => id.display),
       })
     } else {
-      this.logger.debug('No deployment changes are necessary')
+      logger.debug('No deployment changes are necessary')
     }
 
     // ----------------------------------------------------------------------------------------
@@ -1070,7 +1066,7 @@ export class Agent {
       deploy.map(deployment => async () => {
         const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
-        this.logger.info(`Index subgraph deployment`, {
+        logger.info(`Index subgraph deployment`, {
           name,
           deployment: deployment.display,
         })
@@ -1088,7 +1084,7 @@ export class Agent {
     )
 
     await queue.onIdle()
-    this.logger.debug('Finished reconciling deployments')
+    logger.debug('Finished reconciling deployments')
   }
 
   async identifyExpiringAllocations(
