@@ -46,6 +46,7 @@ export const createSyncingServer = async ({
   server.post(
     '/network/:networkIdentifier',
     bodyParser.json(),
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     async (req, res) => {
       const { query, variables } = req.body
       const { networkIdentifier: unvalidatedNetworkIdentifier } = req.params
