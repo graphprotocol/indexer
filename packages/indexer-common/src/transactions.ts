@@ -203,7 +203,7 @@ export class TransactionManager {
         // This case typically indicates a successful transaction being retried.
         // Let's introduce a 30 second delay to ensure the previous transaction has
         // a chance to be mined and return to the reconciliation loop so the agent can reevaluate.
-        delay(30000)
+        await delay(30000)
         throw indexerError(
           IndexerErrorCode.IE058,
           `Original transaction was not confirmed though it may have been successful`,
