@@ -76,52 +76,64 @@ export interface ReceiptCollector {
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
-  private logger: Logger
-  private metrics: ReceiptMetrics
-  private models: QueryFeeModels
-  private transactionManager: TransactionManager
-  private allocationExchange: Contract
-  private collectEndpoint: URL
-  private partialVoucherEndpoint: URL
-  private voucherEndpoint: URL
-  private receiptsToCollect!: DHeap<AllocationReceiptsBatch>
-  private voucherRedemptionThreshold: BigNumber
-  private voucherRedemptionBatchThreshold: BigNumber
-  private voucherRedemptionMaxBatchSize: number
-  private protocolNetwork: string
+  declare logger: Logger
+  declare metrics: ReceiptMetrics
+  declare models: QueryFeeModels
+  declare transactionManager: TransactionManager
+  declare allocationExchange: Contract
+  declare collectEndpoint: URL
+  declare partialVoucherEndpoint: URL
+  declare voucherEndpoint: URL
+  declare receiptsToCollect: DHeap<AllocationReceiptsBatch>
+  declare voucherRedemptionThreshold: BigNumber
+  declare voucherRedemptionBatchThreshold: BigNumber
+  declare voucherRedemptionMaxBatchSize: number
+  declare protocolNetwork: string
 
-  constructor({
+  // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
+  private constructor() {}
+
+  public static async create({
     logger,
     metrics,
     transactionManager,
     models,
     allocationExchange,
     networkSpecification,
-  }: AllocationReceiptCollectorOptions) {
-    this.logger = logger.child({ component: 'AllocationReceiptCollector' })
-    this.metrics = registerReceiptMetrics(metrics, networkSpecification.networkIdentifier)
-    this.transactionManager = transactionManager
-    this.models = models
-    this.allocationExchange = allocationExchange
-    this.protocolNetwork = networkSpecification.networkIdentifier
+  }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
+    const collector = new AllocationReceiptCollector()
+    collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
+    collector.metrics = registerReceiptMetrics(
+      metrics,
+      networkSpecification.networkIdentifier,
+    )
+    collector.transactionManager = transactionManager
+    collector.models = models
+    collector.allocationExchange = allocationExchange
+    collector.protocolNetwork = networkSpecification.networkIdentifier
 
     // Process Gateway routes
     const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
-    this.collectEndpoint = gatewayUrls.collectReceipts
-    this.voucherEndpoint = gatewayUrls.voucher
-    this.partialVoucherEndpoint = gatewayUrls.partialVoucher
+    collector.collectEndpoint = gatewayUrls.collectReceipts
+    collector.voucherEndpoint = gatewayUrls.voucher
+    collector.partialVoucherEndpoint = gatewayUrls.partialVoucher
 
-    const { indexerOptions } = networkSpecification
-    this.voucherRedemptionThreshold = indexerOptions.voucherRedemptionThreshold
-    this.voucherRedemptionBatchThreshold = indexerOptions.voucherRedemptionBatchThreshold
-    this.voucherRedemptionMaxBatchSize = indexerOptions.voucherRedemptionMaxBatchSize
+    const {
+      voucherRedemptionThreshold,
+      voucherRedemptionBatchThreshold,
+      voucherRedemptionMaxBatchSize,
+    } = networkSpecification.indexerOptions
+    collector.voucherRedemptionThreshold = voucherRedemptionThreshold
+    collector.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
+    collector.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
 
     // Start the AllocationReceiptCollector
     // TODO: Consider calling methods conditionally based on a boolean
     // flag during startup.
-    this.startReceiptCollecting()
-    this.startVoucherProcessing()
-    this.queuePendingReceiptsFromDatabase()
+    collector.startReceiptCollecting()
+    collector.startVoucherProcessing()
+    await collector.queuePendingReceiptsFromDatabase()
+    return collector
   }
 
   async rememberAllocations(

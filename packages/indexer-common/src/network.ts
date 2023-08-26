@@ -191,7 +191,7 @@ export class Network {
     // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
-    const receiptCollector = new AllocationReceiptCollector({
+    const receiptCollector = await AllocationReceiptCollector.create({
       logger,
       metrics,
       transactionManager: transactionManager,
