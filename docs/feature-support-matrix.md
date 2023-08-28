@@ -37,7 +37,7 @@ graph-node: >=0.32 <0.33
 ```
 
 ### Latest Council snapshot
-[GPP-0025 Update Feature Support Matrix (Graph Node v0.31.0) Substreams Data Sources](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xb4b297e553a1ed29bfa9a0e0ad121947c186e332df3dfff2a6526ddd545bd796)
+[GPP-0028 Update Feature Support Matrix (Graph Node v0.32.0)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xa7dcaf27d3b8cb6c135c398753a82fb4a6fc1ff5ad666cb131109f2de506253c)
 
 
 
