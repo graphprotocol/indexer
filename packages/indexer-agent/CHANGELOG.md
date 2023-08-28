@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.22] - 2023-08-28
 ### Fixed
 - Fixed bug causing the network subgraph to be removed after syncing
 
@@ -484,7 +486,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.21...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.22...HEAD
+[0.20.22]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.22
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
 [0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
 [0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
