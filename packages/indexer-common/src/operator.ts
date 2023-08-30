@@ -574,7 +574,7 @@ export class Operator {
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE039, error)
-      this.logger.error('Failed to store potential POI disputes', {
+      this.logger.error('Failed to fetch POI disputes', {
         err,
       })
       throw err
