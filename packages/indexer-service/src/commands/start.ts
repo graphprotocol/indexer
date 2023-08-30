@@ -312,12 +312,18 @@ export default {
     // If the network subgraph deployment is present, validate if the `chainId` we get from our
     // provider is consistent.
     if (argv.networkSubgraphDeployment) {
-      await validateProviderNetworkIdentifier(
-        protocolNetwork,
-        argv.networkSubgraphDeployment,
-        graphNode,
-        logger,
-      )
+      try {
+        await validateProviderNetworkIdentifier(
+          protocolNetwork,
+          argv.networkSubgraphDeployment,
+          graphNode,
+          logger,
+        )
+      } catch (e) {
+        logger.warn(
+          'Failed to validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
+        )
+      }
     }
 
     logger.info('Connect to contracts', {
