@@ -67,6 +67,7 @@ export default {
         'previousEpochReferenceProof',
         'status',
       ],
+      conflictAttributes: ['allocationID', 'protocolNetwork'],
     })
     return createdDisputes.map((dispute: POIDispute) => dispute.toGraphQL())
   },
