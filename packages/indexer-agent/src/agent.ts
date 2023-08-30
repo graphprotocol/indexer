@@ -1302,6 +1302,8 @@ export class Agent {
     )
   }
 
+  // TODO: This could be a initialization check inside Network.create() once/if the Indexer Service
+  // uses Network instances.
   async ensureNetworkSubgraphIsIndexing(network: Network) {
     if (
       network.specification.subgraphs.networkSubgraph.deployment !== undefined
