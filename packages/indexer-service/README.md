@@ -8,13 +8,13 @@
 Start the service
 
 Ethereum
-  --ethereum                   Ethereum node or provider URL [string] [required]
-  --ethereum-network           Ethereum network    [string] [default: "rinkeby"]
-  --ethereum-polling-interval  Polling interval for the Ethereum provider (ms)
-                                                        [number] [default: 4000]
-  --mnemonic                   Mnemonic for the operator wallet
+  --network-provider, --ethereum  Ethereum node or provider URL
                                                              [string] [required]
-  --indexer-address            Ethereum address of the indexer
+  --ethereum-polling-interval     Polling interval for the Ethereum provider
+                                  (ms)                  [number] [default: 4000]
+  --mnemonic                      Mnemonic for the operator wallet
+                                                             [string] [required]
+  --indexer-address               Ethereum address of the indexer
                                                              [string] [required]
 
 Indexer Infrastructure
@@ -26,6 +26,8 @@ Indexer Infrastructure
   --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
                                                              [string] [required]
   --log-level                   Log level            [string] [default: "debug"]
+  --query-timing-logs           Log time spent on each query received
+                                                      [boolean] [default: false]
 
 Postgres
   --postgres-host      Postgres host                         [string] [required]
@@ -35,20 +37,26 @@ Postgres
   --postgres-database  Postgres database name                [string] [required]
 
 Network Subgraph
-  --network-subgraph-endpoint  Endpoint to query the network subgraph from
+  --network-subgraph-deployment  Network subgraph deployment            [string]
+  --network-subgraph-endpoint    Endpoint to query the network subgraph from
                                                              [string] [required]
-
-State Channels
-  --wallet-worker-threads       Number of worker threads for the server wallet
-                                                           [number] [default: 8]
-  --wallet-skip-evm-validation  Whether to skip EVM-based validation of state
-                                channel transitions    [boolean] [default: true]
+  --network-subgraph-auth-token  Bearer token to require for /network queries
+                                                                        [string]
+  --serve-network-subgraph       Whether to serve the network subgraph at
+                                 /network             [boolean] [default: false]
+  --allocation-syncing-interval  Interval (in ms) for syncing indexer
+                                 allocations from the network
+                                                      [number] [default: 120000]
 
 Options:
   --version                Show version number                         [boolean]
   --help                   Show help                                   [boolean]
+  --gcloud-profiling       Whether to enable Google Cloud profiling
+                                                      [boolean] [default: false]
   --free-query-auth-token  Auth token that clients can use to query for free
                                                                          [array]
+  --client-signer-address  Address that signs query fee receipts from a known
+                           client                                       [string]
 ```
 
 # Copyright
