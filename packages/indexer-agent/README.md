@@ -143,6 +143,55 @@ Options:
 
 ```
 
+### `graph-indexer-agent start` in Multi Network Mode
+
+To use the Indexer Agent in Multi Network Mode, set the environment variable
+`INDEXER_AGENT_MULTINETWORK_MODE` to `"true"` before running the command.
+
+```
+Start the Agent in multiple Protocol Networks
+
+Indexer Infrastructure
+  --index-node-ids                 Node IDs of Graph nodes to use for indexing
+                                   (separated by commas)      [array] [required]
+  --indexer-management-port        Port to serve the indexer management API at
+                                                        [number] [default: 8000]
+  --metrics-port                   Port to serve Prometheus metrics at
+                                                        [number] [default: 7300]
+  --syncing-port                   Port to serve the network subgraph and other
+                                   syncing data for indexer service at
+                                                        [number] [default: 8002]
+  --log-level                      Log level         [string] [default: "debug"]
+  --graph-node-query-endpoint      Graph Node endpoint for querying subgraphs
+                                                             [string] [required]
+  --graph-node-status-endpoint     Graph Node endpoint for indexing statuses
+                                   etc.                      [string] [required]
+  --graph-node-admin-endpoint      Graph Node endpoint for applying and updating
+                                   subgraph deployments      [string] [required]
+  --enable-auto-migration-support  Auto migrate allocations from L1 to L2
+                                   (multi-network mode must be enabled)
+                                                      [boolean] [default: false]
+
+Postgres
+  --postgres-host       Postgres host                        [string] [required]
+  --postgres-port       Postgres port                   [number] [default: 5432]
+  --postgres-username   Postgres username         [string] [default: "postgres"]
+  --postgres-password   Postgres password                 [string] [default: ""]
+  --postgres-database   Postgres database name               [string] [required]
+  --postgres-pool-size  Postgres maximum connection pool size
+                                                          [number] [default: 50]
+
+Options:
+  --version                                 Show version number        [boolean]
+  --help                                    Show help                  [boolean]
+  -p-offchain-subgraphs                      Subgraphs to index that are not on
+                                            chain (comma-separated)
+                                                           [array] [default: []]
+  --network-specifications-directory,       Path to a directory containing
+  --dir                                     network specification files
+                                                             [string] [required]
+```
+
 # Copyright
 
 Copyright &copy; 2020 The Graph Foundation
