@@ -1079,7 +1079,7 @@ export class Agent {
   }
 
   async identifyExpiringAllocations(
-    _logger: Logger,
+    parentLogger: Logger,
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
@@ -1090,7 +1090,16 @@ export class Agent {
       .rule?.allocationLifetime
       ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
       : Math.max(1, maxAllocationEpochs - 1)
-
+    const logger = parentLogger.child({
+      function: 'identifyExpiringAllocations',
+      deploymentAllocationDecision,
+      desiredAllocationLifetime,
+      maxAllocationEpochs,
+    })
+    logger.trace(
+      'Identifying expired allocations for deployment allocation decision',
+      { activeAllocations },
+    )
     // Identify expiring allocations
     let expiredAllocations = activeAllocations.filter(
       allocation =>
@@ -1106,9 +1115,16 @@ export class Agent {
         try {
           const onChainAllocation =
             await network.contracts.staking.getAllocation(allocation.id)
-          return onChainAllocation.closedAtEpoch.eq('0')
+          const onChainAllocationClosed =
+            onChainAllocation.closedAtEpoch.eq('0')
+          logger.trace('Fetched on-chain allocation', {
+            allocation,
+            onChainAllocation,
+            onChainAllocationClosed,
+          })
+          return onChainAllocationClosed
         } catch (err) {
-          this.logger.warn(
+          logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
             {
               deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -1120,6 +1136,11 @@ export class Agent {
         }
       },
     )
+    if (expiredAllocations.length > 0) {
+      logger.debug('Identified expired allocations', { expiredAllocations })
+    } else {
+      logger.trace('No expired allocations found', { expiredAllocations })
+    }
     return expiredAllocations
   }
 
