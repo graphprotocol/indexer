@@ -41,7 +41,7 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                  |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                             |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmVQrrgeGGHEqRdjAByeLvnNnDMjdt85jZZB5EFZk62JWs`                                   |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmPSXUQTqAqFXfczNQG7xATo6ai4aN1FDrTPBBkx3EJsyN`                                   |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet`                                             |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)                                |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts`                            |

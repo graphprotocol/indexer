@@ -47,7 +47,7 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                         |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                           |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                      |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmTWLwhFsDdi4MuhDQzNuTsGC6WBRKk9NeQL6nRz8yTari`                                            |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmexmwCR62YRBzWXNaT3Lr69L6QYrWz5mrouhxgWfvxDQX`                                            |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-goerli`       |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | TBD                                                                                         |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway-testnet-arbitrum.network.thegraph.com/collect-receipts`                    |
