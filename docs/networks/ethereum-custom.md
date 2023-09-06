@@ -97,4 +97,5 @@ latestBlockNumber should be the same (or close to) with chainHeadBlockNumber
 ### Closing allocation and getting rewards
 Rewards are based on the epochs age of allocation (epochs length is being set up during epoch contract initialisation)
 1. Find allocation id ```graph-indexer indexer allocations get```
-2. Close allocation ```graph-indexer indexer allocations close {id} -f```
+2. Close allocation ```graph-indexer indexer allocations close {id} -f``` (without -f it will fail bcz of queue receipts failure)
+3. When an allocation is closed with a valid proof of indexing (POI) their indexing rewards are distributed to the Indexer
