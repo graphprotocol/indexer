@@ -4,6 +4,7 @@ import { DocumentNode, print } from 'graphql'
 import { OperationResult, CombinedError } from '@urql/core'
 import { BlockPointer, IndexingError } from './types'
 import { GraphNode } from './graph-node'
+import { SubgraphFreshnessChecker } from './subgraphs'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger
@@ -12,6 +13,7 @@ export interface NetworkSubgraphCreateOptions {
     graphNode: GraphNode
     deployment: SubgraphDeploymentID
   }
+  subgraphFreshnessChecker: SubgraphFreshnessChecker
 }
 
 interface DeploymentStatus {
@@ -30,6 +32,7 @@ interface NetworkSubgraphOptions {
     status: Eventual<DeploymentStatus>
     graphNode: GraphNode
   }
+  subgraphFreshnessChecker: SubgraphFreshnessChecker
 }
 
 export type QueryResult<Data> = Pick<
@@ -39,7 +42,7 @@ export type QueryResult<Data> = Pick<
 
 export class NetworkSubgraph {
   logger: Logger
-
+  freshnessChecker: SubgraphFreshnessChecker
   endpointClient?: AxiosInstance
 
   public readonly deployment?: {
@@ -50,6 +53,7 @@ export class NetworkSubgraph {
 
   private constructor(options: NetworkSubgraphOptions) {
     this.logger = options.logger
+    this.freshnessChecker = options.subgraphFreshnessChecker
 
     if (options.endpoint) {
       this.endpointClient = axios.create({
@@ -83,6 +87,7 @@ export class NetworkSubgraph {
     logger: parentLogger,
     endpoint,
     deployment,
+    subgraphFreshnessChecker,
   }: NetworkSubgraphCreateOptions): Promise<NetworkSubgraph> {
     // Either an endpoint or a deployment needs to be provided; the CLI
     // validation should already guarantee that but we're asserting this again
@@ -122,6 +127,7 @@ export class NetworkSubgraph {
       logger,
       endpoint,
       deployment: deploymentInfo,
+      subgraphFreshnessChecker,
     })
 
     // If we don't have a network subgraph endpoint configured, we
@@ -158,6 +164,15 @@ export class NetworkSubgraph {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.endpointClient!
     }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async checkedQuery<Data = any>(
+    query: DocumentNode,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    variables?: Record<string, any>,
+  ): Promise<QueryResult<Data>> {
+    return this.freshnessChecker.checkedQuery(this, query, variables)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

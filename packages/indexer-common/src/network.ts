@@ -18,6 +18,7 @@ import {
   EpochSubgraph,
   NetworkMonitor,
   AllocationReceiptCollector,
+  SubgraphFreshnessChecker,
 } from '.'
 import { BigNumber, providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -82,8 +83,28 @@ export class Network {
     })
 
     // * -----------------------------------------------------------------------
+    // * Network Provider
+    // * -----------------------------------------------------------------------
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
+      specification.networkIdentifier,
+      specification.networkProvider.url,
+      specification.networkProvider.pollingInterval,
+    )
+
+    // * -----------------------------------------------------------------------
     // * Network Subgraph
     // * -----------------------------------------------------------------------
+    const networkSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'Network Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
     const networkSubgraphDeploymentId = specification.subgraphs.networkSubgraph.deployment
       ? new SubgraphDeploymentID(specification.subgraphs.networkSubgraph.deployment)
       : undefined
@@ -98,18 +119,8 @@ export class Network {
               deployment: networkSubgraphDeploymentId,
             }
           : undefined,
+      subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
-
-    // * -----------------------------------------------------------------------
-    // * Network Provider
-    // * -----------------------------------------------------------------------
-    const networkProvider = await Network.provider(
-      logger,
-      metrics,
-      specification.networkIdentifier,
-      specification.networkProvider.url,
-      specification.networkProvider.pollingInterval,
-    )
 
     // * -----------------------------------------------------------------------
     // * Contracts
@@ -138,13 +149,24 @@ export class Network {
     // * -----------------------------------------------------------------------
     // * Epoch Subgraph
     // * -----------------------------------------------------------------------
-    const epochSubgraph = await EpochSubgraph.create(
+    const epochSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'Epoch Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    const epochSubgraph = new EpochSubgraph(
       /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion --
        * Accept the non-null `url` property of the Epoch Subgraph, as it has
        * already been validated during parsing. Once indexing is supported,
        * initialize it in the same way as the NetworkSubgraph
        */
       specification.subgraphs.epochSubgraph.url!,
+      epochSubgraphFreshnessChecker,
+      logger.child({ component: 'EpochSubgraph' }),
     )
 
     // * -----------------------------------------------------------------------
