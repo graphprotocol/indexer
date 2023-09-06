@@ -581,6 +581,7 @@ export async function run(
     networks,
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
     argv.enableAutoMigrationSupport,
+    argv.deploymentManagement,
   )
   await agent.start()
 }

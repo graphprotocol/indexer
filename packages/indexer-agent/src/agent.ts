@@ -35,6 +35,7 @@ import {
   TransferredSubgraphDeployment,
   networkIsL2,
   networkIsL1,
+  DeploymentManagementMode,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -204,6 +205,7 @@ export class Agent {
   indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
   autoMigrationSupport: boolean
+  deploymentManagement: DeploymentManagementMode
 
   constructor(
     logger: Logger,
@@ -214,6 +216,7 @@ export class Agent {
     networks: Network[],
     offchainSubgraphs: SubgraphDeploymentID[],
     autoMigrationSupport: boolean,
+    deploymentManagement: DeploymentManagementMode,
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
@@ -222,6 +225,7 @@ export class Agent {
     this.multiNetworks = createMultiNetworks(networks, operators)
     this.offchainSubgraphs = offchainSubgraphs
     this.autoMigrationSupport = !!autoMigrationSupport
+    this.deploymentManagement = deploymentManagement
   }
 
   async start(): Promise<Agent> {
@@ -799,22 +803,36 @@ export class Agent {
           ...Object.values(activeAllocations).flat(),
         ]
 
-        try {
-          // Reconcile deployments
-          await this.reconcileDeployments(
-            activeDeployments,
-            targetDeployments,
-            eligibleAllocations,
-          )
-        } catch (err) {
-          logger.warn(
-            `Exited early while reconciling deployments. Skipped reconciling actions.`,
-            {
-              err: indexerError(IndexerErrorCode.IE005, err),
-            },
-          )
-          return
+        // Reconcile deployments
+        switch (this.deploymentManagement) {
+          case DeploymentManagementMode.AUTO:
+            try {
+              await this.reconcileDeployments(
+                activeDeployments,
+                targetDeployments,
+                eligibleAllocations,
+              )
+            } catch (err) {
+              logger.warn(
+                `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                {
+                  err: indexerError(IndexerErrorCode.IE005, err),
+                },
+              )
+              return
+            }
+            break
+          case DeploymentManagementMode.MANUAL:
+            this.logger.debug(
+              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+            )
+            break
+          default:
+            throw new Error(
+              `Unexpected parameter for DeploymentManagementMode: ${this.deploymentManagement}`,
+            )
         }
+
         try {
           // Reconcile allocation actions
           await this.reconcileActions(

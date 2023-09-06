@@ -7,6 +7,11 @@ export enum AllocationManagementMode {
   OVERSIGHT = 'oversight',
 }
 
+export enum DeploymentManagementMode {
+  AUTO = 'auto',
+  MANUAL = 'manual',
+}
+
 export enum OrderDirection {
   ASC = 'asc',
   DESC = 'desc',
@@ -89,4 +94,15 @@ export interface TransactionConfig extends providers.TransactionRequest {
   attempt: number
   gasBump: BigNumber
   type: TransactionType
+}
+
+export function parseDeploymentManagementMode(input: string): DeploymentManagementMode {
+  switch (input) {
+    case DeploymentManagementMode.AUTO:
+      return DeploymentManagementMode.AUTO
+    case DeploymentManagementMode.MANUAL:
+      return DeploymentManagementMode.MANUAL
+    default:
+      throw new Error(`Invalid value for deployment management mode: ${input}`)
+  }
 }
