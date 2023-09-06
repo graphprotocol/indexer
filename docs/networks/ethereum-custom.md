@@ -52,15 +52,15 @@ option can be used. This needs to be tested on custom network
 | `ipfs`               | `--ipfs`         | `...`         |
 
 
-### Run the env
+## Run the env
     
 ```bash
     yarn workspace @graphprotocol/indexer-service start
     yarn workspace @graphprotocol/indexer-agent start
 ```
 
-### Create and publish a subgraph
-## Deploy
+## Create and publish a subgraph
+### Deploy
 1. Head to https://thegraph.com/studio/ and press “Create a subgraph”
 2. Get contract address abi and “create” block number for ```graph init```
 3. ```yarn codegen && yarn build```
@@ -68,7 +68,7 @@ option can be used. This needs to be tested on custom network
 5. ```graph create --node [node_url]:8020 [subgraphName]```
 6. ```yarn deploy```
 
-## Publish
+### Publish
 1. To publish subgraph on the network - the method [publishNewSubgraph](https://github.com/graphprotocol/contracts/blob/dev/contracts/discovery/GNS.sol#L247) from GNS.sol contract should be called with next params:
    1. bytes32 _subgraphDeploymentID
    2. bytes32 _versionMetadata
@@ -83,7 +83,7 @@ option can be used. This needs to be tested on custom network
    2. Call the method [mintSignal](https://github.com/graphprotocol/contracts/blob/dev/contracts/discovery/GNS.sol#L390)
 
     
-### Become an indexer
+## Become an indexer
 
 1. Approve Graph tokens to Staking contract
 2. Stake at least 100k GRT via `stake` method of Staking contract
@@ -95,7 +95,7 @@ graph-indexer indexer rules set <SUBGRAPH_IPFS_CID> allocationAmount 100000 deci
 5. This should update `node` column in indexer deployments (you can get this info via ```graph-indexer indexer status```)
 latestBlockNumber should be the same (or close to) with chainHeadBlockNumber
 
-### Closing allocation and getting rewards
+## Closing allocation and getting rewards
 Rewards are based on the epochs age of allocation (epochs length is being set up during epoch contract initialisation)
 1. Find allocation id ```graph-indexer indexer allocations get```
 2. Close allocation ```graph-indexer indexer allocations close {id} -f``` (without -f it will fail bcz of queue receipts failure)
