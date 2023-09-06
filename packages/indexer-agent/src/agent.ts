@@ -540,13 +540,8 @@ export class Agent {
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
         logger.trace('Resolving target deployments')
-        const targetDeploymentIDs: Set<SubgraphDeploymentID> = new Set(
-          // Concatenate all AllocationDecisions from all protocol networks
-          Object.values(networkDeploymentAllocationDecisions)
-            .flat()
-            .filter(decision => decision.toAllocate === true)
-            .map(decision => decision.deployment),
-        )
+        const targetDeploymentIDs: Set<SubgraphDeploymentID> =
+          consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
 
         // Add offchain subgraphs to the deployment list from rules
         Object.values(indexingRules)
@@ -1260,4 +1255,19 @@ export class Agent {
       }
     }
   }
+}
+
+export interface AllocationDecisionInterface {
+  toAllocate: boolean
+  deployment: SubgraphDeploymentID
+}
+export function consolidateAllocationDecisions(
+  allocationDecisions: Record<string, AllocationDecisionInterface[]>,
+): Set<SubgraphDeploymentID> {
+  return new Set(
+    Object.values(allocationDecisions)
+      .flat()
+      .filter(decision => decision.toAllocate === true)
+      .map(decision => decision.deployment),
+  )
 }
