@@ -85,13 +85,14 @@ option can be used. This needs to be tested on custom network
     
 ### Become an indexer
 
-1. Stake at least 100k GRT via `stake` method of Staking contract
-2. Set allocation rule via the CLI
+1. Approve Graph tokens to Staking contract
+2. Stake at least 100k GRT via `stake` method of Staking contract
+3. Set allocation rule via the CLI
 ```bash
 graph-indexer indexer rules set <SUBGRAPH_IPFS_CID> allocationAmount 100000 decisionBasis always
 ```
-3. Now Agent should send the allocation transaction. If it didn’t, you could try get actions list with ```graph-indexer indexer actions get``` and approve it via ```graph-indexer indexer actions approve {id}```
-4. This should update `node` column in indexer deployments (you can get this info via ```graph-indexer indexer status```)
+4. Now Agent should send the allocation transaction. If it didn’t, you could try get actions list with ```graph-indexer indexer actions get``` and approve it via ```graph-indexer indexer actions approve {id}```
+5. This should update `node` column in indexer deployments (you can get this info via ```graph-indexer indexer status```)
 latestBlockNumber should be the same (or close to) with chainHeadBlockNumber
 
 ### Closing allocation and getting rewards
@@ -99,3 +100,4 @@ Rewards are based on the epochs age of allocation (epochs length is being set up
 1. Find allocation id ```graph-indexer indexer allocations get```
 2. Close allocation ```graph-indexer indexer allocations close {id} -f``` (without -f it will fail bcz of queue receipts failure)
 3. When an allocation is closed with a valid proof of indexing (POI) their indexing rewards are distributed to the Indexer
+Rewards are going to be added to a deposit in the Staking contract
