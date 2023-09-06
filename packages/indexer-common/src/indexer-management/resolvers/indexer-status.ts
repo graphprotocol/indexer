@@ -124,7 +124,7 @@ export default {
     const address = network.specification.indexerOptions.address
 
     try {
-      const result = await network.networkSubgraph.query(
+      const result = await network.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!) {
             allocations(

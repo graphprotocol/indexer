@@ -60,7 +60,7 @@ export class NetworkMonitor {
   }
 
   async allocation(allocationID: string): Promise<Allocation> {
-    const result = await this.networkSubgraph.query(
+    const result = await this.networkSubgraph.checkedQuery(
       gql`
         query allocation($allocation: String!) {
           allocation(id: $allocation) {
@@ -100,7 +100,7 @@ export class NetworkMonitor {
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       this.logger.debug(`Fetch ${status} allocations`)
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $status: AllocationStatus!) {
             allocations(
@@ -161,7 +161,7 @@ export class NetworkMonitor {
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query epochs($epochs: [Int!]!) {
             epoches(where: { id_in: $epochs }, first: 1000) {
@@ -201,7 +201,7 @@ export class NetworkMonitor {
   ): Promise<Allocation[]> {
     try {
       this.logger.debug('Fetch recently closed allocations')
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             allocations(
@@ -264,7 +264,7 @@ export class NetworkMonitor {
     subgraphDeploymentId: SubgraphDeploymentID,
   ): Promise<Allocation[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $subgraphDeploymentId: String!) {
             allocations(
@@ -350,7 +350,7 @@ export class NetworkMonitor {
         subgraphIds: ids,
       })
       try {
-        const result = await this.networkSubgraph.query(
+        const result = await this.networkSubgraph.checkedQuery(
           gql`
             query subgraphs($first: Int!, $lastCreatedAt: Int!, $subgraphs: [String!]!) {
               subgraphs(
@@ -436,7 +436,7 @@ export class NetworkMonitor {
 
   async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment | undefined> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query subgraphDeployments($ipfsHash: String!) {
             subgraphDeployments(where: { ipfsHash: $ipfsHash }) {
@@ -494,7 +494,7 @@ export class NetworkMonitor {
   async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
     this.logger.debug('Querying the Network for transferred subgraph deployments')
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         // TODO: Consider querying for the same time range as the Agent's evaluation, limiting
         // results to recent transfers.
         gql`
@@ -592,7 +592,7 @@ export class NetworkMonitor {
         queryProgress: queryProgress,
       })
       try {
-        const result = await this.networkSubgraph.query(
+        const result = await this.networkSubgraph.checkedQuery(
           gql`
             query subgraphDeployments($first: Int!, $lastCreatedAt: Int!) {
               subgraphDeployments(
@@ -670,7 +670,7 @@ export class NetworkMonitor {
     const queryEpochSubgraph = async () => {
       // We know it is non-null because of the check above for a null case that will end execution of fn if true
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const result = await this.epochSubgraph!.query(
+      const result = await this.epochSubgraph!.checkedQuery(
         gql`
           query network($networkID: String!) {
             network(id: $networkID) {
@@ -687,11 +687,6 @@ export class NetworkMonitor {
                   epochNumber
                   blockNumber
                 }
-              }
-            }
-            _meta {
-              block {
-                number
               }
             }
           }
@@ -940,7 +935,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       .reduce(async (currentlyPaused) => {
         try {
           logger.debug('Query network subgraph isPaused state')
-          const result = await networkSubgraph.query(
+          const result = await networkSubgraph.checkedQuery(
             gql`
               {
                 graphNetworks {
@@ -1018,7 +1013,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         closedAtEpoch_lte: disputableEpoch,
         queryFeesCollected_gte: this.indexerOptions.rebateClaimThreshold.toString(),
       })
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations(
             $indexer: String!
@@ -1132,7 +1127,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
       let lastCreatedAt = 0
       while (dataRemaining) {
-        const result = await this.networkSubgraph.query(
+        const result = await this.networkSubgraph.checkedQuery(
           gql`
             query allocations(
               $deployments: [String!]!

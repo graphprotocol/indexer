@@ -82,7 +82,7 @@ export const createSyncingServer = async ({
 
       let result
       try {
-        result = await networkSubgraph.query(parsedQuery, variables)
+        result = await networkSubgraph.checkedQuery(parsedQuery, variables)
       } catch (err) {
         logger.error(err)
         return res.status(400).send({ error: err.message })

@@ -241,7 +241,10 @@ async function queryAllocations(
     )
   }
 
-  const result = await networkSubgraph.query(ALLOCATION_QUERIES[filterType], filterVars)
+  const result = await networkSubgraph.checkedQuery(
+    ALLOCATION_QUERIES[filterType],
+    filterVars,
+  )
 
   if (result.data.allocations.length == 0) {
     logger.info(`No 'Claimable' allocations found`)
