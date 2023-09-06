@@ -2,12 +2,19 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios'
 import { DocumentNode, print } from 'graphql'
 import { CombinedError } from '@urql/core'
 import { QueryResult } from './network-subgraph'
-
+import { Logger } from '@graphprotocol/common-ts'
+import { SubgraphFreshnessChecker } from './subgraphs'
 export class EpochSubgraph {
-  private constructor(private endpointClient: AxiosInstance) {}
+  endpointClient: AxiosInstance
+  freshnessChecker: SubgraphFreshnessChecker
+  logger: Logger
 
-  public static async create(endpoint: string): Promise<EpochSubgraph> {
-    const endpointClient = axios.create({
+  constructor(
+    endpoint: string,
+    freshnessChecker: SubgraphFreshnessChecker,
+    logger: Logger,
+  ) {
+    this.endpointClient = axios.create({
       baseURL: endpoint,
       headers: { 'content-type': 'application/json' },
 
@@ -17,8 +24,17 @@ export class EpochSubgraph {
       // Don't transform responses
       transformResponse: (data) => data,
     })
-    // Create the Epoch subgraph instance
-    return new EpochSubgraph(endpointClient)
+    this.freshnessChecker = freshnessChecker
+    this.logger = logger
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async checkedQuery<Data = any>(
+    query: DocumentNode,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    variables?: Record<string, any>,
+  ): Promise<QueryResult<Data>> {
+    return this.freshnessChecker.checkedQuery(this, query, variables)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,6 +48,7 @@ export class EpochSubgraph {
       variables,
     })
     const data = JSON.parse(response.data)
+    this.logger.trace('Epoch Subgraph query', { data })
     if (data.errors) {
       return { error: new CombinedError({ graphQLErrors: data.errors }) }
     }

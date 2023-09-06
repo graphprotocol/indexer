@@ -16,7 +16,7 @@ import {
 import { defineQueryFeeModels, specification as spec } from '../../index'
 import { networkIsL1, networkIsL2 } from '../types'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
-import { SubgraphIdentifierType } from '../../subgraphs'
+import { SubgraphFreshnessChecker, SubgraphIdentifierType } from '../../subgraphs'
 import { ActionManager } from '../actions'
 import { actionFilterToWhereOptions, ActionStatus, ActionType } from '../../actions'
 import { literal, Op, Sequelize } from 'sequelize'
@@ -34,6 +34,7 @@ import {
   SubgraphDeployment,
   getTestProvider,
 } from '@graphprotocol/indexer-common'
+import { mockLogger, mockProvider } from '../../__tests__/subgraph.test'
 import { BigNumber, ethers, utils } from 'ethers'
 
 // Make global Jest variable available
@@ -72,14 +73,28 @@ const setupMonitor = async () => {
   })
   ethereum = getTestProvider('goerli')
   contracts = await connectContracts(ethereum, 5)
+
+  const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
+    'Test Subgraph',
+    mockProvider,
+    10,
+    10,
+    mockLogger,
+    1,
+  )
+
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
     deployment: undefined,
+    subgraphFreshnessChecker,
   })
-  epochSubgraph = await EpochSubgraph.create(
+
+  epochSubgraph = new EpochSubgraph(
     'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
+    subgraphFreshnessChecker,
+    logger,
   )
   graphNode = new GraphNode(
     logger,
