@@ -326,7 +326,7 @@ export class TransactionManager {
     return timer(60_000)
       .reduce(async (currentlyPaused) => {
         try {
-          const result = await networkSubgraph.query(
+          const result = await networkSubgraph.checkedQuery(
             gql`
               {
                 graphNetworks {

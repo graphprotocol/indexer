@@ -38,7 +38,7 @@ export const monitorEligibleAllocations = ({
     logger.debug('Refresh eligible allocations')
 
     try {
-      const currentEpochResult = await networkSubgraph.query(
+      const currentEpochResult = await networkSubgraph.checkedQuery(
         gql`
           query {
             graphNetwork(id: "1") {
@@ -61,7 +61,7 @@ export const monitorEligibleAllocations = ({
 
       const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
-      const result = await networkSubgraph.query(
+      const result = await networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
