@@ -37,6 +37,9 @@ import { displayZodParsingError } from './error-handling'
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
+const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
+const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
+
 export const start = {
   command: 'start',
   describe: 'Start the agent',
@@ -155,6 +158,20 @@ export const start = {
         array: false,
         type: 'string',
         required: true,
+        group: 'Protocol',
+      })
+      .option('subgraph-max-block-distance', {
+        description:
+          'How many blocks subgraphs are allowed to stay behind chain head',
+        type: 'number',
+        default: DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE,
+        group: 'Protocol',
+      })
+      .option('subgraph-freshness-sleep-milliseconds', {
+        description:
+          'How long to wait before retrying subgraph query if it is not fresh',
+        type: 'number',
+        default: DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS,
         group: 'Protocol',
       })
       .option('default-allocation-amount', {
@@ -298,6 +315,7 @@ export const start = {
 
 export async function createNetworkSpecification(
   argv: AgentOptions,
+  logger: Logger,
 ): Promise<spec.NetworkSpecification> {
   const gateway = {
     url: argv.gatewayEndpoint,
@@ -333,6 +351,8 @@ export async function createNetworkSpecification(
   }
 
   const subgraphs = {
+    maxBlockDistance: argv.subgraphMaxBlockDistance,
+    freshnessSleepMilliseconds: argv.subgraphFreshnessSleepMilliseconds,
     networkSubgraph: {
       deployment: argv.networkSubgraphDeployment,
       url: argv.networkSubgraphEndpoint,
@@ -358,6 +378,36 @@ export async function createNetworkSpecification(
   // JSON RPC provider for its `chainID`.
   const chainId = await fetchChainId(networkProvider.url)
   const networkIdentifier = resolveChainId(chainId)
+
+  // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
+  if (networkIdentifier.startsWith('eip155:42161')) {
+    // Arbitrum-One and Arbitrum-Goerli
+    if (subgraphs.maxBlockDistance <= DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE) {
+      logger.warn(
+        `Consider increasing 'subgraph-max-block-distance' for Arbitrum networks`,
+        {
+          problem:
+            'A low subgraph freshness threshold might cause the Agent to discard too many subgraph queries in fast-paced networks.',
+          hint: `Increase the 'subgraph-max-block-distance' parameter to a value that accomodates for block and indexing speeds.`,
+          configuredValue: subgraphs.maxBlockDistance,
+        },
+      )
+    }
+    if (
+      subgraphs.freshnessSleepMilliseconds <=
+      DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS
+    ) {
+      logger.warn(
+        `Consider increasing 'subgraph-freshness-sleep-milliseconds' for Arbitrum networks`,
+        {
+          problem:
+            'A short subgraph freshness wait time might be insufficient for the subgraph to sync with fast-paced networks.',
+          hint: `Increase the 'subgraph-freshness-sleep-milliseconds' parameter to a value that accomodates for block and indexing speeds.`,
+          configuredValue: subgraphs.freshnessSleepMilliseconds,
+        },
+      )
+    }
+  }
 
   try {
     return spec.NetworkSpecification.parse({

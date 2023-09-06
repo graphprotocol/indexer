@@ -60,7 +60,7 @@ async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
     await run(args, specifications, logger)
   } else {
     reviewArgumentsForWarnings(args, logger)
-    const specification = await createNetworkSpecification(args)
+    const specification = await createNetworkSpecification(args, logger)
     await run(args, [specification], logger)
   }
 }
