@@ -7,6 +7,10 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from './indexer-management'
+import { DocumentNode, print } from 'graphql'
+import gql from 'graphql-tag'
+import { QueryResult } from './network-subgraph'
+import { mergeSelectionSets, sleep } from './utils'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -321,5 +325,164 @@ export function isDeploymentWorthAllocatingTowards(
         )
       }
     }
+  }
+}
+
+export interface ProviderInterface {
+  getBlockNumber(): Promise<number>
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface LoggerInterface {
+  trace(msg: string, o?: object, ...args: any[]): void
+  error(msg: string, o?: object, ...args: any[]): void
+  warn(msg: string, o?: object, ...args: any[]): void
+}
+
+export interface SubgraphQueryInterface {
+  query<Data = any>(
+    query: DocumentNode,
+    variables?: Record<string, any>,
+  ): Promise<QueryResult<Data>>
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+const blockNumberQuery = gql`
+  {
+    _meta {
+      block {
+        number
+      }
+    }
+  }
+`
+
+interface BlockNumberInterface {
+  data: { _meta: { block: { number: number } } }
+  errors?: any
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Variables = Record<string, any>
+
+export class SubgraphFreshnessChecker {
+  subgraphName: string
+  provider: ProviderInterface
+  threshold: number
+  logger: LoggerInterface
+  sleepDurationMillis: number
+  retries: number
+
+  constructor(
+    subgraphName: string,
+    provider: ProviderInterface,
+    freshnessThreshold: number,
+    sleepDurationMillis: number,
+    logger: LoggerInterface,
+    retries: number,
+  ) {
+    this.subgraphName = subgraphName
+    this.provider = provider
+    this.threshold = freshnessThreshold
+    this.sleepDurationMillis = sleepDurationMillis
+    this.logger = logger
+    this.retries = retries
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public async checkedQuery<Data = any>(
+    subgraph: SubgraphQueryInterface,
+    query: DocumentNode,
+    variables?: Variables,
+  ): Promise<QueryResult<Data>> {
+    // Try to inject the latest block number into the original query.
+    let updatedQuery = query
+    try {
+      updatedQuery = mergeSelectionSets(query, blockNumberQuery)
+    } catch (err) {
+      const errorMsg = `Failed to append block number into ${this.subgraphName} query`
+      this.logger.error(errorMsg, { subgraph: this.subgraphName, query: print(query) })
+      throw new Error(errorMsg)
+    }
+
+    // Try obtaining a fresh subgraph query at most 10 times
+    return this.checkedQueryRecursive<Data>(
+      updatedQuery,
+      subgraph,
+      this.retries,
+      variables,
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async checkedQueryRecursive<Data = any>(
+    updatedQuery: DocumentNode,
+    subgraph: SubgraphQueryInterface,
+    retriesLeft: number,
+    variables?: Variables,
+  ): Promise<QueryResult<Data>> {
+    if (retriesLeft < 0) {
+      const errorMsg = `Max retries reached for ${this.subgraphName} freshness check`
+      this.logger.error(errorMsg, {
+        subgraph: this.subgraphName,
+        query: print(updatedQuery),
+      })
+      throw new Error(errorMsg)
+    }
+
+    // Obtain the latest network block number and subgraph query in parallel.
+    const subgraphQueryPromise = subgraph.query(updatedQuery, variables) as Promise<
+      QueryResult<Data> & BlockNumberInterface
+    >
+    const latestNetworkBLockPromise = this.provider.getBlockNumber()
+    const [subgraphQueryResult, latestNetworkBlock] = await Promise.all([
+      subgraphQueryPromise,
+      latestNetworkBLockPromise,
+    ])
+
+    // Return it early if query results contains errors
+    if (subgraphQueryResult.errors) {
+      return subgraphQueryResult
+    }
+
+    const latestIndexedBlock = subgraphQueryResult?.data?._meta?.block?.number
+    if (!latestIndexedBlock) {
+      const errorMsg = `Failed to infer block number for ${this.subgraphName} query`
+      this.logger.error(errorMsg, { query: print(updatedQuery) })
+      // Check for unexpected missing block data as a precaution.
+      throw new Error(errorMsg)
+    }
+
+    // Check subgraph freshness
+    const blockDistance = latestNetworkBlock - latestIndexedBlock
+    const logInfo = {
+      latestIndexedBlock,
+      latestNetworkBlock,
+      blockDistance,
+      freshnessThreshold: this.threshold,
+      subgraph: this.subgraphName,
+      retriesLeft,
+    }
+    this.logger.trace('Performing subgraph freshness check', logInfo)
+
+    if (blockDistance < 0) {
+      // Invariant violated: Subgraph can't be ahead of network latest block
+      const errorMsg = `${this.subgraphName}'s latest indexed block (${latestIndexedBlock}) is higher than Network's latest block (${latestNetworkBlock})`
+      console.error(errorMsg, logInfo)
+      throw new Error(errorMsg)
+    }
+
+    if (blockDistance > this.threshold) {
+      // Reenter function
+      this.logger.warn(
+        `${this.subgraphName} is not fresh. Sleeping for ${this.sleepDurationMillis} ms before retrying`,
+        logInfo,
+      )
+      await sleep(this.sleepDurationMillis)
+      return this.checkedQueryRecursive(updatedQuery, subgraph, retriesLeft - 1)
+    } else {
+      this.logger.trace(`${this.subgraphName} is fresh`, logInfo)
+    }
+    return subgraphQueryResult
   }
 }
