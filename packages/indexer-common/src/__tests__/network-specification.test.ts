@@ -70,6 +70,11 @@ describe('Failed deserialization', () => {
       path: ['dai', 'contractAddress'],
       message: 'Invalid contract address',
     },
+    {
+      file: 'invalid-negative-max-block-distance.yml',
+      path: ['subgraphs', 'maxBlockDistance'],
+      message: 'Number must be greater than or equal to 0',
+    },
   ]
 
   test.each(failedTests)(
