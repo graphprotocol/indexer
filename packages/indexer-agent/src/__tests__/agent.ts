@@ -1,4 +1,7 @@
-import { convertSubgraphBasedRulesToDeploymentBased } from '../agent'
+import {
+  convertSubgraphBasedRulesToDeploymentBased,
+  consolidateAllocationDecisions,
+} from '../agent'
 import {
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
@@ -164,5 +167,44 @@ describe('Agent convenience function tests', () => {
     expect(
       convertSubgraphBasedRulesToDeploymentBased(inputRules, subgraphs, 1000),
     ).toEqual(inputRules)
+  })
+})
+
+describe('consolidateAllocationDecisions function', () => {
+  it('produces a set with unique deployment ids', () => {
+    const a = new SubgraphDeploymentID(
+      'QmXZiV6S13ha6QXq4dmaM3TB4CHcDxBMvGexSNu9Kc28EH',
+    )
+    const b = new SubgraphDeploymentID(
+      'QmRKs2ZfuwvmZA3QAWmCqrGUjV9pxtBUDP3wuc6iVGnjA2',
+    )
+    const c = new SubgraphDeploymentID(
+      'QmULAfA3eS5yojxeSR2KmbyuiwCGYPjymsFcpa6uYsu6CJ',
+    )
+
+    const allocationDecisions = {
+      'eip155:0': [
+        { deployment: a, toAllocate: false },
+        { deployment: b, toAllocate: true },
+      ],
+      'eip155:1': [
+        { deployment: b, toAllocate: true },
+        { deployment: c, toAllocate: false },
+      ],
+      'eip155:2': [
+        { deployment: c, toAllocate: true },
+        { deployment: a, toAllocate: false },
+      ],
+    }
+
+    const expected = new Set([c, b])
+
+    const result = consolidateAllocationDecisions(allocationDecisions)
+
+    expect(result).toStrictEqual(expected)
+    expect(result).toHaveProperty('size', 2)
+    expect(result).toContain(c)
+    expect(result).toContain(b)
+    expect(result).not.toContain(a)
   })
 })
