@@ -2,6 +2,7 @@ import fs from 'fs'
 
 import { Argv } from 'yargs'
 import { parse as yaml_parse } from 'yaml'
+import { parseDeploymentManagementMode } from '@graphprotocol/indexer-common'
 
 // Injects all CLI options shared between this module's commands into a `yargs.Argv` object.
 export function injectCommonStartupOptions(argv: Argv): Argv {
@@ -126,6 +127,14 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       type: 'boolean',
       required: false,
       default: false,
+      group: 'Indexer Infrastructure',
+    })
+    .option('deployment-management', {
+      describe: 'Subgraph deployments management mode',
+      required: false,
+      default: 'auto',
+      choices: ['auto', 'manual'],
+      coerce: parseDeploymentManagementMode,
       group: 'Indexer Infrastructure',
     })
     .config({
