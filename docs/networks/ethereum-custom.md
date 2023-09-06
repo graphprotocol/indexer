@@ -7,14 +7,14 @@
 
 ### Indexer Agent
 
-| Environment Variable                        | CLI Argument                    | Value                                                                             |
-| ------------------------------------------- | ------------------------------- |-----------------------------------------------------------------------------------|
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Goerli node/provider                                                  |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet-rpc-0` Being set up in the graph node                                    |
-| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                               |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                 |
-| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                            |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli`      |
+| Environment Variable                        | CLI Argument                    | Value                                                                        |
+| ------------------------------------------- | ------------------------------- |------------------------------------------------------------------------------|
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum node/provider                                                    |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet-rpc-0` Being set up in the graph node                               |
+| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                          |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                            |
+| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                       |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -30,7 +30,7 @@ option can be used. This needs to be tested on custom network
 
 | Environment Variable                         | CLI Argument                   | Value                                                                        |
 |----------------------------------------------|--------------------------------|------------------------------------------------------------------------------|
-| `INDEXER_SERVICE_ETHEREUM`                   | `--ethereum`                   | An Ethereum Goerli node/provider                                             |
+| `INDEXER_SERVICE_ETHEREUM`                   | `--ethereum`                   | An Ethereum node/provider                                                    |
 | `INDEXER_SERVICE_ETHEREUM_NETWORK`           | `--ethereum-network`           | `mainnet-rpc-0` Being set up in the graph node                               |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`            | `--indexer-address`            | Ethereum address of testnet indexer                                          |
 | `INDEXER_SERVICE_MNEMONIC`                   | `--mnemonic`                   | Ethereum mnemonic for testnet operator                                       |
