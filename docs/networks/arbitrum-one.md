@@ -44,7 +44,7 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmeUGqU5pVzCgrPAjaGnH1rK9dX4j2oEL12z36zreuVVmn`                                    |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum`      |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | TBD                                                                                 |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts`                             |
+| `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.network.thegraph.com/`                                    |
 | `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                                                |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/arbitrum-epoch-block-oracle` |
 
