@@ -802,10 +802,43 @@
     prom-client "14.0.1"
     sequelize "6.31.1"
 
+"@graphprotocol/common-ts@file:../../../../common-ts/packages/common-ts":
+  version "2.0.3"
+  dependencies:
+    "@graphprotocol/contracts" "5.1.0"
+    "@graphprotocol/pino-sentry-simple" "0.7.1"
+    "@urql/core" "2.4.4"
+    "@urql/exchange-execute" "1.2.2"
+    body-parser "1.19.1"
+    bs58 "4.0.1"
+    cors "2.8.5"
+    cross-fetch "3.1.5"
+    ethers "5.7.0"
+    express "4.17.3"
+    graphql "16.3.0"
+    graphql-tag "2.12.6"
+    helmet "5.0.2"
+    morgan "1.10.0"
+    ngeohash "0.6.3"
+    pg "8.7.3"
+    pg-hstore "2.3.4"
+    pino "7.6.0"
+    pino-multi-stream "6.0.0"
+    prom-client "14.0.1"
+    sequelize "6.31.1"
+
 "@graphprotocol/contracts@2.1.0":
   version "2.1.0"
   resolved "https://registry.npmjs.org/@graphprotocol/contracts/-/contracts-2.1.0.tgz"
   integrity sha512-SeymJCUxBp488K/KNi77EKvrkPT0t/7rERGp8zFkmf5KByerjihhE9Ty9oXJAU9RzbUpxsU0JkPBSmiw9/2DYQ==
+  dependencies:
+    console-table-printer "^2.11.1"
+    ethers "^5.6.0"
+
+"@graphprotocol/contracts@5.1.0":
+  version "5.1.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/contracts/-/contracts-5.1.0.tgz#6fea0ad2d6e7ea33b9231103db1f3bc9f5d3b4a7"
+  integrity sha512-RKG8ZRTR5UJBbajDjWI/qFkRqieJ+1/HxGRlrrEybgF1tulzavK5K4Y2NpGujw/03KLsyI5Mz2VL7Jnh55uj5w==
   dependencies:
     console-table-printer "^2.11.1"
     ethers "^5.6.0"

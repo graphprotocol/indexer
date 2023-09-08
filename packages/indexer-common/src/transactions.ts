@@ -375,7 +375,7 @@ export class TransactionManager {
     return timer(60_000)
       .reduce(async (isOperator) => {
         try {
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          return await contracts.l1Staking.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -383,7 +383,7 @@ export class TransactionManager {
           )
           return isOperator
         }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      }, await contracts.l1Staking.isOperator(wallet.address, indexerAddress))
       .map((isOperator) => {
         logger.info(
           isOperator

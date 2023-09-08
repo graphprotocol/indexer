@@ -176,6 +176,11 @@ export default {
         type: 'string',
         required: false,
       })
+      .option('address-book', {
+        description: 'Graph contracts address book file path',
+        type: 'string',
+        required: false,
+      })
       .check(argv => {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
           return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
@@ -333,7 +338,11 @@ export default {
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(networkProvider, networkIdentifier.chainId)
+      contracts = await connectContracts(
+        networkProvider,
+        networkIdentifier.chainId,
+        argv.addressBook,
+      )
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
@@ -348,10 +357,10 @@ export default {
       curation: contracts.curation.address,
       disputeManager: contracts.disputeManager.address,
       epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
+      gns: contracts.l1GNS.address,
       rewardsManager: contracts.rewardsManager.address,
       serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
+      staking: contracts.l1Staking.address,
       token: contracts.token.address,
     })
 

@@ -214,6 +214,11 @@ export const start = {
         default: true,
         group: 'Cost Models',
       })
+      .option('address-book', {
+        description: 'Graph contracts address book file path',
+        type: 'string',
+        required: false,
+      })
       .option('dai-contract', {
         description:
           'Address of the DAI or USDC contract to use for the --inject-dai conversion rate',
@@ -367,6 +372,7 @@ export async function createNetworkSpecification(
       transactionMonitoring,
       subgraphs,
       networkProvider,
+      addressBook: argv.addressBook,
       dai,
     })
   } catch (parsingError) {

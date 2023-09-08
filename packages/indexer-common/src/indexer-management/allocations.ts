@@ -144,9 +144,9 @@ export class AllocationManager {
     logger.trace('Prepared transaction calldata', { callData })
 
     return await this.network.transactionManager.executeTransaction(
-      async () => this.network.contracts.staking.estimateGas.multicall(callData),
+      async () => this.network.contracts.l1Staking.estimateGas.multicall(callData),
       async (gasLimit) =>
-        this.network.contracts.staking.multicall(callData, { gasLimit }),
+        this.network.contracts.l1Staking.multicall(callData, { gasLimit }),
       this.logger.child({
         actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
         function: 'staking.multicall',
@@ -412,7 +412,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocationId)
+    const state = await this.network.contracts.l1Staking.getAllocationState(allocationId)
     if (state !== 0) {
       logger.debug(`Skipping allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,
@@ -471,7 +471,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.findEvent(
       'AllocationCreated',
-      this.network.contracts.staking.interface,
+      this.network.contracts.l1Staking.interface,
       'subgraphDeploymentID',
       subgraphDeployment.bytes32,
       receipt,
@@ -535,7 +535,7 @@ export class AllocationManager {
       allocation: params.allocationID,
       proof: params.proof,
     })
-    return await this.network.contracts.staking.populateTransaction.allocateFrom(
+    return await this.network.contracts.l1Staking.populateTransaction.allocateFrom(
       params.indexer,
       params.subgraphDeploymentID,
       params.tokens,
@@ -576,7 +576,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
+    const state = await this.network.contracts.l1Staking.getAllocationState(allocation.id)
     if (state !== 1) {
       throw indexerError(IndexerErrorCode.IE065)
     }
@@ -605,7 +605,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.findEvent(
       'AllocationClosed',
-      this.network.contracts.staking.interface,
+      this.network.contracts.l1Staking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -689,7 +689,7 @@ export class AllocationManager {
       allocationID: params.allocationID,
       POI: params.poi,
     })
-    return await this.network.contracts.staking.populateTransaction.closeAllocation(
+    return await this.network.contracts.l1Staking.populateTransaction.closeAllocation(
       params.allocationID,
       params.poi,
     )
@@ -766,7 +766,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
+    const state = await this.network.contracts.l1Staking.getAllocationState(allocation.id)
     if (state !== 1) {
       logger.warn(`Allocation has already been closed`)
       throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
@@ -802,7 +802,7 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const newAllocationState = await this.network.contracts.staking.getAllocationState(
+    const newAllocationState = await this.network.contracts.l1Staking.getAllocationState(
       newAllocationId,
     )
     if (newAllocationState !== 0) {
@@ -870,7 +870,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.findEvent(
       'AllocationClosed',
-      this.network.contracts.staking.interface,
+      this.network.contracts.l1Staking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -885,7 +885,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.findEvent(
       'AllocationCreated',
-      this.network.contracts.staking.interface,
+      this.network.contracts.l1Staking.interface,
       'subgraphDeploymentID',
       closeAllocationEventLogs.subgraphDeploymentID,
       receipt,
@@ -995,11 +995,11 @@ export class AllocationManager {
     )
 
     return [
-      await this.network.contracts.staking.populateTransaction.closeAllocation(
+      await this.network.contracts.l1Staking.populateTransaction.closeAllocation(
         params.closingAllocationID,
         params.poi,
       ),
-      await this.network.contracts.staking.populateTransaction.allocateFrom(
+      await this.network.contracts.l1Staking.populateTransaction.allocateFrom(
         params.indexer,
         params.subgraphDeploymentID,
         params.tokens,
@@ -1084,7 +1084,7 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    const indexerFreeStake = await this.network.contracts.staking.getIndexerCapacity(
+    const indexerFreeStake = await this.network.contracts.l1Staking.getIndexerCapacity(
       this.network.specification.indexerOptions.address,
     )
     const actionsBatchStakeusageSummaries = await pMap(batch, async (action: Action) =>

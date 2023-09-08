@@ -398,7 +398,7 @@ export default {
         const [currentEpoch, disputeEpochs, maxAllocationEpochs, epochLength] =
           await Promise.all([
             networkMonitor.networkCurrentEpoch(),
-            contracts.staking.channelDisputeEpochs().catch((error) => {
+            contracts.stakingExtension.channelDisputeEpochs().catch((error) => {
               logger.warn(
                 'Failed to fetch channel dispute epochs. Ignoring claimable allocations',
                 { error, protocolNetwork: network.specification.networkIdentifier },
@@ -407,7 +407,7 @@ export default {
               // all networks. Using a default value of zero on failure for now.
               return 0
             }),
-            contracts.staking.maxAllocationEpochs(),
+            contracts.stakingExtension.maxAllocationEpochs(),
             contracts.epochManager.epochLength(),
           ])
 
@@ -506,7 +506,7 @@ export default {
       const currentEpoch = await contracts.epochManager.currentEpoch()
 
       // Identify how many GRT the indexer has staked
-      const freeStake = await contracts.staking.getIndexerCapacity(address)
+      const freeStake = await contracts.l1Staking.getIndexerCapacity(address)
 
       // If there isn't enough left for allocating, abort
       if (freeStake.lt(allocationAmount)) {
@@ -550,7 +550,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationId)
+      const state = await contracts.l1Staking.getAllocationState(allocationId)
       if (state !== 0) {
         logger.debug(`Skipping allocation as it already exists onchain`, {
           indexer: address,
@@ -586,7 +586,7 @@ export default {
 
       const receipt = await transactionManager.executeTransaction(
         async () =>
-          contracts.staking.estimateGas.allocateFrom(
+          contracts.l1Staking.estimateGas.allocateFrom(
             address,
             subgraphDeployment.bytes32,
             allocationAmount,
@@ -595,7 +595,7 @@ export default {
             proof,
           ),
         async (gasLimit) =>
-          contracts.staking.allocateFrom(
+          contracts.l1Staking.allocateFrom(
             address,
             subgraphDeployment.bytes32,
             allocationAmount,
@@ -621,14 +621,14 @@ export default {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events.find((event: any) =>
           event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
+            contracts.l1Staking.interface.getEventTopic('AllocationCreated'),
           ),
         )
       if (!event) {
         throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
-      const createEvent = contracts.staking.interface.decodeEventLog(
+      const createEvent = contracts.l1Staking.interface.decodeEventLog(
         'AllocationCreated',
         event.data,
         event.topics,
@@ -734,7 +734,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationData.id)
+      const state = await contracts.l1Staking.getAllocationState(allocationData.id)
       if (state !== 1) {
         throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
       }
@@ -742,10 +742,10 @@ export default {
       logger.debug('Sending closeAllocation transaction')
       const receipt = await transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () => contracts.staking.estimateGas.closeAllocation(allocationData.id, poi!),
+        () => contracts.l1Staking.estimateGas.closeAllocation(allocationData.id, poi!),
         (gasLimit) =>
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          contracts.staking.closeAllocation(allocationData.id, poi!, {
+          contracts.l1Staking.closeAllocation(allocationData.id, poi!, {
             gasLimit,
           }),
         logger,
@@ -764,7 +764,7 @@ export default {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events.find((event: any) =>
           event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
+            contracts.l1Staking.interface.getEventTopic('AllocationClosed'),
           ),
         )
       if (!closeEvent) {
@@ -773,7 +773,7 @@ export default {
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
+      const closeAllocationEventLogs = contracts.l1Staking.interface.decodeEventLog(
         'AllocationClosed',
         closeEvent.data,
         closeEvent.topics,
@@ -948,7 +948,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationData.id)
+      const state = await contracts.l1Staking.getAllocationState(allocationData.id)
       if (state !== 1) {
         logger.warn(`Allocation has already been closed`)
         throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
@@ -971,7 +971,7 @@ export default {
       })
 
       // Identify how many GRT the indexer has staked
-      const freeStake = await contracts.staking.getIndexerCapacity(address)
+      const freeStake = await contracts.l1Staking.getIndexerCapacity(address)
 
       // When reallocating, we will first close the old allocation and free up the GRT in that allocation
       // This GRT will be available in addition to freeStake for the new allocation
@@ -1011,7 +1011,7 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const newAllocationState = await contracts.staking.getAllocationState(
+      const newAllocationState = await contracts.l1Staking.getAllocationState(
         newAllocationId,
       )
       if (newAllocationState !== 0) {
@@ -1046,11 +1046,11 @@ export default {
       })
 
       const callData = [
-        await contracts.staking.populateTransaction.closeAllocation(
+        await contracts.l1Staking.populateTransaction.closeAllocation(
           allocationData.id,
           allocationPOI,
         ),
-        await contracts.staking.populateTransaction.allocateFrom(
+        await contracts.l1Staking.populateTransaction.allocateFrom(
           address,
           allocationData.subgraphDeployment.id.bytes32,
           allocationAmount,
@@ -1061,8 +1061,8 @@ export default {
       ].map((tx) => tx.data as string)
 
       const receipt = await transactionManager.executeTransaction(
-        async () => contracts.staking.estimateGas.multicall(callData),
-        async (gasLimit) => contracts.staking.multicall(callData, { gasLimit }),
+        async () => contracts.l1Staking.estimateGas.multicall(callData),
+        async (gasLimit) => contracts.l1Staking.multicall(callData, { gasLimit }),
         logger.child({
           function: 'closeAndAllocate',
         }),
@@ -1080,14 +1080,14 @@ export default {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events.find((event: any) =>
           event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
+            contracts.l1Staking.interface.getEventTopic('AllocationCreated'),
           ),
         )
       if (!createEvent) {
         throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
-      const createAllocationEventLogs = contracts.staking.interface.decodeEventLog(
+      const createAllocationEventLogs = contracts.l1Staking.interface.decodeEventLog(
         'AllocationCreated',
         createEvent.data,
         createEvent.topics,
@@ -1097,7 +1097,7 @@ export default {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         events.find((event: any) =>
           event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
+            contracts.l1Staking.interface.getEventTopic('AllocationClosed'),
           ),
         )
       if (!closeEvent) {
@@ -1106,7 +1106,7 @@ export default {
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
+      const closeAllocationEventLogs = contracts.l1Staking.interface.decodeEventLog(
         'AllocationClosed',
         closeEvent.data,
         closeEvent.topics,

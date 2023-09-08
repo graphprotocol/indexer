@@ -56,7 +56,7 @@ export class NetworkMonitor {
   }
 
   async maxAllocationEpoch(): Promise<number> {
-    return await this.contracts.staking.maxAllocationEpochs()
+    return await this.contracts.stakingExtension.maxAllocationEpochs()
   }
 
   async allocation(allocationID: string): Promise<Allocation> {
@@ -993,7 +993,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       .reduce(async (isOperator) => {
         try {
           logger.debug('Check operator status')
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          return await contracts.l1Staking.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -1001,7 +1001,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           )
           return isOperator
         }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      }, await contracts.l1Staking.isOperator(wallet.address, indexerAddress))
       .map((isOperator) => {
         logger.info(
           isOperator

@@ -141,6 +141,7 @@ export const NetworkSpecification = z
     transactionMonitoring: TransactionMonitoring,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
+    addressBook: z.string().optional(),
     dai: Dai,
   })
   .strict()

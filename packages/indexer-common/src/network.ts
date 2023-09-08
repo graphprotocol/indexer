@@ -27,6 +27,7 @@ import pRetry from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
+import { readFileSync } from 'fs'
 
 export class Network {
   logger: Logger
@@ -133,6 +134,7 @@ export class Network {
       wallet,
       specification.networkIdentifier,
       logger,
+      specification.addressBook,
     )
 
     // * -----------------------------------------------------------------------
@@ -445,7 +447,7 @@ export class Network {
         //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
         //
         // in the contracts.
-        const state = await this.contracts.staking.getAllocationState(allocation.id)
+        const state = await this.contracts.l1Staking.getAllocationState(allocation.id)
         if (state === 4) {
           logger.trace(
             `Allocation rebate rewards already claimed, ignoring ${allocation.id}.`,
@@ -493,12 +495,12 @@ export class Network {
       // Claim the earned value from the rebate pool, returning it to the indexers stake
       const receipt = await this.transactionManager.executeTransaction(
         () =>
-          this.contracts.staking.estimateGas.claimMany(
+          this.contracts.l1Staking.estimateGas.claimMany(
             allocationIds,
             this.specification.indexerOptions.restakeRewards,
           ),
         (gasLimit) =>
-          this.contracts.staking.claimMany(
+          this.contracts.l1Staking.claimMany(
             allocationIds,
             this.specification.indexerOptions.restakeRewards,
             {
@@ -542,6 +544,7 @@ async function connectToProtocolContracts(
   wallet: Wallet,
   networkIdentifier: string,
   logger: Logger,
+  addressBook?: string,
 ): Promise<NetworkContracts> {
   const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
 
@@ -556,7 +559,7 @@ async function connectToProtocolContracts(
 
   let contracts
   try {
-    contracts = await connectContracts(wallet, numericNetworkId)
+    contracts = await connectContracts(wallet, numericNetworkId, addressBook)
   } catch (err) {
     throw new Error(
       `Failed to connect to contracts, please ensure you are using the intended protocol network`,
@@ -566,10 +569,10 @@ async function connectToProtocolContracts(
     curation: contracts.curation.address,
     disputeManager: contracts.disputeManager.address,
     epochManager: contracts.epochManager.address,
-    gns: contracts.gns.address,
+    gns: contracts.l1GNS.address,
     rewardsManager: contracts.rewardsManager.address,
     serviceRegistry: contracts.serviceRegistry.address,
-    staking: contracts.staking.address,
+    staking: contracts.l1Staking.address,
     token: contracts.token.address,
   })
   return contracts

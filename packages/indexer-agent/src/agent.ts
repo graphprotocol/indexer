@@ -296,7 +296,7 @@ export class Agent {
           protocolNetwork: network.specification.networkIdentifier,
         })
         try {
-          return await network.contracts.staking.channelDisputeEpochs()
+          return await network.contracts.stakingExtension.channelDisputeEpochs()
         } catch (error) {
           // Disregards `channelDisputeEpochs` value from this point forward.
           // TODO: Investigate error to confirm it comes from a reverted call.
@@ -321,7 +321,7 @@ export class Agent {
           logger.trace('Fetching max allocation epochs', {
             protocolNetwork: network.specification.networkIdentifier,
           })
-          return network.contracts.staking.maxAllocationEpochs()
+          return network.contracts.stakingExtension.maxAllocationEpochs()
         }),
       {
         onError: error =>
@@ -1123,7 +1123,7 @@ export class Agent {
       async (allocation: Allocation) => {
         try {
           const onChainAllocation =
-            await network.contracts.staking.getAllocation(allocation.id)
+            await network.contracts.l1Staking.getAllocation(allocation.id)
           return onChainAllocation.closedAtEpoch.eq('0')
         } catch (err) {
           this.logger.warn(
