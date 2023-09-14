@@ -619,28 +619,27 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
-      const event =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        )
-      if (!event) {
-        throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
-      }
-
-      const createEvent = contracts.staking.interface.decodeEventLog(
+      const createAllocationEventLogs = network.transactionManager.findEvent(
         'AllocationCreated',
-        event.data,
-        event.topics,
+        network.contracts.staking.interface,
+        'subgraphDeploymentID',
+        subgraphDeployment.toString(),
+        receipt,
+        logger,
       )
 
+      if (!createAllocationEventLogs) {
+        throw indexerError(
+          IndexerErrorCode.IE014,
+          `Allocation create transaction was never mined`,
+        )
+      }
+
       logger.info(`Successfully allocated to subgraph deployment`, {
-        amountGRT: formatGRT(createEvent.tokens),
-        allocation: createEvent.allocationID,
-        epoch: createEvent.epoch.toString(),
+        amountGRT: formatGRT(createAllocationEventLogs.tokens),
+        allocation: createAllocationEventLogs.allocationID,
+        epoch: createAllocationEventLogs.epoch.toString(),
+        transaction: receipt.transactionHash,
       })
 
       logger.debug(
@@ -670,7 +669,7 @@ export default {
         type: 'allocate',
         transactionID: receipt.transactionHash,
         deployment,
-        allocation: createEvent.allocationID,
+        allocation: createAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(allocationAmount.toString()),
         protocolNetwork,
       }
@@ -761,41 +760,32 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
+      const closeAllocationEventLogs = transactionManager.findEvent(
+        'AllocationClosed',
+        contracts.staking.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
+      )
 
-      const closeEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
-          ),
-        )
-      if (!closeEvent) {
+      if (!closeAllocationEventLogs) {
         throw indexerError(
-          IndexerErrorCode.IE014,
+          IndexerErrorCode.IE015,
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationClosed',
-        closeEvent.data,
-        closeEvent.topics,
+
+      const rewardsEventLogs = transactionManager.findEvent(
+        'RewardsAssigned',
+        contracts.rewardsManager.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const rewardsEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.rewardsManager.interface.getEventTopic('RewardsAssigned'),
-          ),
-        )
-      const rewardsAssigned = rewardsEvent
-        ? contracts.rewardsManager.interface.decodeEventLog(
-            'RewardsAssigned',
-            rewardsEvent.data,
-            rewardsEvent.topics,
-          ).amount
-        : 0
+      const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.amount : 0
 
       if (rewardsAssigned == 0) {
         logger.warn('No rewards were distributed upon closing the allocation')
@@ -1078,57 +1068,45 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
-      const createEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        )
-      if (!createEvent) {
+      const createAllocationEventLogs = transactionManager.findEvent(
+        'AllocationCreated',
+        contracts.staking.interface,
+        'subgraphDeploymentID',
+        allocationData.subgraphDeployment.id.toString(),
+        receipt,
+        logger,
+      )
+
+      if (!createAllocationEventLogs) {
         throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
-      const createAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationCreated',
-        createEvent.data,
-        createEvent.topics,
+      const closeAllocationEventLogs = transactionManager.findEvent(
+        'AllocationClosed',
+        contracts.staking.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const closeEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
-          ),
-        )
-      if (!closeEvent) {
+      if (!closeAllocationEventLogs) {
         throw indexerError(
-          IndexerErrorCode.IE014,
+          IndexerErrorCode.IE015,
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationClosed',
-        closeEvent.data,
-        closeEvent.topics,
+
+      const rewardsEventLogs = transactionManager.findEvent(
+        'RewardsAssigned',
+        contracts.rewardsManager.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const rewardsEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.rewardsManager.interface.getEventTopic('RewardsAssigned'),
-          ),
-        )
-      const rewardsAssigned = rewardsEvent
-        ? contracts.rewardsManager.interface.decodeEventLog(
-            'RewardsAssigned',
-            rewardsEvent.data,
-            rewardsEvent.topics,
-          ).amount
-        : 0
+      const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.amount : 0
 
       if (rewardsAssigned == 0) {
         logger.warn('No rewards were distributed upon closing the allocation')
