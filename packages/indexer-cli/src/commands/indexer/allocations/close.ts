@@ -75,7 +75,7 @@ module.exports = {
     try {
       poi = validatePOI(unformattedPoi)
     } catch (error) {
-      spinner.fail(`Invalid POI provided, '${unformattedPoi}'. ` + error.message())
+      spinner.fail(`Invalid POI provided, '${unformattedPoi}'. ` + error.message)
       process.exitCode = 1
       return
     }
