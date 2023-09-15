@@ -44,17 +44,6 @@ import pFilter from 'p-filter'
 import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 
-// The new Exponential Rebates for Indexes brought changes to the protocol contracts that deprecated
-// the following methods:
-// - channelDisputeEpochs
-// - claimRebateRewards
-// This variable acts as a signal to other parts of the code, showing that we've ignored the results
-// of these calls early in the current process.
-// This is important because the Exponential Rebates aren't active on the mainnet yet, which still
-// uses their results. Once those contract changes have been deployed to all networks, these calls
-// can be removed from the code.
-const EXPONENTIAL_REBATES_MARKER = -1
-
 type ActionReconciliationContext = [AllocationDecision[], number, number]
 
 const deploymentInList = (
@@ -286,31 +275,6 @@ export class Agent {
         onError: error =>
           logger.warn(`Failed to fetch current epoch`, { error }),
       },
-    )
-
-    const channelDisputeEpochs: Eventual<NetworkMapped<number>> = timer(
-      600_000,
-    ).map(() =>
-      this.multiNetworks.map(async ({ network }) => {
-        logger.trace('Fetching channel dispute epochs', {
-          protocolNetwork: network.specification.networkIdentifier,
-        })
-        try {
-          return await network.contracts.staking.channelDisputeEpochs()
-        } catch (error) {
-          // Disregards `channelDisputeEpochs` value from this point forward.
-          // TODO: Investigate error to confirm it comes from a reverted call.
-          logger.warn(
-            'Failed to fetch channel dispute epochs. ' +
-              'Ignoring claimable allocations for this reconciliation cycle.',
-            {
-              error,
-              protocolNetwork: network.specification.networkIdentifier,
-            },
-          )
-          return EXPONENTIAL_REBATES_MARKER
-        }
-      }),
     )
 
     const maxAllocationEpochs: Eventual<NetworkMapped<number>> = timer(
@@ -657,40 +621,6 @@ export class Agent {
       },
     )
 
-    const claimableAllocations: Eventual<NetworkMapped<Allocation[]>> = join({
-      currentEpochNumber,
-      channelDisputeEpochs,
-    }).tryMap(
-      async ({ currentEpochNumber, channelDisputeEpochs }) =>
-        this.multiNetworks.mapNetworkMapped(
-          this.multiNetworks.zip(currentEpochNumber, channelDisputeEpochs),
-          async (
-            { network }: NetworkAndOperator,
-            [currentEpochNumber, channelDisputeEpochs]: [number, number],
-          ): Promise<Allocation[]> => {
-            logger.trace('Fetching claimable allocations', {
-              protocolNetwork: network.specification.networkIdentifier,
-              currentEpochNumber,
-              channelDisputeEpochs,
-            })
-            if (channelDisputeEpochs === EXPONENTIAL_REBATES_MARKER) {
-              return [] // Ignore claimable allocations in Exponential Rebates context
-            } else {
-              return network.networkMonitor.claimableAllocations(
-                currentEpochNumber - channelDisputeEpochs,
-              )
-            }
-          },
-        ),
-
-      {
-        onError: () =>
-          logger.warn(
-            `Failed to obtain claimable allocations, trying again later`,
-          ),
-      },
-    )
-
     const disputableAllocations: Eventual<NetworkMapped<Allocation[]>> = join({
       currentEpochNumber,
       activeDeployments,
@@ -728,7 +658,6 @@ export class Agent {
       activeAllocations,
       networkDeploymentAllocationDecisions,
       recentlyClosedAllocations,
-      claimableAllocations,
       disputableAllocations,
     }).pipe(
       async ({
@@ -739,34 +668,11 @@ export class Agent {
         activeAllocations,
         networkDeploymentAllocationDecisions,
         recentlyClosedAllocations,
-        claimableAllocations,
         disputableAllocations,
       }) => {
         logger.info(`Reconcile with the network`, {
           currentEpochNumber,
         })
-
-        // Claim rebate pool rewards from finalized allocations
-        await this.multiNetworks.mapNetworkMapped(
-          claimableAllocations,
-          async (
-            { network }: NetworkAndOperator,
-            allocations: Allocation[],
-          ) => {
-            const protocolNetwork = network.specification.networkIdentifier
-            if (allocations.length) {
-              logger.debug(
-                `Claiming rebate rewards for ${allocations.length} allocations`,
-                { allocations, protocolNetwork },
-              )
-              return network.claimRebateRewards(allocations)
-            } else {
-              logger.debug('Found no allocations to claim rebate rewards for', {
-                protocolNetwork,
-              })
-            }
-          },
-        )
 
         try {
           const disputableEpochs = await this.multiNetworks.mapNetworkMapped(
