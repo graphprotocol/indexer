@@ -1004,9 +1004,8 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
       //
       // in the contracts.
-      const newAllocationState = await contracts.staking.getAllocationState(
-        newAllocationId,
-      )
+      const newAllocationState =
+        await contracts.staking.getAllocationState(newAllocationId)
       if (newAllocationState !== 0) {
         logger.warn(`Skipping Allocation as it already exists onchain`, {
           indexer: address,

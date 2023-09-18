@@ -143,16 +143,14 @@ export class GraphNode {
     try {
       this.logger.debug('Fetch subgraph deployment assignments')
       const result = await this.status
-        .query(
-          gql`
-            {
-              indexingStatuses {
-                subgraphDeployment: subgraph
-                node
-              }
+        .query(gql`
+          {
+            indexingStatuses {
+              subgraphDeployment: subgraph
+              node
             }
-          `,
-        )
+          }
+        `)
         .toPromise()
 
       if (result.error) {
@@ -187,16 +185,14 @@ export class GraphNode {
     try {
       this.logger.trace(`Querying indexing statuses`)
       const result = await this.status
-        .query(
-          gql`
-            {
-              indexingStatuses {
-                subgraphDeployment: subgraph
-                node
-              }
+        .query(gql`
+          {
+            indexingStatuses {
+              subgraphDeployment: subgraph
+              node
             }
-          `,
-        )
+          }
+        `)
         .toPromise()
 
       if (result.error) {

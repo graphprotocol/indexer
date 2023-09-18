@@ -942,7 +942,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                   isPaused
                 }
               }
-            `,
+            }
+          `,
           )
 
           if (result.error) {
@@ -985,18 +986,21 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
 
     return timer(300_000)
-      .reduce(async (isOperator) => {
-        try {
-          logger.debug('Check operator status')
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
-        } catch (err) {
-          logger.warn(
-            `Failed to check operator status for indexer, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-          )
-          return isOperator
-        }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      .reduce(
+        async (isOperator) => {
+          try {
+            logger.debug('Check operator status')
+            return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          } catch (err) {
+            logger.warn(
+              `Failed to check operator status for indexer, assuming it has not changed`,
+              { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+            )
+            return isOperator
+          }
+        },
+        await contracts.staking.isOperator(wallet.address, indexerAddress),
+      )
       .map((isOperator) => {
         logger.info(
           isOperator

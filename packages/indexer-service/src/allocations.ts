@@ -45,7 +45,8 @@ export const monitorEligibleAllocations = ({
               currentEpoch
             }
           }
-        `,
+        }
+      `,
       )
       if (currentEpochResult.error) {
         throw currentEpochResult.error
