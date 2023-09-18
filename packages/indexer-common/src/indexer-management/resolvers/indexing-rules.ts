@@ -166,9 +166,7 @@ export default {
       const identifiers = await Promise.all(
         batch.map(
           async ({ identifier }: IndexingRuleIdentifier) =>
-            (
-              await processIdentifier(identifier, { all: false, global: true })
-            )[0],
+            (await processIdentifier(identifier, { all: false, global: true }))[0],
         ),
       )
       // Execute deletion batch

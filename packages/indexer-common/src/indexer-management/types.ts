@@ -244,9 +244,8 @@ export async function validateProviderNetworkIdentifier(
   logger: Logger,
 ) {
   const subgraphNetworkId = new SubgraphDeploymentID(networkSubgraphDeploymentIpfsHash)
-  const { network: subgraphNetworkChainName } = await graphNode.subgraphFeatures(
-    subgraphNetworkId,
-  )
+  const { network: subgraphNetworkChainName } =
+    await graphNode.subgraphFeatures(subgraphNetworkId)
 
   if (!subgraphNetworkChainName) {
     // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.

@@ -326,35 +326,39 @@ export class TransactionManager {
     networkSubgraph: NetworkSubgraph,
   ): Promise<Eventual<boolean>> {
     return timer(60_000)
-      .reduce(async (currentlyPaused) => {
-        try {
-          const result = await networkSubgraph.query(
-            gql`
+      .reduce(
+        async (currentlyPaused) => {
+          try {
+            const result = await networkSubgraph.query(gql`
               {
                 graphNetworks {
                   isPaused
                 }
               }
-            `,
-          )
+            `)
 
-          if (result.error) {
-            throw result.error
+            if (result.error) {
+              throw result.error
+            }
+
+            if (!result.data || result.data.length === 0) {
+              throw new Error(`No data returned by network subgraph`)
+            }
+
+            return result.data.graphNetworks[0].isPaused
+          } catch (err) {
+            logger.warn(
+              `Failed to check for network pause, assuming it has not changed`,
+              {
+                err: indexerError(IndexerErrorCode.IE007, err),
+                paused: currentlyPaused,
+              },
+            )
+            return currentlyPaused
           }
-
-          if (!result.data || result.data.length === 0) {
-            throw new Error(`No data returned by network subgraph`)
-          }
-
-          return result.data.graphNetworks[0].isPaused
-        } catch (err) {
-          logger.warn(`Failed to check for network pause, assuming it has not changed`, {
-            err: indexerError(IndexerErrorCode.IE007, err),
-            paused: currentlyPaused,
-          })
-          return currentlyPaused
-        }
-      }, await contracts.controller.paused())
+        },
+        await contracts.controller.paused(),
+      )
       .map((paused) => {
         logger.info(paused ? `Network paused` : `Network active`)
         return paused
@@ -375,17 +379,20 @@ export class TransactionManager {
     }
 
     return timer(60_000)
-      .reduce(async (isOperator) => {
-        try {
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
-        } catch (err) {
-          logger.warn(
-            `Failed to check operator status for indexer, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-          )
-          return isOperator
-        }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      .reduce(
+        async (isOperator) => {
+          try {
+            return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          } catch (err) {
+            logger.warn(
+              `Failed to check operator status for indexer, assuming it has not changed`,
+              { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+            )
+            return isOperator
+          }
+        },
+        await contracts.staking.isOperator(wallet.address, indexerAddress),
+      )
       .map((isOperator) => {
         logger.info(
           isOperator
