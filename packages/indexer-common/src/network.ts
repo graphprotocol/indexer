@@ -7,7 +7,6 @@ import {
   Eventual,
 } from '@graphprotocol/common-ts'
 import {
-  Allocation,
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
@@ -20,10 +19,10 @@ import {
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
 } from '.'
-import { BigNumber, providers, Wallet } from 'ethers'
+import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
 import geohash from 'ngeohash'
-import pFilter from 'p-filter'
+
 import pRetry from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
@@ -415,133 +414,6 @@ export class Network {
       },
       { retries: 5 } as pRetry.Options,
     )
-  }
-
-  async claimRebateRewards(allocations: Allocation[]): Promise<void> {
-    if (allocations.length > 0) {
-      this.logger.info(`Claim rebate rewards`, {
-        claimable: allocations.map((allocation) => ({
-          id: allocation.id,
-          deployment: allocation.subgraphDeployment.id.display,
-          createdAtEpoch: allocation.createdAtEpoch,
-          amount: allocation.queryFeeRebates,
-        })),
-      })
-      try {
-        await this.claimMany(allocations)
-      } catch (err) {
-        this.logger.warn(`Failed to claim rebate rewards`, { err })
-      }
-    } else {
-      this.logger.info(`No allocations to claim rebate rewards for`)
-    }
-  }
-
-  async claimMany(allocations: Allocation[]): Promise<boolean> {
-    const logger = this.logger.child({
-      action: 'ClaimMany',
-    })
-    try {
-      logger.info(
-        `${allocations.length} allocations are eligible for rebate pool claims`,
-        {
-          allocations: allocations.map((allocation) => {
-            return {
-              allocation: allocation.id,
-              deployment: allocation.subgraphDeployment.id.display,
-              createdAtEpoch: allocation.createdAtEpoch,
-              closedAtEpoch: allocation.closedAtEpoch,
-              createdAtBlockHash: allocation.createdAtBlockHash,
-            }
-          }),
-          restakeRewards: this.specification.indexerOptions.restakeRewards,
-        },
-      )
-
-      // Filter out already-claimed and still-active allocations
-      allocations = await pFilter(allocations, async (allocation: Allocation) => {
-        // Double-check whether the allocation is claimed to
-        // avoid unnecessary transactions.
-        // Note: We're checking the allocation state here, which is defined as
-        //
-        //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
-        //
-        // in the contracts.
-        const state = await this.contracts.staking.getAllocationState(allocation.id)
-        if (state === 4) {
-          logger.trace(
-            `Allocation rebate rewards already claimed, ignoring ${allocation.id}.`,
-          )
-          return false
-        }
-        if (state === 1) {
-          logger.trace(`Allocation still active, ignoring ${allocation.id}.`)
-          return false
-        }
-        return true
-      })
-
-      // Max claims per batch should roughly be equal to average gas per claim / block gas limit
-      // On-chain data shows an average of 120k gas per claim and the block gas limit is 15M
-      // We get at least 21k gas savings per inclusion of a claim in a batch
-      // A reasonable upper bound for this value is 200 assuming the system has the memory
-      // requirements to construct the transaction
-      const maxClaimsPerBatch = this.specification.indexerOptions.rebateClaimMaxBatchSize
-
-      // When we construct the batch, we sort desc by query fees collected
-      // in order to maximise the value of the truncated batch
-      // more query fees collected should mean higher value rebates
-      const allocationIds = allocations
-        .sort((x, y) =>
-          y.queryFeesCollected instanceof BigNumber
-            ? y.queryFeesCollected.gt(x.queryFeesCollected || 0)
-              ? 1
-              : -1
-            : -1,
-        )
-        .map((allocation) => allocation.id)
-        .slice(0, maxClaimsPerBatch)
-
-      if (allocationIds.length === 0) {
-        logger.info(`No allocation rebates to claim`)
-        return true
-      } else {
-        logger.info(
-          `Claim tokens from the rebate pool for ${allocationIds.length} allocations`,
-          { allocationIds },
-        )
-      }
-
-      // Claim the earned value from the rebate pool, returning it to the indexers stake
-      const receipt = await this.transactionManager.executeTransaction(
-        () =>
-          this.contracts.staking.estimateGas.claimMany(
-            allocationIds,
-            this.specification.indexerOptions.restakeRewards,
-          ),
-        (gasLimit) =>
-          this.contracts.staking.claimMany(
-            allocationIds,
-            this.specification.indexerOptions.restakeRewards,
-            {
-              gasLimit,
-            },
-          ),
-        logger.child({ function: 'staking.claimMany' }),
-      )
-      if (receipt === 'paused' || receipt === 'unauthorized') {
-        return false
-      }
-      logger.info(`Successfully claimed ${allocationIds.length} allocations`, {
-        claimedAllocations: allocationIds,
-      })
-      return true
-    } catch (err) {
-      logger.warn(`Failed to claim allocations`, {
-        err: indexerError(IndexerErrorCode.IE016, err),
-      })
-      return false
-    }
   }
 }
 
