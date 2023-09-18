@@ -38,7 +38,7 @@ import {
 import { extractNetwork } from './utils'
 
 interface AllocationFilter {
-  status: 'active' | 'closed' | 'claimable'
+  status: 'active' | 'closed'
   allocation: string | null
   subgraphDeployment: string | null
   protocolNetwork: string | null
@@ -48,7 +48,6 @@ enum AllocationQuery {
   all = 'all',
   active = 'active',
   closed = 'closed',
-  claimable = 'claimable',
   allocation = 'allocation',
 }
 
@@ -96,30 +95,6 @@ const ALLOCATION_QUERIES = {
   [AllocationQuery.active]: gql`
     query allocations($indexer: String!) {
       allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-  [AllocationQuery.claimable]: gql`
-    query allocations($indexer: String!, $disputableEpoch: Int!) {
-      allocations(
-        where: { indexer: $indexer, closedAtEpoch_lte: $disputableEpoch, status: Closed }
-        first: 1000
-      ) {
         id
         subgraphDeployment {
           id
@@ -187,9 +162,8 @@ async function queryAllocations(
   networkSubgraph: NetworkSubgraph,
   variables: {
     indexer: Address
-    disputableEpoch: number
     allocation: Address | null
-    status: 'active' | 'closed' | 'claimable' | null
+    status: 'active' | 'closed' | null
   },
   context: {
     currentEpoch: number
@@ -218,12 +192,6 @@ async function queryAllocations(
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
     }
-  } else if (variables.status == 'claimable') {
-    filterType = AllocationQuery.claimable
-    filterVars = {
-      indexer: variables.indexer.toLowerCase(),
-      disputableEpoch: variables.disputableEpoch,
-    }
   } else if (variables.status == 'active') {
     filterType = AllocationQuery.active
     filterVars = {
@@ -247,6 +215,7 @@ async function queryAllocations(
   )
 
   if (result.data.allocations.length == 0) {
+    // TODO: Is 'Claimable' still the correct term here, after Exponential Rebates?
     logger.info(`No 'Claimable' allocations found`)
     return []
   }
@@ -398,21 +367,11 @@ export default {
           },
         } = network
 
-        const [currentEpoch, disputeEpochs, maxAllocationEpochs, epochLength] =
-          await Promise.all([
-            networkMonitor.networkCurrentEpoch(),
-            contracts.staking.channelDisputeEpochs().catch((error) => {
-              logger.warn(
-                'Failed to fetch channel dispute epochs. Ignoring claimable allocations',
-                { error, protocolNetwork: network.specification.networkIdentifier },
-              )
-              // Remove this call to channelDisputeEpochs once Exponential Rebates are deployed to
-              // all networks. Using a default value of zero on failure for now.
-              return 0
-            }),
-            contracts.staking.maxAllocationEpochs(),
-            contracts.epochManager.epochLength(),
-          ])
+        const [currentEpoch, maxAllocationEpochs, epochLength] = await Promise.all([
+          networkMonitor.networkCurrentEpoch(),
+          contracts.staking.maxAllocationEpochs(),
+          contracts.epochManager.epochLength(),
+        ])
 
         const allocation = filter.allocation
           ? filter.allocation === 'all'
@@ -422,7 +381,6 @@ export default {
 
         const variables = {
           indexer: toAddress(address),
-          disputableEpoch: currentEpoch.epochNumber - disputeEpochs,
           allocation,
           status: filter.status,
         }
@@ -548,7 +506,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationId)
@@ -731,7 +689,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationData.id)
@@ -936,7 +894,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationData.id)
@@ -999,7 +957,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const newAllocationState =
