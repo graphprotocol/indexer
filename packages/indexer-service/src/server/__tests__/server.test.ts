@@ -4,7 +4,7 @@
 
 import http from 'http'
 import supertest from 'supertest'
-import { BigNumber, ethers, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
 import { Socket } from 'net'
 

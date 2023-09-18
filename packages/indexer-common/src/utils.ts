@@ -6,7 +6,6 @@ import {
 } from '@ethersproject/providers'
 import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from './errors'
-import { Sequelize } from 'sequelize'
 
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
