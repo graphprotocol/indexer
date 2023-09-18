@@ -238,9 +238,8 @@ class Migration {
   // Only for the UP step
   async processMigrationInput(input: MigrationInput): Promise<MigrationTarget> {
     this.logger.debug(`Inferring primary key name for table '${input.table}'`)
-    const oldPrimaryKeyConstraint = await this.getPrimaryKeyConstraintName(
-      input,
-    )
+    const oldPrimaryKeyConstraint =
+      await this.getPrimaryKeyConstraintName(input)
     this.logger.debug(
       `Table '${input.table}' existing primary key name is '${oldPrimaryKeyConstraint}'`,
     )
@@ -259,9 +258,8 @@ class Migration {
   async processMigrationInputDown(
     input: MigrationInput,
   ): Promise<MigrationTarget> {
-    const currentPrimaryKeyConstraint = await this.getPrimaryKeyConstraintName(
-      input,
-    )
+    const currentPrimaryKeyConstraint =
+      await this.getPrimaryKeyConstraintName(input)
     let previousPrimaryKeyConstraint
     if (currentPrimaryKeyConstraint.endsWith(MANUAL_CONSTRAINT_NAME_FRAGMENT)) {
       previousPrimaryKeyConstraint = currentPrimaryKeyConstraint.replace(
