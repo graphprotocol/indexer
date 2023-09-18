@@ -26,7 +26,7 @@
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.3",
+    "@graphprotocol/common-ts": "2.0.6",
     "@graphprotocol/indexer-common": "^0.20.21",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
@@ -43,18 +43,18 @@
   "devDependencies": {
     "@types/isomorphic-fetch": "0.0.36",
     "@types/lodash.clonedeep": "^4.5.7",
-    "@typescript-eslint/eslint-plugin": "5.19.0",
-    "@typescript-eslint/parser": "5.19.0",
-    "eslint": "8.13.0",
+    "@typescript-eslint/eslint-plugin": "6.7.0",
+    "@typescript-eslint/parser": "6.7.0",
+    "eslint": "8.49.0",
     "eslint-config-prettier": "8.5.0",
     "lodash.clonedeep": "^4.5.0",
-    "prettier": "2.6.2",
-    "ts-jest": "27.1.4",
-    "typescript": "4.6.3"
+    "prettier": "3.0.3",
+    "ts-jest": "29.1.1",
+    "typescript": "5.2.2"
   },
   "resolutions": {
     "ethers": "5.7.0",
-    "sequelize": "6.31.1"
+    "sequelize": "6.33.0"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }
