@@ -449,12 +449,10 @@ export default {
     {
       deployment,
       amount,
-      indexNode,
       protocolNetwork,
     }: {
       deployment: string
       amount: string
-      indexNode: string | undefined
       protocolNetwork: string
     },
     { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,

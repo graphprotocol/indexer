@@ -541,7 +541,9 @@ export class NetworkMonitor {
 
       // Flatten multiple subgraphDeployment versions into a single `TransferredSubgraphDeployment` object
       // TODO: We could use `zod` to parse GraphQL responses into the expected type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return transferredDeployments.flatMap((deployment: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return deployment.versions.map((version: any) => {
           return {
             id: deployment.id,

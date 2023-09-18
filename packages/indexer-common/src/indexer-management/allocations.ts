@@ -36,7 +36,6 @@ import {
   BigNumberish,
   ContractReceipt,
   PopulatedTransaction,
-  providers,
   utils,
 } from 'ethers'
 
@@ -251,7 +250,6 @@ export class AllocationManager {
             new SubgraphDeploymentID(action.deploymentID!),
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
-            undefined,
           )
         case ActionType.UNALLOCATE:
           return await this.prepareUnallocate(
@@ -291,7 +289,6 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
-    indexNode: string | undefined,
   ): Promise<AllocateTransactionParams> {
     logger.info('Preparing to allocate', {
       deployment: deployment.ipfsHash,
@@ -465,9 +462,8 @@ export class AllocationManager {
     logger: Logger,
     deployment: SubgraphDeploymentID,
     amount: BigNumber,
-    indexNode: string | undefined,
   ): Promise<PopulatedTransaction> {
-    const params = await this.prepareAllocateParams(logger, deployment, amount, indexNode)
+    const params = await this.prepareAllocateParams(logger, deployment, amount)
     logger.debug(`Populating allocateFrom transaction`, {
       indexer: params.indexer,
       subgraphDeployment: params.subgraphDeploymentID,
