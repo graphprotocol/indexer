@@ -744,9 +744,8 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const newAllocationState = await this.network.contracts.staking.getAllocationState(
-      newAllocationId,
-    )
+    const newAllocationState =
+      await this.network.contracts.staking.getAllocationState(newAllocationId)
     if (newAllocationState !== 0) {
       logger.warn(`Skipping Allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,

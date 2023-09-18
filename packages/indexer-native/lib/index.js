@@ -8,7 +8,7 @@ function promisify(f) {
       } else {
         resolve(result);
       }
-    })
+    }),
   );
 }
 
@@ -28,18 +28,18 @@ class NativeAttestationSigner {
     chainId,
     disputeManagerAddress,
     privateKey,
-    subgraphDeploymentId
+    subgraphDeploymentId,
   ) {
     this._native = new addon.NativeAttestationSigner(
       chainId,
       disputeManagerAddress,
       privateKey,
-      subgraphDeploymentId
+      subgraphDeploymentId,
     );
   }
   async createAttestation(request, response) {
     return await promisify((cb) =>
-      this._native.createAttestation(cb, request, response)
+      this._native.createAttestation(cb, request, response),
     );
   }
 }
