@@ -40,7 +40,6 @@
     "graphql-tag": "2.12.6",
     "jayson": "3.6.6",
     "lodash.groupby": "^4.6.0",
-    "lodash.intersection": "^4.4.0",
     "lodash.isequal": "4.5.0",
     "lodash.xor": "^4.5.0",
     "morgan": "1.10.0",
