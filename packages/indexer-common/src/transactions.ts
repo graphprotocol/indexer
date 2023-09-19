@@ -22,8 +22,6 @@ import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'
 import { NetworkSubgraph } from './network-subgraph'
 import gql from 'graphql-tag'
-import intersection from 'lodash.intersection'
-import updatedStakingAbi from './abi/stakingUpdatedABI.json'
 
 export class TransactionManager {
   ethereum: providers.BaseProvider
@@ -413,42 +411,27 @@ export class TransactionManager {
   ): utils.Result | undefined {
     const events: Event[] | providers.Log[] = receipt.events || receipt.logs
     const decodedEvents: utils.Result[] = []
-    const updatedStakingIface = new utils.Interface(updatedStakingAbi)
-
-    // With exponential rebates, the AllocationClosed event changed signature
-    // so it has a different topic. Until these changes are deployed in both mainnet and
-    // testnet, we need to search for both.
-    // TODO: Update to a new common-ts and remove this hack once exponential rebates is on mainnet
-    const newAbiTopic = updatedStakingIface.getEventTopic('AllocationClosed')
-    const expectedTopics = [contractInterface.getEventTopic(eventType)]
-    if (eventType == 'AllocationClosed') {
-      expectedTopics.push(newAbiTopic)
-    }
+    const expectedTopic = contractInterface.getEventTopic(eventType)
 
     const result = events
-      .filter((event) => intersection(event.topics, expectedTopics).length > 0)
+      .filter((event) => event.topics.includes(expectedTopic))
       .map((event) => {
-        let decoded: utils.Result
-        if (eventType == 'AllocationClosed' && event.topics.includes(newAbiTopic)) {
-          decoded = updatedStakingIface.decodeEventLog(
-            eventType,
-            event.data,
-            event.topics,
-          )
-        } else {
-          decoded = contractInterface.decodeEventLog(eventType, event.data, event.topics)
-        }
+        const decoded = contractInterface.decodeEventLog(
+          eventType,
+          event.data,
+          event.topics,
+        )
         decodedEvents.push(decoded)
         return decoded
       })
       .find(
-        (eventLogs: utils.Result) =>
+        (eventLogs) =>
           eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
       )
 
     logger.trace('Searched for event logs', {
       function: 'findEvent',
-      expectedTopics,
+      expectedTopic,
       events,
       decodedEvents,
       eventType,
