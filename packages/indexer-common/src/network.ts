@@ -429,10 +429,11 @@ async function connectToProtocolContracts(
   let contracts
   try {
     contracts = await connectContracts(wallet, numericNetworkId)
-  } catch (err) {
-    throw new Error(
-      `Failed to connect to contracts, please ensure you are using the intended protocol network`,
-    )
+  } catch (error) {
+    const errorMessage =
+      'Failed to connect to contracts, please ensure you are using the intended protocol network.'
+    logger.error(errorMessage, { error, networkIdentifier, numericNetworkId })
+    throw new Error(`${errorMessage} Error: ${error}`)
   }
   logger.info(`Successfully connected to contracts`, {
     curation: contracts.curation.address,
