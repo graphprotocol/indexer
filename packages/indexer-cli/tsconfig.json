@@ -18,6 +18,6 @@
     "src/commands/**/*.ts",
     "src/commands/**/**/*.ts"
   ],
-  "exclude": ["src/commands/__tests__/*.ts"],
+  "exclude": [],
   "references": [{ "path": "../indexer-common" }]
 }
