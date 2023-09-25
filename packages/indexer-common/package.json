@@ -22,7 +22,7 @@
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.6",
+    "@graphprotocol/common-ts": "2.0.7",
     "@graphprotocol/cost-model": "0.1.16",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.intersection": "^4.4.7",
