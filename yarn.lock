@@ -824,10 +824,10 @@
   resolved "https://registry.npmjs.org/@google-cloud/promisify/-/promisify-2.0.4.tgz#9d8705ecb2baa41b6b2673f3a8e9b7b7e1abc52a"
   integrity sha512-j8yRSSqswWi1QqUGKVEKOG03Q7qOoZP6/h2zN2YO+F5h2+DHU0bSrHCK9Y7lo2DI9fBd8qGAw795sf+3Jva4yA==
 
-"@graphprotocol/common-ts@2.0.6":
-  version "2.0.6"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-2.0.6.tgz#0ac6d2578c26928f4daa96e28e14da58c2c51e2a"
-  integrity sha512-aTOYIBCHoTnAv1UqU5OkCxzixsbIPwXHo5lPJxHXSkbzvakRBsskTJisNxt6i4MClxup+LAqatiay0NDI6QMYA==
+"@graphprotocol/common-ts@2.0.7":
+  version "2.0.7"
+  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-2.0.7.tgz#733ac3d46c9e24f997e7f8d00ffc9128d129285e"
+  integrity sha512-1O2bvXibViMTkiWNvOjijHR5+cMsuEXIZiUxR3pl4Lan9U2kBfGqJAas8qnrpdc/RdRGooYRMP3hXVB9N8bERA==
   dependencies:
     "@graphprotocol/contracts" "5.2.1"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
