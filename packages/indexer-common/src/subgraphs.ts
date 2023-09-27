@@ -405,7 +405,7 @@ export class SubgraphFreshnessChecker {
       throw new Error(errorMsg)
     }
 
-    // Try obtaining a fresh subgraph query at most 10 times
+    // Try obtaining a fresh subgraph query at most `this.retry` times
     return this.checkedQueryRecursive<Data>(
       updatedQuery,
       subgraph,
