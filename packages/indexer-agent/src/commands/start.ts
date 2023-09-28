@@ -38,6 +38,8 @@ import { displayZodParsingError } from './error-handling'
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
 const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
+const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
+  50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
 const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
 
 export const start = {
@@ -382,7 +384,9 @@ export async function createNetworkSpecification(
   // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
   if (networkIdentifier.startsWith('eip155:42161')) {
     // Arbitrum-One and Arbitrum-Goerli
-    if (subgraphs.maxBlockDistance <= DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE) {
+    if (
+      subgraphs.maxBlockDistance <= SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2
+    ) {
       logger.warn(
         `Consider increasing 'subgraph-max-block-distance' for Arbitrum networks`,
         {
