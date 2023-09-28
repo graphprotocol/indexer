@@ -434,10 +434,10 @@ export class SubgraphFreshnessChecker {
     const subgraphQueryPromise = subgraph.query(updatedQuery, variables) as Promise<
       QueryResult<Data> & BlockNumberInterface
     >
-    const latestNetworkBLockPromise = this.provider.getBlockNumber()
+    const latestNetworkBlockPromise = this.provider.getBlockNumber()
     const [subgraphQueryResult, latestNetworkBlock] = await Promise.all([
       subgraphQueryPromise,
-      latestNetworkBLockPromise,
+      latestNetworkBlockPromise,
     ])
 
     // Return it early if query results contains errors
