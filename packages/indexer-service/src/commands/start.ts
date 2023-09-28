@@ -6,6 +6,8 @@ import fs from 'fs'
 import { parse as yaml_parse } from 'yaml'
 
 const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
+const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
+  50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
 const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
 
 import {
@@ -318,7 +320,7 @@ export default {
     // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
     if (protocolNetwork.startsWith('eip155:42161')) {
       // Arbitrum-One and Arbitrum-Goerli
-      if (argv.subgraphMaxBlockDistance <= DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE) {
+      if (argv.subgraphMaxBlockDistance <= SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2) {
         logger.warn(
           `Consider increasing 'subgraph-max-block-distance' for Arbitrum networks`,
           {
