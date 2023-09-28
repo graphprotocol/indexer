@@ -468,8 +468,7 @@ export class SubgraphFreshnessChecker {
     if (blockDistance < 0) {
       // Invariant violated: Subgraph can't be ahead of network latest block
       const errorMsg = `${this.subgraphName}'s latest indexed block (${latestIndexedBlock}) is higher than Network's latest block (${latestNetworkBlock})`
-      console.error(errorMsg, logInfo)
-      throw new Error(errorMsg)
+      console.warn(errorMsg, logInfo)
     }
 
     if (blockDistance > this.threshold) {
