@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.23-rc.0] - 2023-09-29
+### Added
+- Added a `manual` deployment management mode
+
+### Fixed
+- Deprecate old payment systems after Exponential Rebates contract changes
+- Updated README files
+
 ## [0.20.22] - 2023-08-28
 ### Fixed
 - Fixed bug causing the network subgraph to be removed after syncing
@@ -486,7 +494,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.22...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[0.20.23-rc.0]: https://github.com/graphprotocol/indexer/compare/v0.20.22...v0.20.23-rc.0
 [0.20.22]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.22
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
 [0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
