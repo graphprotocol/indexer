@@ -5,8 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+
+## [0.20.23-rc.0] - 2023-09-29
 ### Changed
 - Relax network subgraph validation during indexer-service startup
+
+### Fixed
+- Update common-ts and other dependencies
+- Update common-ts and other dependencies
+- Update common-ts and other dependencies
+
+### Added
+- Added a subgraph freshness check for the Network and Epoch subgraphs
+- Added a subgraph freshness check for the Network and Epoch subgraphs
 
 ## [0.20.21] - 2023-08-24
 ### Changed
@@ -307,7 +318,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.21...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[0.20.23-rc.0]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23-rc.0
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
 [0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
 [0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
