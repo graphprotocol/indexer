@@ -359,6 +359,7 @@ const blockNumberQuery = gql`
 
 interface BlockNumberInterface {
   data: { _meta: { block: { number: number } } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   errors?: any
 }
 
