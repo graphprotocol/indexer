@@ -937,16 +937,13 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       .reduce(async (currentlyPaused) => {
         try {
           logger.debug('Query network subgraph isPaused state')
-          const result = await networkSubgraph.checkedQuery(
-            gql`
-              {
-                graphNetworks {
-                  isPaused
-                }
+          const result = await networkSubgraph.checkedQuery(gql`
+            {
+              graphNetworks {
+                isPaused
               }
             }
-          `,
-          )
+          `)
 
           if (result.error) {
             throw result.error
