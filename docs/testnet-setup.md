@@ -70,4 +70,4 @@ Afterwards, stake this amount:
   contracts staking setOperator --operator <operator-address> --allowed true
 ```
 
-You are now ready to set up your testnet indexer, visit [networks/testnet.md](/networks/testnet.md) for configuration information.
+You are now ready to set up your testnet indexer, visit [networks/ethereum-goerli.md](/networks/ethereum-goerli.md) for configuration information.
