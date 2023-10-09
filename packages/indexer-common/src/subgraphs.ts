@@ -442,17 +442,25 @@ export class SubgraphFreshnessChecker {
     ])
 
     // Return it early if query results contains errors
-    if (subgraphQueryResult.errors) {
+    if (subgraphQueryResult.errors || subgraphQueryResult.error) {
       return subgraphQueryResult
     }
 
-    const latestIndexedBlock = subgraphQueryResult?.data?._meta?.block?.number
-    if (!latestIndexedBlock) {
-      const errorMsg = `Failed to infer block number for ${this.subgraphName} query`
-      this.logger.error(errorMsg, { query: print(updatedQuery) })
-      // Check for unexpected missing block data as a precaution.
+    // Check for missing block metadata
+    const queryShapeError = this.checkMalformedQueryResult(subgraphQueryResult)
+    if (queryShapeError) {
+      const errorMsg = `Failed to infer block number for ${this.subgraphName} query: ${queryShapeError}`
+      this.logger.error(errorMsg, {
+        query: print(updatedQuery),
+        subgraph: this.subgraphName,
+        error: queryShapeError,
+        subgraphQueryResult,
+      })
       throw new Error(errorMsg)
     }
+
+    // At this point we have validated that this value exists and is numeric.
+    const latestIndexedBlock: number = subgraphQueryResult.data._meta.block.number
 
     // Check subgraph freshness
     const blockDistance = latestNetworkBlock - latestIndexedBlock
@@ -479,10 +487,38 @@ export class SubgraphFreshnessChecker {
         logInfo,
       )
       await sleep(this.sleepDurationMillis)
-      return this.checkedQueryRecursive(updatedQuery, subgraph, retriesLeft - 1)
+      return this.checkedQueryRecursive(
+        updatedQuery,
+        subgraph,
+        retriesLeft - 1,
+        variables,
+      )
     } else {
       this.logger.trace(`${this.subgraphName} is fresh`, logInfo)
     }
     return subgraphQueryResult
+  }
+
+  // Checks if the query result has the expecte
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkMalformedQueryResult(subgraphQueryResult: any): string | undefined {
+    if (!subgraphQueryResult) {
+      return 'Subgraph query result is null or undefined'
+    }
+    if (!subgraphQueryResult.data) {
+      return 'Subgraph query data is null or undefined'
+    }
+    if (!subgraphQueryResult.data._meta) {
+      return 'Query metadata is null or undefined'
+    }
+    if (!subgraphQueryResult.data._meta.block) {
+      return 'Block metadata is null or undefined'
+    }
+    if (
+      !subgraphQueryResult.data._meta.block.number &&
+      typeof subgraphQueryResult.data._meta.block.number === 'number'
+    ) {
+      return 'Block number is null or undefined'
+    }
   }
 }
