@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.23-rc.0] - 2023-09-29
+## [0.20.23] - 2023-09-29
 ### Changed
 - Relax network subgraph validation during indexer-service startup
 
@@ -319,7 +319,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update @graphprotocol/common-ts to 0.2.2
 
 [Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
-[0.20.23-rc.0]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23-rc.0
+[0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
 [0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
 [0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
