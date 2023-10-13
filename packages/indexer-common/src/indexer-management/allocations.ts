@@ -999,10 +999,10 @@ export class AllocationManager {
       // Fetch the allocation on chain to inspect its amount
       const allocation = await this.network.networkMonitor.allocation(action.allocationID)
 
-      // Accrue rewards, except for null or zeroed POI
+      // Accrue rewards, except for zeroed POI
       const zeroHexString = utils.hexlify(Array(32).fill(0))
       rewards =
-        !action.poi || action.poi === zeroHexString
+        action.poi === zeroHexString
           ? BigNumber.from(0)
           : await this.network.contracts.rewardsManager.getRewards(action.allocationID)
 
@@ -1027,19 +1027,27 @@ export class AllocationManager {
     const indexerFreeStake = await this.network.contracts.staking.getIndexerCapacity(
       this.network.specification.indexerOptions.address,
     )
-    const actionsBatchStakeusageSummaries = await pMap(batch, async (action: Action) =>
+    const actionsBatchStakeUsageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )
-    const batchDelta: BigNumber = actionsBatchStakeusageSummaries
+    const batchDelta: BigNumber = actionsBatchStakeUsageSummaries
       .map((summary: ActionStakeUsageSummary) => summary.balance)
       .reduce((a: BigNumber, b: BigNumber) => a.add(b))
     const indexerNewBalance = indexerFreeStake.sub(batchDelta)
 
     logger.trace('Action batch stake usage summary', {
-      indexerFreeStake,
-      actionsBatchStakeusageSummaries,
-      batchDelta,
-      indexerNewBalance,
+      indexerFreeStake: indexerFreeStake.toString(),
+      actionsBatchStakeUsageSummaries: actionsBatchStakeUsageSummaries.map((summary) => {
+        return {
+          action: summary.action,
+          allocates: summary.allocates.toString(),
+          unallocates: summary.unallocates.toString(),
+          rewards: summary.rewards.toString(),
+          balance: summary.balance.toString(),
+        }
+      }),
+      batchDelta: batchDelta.toString(),
+      indexerNewBalance: indexerNewBalance.toString(),
     })
 
     if (indexerNewBalance.isNegative()) {
@@ -1056,7 +1064,7 @@ export class AllocationManager {
     /* Return actions sorted by GRT balance (ascending).
      * This ensures on-chain batch feasibility because higher unallocations are processed
      * first and larger allocations are processed last */
-    return actionsBatchStakeusageSummaries
+    return actionsBatchStakeUsageSummaries
       .sort((a: ActionStakeUsageSummary, b: ActionStakeUsageSummary) =>
         a.balance.gt(b.balance) ? 1 : -1,
       )
