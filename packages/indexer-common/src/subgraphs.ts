@@ -7,6 +7,10 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from './indexer-management'
+import { DocumentNode, print } from 'graphql'
+import gql from 'graphql-tag'
+import { QueryResult } from './network-subgraph'
+import { mergeSelectionSets, sleep } from './utils'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -141,7 +145,7 @@ export async function processIdentifier(
 //   SUBGRAPH,
 // }
 
-enum ActivationCriteria {
+export enum ActivationCriteria {
   NA = 'na',
   NONE = 'none',
   ALWAYS = 'always',
@@ -152,6 +156,7 @@ enum ActivationCriteria {
   NEVER = 'never',
   OFFCHAIN = 'offchain',
   INVALID_ALLOCATION_AMOUNT = 'invalid_allocation_amount',
+  L2_TRANSFER_SUPPORT = 'l2_transfer_support',
 }
 
 interface RuleMatch {
@@ -163,12 +168,14 @@ export class AllocationDecision {
   declare deployment: SubgraphDeploymentID
   declare toAllocate: boolean
   declare ruleMatch: RuleMatch
+  declare protocolNetwork: string
 
   constructor(
     deployment: SubgraphDeploymentID,
     matchingRule: IndexingRuleAttributes | undefined,
     toAllocate: boolean,
     ruleActivator: ActivationCriteria,
+    protocolNetwork: string,
   ) {
     this.deployment = deployment
     this.toAllocate = toAllocate
@@ -176,6 +183,7 @@ export class AllocationDecision {
       rule: matchingRule,
       activationCriteria: ruleActivator,
     }
+    this.protocolNetwork = protocolNetwork
   }
   public reasonString(): string {
     return `${this.ruleMatch.rule?.identifierType ?? 'none'}:${
@@ -223,6 +231,7 @@ export function isDeploymentWorthAllocatingTowards(
       deploymentRule,
       false,
       ActivationCriteria.INVALID_ALLOCATION_AMOUNT,
+      deployment.protocolNetwork,
     )
   }
 
@@ -233,6 +242,7 @@ export function isDeploymentWorthAllocatingTowards(
       deploymentRule,
       false,
       ActivationCriteria.UNSUPPORTED,
+      deployment.protocolNetwork,
     )
   }
 
@@ -243,13 +253,16 @@ export function isDeploymentWorthAllocatingTowards(
         undefined,
         false,
         ActivationCriteria.NA,
+        deployment.protocolNetwork,
       )
+
     case IndexingDecisionBasis.ALWAYS:
       return new AllocationDecision(
         deployment.id,
         deploymentRule,
         true,
         ActivationCriteria.ALWAYS,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.NEVER:
       return new AllocationDecision(
@@ -257,6 +270,7 @@ export function isDeploymentWorthAllocatingTowards(
         deploymentRule,
         false,
         ActivationCriteria.NEVER,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.OFFCHAIN:
       return new AllocationDecision(
@@ -264,6 +278,7 @@ export function isDeploymentWorthAllocatingTowards(
         deploymentRule,
         false,
         ActivationCriteria.OFFCHAIN,
+        deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.RULES: {
       const stakedTokens = BigNumber.from(deployment.stakedTokens)
@@ -276,6 +291,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.MIN_STAKE,
+          deployment.protocolNetwork,
         )
       } else if (
         deploymentRule.minSignal &&
@@ -286,6 +302,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.SIGNAL_THRESHOLD,
+          deployment.protocolNetwork,
         )
       } else if (
         deploymentRule.minAverageQueryFees &&
@@ -296,6 +313,7 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           true,
           ActivationCriteria.MIN_AVG_QUERY_FEES,
+          deployment.protocolNetwork,
         )
       } else {
         return new AllocationDecision(
@@ -303,8 +321,204 @@ export function isDeploymentWorthAllocatingTowards(
           deploymentRule,
           false,
           ActivationCriteria.NONE,
+          deployment.protocolNetwork,
         )
       }
+    }
+  }
+}
+
+export interface ProviderInterface {
+  getBlockNumber(): Promise<number>
+}
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface LoggerInterface {
+  trace(msg: string, o?: object, ...args: any[]): void
+  error(msg: string, o?: object, ...args: any[]): void
+  warn(msg: string, o?: object, ...args: any[]): void
+}
+
+export interface SubgraphQueryInterface {
+  query<Data = any>(
+    query: DocumentNode,
+    variables?: Record<string, any>,
+  ): Promise<QueryResult<Data>>
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+const blockNumberQuery = gql`
+  {
+    _meta {
+      block {
+        number
+      }
+    }
+  }
+`
+
+interface BlockNumberInterface {
+  data: { _meta: { block: { number: number } } }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  errors?: any
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type Variables = Record<string, any>
+
+export class SubgraphFreshnessChecker {
+  subgraphName: string
+  provider: ProviderInterface
+  threshold: number
+  logger: LoggerInterface
+  sleepDurationMillis: number
+  retries: number
+
+  constructor(
+    subgraphName: string,
+    provider: ProviderInterface,
+    freshnessThreshold: number,
+    sleepDurationMillis: number,
+    logger: LoggerInterface,
+    retries: number,
+  ) {
+    this.subgraphName = subgraphName
+    this.provider = provider
+    this.threshold = freshnessThreshold
+    this.sleepDurationMillis = sleepDurationMillis
+    this.logger = logger
+    this.retries = retries
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public async checkedQuery<Data = any>(
+    subgraph: SubgraphQueryInterface,
+    query: DocumentNode,
+    variables?: Variables,
+  ): Promise<QueryResult<Data>> {
+    // Try to inject the latest block number into the original query.
+    let updatedQuery = query
+    try {
+      updatedQuery = mergeSelectionSets(query, blockNumberQuery)
+    } catch (err) {
+      const errorMsg = `Failed to append block number into ${this.subgraphName} query`
+      this.logger.error(errorMsg, { subgraph: this.subgraphName, query: print(query) })
+      throw new Error(errorMsg)
+    }
+
+    // Try obtaining a fresh subgraph query at most `this.retry` times
+    return this.checkedQueryRecursive<Data>(
+      updatedQuery,
+      subgraph,
+      this.retries,
+      variables,
+    )
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private async checkedQueryRecursive<Data = any>(
+    updatedQuery: DocumentNode,
+    subgraph: SubgraphQueryInterface,
+    retriesLeft: number,
+    variables?: Variables,
+  ): Promise<QueryResult<Data>> {
+    if (retriesLeft < 0) {
+      const errorMsg = `Max retries reached for ${this.subgraphName} freshness check`
+      this.logger.error(errorMsg, {
+        subgraph: this.subgraphName,
+        query: print(updatedQuery),
+      })
+      throw new Error(errorMsg)
+    }
+
+    // Obtain the latest network block number and subgraph query in parallel.
+    const subgraphQueryPromise = subgraph.query(updatedQuery, variables) as Promise<
+      QueryResult<Data> & BlockNumberInterface
+    >
+    const latestNetworkBlockPromise = this.provider.getBlockNumber()
+    const [subgraphQueryResult, latestNetworkBlock] = await Promise.all([
+      subgraphQueryPromise,
+      latestNetworkBlockPromise,
+    ])
+
+    // Return it early if query results contains errors
+    if (subgraphQueryResult.errors || subgraphQueryResult.error) {
+      return subgraphQueryResult
+    }
+
+    // Check for missing block metadata
+    const queryShapeError = this.checkMalformedQueryResult(subgraphQueryResult)
+    if (queryShapeError) {
+      const errorMsg = `Failed to infer block number for ${this.subgraphName} query: ${queryShapeError}`
+      this.logger.error(errorMsg, {
+        query: print(updatedQuery),
+        subgraph: this.subgraphName,
+        error: queryShapeError,
+        subgraphQueryResult,
+      })
+      throw new Error(errorMsg)
+    }
+
+    // At this point we have validated that this value exists and is numeric.
+    const latestIndexedBlock: number = subgraphQueryResult.data._meta.block.number
+
+    // Check subgraph freshness
+    const blockDistance = latestNetworkBlock - latestIndexedBlock
+    const logInfo = {
+      latestIndexedBlock,
+      latestNetworkBlock,
+      blockDistance,
+      freshnessThreshold: this.threshold,
+      subgraph: this.subgraphName,
+      retriesLeft,
+    }
+    this.logger.trace('Performing subgraph freshness check', logInfo)
+
+    if (blockDistance < 0) {
+      // Invariant violated: Subgraph can't be ahead of network latest block
+      const errorMsg = `${this.subgraphName}'s latest indexed block (${latestIndexedBlock}) is higher than Network's latest block (${latestNetworkBlock})`
+      console.warn(errorMsg, logInfo)
+    }
+
+    if (blockDistance > this.threshold) {
+      // Reenter function
+      this.logger.warn(
+        `${this.subgraphName} is not fresh. Sleeping for ${this.sleepDurationMillis} ms before retrying`,
+        logInfo,
+      )
+      await sleep(this.sleepDurationMillis)
+      return this.checkedQueryRecursive(
+        updatedQuery,
+        subgraph,
+        retriesLeft - 1,
+        variables,
+      )
+    } else {
+      this.logger.trace(`${this.subgraphName} is fresh`, logInfo)
+    }
+    return subgraphQueryResult
+  }
+
+  // Checks if the query result has the expecte
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  checkMalformedQueryResult(subgraphQueryResult: any): string | undefined {
+    if (!subgraphQueryResult) {
+      return 'Subgraph query result is null or undefined'
+    }
+    if (!subgraphQueryResult.data) {
+      return 'Subgraph query data is null or undefined'
+    }
+    if (!subgraphQueryResult.data._meta) {
+      return 'Query metadata is null or undefined'
+    }
+    if (!subgraphQueryResult.data._meta.block) {
+      return 'Block metadata is null or undefined'
+    }
+    if (
+      !subgraphQueryResult.data._meta.block.number &&
+      typeof subgraphQueryResult.data._meta.block.number === 'number'
+    ) {
+      return 'Block number is null or undefined'
     }
   }
 }

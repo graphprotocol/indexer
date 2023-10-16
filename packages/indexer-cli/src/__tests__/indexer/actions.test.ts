@@ -86,6 +86,7 @@ async function createTestAction() {
     deploymentID: 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
     source: 'test',
     reason: 'test',
+    protocolNetwork: 'eip155:5',
   })
   await Action.create({
     type: ActionType.UNALLOCATE,
@@ -93,6 +94,7 @@ async function createTestAction() {
     deploymentID: 'QmfWRZCjT8pri4Amey3e3mb2Bga75Vuh2fPYyNVnmPYL66',
     source: 'test',
     reason: 'test',
+    protocolNetwork: 'eip155:5',
   })
 }
 

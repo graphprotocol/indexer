@@ -2,8 +2,14 @@
 
 > This content has been moved
  
-[Mainnet configuration](./networks/mainnet.md)
+[Ethereum Mainnet configuration](./networks/ethereum-mainnet.md)
 
-[Testnet configuration](./networks/testnet.md)
+[Arbitrum One configuration](./networks/arbitrum-one.md)
+
+[Ethereum Goerli configuration](./networks/ethereum-goerli.md)
+
+[Arbitrum Goerli configuration](./networks/arbitrum-goerli.md)
 
 [Testnet setup instructions](./testnet-setup.md)
+
+[Feature Support Matrix (Ethereum & Arbitrum One)](./feature-support-matrix.md)

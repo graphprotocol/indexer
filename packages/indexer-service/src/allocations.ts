@@ -20,12 +20,14 @@ export interface MonitorEligibleAllocationsOptions {
   logger: Logger
   networkSubgraph: NetworkSubgraph
   interval: number
+  protocolNetwork: string
 }
 
 export const monitorEligibleAllocations = ({
   indexer,
   logger: parentLogger,
   networkSubgraph,
+  protocolNetwork,
   interval,
 }: MonitorEligibleAllocationsOptions): Eventual<Allocation[]> => {
   const logger = parentLogger.child({ component: 'AllocationMonitor' })
@@ -36,14 +38,15 @@ export const monitorEligibleAllocations = ({
     logger.debug('Refresh eligible allocations')
 
     try {
-      const currentEpochResult = await networkSubgraph.query(
+      const currentEpochResult = await networkSubgraph.checkedQuery(
         gql`
           query {
             graphNetwork(id: "1") {
               currentEpoch
             }
           }
-        `,
+        }
+      `,
       )
       if (currentEpochResult.error) {
         throw currentEpochResult.error
@@ -59,7 +62,7 @@ export const monitorEligibleAllocations = ({
 
       const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
-      const result = await networkSubgraph.query(
+      const result = await networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
@@ -128,7 +131,7 @@ export const monitorEligibleAllocations = ({
       return [
         ...result.data.indexer.activeAllocations,
         ...result.data.indexer.recentlyClosedAllocations,
-      ].map(parseGraphQLAllocation)
+      ].map(x => parseGraphQLAllocation(x, protocolNetwork))
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),

@@ -6,6 +6,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.23] - 2023-09-29
+### Fixed
+- Reference SQL conflict targets when upserting `POIDisputes`.
+
+## [0.20.21] - 2023-08-24
+### Changed
+- Upgraded `common-ts` dependency to v2.0.3
+
+## [0.20.20] - 2023-08-21
+### Fixed
+- Ensure some database operations run inside their transactions
+- More helpful error message when parsing network specification files
+- Protocol network missing when creating offchain rules and allocations via the GraphQL interface
+
+## [0.20.18] - 2023-08-11
+### Added
+- The `Network` type now holds references to all network-specific components, such as the `NetworkMonitor` and `Contracts` classes.
+- Introduced `GraphNode` class to replace `Indexer`, `Subgraph`, and `IndexingStatus` classes.
+- New general purpose `parser` module, used for input validation.
+- New `NetworkSpecification` type, which holds all information required to represent a protocol network.
+
+### Changed
+- Added `protocolNetwork` field to most types.
+
+## [0.20.17] - 2023-06-19
+### Changed
+- Check action batch feasibility at batch level only, improve batche efficiency
+- Improved logging detail when queueing allocation receipts for collecting
+- Update network alias value, polygon -> matic
+- Update partial-vouchers encoding scheme
+
 ## [0.20.12] - 2023-02-19
 ### Added
 - New `ReceiptMetrics` metric for allocation receipt collector
@@ -247,7 +278,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23
+[0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
+[0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.20
+[0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
+[0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.10...v0.20.11
 [0.20.10]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.10

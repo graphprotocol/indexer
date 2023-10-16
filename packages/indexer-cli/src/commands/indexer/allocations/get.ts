@@ -3,7 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters } from '../../../command-helpers'
+import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
@@ -18,7 +18,8 @@ ${chalk.bold('graph indexer allocations get')} [options] all
 ${chalk.dim('Options:')}
 
   -h, --help                                Show usage information
-      --status active|closed|claimable      Filter by status 
+  -n, --network                             Filter allocations by their protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+      --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML
 `
@@ -43,6 +44,8 @@ module.exports = {
     }
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
           `Invalid output format "${outputFormat}" must be one of 'json', 'yaml' or 'table'`,
@@ -96,6 +99,7 @@ module.exports = {
             query allocations($filter: AllocationFilter!) {
               allocations(filter: $filter) {
                 id
+                protocolNetwork
                 indexer
                 subgraphDeployment
                 allocatedTokens
@@ -117,6 +121,7 @@ module.exports = {
             filter: {
               status: status ? status : null,
               allocation: allocation ? allocation : null,
+              protocolNetwork,
             },
           },
         )
@@ -140,6 +145,7 @@ module.exports = {
 
       let displayProperties: (keyof IndexerAllocation)[] = [
         'id',
+        'protocolNetwork',
         'indexer',
         'subgraphDeployment',
         'allocatedTokens',

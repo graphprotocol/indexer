@@ -19,35 +19,38 @@ $ graph indexer --help
 
 Manage indexer configuration
 
-  indexer status                      Check the status of an indexer                                   
-  indexer rules                       Configure indexing rules                                         
-  indexer rules stop (never)          Never index a deployment (and stop indexing it if necessary)     
-  indexer rules start (always)        Always index a deployment (and start indexing it if necessary)   
-  indexer rules prepare (offchain)    Offchain index a deployment (good practice to prepare indexing) 
-  indexer rules set                   Set one or more indexing rules                                   
-  indexer rules maybe                 Index a deployment based on rules                                
-  indexer rules get                   Get one or more indexing rules                                   
-  indexer rules delete                Remove one or many indexing rules                                
-  indexer rules clear (reset)         Clear one or more indexing rules                                 
-  indexer disputes                    POI monitoring                              
-  indexer disputes get                Cross-check POIs submitted in the network                        
-  indexer cost                        Manage costing for subgraphs                                     
-  indexer cost set variables          Update cost model variables                                      
-  indexer cost set model              Update a cost model                                              
-  indexer cost get                    Get cost models and/or variables for one or all subgraphs        
-  indexer connect                     Connect to indexer management API                                
-  indexer allocations reallocate      Reallocate to subgraph deployment                                
-  indexer allocations get             List one or more allocations                                     
-  indexer allocations create          Create an allocation                                             
-  indexer allocations close           Close an allocation                                              
-  indexer allocations                 Manage indexer allocations                                       
-  indexer actions queue               Queue an action item                                             
-  indexer actions get                 List one or more actions                                         
-  indexer actions execute             Execute approved items in the action queue                       
-  indexer actions cancel              Cancel an item in the queue                                      
-  indexer actions approve             Approve an action item                                           
-  indexer actions                     Manage indexer actions                                           
-  indexer                             Manage indexer configuration 
+  indexer                            Manage indexer configuration
+  indexer status                     Check the status of an indexer
+  indexer rules                      Configure indexing rules
+  indexer rules clear (reset)        Clear one or more indexing rules
+  indexer rules delete               Remove one or many indexing rules
+  indexer rules get                  Get one or more indexing rules
+  indexer rules maybe                Index a deployment based on rules
+  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary)
+  indexer rules set                  Set one or more indexing rules
+  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)
+  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)
+  indexer disputes                   Configure allocation POI monitoring
+  indexer disputes get               Cross-check POIs submitted in the network
+  indexer cost                       Manage costing for subgraphs
+  indexer cost set model             Update a cost model
+  indexer cost set variables         Update cost model variables
+  indexer cost delete                Remove one or many cost models
+  indexer cost get                   Get cost models and/or variables for one or all subgraphs
+  indexer connect                    Connect to indexer management API
+  indexer allocations                Manage indexer allocations
+  indexer allocations close          Close an allocation
+  indexer allocations create         Create an allocation
+  indexer allocations get            List one or more allocations
+  indexer allocations reallocate     Reallocate to subgraph deployment
+  indexer actions                    Manage indexer actions
+  indexer actions approve            Approve an action item
+  indexer actions cancel             Cancel an item in the queue
+  indexer actions delete             Delete one or many actions in the queue
+  indexer actions execute            Execute approved items in the action queue
+  indexer actions get                List one or more actions
+  indexer actions queue              Queue an action item
+  indexer actions update             Update one or more actions
 ```
 
 Connecting to an indexer management API:

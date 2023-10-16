@@ -1,28 +1,17 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { ethers } from 'ethers'
 import {
-  connectDatabase,
-  connectContracts,
   createLogger,
   Logger,
-  NetworkContracts,
-  parseGRT,
+  connectDatabase,
+  createMetrics,
 } from '@graphprotocol/common-ts'
-
-import {
-  createIndexerManagementClient,
-  IndexerManagementClient,
-  IndexerManagementDefaults,
-} from '../../client'
+import { IndexerManagementClient } from '../../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../../models'
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
-import {
-  IndexingStatusResolver,
-  NetworkSubgraph,
-  getTestProvider,
-} from '@graphprotocol/indexer-common'
+import { createTestManagementClient } from '../util'
+import { defineQueryFeeModels } from '../../../query-fees/models'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -81,61 +70,35 @@ const GET_COST_MODELS_DEPLOYMENTS_QUERY = gql`
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let address: string
-let contracts: NetworkContracts
 let logger: Logger
-let indexNodeIDs: string[]
-let statusEndpoint: string
-let indexingStatusResolver: IndexingStatusResolver
-let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
-
-const defaults: IndexerManagementDefaults = {
-  globalIndexingRule: {
-    allocationAmount: parseGRT('100'),
-    parallelAllocations: 1,
-  },
-}
+const metrics = createMetrics()
 
 const setupAll = async () => {
+  logger = createLogger({
+    name: 'Indexer API Client',
+    async: false,
+    level: __LOG_LEVEL__ ?? 'error',
+  })
+
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  address = '0xtest'
-  contracts = await connectContracts(getTestProvider('goerli'), 5)
+  defineQueryFeeModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
   logger = createLogger({
     name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  indexNodeIDs = ['node_1']
-  statusEndpoint = 'http://localhost:8030/graphql'
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint,
-  })
-  networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
-    deployment: undefined,
-  })
 
-  client = await createIndexerManagementClient({
-    models,
-    address,
-    contracts,
-    indexingStatusResolver,
-    indexNodeIDs,
-    deploymentManagementEndpoint: statusEndpoint,
-    networkSubgraph,
+  client = await createTestManagementClient(
+    __DATABASE__,
     logger,
-    defaults,
-    features: {
-      injectDai: true,
-    },
-  })
+    true,
+    metrics,
+    'eip155:1', // Override with mainnet to enable the Cost Model feature
+  )
 }
 
 const teardownAll = async () => {
@@ -154,6 +117,7 @@ const teardownEach = async () => {
 }
 
 describe('Cost models', () => {
+  jest.setTimeout(60_000)
   beforeAll(setupAll)
   beforeEach(setupEach)
   afterEach(teardownEach)
@@ -755,37 +719,33 @@ describe('Feature: Inject $DAI variable', () => {
   })
 
   test('If feature is disabled, $DAI variable is not preserved', async () => {
-    // Recreate client with features.injectDai = false
-    client = await createIndexerManagementClient({
-      models,
-      address,
-      contracts,
-      indexingStatusResolver,
-      indexNodeIDs,
-      deploymentManagementEndpoint: statusEndpoint,
-      networkSubgraph,
+    const clientNoInjectDai = await createTestManagementClient(
+      __DATABASE__,
       logger,
-      defaults,
-      features: {
-        injectDai: false,
-      },
-    })
+      false,
+      metrics,
+      'eip155:1', // Override with mainnet to enable the Cost Model feature
+    )
+
     const initial = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ n: 5, DAI: '10.0' }),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    await clientNoInjectDai
+      .mutation(SET_COST_MODEL_MUTATION, { costModel: initial })
+      .toPromise()
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: initial.model,
       variables: JSON.stringify({}),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
-      'data.costModels',
-      [update],
-    )
+    await clientNoInjectDai
+      .mutation(SET_COST_MODEL_MUTATION, { costModel: update })
+      .toPromise()
+    await expect(
+      clientNoInjectDai.query(GET_COST_MODELS_QUERY).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', [update])
   })
 })
 

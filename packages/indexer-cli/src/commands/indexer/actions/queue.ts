@@ -3,9 +3,16 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { printObjectOrArray } from '../../../command-helpers'
+import {
+  requireProtocolNetworkOption,
+  printObjectOrArray,
+} from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
-import { ActionInput, ActionStatus } from '@graphprotocol/indexer-common'
+import {
+  ActionInput,
+  ActionStatus,
+  resolveChainAlias,
+} from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -21,8 +28,9 @@ ${chalk.bold(
 
 ${chalk.dim('Options:')}
 
-  -h, --help                    Show usage information
-  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -h, --help                    Show usage informatio
+  -n, --network <STRING>        [Required] The protocol network for this action (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision
   -r, --reason <STRING>         Specify the reason for the action to be taken
   -p, --priority <INT>          Define a priority order for the action
@@ -65,6 +73,8 @@ module.exports = {
         )
       }
 
+      const networkIdentifier = requireProtocolNetworkOption(parameters.options)
+
       actionInputParams = await buildActionInput(
         validateActionType(type),
         { targetDeployment, param1, param2, param3, param4 },
@@ -72,6 +82,7 @@ module.exports = {
         decisionReason,
         ActionStatus.QUEUED,
         executionPriority,
+        networkIdentifier,
       )
 
       inputSpinner.succeed(`Processed input parameters`)
@@ -93,8 +104,14 @@ module.exports = {
 
       actionSpinner.succeed(`${type} action added to queue`)
 
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      queuedAction.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
+
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
+        'protocolNetwork',
         'type',
         'deploymentID',
         'allocationID',

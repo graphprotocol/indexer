@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-cli",
-  "version": "0.20.14",
+  "version": "0.20.23",
   "description": "Indexer CLI for The Graph Network",
   "main": "./dist/cli.js",
   "files": [
@@ -22,12 +22,12 @@
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo",
     "test": "jest --colors --verbose --runInBand --detectOpenHandles",
     "test:ci": "LOG_LEVEL=error jest --verbose --runInBand --ci",
-    "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose --forceExit",
+    "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose",
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.1",
-    "@graphprotocol/indexer-common": "^0.20.14",
+    "@graphprotocol/common-ts": "2.0.7",
+    "@graphprotocol/indexer-common": "^0.20.23",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
     "@urql/core": "2.4.4",
@@ -42,17 +42,19 @@
   },
   "devDependencies": {
     "@types/isomorphic-fetch": "0.0.36",
-    "@typescript-eslint/eslint-plugin": "5.19.0",
-    "@typescript-eslint/parser": "5.19.0",
-    "eslint": "8.13.0",
+    "@types/lodash.clonedeep": "^4.5.7",
+    "@typescript-eslint/eslint-plugin": "6.7.0",
+    "@typescript-eslint/parser": "6.7.0",
+    "eslint": "8.49.0",
     "eslint-config-prettier": "8.5.0",
-    "prettier": "2.6.2",
-    "ts-jest": "27.1.4",
-    "typescript": "4.6.3"
+    "lodash.clonedeep": "^4.5.0",
+    "prettier": "3.0.3",
+    "ts-jest": "29.1.1",
+    "typescript": "5.2.2"
   },
   "resolutions": {
     "ethers": "5.7.0",
-    "sequelize": "6.19.0"
+    "sequelize": "6.33.0"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }

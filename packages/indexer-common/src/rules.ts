@@ -1,6 +1,7 @@
 import { IndexingDecisionBasis, IndexingRuleAttributes } from './indexer-management'
 import { nullPassThrough, parseBoolean } from './utils'
 import { parseGRT } from '@graphprotocol/common-ts'
+import { validateNetworkIdentifier } from './parsers'
 
 export const parseDecisionBasis = (s: string): IndexingDecisionBasis => {
   if (!['always', 'never', 'rules', 'offchain'].includes(s)) {
@@ -34,6 +35,7 @@ const INDEXING_RULE_READABLE_TO_MODEL_PARSERS: Record<
   custom: nullPassThrough(JSON.parse),
   requireSupported: (x) => parseBoolean(x),
   safety: (x) => parseBoolean(x),
+  protocolNetwork: (x: string) => validateNetworkIdentifier(x),
 }
 
 export const parseIndexingRule = (

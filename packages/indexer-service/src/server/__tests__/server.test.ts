@@ -4,7 +4,7 @@
 
 import http from 'http'
 import supertest from 'supertest'
-import { BigNumber, ethers, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { Sequelize } from 'sequelize'
 import { Socket } from 'net'
 
@@ -62,7 +62,7 @@ const setup = async () => {
   models = defineIndexerManagementModels(sequelize)
   address = '0x90f8bf6a479f320ead074411a4b0e7944ea8c9c1'
   contracts = await connectContracts(getTestProvider('goerli'), 5)
-  await sequelize.sync({ force: true })
+  sequelize = await sequelize.sync({ force: true })
   const statusEndpoint = 'http://localhost:8030/graphql'
   indexingStatusResolver = new IndexingStatusResolver({
     logger: logger,

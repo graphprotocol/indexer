@@ -5,7 +5,7 @@ import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   parseGraphQLAllocation,
   parseGraphQLEpochs,
@@ -18,6 +18,7 @@ import {
   BlockPointer,
   resolveChainId,
   resolveChainAlias,
+  TransferredSubgraphDeployment,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -28,19 +29,23 @@ import {
   SubgraphDeploymentID,
   timer,
   toAddress,
+  formatGRT,
 } from '@graphprotocol/common-ts'
+import { BigNumber } from 'ethers'
 import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
 import pRetry from 'p-retry'
+import { IndexerOptions } from '../network-specification'
+import pMap from 'p-map'
 
 // The new read only Network class
 export class NetworkMonitor {
   constructor(
     public networkCAIPID: string,
     private contracts: NetworkContracts,
-    private indexer: Address,
+    private indexerOptions: IndexerOptions,
     private logger: Logger,
-    private indexingStatusResolver: IndexingStatusResolver,
+    private graphNode: GraphNode,
     private networkSubgraph: NetworkSubgraph,
     private ethereum: providers.BaseProvider,
     private epochSubgraph: EpochSubgraph,
@@ -55,7 +60,7 @@ export class NetworkMonitor {
   }
 
   async allocation(allocationID: string): Promise<Allocation> {
-    const result = await this.networkSubgraph.query(
+    const result = await this.networkSubgraph.checkedQuery(
       gql`
         query allocation($allocation: String!) {
           allocation(id: $allocation) {
@@ -89,12 +94,13 @@ export class NetworkMonitor {
       this.logger.warn(errorMessage)
       throw indexerError(IndexerErrorCode.IE063, errorMessage)
     }
-    return parseGraphQLAllocation(result.data.allocation)
+    return parseGraphQLAllocation(result.data.allocation, this.networkCAIPID)
   }
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      this.logger.debug(`Fetch ${status} allocations`)
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $status: AllocationStatus!) {
             allocations(
@@ -121,7 +127,7 @@ export class NetworkMonitor {
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           status: status,
         },
       )
@@ -138,7 +144,7 @@ export class NetworkMonitor {
         this.logger.warn(
           `No ${
             AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
-          } allocations found for indexer '${this.indexer}'`,
+          } allocations found for indexer '${this.indexerOptions.address}'`,
         )
         return []
       }
@@ -155,7 +161,7 @@ export class NetworkMonitor {
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query epochs($epochs: [Int!]!) {
             epoches(where: { id_in: $epochs }, first: 1000) {
@@ -194,38 +200,37 @@ export class NetworkMonitor {
     range: number,
   ): Promise<Allocation[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      this.logger.debug('Fetch recently closed allocations')
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
-            indexer(id: $indexer) {
-              allocations: totalAllocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  closedAtEpoch_gte: $closedAtEpochThreshold
-                }
-                first: 1000
-              ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                status: Closed
+                closedAtEpoch_gte: $closedAtEpochThreshold
+              }
+              first: 1000
+            ) {
+              id
+              indexer {
                 id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
               }
             }
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           closedAtEpochThreshold: currentEpoch - range,
         },
       )
@@ -234,15 +239,18 @@ export class NetworkMonitor {
         throw result.error
       }
 
-      if (!result.data) {
-        throw new Error(`No data / indexer not found on chain`)
+      if (
+        !result.data.allocations ||
+        result.data.length === 0 ||
+        result.data.allocations.length === 0
+      ) {
+        this.logger.warn(
+          `No recently closed allocations found for indexer '${this.indexerOptions.address}'`,
+        )
+        return []
       }
 
-      if (!result.data.indexer) {
-        throw new Error(`Indexer not found on chain`)
-      }
-
-      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer's recently closed allocations`, {
@@ -256,41 +264,39 @@ export class NetworkMonitor {
     subgraphDeploymentId: SubgraphDeploymentID,
   ): Promise<Allocation[]> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query allocations($indexer: String!, $subgraphDeploymentId: String!) {
-            indexer(id: $indexer) {
-              allocations: totalAllocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  subgraphDeployment: $subgraphDeploymentId
-                }
-                first: 5
-                orderBy: closedAtBlockNumber
-                orderDirection: desc
-              ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                status: Closed
+                subgraphDeployment: $subgraphDeploymentId
+              }
+              first: 5
+              orderBy: closedAtBlockNumber
+              orderDirection: desc
+            ) {
+              id
+              poi
+              indexer {
                 id
-                poi
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
+              }
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
               }
             }
           }
         `,
         {
-          indexer: this.indexer.toLocaleLowerCase(),
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
           subgraphDeploymentId: subgraphDeploymentId.display.bytes32,
         },
       )
@@ -299,15 +305,19 @@ export class NetworkMonitor {
         throw result.error
       }
 
-      if (!result.data) {
-        throw new Error(`No data / indexer not found on chain`)
+      if (
+        !result.data.allocations ||
+        result.data.length === 0 ||
+        result.data.allocations.length === 0
+      ) {
+        this.logger.warn('No closed allocations found for deployment', {
+          id: subgraphDeploymentId.display.bytes32,
+          ipfsHash: subgraphDeploymentId.display,
+        })
+        return []
       }
 
-      if (!result.data.indexer) {
-        throw new Error(`Indexer not found on chain`)
-      }
-
-      return result.data.indexer.allocations.map(parseGraphQLAllocation)
+      return result.data.allocations.map(parseGraphQLAllocation)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
@@ -326,7 +336,7 @@ export class NetworkMonitor {
     }
     let subgraphs: Subgraph[] = []
     const queryProgress = {
-      lastId: '',
+      lastCreatedAt: 0,
       first: 20,
       fetched: 0,
       exhausted: false,
@@ -340,16 +350,17 @@ export class NetworkMonitor {
         subgraphIds: ids,
       })
       try {
-        const result = await this.networkSubgraph.query(
+        const result = await this.networkSubgraph.checkedQuery(
           gql`
-            query subgraphs($first: Int!, $lastId: String!, $subgraphs: [String!]!) {
+            query subgraphs($first: Int!, $lastCreatedAt: Int!, $subgraphs: [String!]!) {
               subgraphs(
-                where: { id_gt: $lastId, id_in: $subgraphs }
-                orderBy: id
+                where: { id_gt: $lastCreatedAt, id_in: $subgraphs }
+                orderBy: createdAt
                 orderDirection: asc
                 first: $first
               ) {
                 id
+                createdAt
                 versionCount
                 versions {
                   version
@@ -363,7 +374,7 @@ export class NetworkMonitor {
           `,
           {
             first: queryProgress.first,
-            lastId: queryProgress.lastId,
+            lastCreatedAt: queryProgress.lastCreatedAt,
             subgraphs: ids,
           },
         )
@@ -399,7 +410,7 @@ export class NetworkMonitor {
 
         queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
-        queryProgress.lastId = results[results.length - 1].id
+        queryProgress.lastCreatedAt = results[results.length - 1].createdAt
 
         subgraphs = subgraphs.concat(results)
       } catch (error) {
@@ -425,7 +436,7 @@ export class NetworkMonitor {
 
   async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment | undefined> {
     try {
-      const result = await this.networkSubgraph.query(
+      const result = await this.networkSubgraph.checkedQuery(
         gql`
           query subgraphDeployments($ipfsHash: String!) {
             subgraphDeployments(where: { ipfsHash: $ipfsHash }) {
@@ -438,12 +449,6 @@ export class NetworkMonitor {
               indexerAllocations {
                 indexer {
                   id
-                }
-              }
-              versions(first: 1, orderBy: version, orderDirection: desc) {
-                subgraph {
-                  displayName
-                  creatorAddress
                 }
               }
             }
@@ -470,7 +475,10 @@ export class NetworkMonitor {
       }
 
       // TODO: Make and use parseGraphqlDeployment() function
-      return parseGraphQLSubgraphDeployment(result.data.subgraphDeployments[0])
+      return parseGraphQLSubgraphDeployment(
+        result.data.subgraphDeployments[0],
+        this.networkCAIPID,
+      )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
@@ -483,22 +491,97 @@ export class NetworkMonitor {
     }
   }
 
-  // Wrapper function over this.subgraphDeployment that will throw an
-  // error on missing subgraph deployments
-  async requireSubgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment> {
-    const subgraphDeployment = await this.subgraphDeployment(ipfsHash)
-    if (!subgraphDeployment) {
-      const errorMessage = `Failed to locate subgraph deployment with id ${ipfsHash} in the Network Subgraph`
-      this.logger.error(errorMessage, { ipfsHash })
-      throw indexerError(IndexerErrorCode.IE020, errorMessage)
+  async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
+    this.logger.debug('Querying the Network for transferred subgraph deployments')
+    try {
+      const result = await this.networkSubgraph.checkedQuery(
+        // TODO: Consider querying for the same time range as the Agent's evaluation, limiting
+        // results to recent transfers.
+        gql`
+          {
+            subgraphs(
+              where: { startedTransferToL2: true }
+              orderBy: startedTransferToL2At
+              orderDirection: asc
+            ) {
+              id
+              idOnL1
+              idOnL2
+              startedTransferToL2
+              startedTransferToL2At
+              startedTransferToL2AtBlockNumber
+              startedTransferToL2AtTx
+              transferredToL2
+              transferredToL2At
+              transferredToL2AtBlockNumber
+              transferredToL2AtTx
+              versions {
+                subgraphDeployment {
+                  ipfsHash
+                }
+              }
+            }
+          }
+        `,
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      const transferredDeployments = result.data.subgraphs
+
+      // There may be no transferred subgraphs, handle gracefully
+      if (transferredDeployments.length == 0) {
+        this.logger.warn(
+          'Failed to query subgraph deployments transferred to L2: no deployments found',
+        )
+        throw new Error('No transferred subgraph deployments returned')
+      }
+
+      // Flatten multiple subgraphDeployment versions into a single `TransferredSubgraphDeployment` object
+      // TODO: We could use `zod` to parse GraphQL responses into the expected type
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return transferredDeployments.flatMap((deployment: any) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        return deployment.versions.map((version: any) => {
+          return {
+            id: deployment.id,
+            idOnL1: deployment.idOnL1,
+            idOnL2: deployment.idOnL2,
+            startedTransferToL2: deployment.startedTransferToL2,
+            startedTransferToL2At: BigNumber.from(deployment.startedTransferToL2At),
+            startedTransferToL2AtBlockNumber: BigNumber.from(
+              deployment.startedTransferToL2AtBlockNumber,
+            ),
+            startedTransferToL2AtTx: deployment.startedTransferToL2AtTx,
+            transferredToL2: deployment.transferredToL2,
+            transferredToL2At: deployment.transferredToL2At
+              ? BigNumber.from(deployment.transferredToL2At)
+              : null,
+            transferredToL2AtTx: deployment.transferredToL2AtTx,
+            transferredToL2AtBlockNumber: deployment.transferredToL2AtBlockNumber
+              ? BigNumber.from(deployment.transferredToL2AtBlockNumber)
+              : null,
+            ipfsHash: version.subgraphDeployment.ipfsHash,
+            protocolNetwork: this.networkCAIPID,
+            ready: null,
+          }
+        })
+      })
+    } catch (err) {
+      const error = indexerError(IndexerErrorCode.IE009, err.message)
+      this.logger.error(`Failed to query transferred subgraph deployments`, {
+        error,
+      })
+      throw error
     }
-    return subgraphDeployment
   }
 
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
     const deployments = []
     const queryProgress = {
-      lastId: '',
+      lastCreatedAt: 0,
       first: 10,
       fetched: 0,
       exhausted: false,
@@ -511,36 +594,26 @@ export class NetworkMonitor {
         queryProgress: queryProgress,
       })
       try {
-        const result = await this.networkSubgraph.query(
+        const result = await this.networkSubgraph.checkedQuery(
           gql`
-            query subgraphDeployments($first: Int!, $lastId: String!) {
+            query subgraphDeployments($first: Int!, $lastCreatedAt: Int!) {
               subgraphDeployments(
-                where: { id_gt: $lastId }
-                orderBy: id
+                where: { createdAt_gt: $lastCreatedAt }
+                orderBy: createdAt
                 orderDirection: asc
                 first: $first
               ) {
+                createdAt
                 id
                 ipfsHash
                 deniedAt
                 stakedTokens
                 signalledTokens
                 queryFeesAmount
-                indexerAllocations {
-                  indexer {
-                    id
-                  }
-                }
-                versions(first: 1, orderBy: version, orderDirection: desc) {
-                  subgraph {
-                    displayName
-                    creatorAddress
-                  }
-                }
               }
             }
           `,
-          { first: queryProgress.first, lastId: queryProgress.lastId },
+          { first: queryProgress.first, lastCreatedAt: queryProgress.lastCreatedAt },
         )
 
         if (result.error) {
@@ -559,8 +632,14 @@ export class NetworkMonitor {
 
         queryProgress.exhausted = networkDeployments.length < queryProgress.first
         queryProgress.fetched += networkDeployments.length
-        queryProgress.lastId = networkDeployments[networkDeployments.length - 1].id
-        deployments.push(...networkDeployments.map(parseGraphQLSubgraphDeployment))
+        queryProgress.lastCreatedAt =
+          networkDeployments[networkDeployments.length - 1].createdAt
+        deployments.push(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ...networkDeployments.map((x: any) =>
+            parseGraphQLSubgraphDeployment(x, this.networkCAIPID),
+          ),
+        )
       } catch (err) {
         queryProgress.retriesRemaining--
         this.logger.warn(`Failed to query subgraph deployments`, {
@@ -593,7 +672,7 @@ export class NetworkMonitor {
     const queryEpochSubgraph = async () => {
       // We know it is non-null because of the check above for a null case that will end execution of fn if true
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const result = await this.epochSubgraph!.query(
+      const result = await this.epochSubgraph!.checkedQuery(
         gql`
           query network($networkID: String!) {
             network(id: $networkID) {
@@ -610,11 +689,6 @@ export class NetworkMonitor {
                   epochNumber
                   blockNumber
                 }
-              }
-            }
-            _meta {
-              block {
-                number
               }
             }
           }
@@ -691,7 +765,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       if (networkID == this.networkCAIPID) {
         startBlockHash = (await this.ethereum.getBlock(+validBlock.blockNumber)).hash
       } else {
-        startBlockHash = await this.indexingStatusResolver.blockHashFromNumber(
+        startBlockHash = await this.graphNode.blockHashFromNumber(
           networkAlias,
           +validBlock.blockNumber,
         )
@@ -741,9 +815,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async fetchPOIBlockPointer(allocation: Allocation): Promise<BlockPointer> {
     try {
-      const deploymentIndexingStatuses = await this.indexingStatusResolver.indexingStatus(
-        [allocation.subgraphDeployment.id],
-      )
+      const deploymentIndexingStatuses = await this.graphNode.indexingStatus([
+        allocation.subgraphDeployment.id,
+      ])
       if (
         deploymentIndexingStatuses.length != 1 ||
         deploymentIndexingStatuses[0].chains.length != 1 ||
@@ -798,7 +872,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
             return poi!
           case false:
             return (
-              (await this.indexingStatusResolver.proofOfIndexing(
+              (await this.graphNode.proofOfIndexing(
                 allocation.subgraphDeployment.id,
                 await this.fetchPOIBlockPointer(allocation),
                 allocation.indexer,
@@ -809,7 +883,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       case false: {
         const epochStartBlock = await this.fetchPOIBlockPointer(allocation)
         // Obtain the start block of the current epoch
-        const generatedPOI = await this.indexingStatusResolver.proofOfIndexing(
+        const generatedPOI = await this.graphNode.proofOfIndexing(
           allocation.subgraphDeployment.id,
           epochStartBlock,
           allocation.indexer,
@@ -817,7 +891,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         switch (poi == generatedPOI) {
           case true:
             if (poi == undefined) {
-              const deploymentStatus = await this.indexingStatusResolver.indexingStatus([
+              const deploymentStatus = await this.graphNode.indexingStatus([
                 allocation.subgraphDeployment.id,
               ])
               throw indexerError(
@@ -855,18 +929,21 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     contracts: NetworkContracts,
     networkSubgraph: NetworkSubgraph,
   ): Promise<Eventual<boolean>> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const initialPauseValue = await contracts.controller.paused().catch((_) => {
+      return false
+    })
     return timer(60_000)
       .reduce(async (currentlyPaused) => {
         try {
-          const result = await networkSubgraph.query(
-            gql`
-              {
-                graphNetworks {
-                  isPaused
-                }
+          logger.debug('Query network subgraph isPaused state')
+          const result = await networkSubgraph.checkedQuery(gql`
+            {
+              graphNetworks {
+                isPaused
               }
-            `,
-          )
+            }
+          `)
 
           if (result.error) {
             throw result.error
@@ -887,7 +964,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           })
           return currentlyPaused
         }
-      }, await contracts.controller.paused())
+      }, initialPauseValue)
       .map((paused) => {
         logger.info(paused ? `Network paused` : `Network active`)
         return paused
@@ -907,18 +984,22 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return mutable(true)
     }
 
-    return timer(60_000)
-      .reduce(async (isOperator) => {
-        try {
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
-        } catch (err) {
-          logger.warn(
-            `Failed to check operator status for indexer, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-          )
-          return isOperator
-        }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+    return timer(300_000)
+      .reduce(
+        async (isOperator) => {
+          try {
+            logger.debug('Check operator status')
+            return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          } catch (err) {
+            logger.warn(
+              `Failed to check operator status for indexer, assuming it has not changed`,
+              { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+            )
+            return isOperator
+          }
+        },
+        await contracts.staking.isOperator(wallet.address, indexerAddress),
+      )
       .map((isOperator) => {
         logger.info(
           isOperator
@@ -927,5 +1008,245 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         )
         return isOperator
       })
+  }
+
+  async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
+    try {
+      this.logger.debug('Fetch claimable allocations', {
+        closedAtEpoch_lte: disputableEpoch,
+        queryFeesCollected_gte: this.indexerOptions.rebateClaimThreshold.toString(),
+      })
+      const result = await this.networkSubgraph.checkedQuery(
+        gql`
+          query allocations(
+            $indexer: String!
+            $disputableEpoch: Int!
+            $minimumQueryFeesCollected: BigInt!
+          ) {
+            allocations(
+              where: {
+                indexer: $indexer
+                closedAtEpoch_lte: $disputableEpoch
+                queryFeesCollected_gte: $minimumQueryFeesCollected
+                status: Closed
+              }
+              first: 1000
+            ) {
+              id
+              indexer {
+                id
+              }
+              queryFeesCollected
+              allocatedTokens
+              createdAtEpoch
+              closedAtEpoch
+              createdAtBlockHash
+              closedAtBlockHash
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
+              }
+            }
+          }
+        `,
+        {
+          indexer: this.indexerOptions.address.toLocaleLowerCase(),
+          disputableEpoch,
+          minimumQueryFeesCollected: this.indexerOptions.rebateClaimThreshold.toString(),
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      const totalFees: BigNumber = result.data.allocations.reduce(
+        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
+          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+        },
+        BigNumber.from(0),
+      )
+
+      const parsedAllocs: Allocation[] =
+        result.data.allocations.map(parseGraphQLAllocation)
+
+      // If the total fees claimable do not meet the minimum required for batching, return an empty array
+      if (
+        parsedAllocs.length > 0 &&
+        totalFees.lt(this.indexerOptions.rebateClaimBatchThreshold)
+      ) {
+        this.logger.info(
+          `Allocation rebate batch value does not meet minimum for claiming`,
+          {
+            batchValueGRT: formatGRT(totalFees),
+            rebateClaimBatchThreshold: formatGRT(
+              this.indexerOptions.rebateClaimBatchThreshold,
+            ),
+            rebateClaimMaxBatchSize: this.indexerOptions.rebateClaimMaxBatchSize,
+            batchSize: parsedAllocs.length,
+            allocations: parsedAllocs.map((allocation) => {
+              return {
+                allocation: allocation.id,
+                deployment: allocation.subgraphDeployment.id.display,
+                createdAtEpoch: allocation.createdAtEpoch,
+                closedAtEpoch: allocation.closedAtEpoch,
+                createdAtBlockHash: allocation.createdAtBlockHash,
+              }
+            }),
+          },
+        )
+        return []
+      }
+      // Otherwise return the allos for claiming since the batch meets the minimum
+      return parsedAllocs
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE011, error)
+      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
+        err,
+      })
+      throw err
+    }
+  }
+  async disputableAllocations(
+    currentEpoch: number,
+    deployments: SubgraphDeploymentID[],
+    minimumAllocation: number,
+  ): Promise<Allocation[]> {
+    const logger = this.logger.child({ component: 'POI Monitor' })
+    if (!this.indexerOptions.poiDisputeMonitoring) {
+      logger.trace('POI monitoring disabled, skipping')
+      return Promise.resolve([])
+    }
+
+    logger.debug('Query network for any potentially disputable allocations')
+
+    let dataRemaining = true
+    let allocations: Allocation[] = []
+
+    try {
+      const zeroPOI = utils.hexlify(Array(32).fill(0))
+      const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
+      let lastCreatedAt = 0
+      while (dataRemaining) {
+        const result = await this.networkSubgraph.checkedQuery(
+          gql`
+            query allocations(
+              $deployments: [String!]!
+              $minimumAllocation: Int!
+              $disputableEpoch: Int!
+              $zeroPOI: String!
+              $createdAt: Int!
+            ) {
+              allocations(
+                where: {
+                  createdAt_gt: $createdAt
+                  subgraphDeployment_in: $deployments
+                  allocatedTokens_gt: $minimumAllocation
+                  closedAtEpoch_gte: $disputableEpoch
+                  status: Closed
+                  poi_not: $zeroPOI
+                }
+                first: 1000
+                orderBy: createdAt
+                orderDirection: asc
+              ) {
+                id
+                createdAt
+                indexer {
+                  id
+                }
+                poi
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                closedAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                  queryFeesAmount
+                }
+              }
+            }
+          `,
+          {
+            deployments: deployments.map((subgraph) => subgraph.bytes32),
+            minimumAllocation,
+            disputableEpoch,
+            createdAt: lastCreatedAt,
+            zeroPOI,
+          },
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          dataRemaining = false
+        } else {
+          lastCreatedAt = result.data.allocations.slice(-1)[0].createdAt
+          const parsedResult: Allocation[] =
+            result.data.allocations.map(parseGraphQLAllocation)
+          allocations = allocations.concat(parsedResult)
+        }
+      }
+
+      // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
+      const disputableEpochs = await this.epochs([
+        ...allocations.reduce((epochNumbers: Set<number>, allocation: Allocation) => {
+          epochNumbers.add(allocation.closedAtEpoch)
+          epochNumbers.add(allocation.closedAtEpoch - 1)
+          return epochNumbers
+        }, new Set()),
+      ])
+      const availableEpochs = await pMap(
+        disputableEpochs,
+        async (epoch) => {
+          try {
+            const startBlock = await this.ethereum.getBlock(epoch.startBlock)
+            epoch.startBlockHash = startBlock?.hash
+          } catch {
+            logger.debug('Failed to fetch block hash for startBlock of epoch', {
+              epoch: epoch.id,
+              startBlock: epoch.startBlock,
+            })
+          }
+
+          return epoch
+        },
+        {
+          stopOnError: true,
+          concurrency: 1,
+        },
+      )
+      availableEpochs.filter((epoch) => !!epoch.startBlockHash)
+
+      return await pMap(
+        allocations,
+        async (allocation) => {
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.closedAtEpochStartBlockHash = availableEpochs.find(
+            (epoch) => epoch.id == allocation.closedAtEpoch,
+          )?.startBlockHash
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          allocation.previousEpochStartBlockHash = availableEpochs.find(
+            (epoch) => epoch.id == allocation.closedAtEpoch - 1,
+          )?.startBlockHash
+          return allocation
+        },
+        {
+          stopOnError: true,
+          concurrency: 1,
+        },
+      )
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE037, error)
+      logger.error(INDEXER_ERROR_MESSAGES.IE037, {
+        err,
+      })
+      throw err
+    }
   }
 }

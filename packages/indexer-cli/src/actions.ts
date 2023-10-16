@@ -10,6 +10,7 @@ import {
   nullPassThrough,
   OrderDirection,
   parseBoolean,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -32,6 +33,7 @@ export async function buildActionInput(
   reason: string,
   status: ActionStatus,
   priority: number,
+  protocolNetwork: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
   switch (type) {
@@ -44,6 +46,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -60,6 +63,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     }
     case ActionType.REALLOCATE: {
@@ -78,6 +82,7 @@ export async function buildActionInput(
         reason,
         status,
         priority,
+        protocolNetwork,
       }
     }
   }
@@ -182,6 +187,7 @@ export async function queueActions(
             reason
             priority
             status
+            protocolNetwork
           }
         }
       `,
@@ -206,6 +212,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 /**
@@ -229,26 +236,25 @@ export async function executeApprovedActions(
   client: IndexerManagementClient,
 ): Promise<ActionResult[]> {
   const result = await client
-    .mutation(
-      gql`
-        mutation executeApprovedActions {
-          executeApprovedActions {
-            id
-            status
-            type
-            deploymentID
-            allocationID
-            amount
-            poi
-            force
-            source
-            reason
-            transaction
-            failureReason
-          }
+    .mutation(gql`
+      mutation executeApprovedActions {
+        executeApprovedActions {
+          id
+          protocolNetwork
+          status
+          type
+          deploymentID
+          allocationID
+          amount
+          poi
+          force
+          source
+          reason
+          transaction
+          failureReason
         }
-      `,
-    )
+      }
+    `)
     .toPromise()
 
   if (result.error) {
@@ -279,6 +285,7 @@ export async function approveActions(
             priority
             transaction
             status
+            protocolNetwork
           }
         }
       `,
@@ -303,6 +310,7 @@ export async function cancelActions(
         mutation cancelActions($actionIDs: [Int!]!) {
           cancelActions(actionIDs: $actionIDs) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -338,6 +346,7 @@ export async function fetchAction(
         query action($actionID: Int!) {
           action(actionID: $actionID) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -386,6 +395,7 @@ export async function fetchActions(
             first: $first
           ) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -422,6 +432,7 @@ export async function deleteActions(
         mutation deleteActions($actionIDs: [Int!]!) {
           deleteActions(actionIDs: $actionIDs) {
             id
+            protocolNetwork
             type
             allocationID
             deploymentID
@@ -471,6 +482,7 @@ export async function updateActions(
             transaction
             status
             failureReason
+            protocolNetwork
           }
         }
       `,

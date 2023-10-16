@@ -1,53 +1,57 @@
-import fs from 'fs'
 import path from 'path'
+import axios from 'axios'
 import { Argv } from 'yargs'
-import { parse as yaml_parse } from 'yaml'
 import { SequelizeStorage, Umzug } from 'umzug'
-
 import {
-  connectContracts,
-  connectDatabase,
-  createLogger,
   createMetrics,
+  connectDatabase,
   createMetricsServer,
   formatGRT,
-  parseGRT,
-  SubgraphDeploymentID,
-  toAddress,
   Logger,
+  SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  AllocationReceiptCollector,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
   defineQueryFeeModels,
+  GraphNode,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  MultiNetworks,
   Network,
-  NetworkSubgraph,
+  Operator,
   registerIndexerErrorMetrics,
-  AllocationManagementMode,
-  NetworkMonitor,
-  EpochSubgraph,
   resolveChainId,
+  specification as spec,
 } from '@graphprotocol/indexer-common'
-import { startAgent } from '../agent'
-import { Indexer } from '../indexer'
-import { Wallet } from 'ethers'
-import { Network as NetworkMetadata } from '@ethersproject/networks'
+import { Agent } from '../agent'
 import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
-import { monitorEthBalance } from '../utils'
+import { injectCommonStartupOptions } from './common-options'
+import pMap from 'p-map'
+import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
+import { BigNumber } from 'ethers'
+import { displayZodParsingError } from './error-handling'
 
-export default {
+// eslint-disable-next-line  @typescript-eslint/no-explicit-any
+export type AgentOptions = { [key: string]: any } & Argv['argv']
+
+const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
+const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
+  50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
+const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
+
+export const start = {
   command: 'start',
   describe: 'Start the agent',
-  builder: (yargs: Argv): Argv => {
-    return yargs
-      .option('ethereum', {
+  builder: (args: Argv): Argv => {
+    const updatedArgs = injectCommonStartupOptions(args)
+    return updatedArgs
+      .option('network-provider', {
+        alias: 'ethereum',
         description: 'Ethereum node or provider URL',
+        array: false,
         type: 'string',
         required: true,
         group: 'Ethereum',
@@ -64,7 +68,6 @@ export default {
         type: 'number',
         default: 240,
         group: 'Ethereum',
-        coerce: arg => arg * 1000,
       })
       .option('gas-increase-factor', {
         description:
@@ -79,7 +82,6 @@ export default {
         default: 100,
         deprecated: true,
         group: 'Ethereum',
-        coerce: arg => arg * 10 ** 9,
       })
       .option('base-fee-per-gas-max', {
         description:
@@ -87,7 +89,6 @@ export default {
         type: 'number',
         required: false,
         group: 'Ethereum',
-        coerce: arg => arg * 10 ** 9,
       })
       .option('transaction-attempts', {
         description:
@@ -108,25 +109,6 @@ export default {
         required: true,
         group: 'Ethereum',
       })
-      .option('graph-node-query-endpoint', {
-        description: 'Graph Node endpoint for querying subgraphs',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
-      .option('graph-node-status-endpoint', {
-        description: 'Graph Node endpoint for indexing statuses etc.',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
-      .option('graph-node-admin-endpoint', {
-        description:
-          'Graph Node endpoint for applying and updating subgraph deployments',
-        type: 'string',
-        required: true,
-        group: 'Indexer Infrastructure',
-      })
       .option('public-indexer-url', {
         description: 'Indexer endpoint for receiving requests from the network',
         type: 'string',
@@ -136,22 +118,34 @@ export default {
       .options('indexer-geo-coordinates', {
         description: `Coordinates describing the Indexer's location using latitude and longitude`,
         type: 'string',
-        array: true,
+        nargs: 2,
         default: ['31.780715', '-41.179504'],
         group: 'Indexer Infrastructure',
-        coerce: arg =>
-          arg.reduce(
-            (acc: string[], value: string) => [...acc, ...value.split(' ')],
-            [],
-          ),
+        coerce: function (
+          coordinates: string | [string, string],
+        ): [number, number] {
+          if (typeof coordinates === 'string') {
+            // When this value is set in an enviromnent variable, yarns passes
+            // it as a single string.
+
+            // Yargs should have passed 2 arguments to this functions, so we
+            // expect this array has two elements
+            return coordinates.split(' ').map(parseFloat) as [number, number]
+          }
+          // When this value is set in the command line, yargs passes it as an
+          // array of two strings.
+          return coordinates.map(parseFloat) as [number, number]
+        },
       })
       .option('network-subgraph-deployment', {
         description: 'Network subgraph deployment',
+        array: false,
         type: 'string',
         group: 'Network Subgraph',
       })
       .option('network-subgraph-endpoint', {
         description: 'Endpoint to query the network subgraph from',
+        array: false,
         type: 'string',
         group: 'Network Subgraph',
       })
@@ -163,53 +157,32 @@ export default {
       })
       .option('epoch-subgraph-endpoint', {
         description: 'Endpoint to query the epoch block oracle subgraph from',
+        array: false,
         type: 'string',
         required: true,
         group: 'Protocol',
       })
-      .option('index-node-ids', {
+      .option('subgraph-max-block-distance', {
         description:
-          'Node IDs of Graph nodes to use for indexing (separated by commas)',
-        type: 'string',
-        array: true,
-        required: true,
-        coerce: arg =>
-          arg.reduce(
-            (acc: string[], value: string) => [...acc, ...value.split(',')],
-            [],
-          ),
-        group: 'Indexer Infrastructure',
+          'How many blocks subgraphs are allowed to stay behind chain head',
+        type: 'number',
+        default: DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE,
+        group: 'Protocol',
+      })
+      .option('subgraph-freshness-sleep-milliseconds', {
+        description:
+          'How long to wait before retrying subgraph query if it is not fresh',
+        type: 'number',
+        default: DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS,
+        group: 'Protocol',
       })
       .option('default-allocation-amount', {
         description:
           'Default amount of GRT to allocate to a subgraph deployment',
-        type: 'string',
-        default: '0.01',
+        type: 'number',
+        default: 0.01,
         required: false,
         group: 'Protocol',
-        coerce: arg => parseGRT(arg),
-      })
-      .option('indexer-management-port', {
-        description: 'Port to serve the indexer management API at',
-        type: 'number',
-        default: 8000,
-        required: false,
-        group: 'Indexer Infrastructure',
-      })
-      .option('metrics-port', {
-        description: 'Port to serve Prometheus metrics at',
-        type: 'number',
-        defaut: 7300,
-        required: false,
-        group: 'Indexer Infrastructure',
-      })
-      .option('syncing-port', {
-        description:
-          'Port to serve the network subgraph and other syncing data for indexer service at',
-        type: 'number',
-        default: 8002,
-        required: false,
-        group: 'Indexer Infrastructure',
       })
       .option('restake-rewards', {
         description: `Restake claimed indexer rewards, if set to 'false' rewards will be returned to the wallet`,
@@ -219,17 +192,15 @@ export default {
       })
       .option('rebate-claim-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
-        type: 'string',
-        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        type: 'number',
+        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
-        type: 'string',
-        default: '2000',
+        type: 'number',
+        default: 2000,
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('rebate-claim-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
@@ -239,17 +210,15 @@ export default {
       })
       .option('voucher-redemption-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
-        type: 'string',
-        default: '200', // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        type: 'number',
+        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
-        type: 'string',
-        default: '2000',
+        type: 'number',
+        default: 2000,
         group: 'Query Fees',
-        coerce: arg => parseGRT(arg),
       })
       .option('voucher-redemption-max-batch-size', {
         description: `Maximum number of rebates inside a batch. Upper bound is constrained by available system memory, and by the block gas limit`,
@@ -283,64 +252,11 @@ export default {
         // Default to USDC
         default: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       })
-      .option('postgres-host', {
-        description: 'Postgres host',
-        type: 'string',
-        required: true,
-        group: 'Postgres',
-      })
-      .option('postgres-port', {
-        description: 'Postgres port',
-        type: 'number',
-        default: 5432,
-        group: 'Postgres',
-      })
-      .option('postgres-username', {
-        description: 'Postgres username',
-        type: 'string',
-        required: false,
-        default: 'postgres',
-        group: 'Postgres',
-      })
-      .option('postgres-password', {
-        description: 'Postgres password',
-        type: 'string',
-        default: '',
-        required: false,
-        group: 'Postgres',
-      })
-      .option('postgres-database', {
-        description: 'Postgres database name',
-        type: 'string',
-        required: true,
-        group: 'Postgres',
-      })
-      .option('log-level', {
-        description: 'Log level',
-        type: 'string',
-        default: 'debug',
-        group: 'Indexer Infrastructure',
-      })
       .option('register', {
         description: 'Whether to register the indexer on chain',
         type: 'boolean',
         default: true,
         group: 'Protocol',
-      })
-      .option('offchain-subgraphs', {
-        description:
-          'Subgraphs to index that are not on chain (comma-separated)',
-        type: 'string',
-        array: true,
-        default: [],
-        coerce: arg =>
-          arg
-            .reduce(
-              (acc: string[], value: string) => [...acc, ...value.split(',')],
-              [],
-            )
-            .map((id: string) => id.trim())
-            .filter((id: string) => id.length > 0),
       })
       .option('poi-disputable-epochs', {
         description:
@@ -355,45 +271,12 @@ export default {
         default: false,
         group: 'Disputes',
       })
-      .check(argv => {
-        if (
-          !argv['network-subgraph-endpoint'] &&
-          !argv['network-subgraph-deployment']
-        ) {
-          return `At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided`
-        }
-        if (argv['indexer-geo-coordinates']) {
-          const [geo1, geo2] = argv['indexer-geo-coordinates']
-          if (!+geo1 || !+geo2) {
-            return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
-          }
-        }
-        if (argv['gas-increase-timeout']) {
-          if (argv['gas-increase-timeout'] < 30000) {
-            return 'Invalid --gas-increase-timeout provided. Must be at least 30 seconds'
-          }
-        }
-        if (argv['gas-increase-factor'] <= 1.0) {
-          return 'Invalid --gas-increase-factor provided. Must be > 1.0'
-        }
-        if (
-          !Number.isInteger(argv['rebate-claim-max-batch-size']) ||
-          argv['rebate-claim-max-batch-size'] <= 0
-        ) {
-          return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
-        }
-        if (
-          !Number.isInteger(argv['auto-graft-resolver-limit']) ||
-          argv['auto-graft-resolver-limit'] < 0
-        ) {
-          return 'Invalid --auto-graft-resolver-limit provided. Must be >= 0 and an integer.'
-        }
-        return true
-      })
-      .option('collect-receipts-endpoint', {
-        description: 'Client endpoint for collecting receipts',
+      .option('gateway-endpoint', {
+        description: 'Gateway endpoint base URL',
+        alias: 'collect-receipts-endpoint',
         type: 'string',
-        required: false,
+        array: false,
+        required: true,
         group: 'Query Fees',
       })
       .option('allocation-management', {
@@ -410,426 +293,468 @@ export default {
         default: 1,
         group: 'Indexer Infrastructure',
       })
-      .config({
-        key: 'config-file',
-        description: 'Indexer agent configuration file (YAML format)',
-        parseFn: function (cfgFilePath: string) {
-          return yaml_parse(fs.readFileSync(cfgFilePath, 'utf-8'))
-        },
+      .check(argv => {
+        if (
+          !argv['network-subgraph-endpoint'] &&
+          !argv['network-subgraph-deployment']
+        ) {
+          return 'At least one of --network-subgraph-endpoint and --network-subgraph-deployment must be provided'
+        }
+        if (argv['indexer-geo-coordinates']) {
+          const [geo1, geo2] = argv['indexer-geo-coordinates']
+          if (!+geo1 || !+geo2) {
+            return 'Invalid --indexer-geo-coordinates provided. Must be of format e.g.: 31.780715 -41.179504'
+          }
+        }
+        if (argv['gas-increase-timeout']) {
+          if (argv['gas-increase-timeout'] < 30) {
+            return 'Invalid --gas-increase-timeout provided. Must be at least 30 seconds'
+          }
+        }
+        if (argv['gas-increase-factor'] <= 1.0) {
+          return 'Invalid --gas-increase-factor provided. Must be > 1.0'
+        }
+        if (
+          !Number.isInteger(argv['rebate-claim-max-batch-size']) ||
+          argv['rebate-claim-max-batch-size'] <= 0
+        ) {
+          return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        return true
       })
   },
-  handler: async (
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    argv: { [key: string]: any } & Argv['argv'],
-  ): Promise<void> => {
-    const logger = createLogger({
-      name: 'IndexerAgent',
-      async: false,
-      level: argv.logLevel,
-    })
-
-    if (argv.gasIncreaseTimeout < 90000) {
-      logger.warn(
-        'Gas increase timeout is set to less than 90 seconds (~ 6 blocks). This may lead to high gas usage',
-        { gasIncreaseTimeout: argv.gasIncreaseTimeout / 1000.0 },
-      )
-    }
-
-    if (argv.gasIncreaseFactor > 1.5) {
-      logger.warn(
-        `Gas increase factor is set to > 1.5. This may lead to high gas usage`,
-        { gasIncreaseFactor: argv.gasIncreaseFactor },
-      )
-    }
-
-    if (argv.rebateClaimThreshold.lt(argv.voucherRedemptionThreshold)) {
-      logger.warn(
-        `Rebate single minimum claim value is less than voucher minimum redemption value, but claims depend on redemptions`,
-        {
-          voucherRedemptionThreshold: formatGRT(
-            argv.voucherRedemptionThreshold,
-          ),
-          rebateClaimThreshold: formatGRT(argv.rebateClaimThreshold),
-        },
-      )
-    }
-
-    if (argv.rebateClaimThreshold.eq(0)) {
-      logger.warn(
-        `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
-      )
-    }
-
-    if (argv.rebateClaimMaxBatchSize > 200) {
-      logger.warn(
-        `Setting the max batch size for rebate claims to more than 200 may result in batches that are too large to fit into a block`,
-        { rebateClaimMaxBatchSize: argv.rebateClaimMaxBatchSize },
-      )
-    }
-
-    if (argv.voucherRedemptionThreshold.eq(0)) {
-      logger.warn(
-        `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
-      )
-    }
-
-    if (argv.voucherRedemptionMaxBatchSize > 200) {
-      logger.warn(
-        `Setting the max batch size for voucher redemptions to more than 200 may result in batches that are too large to fit into a block`,
-        { voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize },
-      )
-    }
-
-    process.on('unhandledRejection', err => {
-      logger.warn(`Unhandled promise rejection`, {
-        err: indexerError(IndexerErrorCode.IE035, err),
-      })
-    })
-
-    process.on('uncaughtException', err => {
-      logger.warn(`Uncaught exception`, {
-        err: indexerError(IndexerErrorCode.IE036, err),
-      })
-    })
-
-    // Spin up a metrics server
-    const metrics = createMetrics()
-    createMetricsServer({
-      logger: logger.child({ component: 'MetricsServer' }),
-      registry: metrics.registry,
-      port: argv.metricsPort,
-    })
-
-    // Register indexer error metrics so we can track any errors that happen
-    // inside the agent
-    registerIndexerErrorMetrics(metrics)
-
-    const indexingStatusResolver = new IndexingStatusResolver({
-      logger: logger,
-      statusEndpoint: argv.graphNodeStatusEndpoint,
-    })
-
-    // Parse the Network Subgraph optional argument
-    const networkSubgraphDeploymentId = argv.networkSubgraphDeployment
-      ? new SubgraphDeploymentID(argv.networkSubgraphDeployment)
-      : undefined
-
-    const networkSubgraph = await NetworkSubgraph.create({
-      logger,
-      endpoint: argv.networkSubgraphEndpoint,
-      deployment:
-        networkSubgraphDeploymentId !== undefined
-          ? {
-              indexingStatusResolver: indexingStatusResolver,
-              deployment: networkSubgraphDeploymentId,
-              graphNodeQueryEndpoint: argv.graphNodeQueryEndpoint,
-            }
-          : undefined,
-    })
-
-    const networkProvider = await Network.provider(
-      logger,
-      metrics,
-      argv.ethereum,
-      argv.ethereumPollingInterval,
-    )
-
-    const networkMeta = await networkProvider.getNetwork()
-
-    logger.info(`Connect to contracts`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-      providerNetworkChainID: networkProvider.network.chainId,
-    })
-
-    logger.info(`Connect wallet`, {
-      network: networkMeta.name,
-      chainId: networkMeta.chainId,
-    })
-    let wallet = Wallet.fromMnemonic(argv.mnemonic)
-    wallet = wallet.connect(networkProvider)
-    logger.info(`Connected wallet`)
-
-    let contracts = undefined
-    try {
-      contracts = await connectContracts(wallet, networkMeta.chainId)
-    } catch (err) {
-      logger.error(
-        `Failed to connect to contracts, please ensure you are using the intended Ethereum network`,
-        {
-          err,
-        },
-      )
-      process.exit(1)
-    }
-    logger.info(`Successfully connected to contracts`, {
-      curation: contracts.curation.address,
-      disputeManager: contracts.disputeManager.address,
-      epochManager: contracts.epochManager.address,
-      gns: contracts.gns.address,
-      rewardsManager: contracts.rewardsManager.address,
-      serviceRegistry: contracts.serviceRegistry.address,
-      staking: contracts.staking.address,
-      token: contracts.token.address,
-    })
-
-    const indexerAddress = toAddress(argv.indexerAddress)
-
-    const epochSubgraph = await EpochSubgraph.create(argv.epochSubgraphEndpoint)
-
-    const networkMonitor = new NetworkMonitor(
-      resolveChainId(networkMeta.chainId),
-      contracts,
-      toAddress(indexerAddress),
-      logger.child({ component: 'NetworkMonitor' }),
-      indexingStatusResolver,
-      networkSubgraph,
-      networkProvider,
-      epochSubgraph,
-    )
-
-    logger.info('Connect to database', {
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      database: argv.postgresDatabase,
-    })
-    const sequelize = await connectDatabase({
-      logging: undefined,
-      host: argv.postgresHost,
-      port: argv.postgresPort,
-      username: argv.postgresUsername,
-      password: argv.postgresPassword,
-      database: argv.postgresDatabase,
-    })
-    logger.info('Successfully connected to database')
-
-    // Automatic database migrations
-    logger.info(`Run database migrations`)
-
-    // If the application is being executed using ts-node __dirname may be in /src rather than /dist
-    const migrations_path = __dirname.includes('dist')
-      ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
-      : path.join(__dirname, '..', '..', 'dist', 'db', 'migrations', '*.js')
-
-    try {
-      const umzug = new Umzug({
-        migrations: {
-          glob: migrations_path,
-        },
-        context: {
-          queryInterface: sequelize.getQueryInterface(),
-          logger,
-          indexingStatusResolver,
-          graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-          networkMonitor,
-        },
-        storage: new SequelizeStorage({ sequelize }),
-        logger: console,
-      })
-      const pending = await umzug.pending()
-      const executed = await umzug.executed()
-      logger.debug(`Migrations status`, { pending, executed })
-      await umzug.up()
-    } catch (err) {
-      logger.fatal(`Failed to run database migrations`, {
-        err: indexerError(IndexerErrorCode.IE001, err),
-      })
-      process.exit(1)
-    }
-    logger.info(`Successfully ran database migrations`)
-
-    logger.info(`Sync database models`)
-    const managementModels = defineIndexerManagementModels(sequelize)
-    const queryFeeModels = defineQueryFeeModels(sequelize)
-    await sequelize.sync()
-    logger.info(`Successfully synced database models`)
-
-    logger.info('Connect to network')
-    const maxGasFee = argv.baseFeeGasMax || argv.gasPriceMax
-    const network = await Network.create(
-      logger,
-      networkProvider,
-      contracts,
-      wallet,
-      indexerAddress,
-      argv.publicIndexerUrl,
-      argv.indexerGeoCoordinates,
-      networkSubgraph,
-      argv.restakeRewards,
-      argv.rebateClaimThreshold,
-      argv.rebateClaimBatchThreshold,
-      argv.rebateClaimMaxBatchSize,
-      argv.poiDisputeMonitoring,
-      argv.poiDisputableEpochs,
-      argv.gasIncreaseTimeout,
-      argv.gasIncreaseFactor,
-      maxGasFee,
-      argv.transactionAttempts,
-    )
-    logger.info('Successfully connected to network', {
-      restakeRewards: argv.restakeRewards,
-    })
-
-    const receiptCollector = new AllocationReceiptCollector({
-      logger,
-      metrics,
-      transactionManager: network.transactionManager,
-      models: queryFeeModels,
-      allocationExchange: network.contracts.allocationExchange,
-      collectEndpoint: argv.collectReceiptsEndpoint,
-      voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
-      voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
-      voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
-    })
-    await receiptCollector.queuePendingReceiptsFromDatabase()
-
-    logger.info('Launch indexer management API server')
-    const allocationManagementMode =
-      AllocationManagementMode[
-        argv.allocationManagement.toUpperCase() as keyof typeof AllocationManagementMode
-      ]
-    const indexerManagementClient = await createIndexerManagementClient({
-      models: managementModels,
-      address: indexerAddress,
-      contracts,
-      indexingStatusResolver,
-      indexNodeIDs: argv.indexNodeIds,
-      deploymentManagementEndpoint: argv.graphNodeAdminEndpoint,
-      networkSubgraph,
-      logger,
-      defaults: {
-        globalIndexingRule: {
-          allocationAmount: argv.defaultAllocationAmount,
-          parallelAllocations: 1,
-        },
-      },
-      features: {
-        injectDai: argv.injectDai,
-      },
-      transactionManager: network.transactionManager,
-      receiptCollector,
-      networkMonitor,
-      allocationManagementMode,
-      autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
-      ipfsEndpoint: argv.ipfsEndpoint,
-      autoGraftResolverLimit: argv.autoGraftResolverLimit,
-    })
-
-    await createIndexerManagementServer({
-      logger,
-      client: indexerManagementClient,
-      port: argv.indexerManagementPort,
-    })
-    logger.info(`Successfully launched indexer management API server`)
-
-    const indexer = new Indexer(
-      logger,
-      argv.graphNodeAdminEndpoint,
-      indexingStatusResolver,
-      indexerManagementClient,
-      argv.indexNodeIds,
-      argv.defaultAllocationAmount,
-      indexerAddress,
-      allocationManagementMode,
-      argv.ipfsEndpoint,
-      argv.autoGraftResolverLimit,
-    )
-
-    if (networkSubgraphDeploymentId !== undefined) {
-      // Make sure the network subgraph is being indexed
-      //
-      // TODO: once the Network Subgraph is published to the Network, we can use the
-      // `formatDeploymentName` function instead of using a hardcoded deployment name.
-      await indexer.ensure(
-        `graphprotocol/network-subgraph/${networkSubgraphDeploymentId.ipfsHash}`,
-        networkSubgraphDeploymentId,
-      )
-
-      // Validate if the Network Subgraph belongs to the current provider's network.
-      // This check must be performed after we ensure the Network Subgraph is being indexed.
-      try {
-        await validateNetworkId(
-          networkMeta,
-          argv.networkSubgraphDeployment,
-          indexingStatusResolver,
-          logger,
-        )
-      } catch (e) {
-        logger.critical('Failed to validate Network Subgraph. Exiting.', e)
-        process.exit(1)
-      }
-    }
-
-    // Monitor ETH balance of the operator and write the latest value to a metric
-    await monitorEthBalance(logger, wallet, metrics)
-
-    logger.info(`Launch syncing server`)
-    await createSyncingServer({
-      logger,
-      networkSubgraph,
-      port: argv.syncingPort,
-    })
-    logger.info(`Successfully launched syncing server`)
-
-    startCostModelAutomation({
-      logger,
-      ethereum: networkProvider,
-      contracts: network.contracts,
-      indexerManagement: indexerManagementClient,
-      injectDai: argv.injectDai,
-      daiContractAddress: toAddress(argv.daiContract),
-      metrics,
-    })
-
-    await startAgent({
-      logger,
-      metrics,
-      indexer,
-      network,
-      networkMonitor,
-      networkSubgraph,
-      allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
-      registerIndexer: argv.register,
-      offchainSubgraphs: argv.offchainSubgraphs.map(
-        (s: string) => new SubgraphDeploymentID(s),
-      ),
-      receiptCollector,
-    })
-  },
+  // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+  handler: (_argv: any) => {},
 }
 
-// Compares the CAIP-2 chain ID between the Ethereum provider and the Network Subgraph and requires
-// they are equal.
-async function validateNetworkId(
-  providerNetwork: NetworkMetadata,
-  networkSubgraphDeploymentIpfsHash: string,
-  indexingStatusResolver: IndexingStatusResolver,
+export async function createNetworkSpecification(
+  argv: AgentOptions,
   logger: Logger,
-) {
-  const subgraphNetworkId = new SubgraphDeploymentID(
-    networkSubgraphDeploymentIpfsHash,
-  )
-  const { network: subgraphNetworkChainName } =
-    await indexingStatusResolver.subgraphFeatures(subgraphNetworkId)
-
-  if (!subgraphNetworkChainName) {
-    // This is unlikely to happen because we expect that the Network Subgraph manifest is valid.
-    const errorMsg = 'Failed to fetch the networkId for the Network Subgraph'
-    logger.error(errorMsg, { networkSubgraphDeploymentIpfsHash })
-    throw new Error(errorMsg)
+): Promise<spec.NetworkSpecification> {
+  const gateway = {
+    url: argv.gatewayEndpoint,
   }
 
-  const providerChainId = resolveChainId(providerNetwork.chainId)
-  const networkSubgraphChainId = resolveChainId(subgraphNetworkChainName)
-  if (providerChainId !== networkSubgraphChainId) {
-    const errorMsg =
-      'The configured provider and the Network Subgraph have different CAIP-2 chain IDs. ' +
-      'Please ensure that both Network Subgraph and the Ethereum provider are correctly configured.'
-    logger.error(errorMsg, {
-      networkSubgraphDeploymentIpfsHash,
-      networkSubgraphChainId,
-      providerChainId,
+  const indexerOptions = {
+    address: argv.indexerAddress,
+    mnemonic: argv.mnemonic,
+    url: argv.publicIndexerUrl,
+    geoCoordinates: argv.indexerGeoCoordinates,
+    restakeRewards: argv.restakeRewards,
+    rebateClaimThreshold: argv.rebateClaimThreshold,
+    rebateClaimBatchThreshold: argv.rebateClaimBatchThreshold,
+    rebateClaimMaxBatchSize: argv.rebateClaimMaxBatchSize,
+    poiDisputeMonitoring: argv.poiDisputeMonitoring,
+    poiDisputableEpochs: argv.poiDisputableEpochs,
+    defaultAllocationAmount: argv.defaultAllocationAmount,
+    voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
+    voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
+    voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+    allocationManagementMode: argv.allocationManagement,
+    autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+    allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
+    register: argv.register,
+  }
+
+  const transactionMonitoring = {
+    gasIncreaseTimeout: argv.gasIncreaseTimeout,
+    gasIncreaseFactor: argv.gasIncreaseFactor,
+    gasPriceMax: argv.gasPriceMax,
+    baseFeePerGasMax: argv.baseFeeGasMax,
+    maxTransactionAttempts: argv.maxTransactionAttempts,
+  }
+
+  const subgraphs = {
+    maxBlockDistance: argv.subgraphMaxBlockDistance,
+    freshnessSleepMilliseconds: argv.subgraphFreshnessSleepMilliseconds,
+    networkSubgraph: {
+      deployment: argv.networkSubgraphDeployment,
+      url: argv.networkSubgraphEndpoint,
+    },
+    epochSubgraph: {
+      // TODO: We should consider indexing the Epoch Subgraph, similar
+      // to how we currently do it for the Network Subgraph.
+      url: argv.epochSubgraphEndpoint,
+    },
+  }
+
+  const dai = {
+    contractAddress: argv.daiContractAddress,
+    inject: argv.injectDai,
+  }
+
+  const networkProvider = {
+    url: argv.networkProvider,
+    pollingInterval: argv.ethereumPollingInterval,
+  }
+
+  // Since we can't infer the network identifier, we must ask the configured
+  // JSON RPC provider for its `chainID`.
+  const chainId = await fetchChainId(networkProvider.url)
+  const networkIdentifier = resolveChainId(chainId)
+
+  // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
+  if (networkIdentifier.startsWith('eip155:42161')) {
+    // Arbitrum-One and Arbitrum-Goerli
+    if (
+      subgraphs.maxBlockDistance <= SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2
+    ) {
+      logger.warn(
+        `Consider increasing 'subgraph-max-block-distance' for Arbitrum networks`,
+        {
+          problem:
+            'A low subgraph freshness threshold might cause the Agent to discard too many subgraph queries in fast-paced networks.',
+          hint: `Increase the 'subgraph-max-block-distance' parameter to a value that accomodates for block and indexing speeds.`,
+          configuredValue: subgraphs.maxBlockDistance,
+        },
+      )
+    }
+    if (
+      subgraphs.freshnessSleepMilliseconds <=
+      DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS
+    ) {
+      logger.warn(
+        `Consider increasing 'subgraph-freshness-sleep-milliseconds' for Arbitrum networks`,
+        {
+          problem:
+            'A short subgraph freshness wait time might be insufficient for the subgraph to sync with fast-paced networks.',
+          hint: `Increase the 'subgraph-freshness-sleep-milliseconds' parameter to a value that accomodates for block and indexing speeds.`,
+          configuredValue: subgraphs.freshnessSleepMilliseconds,
+        },
+      )
+    }
+  }
+
+  try {
+    return spec.NetworkSpecification.parse({
+      networkIdentifier,
+      gateway,
+      indexerOptions,
+      transactionMonitoring,
+      subgraphs,
+      networkProvider,
+      dai,
     })
-    throw new Error(errorMsg)
+  } catch (parsingError) {
+    displayZodParsingError(parsingError)
+    process.exit(1)
+  }
+}
+
+export async function run(
+  argv: AgentOptions,
+  networkSpecifications: spec.NetworkSpecification[],
+  logger: Logger,
+): Promise<void> {
+  // --------------------------------------------------------------------------------
+  // * Configure event  listeners for unhandled promise  rejections and uncaught
+  // exceptions.
+  // --------------------------------------------------------------------------------
+  process.on('unhandledRejection', err => {
+    logger.warn(`Unhandled promise rejection`, {
+      err: indexerError(IndexerErrorCode.IE035, err),
+    })
+  })
+
+  process.on('uncaughtException', err => {
+    logger.warn(`Uncaught exception`, {
+      err: indexerError(IndexerErrorCode.IE036, err),
+    })
+  })
+
+  // --------------------------------------------------------------------------------
+  // * Metrics Server
+  // --------------------------------------------------------------------------------
+  const metrics = createMetrics()
+  createMetricsServer({
+    logger: logger.child({ component: 'MetricsServer' }),
+    registry: metrics.registry,
+    port: argv.metricsPort,
+  })
+
+  // Register indexer error metrics so we can track any errors that happen
+  // inside the agent
+  registerIndexerErrorMetrics(metrics)
+
+  // --------------------------------------------------------------------------------
+  // * Graph Node
+  // ---------------------------------------------------------------- ----------------
+  const graphNode = new GraphNode(
+    logger,
+    argv.graphNodeAdminEndpoint,
+    argv.graphNodeQueryEndpoint,
+    argv.graphNodeStatusEndpoint,
+    argv.indexNodeIds,
+  )
+
+  // --------------------------------------------------------------------------------
+  // * Database - Connection
+  // --------------------------------------------------------------------------------
+  logger.info('Connect to database', {
+    host: argv.postgresHost,
+    port: argv.postgresPort,
+    database: argv.postgresDatabase,
+    poolMax: argv.postgresPoolSize,
+  })
+  const sequelize = await connectDatabase({
+    logging: undefined,
+    host: argv.postgresHost,
+    port: argv.postgresPort,
+    username: argv.postgresUsername,
+    password: argv.postgresPassword,
+    database: argv.postgresDatabase,
+    poolMin: 0,
+    poolMax: argv.postgresPoolSize,
+  })
+  logger.info('Successfully connected to database')
+
+  // --------------------------------------------------------------------------------
+  // * Database - Migrations
+  // --------------------------------------------------------------------------------
+  logger.info(`Run database migrations`)
+
+  // If the application is being executed using ts-node __dirname may be in /src rather than /dist
+  const migrations_path = __dirname.includes('dist')
+    ? path.join(__dirname, '..', 'db', 'migrations', '*.js')
+    : path.join(__dirname, '..', '..', 'dist', 'db', 'migrations', '*.js')
+
+  try {
+    const umzug = new Umzug({
+      migrations: {
+        glob: migrations_path,
+      },
+      context: {
+        queryInterface: sequelize.getQueryInterface(),
+        logger,
+        graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
+        networkSpecifications,
+      },
+      storage: new SequelizeStorage({ sequelize }),
+      logger: console,
+    })
+    const pending = await umzug.pending()
+    const executed = await umzug.executed()
+    logger.debug(`Migrations status`, { pending, executed })
+    await umzug.up()
+  } catch (err) {
+    logger.fatal(`Failed to run database migrations`, {
+      err: indexerError(IndexerErrorCode.IE001, err),
+    })
+    process.exit(1)
+  }
+  logger.info(`Successfully ran database migrations`)
+
+  // --------------------------------------------------------------------------------
+  // * Database - Sync Models
+  // --------------------------------------------------------------------------------
+  logger.info(`Sync database models`)
+  const managementModels = defineIndexerManagementModels(sequelize)
+  const queryFeeModels = defineQueryFeeModels(sequelize)
+  await sequelize.sync()
+  logger.info(`Successfully synced database models`)
+
+  // --------------------------------------------------------------------------------
+  // * Networks
+  // --------------------------------------------------------------------------------
+  logger.info('Connect to network/s', {
+    networks: networkSpecifications.map(spec => spec.networkIdentifier),
+  })
+
+  const networks: Network[] = await pMap(
+    networkSpecifications,
+    async (spec: NetworkSpecification) =>
+      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+  )
+
+  // --------------------------------------------------------------------------------
+  // * Indexer Management (GraphQL) Server
+  // --------------------------------------------------------------------------------
+  const multiNetworks = new MultiNetworks(
+    networks,
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
+  const indexerManagementClient = await createIndexerManagementClient({
+    models: managementModels,
+    graphNode,
+    indexNodeIDs: argv.indexNodeIds,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        // TODO: Update this, there will be defaults per network
+        allocationAmount: BigNumber.from(100),
+        parallelAllocations: 1,
+      },
+    },
+    multiNetworks,
+  })
+
+  // --------------------------------------------------------------------------------
+  // * Indexer Management Server
+  // --------------------------------------------------------------------------------
+  logger.info('Launch indexer management API server', {
+    port: argv.indexerManagementPort,
+  })
+  await createIndexerManagementServer({
+    logger,
+    client: indexerManagementClient,
+    port: argv.indexerManagementPort,
+  })
+  logger.info(`Successfully launched indexer management API server`)
+
+  // --------------------------------------------------------------------------------
+  // * Cost Model Automation
+  // --------------------------------------------------------------------------------
+  await startCostModelAutomation({
+    logger,
+    networks,
+    indexerManagement: indexerManagementClient,
+    metrics,
+  })
+
+  // --------------------------------------------------------------------------------
+  // * Syncing Server
+  // --------------------------------------------------------------------------------
+  logger.info(`Launch syncing server`)
+
+  await createSyncingServer({
+    logger,
+    networkSubgraphs: await multiNetworks.map(
+      async network => network.networkSubgraph,
+    ),
+    port: argv.syncingPort,
+  })
+  logger.info(`Successfully launched syncing server`)
+
+  // --------------------------------------------------------------------------------
+  // * Operator
+  // --------------------------------------------------------------------------------
+  const operators: Operator[] = await pMap(
+    networkSpecifications,
+    async (spec: NetworkSpecification) =>
+      new Operator(logger, indexerManagementClient, spec),
+  )
+
+  // --------------------------------------------------------------------------------
+  // * The Agent itself
+  // --------------------------------------------------------------------------------
+  const agent = new Agent(
+    logger,
+    metrics,
+    graphNode,
+    operators,
+    indexerManagementClient,
+    networks,
+    argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
+    argv.enableAutoMigrationSupport,
+    argv.deploymentManagement,
+  )
+  await agent.start()
+}
+
+// Review CLI arguments, emit non-interrupting warnings about expected behavior.
+// Perform this check immediately after parsing the command line arguments.
+// Ideally, this check could be made inside yargs.check, but we can't access a Logger
+// instance in that context.
+export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
+  const {
+    gasIncreaseTimeout,
+    gasIncreaseFactor,
+    rebateClaimThreshold,
+    voucherRedemptionThreshold,
+    rebateClaimMaxBatchSize,
+    voucherRedemptionMaxBatchSize,
+    collectReceiptsEndpoint,
+  } = argv
+
+  logger.debug('Reviewing Indexer Agent configuration')
+
+  const advisedGasIncreaseTimeout = 90000
+  const advisedGasIncreaseFactor = 1.5
+  const advisedRebateClaimMaxBatchSize = 200
+  const advisedVoucherRedemptionMaxBatchSize = 200
+
+  if (collectReceiptsEndpoint) {
+    logger.warn(
+      "The option '--collect-receipts-endpoint' is deprecated. " +
+        "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
+    )
+  }
+
+  if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
+    logger.warn(
+      `Gas increase timeout is set to less than ${
+        gasIncreaseTimeout / 1000
+      } seconds. This may lead to high gas usage`,
+      { gasIncreaseTimeout: gasIncreaseTimeout / 1000.0 },
+    )
+  }
+
+  if (gasIncreaseFactor > advisedGasIncreaseTimeout) {
+    logger.warn(
+      `Gas increase factor is set to > ${advisedGasIncreaseFactor}. ` +
+        'This may lead to high gas usage',
+      { gasIncreaseFactor: gasIncreaseFactor },
+    )
+  }
+  if (rebateClaimThreshold < voucherRedemptionThreshold) {
+    logger.warn(
+      'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
+        'but claims depend on redemptions',
+      {
+        voucherRedemptionThreshold: formatGRT(voucherRedemptionThreshold),
+        rebateClaimThreshold: formatGRT(rebateClaimThreshold),
+      },
+    )
+  }
+
+  if (rebateClaimThreshold === 0) {
+    logger.warn(
+      `Minimum query fee rebate value is 0 GRT, which may lead to claiming unprofitable rebates`,
+    )
+  }
+
+  if (rebateClaimMaxBatchSize > advisedRebateClaimMaxBatchSize) {
+    logger.warn(
+      `Setting the max batch size for rebate claims to more than ${advisedRebateClaimMaxBatchSize}` +
+        'may result in batches that are too large to fit into a block',
+      { rebateClaimMaxBatchSize: rebateClaimMaxBatchSize },
+    )
+  }
+
+  if (voucherRedemptionThreshold == 0) {
+    logger.warn(
+      `Minimum voucher redemption value is 0 GRT, which may lead to redeeming unprofitable vouchers`,
+    )
+  }
+
+  if (voucherRedemptionMaxBatchSize > advisedVoucherRedemptionMaxBatchSize) {
+    logger.warn(
+      `Setting the max batch size for voucher redemptions to more than ${advisedVoucherRedemptionMaxBatchSize} ` +
+        'may result in batches that are too large to fit into a block',
+      { voucherRedemptionMaxBatchSize: voucherRedemptionMaxBatchSize },
+    )
+  }
+}
+
+// Retrieves the network identifier in contexts where we haven't yet instantiated the JSON
+// RPC Provider, which has additional and more complex dependencies.
+async function fetchChainId(url: string): Promise<number> {
+  const payload = {
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'eth_chainId',
+  }
+  try {
+    const response = await axios.post(url, payload)
+    if (response.status !== 200) {
+      throw `HTTP ${response.status}`
+    }
+    if (!response.data || !response.data.result) {
+      throw `Received invalid response body from provider: ${response.data}`
+    }
+    return parseInt(response.data.result, 16)
+  } catch (error) {
+    throw new Error(`Failed to fetch chainID from provider: ${error}`)
   }
 }

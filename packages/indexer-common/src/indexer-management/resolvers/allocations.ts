@@ -1,7 +1,7 @@
 import {
   NetworkMonitor,
   epochElapsedBlocks,
-  formatDeploymentName,
+  Network,
 } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
@@ -14,7 +14,6 @@ import {
   Address,
   formatGRT,
   Logger,
-  NetworkContracts,
   parseGRT,
   SubgraphDeploymentID,
   toAddress,
@@ -30,25 +29,25 @@ import {
   IndexerManagementResolverContext,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkSubgraph,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
-  TransactionManager,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
+import { extractNetwork } from './utils'
 
 interface AllocationFilter {
-  status: 'active' | 'closed' | 'claimable'
+  status: 'active' | 'closed'
   allocation: string | null
   subgraphDeployment: string | null
+  protocolNetwork: string | null
 }
 
 enum AllocationQuery {
   all = 'all',
   active = 'active',
   closed = 'closed',
-  claimable = 'claimable',
   allocation = 'allocation',
 }
 
@@ -68,6 +67,7 @@ interface AllocationInfo {
   indexingRewards: string
   queryFeesCollected: string
   status: string
+  protocolNetwork: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -95,30 +95,6 @@ const ALLOCATION_QUERIES = {
   [AllocationQuery.active]: gql`
     query allocations($indexer: String!) {
       allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-  [AllocationQuery.claimable]: gql`
-    query allocations($indexer: String!, $disputableEpoch: Int!) {
-      allocations(
-        where: { indexer: $indexer, closedAtEpoch_lte: $disputableEpoch, status: Closed }
-        first: 1000
-      ) {
         id
         subgraphDeployment {
           id
@@ -184,12 +160,10 @@ const ALLOCATION_QUERIES = {
 async function queryAllocations(
   logger: Logger,
   networkSubgraph: NetworkSubgraph,
-  contracts: NetworkContracts,
   variables: {
     indexer: Address
-    disputableEpoch: number
     allocation: Address | null
-    status: 'active' | 'closed' | 'claimable' | null
+    status: 'active' | 'closed' | null
   },
   context: {
     currentEpoch: number
@@ -198,6 +172,7 @@ async function queryAllocations(
     maxAllocationEpochs: number
     blocksPerEpoch: number
     avgBlockTime: number
+    protocolNetwork: string
   },
 ): Promise<AllocationInfo[]> {
   logger.trace('Query Allocations', {
@@ -217,12 +192,6 @@ async function queryAllocations(
     filterVars = {
       indexer: variables.indexer.toLowerCase(),
     }
-  } else if (variables.status == 'claimable') {
-    filterType = AllocationQuery.claimable
-    filterVars = {
-      indexer: variables.indexer.toLowerCase(),
-      disputableEpoch: variables.disputableEpoch,
-    }
   } else if (variables.status == 'active') {
     filterType = AllocationQuery.active
     filterVars = {
@@ -240,9 +209,13 @@ async function queryAllocations(
     )
   }
 
-  const result = await networkSubgraph.query(ALLOCATION_QUERIES[filterType], filterVars)
+  const result = await networkSubgraph.checkedQuery(
+    ALLOCATION_QUERIES[filterType],
+    filterVars,
+  )
 
   if (result.data.allocations.length == 0) {
+    // TODO: Is 'Claimable' still the correct term here, after Exponential Rebates?
     logger.info(`No 'Claimable' allocations found`)
     return []
   }
@@ -285,6 +258,7 @@ async function queryAllocations(
         indexingRewards: allocation.indexingRewards,
         queryFeesCollected: allocation.queryFeesCollected,
         status: allocation.status,
+        protocolNetwork: context.protocolNetwork,
       }
     },
   )
@@ -292,8 +266,7 @@ async function queryAllocations(
 
 async function resolvePOI(
   networkMonitor: NetworkMonitor,
-  transactionManager: TransactionManager,
-  indexingStatusResolver: IndexingStatusResolver,
+  graphNode: GraphNode,
   allocation: Allocation,
   poi: string | undefined,
   force: boolean,
@@ -310,7 +283,7 @@ async function resolvePOI(
           return poi!
         case false:
           return (
-            (await indexingStatusResolver.proofOfIndexing(
+            (await graphNode.proofOfIndexing(
               allocation.subgraphDeployment.id,
               await networkMonitor.fetchPOIBlockPointer(allocation),
               allocation.indexer,
@@ -320,7 +293,7 @@ async function resolvePOI(
       break
     case false: {
       const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
-      const generatedPOI = await indexingStatusResolver.proofOfIndexing(
+      const generatedPOI = await graphNode.proofOfIndexing(
         allocation.subgraphDeployment.id,
         currentEpochStartBlock,
         allocation.indexer,
@@ -328,7 +301,7 @@ async function resolvePOI(
       switch (poi == generatedPOI) {
         case true:
           if (poi == undefined) {
-            const deploymentStatus = await indexingStatusResolver.indexingStatus([
+            const deploymentStatus = await graphNode.indexingStatus([
               allocation.subgraphDeployment.id,
             ])
             throw indexerError(
@@ -352,8 +325,8 @@ async function resolvePOI(
           }
           throw indexerError(
             IndexerErrorCode.IE068,
-            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check. 
-            POI: ${poi}, 
+            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
+            POI: ${poi},
             referencePOI: ${generatedPOI}`,
           )
       }
@@ -364,74 +337,108 @@ async function resolvePOI(
 export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
-    {
-      address,
-      contracts,
-      logger,
-      networkSubgraph,
-      networkMonitor,
-    }: IndexerManagementResolverContext,
-  ): Promise<object[]> => {
+    { multiNetworks, logger }: IndexerManagementResolverContext,
+  ): Promise<AllocationInfo[]> => {
     logger.debug('Execute allocations() query', {
       filter,
     })
-
-    const allocations: AllocationInfo[] = []
-
-    const currentEpoch = await networkMonitor.networkCurrentEpoch()
-    const disputeEpochs = await contracts.staking.channelDisputeEpochs()
-    const variables = {
-      indexer: toAddress(address),
-      disputableEpoch: currentEpoch.epochNumber - disputeEpochs,
-      allocation: filter.allocation
-        ? filter.allocation === 'all'
-          ? null
-          : toAddress(filter.allocation)
-        : null,
-      status: filter.status,
-    }
-    const context = {
-      currentEpoch: currentEpoch.epochNumber,
-      currentEpochStartBlock: currentEpoch.startBlockNumber,
-      currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
-      latestBlock: currentEpoch.latestBlock,
-      maxAllocationEpochs: await contracts.staking.maxAllocationEpochs(),
-      blocksPerEpoch: (await contracts.epochManager.epochLength()).toNumber(),
-      avgBlockTime: 13_000,
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
     }
 
-    allocations.push(
-      ...(await queryAllocations(logger, networkSubgraph, contracts, variables, context)),
+    const allocationsByNetwork = await multiNetworks.map(
+      async (network: Network): Promise<AllocationInfo[]> => {
+        // Return early if a different protocol network is specifically requested
+        if (
+          filter.protocolNetwork &&
+          filter.protocolNetwork !== network.specification.networkIdentifier
+        ) {
+          return []
+        }
+
+        const {
+          networkMonitor,
+          networkSubgraph,
+          contracts,
+          specification: {
+            indexerOptions: { address },
+          },
+        } = network
+
+        const [currentEpoch, maxAllocationEpochs, epochLength] = await Promise.all([
+          networkMonitor.networkCurrentEpoch(),
+          contracts.staking.maxAllocationEpochs(),
+          contracts.epochManager.epochLength(),
+        ])
+
+        const allocation = filter.allocation
+          ? filter.allocation === 'all'
+            ? null
+            : toAddress(filter.allocation)
+          : null
+
+        const variables = {
+          indexer: toAddress(address),
+          allocation,
+          status: filter.status,
+        }
+
+        const context = {
+          currentEpoch: currentEpoch.epochNumber,
+          currentEpochStartBlock: currentEpoch.startBlockNumber,
+          currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
+          latestBlock: currentEpoch.latestBlock,
+          maxAllocationEpochs,
+          blocksPerEpoch: epochLength.toNumber(),
+          avgBlockTime: 13000,
+          protocolNetwork: network.specification.networkIdentifier,
+        }
+
+        return queryAllocations(logger, networkSubgraph, variables, context)
+      },
     )
-    return allocations
+
+    return Object.values(allocationsByNetwork).flat()
   },
 
   createAllocation: async (
     {
       deployment,
       amount,
-      indexNode,
-    }: { deployment: string; amount: string; indexNode: string | undefined },
-    {
-      address,
-      contracts,
-      subgraphManager,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-    }: IndexerManagementResolverContext,
+      protocolNetwork,
+    }: {
+      deployment: string
+      amount: string
+      protocolNetwork: string
+    },
+    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
-    logger.debug('Execute createAllocation() mutation', { deployment, amount })
+    logger.debug('Execute createAllocation() mutation', {
+      deployment,
+      amount,
+      protocolNetwork,
+    })
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const address = network.specification.indexerOptions.address
 
     const allocationAmount = parseGRT(amount)
-    const subgraphDeploymentID = new SubgraphDeploymentID(deployment)
+    const subgraphDeployment = new SubgraphDeploymentID(deployment)
 
     const activeAllocations = await networkMonitor.allocations(AllocationStatus.ACTIVE)
 
     const allocation = activeAllocations.find(
       (allocation) =>
-        allocation.subgraphDeployment.id.toString() === subgraphDeploymentID.toString(),
+        allocation.subgraphDeployment.id.toString() === subgraphDeployment.toString(),
     )
     if (allocation) {
       logger.warn('Already allocated to deployment', {
@@ -479,25 +486,10 @@ export default {
         )
       }
 
-      const subgraphDeployment = await networkMonitor.requireSubgraphDeployment(
-        subgraphDeploymentID.ipfsHash,
-      )
-
-      // Ensure grafting dependencies are resolved
-      await subgraphManager.resolveGrafting(
-        logger,
-        models,
-        subgraphDeploymentID,
-        indexNode,
-        0,
-      )
       // Ensure subgraph is deployed before allocating
-      await subgraphManager.ensure(
-        logger,
-        models,
-        formatDeploymentName(subgraphDeployment),
-        subgraphDeploymentID,
-        indexNode,
+      await graphNode.ensure(
+        `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
+        subgraphDeployment,
       )
 
       logger.debug('Obtain a unique Allocation ID')
@@ -506,7 +498,7 @@ export default {
       const { allocationSigner, allocationId } = uniqueAllocationID(
         transactionManager.wallet.mnemonic.phrase,
         currentEpoch.toNumber(),
-        subgraphDeploymentID,
+        subgraphDeployment,
         activeAllocations.map((allocation) => allocation.id),
       )
 
@@ -514,7 +506,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationId)
@@ -544,17 +536,18 @@ export default {
 
       logger.debug(`Sending allocateFrom transaction`, {
         indexer: address,
-        subgraphDeployment: subgraphDeploymentID.ipfsHash,
+        subgraphDeployment: subgraphDeployment.ipfsHash,
         amount: formatGRT(allocationAmount),
         allocation: allocationId,
         proof,
+        protocolNetwork,
       })
 
       const receipt = await transactionManager.executeTransaction(
         async () =>
           contracts.staking.estimateGas.allocateFrom(
             address,
-            subgraphDeploymentID.bytes32,
+            subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
             utils.hexlify(Array(32).fill(0)),
@@ -563,7 +556,7 @@ export default {
         async (gasLimit) =>
           contracts.staking.allocateFrom(
             address,
-            subgraphDeploymentID.bytes32,
+            subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
             utils.hexlify(Array(32).fill(0)),
@@ -582,38 +575,38 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
-      const event =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        )
-      if (!event) {
-        throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
-      }
-
-      const createEvent = contracts.staking.interface.decodeEventLog(
+      const createAllocationEventLogs = network.transactionManager.findEvent(
         'AllocationCreated',
-        event.data,
-        event.topics,
+        network.contracts.staking.interface,
+        'subgraphDeploymentID',
+        subgraphDeployment.toString(),
+        receipt,
+        logger,
       )
 
+      if (!createAllocationEventLogs) {
+        throw indexerError(
+          IndexerErrorCode.IE014,
+          `Allocation create transaction was never mined`,
+        )
+      }
+
       logger.info(`Successfully allocated to subgraph deployment`, {
-        amountGRT: formatGRT(createEvent.tokens),
-        allocation: createEvent.allocationID,
-        epoch: createEvent.epoch.toString(),
+        amountGRT: formatGRT(createAllocationEventLogs.tokens),
+        allocation: createAllocationEventLogs.allocationID,
+        epoch: createAllocationEventLogs.epoch.toString(),
+        transaction: receipt.transactionHash,
       })
 
       logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
       )
       const indexingRule = {
-        identifier: subgraphDeploymentID.ipfsHash,
+        identifier: subgraphDeployment.ipfsHash,
         allocationAmount: allocationAmount.toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork,
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(indexingRule)
@@ -632,8 +625,9 @@ export default {
         type: 'allocate',
         transactionID: receipt.transactionHash,
         deployment,
-        allocation: createEvent.allocationID,
+        allocation: createAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(allocationAmount.toString()),
+        protocolNetwork,
       }
     } catch (error) {
       logger.error(`Failed to allocate`, {
@@ -649,21 +643,29 @@ export default {
       allocation,
       poi,
       force,
-    }: { allocation: string; poi: string | undefined; force: boolean },
-    {
-      contracts,
-      indexingStatusResolver,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-      receiptCollector,
-    }: IndexerManagementResolverContext,
+      protocolNetwork,
+    }: {
+      allocation: string
+      poi: string | undefined
+      force: boolean
+      protocolNetwork: string
+    },
+    { graphNode, logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
     })
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const receiptCollector = network.receiptCollector
 
     const allocationData = await networkMonitor.allocation(allocation)
 
@@ -681,20 +683,13 @@ export default {
         )
       }
 
-      poi = await resolvePOI(
-        networkMonitor,
-        transactionManager,
-        indexingStatusResolver,
-        allocationData,
-        poi,
-        force,
-      )
+      poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi, force)
 
       // Double-check whether the allocation is still active on chain, to
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationData.id)
@@ -721,41 +716,32 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
+      const closeAllocationEventLogs = transactionManager.findEvent(
+        'AllocationClosed',
+        contracts.staking.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
+      )
 
-      const closeEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
-          ),
-        )
-      if (!closeEvent) {
+      if (!closeAllocationEventLogs) {
         throw indexerError(
-          IndexerErrorCode.IE014,
+          IndexerErrorCode.IE015,
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationClosed',
-        closeEvent.data,
-        closeEvent.topics,
+
+      const rewardsEventLogs = transactionManager.findEvent(
+        'RewardsAssigned',
+        contracts.rewardsManager.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const rewardsEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.rewardsManager.interface.getEventTopic('RewardsAssigned'),
-          ),
-        )
-      const rewardsAssigned = rewardsEvent
-        ? contracts.rewardsManager.interface.decodeEventLog(
-            'RewardsAssigned',
-            rewardsEvent.data,
-            rewardsEvent.topics,
-          ).amount
-        : 0
+      const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.amount : 0
 
       if (rewardsAssigned == 0) {
         logger.warn('No rewards were distributed upon closing the allocation')
@@ -787,6 +773,7 @@ export default {
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
       )
       const offchainIndexingRule = {
+        protocolNetwork: network.specification.networkIdentifier,
         identifier: allocationData.subgraphDeployment.id.ipfsHash,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.OFFCHAIN,
@@ -811,6 +798,7 @@ export default {
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
         receiptsWorthCollecting: isCollectingQueryFees,
+        protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
       logger.error(error.toString())
@@ -824,17 +812,15 @@ export default {
       poi,
       amount,
       force,
-    }: { allocation: string; poi: string | undefined; amount: string; force: boolean },
-    {
-      address,
-      contracts,
-      indexingStatusResolver,
-      logger,
-      models,
-      networkMonitor,
-      transactionManager,
-      receiptCollector,
-    }: IndexerManagementResolverContext,
+      protocolNetwork,
+    }: {
+      allocation: string
+      poi: string | undefined
+      amount: string
+      force: boolean
+      protocolNetwork: string
+    },
+    { graphNode, logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
     logger = logger.child({
       component: 'reallocateAllocationResolver',
@@ -846,6 +832,20 @@ export default {
       amount,
       force,
     })
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to fetch allocations',
+      )
+    }
+
+    // Obtain the Network object and its associated components and data
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const contracts = network.contracts
+    const transactionManager = network.transactionManager
+    const receiptCollector = network.receiptCollector
+    const address = network.specification.indexerOptions.address
 
     const allocationAmount = parseGRT(amount)
 
@@ -880,8 +880,7 @@ export default {
       logger.debug('Resolving POI')
       const allocationPOI = await resolvePOI(
         networkMonitor,
-        transactionManager,
-        indexingStatusResolver,
+        graphNode,
         allocationData,
         poi,
         force,
@@ -895,7 +894,7 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
       const state = await contracts.staking.getAllocationState(allocationData.id)
@@ -958,12 +957,11 @@ export default {
       // avoid unnecessary transactions.
       // Note: We're checking the allocation state here, which is defined as
       //
-      //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
+      //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
-      const newAllocationState = await contracts.staking.getAllocationState(
-        newAllocationId,
-      )
+      const newAllocationState =
+        await contracts.staking.getAllocationState(newAllocationId)
       if (newAllocationState !== 0) {
         logger.warn(`Skipping Allocation as it already exists onchain`, {
           indexer: address,
@@ -983,7 +981,7 @@ export default {
         allocationIDProof: proof,
       })
 
-      logger.info(`Sending closeAndAllocate transaction`, {
+      logger.info(`Sending close and allocate multicall transaction`, {
         indexer: address,
         amount: formatGRT(allocationAmount),
         oldAllocation: allocationData.id,
@@ -995,31 +993,27 @@ export default {
         epoch: currentEpoch.toString(),
       })
 
+      const callData = [
+        await contracts.staking.populateTransaction.closeAllocation(
+          allocationData.id,
+          allocationPOI,
+        ),
+        await contracts.staking.populateTransaction.allocateFrom(
+          address,
+          allocationData.subgraphDeployment.id.bytes32,
+          allocationAmount,
+          newAllocationId,
+          utils.hexlify(Array(32).fill(0)), // metadata
+          proof,
+        ),
+      ].map((tx) => tx.data as string)
+
       const receipt = await transactionManager.executeTransaction(
-        async () =>
-          contracts.staking.estimateGas.closeAndAllocate(
-            allocationData.id,
-            allocationPOI,
-            address,
-            allocationData.subgraphDeployment.id.bytes32,
-            allocationAmount,
-            newAllocationId,
-            utils.hexlify(Array(32).fill(0)), // metadata
-            proof,
-          ),
-        async (gasLimit) =>
-          contracts.staking.closeAndAllocate(
-            allocationData.id,
-            allocationPOI,
-            address,
-            allocationData.subgraphDeployment.id.bytes32,
-            allocationAmount,
-            newAllocationId,
-            utils.hexlify(Array(32).fill(0)), // metadata
-            proof,
-            { gasLimit },
-          ),
-        logger.child({ action: 'closeAndAllocate' }),
+        async () => contracts.staking.estimateGas.multicall(callData),
+        async (gasLimit) => contracts.staking.multicall(callData, { gasLimit }),
+        logger.child({
+          function: 'closeAndAllocate',
+        }),
       )
 
       if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -1029,57 +1023,45 @@ export default {
         )
       }
 
-      const events = receipt.events || receipt.logs
-      const createEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationCreated'),
-          ),
-        )
-      if (!createEvent) {
+      const createAllocationEventLogs = transactionManager.findEvent(
+        'AllocationCreated',
+        contracts.staking.interface,
+        'subgraphDeploymentID',
+        allocationData.subgraphDeployment.id.toString(),
+        receipt,
+        logger,
+      )
+
+      if (!createAllocationEventLogs) {
         throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
-      const createAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationCreated',
-        createEvent.data,
-        createEvent.topics,
+      const closeAllocationEventLogs = transactionManager.findEvent(
+        'AllocationClosed',
+        contracts.staking.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const closeEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.staking.interface.getEventTopic('AllocationClosed'),
-          ),
-        )
-      if (!closeEvent) {
+      if (!closeAllocationEventLogs) {
         throw indexerError(
-          IndexerErrorCode.IE014,
+          IndexerErrorCode.IE015,
           `Allocation close transaction was never successfully mined`,
         )
       }
-      const closeAllocationEventLogs = contracts.staking.interface.decodeEventLog(
-        'AllocationClosed',
-        closeEvent.data,
-        closeEvent.topics,
+
+      const rewardsEventLogs = transactionManager.findEvent(
+        'RewardsAssigned',
+        contracts.rewardsManager.interface,
+        'allocationID',
+        allocation,
+        receipt,
+        logger,
       )
 
-      const rewardsEvent =
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        events.find((event: any) =>
-          event.topics.includes(
-            contracts.rewardsManager.interface.getEventTopic('RewardsAssigned'),
-          ),
-        )
-      const rewardsAssigned = rewardsEvent
-        ? contracts.rewardsManager.interface.decodeEventLog(
-            'RewardsAssigned',
-            rewardsEvent.data,
-            rewardsEvent.topics,
-          ).amount
-        : 0
+      const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.amount : 0
 
       if (rewardsAssigned == 0) {
         logger.warn('No rewards were distributed upon closing the allocation')
@@ -1117,6 +1099,7 @@ export default {
         allocationAmount: allocationAmount.toString(),
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork,
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(indexingRule)
@@ -1139,6 +1122,7 @@ export default {
         receiptsWorthCollecting: isCollectingQueryFees,
         createdAllocation: createAllocationEventLogs.allocationID,
         createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
+        protocolNetwork,
       }
     } catch (error) {
       logger.error(error.toString())

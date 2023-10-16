@@ -6,9 +6,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.20.14] - 2023-03-29
+## [0.20.23] - 2023-09-29
+### Added
+- Subgraph Freshness check for Epoch and Network subgraphs
+- `manual` deployment management mode
+
+### Fixed
+- Deprecate old payment systems after Exponential Rebates contract changes
+- Updated README files
+
+## [0.20.22] - 2023-08-28
+### Fixed
+- Fixed bug causing the network subgraph to be removed after syncing
+
+## [0.20.21] - 2023-08-22
+### Fixed
+- Add missing fields when parsing network specification from CLI options
+
 ### Changed
-- Subgraph deployment names are now format as: `<SUBGRAPH_NAME>/<IPFS_HASH>/<OWNER_ADDRESSS>`
+- Upgraded `common-ts` dependency to v2.0.3
+
+## [0.20.20] - 2023-08-21
+### Fixed
+- Properly skip reconciling allocations on a network in MANUAL mode
+- Missing string interpolation in migration file
+- Indexer registration was running for already registered indexers
+
+## [0.20.19] - 2023-08-18
+### Fixed
+- Contract interface changes involving Exponential Rebates
+- Included the protocolNetwork field when checking for duplicate action targets
+
+### Added
+- Enforced active connections with Graph-Node and the database during startup
+- PostgreSQL connection pool size can be configured with the `postgres-pool-size` *(defaults to `50`)*.
+
+### Changed
+- Skip dispute checking on epochs with unavailable start block hash
+
+## [0.20.18] - 2023-08-11
+### Added
+- A new migration to add the
+  - Actions
+  - IndexingRules
+  - POIDisputes
+  - allocation_receipts
+  - vouchers
+  - transfer_receipts
+  - transfers
+  - allocation_summaries
+- The Agent can now be configured for multiple protocol networks.
+  To enable this feature, start the agent with the environment variable `INDEXER_AGENT_MULTINETWORK_MODE` set to
+  `true` and specify a directory containing YAML network specification files, one per network.
+- The Agent can be configured to automatically support subgraph transfers from L1 to L2. To enable
+  this feature, set the `enable-auto-migration-support` startup option to `true`.
+
+### Changed
+- The Agent GraphQL API was updated to accept (and in some cases require) a `protocolNetwork`
+  parameter to determine which network should be used for queries or mutations.
+- The `/network` endpoint exposed by the Agent now requires an additional path segment to disambiguate
+  which protocol network it should target, like `/network/mainnet` or `/network/arbitrum-one`.
+
+## [0.20.17] - 2023-06-19
+### Changed
+- Use updated batch stake feasibility check, improve potential action batch efficiency
 
 ## [0.20.12] - 2023-02-19
 ### Changed
@@ -434,8 +495,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.14...HEAD
-[0.20.14]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.14
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.22...v0.20.23
+[0.20.22]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.22
+[0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
+[0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.19...v0.20.20
+[0.20.19]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.19
+[0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.17...v0.20.18
+[0.20.17]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.17
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.11...v0.20.12
 [0.20.11]: https://github.com/graphprotocol/indexer/compare/v0.20.9...v0.20.11
 [0.20.9]: https://github.com/graphprotocol/indexer/compare/v0.20.7...v0.20.9

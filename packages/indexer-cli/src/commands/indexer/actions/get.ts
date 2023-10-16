@@ -6,20 +6,23 @@ import {
   ActionParams,
   ActionResult,
   OrderDirection,
+  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, printObjectOrArray } from '../../../command-helpers'
+import {
+  fixParameters,
+  printObjectOrArray,
+  extractProtocolNetworkOption,
+} from '../../../command-helpers'
 import { fetchAction, fetchActions } from '../../../actions'
 
 const HELP = `
 ${chalk.bold('graph indexer actions get')} [options]
-${chalk.bold('graph indexer allocations get')} [options] <action-id>
-${chalk.bold('graph indexer allocations get')} [options] all
-
 ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
+  -n, --network                                                     Filter by protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
       --type    allocate|unallocate|reallocate|collect              Filter by type
       --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
@@ -33,6 +36,7 @@ ${chalk.dim('Options:')}
 
 const actionFields: (keyof Action)[] = [
   'id',
+  'protocolNetwork',
   'type',
   'deploymentID',
   'allocationID',
@@ -92,6 +96,10 @@ module.exports = {
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
 
+    const protocolNetwork: string | undefined = extractProtocolNetworkOption(
+      parameters.options,
+    )
+
     if (help || h) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
       return
@@ -125,7 +133,7 @@ module.exports = {
         if (action == 'all') {
           if (type || status || source || reason) {
             throw Error(
-              `Invalid query, cannot specify '--type', '--status', '--source' or '--reason' filters in addition to 'action = all'`,
+              `Invalid query, cannot specify '--type', '--status', '--source', or '--reason' filters in addition to 'action = all'`,
             )
           }
         }
@@ -186,6 +194,7 @@ module.exports = {
             status,
             source,
             reason,
+            protocolNetwork,
           },
           first,
           orderByParam,
@@ -202,6 +211,12 @@ module.exports = {
       const displayProperties = actionFields.filter(field =>
         selectedFields.includes(field),
       )
+
+      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
+      actions.forEach(
+        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
+      )
+
       printObjectOrArray(print, outputFormat, actions, displayProperties)
     } catch (error) {
       actionSpinner.fail(error.toString())

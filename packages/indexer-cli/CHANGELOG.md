@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.20.23] - 2023-09-29
+### Changed
+- Require a `--network` option to approve actions
+
+## [0.20.21] - 2023-08-24
+### Changed
+- Upgraded `common-ts` dependency to v2.0.3
+
+## [0.20.18] - 2023-08-11
+### Added
+- Most CLI commands now require the protocol network to be identified using the option `--network`.
+
 ## [0.20.12] - 2023-02-19
 ### Added
 - Add `--safety` option to add extra POI correctness safety checks
@@ -197,7 +209,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.12...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23
+[0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.21
+[0.20.18]: https://github.com/graphprotocol/indexer/compare/v0.20.12...v0.20.18
 [0.20.12]: https://github.com/graphprotocol/indexer/compare/v0.20.8...v0.20.12
 [0.20.8]: https://github.com/graphprotocol/indexer/compare/v0.20.6...v0.20.8
 [0.20.6]: https://github.com/graphprotocol/indexer/compare/v0.20.3...v0.20.6

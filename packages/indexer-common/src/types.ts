@@ -1,10 +1,15 @@
-import { Address, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BigNumber, providers } from 'ethers'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
   MANUAL = 'manual',
   OVERSIGHT = 'oversight',
+}
+
+export enum DeploymentManagementMode {
+  AUTO = 'auto',
+  MANUAL = 'manual',
 }
 
 export enum OrderDirection {
@@ -58,58 +63,26 @@ export interface SubgraphDeployment {
   stakedTokens: BigNumber
   signalledTokens: BigNumber
   queryFeesAmount: BigNumber
-  activeAllocations: number
-  name?: string
-  creatorAddress?: Address
+  protocolNetwork: string
 }
 
-export function formatDeploymentName(subgraphDeployment: SubgraphDeployment): string {
-  const creatorAddress = subgraphDeployment.creatorAddress || 'unknownCreator'
-  const cleanedName = cleanDeploymentName(subgraphDeployment.name)
-  return `${cleanedName}/${subgraphDeployment.id.ipfsHash}/${creatorAddress}`
-}
-
-export function cleanDeploymentName(subgraphName: undefined | string): string {
-  const unknownSubgraph = 'unknownSubgraph'
-
-  if (!subgraphName) {
-    return unknownSubgraph
-  }
-
-  /* Strip everything out of the string except for ASCII alphanumeric characters, dashes and
-   underscores.
-
-   We must also limit the name size, as Graph Node enforces a maximum deployment name lenght of 255
-   characters. Considering the other parts of the deployment name have fixed sizes (see table
-   below), we must limit the subgraph name to 165 characters.
-
-   ------------------+-----
-    Subgraph Name    | 165  <--- Size Limit
-    Slash            |   1
-    IPFS Qm-Hash     |  46
-    Slash            |   1
-    Owner Address    |  42
-   ------------------+-----
-    Total Characters | 255
-   ------------------+----- */
-  let cleaned = subgraphName.replace(/[^\w\d_-]+/g, '').slice(0, 165)
-
-  // 1. Should not start or end with a special character.
-  const first = cleaned.match(/^[-_]/) ? 1 : undefined
-  const last = cleaned.slice(-1).match(/[-_]$/) ? cleaned.length - 1 : undefined
-  cleaned = cleaned.slice(first, last)
-
-  // 2. Must be non-empty.
-  if (cleaned === '') {
-    return unknownSubgraph
-  }
-
-  // 3. To keep URLs unambiguous, reserve the token "graphql".
-  if (cleaned == 'graphql') {
-    return 'graphql-subgraph'
-  }
-
-  return cleaned
+// L1 Network Subgraph will always return `null` for the
+// `transferredToL2*` set of fields
+export interface TransferredSubgraphDeployment {
+  id: string
+  idOnL1: string
+  idOnL2: string
+  startedTransferToL2L: boolean
+  startedTransferToL2At: BigNumber
+  startedTransferToL2AtBlockNumber: BigNumber
+  startedTransferToL2AtTx: string
+  transferredToL2: boolean | null
+  transferredToL2At: BigNumber | null
+  transferredToL2AtTx: string | null
+  transferredToL2AtBlockNumber: BigNumber | null
+  ipfsHash: string
+  protocolNetwork: string
+  ready: boolean | null
 }
 
 export enum TransactionType {
@@ -121,4 +94,15 @@ export interface TransactionConfig extends providers.TransactionRequest {
   attempt: number
   gasBump: BigNumber
   type: TransactionType
+}
+
+export function parseDeploymentManagementMode(input: string): DeploymentManagementMode {
+  switch (input) {
+    case DeploymentManagementMode.AUTO:
+      return DeploymentManagementMode.AUTO
+    case DeploymentManagementMode.MANUAL:
+      return DeploymentManagementMode.MANUAL
+    default:
+      throw new Error(`Invalid value for deployment management mode: ${input}`)
+  }
 }

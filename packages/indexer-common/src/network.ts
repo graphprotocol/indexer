@@ -1,168 +1,254 @@
 import {
-  Address,
-  Eventual,
-  formatGRT,
   Logger,
   Metrics,
-  mutable,
   NetworkContracts,
   SubgraphDeploymentID,
-  timer,
-  toAddress,
+  connectContracts,
+  Eventual,
 } from '@graphprotocol/common-ts'
 import {
-  Allocation,
-  Epoch,
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
   NetworkSubgraph,
-  parseGraphQLAllocation,
-  parseGraphQLEpochs,
   TransactionManager,
-} from '@graphprotocol/indexer-common'
-import { BigNumber, providers, utils, Wallet } from 'ethers'
+  specification as spec,
+  GraphNode,
+  EpochSubgraph,
+  NetworkMonitor,
+  AllocationReceiptCollector,
+  SubgraphFreshnessChecker,
+} from '.'
+import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
-import gql from 'graphql-tag'
 import geohash from 'ngeohash'
-import pFilter from 'p-filter'
-import pRetry from 'p-retry'
 
-interface IndexerConfig {
-  url: string
-  geoCoordinates: [string, string]
-  restakeRewards: boolean
-  rebateClaimThreshold: BigNumber
-  rebateClaimBatchThreshold: BigNumber
-  rebateClaimMaxBatchSize: number
-  poiDisputeMonitoring: boolean
-  poiDisputableEpochs: number
-}
+import pRetry from 'p-retry'
+import { resolveChainId } from './indexer-management'
+import { monitorEthBalance } from './utils'
+import { QueryFeeModels } from './query-fees'
 
 export class Network {
   logger: Logger
   networkSubgraph: NetworkSubgraph
   contracts: NetworkContracts
-  indexerAddress: Address
-  ethereum: providers.StaticJsonRpcProvider
+  wallet: Wallet
+  networkProvider: providers.StaticJsonRpcProvider
   transactionManager: TransactionManager
-  indexerConfigs: IndexerConfig
-  indexerUrl: string
-  indexerGeoCoordinates: [string, string]
+  networkMonitor: NetworkMonitor
+  receiptCollector: AllocationReceiptCollector
+  specification: spec.NetworkSpecification
+  paused: Eventual<boolean>
+  isOperator: Eventual<boolean>
 
   private constructor(
     logger: Logger,
-    wallet: Wallet,
-    indexerAddress: Address,
-    indexerUrl: string,
-    geoCoordinates: [string, string],
     contracts: NetworkContracts,
+    wallet: Wallet,
     networkSubgraph: NetworkSubgraph,
-    ethereum: providers.StaticJsonRpcProvider,
+    networkProvider: providers.StaticJsonRpcProvider,
+    transactionManager: TransactionManager,
+    networkMonitor: NetworkMonitor,
+    receiptCollector: AllocationReceiptCollector,
+    specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
-    restakeRewards: boolean,
-    rebateClaimThreshold: BigNumber,
-    rebateClaimBatchThreshold: BigNumber,
-    rebateClaimMaxBatchSize: number,
-    poiDisputeMonitoring: boolean,
-    poiDisputableEpochs: number,
-    gasIncreaseTimeout: number,
-    gasIncreaseFactor: number,
-    baseFeePerGasMax: number,
-    maxTransactionAttempts: number,
   ) {
     this.logger = logger
-    this.indexerAddress = indexerAddress
-    this.indexerUrl = indexerUrl
-    this.indexerGeoCoordinates = geoCoordinates
     this.contracts = contracts
+    this.wallet = wallet
     this.networkSubgraph = networkSubgraph
-    this.ethereum = ethereum
-    this.indexerConfigs = {
-      url: indexerUrl,
-      geoCoordinates: geoCoordinates,
-      restakeRewards: restakeRewards,
-      rebateClaimThreshold: rebateClaimThreshold,
-      rebateClaimBatchThreshold: rebateClaimBatchThreshold,
-      rebateClaimMaxBatchSize: rebateClaimMaxBatchSize,
-      poiDisputeMonitoring: poiDisputeMonitoring,
-      poiDisputableEpochs: poiDisputableEpochs,
-    }
-
-    this.transactionManager = new TransactionManager(
-      ethereum,
-      wallet,
-      paused,
-      isOperator,
-      gasIncreaseTimeout,
-      gasIncreaseFactor,
-      baseFeePerGasMax,
-      maxTransactionAttempts,
-    )
+    this.networkProvider = networkProvider
+    this.transactionManager = transactionManager
+    this.networkMonitor = networkMonitor
+    this.receiptCollector = receiptCollector
+    this.specification = specification
+    this.paused = paused
+    this.isOperator = isOperator
   }
 
   static async create(
     parentLogger: Logger,
-    ethereum: providers.StaticJsonRpcProvider,
-    contracts: NetworkContracts,
-    wallet: Wallet,
-    indexerAddress: Address,
-    indexerUrl: string,
-    geoCoordinates: [string, string],
-    networkSubgraph: NetworkSubgraph,
-    restakeRewards: boolean,
-    rebateClaimThreshold: BigNumber,
-    rebateClaimBatchThreshold: BigNumber,
-    rebateClaimMaxBatchSize: number,
-    poiDisputeMonitoring: boolean,
-    poiDisputableEpochs: number,
-    gasIncreaseTimeout: number,
-    gasIncreaseFactor: number,
-    baseFeePerGasMax: number,
-    maxTransactionAttempts: number,
+    specification: spec.NetworkSpecification,
+    queryFeeModels: QueryFeeModels,
+    graphNode: GraphNode,
+    metrics: Metrics,
   ): Promise<Network> {
-    const logger = parentLogger.child({
+    // Incomplete logger for initial operations, will be replaced as new labels emerge.
+    let logger = parentLogger.child({
       component: 'Network',
-      indexer: indexerAddress.toString(),
+      indexer: specification.indexerOptions.address,
+      protocolNetwork: specification.networkIdentifier,
+    })
+
+    // * -----------------------------------------------------------------------
+    // * Network Provider
+    // * -----------------------------------------------------------------------
+    const networkProvider = await Network.provider(
+      logger,
+      metrics,
+      specification.networkIdentifier,
+      specification.networkProvider.url,
+      specification.networkProvider.pollingInterval,
+    )
+
+    // * -----------------------------------------------------------------------
+    // * Network Subgraph
+    // * -----------------------------------------------------------------------
+    const networkSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'Network Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    const networkSubgraphDeploymentId = specification.subgraphs.networkSubgraph.deployment
+      ? new SubgraphDeploymentID(specification.subgraphs.networkSubgraph.deployment)
+      : undefined
+
+    const networkSubgraph = await NetworkSubgraph.create({
+      logger,
+      endpoint: specification.subgraphs.networkSubgraph.url,
+      deployment:
+        networkSubgraphDeploymentId !== undefined
+          ? {
+              graphNode,
+              deployment: networkSubgraphDeploymentId,
+            }
+          : undefined,
+      subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
+    })
+
+    // * -----------------------------------------------------------------------
+    // * Contracts
+    // * -----------------------------------------------------------------------
+    const wallet = await connectWallet(
+      networkProvider,
+      specification.networkIdentifier,
+      specification.indexerOptions.mnemonic,
+      logger,
+    )
+
+    // Include wallet address in this logger
+    logger = logger.child({
       operator: wallet.address,
     })
 
-    const paused = await monitorNetworkPauses(logger, contracts, networkSubgraph)
-    const isOperator = await monitorIsOperator(logger, contracts, indexerAddress, wallet)
+    // Monitor ETH balance of the operator and write the latest value to a metric
+    await monitorEthBalance(logger, wallet, metrics, specification.networkIdentifier)
 
-    return new Network(
-      logger,
+    const contracts = await connectToProtocolContracts(
       wallet,
-      indexerAddress,
-      indexerUrl,
-      geoCoordinates,
+      specification.networkIdentifier,
+      logger,
+    )
+
+    // * -----------------------------------------------------------------------
+    // * Epoch Subgraph
+    // * -----------------------------------------------------------------------
+    const epochSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'Epoch Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    const epochSubgraph = new EpochSubgraph(
+      /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion --
+       * Accept the non-null `url` property of the Epoch Subgraph, as it has
+       * already been validated during parsing. Once indexing is supported,
+       * initialize it in the same way as the NetworkSubgraph
+       */
+      specification.subgraphs.epochSubgraph.url!,
+      epochSubgraphFreshnessChecker,
+      logger.child({ component: 'EpochSubgraph' }),
+    )
+
+    // * -----------------------------------------------------------------------
+    // * Network Monitor
+    // * -----------------------------------------------------------------------
+    const networkMonitor = new NetworkMonitor(
+      specification.networkIdentifier,
+      contracts,
+      specification.indexerOptions,
+      logger.child({
+        component: 'NetworkMonitor',
+        protocolNetwork: specification.networkIdentifier,
+      }),
+      graphNode,
+      networkSubgraph,
+      networkProvider,
+      epochSubgraph,
+    )
+
+    // * -----------------------------------------------------------------------
+    // * Transaction Manager
+    // * -----------------------------------------------------------------------
+    const paused = await networkMonitor.monitorNetworkPauses(
+      logger,
       contracts,
       networkSubgraph,
-      ethereum,
+    )
+
+    const isOperator = await networkMonitor.monitorIsOperator(
+      logger,
+      contracts,
+      specification.indexerOptions.address,
+      wallet,
+    )
+
+    const transactionManager = new TransactionManager(
+      networkProvider,
+      wallet,
       paused,
       isOperator,
-      restakeRewards,
-      rebateClaimThreshold,
-      rebateClaimBatchThreshold,
-      rebateClaimMaxBatchSize,
-      poiDisputeMonitoring,
-      poiDisputableEpochs,
-      gasIncreaseTimeout,
-      gasIncreaseFactor,
-      baseFeePerGasMax,
-      maxTransactionAttempts,
+      specification.transactionMonitoring,
+    )
+
+    // --------------------------------------------------------------------------------
+    // * Allocation Receipt Collector
+    // --------------------------------------------------------------------------------
+    const receiptCollector = await AllocationReceiptCollector.create({
+      logger,
+      metrics,
+      transactionManager: transactionManager,
+      models: queryFeeModels,
+      allocationExchange: contracts.allocationExchange,
+      networkSpecification: specification,
+    })
+
+    // --------------------------------------------------------------------------------
+    // * Network
+    // --------------------------------------------------------------------------------
+    return new Network(
+      logger,
+      contracts,
+      wallet,
+      networkSubgraph,
+      networkProvider,
+      transactionManager,
+      networkMonitor,
+      receiptCollector,
+      specification,
+      paused,
+      isOperator,
     )
   }
 
   static async provider(
     logger: Logger,
     metrics: Metrics,
+    networkIdentifier: string,
     networkURL: string,
     pollingInterval: number,
   ): Promise<providers.StaticJsonRpcProvider> {
     logger.info(`Connect to Network chain`, {
       provider: networkURL,
+      pollingInterval,
     })
 
     let providerUrl
@@ -176,9 +262,11 @@ export class Network {
       process.exit(1)
     }
 
+    const provider_requests_metric_name = `eth_provider_requests_${networkIdentifier}`
+    logger.info('Metric name: ', { provider_requests_metric_name })
     const ethProviderMetrics = {
       requests: new metrics.client.Counter({
-        name: 'eth_provider_requests',
+        name: provider_requests_metric_name,
         help: 'Ethereum provider requests',
         registers: [metrics.registry],
         labelNames: ['method'],
@@ -239,278 +327,26 @@ export class Network {
     return networkProvider
   }
 
-  // TODO: Move to NetworkMonitor
-  async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
-    try {
-      const result = await this.networkSubgraph.query(
-        gql`
-          query allocations(
-            $indexer: String!
-            $disputableEpoch: Int!
-            $minimumQueryFeesCollected: BigInt!
-          ) {
-            allocations(
-              where: {
-                indexer: $indexer
-                closedAtEpoch_lte: $disputableEpoch
-                queryFeesCollected_gte: $minimumQueryFeesCollected
-                status: Closed
-              }
-              first: 1000
-            ) {
-              id
-              indexer {
-                id
-              }
-              queryFeesCollected
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              closedAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
-              }
-            }
-          }
-        `,
-        {
-          indexer: this.indexerAddress.toLocaleLowerCase(),
-          disputableEpoch,
-          minimumQueryFeesCollected: this.indexerConfigs.rebateClaimThreshold.toString(),
-        },
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-
-      const totalFees: BigNumber = result.data.allocations.reduce(
-        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
-          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
-        },
-        BigNumber.from(0),
-      )
-
-      const parsedAllocs: Allocation[] =
-        result.data.allocations.map(parseGraphQLAllocation)
-
-      // If the total fees claimable do not meet the minimum required for batching, return an empty array
-      if (
-        parsedAllocs.length > 0 &&
-        totalFees.lt(this.indexerConfigs.rebateClaimBatchThreshold)
-      ) {
-        this.logger.info(
-          `Allocation rebate batch value does not meet minimum for claiming`,
-          {
-            batchValueGRT: formatGRT(totalFees),
-            rebateClaimBatchThreshold: formatGRT(
-              this.indexerConfigs.rebateClaimBatchThreshold,
-            ),
-            rebateClaimMaxBatchSize: this.indexerConfigs.rebateClaimMaxBatchSize,
-            batchSize: parsedAllocs.length,
-            allocations: parsedAllocs.map((allocation) => {
-              return {
-                allocation: allocation.id,
-                deployment: allocation.subgraphDeployment.id.display,
-                createdAtEpoch: allocation.createdAtEpoch,
-                closedAtEpoch: allocation.closedAtEpoch,
-                createdAtBlockHash: allocation.createdAtBlockHash,
-              }
-            }),
-          },
-        )
-        return []
-      }
-      // Otherwise return the allos for claiming since the batch meets the minimum
-      return parsedAllocs
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE011, error)
-      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
-        err,
-      })
-      throw err
-    }
-  }
-
-  // TODO: Move to NetworkMonitor
-  async disputableAllocations(
-    currentEpoch: number,
-    deployments: SubgraphDeploymentID[],
-    minimumAllocation: number,
-  ): Promise<Allocation[]> {
-    const logger = this.logger.child({ component: 'POI Monitor' })
-    if (!this.indexerConfigs.poiDisputeMonitoring) {
-      logger.trace('POI monitoring disabled, skipping')
-      return Promise.resolve([])
-    }
-
-    logger.debug(
-      'Query network for any newly closed allocations for deployment this indexer is syncing (available reference POIs)',
-    )
-
-    let dataRemaining = true
-    let allocations: Allocation[] = []
-
-    try {
-      const zeroPOI = utils.hexlify(Array(32).fill(0))
-      const disputableEpoch = currentEpoch - this.indexerConfigs.poiDisputableEpochs
-      let lastCreatedAt = 0
-      while (dataRemaining) {
-        const result = await this.networkSubgraph.query(
-          gql`
-            query allocations(
-              $deployments: [String!]!
-              $minimumAllocation: Int!
-              $disputableEpoch: Int!
-              $zeroPOI: String!
-              $createdAt: Int!
-            ) {
-              allocations(
-                where: {
-                  createdAt_gt: $createdAt
-                  subgraphDeployment_in: $deployments
-                  allocatedTokens_gt: $minimumAllocation
-                  closedAtEpoch_gte: $disputableEpoch
-                  status: Closed
-                  poi_not: $zeroPOI
-                }
-                first: 1000
-                orderBy: createdAt
-                orderDirection: asc
-              ) {
-                id
-                createdAt
-                indexer {
-                  id
-                }
-                poi
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                closedAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            deployments: deployments.map((subgraph) => subgraph.bytes32),
-            minimumAllocation,
-            disputableEpoch,
-            createdAt: lastCreatedAt,
-            zeroPOI,
-          },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-        if (result.data.allocations.length == 0) {
-          dataRemaining = false
-        } else {
-          lastCreatedAt = result.data.allocations.slice(-1)[0].createdAt
-          const parsedResult: Allocation[] =
-            result.data.allocations.map(parseGraphQLAllocation)
-          allocations = allocations.concat(parsedResult)
-        }
-      }
-
-      // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
-      let disputableEpochs = await this.epochs([
-        ...allocations.reduce((epochNumbers: Set<number>, allocation: Allocation) => {
-          epochNumbers.add(allocation.closedAtEpoch)
-          epochNumbers.add(allocation.closedAtEpoch - 1)
-          return epochNumbers
-        }, new Set()),
-      ])
-
-      disputableEpochs = await Promise.all(
-        disputableEpochs.map(async (epoch: Epoch): Promise<Epoch> => {
-          // TODO: May need to retry or skip epochs where obtaining start block fails
-          epoch.startBlockHash = (await this.ethereum.getBlock(epoch.startBlock))?.hash
-          return epoch
-        }),
-      )
-
-      return await Promise.all(
-        allocations.map(async (allocation) => {
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.closedAtEpochStartBlockHash = disputableEpochs.find(
-            (epoch) => epoch.id == allocation.closedAtEpoch,
-          )!.startBlockHash
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          allocation.previousEpochStartBlockHash = disputableEpochs.find(
-            (epoch) => epoch.id == allocation.closedAtEpoch - 1,
-          )!.startBlockHash
-          return allocation
-        }),
-      )
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE037, error)
-      logger.error(INDEXER_ERROR_MESSAGES.IE037, {
-        err,
-      })
-      throw err
-    }
-  }
-
-  async epochs(epochNumbers: number[]): Promise<Epoch[]> {
-    try {
-      const result = await this.networkSubgraph.query(
-        gql`
-          query epochs($epochs: [Int!]!) {
-            epoches(where: { id_in: $epochs }, first: 1000) {
-              id
-              startBlock
-              endBlock
-              signalledTokens
-              stakeDeposited
-              queryFeeRebates
-              totalRewards
-              totalIndexerRewards
-              totalDelegatorRewards
-            }
-          }
-        `,
-        {
-          epochs: epochNumbers,
-        },
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-      return result.data.epoches.map(parseGraphQLEpochs)
-    } catch (error) {
-      const err = indexerError(IndexerErrorCode.IE038, error)
-      this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE038], {
-        err,
-      })
-      throw err
-    }
-  }
-
   // Start of SEND functions
   async register(): Promise<void> {
     const geoHash = geohash.encode(
-      +this.indexerConfigs.geoCoordinates[0],
-      +this.indexerConfigs.geoCoordinates[1],
+      +this.specification.indexerOptions.geoCoordinates[0],
+      +this.specification.indexerOptions.geoCoordinates[1],
     )
 
     const logger = this.logger.child({
-      address: this.indexerAddress,
-      url: this.indexerConfigs.url,
-      geoCoordinates: this.indexerConfigs.geoCoordinates,
+      address: this.specification.indexerOptions.address,
+      url: this.specification.indexerOptions.url,
+      geoCoordinates: this.specification.indexerOptions.geoCoordinates,
       geoHash,
     })
+
+    if (!this.specification.indexerOptions.register) {
+      logger.debug(
+        "Indexer was not registered because it was explicitly disabled in this Network's configuration.",
+      )
+      return
+    }
 
     await pRetry(
       async () => {
@@ -520,32 +356,35 @@ export class Network {
           // Register the indexer (only if it hasn't been registered yet or
           // if its URL is different from what is registered on chain)
           const isRegistered = await this.contracts.serviceRegistry.isRegistered(
-            this.indexerAddress,
+            this.specification.indexerOptions.address,
           )
           if (isRegistered) {
             const service = await this.contracts.serviceRegistry.services(
-              this.indexerAddress,
+              this.specification.indexerOptions.address,
             )
-            if (service.url === this.indexerConfigs.url && service.geohash === geoHash) {
+            if (
+              service.url === this.specification.indexerOptions.url &&
+              service.geohash === geoHash
+            ) {
               if (await this.transactionManager.isOperator.value()) {
                 logger.info(`Indexer already registered, operator status already granted`)
-                return
               } else {
                 logger.info(`Indexer already registered, operator status not yet granted`)
               }
+              return
             }
           }
           const receipt = await this.transactionManager.executeTransaction(
             () =>
               this.contracts.serviceRegistry.estimateGas.registerFor(
-                this.indexerAddress,
-                this.indexerConfigs.url,
+                this.specification.indexerOptions.address,
+                this.specification.indexerOptions.url,
                 geoHash,
               ),
             (gasLimit) =>
               this.contracts.serviceRegistry.registerFor(
-                this.indexerAddress,
-                this.indexerConfigs.url,
+                this.specification.indexerOptions.address,
+                this.specification.indexerOptions.url,
                 geoHash,
                 {
                   gasLimit,
@@ -576,199 +415,57 @@ export class Network {
       { retries: 5 } as pRetry.Options,
     )
   }
-
-  async claimMany(allocations: Allocation[]): Promise<boolean> {
-    const logger = this.logger.child({
-      action: 'ClaimMany',
-    })
-    try {
-      logger.info(
-        `${allocations.length} allocations are eligible for rebate pool claims`,
-        {
-          allocations: allocations.map((allocation) => {
-            return {
-              allocation: allocation.id,
-              deployment: allocation.subgraphDeployment.id.display,
-              createdAtEpoch: allocation.createdAtEpoch,
-              closedAtEpoch: allocation.closedAtEpoch,
-              createdAtBlockHash: allocation.createdAtBlockHash,
-            }
-          }),
-          restakeRewards: this.indexerConfigs.restakeRewards,
-        },
-      )
-
-      // Filter out already-claimed and still-active allocations
-      allocations = await pFilter(allocations, async (allocation: Allocation) => {
-        // Double-check whether the allocation is claimed to
-        // avoid unnecessary transactions.
-        // Note: We're checking the allocation state here, which is defined as
-        //
-        //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
-        //
-        // in the contracts.
-        const state = await this.contracts.staking.getAllocationState(allocation.id)
-        if (state === 4) {
-          logger.trace(
-            `Allocation rebate rewards already claimed, ignoring ${allocation.id}.`,
-          )
-          return false
-        }
-        if (state === 1) {
-          logger.trace(`Allocation still active, ignoring ${allocation.id}.`)
-          return false
-        }
-        return true
-      })
-
-      // Max claims per batch should roughly be equal to average gas per claim / block gas limit
-      // On-chain data shows an average of 120k gas per claim and the block gas limit is 15M
-      // We get at least 21k gas savings per inclusion of a claim in a batch
-      // A reasonable upper bound for this value is 200 assuming the system has the memory
-      // requirements to construct the transaction
-      const maxClaimsPerBatch = this.indexerConfigs.rebateClaimMaxBatchSize
-
-      // When we construct the batch, we sort desc by query fees collected
-      // in order to maximise the value of the truncated batch
-      // more query fees collected should mean higher value rebates
-      const allocationIds = allocations
-        .sort((x, y) =>
-          y.queryFeesCollected instanceof BigNumber
-            ? y.queryFeesCollected.gt(x.queryFeesCollected || 0)
-              ? 1
-              : -1
-            : -1,
-        )
-        .map((allocation) => allocation.id)
-        .slice(0, maxClaimsPerBatch)
-
-      if (allocationIds.length === 0) {
-        logger.info(`No allocation rebates to claim`)
-        return true
-      } else {
-        logger.info(
-          `Claim tokens from the rebate pool for ${allocationIds.length} allocations`,
-          { allocationIds },
-        )
-      }
-
-      // Claim the earned value from the rebate pool, returning it to the indexers stake
-      const receipt = await this.transactionManager.executeTransaction(
-        () =>
-          this.contracts.staking.estimateGas.claimMany(
-            allocationIds,
-            this.indexerConfigs.restakeRewards,
-          ),
-        (gasLimit) =>
-          this.contracts.staking.claimMany(
-            allocationIds,
-            this.indexerConfigs.restakeRewards,
-            {
-              gasLimit,
-            },
-          ),
-        logger.child({ function: 'staking.claimMany' }),
-      )
-      if (receipt === 'paused' || receipt === 'unauthorized') {
-        return false
-      }
-      logger.info(`Successfully claimed ${allocationIds.length} allocations`, {
-        claimedAllocations: allocationIds,
-      })
-      return true
-    } catch (err) {
-      logger.warn(`Failed to claim allocations`, {
-        err: indexerError(IndexerErrorCode.IE016, err),
-      })
-      return false
-    }
-  }
 }
 
-// TODO: Move to NetworkMonitor
-async function monitorNetworkPauses(
+async function connectWallet(
+  networkProvider: providers.Provider,
+  networkIdentifier: string,
+  mnemonic: string,
   logger: Logger,
-  contracts: NetworkContracts,
-  networkSubgraph: NetworkSubgraph,
-): Promise<Eventual<boolean>> {
-  let networkPaused: boolean
-  try {
-    networkPaused = await contracts.controller.paused()
-  } catch (error) {
-    logger.error(`Failed to check for network pause with contracts controller`, {
-      suberror: IndexerErrorCode.IE007,
-      cause: error.message,
-    })
-    throw indexerError(IndexerErrorCode.IE007, `Failed to check for network pause`)
-  }
-  return timer(60_000)
-    .reduce(async (currentlyPaused) => {
-      try {
-        const result = await networkSubgraph.query(
-          gql`
-            {
-              graphNetworks {
-                isPaused
-              }
-            }
-          `,
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-
-        if (!result.data || result.data.length === 0) {
-          throw new Error(`No data returned by network subgraph`)
-        }
-
-        return result.data.graphNetworks[0].isPaused
-      } catch (err) {
-        logger.warn(`Failed to check for network pause, assuming it has not changed`, {
-          err: indexerError(IndexerErrorCode.IE007, err),
-          paused: currentlyPaused,
-        })
-        return currentlyPaused
-      }
-    }, networkPaused)
-    .map((paused) => {
-      logger.info(paused ? `Network paused` : `Network active`)
-      return paused
-    })
+): Promise<Wallet> {
+  logger.info(`Connect wallet`, {
+    networkIdentifier: networkIdentifier,
+  })
+  let wallet = Wallet.fromMnemonic(mnemonic)
+  wallet = wallet.connect(networkProvider)
+  logger.info(`Connected wallet`)
+  return wallet
 }
 
-// TODO: Move to NetworkMonitor
-async function monitorIsOperator(
-  logger: Logger,
-  contracts: NetworkContracts,
-  indexerAddress: Address,
+async function connectToProtocolContracts(
   wallet: Wallet,
-): Promise<Eventual<boolean>> {
-  // If indexer and operator address are identical, operator status is
-  // implicitly granted => we'll never have to check again
-  if (indexerAddress === toAddress(wallet.address)) {
-    logger.info(`Indexer and operator are identical, operator status granted`)
-    return mutable(true)
+  networkIdentifier: string,
+  logger: Logger,
+): Promise<NetworkContracts> {
+  const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
+
+  // Confidence check: Should be unreachable since NetworkSpecification was validated before
+  if (resolveChainId(numericNetworkId) !== networkIdentifier) {
+    throw new Error(`Invalid network identifier: ${networkIdentifier}`)
   }
 
-  return timer(60_000)
-    .reduce(async (isOperator) => {
-      try {
-        return await contracts.staking.isOperator(wallet.address, indexerAddress)
-      } catch (err) {
-        logger.warn(
-          `Failed to check operator status for indexer, assuming it has not changed`,
-          { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-        )
-        return isOperator
-      }
-    }, await contracts.staking.isOperator(wallet.address, indexerAddress))
-    .map((isOperator) => {
-      logger.info(
-        isOperator
-          ? `Have operator status for indexer`
-          : `No operator status for indexer`,
-      )
-      return isOperator
-    })
+  logger.info(`Connect to contracts`, {
+    network: networkIdentifier,
+  })
+
+  let contracts
+  try {
+    contracts = await connectContracts(wallet, numericNetworkId)
+  } catch (error) {
+    const errorMessage =
+      'Failed to connect to contracts, please ensure you are using the intended protocol network.'
+    logger.error(errorMessage, { error, networkIdentifier, numericNetworkId })
+    throw new Error(`${errorMessage} Error: ${error}`)
+  }
+  logger.info(`Successfully connected to contracts`, {
+    curation: contracts.curation.address,
+    disputeManager: contracts.disputeManager.address,
+    epochManager: contracts.epochManager.address,
+    gns: contracts.gns.address,
+    rewardsManager: contracts.rewardsManager.address,
+    serviceRegistry: contracts.serviceRegistry.address,
+    staking: contracts.staking.address,
+    token: contracts.token.address,
+  })
+  return contracts
 }

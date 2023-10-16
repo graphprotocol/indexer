@@ -17,6 +17,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import delay from 'delay'
+import { TransactionMonitoring } from './network-specification'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'
 import { NetworkSubgraph } from './network-subgraph'
@@ -27,29 +28,28 @@ export class TransactionManager {
   wallet: Wallet
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
-  gasIncreaseTimeout: number
-  gasIncreaseFactor: BigNumber
-  baseFeePerGasMax: number
-  maxTransactionAttempts: number
+  specification: TransactionMonitoring
+  adjustedGasIncreaseFactor: BigNumber
+  adjustedBaseFeePerGasMax: number
 
   constructor(
     ethereum: providers.BaseProvider,
     wallet: Wallet,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
-    gasIncreaseTimeout: number,
-    gasIncreaseFactor: number,
-    baseFeePerGasMax: number,
-    maxTransactionAttempts: number,
+    specification: TransactionMonitoring,
   ) {
     this.ethereum = ethereum
     this.wallet = wallet
     this.paused = paused
     this.isOperator = isOperator
-    this.gasIncreaseTimeout = gasIncreaseTimeout
-    this.gasIncreaseFactor = utils.parseUnits(gasIncreaseFactor.toString(), 3)
-    this.baseFeePerGasMax = baseFeePerGasMax
-    this.maxTransactionAttempts = maxTransactionAttempts
+    this.specification = specification
+    this.adjustedGasIncreaseFactor = utils.parseUnits(
+      specification.gasIncreaseFactor.toString(),
+      3,
+    )
+    this.adjustedBaseFeePerGasMax =
+      specification.baseFeePerGasMax || specification.gasPriceMax
   }
 
   async executeTransaction(
@@ -80,7 +80,7 @@ export class TransactionManager {
     let txConfig: TransactionConfig = {
       attempt: 1,
       type: await this.transactionType(feeData),
-      gasBump: this.gasIncreaseFactor,
+      gasBump: this.adjustedGasIncreaseFactor,
       nonce: tx.nonce,
       maxFeePerGas: tx.maxFeePerGas,
       maxPriorityFeePerGas: tx.maxPriorityFeePerGas,
@@ -92,8 +92,8 @@ export class TransactionManager {
 
     while (pending) {
       if (
-        this.maxTransactionAttempts !== 0 &&
-        txConfig.attempt > this.maxTransactionAttempts
+        this.specification.maxTransactionAttempts !== 0 &&
+        txConfig.attempt > this.specification.maxTransactionAttempts
       ) {
         logger.warn('Transaction retry limit reached, giving up', {
           txConfig,
@@ -127,7 +127,7 @@ export class TransactionManager {
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
           3,
-          this.gasIncreaseTimeout,
+          this.specification.gasIncreaseTimeout,
         )
 
         if (receipt.status == 0) {
@@ -203,7 +203,7 @@ export class TransactionManager {
         // This case typically indicates a successful transaction being retried.
         // Let's introduce a 30 second delay to ensure the previous transaction has
         // a chance to be mined and return to the reconciliation loop so the agent can reevaluate.
-        delay(30000)
+        await delay(30000)
         throw indexerError(
           IndexerErrorCode.IE058,
           `Original transaction was not confirmed though it may have been successful`,
@@ -270,15 +270,15 @@ export class TransactionManager {
           .maxFeePerGas! // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           .sub(feeData.maxPriorityFeePerGas!)
           .div(2)
-        if (baseFeePerGas.toNumber() >= this.baseFeePerGasMax) {
+        if (baseFeePerGas.toNumber() >= this.adjustedBaseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
-              { maxBaseFeePerGas: this.baseFeePerGasMax, baseFeePerGas },
+              { maxBaseFeePerGas: this.specification.baseFeePerGasMax, baseFeePerGas },
             )
           } else {
             logger.info(`Base gas fee per gas estimation still above max threshold`, {
-              maxBaseFeePerGas: this.baseFeePerGasMax,
+              maxBaseFeePerGas: this.specification.baseFeePerGasMax,
               baseFeePerGas,
               priceEstimateAttempt: attempt,
             })
@@ -292,18 +292,18 @@ export class TransactionManager {
       } else if (type === TransactionType.ZERO) {
         // Legacy transaction type
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        if (feeData.gasPrice!.toNumber() >= this.baseFeePerGasMax) {
+        if (feeData.gasPrice!.toNumber() >= this.adjustedBaseFeePerGasMax) {
           if (attempt == 1) {
             logger.warning(
               `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
               {
-                baseFeePerGasMax: this.baseFeePerGasMax,
+                baseFeePerGasMax: this.specification.baseFeePerGasMax,
                 currentGasPriceEstimate: feeData.gasPrice,
               },
             )
           } else {
             logger.info(`Gas price estimation still above max threshold`, {
-              baseFeePerGasMax: this.baseFeePerGasMax,
+              baseFeePerGasMax: this.specification.baseFeePerGasMax,
               currentGasPriceEstimate: feeData.gasPrice,
               priceEstimateAttempt: attempt,
             })
@@ -324,35 +324,39 @@ export class TransactionManager {
     networkSubgraph: NetworkSubgraph,
   ): Promise<Eventual<boolean>> {
     return timer(60_000)
-      .reduce(async (currentlyPaused) => {
-        try {
-          const result = await networkSubgraph.query(
-            gql`
+      .reduce(
+        async (currentlyPaused) => {
+          try {
+            const result = await networkSubgraph.checkedQuery(gql`
               {
                 graphNetworks {
                   isPaused
                 }
               }
-            `,
-          )
+            `)
 
-          if (result.error) {
-            throw result.error
+            if (result.error) {
+              throw result.error
+            }
+
+            if (!result.data || result.data.length === 0) {
+              throw new Error(`No data returned by network subgraph`)
+            }
+
+            return result.data.graphNetworks[0].isPaused
+          } catch (err) {
+            logger.warn(
+              `Failed to check for network pause, assuming it has not changed`,
+              {
+                err: indexerError(IndexerErrorCode.IE007, err),
+                paused: currentlyPaused,
+              },
+            )
+            return currentlyPaused
           }
-
-          if (!result.data || result.data.length === 0) {
-            throw new Error(`No data returned by network subgraph`)
-          }
-
-          return result.data.graphNetworks[0].isPaused
-        } catch (err) {
-          logger.warn(`Failed to check for network pause, assuming it has not changed`, {
-            err: indexerError(IndexerErrorCode.IE007, err),
-            paused: currentlyPaused,
-          })
-          return currentlyPaused
-        }
-      }, await contracts.controller.paused())
+        },
+        await contracts.controller.paused(),
+      )
       .map((paused) => {
         logger.info(paused ? `Network paused` : `Network active`)
         return paused
@@ -373,17 +377,20 @@ export class TransactionManager {
     }
 
     return timer(60_000)
-      .reduce(async (isOperator) => {
-        try {
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
-        } catch (err) {
-          logger.warn(
-            `Failed to check operator status for indexer, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-          )
-          return isOperator
-        }
-      }, await contracts.staking.isOperator(wallet.address, indexerAddress))
+      .reduce(
+        async (isOperator) => {
+          try {
+            return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          } catch (err) {
+            logger.warn(
+              `Failed to check operator status for indexer, assuming it has not changed`,
+              { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+            )
+            return isOperator
+          }
+        },
+        await contracts.staking.isOperator(wallet.address, indexerAddress),
+      )
       .map((isOperator) => {
         logger.info(
           isOperator
@@ -392,5 +399,49 @@ export class TransactionManager {
         )
         return isOperator
       })
+  }
+
+  findEvent(
+    eventType: string,
+    contractInterface: utils.Interface,
+    logKey: string,
+    logValue: string,
+    receipt: ContractReceipt,
+    logger: Logger,
+  ): utils.Result | undefined {
+    const events: Event[] | providers.Log[] = receipt.events || receipt.logs
+    const decodedEvents: utils.Result[] = []
+    const expectedTopic = contractInterface.getEventTopic(eventType)
+
+    const result = events
+      .filter((event) => event.topics.includes(expectedTopic))
+      .map((event) => {
+        const decoded = contractInterface.decodeEventLog(
+          eventType,
+          event.data,
+          event.topics,
+        )
+        decodedEvents.push(decoded)
+        return decoded
+      })
+      .find(
+        (eventLogs) =>
+          eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
+      )
+
+    logger.trace('Searched for event logs', {
+      function: 'findEvent',
+      expectedTopic,
+      events,
+      decodedEvents,
+      eventType,
+      logKey,
+      logValue,
+      receipt,
+      found: !!result,
+      result,
+    })
+
+    return result
   }
 }

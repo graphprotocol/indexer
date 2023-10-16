@@ -1,30 +1,19 @@
 import { Sequelize } from 'sequelize'
 import gql from 'graphql-tag'
-import { ethers } from 'ethers'
 import {
+  createMetrics,
   connectDatabase,
-  connectContracts,
   createLogger,
   Logger,
-  NetworkContracts,
-  parseGRT,
 } from '@graphprotocol/common-ts'
-
-import {
-  createIndexerManagementClient,
-  IndexerManagementClient,
-  IndexerManagementDefaults,
-} from '../../client'
+import { IndexerManagementClient } from '../../client'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
   POIDisputeAttributes,
 } from '../../models'
-import {
-  IndexingStatusResolver,
-  NetworkSubgraph,
-  getTestProvider,
-} from '@graphprotocol/indexer-common'
+import { createTestManagementClient } from '../util'
+import { defineQueryFeeModels } from '../../../query-fees/models'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -48,13 +37,14 @@ const STORE_POI_DISPUTES_MUTATION = gql`
       previousEpochStartBlockNumber
       previousEpochReferenceProof
       status
+      protocolNetwork
     }
   }
 `
 
 const GET_POI_DISPUTE_QUERY = gql`
-  query dispute($allocationID: String!) {
-    dispute(allocationID: $allocationID) {
+  query dispute($identifier: POIDisputeIdentifier!) {
+    dispute(identifier: $identifier) {
       allocationID
       subgraphDeploymentID
       allocationIndexer
@@ -68,13 +58,18 @@ const GET_POI_DISPUTE_QUERY = gql`
       previousEpochStartBlockNumber
       previousEpochReferenceProof
       status
+      protocolNetwork
     }
   }
 `
 
 const GET_POI_DISPUTES_QUERY = gql`
-  query disputes($status: String!, $minClosedEpoch: Int!) {
-    disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
+  query disputes($status: String!, $minClosedEpoch: Int!, $protocolNetwork: String!) {
+    disputes(
+      status: $status
+      minClosedEpoch: $minClosedEpoch
+      protocolNetwork: $protocolNetwork
+    ) {
       allocationID
       subgraphDeploymentID
       allocationIndexer
@@ -88,13 +83,14 @@ const GET_POI_DISPUTES_QUERY = gql`
       previousEpochStartBlockNumber
       previousEpochReferenceProof
       status
+      protocolNetwork
     }
   }
 `
 
 const DELETE_POI_DISPUTES_QUERY = gql`
-  mutation deleteDisputes($allocationIDs: [String!]!) {
-    deleteDisputes(allocationIDs: $allocationIDs)
+  mutation deleteDisputes($identifiers: [POIDisputeIdentifier!]!) {
+    deleteDisputes(identifiers: $identifiers)
   }
 `
 
@@ -116,6 +112,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'goerli',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -135,6 +132,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'goerli',
 }
 
 const TEST_DISPUTE_3: POIDisputeAttributes = {
@@ -155,6 +153,7 @@ const TEST_DISPUTE_3: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'goerli',
 }
 
 const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
@@ -164,6 +163,9 @@ function toObject(dispute: POIDisputeAttributes): Record<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expected: Record<string, any> = Object.assign({}, dispute)
   expected.allocationAmount = expected.allocationAmount.toString()
+  if (expected.protocolNetwork === 'goerli') {
+    expected.protocolNetwork = 'eip155:5'
+  }
   return expected
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -178,57 +180,23 @@ function toObjectArray(disputes: POIDisputeAttributes[]): Record<string, any>[] 
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let address: string
-let contracts: NetworkContracts
 let logger: Logger
-let indexingStatusResolver: IndexingStatusResolver
-let networkSubgraph: NetworkSubgraph
 let client: IndexerManagementClient
-
-const defaults = {
-  globalIndexingRule: {
-    allocationAmount: parseGRT('100'),
-  },
-} as IndexerManagementDefaults
+const metrics = createMetrics()
 
 const setupAll = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  address = '0xtest'
-  contracts = await connectContracts(getTestProvider('goerli'), 5)
-  await sequelize.sync({ force: true })
+  defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
   logger = createLogger({
-    name: 'POI dispute tests',
+    name: 'Indexer API Client',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  const statusEndpoint = 'http://localhost:8030/graphql'
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint,
-  })
-  networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    deployment: undefined,
-  })
-  const indexNodeIDs = ['node_1']
-  client = await createIndexerManagementClient({
-    models,
-    address,
-    contracts,
-    indexingStatusResolver,
-    indexNodeIDs,
-    networkSubgraph,
-    deploymentManagementEndpoint: statusEndpoint,
-    logger,
-    defaults,
-    features: {
-      injectDai: true,
-    },
-  })
+  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  logger.info('Finished setting up Test Indexer Management Client')
 }
 
 const setupEach = async () => {
@@ -247,6 +215,7 @@ const teardownAll = async () => {
 }
 
 describe('POI disputes', () => {
+  jest.setTimeout(60_000)
   beforeAll(setupAll)
   beforeEach(setupEach)
   afterEach(teardownEach)
@@ -266,12 +235,12 @@ describe('POI disputes', () => {
   })
 
   test('Get non-existent dispute', async () => {
+    const identifier = {
+      allocationID: '0x0000000000000000000000000000000000000001',
+      protocolNetwork: 'goerli',
+    }
     await expect(
-      client
-        .query(GET_POI_DISPUTE_QUERY, {
-          allocationID: '0x0000000000000000000000000000000000000001',
-        })
-        .toPromise(),
+      client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
     ).resolves.toHaveProperty('data.dispute', null)
   })
 
@@ -281,11 +250,14 @@ describe('POI disputes', () => {
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
     for (const dispute of disputes) {
+      const identifier = {
+        allocationID: dispute.allocationID,
+        protocolNetwork: 'eip155:5',
+      }
+      const expected = { ...dispute, protocolNetwork: 'eip155:5' }
       await expect(
-        client
-          .query(GET_POI_DISPUTE_QUERY, { allocationID: dispute.allocationID })
-          .toPromise(),
-      ).resolves.toHaveProperty('data.dispute', dispute)
+        client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
+      ).resolves.toHaveProperty('data.dispute', expected)
     }
   })
 
@@ -294,11 +266,21 @@ describe('POI disputes', () => {
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
+
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, {
+          status: 'potential',
+          minClosedEpoch: 0,
+          protocolNetwork: 'goerli',
+        })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Get disputes with closed epoch greater than', async () => {
@@ -306,11 +288,18 @@ describe('POI disputes', () => {
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = [{ ...TEST_DISPUTE_2, protocolNetwork: 'eip155:5' }]
+
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 205 })
+        .query(GET_POI_DISPUTES_QUERY, {
+          status: 'potential',
+          minClosedEpoch: 205,
+          protocolNetwork: 'goerli',
+        })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', [TEST_DISPUTE_2])
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove dispute from store', async () => {
@@ -318,20 +307,36 @@ describe('POI disputes', () => {
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
+    const identifiers = [
+      {
+        allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+        protocolNetwork: 'goerli',
+      },
+    ]
     await expect(
       client
         .mutation(DELETE_POI_DISPUTES_QUERY, {
-          allocationIDs: ['0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'],
+          identifiers,
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
     disputes.splice(0, 1)
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
+
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, {
+          status: 'potential',
+          minClosedEpoch: 0,
+          protocolNetwork: 'goerli',
+        })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove multiple disputes from store', async () => {
@@ -339,22 +344,36 @@ describe('POI disputes', () => {
 
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
+    const identifiers = [
+      {
+        allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
+        protocolNetwork: 'goerli',
+      },
+      {
+        allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
+        protocolNetwork: 'goerli',
+      },
+    ]
+
     await expect(
-      client
-        .mutation(DELETE_POI_DISPUTES_QUERY, {
-          allocationIDs: [
-            '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
-            '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
-          ],
-        })
-        .toPromise(),
+      client.mutation(DELETE_POI_DISPUTES_QUERY, { identifiers }).toPromise(),
     ).resolves.toHaveProperty('data.deleteDisputes', 2)
     disputes.splice(0, 2)
 
+    // Once persisted, the protocol network identifier assumes the CAIP2-ID format
+    const expected = disputes.map((dispute) => ({
+      ...dispute,
+      protocolNetwork: 'eip155:5',
+    }))
+
     await expect(
       client
-        .query(GET_POI_DISPUTES_QUERY, { status: 'potential', minClosedEpoch: 0 })
+        .query(GET_POI_DISPUTES_QUERY, {
+          status: 'potential',
+          minClosedEpoch: 0,
+          protocolNetwork: 'goerli',
+        })
         .toPromise(),
-    ).resolves.toHaveProperty('data.disputes', disputes)
+    ).resolves.toHaveProperty('data.disputes', expected)
   })
 })

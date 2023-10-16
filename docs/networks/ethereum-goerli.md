@@ -1,16 +1,16 @@
 # Testnet Configuration
 
-The Graph Network's testnet is on Goerli. Goerli network information can be found at https://testnet.thegraph.com/explorer/network.
+The Graph Network's testnet is on Goerli. Goerli network information can be found at https://testnet.thegraph.com/explorer?chain=goerli.
 
 ## Latest Releases
 
-| Component       | Release                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)       |
-| indexer-agent   | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
-| indexer-cli     | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
-| indexer-service | [0.20.12](https://github.com/graphprotocol/indexer/releases/tag/v0.20.12)       |
-| graph-node      | [0.30.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.30.0-rc.0)       |
+| Component       | Release                                                                              |
+| --------------- | ------------------------------------------------------------------------------------ |
+| contracts       | [1.13.0](https://github.com/graphprotocol/contracts/releases/tag/v1.13.0)            |
+| indexer-agent   | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
+| indexer-cli     | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
+| indexer-service | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)            |
+| graph-node      | [v0.32.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.32.0-rc.0)|
 
 ## Network Parameters
 
@@ -47,7 +47,7 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                               |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                 |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                            |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmPVz18RFwK6hE5rZFWERk23LgrTBz2FCkZzgPSrFxFWN4`                                  |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmWC8bGoqBRmiAwMRVA983CmhC4j3gMPmkM2p3F2rM35NX`                                  |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli`      |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                               |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts`                           |
@@ -71,7 +71,7 @@ option can be used.
 | `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `goerli`                                                                        |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                             |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                          |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmPVz18RFwK6hE5rZFWERk23LgrTBz2FCkZzgPSrFxFWN4`                                |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmWC8bGoqBRmiAwMRVA983CmhC4j3gMPmkM2p3F2rM35NX`                                |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli`    |
 | `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xe1EC4339019eC9628438F8755f847e3023e4ff9c`                                    |
 

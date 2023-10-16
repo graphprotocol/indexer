@@ -13,8 +13,10 @@ import {
   IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from '../models'
+import { defineQueryFeeModels, specification as spec } from '../../index'
+import { networkIsL1, networkIsL2 } from '../types'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
-import { SubgraphIdentifierType } from '../../subgraphs'
+import { SubgraphFreshnessChecker, SubgraphIdentifierType } from '../../subgraphs'
 import { ActionManager } from '../actions'
 import { actionFilterToWhereOptions, ActionStatus, ActionType } from '../../actions'
 import { literal, Op, Sequelize } from 'sequelize'
@@ -24,7 +26,7 @@ import {
   EpochSubgraph,
   indexerError,
   IndexerErrorCode,
-  IndexingStatusResolver,
+  GraphNode,
   NetworkMonitor,
   NetworkSubgraph,
   resolveChainAlias,
@@ -32,6 +34,7 @@ import {
   SubgraphDeployment,
   getTestProvider,
 } from '@graphprotocol/indexer-common'
+import { mockLogger, mockProvider } from '../../__tests__/subgraph.test'
 import { BigNumber, ethers, utils } from 'ethers'
 
 // Make global Jest variable available
@@ -44,7 +47,7 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let ethereum: ethers.providers.BaseProvider
 let contracts: NetworkContracts
-let indexingStatusResolver: IndexingStatusResolver
+let graphNode: GraphNode
 let networkSubgraph: NetworkSubgraph
 let epochSubgraph: EpochSubgraph
 let networkMonitor: NetworkMonitor
@@ -56,7 +59,8 @@ const setupModels = async () => {
   // Spin up db
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  await sequelize.sync({ force: true })
+  defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
 }
 
 const setupMonitor = async () => {
@@ -69,25 +73,50 @@ const setupMonitor = async () => {
   })
   ethereum = getTestProvider('goerli')
   contracts = await connectContracts(ethereum, 5)
+
+  const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
+    'Test Subgraph',
+    mockProvider,
+    10,
+    10,
+    mockLogger,
+    1,
+  )
+
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
       'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
     deployment: undefined,
+    subgraphFreshnessChecker,
   })
-  epochSubgraph = await EpochSubgraph.create(
+
+  epochSubgraph = new EpochSubgraph(
     'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
+    subgraphFreshnessChecker,
+    logger,
   )
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
     statusEndpoint,
+    [],
+  )
+
+  const indexerOptions = spec.IndexerOptions.parse({
+    address: '0xc61127cdfb5380df4214b0200b9a07c7c49d34f9',
+    mnemonic:
+      'word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport',
+    url: 'http://test-url.xyz',
   })
+
   networkMonitor = new NetworkMonitor(
     resolveChainId('goerli'),
     contracts,
-    toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
+    indexerOptions,
     logger,
-    indexingStatusResolver,
+    graphNode,
     networkSubgraph,
     ethereum,
     epochSubgraph,
@@ -101,7 +130,6 @@ const createMockAllocation = (): Allocation => {
     stakedTokens: BigNumber.from(50000),
     signalledTokens: BigNumber.from(100000),
     queryFeesAmount: BigNumber.from(0),
-    activeAllocations: 2,
   } as SubgraphDeployment
   const mockAllocation = {
     id: toAddress('0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'),
@@ -138,8 +166,8 @@ describe('Indexing Rules', () => {
       allocationAmount: '5000',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
+      protocolNetwork: 'goerli',
     } as Partial<IndexingRuleAttributes>
-
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
     expect(setIndexingRuleResult).toHaveProperty(
       'allocationAmount',
@@ -155,7 +183,8 @@ describe('Indexing Rules', () => {
       IndexingDecisionBasis.ALWAYS,
     )
 
-    await expect(fetchIndexingRules(models, false)).resolves.toHaveLength(1)
+    //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+    await expect(fetchIndexingRules(models, false, 'eip155:5')).resolves.toHaveLength(1)
   })
 })
 
@@ -204,6 +233,8 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
+      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
+      protocolNetwork: 'eip155:5',
     }
 
     await models.Action.upsert(action)
@@ -314,4 +345,53 @@ describe.skip('Monitor', () => {
       networkMonitor.resolvePOI(mockAllocation, undefined, false),
     ).rejects.toEqual(indexerError(IndexerErrorCode.IE018, `Could not resolve POI`))
   })
+})
+
+describe('Network layer detection', () => {
+  interface NetworkLayer {
+    name: string
+    l1: boolean
+    l2: boolean
+  }
+
+  // Should be true for L1 and false for L2
+  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'goerli', 'eip155:5'].map(
+    (name: string) => ({ name, l1: true, l2: false }),
+  )
+
+  // Should be false for L1 and true for L2
+  const l2Networks: NetworkLayer[] = [
+    'arbitrum-one',
+    'eip155:42161',
+    'arbitrum-goerli',
+    'eip155:421613',
+  ].map((name: string) => ({ name, l1: false, l2: true }))
+
+  // Those will be false for L1 and L2
+  const nonProtocolNetworks: NetworkLayer[] = [
+    'fantom',
+    'eip155:250',
+    'hardhat',
+    'eip155:1337',
+    'matic',
+    'eip155:137',
+    'gnosis',
+    'eip155:100',
+  ].map((name: string) => ({ name, l1: false, l2: false }))
+
+  const testCases = [...l1Networks, ...l2Networks, ...nonProtocolNetworks]
+
+  test.each(testCases)('Can detect network layer [$name]', (network) => {
+    expect(networkIsL1(network.name)).toStrictEqual(network.l1)
+    expect(networkIsL2(network.name)).toStrictEqual(network.l2)
+  })
+
+  const invalidTProtocolNetworkNames = ['invalid-name', 'eip155:9999']
+
+  test.each(invalidTProtocolNetworkNames)(
+    'Throws error when protocol network is unknown [%s]',
+    (invalidProtocolNetworkName) => {
+      expect(() => networkIsL1(invalidProtocolNetworkName)).toThrow()
+    },
+  )
 })

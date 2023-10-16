@@ -1,25 +1,27 @@
 import {
-  connectContracts,
   connectDatabase,
   createLogger,
+  createMetrics,
   Logger,
-  NetworkContracts,
+  Metrics,
   parseGRT,
-  toAddress,
 } from '@graphprotocol/common-ts'
 import {
-  AllocationManagementMode,
   createIndexerManagementClient,
   defineIndexerManagementModels,
   IndexerManagementClient,
   IndexerManagementModels,
-  IndexingStatusResolver,
-  NetworkSubgraph,
+  GraphNode,
+  Operator,
+  Network,
   POIDisputeAttributes,
+  specification,
+  QueryFeeModels,
+  defineQueryFeeModels,
+  MultiNetworks,
 } from '@graphprotocol/indexer-common'
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
-import { Indexer } from '../indexer'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
   allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
@@ -40,6 +42,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'eip155:5',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -60,6 +63,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
+  protocolNetwork: 'eip155:5',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -79,6 +83,7 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockNumber: x => +x,
   previousEpochReferenceProof: x => x,
   status: x => x,
+  protocolNetwork: x => x,
 }
 
 /**
@@ -104,51 +109,98 @@ declare const __DATABASE__: never
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let wallet: Wallet
-let address: string
-let contracts: NetworkContracts
+let queryFeeModels: QueryFeeModels
 let logger: Logger
 let indexerManagementClient: IndexerManagementClient
-let indexer: Indexer
+let graphNode: GraphNode
+let operator: Operator
+let metrics: Metrics
+
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+
+const testProviderUrl =
+  process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
+
+const setupAll = async () => {
+  metrics = createMetrics()
+}
 
 const setup = async () => {
+  // Clearing the registry prevents duplicate metric registration in the default registry.
+  metrics.registry.clear()
   logger = createLogger({
     name: 'IndexerAgent',
     async: false,
     level: 'trace',
   })
-  wallet = Wallet.createRandom()
-
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  address = '0x3C17A4c7cD8929B83e4705e04020fA2B1bca2E55'
-  contracts = await connectContracts(wallet, 5)
-  await sequelize.sync({ force: true })
-
-  const statusEndpoint = 'http://localhost:8030/graphql'
-  const ipfsEndpoint = 'https://ipfs.network.thegraph.com'
-  const indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint: 'statusEndpoint',
-  })
-
-  const networkSubgraph = await NetworkSubgraph.create({
-    logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
-    deployment: undefined,
-  })
+  const ipfsEndpoint = 'https://ipfs.network.thegraph.com' // TODO: make this configurable and use within graft auto-resolver
+  queryFeeModels = defineQueryFeeModels(sequelize)
+  sequelize = await sequelize.sync({ force: true })
 
   const indexNodeIDs = ['node_1']
-  const autoGraftResolverLimit = 1
+
+  graphNode = new GraphNode(
+    logger,
+    'http://test-admin-endpoint.xyz',
+    'https://test-query-endpoint.xyz',
+    'https://test-status-endpoint.xyz',
+    indexNodeIDs,
+  )
+
+  const networkSpecification = specification.NetworkSpecification.parse({
+    networkIdentifier: 'eip155:5',
+    gateway: {
+      url: 'http://localhost:8030/',
+    },
+    networkProvider: {
+      url: testProviderUrl,
+    },
+    indexerOptions: {
+      address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
+      mnemonic:
+        'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
+      url: 'http://test-indexer.xyz',
+    },
+    subgraphs: {
+      networkSubgraph: {
+        url: 'http://test-url.xyz',
+      },
+      epochSubgraph: {
+        url: 'http://test-url.xyz',
+      },
+    },
+    transactionMonitoring: {
+      gasIncreaseTimeout: 240000,
+      gasIncreaseFactor: 1.2,
+      baseFeePerGasMax: 100 * 10 ** 9,
+      maxTransactionAttempts: 0,
+    },
+    dai: {
+      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
+      inject: false,
+    },
+  })
+
+  const autoGraftResolverLimit = 1 // TODO: use a sensible value in tests. (Do we need graft auto-resolver in tests?)
+  const network = await Network.create(
+    logger,
+    networkSpecification,
+    queryFeeModels,
+    graphNode,
+    metrics,
+  )
+
+  const multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
   indexerManagementClient = await createIndexerManagementClient({
     models,
-    address: toAddress(address),
-    contracts: contracts,
-    indexingStatusResolver,
+    graphNode,
     indexNodeIDs,
-    deploymentManagementEndpoint: statusEndpoint,
-    networkSubgraph,
     logger,
     defaults: {
       globalIndexingRule: {
@@ -156,25 +208,10 @@ const setup = async () => {
         parallelAllocations: 1,
       },
     },
-    features: {
-      injectDai: false,
-    },
-    ipfsEndpoint,
-    autoGraftResolverLimit,
+    multiNetworks,
   })
 
-  indexer = new Indexer(
-    logger,
-    'test',
-    indexingStatusResolver,
-    indexerManagementClient,
-    ['test'],
-    parseGRT('1000'),
-    address,
-    AllocationManagementMode.AUTO,
-    ipfsEndpoint,
-    autoGraftResolverLimit,
-  )
+  operator = new Operator(logger, indexerManagementClient, networkSpecification)
 }
 
 const teardown = async () => {
@@ -182,6 +219,8 @@ const teardown = async () => {
 }
 
 describe('Indexer tests', () => {
+  jest.setTimeout(60_000)
+  beforeAll(setupAll)
   beforeEach(setup)
   afterEach(teardown)
 
@@ -206,11 +245,12 @@ describe('Indexer tests', () => {
       previousEpochReferenceProof:
         '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
       status: 'potential',
+      protocolNetwork: 'eip155:5',
     }
 
     const disputes = [badDispute]
 
-    await expect(indexer.storePoiDisputes(disputes)).rejects.toThrow(
+    await expect(operator.storePoiDisputes(disputes)).rejects.toThrow(
       'Failed to store potential POI disputes',
     )
   })
@@ -222,13 +262,13 @@ describe('Indexer tests', () => {
     const expectedResult = disputes.map((dispute: Record<string, any>) => {
       return disputeFromGraphQL(dispute)
     })
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
   })
@@ -241,11 +281,11 @@ describe('Indexer tests', () => {
       return disputeFromGraphQL(dispute)
     })
     const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
-    await expect(indexer.storePoiDisputes(disputes)).resolves.toEqual(
+    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
       expectedResult,
     )
-    await expect(indexer.fetchPOIDisputes('potential', 205)).resolves.toEqual(
-      expectedFilteredResult,
-    )
+    await expect(
+      operator.fetchPOIDisputes('potential', 205, 'eip155:5'),
+    ).resolves.toEqual(expectedFilteredResult)
   })
 })

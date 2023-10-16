@@ -4,9 +4,11 @@
 name: "Publish binaries"
 
 on:
+  workflow_dispatch:
   release:
     types:
       - created
+      - published
 
 jobs:
   publish-github:
@@ -15,11 +17,11 @@ jobs:
       # (https://github.com/bchr02/node-pre-gyp-github/issues/42)
       fail-fast: false
       matrix:
-        node_version: [14, 16, 17]
+        node_version: [16, 17, 18, 19, 20]
         system:
           - os: macos-latest
             target: x86_64-apple-darwin
-          - os: ubuntu-18.04
+          - os: ubuntu-20.04
             target: x86_64-unknown-linux-gnu
         include:
           - node_version: 18
@@ -34,6 +36,11 @@ jobs:
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v2
+      - name: update OS
+        run: |
+          sudo apt-get update
+          sudo apt install -y --no-install-recommends gcc g++ make build-essential
+        if: ${{ runner.os == 'Linux' }}
       - name: Set up Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2.1.5
         with:

@@ -5,19 +5,26 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
-import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import {
+  processIdentifier,
+  SubgraphIdentifierType,
+  validateNetworkIdentifier,
+} from '@graphprotocol/indexer-common'
 import { printObjectOrArray } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
   'graph indexer allocations create',
-)} [options] <deployment-id> <amount> <index-node>
+)} [options] <deployment-id> <network> <amount> <index-node>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
-  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML 
+  -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
+
+${chalk.dim('Networks:')}
+  mainnet, arbitrum-one, goerli or arbitrum goerli
 `
 
 module.exports = {
@@ -45,14 +52,23 @@ module.exports = {
       return
     }
 
-    const [deploymentID, amount, indexNode] = parameters.array || []
+    const [deploymentID, protocolNetwork, amount, indexNode] = parameters.array || []
 
     try {
-      if (!deploymentID || !amount) {
+      if (!deploymentID || !amount || !protocolNetwork) {
         throw new Error(
-          `Must provide a deployment ID and allocation amount (deploymentID: '${deploymentID}', allocationAmount: '${amount}'`,
+          'Must provide a deployment ID, a network identifier and allocation amount' +
+            `(deploymentID: '${deploymentID}', network: '${protocolNetwork}' allocationAmount: '${amount}')`,
         )
       }
+
+      // This nested try block is necessary to complement the parsing error with the 'network' field.
+      try {
+        validateNetworkIdentifier(protocolNetwork)
+      } catch (parsingError) {
+        throw new Error(`Invalid 'network' provided. ${parsingError}`)
+      }
+
       const [deploymentString, type] = await processIdentifier(deploymentID, {
         all: false,
         global: false,
@@ -73,6 +89,7 @@ module.exports = {
         deploymentString,
         allocationAmount,
         indexNode,
+        protocolNetwork,
       )
 
       spinner.succeed('Allocation created')
@@ -80,6 +97,7 @@ module.exports = {
         'allocation',
         'deployment',
         'allocatedTokens',
+        'protocolNetwork',
       ])
     } catch (error) {
       spinner.fail(error.toString())

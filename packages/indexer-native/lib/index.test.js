@@ -50,7 +50,7 @@ describe("Native Functions", () => {
       "coyote tattoo slush ball cluster culture bleak news when action cover effort";
 
     const subgraphDeploymentID = utils.hexlify(
-      bs58.decode("QmTXzATwNfgGVukV1fX2T6xw9f6LAYRVWpsdXyRWzUR2H9").slice(2)
+      bs58.decode("QmTXzATwNfgGVukV1fX2T6xw9f6LAYRVWpsdXyRWzUR2H9").slice(2),
     );
     const privateKey = Wallet.fromMnemonic(mnemonic).privateKey;
 
@@ -61,7 +61,7 @@ describe("Native Functions", () => {
       chainId,
       disputeManagerAddress,
       privateKey,
-      subgraphDeploymentID
+      subgraphDeploymentID,
     );
 
     const expected = {
@@ -76,7 +76,7 @@ describe("Native Functions", () => {
       s: "0x7b24b529fcf92c9426179146bb7bfed6540043e2c30132e59d994a3cc718f2be",
     };
     await expect(
-      signer.createAttestation("request", "response")
+      signer.createAttestation("request", "response"),
     ).resolves.toEqual(expected);
 
     // Ensure throwing errors works at least in one case when a parameter cannot be deserialized
@@ -86,8 +86,8 @@ describe("Native Functions", () => {
           chainId,
           "0xab",
           privateKey,
-          subgraphDeploymentID
-        )
+          subgraphDeploymentID,
+        ),
     ).toThrow();
   });
 });

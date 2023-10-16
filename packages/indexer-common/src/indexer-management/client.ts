@@ -2,15 +2,7 @@ import { buildSchema, print } from 'graphql'
 import gql from 'graphql-tag'
 import { executeExchange } from '@urql/exchange-execute'
 import { Client, ClientOptions } from '@urql/core'
-import {
-  equal,
-  Eventual,
-  Logger,
-  mutable,
-  NetworkContracts,
-  WritableEventual,
-} from '@graphprotocol/common-ts'
-import { NetworkSubgraph } from '../network-subgraph'
+import { equal, Logger, mutable, WritableEventual } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
@@ -20,38 +12,19 @@ import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
-import { BigNumber, ethers } from 'ethers'
+import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
-import { IndexingStatusResolver } from '../indexing-status'
-import { TransactionManager } from '../transactions'
-import { SubgraphManager } from './subgraphs'
-import { AllocationReceiptCollector } from '../allocations/query-fees'
-import {
-  ActionManager,
-  AllocationManagementMode,
-  AllocationManager,
-  NetworkMonitor,
-} from '@graphprotocol/indexer-common'
-
-export interface IndexerManagementFeatures {
-  injectDai: boolean
-}
+import { GraphNode } from '../graph-node'
+import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
-  address: string
-  contracts: NetworkContracts
-  indexingStatusResolver: IndexingStatusResolver
-  subgraphManager: SubgraphManager
-  networkMonitor: NetworkMonitor
-  networkSubgraph: NetworkSubgraph
+  graphNode: GraphNode
   logger: Logger
   defaults: IndexerManagementDefaults
-  features: IndexerManagementFeatures
-  dai: Eventual<string>
-  actionManager: ActionManager
-  transactionManager: TransactionManager
-  receiptCollector: AllocationReceiptCollector
+  actionManager: ActionManager | undefined
+  multiNetworks: MultiNetworks<Network> | undefined
+  dai: WritableEventual<string>
 }
 
 const SCHEMA_SDL = gql`
@@ -79,6 +52,7 @@ const SCHEMA_SDL = gql`
     status: String
     allocation: String
     subgraphDeployment: String
+    protocolNetwork: String
   }
 
   enum AllocationStatus {
@@ -102,12 +76,14 @@ const SCHEMA_SDL = gql`
     signalledTokens: BigInt!
     stakedTokens: BigInt!
     status: AllocationStatus!
+    protocolNetwork: String!
   }
 
   type CreateAllocationResult {
     allocation: String!
     deployment: String!
     allocatedTokens: String!
+    protocolNetwork: String!
   }
 
   type CloseAllocationResult {
@@ -115,6 +91,7 @@ const SCHEMA_SDL = gql`
     allocatedTokens: String!
     indexingRewards: String!
     receiptsWorthCollecting: Boolean!
+    protocolNetwork: String!
   }
 
   type ReallocateAllocationResult {
@@ -123,6 +100,7 @@ const SCHEMA_SDL = gql`
     receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
+    protocolNetwork: String!
   }
 
   enum ActionStatus {
@@ -156,6 +134,7 @@ const SCHEMA_SDL = gql`
     failureReason: String
     createdAt: BigInt!
     updatedAt: BigInt
+    protocolNetwork: String!
   }
 
   input ActionInput {
@@ -169,6 +148,7 @@ const SCHEMA_SDL = gql`
     source: String!
     reason: String!
     priority: Int!
+    protocolNetwork: String!
   }
 
   input ActionUpdateInput {
@@ -198,6 +178,7 @@ const SCHEMA_SDL = gql`
     priority
     createdAt
     updatedAt
+    protocolNetwork
   }
 
   type ActionResult {
@@ -214,14 +195,21 @@ const SCHEMA_SDL = gql`
     transaction: String
     failureReason: String
     priority: Int
+    protocolNetwork: String!
   }
 
   input ActionFilter {
     id: Int
+    protocolNetwork: String
     type: ActionType
     status: String
     source: String
     reason: String
+  }
+
+  input POIDisputeIdentifier {
+    allocationID: String!
+    protocolNetwork: String!
   }
 
   type POIDispute {
@@ -238,6 +226,7 @@ const SCHEMA_SDL = gql`
     previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String
     status: String!
+    protocolNetwork: String!
   }
 
   input POIDisputeInput {
@@ -254,6 +243,7 @@ const SCHEMA_SDL = gql`
     previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String
     status: String!
+    protocolNetwork: String!
   }
 
   type IndexingRule {
@@ -272,6 +262,7 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis!
     requireSupported: Boolean!
     safety: Boolean!
+    protocolNetwork: String!
   }
 
   input IndexingRuleInput {
@@ -290,6 +281,12 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis
     requireSupported: Boolean
     safety: Boolean
+    protocolNetwork: String!
+  }
+
+  input IndexingRuleIdentifier {
+    identifier: String!
+    protocolNetwork: String!
   }
 
   type GeoLocation {
@@ -299,6 +296,7 @@ const SCHEMA_SDL = gql`
 
   type IndexerRegistration {
     url: String
+    protocolNetwork: String!
     address: String
     registered: Boolean!
     location: GeoLocation
@@ -349,6 +347,7 @@ const SCHEMA_SDL = gql`
   type IndexerEndpoint {
     url: String
     healthy: Boolean!
+    protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
   }
 
@@ -370,19 +369,26 @@ const SCHEMA_SDL = gql`
   }
 
   type Query {
-    indexingRule(identifier: String!, merged: Boolean! = false): IndexingRule
-    indexingRules(merged: Boolean! = false): [IndexingRule!]!
-    indexerRegistration: IndexerRegistration!
+    indexingRule(
+      identifier: IndexingRuleIdentifier!
+      merged: Boolean! = false
+    ): IndexingRule
+    indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
+    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
-    indexerAllocations: [IndexerAllocation]!
-    indexerEndpoints: IndexerEndpoints!
+    indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
+    indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
 
-    dispute(allocationID: String!): POIDispute
-    disputes(status: String!, minClosedEpoch: Int!): [POIDispute]!
-    disputesClosedAfter(closedAfterBlock: BigInt!): [POIDispute]!
+    dispute(identifier: POIDisputeIdentifier!): POIDispute
+    disputes(
+      status: String!
+      minClosedEpoch: Int!
+      protocolNetwork: String
+    ): [POIDispute]!
+    disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
     allocations(filter: AllocationFilter!): [Allocation!]!
 
@@ -397,30 +403,33 @@ const SCHEMA_SDL = gql`
 
   type Mutation {
     setIndexingRule(rule: IndexingRuleInput!): IndexingRule!
-    deleteIndexingRule(identifier: String!): Boolean!
-    deleteIndexingRules(identifiers: [String!]!): Boolean!
+    deleteIndexingRule(identifier: IndexingRuleIdentifier!): Boolean!
+    deleteIndexingRules(identifiers: [IndexingRuleIdentifier!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
     deleteCostModels(deployments: [String!]!): Int!
 
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
-    deleteDisputes(allocationIDs: [String!]!): Int!
+    deleteDisputes(identifiers: [POIDisputeIdentifier!]!): Int!
 
     createAllocation(
       deployment: String!
       amount: String!
       indexNode: String
+      protocolNetwork: String!
     ): CreateAllocationResult!
     closeAllocation(
       allocation: String!
       poi: String
       force: Boolean
+      protocolNetwork: String!
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
       poi: String
       amount: String!
       force: Boolean
+      protocolNetwork: String!
     ): ReallocateAllocationResult!
 
     updateAction(action: ActionInput!): Action!
@@ -441,24 +450,15 @@ export interface IndexerManagementDefaults {
 }
 
 export interface IndexerManagementClientOptions {
-  models: IndexerManagementModels
-  address: string
-  contracts: NetworkContracts
-  indexingStatusResolver: IndexingStatusResolver
-  indexNodeIDs: string[]
-  deploymentManagementEndpoint: string
-  networkSubgraph: NetworkSubgraph
   logger: Logger
+  models: IndexerManagementModels
+  graphNode: GraphNode
+  // TODO:L2: Do we need this information? The GraphNode class auto-selects nodes based
+  // on availability.
+  // Ford: there were some edge cases where the GraphNode was not able to auto handle it on its own
+  indexNodeIDs: string[]
+  multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
-  features: IndexerManagementFeatures
-  ethereum?: ethers.providers.BaseProvider
-  transactionManager?: TransactionManager
-  receiptCollector?: AllocationReceiptCollector
-  networkMonitor?: NetworkMonitor
-  allocationManagementMode?: AllocationManagementMode
-  autoAllocationMinBatchSize?: number
-  ipfsEndpoint?: string
-  autoGraftResolverLimit?: number
 }
 
 export class IndexerManagementClient extends Client {
@@ -505,28 +505,12 @@ export class IndexerManagementClient extends Client {
   }
 }
 
+// TODO:L2: Put the IndexerManagementClient creation inside the Agent, and receive
+// MultiNetworks from it
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const {
-    models,
-    address,
-    contracts,
-    indexingStatusResolver,
-    indexNodeIDs,
-    deploymentManagementEndpoint,
-    networkSubgraph,
-    logger,
-    defaults,
-    features,
-    transactionManager,
-    receiptCollector,
-    networkMonitor,
-    allocationManagementMode,
-    autoAllocationMinBatchSize,
-    ipfsEndpoint,
-    autoGraftResolverLimit,
-  } = options
+  const { models, graphNode, logger, defaults, multiNetworks } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -539,62 +523,24 @@ export const createIndexerManagementClient = async (
 
   const dai: WritableEventual<string> = mutable()
 
-  const subgraphManager = new SubgraphManager(
-    deploymentManagementEndpoint,
-    indexNodeIDs,
-    indexingStatusResolver,
-    ipfsEndpoint,
-    autoGraftResolverLimit,
-  )
-  let allocationManager: AllocationManager | undefined = undefined
-  let actionManager: ActionManager | undefined = undefined
+  const actionManager = multiNetworks
+    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+    : undefined
 
-  if (transactionManager && networkMonitor) {
-    if (receiptCollector) {
-      // TODO: AllocationManager construction inside ActionManager
-      allocationManager = new AllocationManager(
-        contracts,
-        logger.child({ component: 'AllocationManager' }),
-        address,
-        models,
-        networkMonitor,
-        receiptCollector,
-        subgraphManager,
-        transactionManager,
-      )
-      actionManager = new ActionManager(
-        allocationManager,
-        networkMonitor,
-        logger.child({ component: 'ActionManager' }),
-        models,
-        allocationManagementMode,
-        autoAllocationMinBatchSize,
-      )
-
-      logger.info('Begin monitoring the queue for approved actions to execute')
-      await actionManager.monitorQueue()
-    }
+  const context: IndexerManagementResolverContext = {
+    models,
+    graphNode,
+    defaults,
+    logger: logger.child({ component: 'IndexerManagementClient' }),
+    dai,
+    multiNetworks,
+    actionManager,
   }
 
   const exchange = executeExchange({
     schema,
     rootValue: resolvers,
-    context: {
-      models,
-      address,
-      contracts,
-      indexingStatusResolver,
-      subgraphManager,
-      networkMonitor,
-      networkSubgraph,
-      logger: logger ? logger.child({ component: 'IndexerManagementClient' }) : undefined,
-      defaults,
-      features,
-      dai,
-      transactionManager,
-      actionManager,
-      receiptCollector,
-    },
+    context,
   })
 
   return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options, {
