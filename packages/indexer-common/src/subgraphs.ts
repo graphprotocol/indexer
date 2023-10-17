@@ -11,6 +11,11 @@ import { DocumentNode, print } from 'graphql'
 import gql from 'graphql-tag'
 import { QueryResult } from './network-subgraph'
 import { mergeSelectionSets, sleep } from './utils'
+import { IndexerManagementModels } from './indexer-management/models'
+import { upsertIndexingRule } from './indexer-management/rules'
+import * as yaml from 'yaml'
+import { indexerError, IndexerErrorCode } from './errors'
+import { GraphNode } from './graph-node'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -521,4 +526,116 @@ export class SubgraphFreshnessChecker {
       return 'Block number is null or undefined'
     }
   }
+}
+
+// Recursive function for targetDeployment resolve grafting, add depth until reached to resolverDepth
+export async function resolveGrafting(
+  logger: Logger,
+  models: IndexerManagementModels,
+  ipfsEndpoint: URL,
+  targetDeployment: SubgraphDeploymentID,
+  depth: number,
+  autoGraftResolverLimit: number,
+  graphNode: GraphNode,
+): Promise<void> {
+  const manifest = await fetchSubgraphManifest(ipfsEndpoint, targetDeployment)
+  const name = `indexer-agent/${targetDeployment.ipfsHash.slice(-10)}`
+
+  // No grafting or at root of dependency
+  if (!manifest.features || !manifest.features.includes('grafting')) {
+    if (depth) {
+      await graphNode.ensure(name, targetDeployment)
+    }
+    return
+  }
+  // Default limit set to 0, disable auto-resolve of grafting dependencies
+  if (depth >= autoGraftResolverLimit) {
+    throw indexerError(
+      IndexerErrorCode.IE074,
+      `Grafting depth reached limit for auto resolve`,
+    )
+  }
+
+  try {
+    const baseDeployment = new SubgraphDeploymentID(manifest.graft.base)
+    let baseName = name.replace(depthRegex, `/depth-${depth}`)
+    if (baseName === name) {
+      // add depth suffix if didn't have one from targetDeployment
+      baseName += `/depth-${depth}`
+    }
+    await resolveGrafting(
+      logger,
+      models,
+      ipfsEndpoint,
+      baseDeployment,
+      depth + 1,
+      autoGraftResolverLimit,
+      graphNode,
+    )
+
+    // If base deployment has synced upto the graft block, then ensure the target deployment
+    // Otherwise just log to come back later
+    const graftStatus = await graphNode.indexingStatus([baseDeployment])
+    // If base deployment synced to required block, try to sync the target and
+    // turn off syncing for the base deployment
+    if (
+      graftStatus[0].chains[0].latestBlock &&
+      graftStatus[0].chains[0].latestBlock.number >= manifest.graft.block
+    ) {
+      await graphNode.ensure(name, targetDeployment)
+      // At this point, can safely set NEVER to graft base deployment
+      await stopSync(logger, baseDeployment, models)
+    } else {
+      logger.debug(
+        `Graft base deployment has yet to reach the graft block, try again later`,
+      )
+    }
+  } catch {
+    throw indexerError(
+      IndexerErrorCode.IE074,
+      `Base deployment hasn't synced to the graft block, try again later`,
+    )
+  }
+}
+
+/**
+ * Matches "/depth-" followed by one or more digits
+ */
+const depthRegex = /\/depth-\d+/
+
+// TODO: This should be under a dedicated class like Agent or Operator
+async function stopSync(
+  logger: Logger,
+  deployment: SubgraphDeploymentID,
+  models: IndexerManagementModels,
+) {
+  const neverIndexingRule = {
+    identifier: deployment.ipfsHash,
+    identifierType: SubgraphIdentifierType.DEPLOYMENT,
+    decisionBasis: IndexingDecisionBasis.NEVER,
+  } as Partial<IndexingRuleAttributes>
+
+  await upsertIndexingRule(logger, models, neverIndexingRule)
+}
+
+interface Graft {
+  base: string
+  block: number
+}
+
+interface SubgraphManifest {
+  features: string[]
+  graft: Graft
+}
+
+// Simple fetch for subgraph manifest
+async function fetchSubgraphManifest(
+  ipfsEndpoint: URL,
+  targetDeployment: SubgraphDeploymentID,
+): Promise<SubgraphManifest> {
+  const ipfsFile = await fetch(ipfsEndpoint + targetDeployment.ipfsHash, {
+    method: 'POST',
+    redirect: 'follow',
+  })
+  return yaml.parse(await ipfsFile.text()) as SubgraphManifest // TODO: validate this value using Zod
 }

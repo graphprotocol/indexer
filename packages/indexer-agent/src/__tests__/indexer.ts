@@ -135,7 +135,6 @@ const setup = async () => {
   })
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
-  const ipfsEndpoint = 'https://ipfs.network.thegraph.com' // TODO: make this configurable and use within graft auto-resolver
   queryFeeModels = defineQueryFeeModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
 
@@ -183,7 +182,6 @@ const setup = async () => {
     },
   })
 
-  const autoGraftResolverLimit = 1 // TODO: use a sensible value in tests. (Do we need graft auto-resolver in tests?)
   const network = await Network.create(
     logger,
     networkSpecification,

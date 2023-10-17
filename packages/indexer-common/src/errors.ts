@@ -85,6 +85,7 @@ export enum IndexerErrorCode {
   IE072 = 'IE072',
   IE073 = 'IE073',
   IE074 = 'IE074',
+  IE075 = 'IE075',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
