@@ -1,5 +1,7 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BigNumber, providers } from 'ethers'
+import { z } from 'zod'
+import { transformIpfsHash } from './network-specification'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
@@ -106,3 +108,13 @@ export function parseDeploymentManagementMode(input: string): DeploymentManageme
       throw new Error(`Invalid value for deployment management mode: ${input}`)
   }
 }
+
+const Graft = z.object({
+  base: z.string().transform(transformIpfsHash),
+  block: z.number().positive(),
+})
+
+export const SubgraphManifestSchema = z.object({
+  features: z.array(z.string()).optional(),
+  graft: Graft.optional(),
+})

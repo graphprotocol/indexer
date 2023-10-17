@@ -161,7 +161,7 @@ function transformNetworkIdentifier(input: string, ctx: z.RefinementCtx): string
   }
 }
 
-function transformIpfsHash(input: string, ctx: z.RefinementCtx): string {
+export function transformIpfsHash(input: string, ctx: z.RefinementCtx): string {
   try {
     return validateIpfsHash(input)
   } catch (e) {

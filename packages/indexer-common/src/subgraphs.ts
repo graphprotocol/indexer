@@ -1,7 +1,7 @@
 import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { SubgraphDeployment } from './types'
+import { SubgraphDeployment, SubgraphManifestSchema } from './types'
 import {
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
@@ -16,6 +16,7 @@ import { upsertIndexingRule } from './indexer-management/rules'
 import * as yaml from 'yaml'
 import { indexerError, IndexerErrorCode } from './errors'
 import { GraphNode } from './graph-node'
+import { z } from 'zod'
 
 export enum SubgraphIdentifierType {
   DEPLOYMENT = 'deployment',
@@ -538,7 +539,7 @@ export async function resolveGrafting(
   autoGraftResolverLimit: number,
   graphNode: GraphNode,
 ): Promise<void> {
-  const manifest = await fetchSubgraphManifest(ipfsEndpoint, targetDeployment)
+  const manifest = await fetchSubgraphManifest(ipfsEndpoint, targetDeployment, logger)
   const name = `indexer-agent/${targetDeployment.ipfsHash.slice(-10)}`
 
   // No grafting or at root of dependency
@@ -554,6 +555,11 @@ export async function resolveGrafting(
       IndexerErrorCode.IE074,
       `Grafting depth reached limit for auto resolve`,
     )
+  }
+
+  // Ensure manifest.graft field exists
+  if (!manifest.graft) {
+    throw new Error(`Expected subgraph manifest to contain a 'graft' field`)
   }
 
   try {
@@ -618,24 +624,64 @@ async function stopSync(
   await upsertIndexingRule(logger, models, neverIndexingRule)
 }
 
-interface Graft {
-  base: string
-  block: number
-}
-
-interface SubgraphManifest {
-  features: string[]
-  graft: Graft
-}
-
+type SubgraphManifest = z.infer<typeof SubgraphManifestSchema>
 // Simple fetch for subgraph manifest
 async function fetchSubgraphManifest(
   ipfsEndpoint: URL,
   targetDeployment: SubgraphDeploymentID,
+  parentLogger: Logger,
 ): Promise<SubgraphManifest> {
-  const ipfsFile = await fetch(ipfsEndpoint + targetDeployment.ipfsHash, {
-    method: 'POST',
-    redirect: 'follow',
+  // Build IPFS search URL
+  const subgraphManifestSearchURL = new URL('/api/v0/cat', ipfsEndpoint)
+  subgraphManifestSearchURL.searchParams.set('arg', targetDeployment.ipfsHash)
+
+  const logger = parentLogger.child({
+    function: 'fetchSubgraphManifest',
+    subgraphDeployment: SubgraphDeploymentID,
+    subgraphManifestSearchURL,
   })
-  return yaml.parse(await ipfsFile.text()) as SubgraphManifest // TODO: validate this value using Zod
+
+  // Fetch file on IPFS
+  let ipfsFile
+  try {
+    logger.trace('Fetching subgraph manifest file on IPFS')
+    ipfsFile = await fetch(subgraphManifestSearchURL, {
+      method: 'POST',
+      redirect: 'follow',
+    })
+  } catch (error) {
+    const message = 'Failed to fetch subgraph manifest file on IPFS'
+    logger.error(message, { error })
+    throw indexerError(IndexerErrorCode.IE074, { message, error })
+  }
+
+  // Resolve file's text content
+  let text
+  try {
+    text = await ipfsFile!.text()
+  } catch (error) {
+    const message = `Failed to resolve subgraph manifest file text content`
+    logger.error(message, { error })
+    throw indexerError(IndexerErrorCode.IE074, { message, error })
+  }
+
+  // Parse text as a YAML file
+  let yamlContent
+  try {
+    yamlContent = yaml.parse(text!)
+  } catch (error) {
+    const message = `Failed to read file contents as valid YAML`
+    logger.error(message, { error })
+    throw indexerError(IndexerErrorCode.IE074, { message, error })
+  }
+
+  // Validate YAML contents
+  const validationResult = SubgraphManifestSchema.safeParse(yamlContent)
+  if (validationResult.success) {
+    return validationResult.data
+  } else {
+    const message = `Failed to validate yaml contents as a subgraph manifest`
+    logger.error(message)
+    throw indexerError(IndexerErrorCode.IE074, message)
+  }
 }
