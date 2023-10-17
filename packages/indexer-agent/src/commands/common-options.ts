@@ -137,6 +137,25 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       coerce: parseDeploymentManagementMode,
       group: 'Indexer Infrastructure',
     })
+    .option('ipfs-endpoint', {
+      description: `Endpoint to an ipfs node to quickly query subgraph manifest data`,
+      type: 'string',
+      default: 'https://ipfs.network.thegraph.com',
+      group: 'Indexer Infrastructure',
+      coerce: arg => new URL(arg),
+    })
+    .option('grafting-auto-resolve-depth', {
+      description: `Maximum depth of grafting dependency to automatically resolve`,
+      type: 'number',
+      default: 0,
+      group: 'Indexer Infrastructure',
+      coerce: (value: number) => {
+        if (value < 0) {
+          throw new Error('Number must be a non-negative value')
+        }
+        return value
+      },
+    })
     .config({
       key: 'config-file',
       description: 'Indexer agent configuration file (YAML format)',
