@@ -11,11 +11,8 @@ import { DocumentNode, print } from 'graphql'
 import gql from 'graphql-tag'
 import { QueryResult } from './network-subgraph'
 import { mergeSelectionSets, sleep } from './utils'
-import { IndexerManagementModels } from './indexer-management/models'
-import { upsertIndexingRule } from './indexer-management/rules'
 import * as yaml from 'yaml'
 import { indexerError, IndexerErrorCode } from './errors'
-import { GraphNode } from './graph-node'
 import { z } from 'zod'
 
 export enum SubgraphIdentifierType {
@@ -343,6 +340,7 @@ export interface LoggerInterface {
   trace(msg: string, o?: object, ...args: any[]): void
   error(msg: string, o?: object, ...args: any[]): void
   warn(msg: string, o?: object, ...args: any[]): void
+  child(bindings: Record<string, any>): Logger
 }
 
 export interface SubgraphQueryInterface {
@@ -529,107 +527,64 @@ export class SubgraphFreshnessChecker {
   }
 }
 
-// Recursive function for targetDeployment resolve grafting, add depth until reached to resolverDepth
-export async function resolveGrafting(
-  logger: Logger,
-  models: IndexerManagementModels,
-  ipfsEndpoint: URL,
-  targetDeployment: SubgraphDeploymentID,
-  depth: number,
-  autoGraftResolverLimit: number,
-  graphNode: GraphNode,
-): Promise<void> {
-  const manifest = await fetchSubgraphManifest(ipfsEndpoint, targetDeployment, logger)
-  const name = `indexer-agent/${targetDeployment.ipfsHash.slice(-10)}`
-
-  // No grafting or at root of dependency
-  if (!manifest.features || !manifest.features.includes('grafting')) {
-    if (depth) {
-      await graphNode.ensure(name, targetDeployment)
-    }
-    return
-  }
-  // Default limit set to 0, disable auto-resolve of grafting dependencies
-  if (depth >= autoGraftResolverLimit) {
-    throw indexerError(
-      IndexerErrorCode.IE074,
-      `Grafting depth reached limit for auto resolve`,
-    )
-  }
-
-  // Ensure manifest.graft field exists
-  if (!manifest.graft) {
-    throw new Error(`Expected subgraph manifest to contain a 'graft' field`)
-  }
-
-  try {
-    const baseDeployment = new SubgraphDeploymentID(manifest.graft.base)
-    let baseName = name.replace(depthRegex, `/depth-${depth}`)
-    if (baseName === name) {
-      // add depth suffix if didn't have one from targetDeployment
-      baseName += `/depth-${depth}`
-    }
-    await resolveGrafting(
-      logger,
-      models,
-      ipfsEndpoint,
-      baseDeployment,
-      depth + 1,
-      autoGraftResolverLimit,
-      graphNode,
-    )
-
-    // If base deployment has synced upto the graft block, then ensure the target deployment
-    // Otherwise just log to come back later
-    const graftStatus = await graphNode.indexingStatus([baseDeployment])
-    // If base deployment synced to required block, try to sync the target and
-    // turn off syncing for the base deployment
-    if (
-      graftStatus[0].chains[0].latestBlock &&
-      graftStatus[0].chains[0].latestBlock.number >= manifest.graft.block
-    ) {
-      await graphNode.ensure(name, targetDeployment)
-      // At this point, can safely set NEVER to graft base deployment
-      await stopSync(logger, baseDeployment, models)
-    } else {
-      logger.debug(
-        `Graft base deployment has yet to reach the graft block, try again later`,
-      )
-    }
-  } catch {
-    throw indexerError(
-      IndexerErrorCode.IE074,
-      `Base deployment hasn't synced to the graft block, try again later`,
-    )
-  }
+export interface GraftBase {
+  block: number
+  base: SubgraphDeploymentID
 }
 
-/**
- * Matches "/depth-" followed by one or more digits
- */
-const depthRegex = /\/depth-\d+/
+export interface GraftableSubgraph {
+  deployment: SubgraphDeploymentID
+  graft: GraftBase | null // Root subgraph does not have a graft base
+}
 
-// TODO: This should be under a dedicated class like Agent or Operator
-async function stopSync(
-  logger: Logger,
-  deployment: SubgraphDeploymentID,
-  models: IndexerManagementModels,
-) {
-  const neverIndexingRule = {
-    identifier: deployment.ipfsHash,
-    identifierType: SubgraphIdentifierType.DEPLOYMENT,
-    decisionBasis: IndexingDecisionBasis.NEVER,
-  } as Partial<IndexingRuleAttributes>
+type SubgraphManifestResolver = (
+  subgraphID: SubgraphDeploymentID,
+) => Promise<SubgraphManifest>
 
-  await upsertIndexingRule(logger, models, neverIndexingRule)
+// Resolves all graft dependencies for a given subgraph
+export async function resolveGrafting(
+  subgraphManifestResolver: SubgraphManifestResolver,
+  targetDeployment: SubgraphDeploymentID,
+  maxIterations: number = 100,
+): Promise<GraftableSubgraph[]> {
+  const graftBases: GraftableSubgraph[] = []
+
+  let iterationCount = 0
+  let deployment = targetDeployment
+  while (iterationCount < maxIterations) {
+    const manifest = await subgraphManifestResolver(deployment)
+    let graft: GraftBase | null = null
+    if (manifest.features?.includes('grafting') && manifest.graft) {
+      // Found a graft base
+      const base = new SubgraphDeploymentID(manifest.graft.base)
+      graft = { block: manifest.graft.block, base }
+      graftBases.push({ deployment, graft })
+      deployment = base
+    } else {
+      // Reached root subgraph, stop iterating
+      iterationCount = maxIterations
+      graftBases.push({ deployment, graft })
+    }
+    iterationCount++
+  }
+
+  // Check if we have found the graft root
+  if (graftBases.length > 0 && graftBases[graftBases.length - 1].graft !== null) {
+    throw new Error(
+      `Failed to find a graft root for target subgraph deployment (${targetDeployment.ipfsHash}) after ${iterationCount} iterations.`,
+    )
+  }
+
+  return graftBases
 }
 
 type SubgraphManifest = z.infer<typeof SubgraphManifestSchema>
+
 // Simple fetch for subgraph manifest
-async function fetchSubgraphManifest(
+export async function fetchSubgraphManifest(
   ipfsEndpoint: URL,
   targetDeployment: SubgraphDeploymentID,
-  parentLogger: Logger,
+  parentLogger: LoggerInterface,
 ): Promise<SubgraphManifest> {
   // Build IPFS search URL
   const subgraphManifestSearchURL = new URL('/api/v0/cat', ipfsEndpoint)
@@ -652,7 +607,7 @@ async function fetchSubgraphManifest(
   } catch (error) {
     const message = 'Failed to fetch subgraph manifest file on IPFS'
     logger.error(message, { error })
-    throw indexerError(IndexerErrorCode.IE074, { message, error })
+    throw indexerError(IndexerErrorCode.IE075, { message, error })
   }
 
   // Resolve file's text content
@@ -662,7 +617,7 @@ async function fetchSubgraphManifest(
   } catch (error) {
     const message = `Failed to resolve subgraph manifest file text content`
     logger.error(message, { error })
-    throw indexerError(IndexerErrorCode.IE074, { message, error })
+    throw indexerError(IndexerErrorCode.IE075, { message, error })
   }
 
   // Parse text as a YAML file
@@ -672,7 +627,7 @@ async function fetchSubgraphManifest(
   } catch (error) {
     const message = `Failed to read file contents as valid YAML`
     logger.error(message, { error })
-    throw indexerError(IndexerErrorCode.IE074, { message, error })
+    throw indexerError(IndexerErrorCode.IE075, { message, error })
   }
 
   // Validate YAML contents
@@ -682,6 +637,6 @@ async function fetchSubgraphManifest(
   } else {
     const message = `Failed to validate yaml contents as a subgraph manifest`
     logger.error(message)
-    throw indexerError(IndexerErrorCode.IE074, message)
+    throw indexerError(IndexerErrorCode.IE075, message)
   }
 }

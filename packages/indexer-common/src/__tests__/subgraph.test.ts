@@ -15,6 +15,7 @@ export const mockProvider: ProviderInterface & any = {
 }
 
 export const mockLogger: LoggerInterface & any = {
+  child: jest.fn(),
   trace: jest.fn(),
   error: jest.fn(),
   warn: jest.fn(),
