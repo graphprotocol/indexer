@@ -1,17 +1,12 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { GraphNodeInterface } from './graph-node'
-import { BlockPointer, SubgraphManifest } from './types'
+import {
+  BlockPointer,
+  SubgraphDeploymentDecision,
+  SubgraphDeploymentDecisionKind,
+  SubgraphManifest,
+} from './types'
 import { indexerError, IndexerErrorCode } from './errors'
-
-export interface GraftBase {
-  block: number
-  base: SubgraphDeploymentID
-}
-
-export interface GraftableSubgraph {
-  deployment: SubgraphDeploymentID
-  graft: GraftBase | null // Root subgraph does not have a graft base
-}
 
 type SubgraphManifestResolver = (
   subgraphID: SubgraphDeploymentID,
@@ -23,8 +18,27 @@ interface IndexingStatus {
   synced: boolean
 }
 
-interface SubgraphGraftStatus extends GraftableSubgraph {
+export interface GraftBase {
+  block: number
+  base: SubgraphDeploymentID
+}
+
+export interface GraftableSubgraph {
+  deployment: SubgraphDeploymentID
+  graft: GraftBase | null // Root subgraph does not have a graft base
+}
+
+interface GraftableSubgraphStatus extends GraftableSubgraph {
   indexingStatus: IndexingStatus | null
+}
+
+// TODO: use this type instead of a plain list.
+// Benefits: No need to check for graft base block on the adjacent sibling.
+interface SubgraphGraftLineage {
+  target: SubgraphDeploymentID
+  root: GraftBase
+  // list of descending graft bases, except the root.
+  bases: GraftBase[]
 }
 
 // Discovers all graft dependencies for a given subgraph
@@ -64,7 +78,7 @@ export async function discoverGraftBases(
 export async function getIndexingStatusOfGraftableSubgraph(
   subgraph: GraftableSubgraph,
   graphNode: GraphNodeInterface,
-): Promise<SubgraphGraftStatus> {
+): Promise<GraftableSubgraphStatus> {
   let response
   try {
     response = await graphNode.indexingStatus([subgraph.deployment])
@@ -87,4 +101,53 @@ export async function getIndexingStatusOfGraftableSubgraph(
     }
   }
   return { ...subgraph, indexingStatus }
+}
+
+export function resolveGraftedSubgraphDeployment(
+  subgraphLineage: GraftableSubgraphStatus[],
+): SubgraphDeploymentDecision[] {
+  const deploymentDecisions: SubgraphDeploymentDecision[] = []
+
+  // Check lineage size before making any assumptions.
+  if (subgraphLineage.length < 2) {
+    throw new Error(
+      `Invalid input: Expected at least two members in graft lineage but got ${subgraphLineage.length}`,
+    )
+  }
+  // Check for any unsynced base.
+  // Iterate backwards while ignoring the target deployment (first element).
+  for (let i = subgraphLineage.length - 1; i > 1; i--) {
+    const graft = subgraphLineage[i]
+
+    // Block height is stored in the previous element in the lineage list.
+    // Since we are skipping the root (last element), the graft info is expected to be present.
+    const desiredBlockHeight = subgraphLineage[i - 1].graft!.block
+
+    if (!graft.indexingStatus || !graft.indexingStatus.latestBlock) {
+      // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
+      deploymentDecisions.push({
+        deployment: graft.deployment,
+        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+      })
+      break
+    } else {
+      // Deployment exists.
+
+      // Is it sufficiently synced?
+      if (graft.indexingStatus.latestBlock.number >= desiredBlockHeight) {
+        // If so, we can stop syncing it.
+        deploymentDecisions.push({
+          deployment: graft.deployment,
+          deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        })
+        continue
+      }
+
+      // Is it healthy?
+      if (graft.indexingStatus.health !== 'healthy') {
+        throw new Error(`Unhealthy graft base: ${graft.deployment}`)
+      }
+    }
+  }
+  return deploymentDecisions
 }

@@ -120,3 +120,15 @@ export const SubgraphManifestSchema = z.object({
 })
 
 export type SubgraphManifest = z.infer<typeof SubgraphManifestSchema>
+
+export enum SubgraphDeploymentDecisionKind {
+  CREATE = 'create',
+  DEPLOY = 'deploy',
+  REMOVE = 'remove',
+  // Possible new members: PAUSE, DROP, NOOP
+}
+
+export interface SubgraphDeploymentDecision {
+  deployment: SubgraphDeploymentID
+  deploymentDecision: SubgraphDeploymentDecisionKind
+}
