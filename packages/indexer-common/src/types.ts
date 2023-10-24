@@ -118,3 +118,5 @@ export const SubgraphManifestSchema = z.object({
   features: z.array(z.string()).optional(),
   graft: Graft.optional(),
 })
+
+export type SubgraphManifest = z.infer<typeof SubgraphManifestSchema>

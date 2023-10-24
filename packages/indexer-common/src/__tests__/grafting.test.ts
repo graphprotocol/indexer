@@ -1,4 +1,4 @@
-import { resolveGrafting, GraftableSubgraph } from '../subgraphs'
+import { resolveGrafting, GraftableSubgraph } from '../grafting'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 // Create a mock for the fetchSubgraphManifest function
