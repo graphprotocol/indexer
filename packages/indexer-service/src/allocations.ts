@@ -38,16 +38,13 @@ export const monitorEligibleAllocations = ({
     logger.debug('Refresh eligible allocations')
 
     try {
-      const currentEpochResult = await networkSubgraph.checkedQuery(
-        gql`
-          query {
-            graphNetwork(id: "1") {
-              currentEpoch
-            }
+      const currentEpochResult = await networkSubgraph.checkedQuery(gql`
+        query {
+          graphNetwork(id: "1") {
+            currentEpoch
           }
         }
-      `,
-      )
+      `)
       if (currentEpochResult.error) {
         throw currentEpochResult.error
       }
