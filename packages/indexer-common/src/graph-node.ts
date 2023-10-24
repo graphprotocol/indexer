@@ -60,7 +60,11 @@ export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
       }
     : null
 
-export class GraphNode {
+export interface GraphNodeInterface {
+  indexingStatus(deployments: SubgraphDeploymentID[]): Promise<IndexingStatus[]>
+}
+
+export class GraphNode implements GraphNodeInterface {
   admin: RpcClient
   private queryBaseURL: URL
   status: Client
@@ -442,9 +446,14 @@ export class GraphNode {
           }`
 
     const queryIndexingStatuses = async () => {
-      const result = await this.status
-        .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
-        .toPromise()
+      let result
+      try {
+        result = await this.status
+          .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
+          .toPromise()
+      } catch (error) {
+        throw indexerError(IndexerErrorCode.IE018, error)
+      }
 
       return (
         result.data.indexingStatuses

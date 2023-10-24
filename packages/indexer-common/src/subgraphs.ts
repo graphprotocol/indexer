@@ -1,7 +1,7 @@
 import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { SubgraphDeployment, SubgraphManifestSchema } from './types'
+import { SubgraphDeployment, SubgraphManifestSchema, BlockPointer } from './types'
 import {
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
@@ -13,6 +13,7 @@ import { QueryResult } from './network-subgraph'
 import { mergeSelectionSets, sleep } from './utils'
 import * as yaml from 'yaml'
 import { indexerError, IndexerErrorCode } from './errors'
+import { GraphNodeInterface } from './graph-node'
 import { z } from 'zod'
 
 export enum SubgraphIdentifierType {
@@ -639,4 +640,42 @@ export async function fetchSubgraphManifest(
     logger.error(message)
     throw indexerError(IndexerErrorCode.IE075, message)
   }
+}
+
+interface IndexingStatus {
+  latestBlock: BlockPointer | null
+  health: string
+  synced: boolean
+}
+
+interface SubgraphGraftStatus extends GraftableSubgraph {
+  indexingStatus: IndexingStatus | null
+}
+
+export async function getIndexingStatusOfGraftableSubgraph(
+  subgraph: GraftableSubgraph,
+  graphNode: GraphNodeInterface,
+): Promise<SubgraphGraftStatus> {
+  let response
+  try {
+    response = await graphNode.indexingStatus([subgraph.deployment])
+  } catch (error) {
+    const message = `Failed to fetch indexing status when resolving subgraph grafts`
+    // TODO: log this error
+    throw indexerError(IndexerErrorCode.IE075, { message, error })
+  }
+  let indexingStatus: IndexingStatus | null = null
+  if (response && response.length) {
+    const subgraphIndexingStatus = response[0]
+    let latestBlock: BlockPointer | null = null
+    if (subgraphIndexingStatus.chains && subgraphIndexingStatus.chains.length) {
+      latestBlock = subgraphIndexingStatus.chains[0].latestBlock
+    }
+    indexingStatus = {
+      health: subgraphIndexingStatus.health,
+      synced: subgraphIndexingStatus.synced,
+      latestBlock,
+    }
+  }
+  return { ...subgraph, indexingStatus }
 }
