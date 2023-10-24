@@ -1,4 +1,4 @@
-import { resolveGrafting, GraftableSubgraph } from '../grafting'
+import { discoverGraftBases, GraftableSubgraph } from '../grafting'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 
 // Create a mock for the fetchSubgraphManifest function
@@ -38,7 +38,7 @@ describe('resolveGrafting', () => {
   test('should resolve grafting with multiple iterations', async () => {
     const targetDeployment = new SubgraphDeploymentID(target)
 
-    const result: GraftableSubgraph[] = await resolveGrafting(
+    const result: GraftableSubgraph[] = await discoverGraftBases(
       fakeSubgraphManifestResolver,
       targetDeployment,
     )
@@ -64,7 +64,7 @@ describe('resolveGrafting', () => {
   test('should resolve grafting when max iterations are reached', async () => {
     const targetDeployment = new SubgraphDeploymentID(target)
     expect(() =>
-      resolveGrafting(
+      discoverGraftBases(
         fakeSubgraphManifestResolver,
         targetDeployment,
         2, // Set maxIterations to 2

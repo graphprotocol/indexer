@@ -27,8 +27,8 @@ interface SubgraphGraftStatus extends GraftableSubgraph {
   indexingStatus: IndexingStatus | null
 }
 
-// Resolves all graft dependencies for a given subgraph
-export async function resolveGrafting(
+// Discovers all graft dependencies for a given subgraph
+export async function discoverGraftBases(
   subgraphManifestResolver: SubgraphManifestResolver,
   targetDeployment: SubgraphDeploymentID,
   maxIterations: number = 100,
