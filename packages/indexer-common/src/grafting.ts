@@ -8,83 +8,94 @@ import {
 } from './types'
 import { indexerError, IndexerErrorCode } from './errors'
 
+// Any type that can return a SubgraphManifest when given a
+// SubgraphDeploymentID as input.
 type SubgraphManifestResolver = (
   subgraphID: SubgraphDeploymentID,
 ) => Promise<SubgraphManifest>
 
+// Syncing status obtained from Graph-Node.
 interface IndexingStatus {
   latestBlock: BlockPointer | null
   health: string
   synced: boolean
 }
 
+// Naive grafting information: contains only the parent subgraph
+// deployment and its block height.
 export interface GraftBase {
   block: number
-  base: SubgraphDeploymentID
-}
-
-export interface GraftableSubgraph {
   deployment: SubgraphDeploymentID
-  graft: GraftBase | null // Root subgraph does not have a graft base
 }
 
-interface GraftableSubgraphStatus extends GraftableSubgraph {
-  indexingStatus: IndexingStatus | null
-}
-
-// TODO: use this type instead of a plain list.
-// Benefits: No need to check for graft base block on the adjacent sibling.
-interface SubgraphGraftLineage {
+// Naive lineage information for a subgraph, consisting of a target
+// deployment and the series of its graft dependencies, in descending
+// order.
+export interface SubgraphLineage {
   target: SubgraphDeploymentID
-  root: GraftBase
-  // list of descending graft bases, except the root.
+  // list of descending graft bases (root is the last element).
   bases: GraftBase[]
 }
 
-// Discovers all graft dependencies for a given subgraph
-export async function discoverGraftBases(
+// Graft base information enriched with indexing status obtained from
+// Graph-Node.
+interface GraftSubject extends GraftBase {
+  // No indexing status implies undeployed subgraph.
+  indexingStatus: IndexingStatus | null
+}
+
+// Subgraph lineage information enriched with indexing status for each
+// graft dependency.
+export interface SubgraphLineageWithStatus extends SubgraphLineage {
+  bases: GraftSubject[]
+}
+
+// Discovers all graft dependencies for a given subgraph.
+export async function discoverLineage(
   subgraphManifestResolver: SubgraphManifestResolver,
   targetDeployment: SubgraphDeploymentID,
   maxIterations: number = 100,
-): Promise<GraftableSubgraph[]> {
-  const graftBases: GraftableSubgraph[] = []
+): Promise<SubgraphLineage> {
+  const graftBases: GraftBase[] = []
   let iterationCount = 0
-  let deployment = targetDeployment
+  let foundRoot = false
+  let currentDeployment = targetDeployment
   while (iterationCount < maxIterations) {
-    const manifest = await subgraphManifestResolver(deployment)
+    const manifest = await subgraphManifestResolver(currentDeployment)
     let graft: GraftBase | null = null
     if (manifest.features?.includes('grafting') && manifest.graft) {
-      // Found a graft base
+      // Found a graft base.
       const base = new SubgraphDeploymentID(manifest.graft.base)
-      graft = { block: manifest.graft.block, base }
-      graftBases.push({ deployment, graft })
-      deployment = base
+      graft = { block: manifest.graft.block, deployment: base }
+      graftBases.push(graft)
+      currentDeployment = base
     } else {
-      // Reached root subgraph, stop iterating
-      iterationCount = maxIterations
-      graftBases.push({ deployment, graft })
+      // Reached root subgraph, stop iterating.
+      foundRoot = true
+      break
     }
     iterationCount++
   }
-  // Check if we have found the graft root
-  if (graftBases.length > 0 && graftBases[graftBases.length - 1].graft !== null) {
-    throw new Error(
-      `Failed to find a graft root for target subgraph deployment (${targetDeployment.ipfsHash}) after ${iterationCount} iterations.`,
+  // Check if we have found the graft root.
+  if (!foundRoot) {
+    throw indexerError(
+      IndexerErrorCode.IE075,
+      `Failed to find the graft root for target subgraph deployment (${targetDeployment.ipfsHash}) after ${iterationCount} iterations.`,
     )
   }
-  return graftBases
+  return { target: targetDeployment, bases: graftBases }
 }
 
-export async function getIndexingStatusOfGraftableSubgraph(
-  subgraph: GraftableSubgraph,
+// Adds indexing status to a naive GraftBase.
+export async function getIndexingStatus(
+  graftBase: GraftBase,
   graphNode: GraphNodeInterface,
-): Promise<GraftableSubgraphStatus> {
+): Promise<GraftSubject> {
   let response
   try {
-    response = await graphNode.indexingStatus([subgraph.deployment])
+    response = await graphNode.indexingStatus([graftBase.deployment])
   } catch (error) {
     const message = `Failed to fetch indexing status when resolving subgraph grafts`
-    // TODO: log this error
     throw indexerError(IndexerErrorCode.IE075, { message, error })
   }
   let indexingStatus: IndexingStatus | null = null
@@ -100,29 +111,26 @@ export async function getIndexingStatusOfGraftableSubgraph(
       latestBlock,
     }
   }
-  return { ...subgraph, indexingStatus }
+  return { ...graftBase, indexingStatus }
 }
 
-export function resolveGraftedSubgraphDeployment(
-  subgraphLineage: GraftableSubgraphStatus[],
+export function determineSubgraphDeploymentDecisions(
+  subgraphLineage: SubgraphLineageWithStatus,
 ): SubgraphDeploymentDecision[] {
   const deploymentDecisions: SubgraphDeploymentDecision[] = []
 
   // Check lineage size before making any assumptions.
-  if (subgraphLineage.length < 2) {
-    throw new Error(
-      `Invalid input: Expected at least two members in graft lineage but got ${subgraphLineage.length}`,
+  if (!subgraphLineage.bases) {
+    throw indexerError(
+      IndexerErrorCode.IE075,
+      'Expected target subgraph to have at least one graft base.',
     )
   }
-  // Check for any unsynced base.
-  // Iterate backwards while ignoring the target deployment (first element).
-  for (let i = subgraphLineage.length - 1; i > 1; i--) {
-    const graft = subgraphLineage[i]
-
-    // Block height is stored in the previous element in the lineage list.
-    // Since we are skipping the root (last element), the graft info is expected to be present.
-    const desiredBlockHeight = subgraphLineage[i - 1].graft!.block
-
+  // Check for undeployed and unsynced graft bases.
+  // Start from the root (iterate backwards).
+  for (let i = subgraphLineage.bases.length - 1; i >= 0; i--) {
+    const graft = subgraphLineage.bases[i]
+    const desiredBlockHeight = graft.block
     if (!graft.indexingStatus || !graft.indexingStatus.latestBlock) {
       // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
       deploymentDecisions.push({
@@ -132,7 +140,6 @@ export function resolveGraftedSubgraphDeployment(
       break
     } else {
       // Deployment exists.
-
       // Is it sufficiently synced?
       if (graft.indexingStatus.latestBlock.number >= desiredBlockHeight) {
         // If so, we can stop syncing it.
@@ -142,10 +149,12 @@ export function resolveGraftedSubgraphDeployment(
         })
         continue
       }
-
       // Is it healthy?
       if (graft.indexingStatus.health !== 'healthy') {
-        throw new Error(`Unhealthy graft base: ${graft.deployment}`)
+        throw indexerError(IndexerErrorCode.IE075, {
+          message: `Cannot deploy subgraph due to unhealthy graft base: ${graft.deployment}`,
+          graftDependencies: subgraphLineage,
+        })
       }
     }
   }

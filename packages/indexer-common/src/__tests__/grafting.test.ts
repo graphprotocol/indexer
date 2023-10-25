@@ -1,5 +1,6 @@
-import { discoverGraftBases, GraftableSubgraph } from '../grafting'
+import { discoverLineage, SubgraphLineage } from '../grafting'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { indexerError, IndexerErrorCode } from '../errors'
 
 // Create a mock for the fetchSubgraphManifest function
 const fakeSubgraphManifestResolver = jest.fn()
@@ -10,7 +11,7 @@ const base1 = 'QmWaVSK24D1m53Ej2PaddWcb1HZKAV4bjiKkrUwtP3HrYj'
 const base2 = 'QmWaVSK24D1m53Ej2PaddWcb1HZKAV4bjiKkrUwtP3HrYk'
 const base3 = 'QmWaVSK24D1m53Ej2PaddWcb1HZKAV4bjiKkrUwtP3HrYn'
 
-describe('resolveGrafting', () => {
+describe('discoverLineage', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     const mockManifests = [
@@ -38,39 +39,37 @@ describe('resolveGrafting', () => {
   test('should resolve grafting with multiple iterations', async () => {
     const targetDeployment = new SubgraphDeploymentID(target)
 
-    const result: GraftableSubgraph[] = await discoverGraftBases(
+    const result: SubgraphLineage = await discoverLineage(
       fakeSubgraphManifestResolver,
       targetDeployment,
     )
 
-    expect(result).toEqual([
-      {
-        deployment: targetDeployment,
-        graft: { block: 30, base: new SubgraphDeploymentID(base1) },
-      },
-      {
-        deployment: new SubgraphDeploymentID(base1),
-        graft: { block: 20, base: new SubgraphDeploymentID(base2) },
-      },
-      {
-        deployment: new SubgraphDeploymentID(base2),
-        graft: { block: 10, base: new SubgraphDeploymentID(base3) },
-      },
-      { deployment: new SubgraphDeploymentID(base3), graft: null },
-    ])
+    const expected = {
+      target: targetDeployment,
+      bases: [
+        { deployment: new SubgraphDeploymentID(base1), block: 30 },
+        { deployment: new SubgraphDeploymentID(base2), block: 20 },
+        { deployment: new SubgraphDeploymentID(base3), block: 10 },
+      ],
+    }
+
+    expect(result).toStrictEqual(expected)
     expect(fakeSubgraphManifestResolver).toHaveBeenCalledTimes(4)
   })
 
   test('should resolve grafting when max iterations are reached', async () => {
     const targetDeployment = new SubgraphDeploymentID(target)
     expect(() =>
-      discoverGraftBases(
+      discoverLineage(
         fakeSubgraphManifestResolver,
         targetDeployment,
         2, // Set maxIterations to 2
       ),
     ).rejects.toThrow(
-      `Failed to find a graft root for target subgraph deployment (${target}) after 2 iterations.`,
+      indexerError(
+        IndexerErrorCode.IE075,
+        `Failed to find the graft root for target subgraph deployment (${target}) after 2 iterations.`,
+      ),
     )
   })
 })
