@@ -66,35 +66,96 @@ describe('discoverLineage function', () => {
 
   test('should throw an error after maximum iteration count is reached', async () => {
     const targetDeployment = new SubgraphDeploymentID(target)
-    expect(() =>
-      discoverLineage(
+    let threwError = false
+    try {
+      await discoverLineage(
         fakeSubgraphManifestResolver,
         targetDeployment,
         2, // Set maxIterations to 2
-      ),
-    ).rejects.toThrow(
-      indexerError(
-        IndexerErrorCode.IE075,
+      )
+    } catch (err) {
+      expect(err.code).toStrictEqual(IndexerErrorCode.IE075)
+      expect(err.cause).toStrictEqual(
         `Failed to find the graft root for target subgraph deployment (${target}) after 2 iterations.`,
-      ),
-    )
+      )
+      threwError = true
+    }
+    expect(threwError).toBeTruthy()
   })
 })
 
 describe('determineSubgraphDeploymentDecisions function', () => {
-  //  beforeEach(() => {})
-
   test('should throw an error if bases are not provided', () => {
-    const lineage: SubgraphLineageWithStatus = {
+    const subgraphLineage: SubgraphLineageWithStatus = {
       target: new SubgraphDeploymentID(target),
       bases: [],
     }
-    expect(() => determineSubgraphDeploymentDecisions(lineage)).toThrow(
-      indexerError(
-        IndexerErrorCode.IE075,
+
+    let threwError = false
+    try {
+      determineSubgraphDeploymentDecisions(subgraphLineage)
+    } catch (err) {
+      expect(err.code).toStrictEqual(IndexerErrorCode.IE075)
+      expect(err.cause).toStrictEqual(
         'Expected target subgraph to have at least one graft base.',
-      ),
-    )
+      )
+
+      threwError = true
+    }
+    expect(threwError).toBeTruthy()
+  })
+
+  test('should return an empty array if a single base is still syncing and healthy', () => {
+    const subgraphLineage: SubgraphLineageWithStatus = {
+      target: new SubgraphDeploymentID(target),
+      bases: [
+        {
+          block: 10,
+          deployment: new SubgraphDeploymentID(base1),
+          indexingStatus: {
+            latestBlock: {
+              number: 5,
+              hash: 'foo',
+            },
+            health: 'healthy',
+          },
+        },
+      ],
+    }
+    expect(determineSubgraphDeploymentDecisions(subgraphLineage)).toEqual([])
+  })
+
+  test('should throw an error if an unsynced base is unhealthy', () => {
+    const graftBase = new SubgraphDeploymentID(base1)
+    const subgraphLineage: SubgraphLineageWithStatus = {
+      target: new SubgraphDeploymentID(target),
+      bases: [
+        {
+          block: 10,
+          deployment: graftBase,
+          indexingStatus: {
+            latestBlock: {
+              number: 5,
+              hash: 'foo',
+            },
+            health: 'not-healthy',
+          },
+        },
+      ],
+    }
+
+    let threwError = false
+    try {
+      determineSubgraphDeploymentDecisions(subgraphLineage)
+    } catch (err) {
+      expect(err.code).toStrictEqual(IndexerErrorCode.IE075)
+      expect(err.cause).toStrictEqual({
+        message: `Cannot deploy subgraph due to unhealthy graft base: ${graftBase.ipfsHash}`,
+        graftDependencies: subgraphLineage,
+      })
+      threwError = true
+    }
+    expect(threwError).toBeTruthy()
   })
 
   test('should return DEPLOY subgraph deployment decision if its single base has no indexing status', () => {

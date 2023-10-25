@@ -161,7 +161,7 @@ export function determineSubgraphDeploymentDecisions(
       // Is it healthy?
       if (graft.indexingStatus.health !== 'healthy') {
         throw indexerError(IndexerErrorCode.IE075, {
-          message: `Cannot deploy subgraph due to unhealthy graft base: ${graft.deployment}`,
+          message: `Cannot deploy subgraph due to unhealthy graft base: ${graft.deployment.ipfsHash}`,
           graftDependencies: subgraphLineage,
         })
       }
