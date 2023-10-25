@@ -18,7 +18,6 @@ type SubgraphManifestResolver = (
 interface IndexingStatus {
   latestBlock: BlockPointer | null
   health: string
-  synced: boolean
 }
 
 // Naive grafting information: contains only the parent subgraph
@@ -107,7 +106,6 @@ export async function getIndexingStatus(
     }
     indexingStatus = {
       health: subgraphIndexingStatus.health,
-      synced: subgraphIndexingStatus.synced,
       latestBlock,
     }
   }
@@ -120,24 +118,35 @@ export function determineSubgraphDeploymentDecisions(
   const deploymentDecisions: SubgraphDeploymentDecision[] = []
 
   // Check lineage size before making any assumptions.
-  if (!subgraphLineage.bases) {
+  if (!subgraphLineage.bases.length) {
     throw indexerError(
       IndexerErrorCode.IE075,
       'Expected target subgraph to have at least one graft base.',
     )
   }
   // Check for undeployed and unsynced graft bases.
-  // Start from the root (iterate backwards).
-  for (let i = subgraphLineage.bases.length - 1; i >= 0; i--) {
+
+  // Iterate backwards, considering only bases that are essential for subgraph deployment.
+  let earliestValidBaseIndex = subgraphLineage.bases.findIndex(
+    (graft) => graft.indexingStatus && graft.indexingStatus.latestBlock,
+  )
+  const lastIndex = subgraphLineage.bases.length - 1
+  earliestValidBaseIndex =
+    earliestValidBaseIndex === -1 ? lastIndex : earliestValidBaseIndex
+
+  for (let i = lastIndex; i >= 0; i--) {
     const graft = subgraphLineage.bases[i]
     const desiredBlockHeight = graft.block
     if (!graft.indexingStatus || !graft.indexingStatus.latestBlock) {
-      // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
-      deploymentDecisions.push({
-        deployment: graft.deployment,
-        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
-      })
-      break
+      // Ignore undeployed graft bases beyond the earliest valid one.
+      if (i <= earliestValidBaseIndex) {
+        // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
+        deploymentDecisions.push({
+          deployment: graft.deployment,
+          deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+        })
+        break
+      }
     } else {
       // Deployment exists.
       // Is it sufficiently synced?
