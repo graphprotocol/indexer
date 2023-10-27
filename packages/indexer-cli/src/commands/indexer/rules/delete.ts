@@ -95,7 +95,7 @@ module.exports = {
       // Since we are not deleting all rules, we must require a protocol network from the user
       if (!protocolNetwork) {
         throw Error(
-          'The --netowrk option must be used when deleting a glboal Indexing Rule',
+          'The --network option must be used when deleting a glboal Indexing Rule',
         )
       }
       const chainAlias = resolveChainAlias(protocolNetwork)
