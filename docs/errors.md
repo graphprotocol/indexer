@@ -788,7 +788,7 @@ Allocation amounts must be non-negative numbers. To resolve this issue ensure th
 
 **Summary**
 
-Action was not executed succesfully: contracts paused or operator not authorized.
+Action was not executed successfully: contracts paused or operator not authorized.
 
 **Solution**
 
@@ -842,7 +842,7 @@ Failed to resolve POI: POI not available for deployment at current epoch start b
 
 **Solution**
 
-This error typically indicates a subgraph deployment that is too far behind the chain head to resolve a valid POI for closing the allocation. To succesfully resolve the POI and close the allocation you'll need to wait for the index node to sync the deployment enough to generate a POI for the current epoch start block. If you do not want to wait to sync you may choose to forfeit indexing rewards for the allocation by force closing it with a 0 POI by creating an unallocate or reallocate action item: `graph indexer actions queue unallocate/reallocate <deployment-id> <allocation-id> 0 true`.
+This error typically indicates a subgraph deployment that is too far behind the chain head to resolve a valid POI for closing the allocation. To successfully resolve the POI and close the allocation you'll need to wait for the index node to sync the deployment enough to generate a POI for the current epoch start block. If you do not want to wait to sync you may choose to forfeit indexing rewards for the allocation by force closing it with a 0 POI by creating an unallocate or reallocate action item: `graph indexer actions queue unallocate/reallocate <deployment-id> <allocation-id> 0 true`.
 
 ## IE068
 
