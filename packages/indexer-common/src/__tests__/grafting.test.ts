@@ -5,7 +5,7 @@ import {
   SubgraphLineageWithStatus,
 } from '../grafting'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { indexerError, IndexerErrorCode } from '../errors'
+import { IndexerErrorCode } from '../errors'
 import { SubgraphDeploymentDecisionKind } from '../types'
 
 // Create a mock for the fetchSubgraphManifest function
@@ -173,7 +173,8 @@ describe('determineSubgraphDeploymentDecisions function', () => {
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base1),
-        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+        kind: SubgraphDeploymentDecisionKind.DEPLOY,
+        expectedBlockHeight: 1,
       },
     ]
     expect(decisions).toEqual(expected)
@@ -199,7 +200,8 @@ describe('determineSubgraphDeploymentDecisions function', () => {
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base2),
-        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+        kind: SubgraphDeploymentDecisionKind.DEPLOY,
+        expectedBlockHeight: 20,
       },
     ]
     expect(decisions).toEqual(expected)
@@ -226,7 +228,8 @@ describe('determineSubgraphDeploymentDecisions function', () => {
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base1),
-        deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        kind: SubgraphDeploymentDecisionKind.REMOVE,
+        expectedBlockHeight: 10,
       },
     ]
     expect(decisions).toEqual(expected)
@@ -269,15 +272,18 @@ describe('determineSubgraphDeploymentDecisions function', () => {
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base3),
-        deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        kind: SubgraphDeploymentDecisionKind.REMOVE,
+        expectedBlockHeight: 10,
       },
       {
         deployment: new SubgraphDeploymentID(base2),
-        deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        kind: SubgraphDeploymentDecisionKind.REMOVE,
+        expectedBlockHeight: 20,
       },
       {
         deployment: new SubgraphDeploymentID(base1),
-        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+        kind: SubgraphDeploymentDecisionKind.DEPLOY,
+        expectedBlockHeight: 30,
       },
     ]
     expect(decisions).toEqual(expected)
@@ -330,16 +336,19 @@ describe('determineSubgraphDeploymentDecisions function', () => {
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base4),
-        deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        kind: SubgraphDeploymentDecisionKind.REMOVE,
+        expectedBlockHeight: 5,
       },
       // Base 3 is intentionally left out of the result.
       {
         deployment: new SubgraphDeploymentID(base2),
-        deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+        kind: SubgraphDeploymentDecisionKind.REMOVE,
+        expectedBlockHeight: 20,
       },
       {
         deployment: new SubgraphDeploymentID(base1),
-        deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+        kind: SubgraphDeploymentDecisionKind.DEPLOY,
+        expectedBlockHeight: 30,
       },
     ]
     expect(decisions).toEqual(expected)

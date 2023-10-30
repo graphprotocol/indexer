@@ -121,14 +121,25 @@ export const SubgraphManifestSchema = z.object({
 
 export type SubgraphManifest = z.infer<typeof SubgraphManifestSchema>
 
+// This enum should aim to match Graph-Node indexer endpoint routes.
 export enum SubgraphDeploymentDecisionKind {
-  CREATE = 'create',
+  // CREATE = 'create', // We don't have any use for the CREATE variant, for now.
   DEPLOY = 'deploy',
   REMOVE = 'remove',
-  // Possible new members: PAUSE, DROP, NOOP
 }
 
 export interface SubgraphDeploymentDecision {
   deployment: SubgraphDeploymentID
-  deploymentDecision: SubgraphDeploymentDecisionKind
+  kind: SubgraphDeploymentDecisionKind
 }
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export interface LoggerInterface {
+  trace(msg: string, o?: object, ...args: any[]): void
+  debug(msg: string, o?: object, ...args: any[]): void
+  info(msg: string, o?: object, ...args: any[]): void
+  warn(msg: string, o?: object, ...args: any[]): void
+  error(msg: string, o?: object, ...args: any[]): void
+  child(bindings: Record<string, any>): LoggerInterface
+}
+/* eslint-disable @typescript-eslint/no-explicit-any */

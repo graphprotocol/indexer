@@ -1,7 +1,12 @@
 import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { SubgraphDeployment, SubgraphManifest, SubgraphManifestSchema } from './types'
+import {
+  LoggerInterface,
+  SubgraphDeployment,
+  SubgraphManifest,
+  SubgraphManifestSchema,
+} from './types'
 import {
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
@@ -335,13 +340,6 @@ export interface ProviderInterface {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export interface LoggerInterface {
-  trace(msg: string, o?: object, ...args: any[]): void
-  error(msg: string, o?: object, ...args: any[]): void
-  warn(msg: string, o?: object, ...args: any[]): void
-  child(bindings: Record<string, any>): Logger
-}
-
 export interface SubgraphQueryInterface {
   query<Data = any>(
     query: DocumentNode,

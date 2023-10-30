@@ -2,15 +2,17 @@ import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { GraphNodeInterface } from './graph-node'
 import {
   BlockPointer,
+  LoggerInterface,
   SubgraphDeploymentDecision,
   SubgraphDeploymentDecisionKind,
   SubgraphManifest,
 } from './types'
 import { indexerError, IndexerErrorCode } from './errors'
+import pMap from 'p-map'
 
 // Any type that can return a SubgraphManifest when given a
 // SubgraphDeploymentID as input.
-type SubgraphManifestResolver = (
+export type SubgraphManifestResolver = (
   subgraphID: SubgraphDeploymentID,
 ) => Promise<SubgraphManifest>
 
@@ -47,6 +49,10 @@ interface GraftSubject extends GraftBase {
 // graft dependency.
 export interface SubgraphLineageWithStatus extends SubgraphLineage {
   bases: GraftSubject[]
+}
+
+export interface GraftBaseDeploymentDecision extends SubgraphDeploymentDecision {
+  expectedBlockHeight: number
 }
 
 // Discovers all graft dependencies for a given subgraph.
@@ -114,8 +120,8 @@ export async function getIndexingStatus(
 
 export function determineSubgraphDeploymentDecisions(
   subgraphLineage: SubgraphLineageWithStatus,
-): SubgraphDeploymentDecision[] {
-  const deploymentDecisions: SubgraphDeploymentDecision[] = []
+): GraftBaseDeploymentDecision[] {
+  const deploymentDecisions: GraftBaseDeploymentDecision[] = []
 
   // Check lineage size before making any assumptions.
   if (!subgraphLineage.bases.length) {
@@ -143,7 +149,8 @@ export function determineSubgraphDeploymentDecisions(
         // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
         deploymentDecisions.push({
           deployment: graft.deployment,
-          deploymentDecision: SubgraphDeploymentDecisionKind.DEPLOY,
+          kind: SubgraphDeploymentDecisionKind.DEPLOY,
+          expectedBlockHeight: graft.block,
         })
         break
       }
@@ -154,7 +161,8 @@ export function determineSubgraphDeploymentDecisions(
         // If so, we can stop syncing it.
         deploymentDecisions.push({
           deployment: graft.deployment,
-          deploymentDecision: SubgraphDeploymentDecisionKind.REMOVE,
+          kind: SubgraphDeploymentDecisionKind.REMOVE,
+          expectedBlockHeight: graft.block,
         })
         continue
       }
@@ -168,4 +176,32 @@ export function determineSubgraphDeploymentDecisions(
     }
   }
   return deploymentDecisions
+}
+
+// Queries the Graph Node to get the deployment status of each graft base in the
+// subgraph lineage.
+export async function queryGraftBaseStatuses(
+  subgraphLineage: SubgraphLineage,
+  graphNode: GraphNodeInterface,
+  parentLogger: LoggerInterface,
+  concurrency: number = 5,
+): Promise<SubgraphLineageWithStatus> {
+  const logger = parentLogger.child({ function: 'queryGraftBaseStatuses' })
+  logger.debug('Attempting to resolve graft bases for target subgraph')
+
+  // Fetch deployment details for each graft base
+  logger.debug('Querying Graph-Node for graft bases deployment status')
+  const graftBasesDeploymentStatus = await pMap(
+    subgraphLineage.bases,
+    async (graftBase: GraftBase) => await getIndexingStatus(graftBase, graphNode),
+    {
+      stopOnError: true,
+      concurrency,
+    },
+  )
+
+  return {
+    target: subgraphLineage.target,
+    bases: graftBasesDeploymentStatus,
+  }
 }

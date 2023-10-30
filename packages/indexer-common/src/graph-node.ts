@@ -62,6 +62,8 @@ export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
 
 export interface GraphNodeInterface {
   indexingStatus(deployments: SubgraphDeploymentID[]): Promise<IndexingStatus[]>
+  ensure(name: string, deployment: SubgraphDeploymentID): Promise<void>
+  remove(deployment: SubgraphDeploymentID): Promise<void>
 }
 
 export class GraphNode implements GraphNodeInterface {
@@ -391,11 +393,16 @@ export class GraphNode implements GraphNodeInterface {
     } catch (error) {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020
-        this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
+        const unknownIndexerError = indexerError(IndexerErrorCode.IE020, error)
+        const payload = {
           name,
           deployment: deployment.display,
-          error: indexerError(errorCode, error),
-        })
+          error: unknownIndexerError,
+        }
+        this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], payload)
+        throw unknownIndexerError
+      } else {
+        throw error
       }
     }
   }

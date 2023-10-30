@@ -1,10 +1,10 @@
 import { DocumentNode, print } from 'graphql'
 import {
   SubgraphFreshnessChecker,
-  LoggerInterface,
   ProviderInterface,
   SubgraphQueryInterface,
 } from '../subgraphs'
+import { LoggerInterface } from '../types'
 import { QueryResult } from '../network-subgraph'
 import gql from 'graphql-tag'
 import { mergeSelectionSets } from '../utils'
