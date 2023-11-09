@@ -120,8 +120,14 @@ export async function getIndexingStatus(
 
 export function determineSubgraphDeploymentDecisions(
   subgraphLineage: SubgraphLineageWithStatus,
+  parentLogger: LoggerInterface,
 ): GraftBaseDeploymentDecision[] {
   const deploymentDecisions: GraftBaseDeploymentDecision[] = []
+
+  const logger = parentLogger.child({
+    function: 'determineSubgraphDeploymentDecisions',
+    subgraphLineage: formatLineage(subgraphLineage),
+  })
 
   // Check lineage size before making any assumptions.
   if (!subgraphLineage.bases.length) {
@@ -143,10 +149,17 @@ export function determineSubgraphDeploymentDecisions(
   for (let i = lastIndex; i >= 0; i--) {
     const graft = subgraphLineage.bases[i]
     const desiredBlockHeight = graft.block
+    const traceLogger = logger.child({
+      graft: formatDeploymentContainer(graft),
+      earliestValidBaseIndex,
+      graftIndex: i,
+    })
+    traceLogger.trace('Inspecting graft base deployment status')
     if (!graft.indexingStatus || !graft.indexingStatus.latestBlock) {
       // Ignore undeployed graft bases beyond the earliest valid one.
       if (i <= earliestValidBaseIndex) {
         // Graph Node is not aware of this subgraph deployment. We must deploy it and look no further.
+        traceLogger.trace('Deploy candidate found')
         deploymentDecisions.push({
           deployment: graft.deployment,
           kind: SubgraphDeploymentDecisionKind.DEPLOY,
@@ -157,7 +170,9 @@ export function determineSubgraphDeploymentDecisions(
     } else {
       // Deployment exists.
       // Is it sufficiently synced?
+      traceLogger.trace('Deployment exists')
       if (graft.indexingStatus.latestBlock.number >= desiredBlockHeight) {
+        traceLogger.trace('Deployment is sufficiently synced')
         // If so, we can stop syncing it.
         deploymentDecisions.push({
           deployment: graft.deployment,
@@ -187,9 +202,6 @@ export async function queryGraftBaseStatuses(
   concurrency: number = 5,
 ): Promise<SubgraphLineageWithStatus> {
   const logger = parentLogger.child({ function: 'queryGraftBaseStatuses' })
-  logger.debug('Attempting to resolve graft bases for target subgraph')
-
-  // Fetch deployment details for each graft base
   logger.debug('Querying Graph-Node for graft bases deployment status')
   const graftBasesDeploymentStatus = await pMap(
     subgraphLineage.bases,
@@ -199,9 +211,34 @@ export async function queryGraftBaseStatuses(
       concurrency,
     },
   )
+  logger.trace('Got graft bases deployment statuses from Graph-Node', {
+    graftBasesDeploymentStatus: formatDeploymentContainers(graftBasesDeploymentStatus),
+  })
 
   return {
     target: subgraphLineage.target,
     bases: graftBasesDeploymentStatus,
+  }
+}
+
+// Logging utilities
+
+export function formatDeploymentContainer(base: { deployment: SubgraphDeploymentID }) {
+  return {
+    ...base,
+    deployment: base.deployment.display,
+  }
+}
+
+export function formatDeploymentContainers(
+  bases: { deployment: SubgraphDeploymentID }[],
+): any {
+  return bases.map(formatDeploymentContainer)
+}
+
+export function formatLineage(lineage: SubgraphLineageWithStatus): any {
+  return {
+    target: lineage.target.display,
+    bases: formatDeploymentContainers(lineage.bases),
   }
 }

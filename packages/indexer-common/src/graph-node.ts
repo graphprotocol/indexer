@@ -189,7 +189,7 @@ export class GraphNode implements GraphNodeInterface {
 
   async indexNodes(): Promise<indexNode[]> {
     try {
-      this.logger.trace(`Querying indexing statuses`)
+      this.logger.trace(`Querying index nodes`)
       const result = await this.status
         .query(gql`
           {
@@ -205,7 +205,7 @@ export class GraphNode implements GraphNodeInterface {
         throw result.error
       }
 
-      this.logger.trace(`Queried indexing statuses`, {
+      this.logger.trace(`Queried index nodes`, {
         data: result.data,
       })
 
@@ -461,7 +461,6 @@ export class GraphNode implements GraphNodeInterface {
       } catch (error) {
         throw indexerError(IndexerErrorCode.IE018, error)
       }
-
       return (
         result.data.indexingStatuses
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -473,7 +472,7 @@ export class GraphNode implements GraphNodeInterface {
     }
 
     try {
-      return await pRetry(queryIndexingStatuses, {
+      const indexingStatuses = await pRetry(queryIndexingStatuses, {
         retries: 5,
         maxTimeout: 10000,
         onFailedAttempt: (err) => {
@@ -485,6 +484,8 @@ export class GraphNode implements GraphNodeInterface {
           })
         },
       } as pRetry.Options)
+      this.logger.trace('Queried indexing statuses', indexingStatuses)
+      return indexingStatuses
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, {

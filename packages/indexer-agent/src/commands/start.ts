@@ -226,18 +226,6 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
-      .option('ipfs-endpoint', {
-        description: `Endpoint to an ipfs node to quickly query subgraph manifest data`,
-        type: 'string',
-        default: 'https://ipfs.network.thegraph.com',
-        group: 'Indexer Infrastructure',
-      })
-      .option('auto-graft-resolver-limit', {
-        description: `Maximum depth of grafting dependency to automatically resolve`,
-        type: 'number',
-        default: 0,
-        group: 'Indexer Infrastructure',
-      })
       .option('inject-dai', {
         description:
           'Inject the GRT to DAI/USDC conversion rate into cost model variables',
@@ -648,6 +636,7 @@ export async function run(
     argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
     argv.enableAutoMigrationSupport,
     argv.deploymentManagement,
+    argv.ipfsEndpoint,
   )
   await agent.start()
 }

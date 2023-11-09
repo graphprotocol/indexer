@@ -6,10 +6,12 @@ import {
 } from '../grafting'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { IndexerErrorCode } from '../errors'
-import { SubgraphDeploymentDecisionKind } from '../types'
+import { LoggerInterface, SubgraphDeploymentDecisionKind } from '../types'
 
 // Create a mock for the fetchSubgraphManifest function
 const fakeSubgraphManifestResolver = jest.fn()
+
+const fakeLogger = jest.fn() as unknown as LoggerInterface
 
 // Fake IPFS Hashes:
 const target = 'QmWaVSK24D1m53Ej2PaddWcb1HZKAV4bjiKkrUwtP3HrZX'
@@ -93,7 +95,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
 
     let threwError = false
     try {
-      determineSubgraphDeploymentDecisions(subgraphLineage)
+      determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     } catch (err) {
       expect(err.code).toStrictEqual(IndexerErrorCode.IE075)
       expect(err.cause).toStrictEqual(
@@ -122,7 +124,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    expect(determineSubgraphDeploymentDecisions(subgraphLineage)).toEqual([])
+    expect(determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)).toEqual([])
   })
 
   test('should throw an error if an unsynced base is unhealthy', () => {
@@ -146,7 +148,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
 
     let threwError = false
     try {
-      determineSubgraphDeploymentDecisions(subgraphLineage)
+      determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     } catch (err) {
       expect(err.code).toStrictEqual(IndexerErrorCode.IE075)
       expect(err.cause).toStrictEqual({
@@ -169,7 +171,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage)
+    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base1),
@@ -196,7 +198,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage)
+    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base2),
@@ -224,7 +226,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage)
+    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base1),
@@ -268,7 +270,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage)
+    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base3),
@@ -332,7 +334,7 @@ describe('determineSubgraphDeploymentDecisions function', () => {
         },
       ],
     }
-    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage)
+    const decisions = determineSubgraphDeploymentDecisions(subgraphLineage, fakeLogger)
     const expected = [
       {
         deployment: new SubgraphDeploymentID(base4),

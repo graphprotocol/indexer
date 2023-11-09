@@ -536,7 +536,7 @@ export async function fetchSubgraphManifest(
 
   const logger = parentLogger.child({
     function: 'fetchSubgraphManifest',
-    subgraphDeployment: SubgraphDeploymentID,
+    targetDeployment: targetDeployment.display,
     subgraphManifestSearchURL,
   })
 

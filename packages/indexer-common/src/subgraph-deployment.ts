@@ -8,6 +8,8 @@ import {
   SubgraphLineage,
   queryGraftBaseStatuses,
   GraftBaseDeploymentDecision,
+  formatGraftBases,
+  formatGraftBase,
 } from './grafting'
 import { SubgraphIdentifierType, fetchSubgraphManifest } from './subgraphs'
 import {
@@ -55,9 +57,9 @@ export async function deploySubgraph(
   // Inspect target subgraph's grafting lineage.
   const logger = parentLogger.child({
     function: 'deploySubgraph',
-    subgraphDeployment,
+    subgraphDeployment: subgraphDeployment.display,
   })
-  logger.debug('Attempting to resolve graft bases for target subgraph.')
+  logger.debug('Resolving graft bases for target subgraph deployment.')
   const subgraphManifestResolver = async (subgraphID: SubgraphDeploymentID) =>
     await fetchSubgraphManifest(ipfsURL, subgraphID, logger)
   const subgraphLineage = await discoverLineage(
@@ -90,10 +92,13 @@ async function deployGraftedSubgraph(
 ): Promise<void> {
   const logger = parentLogger.child({
     function: 'deployGraftedSubgraph',
-    targetSubgraph: subgraphLineage.target.ipfsHash,
-    graftBases: subgraphLineage.bases,
+    targetSubgraph: subgraphLineage.target.display,
+    graftBases: formatGraftBases(subgraphLineage.bases),
   })
-  logger.debug('Attempting to deploy first viable base for grafted subgraph.')
+  logger.debug(
+    'Target subgraph deployment has graft bases. ' +
+      'Deploying first viable base for grafted subgraph.',
+  )
 
   // Fetch the deployment status for all graft bases.
   const lineageDeploymentStatus = await queryGraftBaseStatuses(
@@ -105,6 +110,7 @@ async function deployGraftedSubgraph(
   // Inspect if we need to deploy or remove a sufficiently synced graft base.
   const deploymentDecisions = determineSubgraphDeploymentDecisions(
     lineageDeploymentStatus,
+    logger,
   )
   for (const deploymentDecision of deploymentDecisions) {
     switch (deploymentDecision.kind) {
@@ -193,7 +199,7 @@ async function deleteTemporaryIndexingRule(
   }
   const logger = parentLogger.child({
     identifier,
-    deploymentDecision,
+    deploymentDecision: formatGraftBase(deploymentDecision),
   })
 
   // Query indexing management client for a indexing rule matching the IPFS hash of this

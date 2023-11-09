@@ -36,6 +36,7 @@ import {
   networkIsL2,
   networkIsL1,
   DeploymentManagementMode,
+  deploySubgraph,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -195,6 +196,7 @@ export class Agent {
   offchainSubgraphs: SubgraphDeploymentID[]
   autoMigrationSupport: boolean
   deploymentManagement: DeploymentManagementMode
+  ipfsURL: URL
 
   constructor(
     logger: Logger,
@@ -206,6 +208,7 @@ export class Agent {
     offchainSubgraphs: SubgraphDeploymentID[],
     autoMigrationSupport: boolean,
     deploymentManagement: DeploymentManagementMode,
+    ipfsURL: URL,
   ) {
     this.logger = logger.child({ component: 'Agent' })
     this.metrics = metrics
@@ -215,6 +218,7 @@ export class Agent {
     this.offchainSubgraphs = offchainSubgraphs
     this.autoMigrationSupport = !!autoMigrationSupport
     this.deploymentManagement = deploymentManagement
+    this.ipfsURL = ipfsURL
   }
 
   async start(): Promise<Agent> {
@@ -986,10 +990,15 @@ export class Agent {
           deployment: deployment.display,
         })
 
-        // Ensure the deployment is deployed to the indexer
-        // Note: we're not waiting here, as sometimes indexing a subgraph
-        // will block if the IPFS files cannot be retrieved
-        await this.graphNode.ensure(name, deployment)
+        await deploySubgraph(
+          name,
+          deployment,
+          this.graphNode,
+          this.ipfsURL,
+          this.indexerManagement,
+          'eip155:5',
+          this.logger,
+        )
       }),
     )
 
