@@ -1,0 +1,34 @@
+networkIdentifier: 'sepolia'
+indexerOptions:
+  address: '?'
+  mnemonic: '?'
+  url: '?'
+  geoCoordinates: [118.2923, 36.5785]
+  defaultAllocationAmount: 5000
+  allocationManagementMode: 'oversight'
+  restakeRewards: true
+  poiDisputeMonitoring: true
+  poiDisputableEpochs: 3
+  voucherRedemptionThreshold: 100
+  voucherRedemptionBatchThreshold: 250
+  rebateClaimThreshold: 100
+  rebateClaimBatchThreshold: 250
+gateway:
+  url: 'https://gateway.testnet.thegraph.com'
+subgraphs:
+  networkSubgraph:
+    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia'
+    deployment: 'QmdwyUJ2GNAkSxLc3dRgFULf5fN1mZWYeQLjXsdowQcfTg'
+  epochSubgraph:
+    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/sepolia-epoch-block-oracle'
+    deployment: 'QmUXAKvt84bYpkctHgXqWBjq1YY7DaTCKfmxEh8w9Xxb5X'
+networkProvider:
+  url: '?'
+transactionMonitoring:
+  baseFeePerGasMax: 100
+  gasIncreaseTimeout: 90
+  gasIncreaseFactor: 1.5
+  maxTransactionAttempts: 20
+dai:
+  contractAddress: '0x9e7e607afd22906f7da6f1ec8f432d6f244278be'
+  inject: true

@@ -1,0 +1,36 @@
+networkIdentifier: 'arbitrum-sepolia'
+indexerOptions:
+  address: '?'
+  mnemonic: '?'
+  url: '?'
+  geoCoordinates: [118.2923, 36.5785]
+  defaultAllocationAmount: 1000
+  allocationManagementMode: 'oversight'
+  restakeRewards: true
+  poiDisputeMonitoring: true
+  poiDisputableEpochs: 3
+  voucherRedemptionThreshold: 100
+  voucherRedemptionBatchThreshold: 250
+  rebateClaimThreshold: 100
+  rebateClaimBatchThreshold: 250
+gateway:
+  url: 'https://gateway-testnet-arbitrum.network.thegraph.com'
+subgraphs:
+  maxBlockDistance: 60
+  freshnessSleepMilliseconds: 10000
+  networkSubgraph:
+    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia'
+    deployment: 'QmT8UDGK7zKd2u2NQZwhLYHdA4KM55QsivkE3ouCuX6fEj'
+  epochSubgraph:
+    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/arbitrum-sepolia-ebo'
+    deployment: 'QmTpu2mVquoMpr4SWSM77nGkU3tcUS1Bhk1sVHpjDrAUAx'
+networkProvider:
+  url: '?'
+transactionMonitoring:
+  baseFeePerGasMax: 100
+  gasIncreaseTimeout: 90
+  gasIncreaseFactor: 1.5
+  maxTransactionAttempts: 20
+dai:
+  contractAddress: '0x9e7e607afd22906f7da6f1ec8f432d6f244278be'
+  inject: true
