@@ -6,6 +6,7 @@ import fs from 'fs'
 import { parse as yaml_parse } from 'yaml'
 
 import {
+  AddressBook,
   connectContracts,
   connectDatabase,
   createLogger,
@@ -178,6 +179,11 @@ export default {
         type: 'string',
         required: false,
       })
+      .option('address-book', {
+        description: 'Graph contracts address book file path',
+        type: 'string',
+        required: false,
+      })
 
       .check(argv => {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
@@ -337,10 +343,13 @@ export default {
 
     let contracts: NetworkContracts | undefined = undefined
     try {
+      const addressBook = argv.addressBook
+        ? (JSON.parse(fs.readFileSync(argv.addressBook).toString()) as AddressBook)
+        : undefined
       contracts = await connectContracts(
         networkProvider,
         networkIdentifier.chainId,
-        undefined,
+        addressBook,
       )
     } catch (error) {
       logger.error(
