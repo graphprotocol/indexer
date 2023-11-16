@@ -13,7 +13,7 @@ export interface NetworkSubgraphCreateOptions {
     graphNode: GraphNode
     deployment: SubgraphDeploymentID
   }
-  subgraphFreshnessChecker: SubgraphFreshnessChecker
+  subgraphFreshnessChecker?: SubgraphFreshnessChecker
 }
 
 interface DeploymentStatus {
@@ -32,7 +32,7 @@ interface NetworkSubgraphOptions {
     status: Eventual<DeploymentStatus>
     graphNode: GraphNode
   }
-  subgraphFreshnessChecker: SubgraphFreshnessChecker
+  subgraphFreshnessChecker?: SubgraphFreshnessChecker
 }
 
 export type QueryResult<Data> = Pick<
@@ -42,7 +42,7 @@ export type QueryResult<Data> = Pick<
 
 export class NetworkSubgraph {
   logger: Logger
-  freshnessChecker: SubgraphFreshnessChecker
+  freshnessChecker: SubgraphFreshnessChecker | undefined
   endpointClient?: AxiosInstance
 
   public readonly deployment?: {
@@ -172,7 +172,14 @@ export class NetworkSubgraph {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     variables?: Record<string, any>,
   ): Promise<QueryResult<Data>> {
-    return this.freshnessChecker.checkedQuery(this, query, variables)
+    if (this.freshnessChecker) {
+      return this.freshnessChecker.checkedQuery(this, query, variables)
+    } else {
+      this.logger.warn(
+        `Cannot perform 'checkedQuery' as no freshnessChecker has been configured, falling back to standard 'query'`,
+      )
+      return this.query(query, variables)
+    }
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
