@@ -11,6 +11,7 @@ import {
   createLogger,
   createMetrics,
   createMetricsServer,
+  NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
@@ -32,6 +33,7 @@ import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
 import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
+import pRetry from 'p-retry'
 
 export default {
   command: 'start',
@@ -333,18 +335,17 @@ export default {
       chainId: networkIdentifier.chainId,
     })
 
-    let contracts = undefined
+    let contracts: NetworkContracts | undefined = undefined
     try {
       contracts = await connectContracts(networkProvider, networkIdentifier.chainId)
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,
-        {
-          error,
-        },
       )
-      throw error
+      throw indexerError(IndexerErrorCode.IE075, error)
     }
+
+
 
     logger.info('Successfully connected to contracts', {
       curation: contracts.curation.address,
@@ -372,6 +373,40 @@ export default {
       indexer: indexerAddress.toString(),
       operator: address.toString(),
     })
+
+    // Validate the operator wallet matches the operator set for the indexer
+    const isOperator = await pRetry(
+      async () =>
+        contracts!.staking.isOperator(
+          wallet.address.toString(),
+          indexerAddress.toString(),
+        ),
+      {
+        retries: 10,
+        maxTimeout: 10000,
+        onFailedAttempt: err => {
+          logger.warn(
+            `contracts.staking.isOperator(${wallet.address.toString()}, ${indexerAddress.toString()}) failed`,
+            {
+              attempt: err.attemptNumber,
+              retriesLeft: err.retriesLeft,
+              err: err.message,
+            },
+          )
+        },
+      } as pRetry.Options,
+    )
+
+    if (isOperator == false) {
+      logger.error('Operator wallet is not allowed for indexer, please see attached debug suggestions', {
+        debugSuggestion1: 'verify that operator wallet is set for indexer account',
+        debugSuggestion2: 'verify that service and agent are both using correct operator wallet mnemonic'
+      })
+      throw indexerError(
+        IndexerErrorCode.IE034,
+        `contracts.staking.isOperator returned 'False'`,
+      )
+    }
 
     // Monitor indexer allocations that we may receive traffic for
     const allocations = monitorEligibleAllocations({
