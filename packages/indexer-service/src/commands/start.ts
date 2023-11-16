@@ -5,11 +5,6 @@ import { BigNumber, Wallet } from 'ethers'
 import fs from 'fs'
 import { parse as yaml_parse } from 'yaml'
 
-const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
-const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
-  50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
-const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
-
 import {
   connectContracts,
   connectDatabase,
@@ -31,7 +26,6 @@ import {
   registerIndexerErrorMetrics,
   resolveChainId,
   validateProviderNetworkIdentifier,
-  SubgraphFreshnessChecker,
 } from '@graphprotocol/indexer-common'
 
 import { createServer } from '../server'
@@ -182,18 +176,6 @@ export default {
         type: 'string',
         required: false,
       })
-      .option('subgraph-max-block-distance', {
-        description: 'How many blocks subgraphs are allowed to stay behind chain head',
-        type: 'number',
-        default: DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE,
-        group: 'Protocol',
-      })
-      .option('subgraph-freshness-sleep-milliseconds', {
-        description: 'How long to wait before retrying subgraph query if it is not fresh',
-        type: 'number',
-        default: DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS,
-        group: 'Protocol',
-      })
 
       .check(argv => {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
@@ -317,45 +299,6 @@ export default {
     const networkIdentifier = await networkProvider.getNetwork()
     const protocolNetwork = resolveChainId(networkIdentifier.chainId)
 
-    // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
-    if (protocolNetwork.startsWith('eip155:42161')) {
-      // Arbitrum-One and Arbitrum-Goerli
-      if (argv.subgraphMaxBlockDistance <= SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2) {
-        logger.warn(
-          `Consider increasing 'subgraph-max-block-distance' for Arbitrum networks`,
-          {
-            problem:
-              'A low subgraph freshness threshold might cause the Agent to discard too many subgraph queries in fast-paced networks.',
-            hint: `Increase the 'subgraph-max-block-distance' parameter to a value that accomodates for block and indexing speeds.`,
-            configuredValue: argv.subgraphMaxBlockDistance,
-          },
-        )
-      }
-      if (
-        argv.subgraphFreshnessSleepMilliseconds <=
-        DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS
-      ) {
-        logger.warn(
-          `Consider increasing 'subgraph-freshness-sleep-milliseconds' for Arbitrum networks`,
-          {
-            problem:
-              'A short subgraph freshness wait time might be insufficient for the subgraph to sync with fast-paced networks.',
-            hint: `Increase the 'subgraph-freshness-sleep-milliseconds' parameter to a value that accomodates for block and indexing speeds.`,
-            configuredValue: argv.subgraphFreshnessSleepMilliseconds,
-          },
-        )
-      }
-    }
-
-    const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
-      'Network Subgraph',
-      networkProvider,
-      argv.subgraphMaxBlockDistance,
-      argv.subgraphFreshnessSleepMilliseconds,
-      logger.child({ component: 'FreshnessChecker' }),
-      Infinity,
-    )
-
     const networkSubgraph = await NetworkSubgraph.create({
       logger,
       endpoint: argv.networkSubgraphEndpoint,
@@ -365,7 +308,6 @@ export default {
             deployment: new SubgraphDeploymentID(argv.networkSubgraphDeployment),
           }
         : undefined,
-      subgraphFreshnessChecker,
     })
     logger.info(`Successfully connected to network subgraph`)
 

@@ -35,10 +35,12 @@ export const monitorEligibleAllocations = ({
   const refreshAllocations = async (
     currentAllocations: Allocation[],
   ): Promise<Allocation[]> => {
-    logger.debug('Refresh eligible allocations')
+    logger.debug('Refresh eligible allocations', {
+      protocolNetwork,
+    })
 
     try {
-      const currentEpochResult = await networkSubgraph.checkedQuery(gql`
+      const currentEpochResult = await networkSubgraph.query(gql`
         query {
           graphNetwork(id: "1") {
             currentEpoch
@@ -59,7 +61,7 @@ export const monitorEligibleAllocations = ({
 
       const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
-      const result = await networkSubgraph.checkedQuery(
+      const result = await networkSubgraph.query(
         gql`
           query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
             indexer(id: $indexer) {
