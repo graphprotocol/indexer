@@ -393,7 +393,11 @@ export default {
 
     let contracts = undefined
     try {
-      contracts = await connectContracts(networkProvider, networkIdentifier.chainId)
+      contracts = await connectContracts(
+        networkProvider,
+        networkIdentifier.chainId,
+        undefined,
+      )
     } catch (error) {
       logger.error(
         `Failed to connect to contracts, please ensure you are using the intended Ethereum Network`,

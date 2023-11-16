@@ -72,7 +72,7 @@ const setupMonitor = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
   ethereum = getTestProvider('goerli')
-  contracts = await connectContracts(ethereum, 5)
+  contracts = await connectContracts(ethereum, 5, undefined)
 
   const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
     'Test Subgraph',

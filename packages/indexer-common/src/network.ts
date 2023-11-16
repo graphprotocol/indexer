@@ -450,7 +450,7 @@ async function connectToProtocolContracts(
 
   let contracts
   try {
-    contracts = await connectContracts(wallet, numericNetworkId)
+    contracts = await connectContracts(wallet, numericNetworkId, undefined)
   } catch (error) {
     const errorMessage =
       'Failed to connect to contracts, please ensure you are using the intended protocol network.'
