@@ -85,6 +85,7 @@ export enum IndexerErrorCode {
   IE072 = 'IE072',
   IE073 = 'IE073',
   IE074 = 'IE074',
+  IE075 = 'IE075',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -163,6 +164,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE072: 'Failed to execute batch tx (contract: staking)',
   IE073: 'Failed to query subgraph features from indexing statuses endpoint',
   IE074: 'Failed to deploy subgraph: network not supported',
+  IE075: 'Failed to connect to network contracts',
 }
 
 export type IndexerErrorCause = unknown
