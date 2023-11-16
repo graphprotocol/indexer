@@ -46,7 +46,7 @@
     "clean": "rm -rf ./node_modules ./binary ./build ./coverage ./native/target ./native/artifacts.json ./native/index.node"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.7",
+    "@graphprotocol/common-ts": "2.0.9",
     "@mapbox/node-pre-gyp": "1.0.10",
     "cargo-cp-artifact": "0.1.7",
     "node-pre-gyp-github": "1.4.4"
