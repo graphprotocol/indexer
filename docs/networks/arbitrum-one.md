@@ -36,7 +36,7 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 
 | Environment Variable                        | CLI Argument                    | Value                                                                               |
 | ------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------    |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                                                   |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Arbitrum mainnet node/provider                                                   |
 | `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum`                                                                          |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                 |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                   |
@@ -57,13 +57,13 @@ option can be used.
 | -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
 | `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 200)                |
 | `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 2000)        |
-| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
+| `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |
 
 ### Indexer Service
 
 | Environment Variable                          | CLI Argument                    | Value                                                                                    |
 | --------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum mainnet node/provider                                                        |
+| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Arbitrum mainnet node/provider                                                        |
 | `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum`                                                                               |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                      |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                                   |
