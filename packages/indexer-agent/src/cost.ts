@@ -87,7 +87,16 @@ const monitorAndInjectDai = async ({
   // Identify the decimals used by the DAI or USDC contract
   const chainId = ethereum.network.chainId
   const stableCoin = new Contract(daiContractAddress, ERC20_ABI, ethereum)
-  const decimals = await stableCoin.decimals()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const decimals = await stableCoin.decimals().catch((error: any) => {
+    logger.warn(
+      `Failed to call 'decimals()' on '${daiContractAddress}', defaulting to '18'`,
+      {
+        error,
+      },
+    )
+    return 18
+  })
 
   const DAI = new Token(chainId, daiContractAddress, decimals)
   const GRT = new Token(chainId, contracts.token.address, 18)
