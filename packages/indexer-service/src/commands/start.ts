@@ -345,8 +345,6 @@ export default {
       throw indexerError(IndexerErrorCode.IE075, error)
     }
 
-
-
     logger.info('Successfully connected to contracts', {
       curation: contracts.curation.address,
       disputeManager: contracts.disputeManager.address,
@@ -398,10 +396,14 @@ export default {
     )
 
     if (isOperator == false) {
-      logger.error('Operator wallet is not allowed for indexer, please see attached debug suggestions', {
-        debugSuggestion1: 'verify that operator wallet is set for indexer account',
-        debugSuggestion2: 'verify that service and agent are both using correct operator wallet mnemonic'
-      })
+      logger.error(
+        'Operator wallet is not allowed for indexer, please see attached debug suggestions',
+        {
+          debugSuggestion1: 'verify that operator wallet is set for indexer account',
+          debugSuggestion2:
+            'verify that service and agent are both using correct operator wallet mnemonic',
+        },
+      )
       throw indexerError(
         IndexerErrorCode.IE034,
         `contracts.staking.isOperator returned 'False'`,
