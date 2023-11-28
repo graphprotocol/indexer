@@ -1225,7 +1225,9 @@ export class Agent {
   // uses Network instances.
   async ensureNetworkSubgraphIsIndexing(network: Network) {
     if (
-      network.specification.subgraphs.networkSubgraph.deployment !== undefined
+      network.specification.subgraphs.networkSubgraph.deployment !==
+        undefined &&
+      this.deploymentManagement
     ) {
       try {
         // TODO: Check both the local deployment and the external subgraph endpoint
