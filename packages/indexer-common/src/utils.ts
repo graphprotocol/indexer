@@ -45,16 +45,16 @@ export async function monitorEthBalance(
 ): Promise<void> {
   logger = logger.child({ component: 'ETHBalanceMonitor' })
 
-  logger.info('Monitor operator ETH balance (refreshes every 120s)')
+  logger.debug('Monitor operator ETH balance (refreshes every 240s)')
 
   const balanceMetrics = registerMetrics(metrics, networkIdentifier)
 
-  timer(120_000).pipe(async () => {
+  timer(240_000).pipe(async () => {
     try {
       const balance = await wallet.getBalance()
       const eth = parseFloat(utils.formatEther(balance))
       balanceMetrics.operatorEthBalance.set(eth)
-      logger.info('Current operator ETH balance', {
+      logger.debug('Current operator ETH balance', {
         balance: eth,
       })
     } catch (error) {

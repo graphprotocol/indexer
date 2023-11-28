@@ -933,7 +933,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     const initialPauseValue = await contracts.controller.paused().catch((_) => {
       return false
     })
-    return timer(60_000)
+    return timer(300_000)
       .reduce(async (currentlyPaused) => {
         try {
           logger.debug('Query network subgraph isPaused state')
