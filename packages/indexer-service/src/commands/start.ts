@@ -369,49 +369,54 @@ export default {
     )
 
     // Ensure the address is checksummed
-    const address = toAddress(wallet.address)
+    const operatorAddress = toAddress(wallet.address)
 
     logger = logger.child({
       indexer: indexerAddress.toString(),
-      operator: address.toString(),
+      operator: operatorAddress.toString(),
     })
 
+    logger.info('Validating operator wallet is approved to take actions for indexer')
     // Validate the operator wallet matches the operator set for the indexer
-    const isOperator = await pRetry(
-      async () =>
-        contracts!.staking.isOperator(
-          wallet.address.toString(),
-          indexerAddress.toString(),
-        ),
-      {
-        retries: 10,
-        maxTimeout: 10000,
-        onFailedAttempt: err => {
-          logger.warn(
-            `contracts.staking.isOperator(${wallet.address.toString()}, ${indexerAddress.toString()}) failed`,
-            {
-              attempt: err.attemptNumber,
-              retriesLeft: err.retriesLeft,
-              err: err.message,
-            },
-          )
-        },
-      } as pRetry.Options,
-    )
-
-    if (isOperator == false) {
-      logger.error(
-        'Operator wallet is not allowed for indexer, please see attached debug suggestions',
+    if (indexerAddress === operatorAddress) {
+      logger.info(`Indexer and operator are identical, operator status granted`)
+    } else {
+      const isOperator = await pRetry(
+        async () =>
+          contracts!.staking.isOperator(
+            wallet.address.toString(),
+            indexerAddress.toString(),
+          ),
         {
-          debugSuggestion1: 'verify that operator wallet is set for indexer account',
-          debugSuggestion2:
-            'verify that service and agent are both using correct operator wallet mnemonic',
-        },
+          retries: 10,
+          maxTimeout: 10000,
+          onFailedAttempt: err => {
+            logger.warn(
+              `contracts.staking.isOperator(${wallet.address.toString()}, ${indexerAddress.toString()}) failed`,
+              {
+                attempt: err.attemptNumber,
+                retriesLeft: err.retriesLeft,
+                err: err.message,
+              },
+            )
+          },
+        } as pRetry.Options,
       )
-      throw indexerError(
-        IndexerErrorCode.IE034,
-        `contracts.staking.isOperator returned 'False'`,
-      )
+
+      if (isOperator == false) {
+        logger.error(
+          'Operator wallet is not allowed for indexer, please see attached debug suggestions',
+          {
+            debugSuggestion1: 'verify that operator wallet is set for indexer account',
+            debugSuggestion2:
+              'verify that service and agent are both using correct operator wallet mnemonic',
+          },
+        )
+        throw indexerError(
+          IndexerErrorCode.IE034,
+          `contracts.staking.isOperator returned 'False'`,
+        )
+      }
     }
 
     // Monitor indexer allocations that we may receive traffic for
