@@ -23,6 +23,7 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:43114             | avalanche     | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:250               | fantom        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:137               | polygon       | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:10                | optimism      | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features** |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings     |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |               | Yes         | Yes          | No                | No                   | No               |
