@@ -6,7 +6,9 @@ import {
   connectContracts,
   Eventual,
   AddressBook,
+  toAddress,
 } from '@graphprotocol/common-ts'
+import { connectContracts as connectEscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -19,6 +21,7 @@ import {
   NetworkMonitor,
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
+  monitorEligibleAllocations,
 } from '.'
 import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -213,6 +216,31 @@ export class Network {
     )
 
     // --------------------------------------------------------------------------------
+    // * Escrow contract
+    // --------------------------------------------------------------------------------
+    const networkIdentifier = await networkProvider.getNetwork()
+    let escrowContracts
+    try {
+      escrowContracts = await connectEscrowContracts(
+        networkProvider,
+        networkIdentifier.chainId,
+      )
+    } catch (error) {
+      console.error('Error connecting to escrow contracts:', error)
+    }
+
+    // --------------------------------------------------------------------------------
+    // * Allocation and allocation signers
+    // --------------------------------------------------------------------------------
+    const allocations = monitorEligibleAllocations({
+      indexer: toAddress(specification.indexerOptions.address),
+      logger,
+      networkSubgraph,
+      protocolNetwork: resolveChainId(networkIdentifier.chainId),
+      interval: specification.allocationSyncInterval,
+    })
+
+    // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
     const receiptCollector = await AllocationReceiptCollector.create({
@@ -221,6 +249,8 @@ export class Network {
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
+      escrowContracts,
+      allocations,
       networkSpecification: specification,
     })
 
