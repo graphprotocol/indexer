@@ -143,6 +143,7 @@ export const NetworkSpecification = z
     transactionMonitoring: TransactionMonitoring,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
+    allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })
   .strict()
