@@ -8,6 +8,7 @@ import {
   formatGRT,
   Address,
   Metrics,
+  Eventual,
 } from '@graphprotocol/common-ts'
 import {
   Allocation,
@@ -16,10 +17,14 @@ import {
   IndexerErrorCode,
   QueryFeeModels,
   Voucher,
+  ReceiptAggregateVoucher,
   ensureAllocationSummary,
   TransactionManager,
   specification as spec,
   EscrowContract,
+  SignedRav,
+  allocationIdProof,
+  allocationSigner,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
@@ -66,8 +71,10 @@ export interface AllocationReceiptCollectorOptions {
   logger: Logger
   metrics: Metrics
   transactionManager: TransactionManager
+  //TODO: remove in favor of using contracts.allocationExchange
   allocationExchange: Contract
   escrow: EscrowContract
+  allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
 }
@@ -84,6 +91,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
   declare escrow: EscrowContract
+  declare allocations: Eventual<Allocation[]>
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
   declare voucherEndpoint: URL
@@ -103,6 +111,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     models,
     allocationExchange,
     escrow,
+    allocations,
     networkSpecification,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
@@ -115,6 +124,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.models = models
     collector.allocationExchange = allocationExchange
     collector.escrow = escrow
+    collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
 
     // Process Gateway routes
@@ -137,6 +147,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // flag during startup.
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
+    collector.startRAVProcessing()
     await collector.queuePendingReceiptsFromDatabase()
     return collector
   }
@@ -377,6 +388,99 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
       limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
+    })
+  }
+
+  //TODO: Consider adding new configurations for RAV similar to vouchers
+  // (voucherRedemptionThreshold, voucherRedemptionMaxBatchSize, voucherRedemptionBatchThreshold)
+  private startRAVProcessing() {
+    timer(30_000).pipe(async () => {
+      let pendingRAVs: ReceiptAggregateVoucher[] = []
+      try {
+        pendingRAVs = await this.pendingRAVs()
+      } catch (err) {
+        this.logger.warn(`Failed to query pending vouchers`, { err })
+        return
+      }
+
+      const logger = this.logger.child({})
+
+      const ravs = await pReduce(
+        pendingRAVs,
+        async (results, rav) => {
+          const signed_rav = rav.rav as unknown as SignedRav
+          // allocationId doesn't have 0x prefix, but still matched in contract calls
+          // destory voucher if AllocationIDTracker.isAllocationIdUsed(rav.allocationId)
+          if (
+            BigNumber.from(signed_rav.message.valueAggregate).lt(
+              this.voucherRedemptionThreshold,
+            )
+          ) {
+            results.belowThreshold.push(signed_rav)
+          } else {
+            results.eligible.push(signed_rav)
+          }
+          return results
+        },
+        { belowThreshold: <SignedRav[]>[], eligible: <SignedRav[]>[] },
+      )
+
+      if (ravs.belowThreshold.length > 0) {
+        const totalValueGRT = formatGRT(
+          ravs.belowThreshold.reduce(
+            (total, rav) => total.add(BigNumber.from(rav.message.valueAggregate)),
+            BigNumber.from(0),
+          ),
+        )
+        logger.info(`Query RAVs below the redemption threshold`, {
+          hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
+          voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
+          belowThresholdCount: ravs.belowThreshold.length,
+          totalValueGRT,
+          allocations: ravs.belowThreshold.map((rav) => rav.message.allocationId),
+        })
+      }
+
+      // If there are no eligible vouchers then bail
+      if (ravs.eligible.length === 0) return
+
+      await this.submitRAVs(ravs.eligible)
+      //TODO: enable when redeemMany is implemented for escrow contract
+      // const ravBatch = ravs.eligible.slice(0, this.voucherRedemptionMaxBatchSize),
+      //   batchValueGRT = ravBatch.reduce(
+      //     (total, rav) => total.add(BigNumber.from(rav.message.valueAggregate)),
+      //     BigNumber.from(0),
+      //   )
+
+      // if (batchValueGRT.gt(this.voucherRedemptionBatchThreshold)) {
+      //   this.metrics.vouchersBatchRedeemSize.set(ravBatch.length)
+      //   logger.info(`Query RAV batch is ready for redemption`, {
+      //     batchSize: ravBatch.length,
+      //     voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+      //     voucherRedemptionBatchThreshold: formatGRT(
+      //       this.voucherRedemptionBatchThreshold,
+      //     ),
+      //     batchValueGRT: formatGRT(batchValueGRT),
+      //   })
+      //   await this.submitRAVs(ravBatch)
+      // } else {
+      //   logger.info(`Query RAV batch value too low for redemption`, {
+      //     batchSize: ravBatch.length,
+      //     voucherRedemptionMaxBatchSize: this.voucherRedemptionMaxBatchSize,
+      //     voucherRedemptionBatchThreshold: formatGRT(
+      //       this.voucherRedemptionBatchThreshold,
+      //     ),
+      //     batchValueGRT: formatGRT(batchValueGRT),
+      //   })
+      // }
+    })
+  }
+
+  // redeem only if final is true
+  // Later can add order and limit
+  private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
+    return this.models.receiptAggregateVouchers.findAll({
+      where: { final: true },
     })
   }
 
@@ -627,6 +731,59 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         err,
       })
     }
+  }
+
+  private async submitRAVs(ravs: SignedRav[]): Promise<void> {
+    const logger = this.logger.child({
+      function: 'submitVouchers()',
+      voucherBatchSize: ravs.length,
+    })
+
+    logger.info(`Redeem query voucher batch on chain`, {
+      ravs,
+    })
+    const stopTimer = this.metrics.vouchersRedeemDuration.startTimer({
+      allocation: ravs[0].message.allocationId,
+    })
+
+    const hexPrefix = (bytes: string): string =>
+      bytes.startsWith('0x') ? bytes : `0x${bytes}`
+
+    const onchainRAVs = ravs.map((rav) => {
+      //TODO: Check if signature needs additional processing
+      rav.message.allocationId = hexPrefix(rav.message.allocationId)
+      return rav
+    })
+
+    // Redeem RAV one-by-one as no plual version available
+    for (const rav of onchainRAVs) {
+      const allocationId = rav.message.allocationId
+      // Look up allocation
+      const allocation = (await this.allocations.value()).find(
+        (a) => a.id == allocationId,
+      )
+      // Fail query outright if we have no signer for this allocation
+      if (allocation === undefined) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const error = Error(`Unable to match allocation`) as any
+        error.status = 500
+        throw error
+      }
+      const signer = allocationSigner(this.transactionManager.wallet, allocation)
+      // compute allocation id proof
+      const proof = await allocationIdProof(
+        signer,
+        this.transactionManager.wallet.address,
+        allocationId,
+      )
+      this.logger.debug(`Got allocationIdProof`, {
+        proof,
+      })
+      // submit escrow redeem with signed rav and proof
+
+      // get tx receipt and post process
+    }
+    stopTimer()
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {

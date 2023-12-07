@@ -5,6 +5,7 @@ import {
   SubgraphDeploymentID,
   connectContracts,
   Eventual,
+  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   INDEXER_ERROR_MESSAGES,
@@ -19,6 +20,7 @@ import {
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
   getEscrowContract,
+  monitorEligibleAllocations,
 } from '.'
 import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -219,6 +221,18 @@ export class Network {
     )
 
     // --------------------------------------------------------------------------------
+    // * Allocation and allocation signers
+    // --------------------------------------------------------------------------------
+    const networkIdentifier = await networkProvider.getNetwork()
+    const allocations = monitorEligibleAllocations({
+      indexer: toAddress(specification.indexerOptions.address),
+      logger,
+      networkSubgraph,
+      protocolNetwork: resolveChainId(networkIdentifier.chainId),
+      interval: specification.allocationSyncInterval,
+    })
+
+    // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
     const receiptCollector = await AllocationReceiptCollector.create({
@@ -228,6 +242,7 @@ export class Network {
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
       escrow: escrow,
+      allocations,
       networkSpecification: specification,
     })
 
