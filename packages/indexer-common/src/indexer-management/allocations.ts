@@ -618,6 +618,18 @@ export class AllocationManager {
       indexingRewards: rewardsAssigned,
     })
 
+    // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
+    logger.debug(
+      `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
+    )
+    const offchainIndexingRule = {
+      identifier: subgraphDeploymentID.ipfsHash,
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+    } as Partial<IndexingRuleAttributes>
+
+    await upsertIndexingRule(logger, this.models, offchainIndexingRule)
+
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
@@ -627,19 +639,6 @@ export class AllocationManager {
       actionID,
       allocation,
     )
-
-    // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
-    logger.debug(
-      `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
-    )
-    const offchainIndexingRule = {
-      identifier: allocation.subgraphDeployment.id.ipfsHash,
-      protocolNetwork: this.network.specification.networkIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-    } as Partial<IndexingRuleAttributes>
-
-    await upsertIndexingRule(logger, this.models, offchainIndexingRule)
 
     return {
       actionID,
