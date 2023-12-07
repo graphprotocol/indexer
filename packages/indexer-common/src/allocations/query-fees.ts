@@ -8,7 +8,9 @@ import {
   formatGRT,
   Address,
   Metrics,
+  Eventual,
 } from '@graphprotocol/common-ts'
+import { NetworkContracts as EscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   Allocation,
   AllocationReceipt,
@@ -16,9 +18,13 @@ import {
   IndexerErrorCode,
   QueryFeeModels,
   Voucher,
+  ReceiptAggregateVoucher,
   ensureAllocationSummary,
   TransactionManager,
   specification as spec,
+  SignedRAV,
+  allocationIdProof,
+  allocationSigner,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
@@ -54,6 +60,11 @@ interface ReceiptMetrics {
   vouchersRedeemDuration: Histogram<string>
   vouchersBatchRedeemSize: Gauge<never>
   voucherCollectedFees: Gauge<string>
+  successRavRedeems: Counter<string>
+  invalidRavRedeems: Counter<string>
+  failedRavRedeems: Counter<string>
+  ravsRedeemDuration: Histogram<string>
+  ravCollectedFees: Gauge<string>
 }
 
 export interface AllocationPartialVouchers {
@@ -66,6 +77,8 @@ export interface AllocationReceiptCollectorOptions {
   metrics: Metrics
   transactionManager: TransactionManager
   allocationExchange: Contract
+  escrowContracts?: EscrowContracts
+  allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
 }
@@ -81,6 +94,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare models: QueryFeeModels
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
+  declare escrowContracts?: EscrowContracts
+  declare allocations: Eventual<Allocation[]>
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
   declare voucherEndpoint: URL
@@ -99,6 +114,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     transactionManager,
     models,
     allocationExchange,
+    escrowContracts,
+    allocations,
     networkSpecification,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
@@ -110,6 +127,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.transactionManager = transactionManager
     collector.models = models
     collector.allocationExchange = allocationExchange
+    collector.escrowContracts = escrowContracts
+    collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
 
     // Process Gateway routes
@@ -132,6 +151,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // flag during startup.
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
+    if (collector.escrowContracts) {
+      collector.logger.info(`RAV processing is initiated`)
+      collector.startRAVProcessing()
+    }
     await collector.queuePendingReceiptsFromDatabase()
     return collector
   }
@@ -372,6 +395,75 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
       limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
+    })
+  }
+
+  //TODO: Consider adding new configurations for RAV similar to vouchers
+  // (voucherRedemptionThreshold, voucherRedemptionMaxBatchSize, voucherRedemptionBatchThreshold)
+  private startRAVProcessing() {
+    timer(30_000).pipe(async () => {
+      let pendingRAVs: ReceiptAggregateVoucher[] = []
+      try {
+        pendingRAVs = await this.pendingRAVs()
+        this.logger.debug(`Pending RAVs`, { pendingRAVs })
+      } catch (err) {
+        this.logger.warn(`Failed to query pending RAVs`, { err })
+        return
+      }
+
+      const logger = this.logger.child({})
+
+      // Additional indexer agent configured filtering on which RAVs to redeem
+      const signedRavs = await pReduce(
+        pendingRAVs,
+        async (results, rav) => {
+          const signedRav = rav.rav as unknown as SignedRAV
+          // allocationId doesn't have 0x prefix, but still matched in contract calls
+          // destory voucher if AllocationIDTracker.isAllocationIdUsed(rav.allocationId)
+          if (
+            BigNumber.from(signedRav.rav.valueAggregate).lt(
+              this.voucherRedemptionThreshold,
+            )
+          ) {
+            results.belowThreshold.push(signedRav)
+          } else {
+            results.eligible.push(signedRav)
+          }
+          return results
+        },
+        { belowThreshold: <SignedRAV[]>[], eligible: <SignedRAV[]>[] },
+      )
+
+      if (signedRavs.belowThreshold.length > 0) {
+        const totalValueGRT = formatGRT(
+          signedRavs.belowThreshold.reduce(
+            (total, signedRav) => total.add(BigNumber.from(signedRav.rav.valueAggregate)),
+            BigNumber.from(0),
+          ),
+        )
+        logger.info(`Query RAVs below the redemption threshold`, {
+          hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
+          voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
+          belowThresholdCount: signedRavs.belowThreshold.length,
+          totalValueGRT,
+          allocations: signedRavs.belowThreshold.map(
+            (signedRav) => signedRav.rav.allocationId,
+          ),
+        })
+      }
+
+      // If there are no eligible vouchers then bail
+      if (signedRavs.eligible.length === 0) return
+
+      await this.submitRAVs(signedRavs.eligible)
+    })
+  }
+
+  // redeem only if final is true
+  // Later can add order and limit
+  private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
+    return this.models.receiptAggregateVouchers.findAll({
+      where: { final: true },
     })
   }
 
@@ -624,6 +716,128 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
   }
 
+  private async submitRAVs(signedRavs: SignedRAV[]): Promise<void> {
+    const logger = this.logger.child({
+      function: 'submitRAVs()',
+      signedRavSize: signedRavs.length,
+    })
+    if (!this.escrowContracts) {
+      logger.error(
+        `Undefined escrow contracts, but this shouldn't happen as RAV process is only triggered when escrow is provided`,
+        {
+          signedRavs,
+        },
+      )
+      return
+    }
+    const escrow = this.escrowContracts
+
+    logger.info(`Redeem final RAVs on chain individually`, {
+      signedRavs,
+    })
+
+    const hexPrefix = (bytes: string): string =>
+      bytes.startsWith('0x') ? bytes : `0x${bytes}`
+
+    const onchainRAVs = signedRavs.map((signedRav) => {
+      //TODO: Check if signature needs additional processing
+      signedRav.rav.allocationId = hexPrefix(signedRav.rav.allocationId)
+      return signedRav
+    })
+
+    // Redeem RAV one-by-one as no plual version available
+    for (const signedRav of onchainRAVs) {
+      const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+        allocation: signedRav.rav.allocationId,
+      })
+      try {
+        // Look up allocation
+        const allocation = (await this.allocations.value()).find(
+          (a) => a.id == signedRav.rav.allocationId,
+        )
+        // Fail query outright if we have no signer for this allocation
+        if (allocation === undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const error = Error(`Unable to match allocation`) as any
+          error.status = 500
+          throw error
+        }
+        // compute allocation id proof
+        const proof = await allocationIdProof(
+          allocationSigner(this.transactionManager.wallet, allocation),
+          this.transactionManager.wallet.address,
+          signedRav.rav.allocationId,
+        )
+        this.logger.debug(`Computed allocationIdProof`, {
+          allocationId: signedRav.rav.allocationId,
+          proof,
+        })
+        // Submit the signed RAV on chain
+        const txReceipt = await this.transactionManager.executeTransaction(
+          () => escrow.escrow.estimateGas.redeem(signedRav, proof),
+          (gasLimit) =>
+            escrow.escrow.redeem(signedRav, proof, {
+              gasLimit,
+            }),
+          logger.child({ function: 'redeem' }),
+        )
+
+        // get tx receipt and post process
+        if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+          this.metrics.invalidRavRedeems.inc({ allocation: signedRav.rav.allocationId })
+          return
+        }
+        this.metrics.ravCollectedFees.set(
+          { allocation: signedRav.rav.allocationId },
+          parseFloat(signedRav.rav.valueAggregate.toString()),
+        )
+      } catch (err) {
+        this.metrics.failedRavRedeems.inc({ allocation: signedRav.rav.allocationId })
+        logger.error(`Failed to redeem RAV`, {
+          err: indexerError(IndexerErrorCode.IE055, err),
+        })
+        return
+      }
+      stopTimer()
+    }
+
+    // Postprocess obsolete RAVs from the database
+    logger.info(`Successfully redeemed RAV, delete local copy`)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async (transaction) => {
+          for (const signedRav of signedRavs) {
+            const [summary] = await ensureAllocationSummary(
+              this.models,
+              toAddress(signedRav.rav.allocationId),
+              transaction,
+              this.protocolNetwork,
+            )
+            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
+              .add(signedRav.rav.valueAggregate)
+              .toString()
+            await summary.save({ transaction })
+          }
+        },
+      )
+
+      await this.models.receiptAggregateVouchers.destroy({
+        where: {
+          allocation_id: signedRavs.map((signedRav) => signedRav.rav.allocationId),
+        },
+      })
+      signedRavs.map((signedRav) =>
+        this.metrics.successRavRedeems.inc({ allocation: signedRav.rav.allocationId }),
+      )
+      logger.info(`Successfully deleted local RAV copy`)
+    } catch (err) {
+      logger.warn(`Failed to delete local RAV copy, will try again later`, {
+        err,
+      })
+    }
+  }
+
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
     // Obtain all closed allocations
     const closedAllocations = await this.models.allocationSummaries.findAll({
@@ -766,6 +980,41 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
   voucherCollectedFees: new metrics.client.Gauge({
     name: `indexer_agent_voucher_collected_fees_${networkIdentifier}`,
     help: 'Amount of query fees collected for a voucher',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  successRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_ok_${networkIdentifier}`,
+    help: 'Successfully redeemed ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  invalidRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_invalid_${networkIdentifier}`,
+    help: 'Invalid ravs redeems - tx paused or unauthorized',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  failedRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_redeems_failed_${networkIdentifier}`,
+    help: 'Failed redeems for ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravsRedeemDuration: new metrics.client.Histogram({
+    name: `indexer_agent_ravs_redeem_duration_${networkIdentifier}`,
+    help: 'Duration of redeeming ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravCollectedFees: new metrics.client.Gauge({
+    name: `indexer_agent_rav_collected_fees_${networkIdentifier}`,
+    help: 'Amount of query fees collected for a rav',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),

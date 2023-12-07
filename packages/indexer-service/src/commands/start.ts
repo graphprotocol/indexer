@@ -23,6 +23,7 @@ import {
   indexerError,
   IndexerErrorCode,
   GraphNode,
+  monitorEligibleAllocations,
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
@@ -32,7 +33,7 @@ import {
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
+import { ensureAttestationSigners } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
 import pRetry from 'p-retry'
 

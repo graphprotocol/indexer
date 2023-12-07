@@ -144,6 +144,7 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
+    allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })
   .strict()
