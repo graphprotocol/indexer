@@ -60,6 +60,11 @@ interface ReceiptMetrics {
   vouchersRedeemDuration: Histogram<string>
   vouchersBatchRedeemSize: Gauge<never>
   voucherCollectedFees: Gauge<string>
+  successRavRedeems: Counter<string>
+  invalidRavRedeems: Counter<string>
+  failedRavRedeems: Counter<string>
+  ravsRedeemDuration: Histogram<string>
+  ravCollectedFees: Gauge<string>
 }
 
 export interface AllocationPartialVouchers {
@@ -147,7 +152,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // flag during startup.
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
-    collector.startRAVProcessing()
+    if (collector.escrow) {
+      collector.startRAVProcessing()
+    }
     await collector.queuePendingReceiptsFromDatabase()
     return collector
   }
@@ -735,15 +742,22 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   private async submitRAVs(ravs: SignedRav[]): Promise<void> {
     const logger = this.logger.child({
-      function: 'submitVouchers()',
+      function: 'submitRAVs()',
       voucherBatchSize: ravs.length,
     })
+    if (this.escrow == null) {
+      logger.error(
+        `No escrow contracts, but this shouldn't happen as RAV process is only triggered when escrow is not null`,
+        {
+          ravs,
+        },
+      )
+      return
+    }
+    const escrow = this.escrow
 
     logger.info(`Redeem query voucher batch on chain`, {
       ravs,
-    })
-    const stopTimer = this.metrics.vouchersRedeemDuration.startTimer({
-      allocation: ravs[0].message.allocationId,
     })
 
     const hexPrefix = (bytes: string): string =>
@@ -757,33 +771,95 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     // Redeem RAV one-by-one as no plual version available
     for (const rav of onchainRAVs) {
-      const allocationId = rav.message.allocationId
-      // Look up allocation
-      const allocation = (await this.allocations.value()).find(
-        (a) => a.id == allocationId,
-      )
-      // Fail query outright if we have no signer for this allocation
-      if (allocation === undefined) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const error = Error(`Unable to match allocation`) as any
-        error.status = 500
-        throw error
-      }
-      const signer = allocationSigner(this.transactionManager.wallet, allocation)
-      // compute allocation id proof
-      const proof = await allocationIdProof(
-        signer,
-        this.transactionManager.wallet.address,
-        allocationId,
-      )
-      this.logger.debug(`Got allocationIdProof`, {
-        proof,
+      const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+        allocation: rav.message.allocationId,
       })
-      // submit escrow redeem with signed rav and proof
+      try {
+        // Look up allocation
+        const allocation = (await this.allocations.value()).find(
+          (a) => a.id == rav.message.allocationId,
+        )
+        // Fail query outright if we have no signer for this allocation
+        if (allocation === undefined) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const error = Error(`Unable to match allocation`) as any
+          error.status = 500
+          throw error
+        }
+        // compute allocation id proof
+        const proof = await allocationIdProof(
+          allocationSigner(this.transactionManager.wallet, allocation),
+          this.transactionManager.wallet.address,
+          rav.message.allocationId,
+        )
+        this.logger.debug(`Computed allocationIdProof`, {
+          allocationId: rav.message.allocationId,
+          proof,
+        })
+        // Submit the signed RAV on chain
+        const txReceipt = await escrow.executeTransaction(
+          () => escrow.estimateGas.redeem(rav, proof),
+          async (gasLimit: BigNumberish) =>
+            escrow.redeem(rav, proof, {
+              gasLimit,
+            }),
+          logger.child({ action: 'redeem' }),
+        )
 
-      // get tx receipt and post process
+        // get tx receipt and post process
+        if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+          this.metrics.invalidRavRedeems.inc({ allocation: rav.message.allocationId })
+          return
+        }
+        this.metrics.ravCollectedFees.set(
+          { allocation: rav.message.allocationId },
+          parseFloat(rav.message.valueAggregate.toString()),
+        )
+      } catch (err) {
+        this.metrics.failedRavRedeems.inc({ allocation: rav.message.allocationId })
+        logger.error(`Failed to redeem RAV`, {
+          err: indexerError(IndexerErrorCode.IE055, err),
+        })
+        return
+      }
+      stopTimer()
     }
-    stopTimer()
+
+    // Postprocess obsolete RAVs from the database
+    logger.info(`Successfully redeemed RAV, delete local copy`)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async (transaction) => {
+          for (const rav of ravs) {
+            const [summary] = await ensureAllocationSummary(
+              this.models,
+              toAddress(rav.message.allocationId),
+              transaction,
+              this.protocolNetwork,
+            )
+            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
+              .add(rav.message.valueAggregate)
+              .toString()
+            await summary.save({ transaction })
+          }
+        },
+      )
+
+      await this.models.receiptAggregateVouchers.destroy({
+        where: {
+          allocationId: ravs.map((rav) => rav.message.allocationId),
+        },
+      })
+      ravs.map((rav) =>
+        this.metrics.successRavRedeems.inc({ allocation: rav.message.allocationId }),
+      )
+      logger.info(`Successfully deleted local RAV copy`)
+    } catch (err) {
+      logger.warn(`Failed to delete local RAV copy, will try again later`, {
+        err,
+      })
+    }
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
@@ -928,6 +1004,41 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
   voucherCollectedFees: new metrics.client.Gauge({
     name: `indexer_agent_voucher_collected_fees_${networkIdentifier}`,
     help: 'Amount of query fees collected for a voucher',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  successRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_ok_${networkIdentifier}`,
+    help: 'Successfully redeemed ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  invalidRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_invalid_${networkIdentifier}`,
+    help: 'Invalid ravs redeems - tx paused or unauthorized',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  failedRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_redeems_failed_${networkIdentifier}`,
+    help: 'Failed redeems for ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravsRedeemDuration: new metrics.client.Histogram({
+    name: `indexer_agent_ravs_redeem_duration_${networkIdentifier}`,
+    help: 'Duration of redeeming ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravCollectedFees: new metrics.client.Gauge({
+    name: `indexer_agent_rav_collected_fees_${networkIdentifier}`,
+    help: 'Amount of query fees collected for a rav',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),
