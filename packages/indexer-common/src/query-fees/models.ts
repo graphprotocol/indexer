@@ -1,6 +1,7 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { Address } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
+import { Signature } from 'ethers'
 
 export interface AllocationReceiptAttributes {
   id: string
@@ -45,6 +46,43 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
   public static associations: {
     allocationSummary: Association<Voucher, AllocationSummary>
   }
+}
+
+export interface ReceiptAggregateVoucherAttributes {
+  allocationId: Address
+  senderAddress: string
+  rav: JSON // JSON object mapped from SignedRav
+  final: boolean
+}
+
+export class ReceiptAggregateVoucher
+  extends Model<ReceiptAggregateVoucherAttributes>
+  implements ReceiptAggregateVoucherAttributes
+{
+  public allocationId!: Address
+  public senderAddress!: string
+  public rav!: JSON
+  public final!: boolean
+
+  public readonly createdAt!: Date
+  public readonly updatedAt!: Date
+
+  public readonly allocationSummary?: AllocationSummary
+
+  public static associations: {
+    allocationSummary: Association<ReceiptAggregateVoucher, AllocationSummary>
+  }
+}
+
+export interface SignedRav {
+  message: ReceiptAggregateVoucherMessage
+  signature: Signature // Define Signature according to your requirements
+}
+
+export interface ReceiptAggregateVoucherMessage {
+  allocationId: string
+  timestampNs: bigint
+  valueAggregate: bigint
 }
 
 export interface TransferReceiptAttributes {
@@ -141,17 +179,22 @@ export class AllocationSummary
   public readonly transfers?: Transfer[]
   public readonly allocationReceipts?: AllocationReceipt[]
   public readonly voucher?: Voucher
+  public readonly receiptAggregateVoucher?: ReceiptAggregateVoucher
+
+  public voucherType?: 'Voucher' | 'ReceiptAggregateVoucher'
 
   public static associations: {
     transfers: Association<AllocationSummary, Transfer>
     allocationReceipts: Association<AllocationSummary, AllocationReceipt>
     voucher: Association<AllocationSummary, Voucher>
+    receiptAggregateVoucher: Association<AllocationSummary, ReceiptAggregateVoucher>
   }
 }
 
 export interface QueryFeeModels {
   allocationReceipts: typeof AllocationReceipt
   vouchers: typeof Voucher
+  receiptAggregateVouchers: typeof ReceiptAggregateVoucher
   transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
@@ -225,6 +268,34 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
     },
     { sequelize, tableName: 'vouchers' },
+  )
+
+  ReceiptAggregateVoucher.init(
+    {
+      allocationId: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+      },
+      senderAddress: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+      },
+      rav: {
+        type: DataTypes.JSONB,
+        allowNull: false,
+      },
+      final: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+    },
+    {
+      sequelize,
+      tableName: 'scalar_tap_ravs',
+    },
   )
 
   TransferReceipt.init(
@@ -374,12 +445,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     as: 'allocationReceipts',
   })
 
-  AllocationSummary.hasOne(Voucher, {
-    sourceKey: 'allocation',
-    foreignKey: 'allocation',
-    as: 'voucher',
-  })
-
   Transfer.belongsTo(AllocationSummary, {
     targetKey: 'allocation',
     foreignKey: 'allocation',
@@ -398,9 +463,16 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     as: 'allocationSummary',
   })
 
+  ReceiptAggregateVoucher.belongsTo(AllocationSummary, {
+    targetKey: 'allocation',
+    foreignKey: 'allocation',
+    as: 'allocationSummary',
+  })
+
   return {
     allocationReceipts: AllocationReceipt,
     vouchers: Voucher,
+    receiptAggregateVouchers: ReceiptAggregateVoucher,
     transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,
