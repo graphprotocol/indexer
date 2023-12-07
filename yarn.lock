@@ -2679,6 +2679,15 @@
     "@noble/hashes" "~1.3.0"
     "@scure/base" "~1.1.0"
 
+"@semiotic-labs/tap-contracts-bindings@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.npmjs.org/@semiotic-labs/tap-contracts-bindings/-/tap-contracts-bindings-1.1.0.tgz#94c18951eb4dbec1008f1e3b27134544981904d5"
+  integrity sha512-oVLx50mmhtypfORe6orchkmtKS6V09RJ0q9IkxG/ObVSQKZ/xCrdOwGIVJYUajhi6QdEt0Xh27b8rQVCtPKvsA==
+  dependencies:
+    "@typechain/ethers-v5" "^11.1.2"
+    abitype "^0.10.3"
+    ethers "5.7.0"
+
 "@sentry/core@5.30.0":
   version "5.30.0"
   resolved "https://registry.npmjs.org/@sentry/core/-/core-5.30.0.tgz"
@@ -2839,7 +2848,7 @@
 
 "@thi.ng/heaps@1.2.38":
   version "1.2.38"
-  resolved "https://registry.npmjs.org/@thi.ng/heaps/-/heaps-1.2.38.tgz#c5027c02bedb41644fc71d109cd16a878a48ad0b"
+  resolved "https://registry.npmjs.org/@thi.ng/heaps/-/heaps-1.2.38.tgz"
   integrity sha512-lWDQsGmt6YuHgmog4wpSKa7wqawt0JVyCREWc/J2bA9vcg/cYfljda2teVTA3rTUhKWs/S2htorN8On7+Rxt5A==
   dependencies:
     "@thi.ng/api" "^7.1.4"
@@ -2922,6 +2931,14 @@
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@tsconfig/node16/-/node16-1.0.4.tgz#0b92dcc0cc1c81f6f306a381f28e31b1a56536e9"
   integrity sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==
+
+"@typechain/ethers-v5@^11.1.2":
+  version "11.1.2"
+  resolved "https://registry.npmjs.org/@typechain/ethers-v5/-/ethers-v5-11.1.2.tgz"
+  integrity sha512-ID6pqWkao54EuUQa0P5RgjvfA3MYqxUQKpbGKERbsjBW5Ra7EIXvbMlPp2pcP5IAdUkyMCFYsP2SN5q7mPdLDQ==
+  dependencies:
+    lodash "^4.17.15"
+    ts-essentials "^7.0.1"
 
 "@types/argparse@1.0.38":
   version "1.0.38"
@@ -3650,6 +3667,11 @@ abbrev@1, abbrev@^1.0.0:
   version "1.1.1"
   resolved "https://registry.npmjs.org/abbrev/-/abbrev-1.1.1.tgz"
   integrity sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==
+
+abitype@^0.10.3:
+  version "0.10.3"
+  resolved "https://registry.npmjs.org/abitype/-/abitype-0.10.3.tgz"
+  integrity sha512-tRN+7XIa7J9xugdbRzFv/95ka5ivR/sRe01eiWvM0HWWjHuigSZEACgKa0sj4wGuekTDtghCx+5Izk/cOi78pQ==
 
 abort-controller@^3.0.0:
   version "3.0.0"
@@ -11467,6 +11489,14 @@ table@6.7.5:
     slice-ansi "^4.0.0"
     string-width "^4.2.3"
     strip-ansi "^6.0.1"
+
+tap-contracts@semiotic-ai/timeline-aggregation-protocol-contracts#ca1cfa653d0d1d209aee48ab021b0e562d2b5688:
+  version "0.0.1"
+  resolved "https://codeload.github.com/semiotic-ai/timeline-aggregation-protocol-contracts/tar.gz/ca1cfa653d0d1d209aee48ab021b0e562d2b5688"
+  dependencies:
+    "@typechain/ethers-v5" "^11.1.2"
+    abitype "^0.10.3"
+    ethers "5.7.0"
 
 tar-stream@~2.2.0:
   version "2.2.0"

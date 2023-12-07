@@ -17,7 +17,11 @@ const deriveKeyPair = (
   }
 }
 
-export const allocationSigner = (wallet: Wallet, allocation: Allocation): string => {
+// Returns the private key of allocation signer
+export const allocationSignerPrivateKey = (
+  wallet: Wallet,
+  allocation: Allocation,
+): string => {
   const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
 
   // The allocation was either created at the epoch it intended to or one
@@ -36,6 +40,11 @@ export const allocationSigner = (wallet: Wallet, allocation: Allocation): string
   throw new Error(
     `No match found within allowed epochs and parallel allocation limit of 100`,
   )
+}
+
+// Returns allocation signer wallet
+export const allocationSigner = (wallet: Wallet, allocation: Allocation): Signer => {
+  return new Wallet(allocationSignerPrivateKey(wallet, allocation))
 }
 
 /**
