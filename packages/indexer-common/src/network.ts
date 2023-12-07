@@ -18,6 +18,7 @@ import {
   NetworkMonitor,
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
+  getEscrowContract,
 } from '.'
 import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -210,6 +211,14 @@ export class Network {
     )
 
     // --------------------------------------------------------------------------------
+    // * Escrow contract
+    // --------------------------------------------------------------------------------
+    const escrow = await getEscrowContract(
+      specification.networkIdentifier,
+      networkProvider,
+    )
+
+    // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
     const receiptCollector = await AllocationReceiptCollector.create({
@@ -218,6 +227,7 @@ export class Network {
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
+      escrow: escrow,
       networkSpecification: specification,
     })
 

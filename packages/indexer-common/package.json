@@ -24,6 +24,7 @@
   "dependencies": {
     "@graphprotocol/common-ts": "2.0.9",
     "@graphprotocol/cost-model": "0.1.16",
+    "@semiotic-ai/timeline-aggregation-protocol-contracts": "https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts#11ebba656eafc09a0d9c52a7b6a0a552e2e6740f",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/lodash.intersection": "^4.4.7",

@@ -19,6 +19,7 @@ import {
   ensureAllocationSummary,
   TransactionManager,
   specification as spec,
+  EscrowContract,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
@@ -66,6 +67,7 @@ export interface AllocationReceiptCollectorOptions {
   metrics: Metrics
   transactionManager: TransactionManager
   allocationExchange: Contract
+  escrow: EscrowContract
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
 }
@@ -81,6 +83,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare models: QueryFeeModels
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
+  declare escrow: EscrowContract
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
   declare voucherEndpoint: URL
@@ -99,6 +102,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     transactionManager,
     models,
     allocationExchange,
+    escrow,
     networkSpecification,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
@@ -110,6 +114,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.transactionManager = transactionManager
     collector.models = models
     collector.allocationExchange = allocationExchange
+    collector.escrow = escrow
     collector.protocolNetwork = networkSpecification.networkIdentifier
 
     // Process Gateway routes
