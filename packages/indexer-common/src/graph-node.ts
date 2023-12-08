@@ -9,7 +9,7 @@ import {
   IndexerErrorCode,
 } from './errors'
 import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
-import pRetry from 'p-retry'
+import pRetry, { Options } from 'p-retry'
 import axios, { AxiosInstance } from 'axios'
 import fetch from 'isomorphic-fetch'
 
@@ -114,7 +114,7 @@ export class GraphNode {
               err: err.message,
             })
           },
-        } as pRetry.Options,
+        } as Options,
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE024, error)
@@ -468,7 +468,7 @@ export class GraphNode {
             err: err.message,
           })
         },
-      } as pRetry.Options)
+      } as Options)
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE018, error)
       this.logger.error(`Failed to query indexing status API`, {
@@ -542,7 +542,7 @@ export class GraphNode {
               err: err.message,
             })
           },
-        } as pRetry.Options,
+        } as Options,
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE019, error)
@@ -607,7 +607,7 @@ export class GraphNode {
               err: err.message,
             })
           },
-        } as pRetry.Options,
+        } as Options,
       )
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE070, error)

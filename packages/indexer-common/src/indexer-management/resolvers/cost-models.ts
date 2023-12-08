@@ -121,11 +121,13 @@ export default {
     const [model] = await models.CostModel.findOrBuild({
       where: { deployment: update.deployment },
     })
-    model.deployment = costModel.deployment || model.deployment
-    model.model =
-      costModel.model !== null && costModel.model !== undefined
-        ? costModel.model
-        : model.model
+    // logger.info('Fetched current model', { current: model, update })
+    // model.set('deployment', update.deployment || model.deployment)
+    // // model.set('model', update.model || model.model)
+    // model.model = update.model || model.model
+    // logger.info('Merged models', { now: model })
+    model.deployment = update.deployment || model.deployment
+    model.model = update.model || model.model
 
     // Update the model variables (fall back to current value if unchanged)
     let variables = update.variables || model.variables
