@@ -470,12 +470,17 @@ describe('Cost models', () => {
       model: '',
       variables: JSON.stringify({}),
     }
+    const expected = {
+      deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
+      model: null,
+      variables: JSON.stringify({}),
+    }
 
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
 
     await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
       'data.costModels',
-      [input],
+      [expected],
     )
   })
 

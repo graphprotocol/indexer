@@ -163,8 +163,9 @@ const setup = async () => {
       url: 'http://test-indexer.xyz',
     },
     subgraphs: {
+      maxBlockDistance: 10000,
       networkSubgraph: {
-        url: 'http://test-url.xyz',
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
       },
       epochSubgraph: {
         url: 'http://test-url.xyz',

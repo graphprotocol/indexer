@@ -3,12 +3,13 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "target": "es2015",
+    "target": "es2020",
     "module": "commonjs",
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
     "strict": true,
+    "noImplicitAny": false,
     "composite": true,
     "lib": [
       "esnext.asynciterable",

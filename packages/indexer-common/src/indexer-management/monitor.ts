@@ -34,7 +34,7 @@ import {
 import { BigNumber } from 'ethers'
 import gql from 'graphql-tag'
 import { providers, utils, Wallet } from 'ethers'
-import pRetry from 'p-retry'
+import pRetry, { Options } from 'p-retry'
 import { IndexerOptions } from '../network-specification'
 import pMap from 'p-map'
 
@@ -579,7 +579,7 @@ export class NetworkMonitor {
   }
 
   async subgraphDeployments(): Promise<SubgraphDeployment[]> {
-    const deployments = []
+    const deployments: SubgraphDeployment[] = []
     const queryProgress = {
       lastCreatedAt: 0,
       first: 10,
@@ -797,7 +797,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
             err: err.message,
           })
         },
-      } as pRetry.Options)
+      } as Options)
     } catch (err) {
       if (err instanceof indexerError) {
         throw err

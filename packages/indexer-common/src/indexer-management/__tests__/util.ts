@@ -35,6 +35,7 @@ export const testNetworkSpecification: specification.NetworkSpecification =
       url: 'http://test-indexer.xyz',
     },
     subgraphs: {
+      maxBlockDistance: 10000,
       networkSubgraph: {
         url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
       },
