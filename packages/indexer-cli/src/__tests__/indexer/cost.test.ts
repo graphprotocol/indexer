@@ -1,4 +1,4 @@
-import { cliTest, setup, seed, teardown } from '../util'
+import { cliTest, setup, seed, teardown, connect } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
@@ -185,6 +185,9 @@ describe('Indexer cost tests', () => {
   })
 
   describe('Without indexer management server', () => {
+    beforeAll(async () => {
+      await connect()
+    })
     cliTest(
       'Indexer cost set - not connected',
       [

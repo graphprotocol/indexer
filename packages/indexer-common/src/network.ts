@@ -23,7 +23,7 @@ import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
 import geohash from 'ngeohash'
 
-import pRetry from 'p-retry'
+import pRetry, { Options } from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
@@ -412,7 +412,7 @@ export class Network {
           throw error
         }
       },
-      { retries: 5 } as pRetry.Options,
+      { retries: 5 } as Options,
     )
   }
 }

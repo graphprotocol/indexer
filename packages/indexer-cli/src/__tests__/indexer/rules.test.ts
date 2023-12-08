@@ -1,4 +1,4 @@
-import { cliTest, setup, seed, teardown, deleteFromAllTables } from '../util'
+import { cliTest, connect, setup, seed, teardown, deleteFromAllTables } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
@@ -683,6 +683,9 @@ describe('Indexer rules tests', () => {
   })
 
   describe('Without indexer management server', () => {
+    beforeAll(async () => {
+      await connect()
+    })
     cliTest(
       'Indexer rules start - not connected',
       [

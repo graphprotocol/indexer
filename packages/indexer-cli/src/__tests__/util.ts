@@ -163,6 +163,17 @@ export const setup = async () => {
   process.on('SIGINT', shutdownIndexerManagementServer)
 }
 
+// Simply setup connection config
+export const connect = async () => {
+  const command = ['indexer', 'connect', 'http://127.0.0.1:18000']
+  const { exitCode, stderr, stdout } = await runIndexerCli(command, process.cwd())
+  if (exitCode == 1) {
+    console.error(stderr)
+    console.log(stdout)
+    throw Error(`Setup failed: indexer rules or cost set command failed: ${command}`)
+  }
+}
+
 // Set global, deployment, and subgraph based test rules and cost model
 export const seed = async () => {
   const commands: string[][] = [
