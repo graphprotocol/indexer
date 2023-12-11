@@ -28,7 +28,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | ipfs.cat in mappings     |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                      |               | Yes         | Yes          | No                | No                   | No               |
 | File data sources: IPFS  |               | Yes         | Yes          | No                | Yes                  | Yes              |
-| Substreams data sources  | mainnet       | Yes         | Yes          | Yes               | Yes                  | Yes              | 
+| Substreams: mainnet      |               | Yes         | Yes          | Yes               | Yes                  | Yes              | 
+| Substreams: optimism     |               | Yes         | Yes          | Yes               | Yes                  | Yes              | 
+
 
 The accepted `graph-node` version range must always be specified; it always comprises the latest available version and the one immediately preceding it. 
 The latest for the feature matrix above:
