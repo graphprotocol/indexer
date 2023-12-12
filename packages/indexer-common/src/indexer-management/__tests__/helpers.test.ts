@@ -65,7 +65,7 @@ const setupModels = async () => {
 
 const setupMonitor = async () => {
   mockAllocation = createMockAllocation()
-  const statusEndpoint = 'http://localhost:8030/graphql'
+  const statusEndpoint = 'http://127.0.0.1:8030/graphql'
   logger = createLogger({
     name: 'IndexerManagement.Monitor tests',
     async: false,

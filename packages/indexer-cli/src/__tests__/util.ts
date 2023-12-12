@@ -19,6 +19,8 @@ import {
   MultiNetworks,
   QueryFeeModels,
   defineQueryFeeModels,
+  ActionType,
+  ActionStatus,
 } from '@graphprotocol/indexer-common'
 import {
   createMetrics,
@@ -47,15 +49,15 @@ let server: http.Server
 let sockets: Socket[] = []
 let metrics: Metrics
 
-const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
 
 const testProviderUrl =
   process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
 
 export const testNetworkSpecification = specification.NetworkSpecification.parse({
-  networkIdentifier: 'goerli',
+  networkIdentifier: 'sepolia',
   gateway: {
-    url: 'http://localhost:8030/',
+    url: 'http://127.0.0.1:8030/',
   },
   networkProvider: {
     url: testProviderUrl,
@@ -67,8 +69,9 @@ export const testNetworkSpecification = specification.NetworkSpecification.parse
     url: 'http://test-indexer.xyz',
   },
   subgraphs: {
+    maxBlockDistance: 10000,
     networkSubgraph: {
-      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
     },
     epochSubgraph: {
       url: 'http://test-url.xyz',
@@ -102,7 +105,7 @@ export const setup = async () => {
 
   sequelize = await sequelize.sync({ force: true })
 
-  const statusEndpoint = 'http://localhost:8030/graphql'
+  const statusEndpoint = 'http://127.0.0.1:8030/graphql'
   const indexNodeIDs = ['node_1']
   const graphNode = new GraphNode(
     logger,
@@ -161,6 +164,23 @@ export const setup = async () => {
   process.setMaxListeners(100)
   process.on('SIGTERM', shutdownIndexerManagementServer)
   process.on('SIGINT', shutdownIndexerManagementServer)
+
+  await models.Action.create({
+    type: ActionType.ALLOCATE,
+    status: ActionStatus.SUCCESS,
+    deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
+    source: 'test',
+    reason: 'test',
+    protocolNetwork: 'eip155:11155111',
+  })
+  await models.Action.create({
+    type: ActionType.UNALLOCATE,
+    status: ActionStatus.FAILED,
+    deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
+    source: 'test',
+    reason: 'test',
+    protocolNetwork: 'eip155:11155111',
+  })
 }
 
 // Simply setup connection config
@@ -177,13 +197,13 @@ export const connect = async () => {
 // Set global, deployment, and subgraph based test rules and cost model
 export const seed = async () => {
   const commands: string[][] = [
-    ['indexer', 'connect', 'http://localhost:18000'],
+    ['indexer', 'connect', 'http://127.0.0.1:18000'],
     [
       'indexer',
       'rules',
       'set',
       '--network',
-      'goerli',
+      'sepolia',
       'global',
       'minSignal',
       '500',
@@ -195,15 +215,15 @@ export const seed = async () => {
       'rules',
       'set',
       '--network',
-      'goerli',
-      'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+      'sepolia',
+      'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
     ],
     [
       'indexer',
       'rules',
       'prepare',
       '--network',
-      'goerli',
+      'sepolia',
       'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
     ],
     [
@@ -211,7 +231,7 @@ export const seed = async () => {
       'rules',
       'set',
       '--network',
-      'goerli',
+      'sepolia',
       '0x0000000000000000000000000000000000000000-0',
       'allocationAmount',
       '1000',
@@ -221,7 +241,7 @@ export const seed = async () => {
       'rules',
       'offchain',
       '--network',
-      'goerli',
+      'sepolia',
       '0x0000000000000000000000000000000000000000-1',
     ],
     [
@@ -229,7 +249,7 @@ export const seed = async () => {
       'rules',
       'set',
       '--network',
-      'goerli',
+      'sepolia',
       '0x0000000000000000000000000000000000000000-2',
       'allocationAmount',
       '1000',
@@ -255,11 +275,32 @@ export const seed = async () => {
       'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
       `'{"DAI": "0.5"}'`,
     ],
+    [
+      'indexer',
+      'actions',
+      'queue',
+      'allocate',
+      'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
+      '4847',
+      '--network',
+      'sepolia',
+    ],
+    // [
+    //   'indexer',
+    //   'actions',
+    //   'queue',
+    //   'unallocate',
+    //   'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
+    //   '0x1076cd5003bacfe167cb5a23d23a29397a32bf8c',
+    //   '--network',
+    //   'sepolia',
+    // ],
   ]
   for (const command of commands) {
     const { exitCode, stderr, stdout } = await runIndexerCli(command, process.cwd())
     if (exitCode == 1) {
       console.error(stderr)
+      console.error(command)
       console.log(stdout)
       throw Error(`Setup failed: indexer rules or cost set command failed: ${command}`)
     }

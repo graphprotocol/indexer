@@ -1,4 +1,4 @@
-identifier: QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr
+identifier: QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q
 identifierType: deployment
 allocationAmount: null
 allocationLifetime: null
@@ -13,4 +13,4 @@ custom: null
 decisionBasis: rules
 requireSupported: true
 safety: true
-protocolNetwork: goerli
+protocolNetwork: sepolia

@@ -151,7 +151,7 @@ const setup = async () => {
   const networkSpecification = specification.NetworkSpecification.parse({
     networkIdentifier: 'eip155:5',
     gateway: {
-      url: 'http://localhost:8030/',
+      url: 'http://127.0.0.1:8030/',
     },
     networkProvider: {
       url: testProviderUrl,
