@@ -28,7 +28,6 @@ import {
 import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
 import {
-  allocateToNotPublishedDeployment,
   createTestManagementClient,
   invalidReallocateAction,
   invalidUnallocateAction,
@@ -36,7 +35,6 @@ import {
   subgraphDeployment1,
   subgraphDeployment2,
   subgraphDeployment3,
-  notPublishedSubgraphDeployment,
 } from '../util'
 
 const QUEUE_ACTIONS_MUTATION = gql`
@@ -630,23 +628,6 @@ describe('Actions', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.actions', [expectedUpdated])
-  })
-
-  test('Reject action with deployment not on network', async () => {
-    const inputActions = [allocateToNotPublishedDeployment]
-
-    await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `No subgraphDeployment with ipfsHash = '${notPublishedSubgraphDeployment}' found on the network`,
-          ),
-        ],
-      }),
-    )
   })
 
   test('Reject unallocate action with inactive allocationID', async () => {

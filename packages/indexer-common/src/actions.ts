@@ -1,5 +1,6 @@
 import { NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
+import { Logger } from '@graphprotocol/common-ts'
 import { WhereOperators, WhereOptions } from 'sequelize'
 import { Op } from 'sequelize'
 import { WhereAttributeHashValue } from 'sequelize/types/model'
@@ -81,6 +82,7 @@ export const isValidActionInput = (
 export const validateActionInputs = async (
   actions: ActionInput[],
   networkMonitor: NetworkMonitor,
+  logger: Logger,
 ): Promise<void> => {
   // Validate actions before adding to queue
   // TODO: Perform all checks simultaneously and throw combined error if 1 or more fail
@@ -125,7 +127,7 @@ export const validateActionInputs = async (
       action.deploymentID,
     )
     if (!subgraphDeployment) {
-      throw new Error(
+      logger.warn(
         `No subgraphDeployment with ipfsHash = '${action.deploymentID}' found on the network`,
       )
     }

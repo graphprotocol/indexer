@@ -132,25 +132,11 @@ export const defaults: IndexerManagementDefaults = {
 export const subgraphDeployment1 = 'Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy'
 export const subgraphDeployment2 = 'QmWq1pmnhEvx25qxpYYj9Yp6E1xMKMVoUjXVQBxUJmreSe'
 export const subgraphDeployment3 = 'QmRhH2nhNibDVPZmYqq3TUZZARZ77vgjYCvPNiGBCogtgM'
-export const notPublishedSubgraphDeployment =
-  'QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6'
 
 export const queuedAllocateAction = {
   status: ActionStatus.QUEUED,
   type: ActionType.ALLOCATE,
   deploymentID: subgraphDeployment1,
-  amount: '10000',
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'goerli',
-} as ActionInput
-
-export const allocateToNotPublishedDeployment = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.ALLOCATE,
-  deploymentID: notPublishedSubgraphDeployment,
   amount: '10000',
   force: false,
   source: 'indexerAgent',
