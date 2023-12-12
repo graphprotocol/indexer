@@ -173,7 +173,7 @@ export default {
     await multiNetworks.mapNetworkMapped(
       groupBy(actions, (action) => action.protocolNetwork),
       (network: Network, actions: ActionInput[]) =>
-        validateActionInputs(actions, network.networkMonitor),
+        validateActionInputs(actions, network.networkMonitor, logger),
     )
 
     const alreadyQueuedActions = await ActionManager.fetchActions(models, {
