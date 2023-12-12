@@ -6,15 +6,13 @@ const baseDir = path.join(__dirname, '..')
 describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
     beforeAll(setup)
-    beforeEach(async () => {
-      await deleteFromAllTables()
-      await seed()
-    })
     afterAll(teardown)
+    beforeEach(seed)
+    afterEach(deleteFromAllTables)
     describe('Rules help', () => {
       cliTest(
         'Indexer rules',
-        ['indexer', 'rules', '--network', 'goerli'],
+        ['indexer', 'rules', '--network', 'sepolia'],
         'references/indexer-rules',
         {
           expectedExitCode: 255,
@@ -42,8 +40,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'start',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-always',
         {
@@ -64,7 +62,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules start - no identifier',
-        ['indexer', 'rules', 'start', '--network', 'goerli'],
+        ['indexer', 'rules', 'start', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -74,7 +72,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules start - invalid deployment ID ',
-        ['indexer', 'rules', 'start', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'start', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -92,7 +90,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'prepare',
           '--network',
-          'goerli',
+          'sepolia',
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
         ],
         'references/indexer-rule-deployment-offchain',
@@ -109,7 +107,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'offchain',
           '--network',
-          'goerli',
+          'sepolia',
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
         ],
         'references/indexer-rule-deployment-offchain',
@@ -131,7 +129,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules prepare - no identifier',
-        ['indexer', 'rules', 'prepare', '--network', 'goerli'],
+        ['indexer', 'rules', 'prepare', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -141,7 +139,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules prepare - invalid deployment ID ',
-        ['indexer', 'rules', 'prepare', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'prepare', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -159,8 +157,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'stop',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-never',
         {
@@ -181,7 +179,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules stop - no identifier',
-        ['indexer', 'rules', 'stop', '--network', 'goerli'],
+        ['indexer', 'rules', 'stop', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -191,7 +189,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules stop - invalid deployment ID',
-        ['indexer', 'rules', 'stop', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'stop', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -209,8 +207,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'maybe',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-rules',
         {
@@ -231,7 +229,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules maybe - no identifier',
-        ['indexer', 'rules', 'maybe', '--network', 'goerli'],
+        ['indexer', 'rules', 'maybe', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -241,7 +239,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules maybe - invalid deployment ID ',
-        ['indexer', 'rules', 'maybe', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'maybe', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -259,8 +257,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'clear',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-rules',
         {
@@ -281,7 +279,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules clear - no identifier',
-        ['indexer', 'rules', 'clear', '--network', 'goerli'],
+        ['indexer', 'rules', 'clear', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -291,7 +289,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules clear - invalid deployment ID ',
-        ['indexer', 'rules', 'clear', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'clear', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -309,8 +307,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'delete',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-deleted-success',
         {
@@ -326,7 +324,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'delete',
           '--network',
-          'goerli',
+          'sepolia',
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
         ],
         'references/indexer-rule-deployment-deleted-offchain-success',
@@ -348,7 +346,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules delete - no identifier',
-        ['indexer', 'rules', 'delete', '--network', 'goerli'],
+        ['indexer', 'rules', 'delete', '--network', 'sepolia'],
         'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
@@ -358,7 +356,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules delete - invalid deployment ID ',
-        ['indexer', 'rules', 'delete', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'delete', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -376,7 +374,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           '0x0000000000000000000000000000000000000000-0',
           'allocationAmount',
           '1000',
@@ -395,7 +393,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           '0x0000000000000000000000000000000000000000-1',
           'allocationAmount',
           '1000',
@@ -418,8 +416,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-rules',
         {
@@ -435,7 +433,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           'QmVEV7RA2U6BJT9Ssjxcfyrk4YQUnVqSRNX4TvYagjzh9h',
           'requireSupported',
           'false',
@@ -454,10 +452,12 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           'QmVEV7RA2U6BJT9Ssjxcfyrk4YQUnVqSRNX4TvYagjzh9h',
           'safety',
           'false',
+          'requireSupported',
+          'true',
         ],
         'references/indexer-rule-deployment-safety',
         {
@@ -473,7 +473,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
           'decisionBasis',
           'offchain',
@@ -496,7 +496,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           'global',
           'minSignal',
           '500',
@@ -522,7 +522,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules set - invalid deployment ID ',
-        ['indexer', 'rules', 'set', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'set', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -537,7 +537,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'set',
           '--network',
-          'goerli',
+          'sepolia',
           '0x0000000000000000000000000000000000000000-0',
           'allocationAmoewt',
           '1000',
@@ -569,8 +569,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'get',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
         ],
         'references/indexer-rule-deployment-rules',
         {
@@ -586,7 +586,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'get',
           '--network',
-          'goerli',
+          'sepolia',
           'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
         ],
         'references/indexer-rule-deployment-offchain',
@@ -603,7 +603,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'get',
           '--network',
-          'goerli',
+          'sepolia',
           '0x0000000000000000000000000000000000000000-0',
         ],
         'references/indexer-rule-subgraph-rules',
@@ -620,7 +620,7 @@ describe('Indexer rules tests', () => {
           'rules',
           'get',
           '--network',
-          'goerli',
+          'sepolia',
           '0x0000000000000000000000000000000000000000-2',
         ],
         'references/indexer-rule-subgraph-options',
@@ -637,8 +637,8 @@ describe('Indexer rules tests', () => {
           'rules',
           'get',
           '--network',
-          'goerli',
-          'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+          'sepolia',
+          'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
           '--output',
           'yaml',
         ],
@@ -651,7 +651,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules get global - success',
-        ['indexer', 'rules', 'get', '--network', 'goerli', 'global'],
+        ['indexer', 'rules', 'get', '--network', 'sepolia', 'global'],
         'references/indexer-rule-global-rules',
         {
           expectedExitCode: 0,
@@ -671,7 +671,7 @@ describe('Indexer rules tests', () => {
       )
       cliTest(
         'Indexer rules get - invalid deployment ID ',
-        ['indexer', 'rules', 'get', '--network', 'goerli', 'Qmemememememe'],
+        ['indexer', 'rules', 'get', '--network', 'sepolia', 'Qmemememememe'],
         'references/indexer-rules-invalid-identifier-arg',
         {
           expectedExitCode: 1,
@@ -683,9 +683,7 @@ describe('Indexer rules tests', () => {
   })
 
   describe('Without indexer management server', () => {
-    beforeAll(async () => {
-      await connect()
-    })
+    beforeAll(connect)
     cliTest(
       'Indexer rules start - not connected',
       [
@@ -693,8 +691,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'start',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {
@@ -710,8 +708,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'stop',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {
@@ -727,8 +725,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'maybe',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {
@@ -744,8 +742,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'get',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {
@@ -761,8 +759,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'delete',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {
@@ -778,8 +776,8 @@ describe('Indexer rules tests', () => {
         'rules',
         'clear',
         '--network',
-        'goerli',
-        'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
+        'sepolia',
+        'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       ],
       'references/indexer-not-connected',
       {

@@ -21,7 +21,7 @@ describe('Indexer cli tests', () => {
     })
     cliTest(
       'Indexer connect - success',
-      ['indexer', 'connect', 'http://localhost:18000'],
+      ['indexer', 'connect', 'http://127.0.0.1:18000'],
       'references/indexer-connect',
       {
         expectedExitCode: 0,
@@ -29,16 +29,6 @@ describe('Indexer cli tests', () => {
         timeout: 10000,
       },
     )
-    // TODO: Connect should fail with helpful error message if incorrect port is provided or server isn't live
-    cliTest(
-      'Indexer connect - success with incorrect port',
-      ['indexer', 'connect', 'http://localhost:18003'],
-      'references/indexer-connect',
-      {
-        expectedExitCode: 0,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
+    // TODO: Test that connect should fail with helpful error message if incorrect port is provided or server isn't live
   })
 })
