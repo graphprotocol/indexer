@@ -7,6 +7,7 @@ import {
   Eventual,
   toAddress,
 } from '@graphprotocol/common-ts'
+import { connectContracts as connectEscrowContracts } from 'tap-contracts'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -19,7 +20,6 @@ import {
   NetworkMonitor,
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
-  getEscrowContract,
   monitorEligibleAllocations,
 } from '.'
 import { providers, Wallet } from 'ethers'
@@ -215,15 +215,20 @@ export class Network {
     // --------------------------------------------------------------------------------
     // * Escrow contract
     // --------------------------------------------------------------------------------
-    const escrow = await getEscrowContract(
-      specification.networkIdentifier,
-      networkProvider,
-    )
+    const networkIdentifier = await networkProvider.getNetwork()
+    let escrowContracts
+    try {
+      escrowContracts = await connectEscrowContracts(
+        networkProvider,
+        networkIdentifier.chainId,
+      )
+    } catch (error) {
+      console.error('Error connecting to escrow contracts:', error)
+    }
 
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
     // --------------------------------------------------------------------------------
-    const networkIdentifier = await networkProvider.getNetwork()
     const allocations = monitorEligibleAllocations({
       indexer: toAddress(specification.indexerOptions.address),
       logger,
@@ -241,7 +246,7 @@ export class Network {
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
-      escrow: escrow,
+      escrowContracts,
       allocations,
       networkSpecification: specification,
     })

@@ -1,5 +1,5 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { BigNumber, providers, Contract } from 'ethers'
+import { BigNumber, providers } from 'ethers'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
@@ -104,30 +104,5 @@ export function parseDeploymentManagementMode(input: string): DeploymentManageme
       return DeploymentManagementMode.MANUAL
     default:
       throw new Error(`Invalid value for deployment management mode: ${input}`)
-  }
-}
-
-export type EscrowContract = Contract | null
-
-export async function getEscrowContract(
-  networkIdentifier: string,
-  networkProvider: providers.StaticJsonRpcProvider,
-): Promise<EscrowContract> {
-  // Escrow ONLY available at arb-sepolia (chain id: eip155:421614)
-  if (networkIdentifier === 'eip155:421614') {
-    const contractAddress = '0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02'
-    try {
-      //Dependency doesn't provide better import methods
-      const response = await fetch(
-        'https://github.com/semiotic-ai/timeline-aggregation-protocol-subgraph/blob/main/abis/Escrow.abi.json',
-      )
-      const abi = await response.json()
-      return new Contract(contractAddress, abi, networkProvider)
-    } catch (error) {
-      console.error(error)
-      return null
-    }
-  } else {
-    return null
   }
 }

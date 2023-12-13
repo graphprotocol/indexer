@@ -1,7 +1,7 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { Address } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
-import { Signature } from 'ethers'
+import { TAPVerifier } from 'tap-contracts/generated/ts-bindings/TAPVerifier'
 
 export interface AllocationReceiptAttributes {
   id: string
@@ -74,16 +74,7 @@ export class ReceiptAggregateVoucher
   }
 }
 
-export interface SignedRav {
-  message: ReceiptAggregateVoucherMessage
-  signature: Signature // Define Signature according to your requirements
-}
-
-export interface ReceiptAggregateVoucherMessage {
-  allocationId: string
-  timestampNs: bigint
-  valueAggregate: bigint
-}
+export type SignedRAV = TAPVerifier.SignedRAVStruct
 
 export interface TransferReceiptAttributes {
   id: number

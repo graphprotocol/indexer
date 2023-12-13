@@ -24,7 +24,6 @@
   "dependencies": {
     "@graphprotocol/common-ts": "2.0.9",
     "@graphprotocol/cost-model": "0.1.16",
-    "@semiotic-ai/timeline-aggregation-protocol-contracts": "https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts#11ebba656eafc09a0d9c52a7b6a0a552e2e6740f",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/lodash.intersection": "^4.4.7",
@@ -54,6 +53,7 @@
     "p-timeout": "4.1.0",
     "parsimmon": "^1.18.1",
     "sequelize": "6.33.0",
+    "tap-contracts": "semiotic-ai/timeline-aggregation-protocol-contracts#ca1cfa653d0d1d209aee48ab021b0e562d2b5688",
     "ts-custom-error": "^3.2.0",
     "zod": "^3.21.4"
   },
