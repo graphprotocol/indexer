@@ -7,7 +7,7 @@ import {
   Eventual,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { connectContracts as connectEscrowContracts } from 'tap-contracts'
+import { connectContracts as connectEscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,

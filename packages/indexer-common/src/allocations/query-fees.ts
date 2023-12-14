@@ -10,7 +10,7 @@ import {
   Metrics,
   Eventual,
 } from '@graphprotocol/common-ts'
-import { NetworkContracts as EscrowContracts } from 'tap-contracts'
+import { NetworkContracts as EscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   Allocation,
   AllocationReceipt,

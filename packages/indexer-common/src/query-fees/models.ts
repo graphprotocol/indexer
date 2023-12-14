@@ -1,7 +1,7 @@
 import { DataTypes, Sequelize, Model, Association } from 'sequelize'
 import { Address } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
-import { TAPVerifier } from 'tap-contracts/generated/ts-bindings/TAPVerifier'
+import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
 
 export interface AllocationReceiptAttributes {
   id: string
