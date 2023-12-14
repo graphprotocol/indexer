@@ -49,8 +49,8 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 }
 
 export interface ReceiptAggregateVoucherAttributes {
-  allocationId: Address
-  senderAddress: string
+  allocation_id: Address
+  sender_address: string
   rav: JSON // JSON object mapped from SignedRav
   final: boolean
 }
@@ -59,8 +59,8 @@ export class ReceiptAggregateVoucher
   extends Model<ReceiptAggregateVoucherAttributes>
   implements ReceiptAggregateVoucherAttributes
 {
-  public allocationId!: Address
-  public senderAddress!: string
+  public allocation_id!: Address
+  public sender_address!: string
   public rav!: JSON
   public final!: boolean
 
@@ -263,12 +263,12 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
 
   ReceiptAggregateVoucher.init(
     {
-      allocationId: {
+      allocation_id: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
       },
-      senderAddress: {
+      sender_address: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
@@ -456,7 +456,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
 
   ReceiptAggregateVoucher.belongsTo(AllocationSummary, {
     targetKey: 'allocation',
-    foreignKey: 'allocation',
+    foreignKey: 'allocation_id',
     as: 'allocationSummary',
   })
 

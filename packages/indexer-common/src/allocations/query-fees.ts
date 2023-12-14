@@ -152,6 +152,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
     if (collector.escrowContracts) {
+      collector.logger.info(`RAV processing is initiated`);
       collector.startRAVProcessing()
     }
     await collector.queuePendingReceiptsFromDatabase()
@@ -404,8 +405,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       let pendingRAVs: ReceiptAggregateVoucher[] = []
       try {
         pendingRAVs = await this.pendingRAVs()
+        this.logger.debug(`Pending RAVs`, { pendingRAVs })
       } catch (err) {
-        this.logger.warn(`Failed to query pending vouchers`, { err })
+        this.logger.warn(`Failed to query pending RAVs`, { err })
         return
       }
 
@@ -822,7 +824,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       await this.models.receiptAggregateVouchers.destroy({
         where: {
-          allocationId: signedRavs.map((signedRav) => signedRav.rav.allocationId),
+          allocation_id: signedRavs.map((signedRav) => signedRav.rav.allocationId),
         },
       })
       signedRavs.map((signedRav) =>
