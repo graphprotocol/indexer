@@ -152,7 +152,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
     if (collector.escrowContracts) {
-      collector.logger.info(`RAV processing is initiated`);
+      collector.logger.info(`RAV processing is initiated`)
       collector.startRAVProcessing()
     }
     await collector.queuePendingReceiptsFromDatabase()
