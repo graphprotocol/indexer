@@ -152,7 +152,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
     if (collector.escrowContracts) {
-      collector.logger.info(`RAV processing is initiated`);
+      collector.logger.info(`RAV processing is initiated`)
       collector.startRAVProcessing()
     }
     await collector.queuePendingReceiptsFromDatabase()
@@ -801,41 +801,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       stopTimer()
     }
 
-    // Postprocess obsolete RAVs from the database
-    logger.info(`Successfully redeemed RAV, delete local copy`)
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.models.allocationSummaries.sequelize!.transaction(
-        async (transaction) => {
-          for (const signedRav of signedRavs) {
-            const [summary] = await ensureAllocationSummary(
-              this.models,
-              toAddress(signedRav.rav.allocationId),
-              transaction,
-              this.protocolNetwork,
-            )
-            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
-              .add(signedRav.rav.valueAggregate)
-              .toString()
-            await summary.save({ transaction })
-          }
-        },
-      )
-
-      await this.models.receiptAggregateVouchers.destroy({
-        where: {
-          allocation_id: signedRavs.map((signedRav) => signedRav.rav.allocationId),
-        },
-      })
-      signedRavs.map((signedRav) =>
-        this.metrics.successRavRedeems.inc({ allocation: signedRav.rav.allocationId }),
-      )
-      logger.info(`Successfully deleted local RAV copy`)
-    } catch (err) {
-      logger.warn(`Failed to delete local RAV copy, will try again later`, {
-        err,
-      })
-    }
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
