@@ -147,9 +147,9 @@ export class AllocationManager {
     logger.trace('Prepared transaction calldata', { callData })
 
     return await this.network.transactionManager.executeTransaction(
-      async () => this.network.contracts.staking.estimateGas.multicall(callData),
-      async (gasLimit) =>
-        this.network.contracts.staking.multicall(callData, { gasLimit }),
+      async (overrides) =>
+        this.network.contracts.staking.estimateGas.multicall(callData, overrides),
+      async (overrides) => this.network.contracts.staking.multicall(callData, overrides),
       this.logger.child({
         actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
         function: 'staking.multicall',

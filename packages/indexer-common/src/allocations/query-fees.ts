@@ -21,7 +21,7 @@ import {
   specification as spec,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
-import { BigNumber, BigNumberish, Contract } from 'ethers'
+import { BigNumber, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
 
@@ -567,11 +567,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     try {
       // Submit the voucher on chain
       const txReceipt = await this.transactionManager.executeTransaction(
-        () => this.allocationExchange.estimateGas.redeemMany(onchainVouchers),
-        async (gasLimit: BigNumberish) =>
-          this.allocationExchange.redeemMany(onchainVouchers, {
-            gasLimit,
-          }),
+        (overrides) =>
+          this.allocationExchange.estimateGas.redeemMany(onchainVouchers, overrides),
+        async (overrides) =>
+          this.allocationExchange.redeemMany(onchainVouchers, overrides),
         logger.child({ action: 'redeemMany' }),
       )
 

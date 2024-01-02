@@ -375,20 +375,19 @@ export class Network {
             }
           }
           const receipt = await this.transactionManager.executeTransaction(
-            () =>
+            (overrides) =>
               this.contracts.serviceRegistry.estimateGas.registerFor(
                 this.specification.indexerOptions.address,
                 this.specification.indexerOptions.url,
                 geoHash,
+                overrides,
               ),
-            (gasLimit) =>
+            (overrides) =>
               this.contracts.serviceRegistry.registerFor(
                 this.specification.indexerOptions.address,
                 this.specification.indexerOptions.url,
                 geoHash,
-                {
-                  gasLimit,
-                },
+                overrides,
               ),
             logger.child({ function: 'serviceRegistry.registerFor' }),
           )
@@ -417,7 +416,7 @@ export class Network {
   }
 }
 
-async function connectWallet(
+export async function connectWallet(
   networkProvider: providers.Provider,
   networkIdentifier: string,
   mnemonic: string,

@@ -544,7 +544,7 @@ export default {
       })
 
       const receipt = await transactionManager.executeTransaction(
-        async () =>
+        async (overrides) =>
           contracts.staking.estimateGas.allocateFrom(
             address,
             subgraphDeployment.bytes32,
@@ -552,8 +552,9 @@ export default {
             allocationId,
             utils.hexlify(Array(32).fill(0)),
             proof,
+            overrides,
           ),
-        async (gasLimit) =>
+        async (overrides) =>
           contracts.staking.allocateFrom(
             address,
             subgraphDeployment.bytes32,
@@ -561,7 +562,7 @@ export default {
             allocationId,
             utils.hexlify(Array(32).fill(0)),
             proof,
-            { gasLimit },
+            overrides,
           ),
         logger.child({ action: 'allocate' }),
       )
@@ -700,12 +701,15 @@ export default {
       logger.debug('Sending closeAllocation transaction')
       const receipt = await transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () => contracts.staking.estimateGas.closeAllocation(allocationData.id, poi!),
-        (gasLimit) =>
+        (overrides) =>
+          contracts.staking.estimateGas.closeAllocation(
+            allocationData.id,
+            poi!,
+            overrides,
+          ),
+        (overrides) =>
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          contracts.staking.closeAllocation(allocationData.id, poi!, {
-            gasLimit,
-          }),
+          contracts.staking.closeAllocation(allocationData.id, poi!, overrides),
         logger,
       )
 
@@ -1009,8 +1013,8 @@ export default {
       ].map((tx) => tx.data as string)
 
       const receipt = await transactionManager.executeTransaction(
-        async () => contracts.staking.estimateGas.multicall(callData),
-        async (gasLimit) => contracts.staking.multicall(callData, { gasLimit }),
+        async (overrides) => contracts.staking.estimateGas.multicall(callData, overrides),
+        async (overrides) => contracts.staking.multicall(callData, overrides),
         logger.child({
           function: 'closeAndAllocate',
         }),
