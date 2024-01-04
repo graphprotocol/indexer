@@ -28,7 +28,7 @@ export function parseNetworkSpecifications(
   argv: any,
   logger: Logger,
 ): spec.NetworkSpecification[] {
-  const dir: string = argv.dir
+  const dir: string = argv.dir || argv['network-specifications-directory']
   const yamlFiles = scanDirectoryForYamlFiles(dir, logger)
   return parseYamlFiles(yamlFiles)
 }
