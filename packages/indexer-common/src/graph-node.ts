@@ -128,11 +128,15 @@ export class GraphNode {
   // AxiosClient factory scoped by subgraph IFPS hash
   getQueryClient(deploymentIpfsHash: string): AxiosInstance {
     return axios.create({
-      baseURL: new URL(deploymentIpfsHash, this.queryBaseURL).toString(),
+      baseURL: this.getQueryEndpoint(deploymentIpfsHash),
       headers: { 'content-type': 'application/json' },
       responseType: 'text', // Don't parse responses as JSON
       transformResponse: (data) => data, // Don't transform responses
     })
+  }
+
+  getQueryEndpoint(deploymentIpfsHash: string): string {
+    return new URL(deploymentIpfsHash, this.queryBaseURL).toString()
   }
 
   public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {

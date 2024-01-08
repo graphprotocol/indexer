@@ -44,6 +44,11 @@ export class NetworkSubgraph {
   logger: Logger
   freshnessChecker: SubgraphFreshnessChecker | undefined
   endpointClient?: AxiosInstance
+  /** Endpoint URL for the Network Subgraph Endpoint from the config  */
+  private networkSubgraphConfigEndpoint?: string
+  /** Endpoint URL for the Network Subgraph Endpoint from the deployment  */
+  private networkSubgraphDeploymentEndpoint?: string
+  endpoint?: string
 
   public readonly deployment?: {
     id: SubgraphDeploymentID
@@ -54,6 +59,9 @@ export class NetworkSubgraph {
   private constructor(options: NetworkSubgraphOptions) {
     this.logger = options.logger
     this.freshnessChecker = options.subgraphFreshnessChecker
+    this.networkSubgraphConfigEndpoint = options.endpoint
+    this.networkSubgraphDeploymentEndpoint =
+      options.deployment?.graphNode.getQueryEndpoint(options.deployment.id.ipfsHash)
 
     if (options.endpoint) {
       this.endpointClient = axios.create({
@@ -66,6 +74,7 @@ export class NetworkSubgraph {
         // Don't transform responses
         transformResponse: (data) => data,
       })
+      this.endpoint = this.networkSubgraphConfigEndpoint
     }
 
     if (options.deployment) {
@@ -80,6 +89,7 @@ export class NetworkSubgraph {
         status,
         endpointClient: graphNodeEndpointClient,
       }
+      this.endpoint = this.networkSubgraphDeploymentEndpoint
     }
   }
 
@@ -147,9 +157,11 @@ export class NetworkSubgraph {
 
       if (healthy) {
         this.logger.trace('Use own deployment for network subgraph query')
+        this.endpoint = this.networkSubgraphDeploymentEndpoint
         return this.deployment.endpointClient
       } else if (this.endpointClient) {
         this.logger.trace('Use provided endpoint for network subgraph query')
+        this.endpoint = this.networkSubgraphConfigEndpoint
         return this.endpointClient
       } else {
         // We have no endpoint and our deployment is not synced or unhealthy;
@@ -161,6 +173,7 @@ export class NetworkSubgraph {
       }
     } else {
       this.logger.trace('Use provided endpoint for network subgraph query')
+      this.endpoint = this.networkSubgraphConfigEndpoint
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       return this.endpointClient!
     }
