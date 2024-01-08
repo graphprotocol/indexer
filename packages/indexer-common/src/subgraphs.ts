@@ -344,6 +344,7 @@ export interface SubgraphQueryInterface {
     query: DocumentNode,
     variables?: Record<string, any>,
   ): Promise<QueryResult<Data>>
+  endpoint?: string
 }
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -427,6 +428,7 @@ export class SubgraphFreshnessChecker {
       this.logger.error(errorMsg, {
         subgraph: this.subgraphName,
         query: print(updatedQuery),
+        endpoint: subgraph.endpoint,
       })
       throw new Error(errorMsg)
     }
@@ -455,6 +457,7 @@ export class SubgraphFreshnessChecker {
         subgraph: this.subgraphName,
         error: queryShapeError,
         subgraphQueryResult,
+        endpoint: subgraph.endpoint,
       })
       throw new Error(errorMsg)
     }
@@ -471,6 +474,7 @@ export class SubgraphFreshnessChecker {
       freshnessThreshold: this.threshold,
       subgraph: this.subgraphName,
       retriesLeft,
+      endpoint: subgraph.endpoint,
     }
     this.logger.trace('Performing subgraph freshness check', logInfo)
 

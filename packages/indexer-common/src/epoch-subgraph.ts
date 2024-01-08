@@ -8,12 +8,14 @@ export class EpochSubgraph {
   endpointClient: AxiosInstance
   freshnessChecker: SubgraphFreshnessChecker
   logger: Logger
+  endpoint: string
 
   constructor(
     endpoint: string,
     freshnessChecker: SubgraphFreshnessChecker,
     logger: Logger,
   ) {
+    this.endpoint = endpoint
     this.endpointClient = axios.create({
       baseURL: endpoint,
       headers: { 'content-type': 'application/json' },
