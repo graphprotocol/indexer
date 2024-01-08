@@ -11,6 +11,7 @@ import {
   startMultiNetwork,
   parseNetworkSpecifications,
 } from './commands/start-multi-network'
+import process from 'node:process'
 
 const MULTINETWORK_MODE: boolean =
   !!process.env.INDEXER_AGENT_MULTINETWORK_MODE &&
@@ -69,5 +70,26 @@ async function main(): Promise<void> {
   const args = parseArguments()
   await processArgumentsAndRun(args)
 }
+
+const exceptionLogger = createLogger({
+  name: 'IndexerAgent',
+  async: false,
+})
+
+process.on('uncaughtException', (reason, promise) => {
+  exceptionLogger.error('Uncaught exception', {
+    reason,
+    promise,
+  })
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  exceptionLogger.error('Unhandled rejection', {
+    reason,
+    promise,
+  })
+  process.exit(1)
+})
 
 void main()
