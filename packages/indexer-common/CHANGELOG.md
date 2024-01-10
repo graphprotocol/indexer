@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.0] - 2024-01-10
+### Changed
+- Reduce stringency of action validation when adding to queue
+
 ## [0.20.23] - 2023-09-29
 ### Fixed
 - Reference SQL conflict targets when upserting `POIDisputes`.
@@ -278,7 +282,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Move indexing rule management here from `@graphprotocol/common-ts`
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/graphprotocol/indexer/compare/v0.20.23...v0.21.0
 [0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.23
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
 [0.20.20]: https://github.com/graphprotocol/indexer/compare/v0.20.18...v0.20.20
