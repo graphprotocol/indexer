@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@octokit/core": "3.2.0",
-    "lerna": "6.1.0"
+    "lerna": "^8.0.2"
   },
   "resolutions": {
     "ethers": "5.7.0",
