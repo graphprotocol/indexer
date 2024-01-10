@@ -34,6 +34,7 @@ export const createStatusServer = async ({
     'cachedEthereumCalls',
     'subgraphFeatures',
     'apiVersions',
+    'versions',
   ]
   const filteredSchema = wrapSchema({
     schema,
