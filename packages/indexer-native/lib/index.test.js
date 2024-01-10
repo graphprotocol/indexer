@@ -84,7 +84,7 @@ describe("Native Functions", () => {
       () =>
         new NativeAttestationSigner(
           chainId,
-          "0xab",
+          "0xbad",
           privateKey,
           subgraphDeploymentID,
         ),
