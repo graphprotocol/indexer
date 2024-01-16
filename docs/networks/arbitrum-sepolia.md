@@ -10,7 +10,7 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | indexer-agent   | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
 | indexer-cli     | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
 | indexer-service | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| graph-node      | [v0.33.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.33.0)     |
+| graph-node      | [v0.34.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.34.0-rc.0)|
 
 ## Network Parameters
 
