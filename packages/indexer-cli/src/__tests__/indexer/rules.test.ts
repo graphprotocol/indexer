@@ -457,7 +457,7 @@ describe('Indexer rules tests', () => {
           'safety',
           'false',
           'requireSupported',
-          'true'
+          'true',
         ],
         'references/indexer-rule-deployment-safety',
         {

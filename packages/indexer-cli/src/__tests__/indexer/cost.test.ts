@@ -1,4 +1,4 @@
-import {cliTest, setup, seed, teardown, connect, deleteFromAllTables} from '../util'
+import { cliTest, setup, seed, teardown, connect, deleteFromAllTables } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
