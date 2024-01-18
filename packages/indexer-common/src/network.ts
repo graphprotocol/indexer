@@ -5,6 +5,7 @@ import {
   SubgraphDeploymentID,
   connectContracts,
   Eventual,
+  AddressBook,
 } from '@graphprotocol/common-ts'
 import {
   INDEXER_ERROR_MESSAGES,
@@ -27,6 +28,7 @@ import pRetry, { Options } from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
+import { readFileSync } from 'fs'
 
 export class Network {
   logger: Logger
@@ -143,6 +145,7 @@ export class Network {
       wallet,
       specification.networkIdentifier,
       logger,
+      specification.addressBook,
     )
 
     // * -----------------------------------------------------------------------
@@ -436,6 +439,7 @@ async function connectToProtocolContracts(
   wallet: Wallet,
   networkIdentifier: string,
   logger: Logger,
+  addressBook?: string,
 ): Promise<NetworkContracts> {
   const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
 
@@ -450,7 +454,10 @@ async function connectToProtocolContracts(
 
   let contracts
   try {
-    contracts = await connectContracts(wallet, numericNetworkId, undefined)
+    const contractAddresses = addressBook
+      ? (JSON.parse(readFileSync(addressBook).toString()) as AddressBook)
+      : undefined
+    contracts = await connectContracts(wallet, numericNetworkId, contractAddresses)
   } catch (error) {
     const errorMessage =
       'Failed to connect to contracts, please ensure you are using the intended protocol network.'
