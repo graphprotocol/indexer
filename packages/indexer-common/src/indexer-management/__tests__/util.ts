@@ -23,7 +23,7 @@ export const testNetworkSpecification: specification.NetworkSpecification =
   specification.NetworkSpecification.parse({
     networkIdentifier: 'goerli',
     gateway: {
-      url: 'http://localhost:8030/',
+      url: 'http://127.0.0.1:8030/',
     },
     networkProvider: {
       url: testProviderUrl,
@@ -70,7 +70,7 @@ export const createTestManagementClient = async (
   const queryFeeModels = defineQueryFeeModels(sequelize)
   const managementModels = defineIndexerManagementModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
-  const statusEndpoint = 'http://localhost:8030/graphql'
+  const statusEndpoint = 'http://127.0.0.1:8030/graphql'
   const graphNode = new GraphNode(
     logger,
     'http://test-admin-endpoint.xyz',

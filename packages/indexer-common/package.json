@@ -23,14 +23,14 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "2.0.9",
-    "@graphprotocol/cost-model": "0.1.16",
+    "@graphprotocol/cost-model": "0.1.18",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/lodash.intersection": "^4.4.7",
     "@types/lodash.xor": "^4.5.7",
     "@urql/core": "2.4.4",
     "@urql/exchange-execute": "1.2.2",
-    "axios": "0.26.1",
+    "axios": "1.6.2",
     "body-parser": "1.20.2",
     "cors": "2.8.5",
     "ethers": "5.7.0",
@@ -53,10 +53,11 @@
     "p-timeout": "4.1.0",
     "parsimmon": "^1.18.1",
     "sequelize": "6.33.0",
-    "ts-custom-error": "^3.2.0",
+    "ts-custom-error": "^3.3.1",
     "zod": "^3.21.4"
   },
   "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.23.3",
     "@types/cors": "2.8.14",
     "@types/express": "4.17.17",
     "@types/jest": "29.5.4",
@@ -66,10 +67,11 @@
     "@types/ngeohash": "0.6.4",
     "@types/node": "20.6.1",
     "@types/parsimmon": "^1.10.6",
-    "@typescript-eslint/eslint-plugin": "6.7.0",
-    "@typescript-eslint/parser": "6.7.0",
-    "eslint": "8.49.0",
-    "eslint-config-prettier": "8.5.0",
+    "@typescript-eslint/eslint-plugin": "6.13.2",
+    "@typescript-eslint/parser": "6.13.2",
+    "babel-cli": "^6.26.0",
+    "eslint": "8.55.0",
+    "eslint-config-prettier": "9.1.0",
     "jest": "<30.0.0-0",
     "prettier": "3.0.3",
     "ts-jest": "29.1.1",
@@ -80,6 +82,12 @@
     "sequelize": "6.33.0",
     "@ethersproject/bignumber": "5.7.0",
     "@urql/exchange-execute/@urql/core": "2.4.4"
+  },
+  "babel": {
+    "presets": [],
+    "plugins": [
+      "transform-es2015-modules-commonjs"
+    ]
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }

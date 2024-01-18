@@ -1,6 +1,5 @@
 import { cliTest, setup, teardown } from '../util'
 import path from 'path'
-import { Action, ActionType, ActionStatus } from '@graphprotocol/indexer-common'
 
 const baseDir = path.join(__dirname, '..')
 describe('Indexer actions tests', () => {
@@ -23,10 +22,18 @@ describe('Indexer actions tests', () => {
           timeout: 10000,
         },
       )
+      cliTest(
+        'Indexer actions get',
+        ['indexer', 'actions', 'get', 'all'],
+        'references/indexer-actions-get',
+        {
+          expectedExitCode: 0,
+          cwd: baseDir,
+          timeout: 10000,
+        },
+      )
     })
     describe('Actions queue', () => {
-      beforeAll(createTestAction)
-      afterAll(truncateActions)
       cliTest(
         'Indexer actions get',
         ['indexer', 'actions', 'get', 'all'],
@@ -78,28 +85,3 @@ describe('Indexer actions tests', () => {
     })
   })
 })
-
-async function createTestAction() {
-  await Action.create({
-    type: ActionType.ALLOCATE,
-    status: ActionStatus.SUCCESS,
-    deploymentID: 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
-    source: 'test',
-    reason: 'test',
-    protocolNetwork: 'eip155:5',
-  })
-  await Action.create({
-    type: ActionType.UNALLOCATE,
-    status: ActionStatus.FAILED,
-    deploymentID: 'QmfWRZCjT8pri4Amey3e3mb2Bga75Vuh2fPYyNVnmPYL66',
-    source: 'test',
-    reason: 'test',
-    protocolNetwork: 'eip155:5',
-  })
-}
-
-async function truncateActions() {
-  await Action.destroy({
-    truncate: true,
-  })
-}

@@ -173,7 +173,7 @@ export class AllocationManager {
         try {
           return await this.confirmActionExecution(receipt, action)
         } catch (error) {
-          let transaction = undefined
+          let transaction: string | undefined = undefined
           if (typeof receipt == 'object') {
             transaction = receipt.transactionHash ?? undefined
           }
