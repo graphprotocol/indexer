@@ -6,6 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.21.2] - 2024-01-18
+### Changed
+- Improve efficiency of batch action preparation
+- Add falback if decimals() call to DAI contract fails
+
+### Added
+- Add tests for allocation decision consolidation
+
 ## [0.20.23] - 2023-09-29
 ### Added
 - Subgraph Freshness check for Epoch and Network subgraphs
@@ -495,7 +503,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Update @graphprotocol/common-ts to 0.2.2
 
-[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.20.23-rc.0...HEAD
+[Unreleased]: https://github.com/graphprotocol/indexer/compare/v0.21.2...HEAD
+[0.21.2]: https://github.com/graphprotocol/indexer/compare/v0.20.23...v0.21.2
 [0.20.23]: https://github.com/graphprotocol/indexer/compare/v0.20.22...v0.20.23
 [0.20.22]: https://github.com/graphprotocol/indexer/compare/v0.20.21...v0.20.22
 [0.20.21]: https://github.com/graphprotocol/indexer/compare/v0.20.20...v0.20.21
