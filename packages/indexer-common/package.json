@@ -23,7 +23,7 @@
   },
   "dependencies": {
     "@graphprotocol/common-ts": "file:./../../../common-ts/packages/common-ts",
-    "@graphprotocol/cost-model": "0.1.16",
+    "@graphprotocol/cost-model": "0.1.18",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.intersection": "^4.4.7",
     "@types/lodash.xor": "^4.5.7",
