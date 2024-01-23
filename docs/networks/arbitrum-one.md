@@ -10,7 +10,7 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | indexer-agent   | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
 | indexer-cli     | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
 | indexer-service | [0.20.16](https://github.com/graphprotocol/indexer/releases/tag/v0.20.16)    |
-| graph-node      | [0.33.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.33.0)   |
+| graph-node      | [0.34.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.34.0)   |
 
 ## Network Parameters
 
