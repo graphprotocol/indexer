@@ -1,4 +1,11 @@
-import { cliTest, connect, setup, seed, teardown, deleteFromAllTables } from '../util'
+import {
+  cliTest,
+  connect,
+  setup,
+  teardown,
+  deleteFromAllTables,
+  seedIndexingRules,
+} from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
@@ -7,7 +14,7 @@ describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
     beforeAll(setup)
     afterAll(teardown)
-    beforeEach(seed)
+    beforeEach(seedIndexingRules)
     afterEach(deleteFromAllTables)
     describe('Rules help', () => {
       cliTest(
