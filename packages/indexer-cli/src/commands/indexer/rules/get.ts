@@ -19,7 +19,7 @@ ${chalk.bold('graph indexer rules get')} [options] <deployment-id> [<key1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 Filter by the rule's protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -n, --network                 Filter by the rule's protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
       --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `

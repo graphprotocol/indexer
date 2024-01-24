@@ -19,7 +19,7 @@ ${chalk.bold('graph indexer actions approve')} [options] queued --network <netwo
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network <STRING>        Filter action selection by their protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -n, --network <STRING>        Filter action selection by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 

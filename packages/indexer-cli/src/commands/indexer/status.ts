@@ -21,7 +21,7 @@ ${chalk.bold('graph indexer status')}
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
 `
 
 interface Endpoint {
