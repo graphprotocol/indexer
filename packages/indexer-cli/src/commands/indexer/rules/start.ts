@@ -20,7 +20,7 @@ ${chalk.bold('graph indexer rules always')} [options] <deployment-id>
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 

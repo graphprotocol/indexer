@@ -18,7 +18,7 @@ ${chalk.bold('graph indexer allocations get')} [options] all
 ${chalk.dim('Options:')}
 
   -h, --help                                Show usage information
-  -n, --network                             Filter allocations by their protocol network (mainnet, arbitrum-one, goerli, arbitrum-goerli)
+  -n, --network                             Filter allocations by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
       --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML

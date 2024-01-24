@@ -18,7 +18,7 @@ ${chalk.dim('Options:')}
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
 
 ${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, goerli or arbitrum goerli
+  mainnet, arbitrum-one, sepolia or arbitrum sepolia
 `
 
 module.exports = {

@@ -17,7 +17,7 @@ ${chalk.dim('Options:')}
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 
 ${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, goerli or arbitrum goerli
+  mainnet, arbitrum-one, sepolia or arbitrum sepolia
 `
 
 module.exports = {
