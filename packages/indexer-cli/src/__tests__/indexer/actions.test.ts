@@ -1,4 +1,4 @@
-import { cliTest, setup, teardown } from '../util'
+import { cliTest, deleteFromAllTables, seedActions, setup, teardown } from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
@@ -6,6 +6,8 @@ describe('Indexer actions tests', () => {
   describe('With indexer management server', () => {
     beforeAll(setup)
     afterAll(teardown)
+    beforeEach(seedActions)
+    afterEach(deleteFromAllTables)
     describe('Actions help', () => {
       cliTest('Indexer actions', ['indexer', 'actions'], 'references/indexer-actions', {
         expectedExitCode: 255,

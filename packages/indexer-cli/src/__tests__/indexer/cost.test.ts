@@ -1,4 +1,11 @@
-import { cliTest, setup, seed, teardown, connect, deleteFromAllTables } from '../util'
+import {
+  cliTest,
+  setup,
+  teardown,
+  connect,
+  deleteFromAllTables,
+  seedCostModels,
+} from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
@@ -7,7 +14,7 @@ describe('Indexer cost tests', () => {
   describe('With indexer management server', () => {
     beforeAll(setup)
     afterAll(teardown)
-    beforeEach(seed)
+    beforeEach(seedCostModels)
     afterEach(deleteFromAllTables)
     describe('Cost help', () => {
       cliTest('Indexer cost', ['indexer', 'cost'], 'references/indexer-cost', {
@@ -184,9 +191,7 @@ describe('Indexer cost tests', () => {
   })
 
   describe('Without indexer management server', () => {
-    beforeAll(async () => {
-      await connect()
-    })
+    beforeAll(connect)
     cliTest(
       'Indexer cost set - not connected',
       [
