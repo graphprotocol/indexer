@@ -36,8 +36,8 @@ jobs:
           password: ${{secrets.GITHUB_TOKEN}}
       - name: Setup python
         uses: actions/setup-python@v4
-          with:
-            python-version: '3.11'
+        with:
+          python-version: '3.11'
       - name: Set up Node.js v20
         uses: actions/setup-node@v2.1.5
         with:
