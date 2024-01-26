@@ -356,12 +356,6 @@ export class AllocationManager {
         `Subgraph deployment, '${deployment.ipfsHash}', is not syncing`,
       )
     }
-    if (status && status.health == 'failed') {
-      throw indexerError(
-        IndexerErrorCode.IE020,
-        `Subgraph deployment, '${deployment.ipfsHash}', failed during syncing`,
-      )
-    }
 
     logger.debug('Obtain a unique Allocation ID')
     const { allocationSigner, allocationId } = uniqueAllocationID(
