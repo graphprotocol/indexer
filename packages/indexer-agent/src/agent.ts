@@ -1073,36 +1073,68 @@ export class Agent {
           epoch,
         )
       case true: {
-        // If no active allocations, create one
-        if (activeDeploymentAllocations.length === 0) {
-          // Fetch the latest closed allocation, if any
-          const mostRecentlyClosedAllocation = (
-            await network.networkMonitor.closedAllocations(
-              deploymentAllocationDecision.deployment,
-            )
-          )[0]
-          return await operator.createAllocation(
-            logger,
-            deploymentAllocationDecision,
-            mostRecentlyClosedAllocation,
-          )
-        }
-
-        // Refresh any expiring allocations
-        const expiringAllocations = await this.identifyExpiringAllocations(
-          logger,
-          activeDeploymentAllocations,
-          deploymentAllocationDecision,
-          epoch,
-          maxAllocationEpochs,
-          network,
+        // If no active allocations and subgraph health passes safety check, create one
+        const indexingStatuses = await this.graphNode.indexingStatus([
+          deploymentAllocationDecision.deployment,
+        ])
+        const indexingStatus = indexingStatuses.find(
+          status =>
+            status.subgraphDeployment ==
+            deploymentAllocationDecision.deployment,
         )
-        if (expiringAllocations.length > 0) {
-          await operator.refreshExpiredAllocations(
-            logger,
-            deploymentAllocationDecision,
-            expiringAllocations,
-          )
+        const failsHealthCheck =
+          (indexingStatus &&
+            indexingStatus.health == 'failed' &&
+            deploymentAllocationDecision.ruleMatch.rule?.safety) ||
+          !indexingStatus
+        if (activeDeploymentAllocations.length === 0) {
+          if (failsHealthCheck) {
+            logger.warn(
+              'Subgraph deployment has failed health check, skipping allocate',
+              {
+                indexingStatus,
+                safety: deploymentAllocationDecision.ruleMatch.rule?.safety,
+              },
+            )
+          } else {
+            // Fetch the latest closed allocation, if any
+            const mostRecentlyClosedAllocation = (
+              await network.networkMonitor.closedAllocations(
+                deploymentAllocationDecision.deployment,
+              )
+            )[0]
+            return await operator.createAllocation(
+              logger,
+              deploymentAllocationDecision,
+              mostRecentlyClosedAllocation,
+            )
+          }
+        } else if (activeDeploymentAllocations.length > 0) {
+          if (failsHealthCheck) {
+            return await operator.closeEligibleAllocations(
+              logger,
+              deploymentAllocationDecision,
+              activeDeploymentAllocations,
+              epoch,
+            )
+          } else {
+            // Refresh any expiring allocations
+            const expiringAllocations = await this.identifyExpiringAllocations(
+              logger,
+              activeDeploymentAllocations,
+              deploymentAllocationDecision,
+              epoch,
+              maxAllocationEpochs,
+              network,
+            )
+            if (expiringAllocations.length > 0) {
+              await operator.refreshExpiredAllocations(
+                logger,
+                deploymentAllocationDecision,
+                expiringAllocations,
+              )
+            }
+          }
         }
       }
     }
