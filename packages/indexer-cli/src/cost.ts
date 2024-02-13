@@ -3,6 +3,7 @@ import {
   CostModelAttributes,
   GraphQLCostModel,
   IndexerManagementClient,
+  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
@@ -30,6 +31,7 @@ const COST_MODEL_PARSERS: Record<keyof CostModelAttributes, (x: never) => any> =
   deployment: parseDeploymentID,
   model: x => x,
   variables: nullPassThrough(JSON.parse),
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 const COST_MODEL_FORMATTERS: Record<
@@ -40,6 +42,7 @@ const COST_MODEL_FORMATTERS: Record<
   deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
   model: x => x,
   variables: nullPassThrough(s => JSON.stringify(s, null, 2)),
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 const COST_MODEL_CONVERTERS_FROM_GRAPHQL: Record<
@@ -51,6 +54,7 @@ const COST_MODEL_CONVERTERS_FROM_GRAPHQL: Record<
   deployment: parseDeploymentID,
   model: x => x,
   variables: nullPassThrough(JSON.parse),
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 const COST_MODEL_CONVERTERS_TO_GRAPHQL: Record<
@@ -62,6 +66,7 @@ const COST_MODEL_CONVERTERS_TO_GRAPHQL: Record<
   deployment: (x: SubgraphDeploymentIDIsh) => x.toString(),
   model: x => x,
   variables: nullPassThrough(JSON.stringify),
+  protocolNetwork: x => validateNetworkIdentifier(x),
 }
 
 /**

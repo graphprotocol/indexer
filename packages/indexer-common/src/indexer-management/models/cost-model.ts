@@ -2,11 +2,13 @@
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
+import { validateNetworkIdentifier } from '../../parsers/validators'
 
 export interface GraphQLCostModel {
   deployment: string
   model: string | null | undefined
   variables: string | null | undefined
+  protocolNetwork: string
 }
 
 export const parseGraphQLCostModel = (
@@ -21,6 +23,7 @@ export const parseGraphQLCostModel = (
       deployment: costModel.deployment,
       model: costModel.model || null,
       variables: variables,
+      protocolNetwork: costModel.protocolNetwork,
     }
   } catch (error) {
     throw new Error(`Failed to parse GraphQL cost model: ${error}`)
@@ -37,6 +40,7 @@ export interface CostModelAttributes {
   deployment: string
   model: string | null
   variables: CostModelVariables | null
+  protocolNetwork: string
 }
 
 export interface CostModelCreationAttributes
@@ -50,6 +54,7 @@ export class CostModel
   public deployment!: string
   public model!: string | null
   public variables!: CostModelVariables | null
+  public protocolNetwork!: string
 
   public createdAt!: Date
   public updatedAt!: Date
@@ -96,6 +101,24 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
             throw new Error(
               `Deployment ID must be a valid subgraph deployment ID or "global"`,
             )
+          },
+        },
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+          isProtocolNetwork: (value: string) => {
+            if (typeof value !== 'string') {
+              throw new Error('Protocol network must be a string')
+            }
+
+            // must be `eip155:`
+            if (validateNetworkIdentifier(value)) {
+              return
+            }
+
+            throw new Error(`Protocol network must be a valid 'eip155' network`)
           },
         },
       },
