@@ -13,6 +13,7 @@
   "scripts": {
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
+    "format": "lerna run format",
     "release": "./scripts/release.sh",
     "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service",
     "test:ci": "lerna --concurrency 1 run test:ci --stream --ignore @graphprotocol/indexer-service",
