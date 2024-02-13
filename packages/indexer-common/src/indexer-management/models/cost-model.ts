@@ -2,7 +2,7 @@
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
-import { validateNetworkIdentifier } from '../../parsers/validators'
+import { caip2IdRegex } from '../../parsers/validators'
 
 export interface GraphQLCostModel {
   deployment: string
@@ -108,18 +108,7 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
-          isProtocolNetwork: (value: string) => {
-            if (typeof value !== 'string') {
-              throw new Error('Protocol network must be a string')
-            }
-
-            // must be `eip155:`
-            if (validateNetworkIdentifier(value)) {
-              return
-            }
-
-            throw new Error(`Protocol network must be a valid 'eip155' network`)
-          },
+          is: caip2IdRegex,
         },
       },
       model: {

@@ -204,6 +204,7 @@ export const costModels = async (
           deployment
           model
           variables
+          protocolNetwork
         }
       }
     `)
@@ -228,6 +229,7 @@ export const costModel = async (
             deployment
             model
             variables
+            protocolNetwork
           }
         }
       `,
@@ -258,6 +260,7 @@ export const setCostModel = async (
             deployment
             model
             variables
+            protocolNetwork
           }
         }
       `,
@@ -284,6 +287,7 @@ export const deleteCostModels = async (
             deployment
             model
             variables
+            protocolNetwork
           }
         }
       `,
