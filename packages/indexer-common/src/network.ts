@@ -219,15 +219,12 @@ export class Network {
     // * Escrow contract
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
-    let escrowContracts
-    try {
-      escrowContracts = await connectEscrowContracts(
-        networkProvider,
-        networkIdentifier.chainId,
-      )
-    } catch (error) {
-      console.error('Error connecting to escrow contracts:', error)
-    }
+
+    const escrowContracts = await connectEscrowContracts(
+      wallet,
+      networkIdentifier.chainId,
+      specification.escrowAddressBook,
+    )
 
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers

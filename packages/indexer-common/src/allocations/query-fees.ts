@@ -88,6 +88,11 @@ export interface ReceiptCollector {
   collectReceipts(actionID: number, allocation: Allocation): Promise<boolean>
 }
 
+interface ValidRavs {
+  belowThreshold: SignedRAV[]
+  eligible: SignedRAV[]
+}
+
 export class AllocationReceiptCollector implements ReceiptCollector {
   declare logger: Logger
   declare metrics: ReceiptMetrics
@@ -390,7 +395,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
   }
 
-  private async pendingVouchers(): Promise<Voucher[]> {
+  protected async pendingVouchers(): Promise<Voucher[]> {
     return this.models.vouchers.findAll({
       where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
@@ -400,47 +405,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   //TODO: Consider adding new configurations for RAV similar to vouchers
   // (voucherRedemptionThreshold, voucherRedemptionMaxBatchSize, voucherRedemptionBatchThreshold)
-  private startRAVProcessing() {
-    timer(30_000).pipe(async () => {
-      let pendingRAVs: ReceiptAggregateVoucher[] = []
-      try {
-        pendingRAVs = await this.pendingRAVs()
-        this.logger.debug(`Pending RAVs`, { pendingRAVs })
-      } catch (err) {
-        this.logger.warn(`Failed to query pending RAVs`, { err })
-        return
-      }
-
-      const logger = this.logger.child({})
-
-      // Additional indexer agent configured filtering on which RAVs to redeem
-      const signedRavs = await pReduce(
-        pendingRAVs,
-        async (results, rav) => {
-          const signedRav = rav.rav as unknown as SignedRAV
-          // allocationId doesn't have 0x prefix, but still matched in contract calls
-          // destory voucher if AllocationIDTracker.isAllocationIdUsed(rav.allocationId)
-          if (
-            BigNumber.from(signedRav.rav.valueAggregate).lt(
-              this.voucherRedemptionThreshold,
-            )
-          ) {
-            results.belowThreshold.push(signedRav)
-          } else {
-            results.eligible.push(signedRav)
-          }
-          return results
-        },
-        { belowThreshold: <SignedRAV[]>[], eligible: <SignedRAV[]>[] },
-      )
-
+  startRAVProcessing() {
+    const notifyAndMapEligible = (signedRavs: ValidRavs) => {
       if (signedRavs.belowThreshold.length > 0) {
+        const logger = this.logger.child({})
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
             (total, signedRav) => total.add(BigNumber.from(signedRav.rav.valueAggregate)),
             BigNumber.from(0),
           ),
         )
+
         logger.info(`Query RAVs below the redemption threshold`, {
           hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
           voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
@@ -451,17 +426,58 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           ),
         })
       }
+      return signedRavs.eligible
+    }
 
-      // If there are no eligible vouchers then bail
-      if (signedRavs.eligible.length === 0) return
+    const pendingRAVs = this.getPendingRAVsEventual()
+    const signedRAVs = this.getSignedRAVsEventual(pendingRAVs)
+    const eligibleRAVs = signedRAVs
+      .map(notifyAndMapEligible)
+      .filter((signedRavs) => signedRavs.length > 0)
+    eligibleRAVs.pipe(this.submitRAVs)
+  }
 
-      await this.submitRAVs(signedRavs.eligible)
-    })
+  protected getPendingRAVsEventual(): Eventual<ReceiptAggregateVoucher[]> {
+    return timer(30_000).tryMap(
+      async () => {
+        return await this.pendingRAVs()
+      },
+      { onError: (err) => this.logger.error(`Failed to query pending RAVs`, { err }) },
+    )
+  }
+
+  protected getSignedRAVsEventual(
+    pendingRAVs: Eventual<ReceiptAggregateVoucher[]>,
+  ): Eventual<{ belowThreshold: SignedRAV[]; eligible: SignedRAV[] }> {
+    return pendingRAVs.tryMap(
+      async (pendingRAVs) => {
+        return await pReduce(
+          pendingRAVs,
+          async (results, rav) => {
+            const signedRav = rav.rav as unknown as SignedRAV
+            // allocationId doesn't have 0x prefix, but still matched in contract calls
+            // destory voucher if AllocationIDTracker.isAllocationIdUsed(rav.allocationId)
+            if (
+              BigNumber.from(signedRav.rav.valueAggregate).lt(
+                this.voucherRedemptionThreshold,
+              )
+            ) {
+              results.belowThreshold.push(signedRav)
+            } else {
+              results.eligible.push(signedRav)
+            }
+            return results
+          },
+          { belowThreshold: <SignedRAV[]>[], eligible: <SignedRAV[]>[] },
+        )
+      },
+      { onError: (err) => this.logger.error(`Failed to reduce to signed RAVs`, { err }) },
+    )
   }
 
   // redeem only if final is true
   // Later can add order and limit
-  private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
+  protected async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
     return this.models.receiptAggregateVouchers.findAll({
       where: { final: true },
     })
