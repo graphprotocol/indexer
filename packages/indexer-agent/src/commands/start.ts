@@ -33,6 +33,7 @@ import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { BigNumber } from 'ethers'
 import { displayZodParsingError } from './error-handling'
+import { readFileSync } from 'fs'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
@@ -418,6 +419,8 @@ export async function createNetworkSpecification(
     }
   }
 
+  const escrowAddressBook = loadFile(argv.escrowAddressBook)
+
   try {
     return spec.NetworkSpecification.parse({
       networkIdentifier,
@@ -427,12 +430,18 @@ export async function createNetworkSpecification(
       subgraphs,
       networkProvider,
       addressBook: argv.addressBook,
+      escrowAddressBook,
       dai,
     })
   } catch (parsingError) {
     displayZodParsingError(parsingError)
     process.exit(1)
   }
+}
+
+function loadFile(path: string | undefined): unknown | undefined {
+  const obj = path ? JSON.parse(readFileSync(path).toString()) : undefined
+  return obj
 }
 
 export async function run(

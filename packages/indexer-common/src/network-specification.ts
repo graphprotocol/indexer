@@ -111,6 +111,24 @@ export const ProtocolSubgraphs = z
   })
 export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
 
+export const EscrowContracts = z
+  .record(
+    z.string(),
+    z.object({
+      TAPVerifier: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      AllocationIDTracker: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      Escrow: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+    }),
+  )
+  .optional()
+export type EscrowContracts = z.infer<typeof EscrowContracts>
+
 export const NetworkProvider = z
   .object({
     url: z.string().url(),
@@ -144,6 +162,7 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
+    escrowAddressBook: EscrowContracts,
     allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })
