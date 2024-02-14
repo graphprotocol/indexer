@@ -2679,10 +2679,10 @@
     "@noble/hashes" "~1.3.0"
     "@scure/base" "~1.1.0"
 
-"@semiotic-labs/tap-contracts-bindings@^1.1.0":
-  version "1.1.0"
-  resolved "https://registry.npmjs.org/@semiotic-labs/tap-contracts-bindings/-/tap-contracts-bindings-1.1.0.tgz#94c18951eb4dbec1008f1e3b27134544981904d5"
-  integrity sha512-oVLx50mmhtypfORe6orchkmtKS6V09RJ0q9IkxG/ObVSQKZ/xCrdOwGIVJYUajhi6QdEt0Xh27b8rQVCtPKvsA==
+"@semiotic-labs/tap-contracts-bindings@^1.2.1":
+  version "1.2.1"
+  resolved "https://registry.yarnpkg.com/@semiotic-labs/tap-contracts-bindings/-/tap-contracts-bindings-1.2.1.tgz#4aa0b009b761bbb9aafb1ea0cbd89ccf7a7cb801"
+  integrity sha512-VwpKOxsJq2mrWZQ9y2kvwxNKqHtigmibH2uXoFxekIO8jfBjC69J8c/avzYNU3YBccAVEbLvfyNoDUs26c0XeQ==
   dependencies:
     "@typechain/ethers-v5" "^11.1.2"
     abitype "^0.10.3"
