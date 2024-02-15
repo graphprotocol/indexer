@@ -239,6 +239,11 @@ export const start = {
         type: 'string',
         required: false,
       })
+      .option('escrow-address-book', {
+        description: 'TAP escrow contracts address book file path',
+        type: 'string',
+        required: false,
+      })
       .option('dai-contract', {
         description:
           'Address of the DAI or USDC contract to use for the --inject-dai conversion rate',
