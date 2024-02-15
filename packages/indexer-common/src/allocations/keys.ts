@@ -91,3 +91,18 @@ export const allocationIdProof = (
   const messageHashBytes = utils.arrayify(messageHash)
   return signer.signMessage(messageHashBytes)
 }
+
+export const tapAllocationIdProof = (
+  signer: Signer,
+  chainId: number,
+  sender: Address,
+  allocationId: Address,
+  escrowContract: Address,
+): Promise<string> => {
+  const messageHash = utils.solidityKeccak256(
+    ['uint256', 'address', 'address', 'address'],
+    [chainId, sender, allocationId, escrowContract],
+  )
+  const messageHashBytes = utils.arrayify(messageHash)
+  return signer.signMessage(messageHashBytes)
+}
