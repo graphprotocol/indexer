@@ -1,8 +1,8 @@
-import { DataTypes, Sequelize, Model, Association } from 'sequelize'
-import { Address } from '@graphprotocol/common-ts'
+import { DataTypes, Sequelize, Model, Association, CreationOptional } from 'sequelize'
+import { Address, toAddress } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
 import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
-
+// import { JSONParse, JSONStringify, camelize, snakefy } from './object-conversion'
 export interface AllocationReceiptAttributes {
   id: string
   allocation: Address
@@ -49,28 +49,59 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 }
 
 export interface ReceiptAggregateVoucherAttributes {
-  allocation_id: Address
+  allocation_id: string
   sender_address: string
-  rav: JSON // JSON object mapped from SignedRav
+  signature: Uint8Array
+  timestamp_ns: bigint
+  value_aggregate: bigint
+  //rav: unknown
   final: boolean
 }
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+/*export type RAVData = {
+  message: {
+    allocationId: string
+    timestampNs: bigint
+    valueAggregate: bigint
+  }
+  signature: {
+    r: string
+    s: string
+    v: number
+  }
+}*/
 
 export class ReceiptAggregateVoucher
   extends Model<ReceiptAggregateVoucherAttributes>
   implements ReceiptAggregateVoucherAttributes
 {
   public allocation_id!: Address
-  public sender_address!: string
-  public rav!: JSON
+  public sender_address!: Address
+  public signature!: Uint8Array
+  public timestamp_ns!: bigint
+  public value_aggregate!: bigint
+  // public rav!: SignedRAV
   public final!: boolean
 
-  public readonly createdAt!: Date
-  public readonly updatedAt!: Date
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
 
   public readonly allocationSummary?: AllocationSummary
 
   public static associations: {
     allocationSummary: Association<ReceiptAggregateVoucher, AllocationSummary>
+  }
+
+  getSingedRAV(): SignedRAV {
+    return {
+      rav: {
+        allocationId: toAddress(this.allocation_id),
+        timestampNs: this.timestamp_ns,
+        valueAggregate: this.value_aggregate,
+      },
+      signature: this.signature,
+    }
   }
 }
 
@@ -267,14 +298,38 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('allocation_id')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('allocation_id', addressWithoutPrefix)
+        },
       },
       sender_address: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('sender_address')
+          return toAddress(rawValue)
+        },
+        set(value: string) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('sender_address', addressWithoutPrefix)
+        },
       },
-      rav: {
-        type: DataTypes.JSONB,
+      signature: {
+        type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      timestamp_ns: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+      },
+      value_aggregate: {
+        type: DataTypes.BIGINT,
         allowNull: false,
       },
       final: {
