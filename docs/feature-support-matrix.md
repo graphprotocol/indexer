@@ -40,7 +40,7 @@ graph-node: >=0.34.1 <0.35.0
 ```
 
 ### Latest Council snapshot
-[GPP-0028 Update Feature Support Matrix (Graph Node v0.32.0)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xa7dcaf27d3b8cb6c135c398753a82fb4a6fc1ff5ad666cb131109f2de506253c)
+[GPP-0037 Update Feature Support Matrix (Graph Node v0.34.1)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x840a7de34b1dac9c7ef03d3170540abc5957ffd00564777aac9b253068a93723)
 
 
 
