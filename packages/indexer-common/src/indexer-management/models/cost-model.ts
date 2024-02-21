@@ -2,15 +2,18 @@
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
-
-export interface GraphQLCostModel {
+import {
+  CostModel as GraphQLCostModelType,
+  CostModelInput as GraphQLCostModelInput,
+} from '../../schema/types.generated'
+interface GraphQLCostModel {
   deployment: string
   model: string | null | undefined
   variables: string | null | undefined
 }
 
 export const parseGraphQLCostModel = (
-  costModel: GraphQLCostModel,
+  costModel: GraphQLCostModelInput,
 ): CostModelCreationAttributes => {
   try {
     const variables = !costModel.variables
@@ -55,7 +58,7 @@ export class CostModel
   public updatedAt!: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  public toGraphQL(): object {
+  public toGraphQL(): GraphQLCostModelType {
     return {
       ...this.toJSON(),
       variables:
