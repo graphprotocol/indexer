@@ -2,7 +2,7 @@
 
 import geohash from 'ngeohash'
 import gql from 'graphql-tag'
-import { IndexerManagementResolverContext } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   indexerError,

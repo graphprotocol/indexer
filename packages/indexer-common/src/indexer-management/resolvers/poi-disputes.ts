@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import { POIDispute, POIDisputeIdentifier, POIDisputeCreationAttributes } from '../models'
-import { IndexerManagementResolverContext } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { validateNetworkIdentifier } from '../../parsers'
 import { Op, WhereOptions } from 'sequelize'
 import groupBy from 'lodash.groupby'

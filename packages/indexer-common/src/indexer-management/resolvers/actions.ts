@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/ban-types */
-import { IndexerManagementResolverContext } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { Logger } from '@graphprotocol/common-ts'
 import {
   Action,

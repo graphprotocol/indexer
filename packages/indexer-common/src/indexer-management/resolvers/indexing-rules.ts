@@ -6,7 +6,8 @@ import {
   IndexingRuleIdentifier,
   IndexingRuleCreationAttributes,
 } from '../models'
-import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
+import { IndexerManagementDefaults } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules } from '../rules'
 import { processIdentifier } from '../../'

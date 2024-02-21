@@ -7,7 +7,7 @@ import {
   GraphQLCostModel,
   parseGraphQLCostModel,
 } from '../models'
-import { IndexerManagementResolverContext } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { compileAsync } from '@graphprotocol/cost-model'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
