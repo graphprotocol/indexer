@@ -5,7 +5,7 @@ import {
 } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
-
+import { Allocation as AllocationInfo } from '../../schema/types.generated'
 import pMap from 'p-map'
 import gql from 'graphql-tag'
 import { BigNumber, utils } from 'ethers'
@@ -49,25 +49,6 @@ enum AllocationQuery {
   active = 'active',
   closed = 'closed',
   allocation = 'allocation',
-}
-
-interface AllocationInfo {
-  id: Address
-  indexer: Address
-  subgraphDeployment: string
-  signalledTokens: string
-  stakedTokens: string
-  allocatedTokens: string
-  createdAtEpoch: number
-  closedAtEpoch: number | null
-  ageInEpochs: number
-  closeDeadlineEpoch: number
-  closeDeadlineBlocksRemaining: number
-  closeDeadlineTimeRemaining: number
-  indexingRewards: string
-  queryFeesCollected: string
-  status: string
-  protocolNetwork: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -157,7 +138,7 @@ const ALLOCATION_QUERIES = {
   `,
 }
 
-async function queryAllocations(
+export async function queryAllocations(
   logger: Logger,
   networkSubgraph: NetworkSubgraph,
   variables: {

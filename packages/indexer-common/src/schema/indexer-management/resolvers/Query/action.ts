@@ -1,8 +1,13 @@
 import type { QueryResolvers } from './../../../types.generated'
 export const action: NonNullable<QueryResolvers['action']> = async (
   _parent,
-  _arg,
-  _ctx,
+  { actionID },
+  { logger, models },
 ) => {
-  /* Implement Query.action resolver logic here */
+  logger.debug(`Execute 'action' query`, {
+    actionID,
+  })
+  return models.Action.findOne({
+    where: { id: actionID },
+  })
 }

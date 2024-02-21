@@ -1,10 +1,13 @@
 import { NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
 import { Logger } from '@graphprotocol/common-ts'
-import { WhereOperators, WhereOptions } from 'sequelize'
+import { WhereOptions } from 'sequelize'
 import { Op } from 'sequelize'
 import { WhereAttributeHashValue } from 'sequelize/types/model'
 import { validateNetworkIdentifier } from './parsers'
+import { ActionFilter, ActionUpdateInput, ActionParams } from './schema/types.generated'
+
+export { ActionUpdateInput, ActionParams }
 
 export interface ActionParamsInput {
   deploymentID?: string
@@ -20,18 +23,6 @@ export interface ActionItem {
   reason: string
   status?: ActionStatus
   protocolNetwork: string
-}
-
-export interface ActionUpdateInput {
-  deploymentID?: string
-  allocationID?: string
-  amount?: string
-  poi?: string
-  force?: boolean
-  type?: ActionType
-  status?: ActionStatus
-  reason?: string
-  protocolNetwork?: string
 }
 
 export interface ActionInput {
@@ -153,16 +144,6 @@ export const validateActionInputs = async (
   }
 }
 
-export interface ActionFilter {
-  id?: number | undefined
-  type?: ActionType
-  status?: ActionStatus
-  source?: string
-  reason?: string
-  updatedAt?: WhereOperators
-  protocolNetwork?: string
-}
-
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
   const whereOptions = [] as WhereAttributeHashValue<any>[]
 
@@ -207,22 +188,4 @@ export enum ActionStatus {
   SUCCESS = 'success',
   FAILED = 'failed',
   CANCELED = 'canceled',
-}
-
-export enum ActionParams {
-  ID = 'id',
-  STATUS = 'status',
-  TYPE = 'type',
-  DEPLOYMENT_ID = 'deploymentID',
-  ALLOCATION_ID = 'allocationID',
-  TRANSACTION = 'transaction',
-  AMOUNT = 'amount',
-  POI = 'poi',
-  FORCE = 'force',
-  SOURCE = 'source',
-  REASON = 'reason',
-  PRIORITY = 'priority',
-  CREATED_AT = 'createdAt',
-  UPDATED_AT = 'updatedAt',
-  PROTOCOL_NETWORK = 'protocolNetwork',
 }

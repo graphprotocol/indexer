@@ -1,5 +1,6 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { BigNumber, providers } from 'ethers'
+export { OrderDirection } from './schema/types.generated'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
@@ -10,11 +11,6 @@ export enum AllocationManagementMode {
 export enum DeploymentManagementMode {
   AUTO = 'auto',
   MANUAL = 'manual',
-}
-
-export enum OrderDirection {
-  ASC = 'asc',
-  DESC = 'desc',
 }
 
 export interface BlockPointer {

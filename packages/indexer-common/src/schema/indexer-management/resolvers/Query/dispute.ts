@@ -1,8 +1,13 @@
 import type { QueryResolvers } from './../../../types.generated'
+
 export const dispute: NonNullable<QueryResolvers['dispute']> = async (
   _parent,
-  _arg,
-  _ctx,
+  { identifier },
+  { models },
 ) => {
-  /* Implement Query.dispute resolver logic here */
+  const dispute = await models.POIDispute.findOne({
+    where: { ...identifier },
+  })
+
+  return dispute?.toGraphQL() || null
 }

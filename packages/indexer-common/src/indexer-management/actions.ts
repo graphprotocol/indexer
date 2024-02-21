@@ -1,6 +1,5 @@
 import {
   Action,
-  ActionFilter,
   actionFilterToWhereOptions,
   ActionParams,
   ActionStatus,
@@ -23,6 +22,7 @@ import {
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
+import { ActionFilter, Maybe } from '../schema/types.generated'
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
@@ -293,7 +293,7 @@ export class ActionManager {
   public static async fetchActions(
     models: IndexerManagementModels,
     filter: ActionFilter,
-    orderBy?: ActionParams,
+    orderBy: Maybe<ActionParams>,
     orderDirection?: OrderDirection,
     first?: number,
   ): Promise<Action[]> {
@@ -318,7 +318,7 @@ export class ActionManager {
         'Cannot bulk update actions without a filter, please provide a least 1 filter value',
       )
     }
-    return await models.Action.update(
+    return models.Action.update(
       { ...action },
       {
         where: actionFilterToWhereOptions(filter),
