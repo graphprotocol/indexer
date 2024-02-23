@@ -397,7 +397,6 @@ type Mutation {
     protocolNetwork: String!
   ): ReallocateAllocationResult!
 
-  updateAction(action: ActionInput!): Action!
   updateActions(filter: ActionFilter!, action: ActionUpdateInput!): [Action]!
   queueActions(actions: [ActionInput!]!): [Action]!
   cancelActions(actionIDs: [String!]!): [Action]!
