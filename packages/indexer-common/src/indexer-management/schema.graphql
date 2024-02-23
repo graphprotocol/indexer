@@ -354,7 +354,6 @@ type Query {
 
   dispute(identifier: POIDisputeIdentifier!): POIDispute
   disputes(status: String!, minClosedEpoch: Int!, protocolNetwork: String): [POIDispute]!
-  disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
   allocations(filter: AllocationFilter!): [Allocation!]!
 

@@ -379,7 +379,6 @@ const SCHEMA_SDL = gql`
       minClosedEpoch: Int!
       protocolNetwork: String
     ): [POIDispute]!
-    disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
     allocations(filter: AllocationFilter!): [Allocation!]!
 
