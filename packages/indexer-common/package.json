@@ -13,7 +13,7 @@
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
-    "compile": "tsc",
+    "compile": "yarn codegen && tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
     "test": "LOG_LEVEL=info jest --colors --verbose --runInBand --detectOpenHandles",
     "test:ci": "LOG_LEVEL=info jest --verbose --maxWorkers=1 --ci",
