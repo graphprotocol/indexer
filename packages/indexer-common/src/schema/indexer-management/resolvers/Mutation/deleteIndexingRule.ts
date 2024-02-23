@@ -1,7 +1,5 @@
 import { processIdentifier } from 'indexer-common/src/subgraphs'
-import type {
-  MutationResolvers
-} from './../../../types.generated'
+import type { MutationResolvers } from './../../../types.generated'
 import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
 import { resetGlobalRule } from 'indexer-common/src/indexer-management/resolvers/indexing-rules'
 
