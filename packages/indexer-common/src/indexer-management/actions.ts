@@ -19,10 +19,14 @@ import {
   GraphNode,
 } from '@graphprotocol/indexer-common'
 
-import { Order, Transaction } from 'sequelize'
+import { Order, Transaction, WhereOperators } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
-import { ActionFilter, Maybe } from '../schema/types.generated'
+import { ActionFilter as GraphQLActionFilter, Maybe } from '../schema/types.generated'
+
+type ActionFilter = GraphQLActionFilter & {
+  updatedAt?: WhereOperators
+}
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
@@ -121,9 +125,13 @@ export class ActionManager {
         logger.trace('Fetching approved actions')
         let actions: Action[] = []
         try {
-          actions = await ActionManager.fetchActions(this.models, {
-            status: ActionStatus.APPROVED,
-          })
+          actions = await ActionManager.fetchActions(
+            this.models,
+            {
+              status: ActionStatus.APPROVED,
+            },
+            null,
+          )
           logger.trace(`Fetched ${actions.length} approved actions`)
         } catch (err) {
           logger.warn('Failed to fetch approved actions from queue', { err })

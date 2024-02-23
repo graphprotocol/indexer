@@ -1,8 +1,22 @@
+import { ActionStatus } from 'indexer-common/src/actions'
 import type { MutationResolvers } from './../../../types.generated'
+
 export const cancelActions: NonNullable<MutationResolvers['cancelActions']> = async (
   _parent,
-  _arg,
-  _ctx,
+  { actionIDs },
+  { logger, models },
 ) => {
-  /* Implement Mutation.cancelActions resolver logic here */
+  logger.debug(`Execute 'cancelActions' mutation`, {
+    actionIDs,
+  })
+  const [, canceledActions] = await models.Action.update(
+    { status: ActionStatus.CANCELED },
+    { where: { id: actionIDs }, returning: true },
+  )
+
+  if (canceledActions.length === 0) {
+    throw Error(`Cancel action failed: No action items found with id in [${actionIDs}]`)
+  }
+
+  return canceledActions
 }

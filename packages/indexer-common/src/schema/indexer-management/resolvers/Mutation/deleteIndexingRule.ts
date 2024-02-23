@@ -1,6 +1,45 @@
-import type { MutationResolvers } from './../../../types.generated'
+import { processIdentifier } from 'indexer-common/src/subgraphs'
+import type {
+  MutationResolvers
+} from './../../../types.generated'
+import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { resetGlobalRule } from 'indexer-common/src/indexer-management/resolvers/indexing-rules'
+
 export const deleteIndexingRule: NonNullable<
   MutationResolvers['deleteIndexingRule']
-> = async (_parent, _arg, _ctx) => {
-  /* Implement Mutation.deleteIndexingRule resolver logic here */
+> = async (_parent, { identifier: indexingRuleIdentifier }, { models, defaults }) => {
+  const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
+    all: false,
+    global: true,
+  })
+
+  // Sanitize protocol network identifier
+  const protocolNetwork = validateNetworkIdentifier(
+    indexingRuleIdentifier.protocolNetwork,
+  )
+
+  const validatedRuleIdentifier = {
+    protocolNetwork,
+    identifier,
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+  return models.IndexingRule.sequelize!.transaction(async (transaction) => {
+    const numDeleted = await models.IndexingRule.destroy({
+      where: validatedRuleIdentifier,
+      transaction,
+    })
+
+    // Reset the global rule
+    if (validatedRuleIdentifier.identifier === 'global') {
+      await resetGlobalRule(
+        validatedRuleIdentifier,
+        defaults.globalIndexingRule,
+        models,
+        transaction,
+      )
+    }
+
+    return numDeleted > 0
+  })
 }

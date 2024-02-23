@@ -1,8 +1,22 @@
+import { ActionStatus } from '@graphprotocol/indexer-common'
 import type { MutationResolvers } from './../../../types.generated'
+
 export const approveActions: NonNullable<MutationResolvers['approveActions']> = async (
   _parent,
-  _arg,
-  _ctx,
+  { actionIDs },
+  { logger, models },
 ) => {
-  /* Implement Mutation.approveActions resolver logic here */
+  logger.debug(`Execute 'approveActions' mutation`, {
+    actionIDs,
+  })
+  const [, updatedActions] = await models.Action.update(
+    { status: ActionStatus.APPROVED },
+    { where: { id: actionIDs }, returning: true },
+  )
+
+  if (updatedActions.length === 0) {
+    throw Error(`Approve action failed: No action items found with id in [${actionIDs}]`)
+  }
+
+  return updatedActions
 }

@@ -14,7 +14,7 @@ import { processIdentifier } from '../../'
 import { validateNetworkIdentifier } from '../../parsers'
 import groupBy from 'lodash.groupby'
 
-const resetGlobalRule = async (
+export const resetGlobalRule = async (
   ruleIdentifier: IndexingRuleIdentifier,
   defaults: IndexerManagementDefaults['globalIndexingRule'],
   models: IndexerManagementModels,
