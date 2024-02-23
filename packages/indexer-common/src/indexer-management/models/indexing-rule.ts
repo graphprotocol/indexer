@@ -3,6 +3,7 @@
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
 import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
 import { caip2IdRegex } from '../../parsers'
+import { IndexingRule as GraphQLIndexingRuleType } from '../../schema/types.generated'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -88,7 +89,7 @@ export class IndexingRule
   public updatedAt!: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  public toGraphQL(): object {
+  public toGraphQL(): GraphQLIndexingRuleType {
     return { ...this.toJSON(), __typename: 'IndexingRule' }
   }
 
@@ -116,7 +117,7 @@ export class IndexingRule
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  public mergeToGraphQL(global: IndexingRule | null): object {
+  public mergeToGraphQL(global: IndexingRule | null): GraphQLIndexingRuleType {
     if (global instanceof IndexingRule) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const globalRule: { [key: string]: any } | null = global.toJSON()
@@ -133,6 +134,7 @@ export class IndexingRule
           rule[k] = globalRule[k]
         }
       }
+      // @ts-expect-error TODO: very hacky, we need a better way to ensure this type is correct.
       return { ...rule, __typename: 'IndexingRule' }
     } else {
       return this.toGraphQL()

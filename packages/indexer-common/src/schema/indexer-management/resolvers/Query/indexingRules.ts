@@ -1,8 +1,15 @@
+import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { fetchIndexingRules } from 'indexer-common/src/indexer-management/rules'
 import type { QueryResolvers } from './../../../types.generated'
+
 export const indexingRules: NonNullable<QueryResolvers['indexingRules']> = async (
   _parent,
-  _arg,
-  _ctx,
+  { merged, protocolNetwork: uncheckedProtocolNetwork },
+  { models },
 ) => {
-  /* Implement Query.indexingRules resolver logic here */
+  // Convert the input `protocolNetwork` value to a CAIP2-ID
+  const protocolNetwork = uncheckedProtocolNetwork
+    ? validateNetworkIdentifier(uncheckedProtocolNetwork)
+    : undefined
+  return fetchIndexingRules(models, merged, protocolNetwork)
 }
