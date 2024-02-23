@@ -20,7 +20,7 @@
     ],
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts", "codegen.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": [],
   "references": []
 }
