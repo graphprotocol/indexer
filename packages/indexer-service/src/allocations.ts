@@ -61,33 +61,16 @@ export const monitorEligibleAllocations = ({
 
       const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
-      const result = await networkSubgraph.query(
-        gql`
-          query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
-            indexer(id: $indexer) {
-              activeAllocations: totalAllocations(
-                where: { status: Active }
-                orderDirection: desc
-                first: 1000
-              ) {
-                id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtBlockHash
-                createdAtEpoch
-                closedAtEpoch
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-              recentlyClosedAllocations: totalAllocations(
-                where: { status: Closed, closedAtEpoch_gte: $closedAtEpochThreshold }
-                orderDirection: desc
+      let lastId = ''
+      const activeAllocations = []
+      for (;;) {
+        const result = await networkSubgraph.query(
+          gql`
+            query allocations($indexer: String!, $lastId: String!) {
+              allocations(
+                where: { indexer: $indexer, id_gt: $lastId, status: Active }
+                orderBy: id
+                orderDirection: asc
                 first: 1000
               ) {
                 id
@@ -106,31 +89,86 @@ export const monitorEligibleAllocations = ({
                 }
               }
             }
-          }
-        `,
-        {
-          indexer: indexer.toLowerCase(),
-          closedAtEpochThreshold: currentEpoch - 1, // allocation can be closed within the last epoch or later
-        },
-      )
+          `,
+          {
+            indexer: indexer.toLowerCase(),
+            lastId,
+          },
+        )
 
-      if (result.error) {
-        throw result.error
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          break
+        }
+        activeAllocations.push(...result.data.allocations)
+        lastId = result.data.allocations.slice(-1)[0].id
       }
 
-      if (!result.data) {
+      lastId = ''
+      const recentlyClosedAllocations = []
+      for (;;) {
+        const result = await networkSubgraph.query(
+          gql`
+            query allocations(
+              $indexer: String!
+              $lastId: String!
+              $closedAtEpochThreshold: Int!
+            ) {
+              allocations(
+                where: {
+                  indexer: $indexer
+                  id_gt: $lastId
+                  status: Closed
+                  closedAtEpoch_gte: $closedAtEpochThreshold
+                }
+                orderBy: id
+                orderDirection: asc
+                first: 1000
+              ) {
+                id
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtBlockHash
+                createdAtEpoch
+                closedAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                  queryFeesAmount
+                }
+              }
+            }
+          `,
+          {
+            indexer: indexer.toLowerCase(),
+            lastId,
+            closedAtEpochThreshold: currentEpoch - 1, // allocation can be closed within the last epoch or later
+          },
+        )
+
+        if (result.error) {
+          throw result.error
+        }
+        if (result.data.allocations.length == 0) {
+          break
+        }
+        recentlyClosedAllocations.push(...result.data.allocations)
+        lastId = result.data.allocations.slice(-1)[0].id
+      }
+
+      const allocations = [...activeAllocations, ...recentlyClosedAllocations]
+
+      if (allocations.length == 0) {
         throw new Error(`No data / indexer not found on chain`)
       }
 
-      if (!result.data.indexer) {
-        throw new Error(`Indexer not found on chain`)
-      }
-
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return [
-        ...result.data.indexer.activeAllocations,
-        ...result.data.indexer.recentlyClosedAllocations,
-      ].map(x => parseGraphQLAllocation(x, protocolNetwork))
+      return allocations.map(x => parseGraphQLAllocation(x, protocolNetwork))
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map(allocation => allocation.id),
