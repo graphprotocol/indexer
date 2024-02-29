@@ -218,7 +218,7 @@ export const ensureAttestationSigners = ({
   const logger = parentLogger.child({ component: 'AttestationSignerCache' })
 
   const cache: AttestationSignerCache = new LRUCache(null, {
-    maxlen: 1000,
+    maxlen: 5000,
   })
 
   const signers = allocations.map(async allocations => {
@@ -263,8 +263,9 @@ export const ensureAttestationSigners = ({
   })
 
   signers.pipe(signers => {
-    logger.info(`Cached attestation signers`, {
-      allocations: [...signers.keys()],
+    const attestationSigners = [...signers.keys()]
+    logger.info(`Cached ${attestationSigners.length} attestation signers`, {
+      allocations: attestationSigners,
     })
   })
 
