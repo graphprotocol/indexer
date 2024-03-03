@@ -35,7 +35,8 @@ ENV NODE_ENV production
 # When simulating large transactions, sometimes indexer-agent runs out of memory.
 # This flag seems force node into GC earlier, preventing the crash
 # 1536mb is 1.5GB, which is appropriate for an environment with 2GB RAM
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+# todo: increase this temporarily to 4GB to see if it fixes the crash
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 
 RUN apt-get update && apt-get install -y python build-essential git curl
