@@ -72,14 +72,12 @@ export class GraphNode {
   private queryBaseURL: URL
   status: Client
   logger: Logger
-  indexNodeIDs: string[]
 
   constructor(
     logger: Logger,
     adminEndpoint: string,
     queryEndpoint: string,
     statusEndpoint: string,
-    indexNodeIDs: string[],
   ) {
     this.logger = logger.child({ component: 'GraphNode' })
     this.status = createClient({
@@ -97,8 +95,6 @@ export class GraphNode {
     }
 
     this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
-
-    this.indexNodeIDs = indexNodeIDs
   }
 
   async connect(): Promise<void> {
@@ -282,27 +278,20 @@ export class GraphNode {
     }
   }
 
-  async deploy(
-    name: string,
-    deployment: SubgraphDeploymentID,
-    node_id: string,
-  ): Promise<void> {
+  async deploy(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
       this.logger.info(`Deploy subgraph deployment`, {
         name,
         deployment: deployment.display,
-        node_id,
       })
       const response = await this.admin.request('subgraph_deploy', {
         name,
         ipfs_hash: deployment.ipfsHash,
-        node_id: node_id,
       })
 
       this.logger.trace(`Response from 'subgraph_deploy' call`, {
         deployment: deployment.display,
         name,
-        node_id,
         response,
       })
 
@@ -387,26 +376,8 @@ export class GraphNode {
 
   async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      // Randomly assign to unused nodes if they exist,
-      // otherwise use the node with lowest deployments assigned
-      const indexNodes = (await this.indexNodes()).filter(
-        (node: { id: string; deployments: Array<string> }) => {
-          return node.id && node.id !== 'removed'
-        },
-      )
-      const usedIndexNodeIDs = indexNodes.map((node) => node.id)
-      const unusedNodes = this.indexNodeIDs.filter(
-        (nodeID) => !(nodeID in usedIndexNodeIDs),
-      )
-
-      const targetNode = unusedNodes
-        ? unusedNodes[Math.floor(Math.random() * unusedNodes.length)]
-        : indexNodes.sort((nodeA, nodeB) => {
-            return nodeA.deployments.length - nodeB.deployments.length
-          })[0].id
       await this.create(name)
-      await this.deploy(name, deployment, targetNode)
-      await this.reassign(deployment, targetNode)
+      await this.deploy(name, deployment)
     } catch (error) {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020

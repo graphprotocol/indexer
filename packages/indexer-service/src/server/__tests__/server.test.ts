@@ -64,10 +64,7 @@ const setup = async () => {
   contracts = await connectContracts(getTestProvider('sepolia'), 11155111, undefined)
   sequelize = await sequelize.sync({ force: true })
   const statusEndpoint = 'http://127.0.0.1:8030/graphql'
-  indexingStatusResolver = new IndexingStatusResolver({
-    logger: logger,
-    statusEndpoint,
-  })
+  const queryEndpoint = 'http://127.0.0.1:8000/'
 
   const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   networkSubgraph = await NetworkSubgraph.create({
@@ -75,7 +72,6 @@ const setup = async () => {
     endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`,
     deployment: undefined,
   })
-  const indexNodeIDs = ['node_1']
 
   const graphNode = new GraphNode(
     logger,
@@ -84,12 +80,10 @@ const setup = async () => {
     'http://fake-graph-node-admin-endpoint',
     queryEndpoint,
     statusEndpoint,
-    indexNodeIDs,
   )
   client = await createIndexerManagementClient({
     models,
     graphNode,
-    indexNodeIDs,
     logger,
     defaults: {
       // This is just a dummy, since we're never writing to the management
