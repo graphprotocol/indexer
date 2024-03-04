@@ -318,7 +318,6 @@ export default {
       'http://fake-graph-node-admin-endpoint',
       argv.graphNodeQueryEndpoint,
       argv.graphNodeStatusEndpoint,
-      argv.indexNodeIds,
     )
 
     const networkProvider = await Network.provider(
@@ -483,7 +482,6 @@ export default {
     const indexerManagementClient = await createIndexerManagementClient({
       models,
       graphNode,
-      indexNodeIDs: ['node_1'], // This is just a dummy since the indexer-service doesn't manage deployments,
       logger,
       defaults: {
         // This is just a dummy, since we're never writing to the management
