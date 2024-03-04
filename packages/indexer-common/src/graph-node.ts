@@ -331,30 +331,6 @@ export class GraphNode {
     }
   }
 
-  async remove(deployment: SubgraphDeploymentID): Promise<void> {
-    try {
-      this.logger.info(`Remove subgraph deployment`, {
-        deployment: deployment.display,
-      })
-      const response = await this.admin.request('subgraph_reassign', {
-        node_id: 'removed',
-        ipfs_hash: deployment.ipfsHash,
-      })
-      if (response.error) {
-        throw response.error
-      }
-      this.logger.info(`Successfully removed subgraph deployment`, {
-        deployment: deployment.display,
-      })
-    } catch (error) {
-      const errorCode = IndexerErrorCode.IE027
-      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
-        deployment: deployment.display,
-        error: indexerError(errorCode, error),
-      })
-    }
-  }
-
   async pause(deployment: SubgraphDeploymentID): Promise<void> {
     try {
       this.logger.info(`Pause subgraph deployment`, {
