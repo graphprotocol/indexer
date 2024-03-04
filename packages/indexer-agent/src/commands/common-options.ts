@@ -7,21 +7,6 @@ import { parseDeploymentManagementMode } from '@graphprotocol/indexer-common'
 // Injects all CLI options shared between this module's commands into a `yargs.Argv` object.
 export function injectCommonStartupOptions(argv: Argv): Argv {
   argv
-    .option('index-node-ids', {
-      description:
-        'Node IDs of Graph nodes to use for indexing (separated by commas)',
-      type: 'string',
-      array: true,
-      required: true,
-      coerce: (
-        arg, // TODO: we shouldn't need to coerce because yargs already separates values by space
-      ) =>
-        arg.reduce(
-          (acc: string[], value: string) => [...acc, ...value.split(',')],
-          [],
-        ),
-      group: 'Indexer Infrastructure',
-    })
     .option('indexer-management-port', {
       description: 'Port to serve the indexer management API at',
       type: 'number',

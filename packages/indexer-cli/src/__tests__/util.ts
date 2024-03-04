@@ -83,13 +83,11 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   sequelize = await sequelize.sync({ force: true })
 
   const statusEndpoint = 'http://127.0.0.1:8030/graphql'
-  const indexNodeIDs = ['node_1']
   const graphNode = new GraphNode(
     logger,
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
-    indexNodeIDs,
   )
 
   const network = await Network.create(
@@ -122,7 +120,6 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   indexerManagementClient = await createIndexerManagementClient({
     models,
     graphNode,
-    indexNodeIDs,
     logger,
     defaults,
     multiNetworks,
