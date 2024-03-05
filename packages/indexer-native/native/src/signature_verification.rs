@@ -1,4 +1,11 @@
-use super::*;
+use std::sync::Arc;
+
+use alloy_primitives::Address;
+use arc_swap::ArcSwap;
+use keccak_hash::keccak;
+use lazy_static::lazy_static;
+use neon::prelude::Finalize;
+use secp256k1::{ecdsa::RecoverableSignature, Message, PublicKey, Secp256k1, VerifyOnly};
 
 lazy_static! {
     static ref SECP256K1: Secp256k1<VerifyOnly> = Secp256k1::verification_only();
@@ -21,7 +28,7 @@ impl SignatureVerifier {
         message: &[u8],
         signature: &RecoverableSignature,
     ) -> Result<bool, &'static str> {
-        let message = Message::from_slice(&keccak(&message).to_fixed_bytes()).unwrap();
+        let message = Message::from_slice(&keccak(message).to_fixed_bytes()).unwrap();
 
         match self.signer.load().as_ref() {
             // If we already have the public key we can do the fast path.
@@ -35,13 +42,13 @@ impl SignatureVerifier {
             // verify method instead of the slow recover method.
             Signer::Address(addr) => {
                 let recovered_signer = SECP256K1
-                    .recover_ecdsa(&message, &signature)
+                    .recover_ecdsa(&message, signature)
                     .map_err(|_| "Failed to recover signature")?;
 
                 let ser = recovered_signer.serialize_uncompressed();
                 debug_assert_eq!(ser[0], 0x04);
                 let pk_hash = keccak(&ser[1..]);
-                let equal = &pk_hash[12..] == addr;
+                let equal = pk_hash[12..] == addr;
 
                 if equal {
                     self.signer
@@ -57,3 +64,5 @@ impl SignatureVerifier {
 pub struct SignatureVerifier {
     signer: ArcSwap<Signer>,
 }
+
+impl Finalize for SignatureVerifier {}
