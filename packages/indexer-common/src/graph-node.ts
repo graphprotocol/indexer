@@ -21,6 +21,7 @@ interface indexNode {
 export interface SubgraphDeploymentAssignment {
   id: SubgraphDeploymentID
   node: string
+  paused: boolean
 }
 
 export interface IndexingStatusFetcherOptions {
@@ -31,6 +32,12 @@ export interface IndexingStatusFetcherOptions {
 export interface SubgraphFeatures {
   // `null` is only expected when Graph Node detects validation errors in the Subgraph Manifest.
   network: string | null
+}
+
+export enum SubgraphStatus {
+  ACTIVE = 'active',
+  PAUSED = 'paused',
+  ALL = 'all',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -136,10 +143,14 @@ export class GraphNode {
   }
 
   public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
-    return (await this.subgraphDeploymentsAssignments()).map((details) => details.id)
+    return (await this.subgraphDeploymentsAssignments(SubgraphStatus.ACTIVE)).map(
+      (details) => details.id,
+    )
   }
 
-  public async subgraphDeploymentsAssignments(): Promise<SubgraphDeploymentAssignment[]> {
+  public async subgraphDeploymentsAssignments(
+    subgraphStatus: SubgraphStatus,
+  ): Promise<SubgraphDeploymentAssignment[]> {
     try {
       this.logger.debug('Fetch subgraph deployment assignments')
       const result = await this.status
@@ -148,6 +159,7 @@ export class GraphNode {
             indexingStatuses {
               subgraphDeployment: subgraph
               node
+              paused
             }
           }
         `)
@@ -164,10 +176,22 @@ export class GraphNode {
         return []
       }
 
-      type QueryResult = { subgraphDeployment: string; node: string }
+      type QueryResult = {
+        subgraphDeployment: string
+        node: string
+        paused: boolean
+      }
 
       return result.data.indexingStatuses
-        .filter((status: QueryResult) => status.node && status.node !== 'removed')
+        .filter((status: QueryResult) => {
+          if (subgraphStatus === SubgraphStatus.ACTIVE) {
+            return status.node !== 'removed'
+          } else if (subgraphStatus === SubgraphStatus.PAUSED) {
+            return status.node === 'removed' || status.paused === true
+          } else {
+            return true
+          }
+        })
         .map((status: QueryResult) => {
           return {
             id: new SubgraphDeploymentID(status.subgraphDeployment),
@@ -320,6 +344,29 @@ export class GraphNode {
         throw response.error
       }
       this.logger.info(`Successfully removed subgraph deployment`, {
+        deployment: deployment.display,
+      })
+    } catch (error) {
+      const errorCode = IndexerErrorCode.IE027
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
+        deployment: deployment.display,
+        error: indexerError(errorCode, error),
+      })
+    }
+  }
+
+  async pause(deployment: SubgraphDeploymentID): Promise<void> {
+    try {
+      this.logger.info(`Pause subgraph deployment`, {
+        deployment: deployment.display,
+      })
+      const response = await this.admin.request('subgraph_pause', {
+        deployment: deployment.ipfsHash,
+      })
+      if (response.error) {
+        throw response.error
+      }
+      this.logger.info(`Successfully paused subgraph deployment`, {
         deployment: deployment.display,
       })
     } catch (error) {
