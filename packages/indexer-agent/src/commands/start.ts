@@ -558,6 +558,7 @@ export async function run(
         logger,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
         networkSpecifications,
+        graphNode: graphNode,
       },
       storage: new SequelizeStorage({ sequelize }),
       logger: console,
