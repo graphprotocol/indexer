@@ -138,14 +138,11 @@ const setup = async () => {
   queryFeeModels = defineQueryFeeModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
 
-  const indexNodeIDs = ['node_1']
-
   graphNode = new GraphNode(
     logger,
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     'https://test-status-endpoint.xyz',
-    indexNodeIDs,
   )
 
   const networkSpecification = specification.NetworkSpecification.parse({
@@ -199,7 +196,6 @@ const setup = async () => {
   indexerManagementClient = await createIndexerManagementClient({
     models,
     graphNode,
-    indexNodeIDs,
     logger,
     defaults: {
       globalIndexingRule: {

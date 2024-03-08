@@ -453,10 +453,6 @@ export interface IndexerManagementClientOptions {
   logger: Logger
   models: IndexerManagementModels
   graphNode: GraphNode
-  // TODO:L2: Do we need this information? The GraphNode class auto-selects nodes based
-  // on availability.
-  // Ford: there were some edge cases where the GraphNode was not able to auto handle it on its own
-  indexNodeIDs: string[]
   multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
 }

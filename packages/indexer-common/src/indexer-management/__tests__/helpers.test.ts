@@ -101,7 +101,6 @@ const setupMonitor = async () => {
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
-    [],
   )
 
   const indexerOptions = spec.IndexerOptions.parse({

@@ -478,7 +478,6 @@ export async function run(
     argv.graphNodeAdminEndpoint,
     argv.graphNodeQueryEndpoint,
     argv.graphNodeStatusEndpoint,
-    argv.indexNodeIds,
   )
 
   // --------------------------------------------------------------------------------
@@ -572,7 +571,6 @@ export async function run(
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     graphNode,
-    indexNodeIDs: argv.indexNodeIds,
     logger,
     defaults: {
       globalIndexingRule: {

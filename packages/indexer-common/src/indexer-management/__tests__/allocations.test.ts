@@ -56,7 +56,6 @@ const setup = async () => {
     'https://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     'https://test-status-endpoint.xyz',
-    [],
   )
 
   const network = await Network.create(

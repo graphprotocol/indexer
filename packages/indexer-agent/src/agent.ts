@@ -939,17 +939,17 @@ export class Agent {
       eligibleAllocations.map(allocation => allocation.subgraphDeployment.id),
     )
 
-    // Identify which subgraphs to deploy and which to remove
+    // Identify which subgraphs to deploy and which to pause
     const deploy = targetDeployments.filter(
       deployment => !deploymentInList(activeDeployments, deployment),
     )
-    const remove = activeDeployments.filter(
+    const pause = activeDeployments.filter(
       deployment =>
         !deploymentInList(targetDeployments, deployment) &&
         !deploymentInList(eligibleAllocationDeployments, deployment),
     )
 
-    if (deploy.length + remove.length !== 0) {
+    if (deploy.length + pause.length !== 0) {
       logger.info('Deployment changes', {
         indexingNetworkSubgraph,
         syncing: activeDeployments.map(id => id.display),
@@ -958,14 +958,13 @@ export class Agent {
           id => id.display,
         ),
         deploy: deploy.map(id => id.display),
-        remove: remove.map(id => id.display),
+        pause: pause.map(id => id.display),
       })
     } else {
       logger.debug('No deployment changes are necessary')
     }
-
     // ----------------------------------------------------------------------------------------
-    // Execute Deployments (Add, Remove)
+    // Execute Deployments (Add, Pause)
     // ----------------------------------------------------------------------------------------
 
     // Deploy/remove up to 10 subgraphs in parallel
@@ -982,15 +981,13 @@ export class Agent {
         })
 
         // Ensure the deployment is deployed to the indexer
-        // Note: we're not waiting here, as sometimes indexing a subgraph
-        // will block if the IPFS files cannot be retrieved
         await this.graphNode.ensure(name, deployment)
       }),
     )
 
     // Stop indexing deployments that are no longer worth indexing
     await queue.addAll(
-      remove.map(deployment => async () => this.graphNode.pause(deployment)),
+      pause.map(deployment => async () => this.graphNode.pause(deployment)),
     )
 
     await queue.onIdle()

@@ -77,9 +77,7 @@ export const createTestManagementClient = async (
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
-    [],
   )
-  const indexNodeIDs = ['node_1']
 
   const networkSpecification = { ...testNetworkSpecification }
   networkSpecification.dai.inject = injectDai
@@ -114,7 +112,6 @@ export const createTestManagementClient = async (
   return await createIndexerManagementClient({
     models: managementModels,
     graphNode,
-    indexNodeIDs,
     logger,
     defaults,
     multiNetworks,
