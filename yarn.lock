@@ -900,7 +900,7 @@
 
 "@graphprotocol/cost-model@0.1.18":
   version "0.1.18"
-  resolved "https://registry.npmjs.org/@graphprotocol/cost-model/-/cost-model-0.1.18.tgz"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/cost-model/-/cost-model-0.1.18.tgz#703b4557ff77fc4d6d3857ac8b830862c95b24fe"
   integrity sha512-OZGQwUi5+YQM/mT/Zei09P5S28YYbP+YDFI8sZnJmqp6OrDTxD3f6L9E6upcxzqRxgXqewJC3JBwSC1D0wMs4g==
   dependencies:
     "@mapbox/node-pre-gyp" "1.0.11"
@@ -8511,11 +8511,6 @@ lodash.startcase@^4.4.0:
   version "4.4.0"
   resolved "https://registry.npmjs.org/lodash.startcase/-/lodash.startcase-4.4.0.tgz"
   integrity sha512-+WKqsK294HMSc2jEbNgpHpd0JfIBhp7rEV4aqXWqFr6AlXov+SlcgB1Fv01y2kGe3Gc8nMW7VA0SrGuSkRfIEg==
-
-lodash.transform@^4.6.0:
-  version "4.6.0"
-  resolved "https://registry.yarnpkg.com/lodash.transform/-/lodash.transform-4.6.0.tgz#12306422f63324aed8483d3f38332b5f670547a0"
-  integrity sha512-LO37ZnhmBVx0GvOU/caQuipEh4GN82TcWv3yHlebGDgOxbxiwwzW5Pcx2AcvpIv2WmvmSMoC492yQFNhy/l/UQ==
 
 lodash.trim@^4.5.1:
   version "4.5.1"

@@ -2,7 +2,6 @@ import { DataTypes, Sequelize, Model, Association, CreationOptional } from 'sequ
 import { Address, toAddress } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
 import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
-// import { JSONParse, JSONStringify, camelize, snakefy } from './object-conversion'
 export interface AllocationReceiptAttributes {
   id: string
   allocation: Address
@@ -49,40 +48,28 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 }
 
 export interface ReceiptAggregateVoucherAttributes {
-  allocation_id: string
-  sender_address: string
+  allocationId: string
+  senderAddress: string
   signature: Uint8Array
-  timestamp_ns: bigint
-  value_aggregate: bigint
-  //rav: unknown
+  timestampNs: bigint
+  valueAggregate: bigint
+  last: boolean
+  redeemedAt: Date | null
   final: boolean
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-/*export type RAVData = {
-  message: {
-    allocationId: string
-    timestampNs: bigint
-    valueAggregate: bigint
-  }
-  signature: {
-    r: string
-    s: string
-    v: number
-  }
-}*/
 
 export class ReceiptAggregateVoucher
   extends Model<ReceiptAggregateVoucherAttributes>
   implements ReceiptAggregateVoucherAttributes
 {
-  public allocation_id!: Address
-  public sender_address!: Address
+  public allocationId!: Address
+  public senderAddress!: Address
   public signature!: Uint8Array
-  public timestamp_ns!: bigint
-  public value_aggregate!: bigint
-  // public rav!: SignedRAV
+  public timestampNs!: bigint
+  public valueAggregate!: bigint
   public final!: boolean
+  public last!: boolean
+  public redeemedAt!: Date | null
 
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
@@ -93,12 +80,12 @@ export class ReceiptAggregateVoucher
     allocationSummary: Association<ReceiptAggregateVoucher, AllocationSummary>
   }
 
-  getSingedRAV(): SignedRAV {
+  getSignedRAV(): SignedRAV {
     return {
       rav: {
-        allocationId: toAddress(this.allocation_id),
-        timestampNs: this.timestamp_ns,
-        valueAggregate: this.value_aggregate,
+        allocationId: toAddress(this.allocationId),
+        timestampNs: this.timestampNs,
+        valueAggregate: this.valueAggregate,
       },
       signature: this.signature,
     }
@@ -294,51 +281,62 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
 
   ReceiptAggregateVoucher.init(
     {
-      allocation_id: {
+      allocationId: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('allocation_id')
+          const rawValue = this.getDataValue('allocationId')
           return toAddress(rawValue)
         },
         set(value: Address) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('allocation_id', addressWithoutPrefix)
+          this.setDataValue('allocationId', addressWithoutPrefix)
         },
       },
-      sender_address: {
+      senderAddress: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('sender_address')
+          const rawValue = this.getDataValue('senderAddress')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('sender_address', addressWithoutPrefix)
+          this.setDataValue('senderAddress', addressWithoutPrefix)
         },
       },
       signature: {
         type: DataTypes.BLOB,
         allowNull: false,
       },
-      timestamp_ns: {
+      timestampNs: {
         type: DataTypes.BIGINT,
         allowNull: false,
       },
-      value_aggregate: {
+      valueAggregate: {
         type: DataTypes.BIGINT,
         allowNull: false,
+      },
+      last: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       final: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
       },
+      redeemedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
     },
     {
+      underscored: true,
       sequelize,
       tableName: 'scalar_tap_ravs',
     },

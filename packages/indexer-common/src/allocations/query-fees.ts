@@ -11,7 +11,7 @@ import {
   Eventual,
   join as joinEventual,
 } from '@graphprotocol/common-ts'
-import { NetworkContracts as EscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
+import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   Allocation,
   AllocationReceipt,
@@ -31,6 +31,9 @@ import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract, utils } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
+import { TAPSubgraph } from '../tap-subgraph'
+import gql from 'graphql-tag'
+import Sequelize from 'sequelize'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
@@ -78,10 +81,11 @@ export interface AllocationReceiptCollectorOptions {
   metrics: Metrics
   transactionManager: TransactionManager
   allocationExchange: Contract
-  escrowContracts?: EscrowContracts
+  tapContracts?: TapContracts
   allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
+  tapSubgraph: TAPSubgraph
 }
 
 export interface ReceiptCollector {
@@ -106,7 +110,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare models: QueryFeeModels
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
-  declare escrowContracts?: EscrowContracts
+  declare tapContracts?: TapContracts
   declare allocations: Eventual<Allocation[]>
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
@@ -116,6 +120,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare voucherRedemptionBatchThreshold: BigNumber
   declare voucherRedemptionMaxBatchSize: number
   declare protocolNetwork: string
+  declare tapSubgraph: TAPSubgraph
+  declare finalityTime: number
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -126,9 +132,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     transactionManager,
     models,
     allocationExchange,
-    escrowContracts,
+    tapContracts,
     allocations,
     networkSpecification,
+    tapSubgraph,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
     collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
@@ -139,9 +146,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.transactionManager = transactionManager
     collector.models = models
     collector.allocationExchange = allocationExchange
-    collector.escrowContracts = escrowContracts
+    collector.tapContracts = tapContracts
     collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
+    collector.tapSubgraph = tapSubgraph
 
     // Process Gateway routes
     const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
@@ -153,18 +161,19 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize,
+      finalityTime,
     } = networkSpecification.indexerOptions
     collector.voucherRedemptionThreshold = voucherRedemptionThreshold
     collector.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     collector.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
+    collector.finalityTime = finalityTime
 
     // Start the AllocationReceiptCollector
     // TODO: Consider calling methods conditionally based on a boolean
     // flag during startup.
-    collector.logger.info(` === AllocationReceiptCollector is started`)
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
-    if (collector.escrowContracts) {
+    if (collector.tapContracts) {
       collector.logger.info(`RAV processing is initiated`)
       collector.startRAVProcessing()
     }
@@ -280,9 +289,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }
 
   private startReceiptCollecting() {
-    this.logger.info(
-      `=============== Start collecting receipts for allocations ==============`,
-    )
     this.receiptsToCollect = new DHeap<AllocationReceiptsBatch>(null, {
       compare: (t1, t2) => t1.timeout - t2.timeout,
     })
@@ -298,7 +304,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         // Remove the batch from the processing queue
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const batch = this.receiptsToCollect.pop()!
-        this.logger.info(` ========${batch} ============`)
 
         // If the array is empty we cannot know what allocation this group
         // belongs to. Should this assertion ever fail, then there is a
@@ -428,7 +433,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             BigNumber.from(0),
           ),
         )
-
         logger.info(`Query RAVs below the redemption threshold`, {
           hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
           voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
@@ -463,10 +467,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               chainId: this.protocolNetwork.split(':')[1],
               name: 'TAP',
               version: '1',
-              verifyingContract: this.escrowContracts!.tapVerifier.address,
+              verifyingContract: this.tapContracts!.tapVerifier.address,
             }
-            const signedRav = rav.getSingedRAV()
-            console.log({ domain, rav })
+            const signedRav = rav.getSignedRAV()
             const signerAddress = utils.verifyTypedData(
               domain,
               {
@@ -479,14 +482,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               signedRav.rav,
               signedRav.signature,
             )
-            console.log({ signerAddress, ravSigner: rav.sender_address })
+            console.log({ signerAddress, ravSigner: rav.senderAddress })
 
             return {
               rav: signedRav,
               allocation: allocations.find(
                 (a) => a.id === toAddress(signedRav.rav.allocationId),
               ),
-              sender: rav.sender_address,
+              sender: rav.senderAddress,
             }
           })
           .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
@@ -523,12 +526,73 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     )
   }
 
-  // redeem only if final is true
+  // redeem only if last is true
   // Later can add order and limit
   protected async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
-    return this.models.receiptAggregateVouchers.findAll({
-      where: { final: true },
+    const unfinalizedRAVs = await this.models.receiptAggregateVouchers.findAll({
+      where: { last: true, final: false },
     })
+    // Obtain allocationIds to use as filter in subgraph
+    const unfinalizedRavsAllocationIds = unfinalizedRAVs.map((rav) =>
+      rav.getSignedRAV().rav.allocationId.toLowerCase(),
+    )
+
+    if (unfinalizedRavsAllocationIds.length > 0) {
+      console.log(`Get on-chain redeemed RAVs from TAP subgraph`)
+      const returnedAllocationIDs = (
+        await this.tapSubgraph.query(
+          gql`
+            query transactions($unfinalizedRavsAllocationIds: [String!]!) {
+              transactions(
+                where: { type: "redeem", allocationID_in: $unfinalizedRavsAllocationIds }
+              ) {
+                allocationID
+              }
+            }
+          `,
+          { unfinalizedRavsAllocationIds },
+        )
+      ).data.transactions.map((transaction) => transaction.allocationID)
+
+      // Filter unfinalized RAVs from DB to keep the ones not redeemed on-chain
+      const nonRedeemedAllocationIDAddresses = unfinalizedRavsAllocationIds.filter(
+        (allocationID) => !returnedAllocationIDs.includes(allocationID),
+      )
+      // Lowercase and remove '0x' prefix of addresses to match format in TAP DB Tables
+      const nonRedeemedAllocationIDsTrunc = nonRedeemedAllocationIDAddresses.map(
+        (allocationID) => allocationID.toLowerCase().replace('0x', ''),
+      )
+
+      // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
+      // To handle a chain reorg that "unredeemed" the RAVs.
+      const Op = Sequelize.Op
+      await this.models.receiptAggregateVouchers.update(
+        { redeemedAt: null },
+        {
+          where: {
+            allocationId: { [Op.in]: nonRedeemedAllocationIDsTrunc },
+          },
+        },
+      )
+
+      // Update those that redeemed_at is older than 60 minutes and mark as final
+      const finalizeTimeFrame = Date.now() - this.finalityTime * 1000
+      await this.models.receiptAggregateVouchers.update(
+        { final: true },
+        {
+          where: {
+            last: true,
+            final: false,
+            redeemedAt: { [Op.lt]: new Date(finalizeTimeFrame) },
+          },
+        },
+      )
+
+      return await this.models.receiptAggregateVouchers.findAll({
+        where: { last: true, final: false },
+      })
+    }
+    return []
   }
 
   private encodeReceiptBatch(receipts: AllocationReceipt[]): BytesWriter {
@@ -785,7 +849,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       function: 'submitRAVs()',
       signedRavSize: signedRavs.length,
     })
-    if (!this.escrowContracts) {
+    if (!this.tapContracts) {
       logger.error(
         `Undefined escrow contracts, but this shouldn't happen as RAV process is only triggered when escrow is provided`,
         {
@@ -794,9 +858,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       )
       return
     }
-    const escrow = this.escrowContracts
+    const escrow = this.tapContracts
 
-    logger.info(`Redeem final RAVs on chain individually`, {
+    logger.info(`Redeem last RAVs on chain individually`, {
       signedRavs,
     })
 
@@ -840,6 +904,24 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           { allocation: rav.allocationId },
           parseFloat(rav.valueAggregate.toString()),
         )
+
+        try {
+          const addressWithoutPrefix = rav.allocationId.toLowerCase().replace('0x', '')
+          await this.models.receiptAggregateVouchers.update(
+            { redeemedAt: new Date() },
+            { where: { allocationId: addressWithoutPrefix } },
+          )
+          logger.info(
+            `Updated receipt aggregate vouchers table with redeemed_at for allocation ${addressWithoutPrefix}`,
+          )
+        } catch (err) {
+          logger.warn(
+            `Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
+            {
+              err,
+            },
+          )
+        }
       } catch (err) {
         this.metrics.failedRavRedeems.inc({ allocation: rav.allocationId })
         logger.error(`Failed to redeem RAV`, {
@@ -850,8 +932,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       stopTimer()
     }
 
-    // Postprocess obsolete RAVs from the database
-    logger.info(`Successfully redeemed RAV, delete local copy`)
     try {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       await this.models.allocationSummaries.sequelize!.transaction(
@@ -872,20 +952,16 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         },
       )
 
-      await this.models.receiptAggregateVouchers.destroy({
-        where: {
-          allocation_id: signedRavs.map((signedRav) => signedRav.allocation.id),
-        },
-      })
-      signedRavs.map((signedRav) =>
-        this.metrics.successRavRedeems.inc({ allocation: signedRav.allocation.id }),
-      )
-      logger.info(`Successfully deleted local RAV copy`)
+      logger.info(`Updated allocation summaries table with withdrawn fees`)
     } catch (err) {
-      logger.warn(`Failed to delete local RAV copy, will try again later`, {
+      logger.warn(`Failed to update allocation summaries`, {
         err,
       })
     }
+
+    signedRavs.map((signedRav) =>
+      this.metrics.successRavRedeems.inc({ allocation: signedRav.allocation.id }),
+    )
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {

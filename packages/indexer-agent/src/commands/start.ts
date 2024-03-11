@@ -150,6 +150,12 @@ export const start = {
         type: 'string',
         group: 'Network Subgraph',
       })
+      .option('tap-subgraph-endpoint', {
+        description: 'Endpoint to query the tap subgraph from',
+        array: false,
+        type: 'string',
+        group: 'TAP Subgraph',
+      })
       .option('allocate-on-network-subgraph', {
         description: 'Whether to allocate to the network subgraph',
         type: 'boolean',
@@ -239,10 +245,15 @@ export const start = {
         type: 'string',
         required: false,
       })
-      .option('escrow-address-book', {
-        description: 'TAP escrow contracts address book file path',
+      .option('tap-address-book', {
+        description: 'TAP contracts address book file path',
         type: 'string',
         required: false,
+      })
+      .option('chain-finalize-time', {
+        description: 'The time in seconds that the chain finalizes blocks',
+        type: 'number',
+        default: 3600,
       })
       .option('dai-contract', {
         description:
@@ -353,6 +364,7 @@ export async function createNetworkSpecification(
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
+    finalityTime: argv.chainFinalizeTime,
   }
 
   const transactionMonitoring = {
@@ -374,6 +386,9 @@ export async function createNetworkSpecification(
       // TODO: We should consider indexing the Epoch Subgraph, similar
       // to how we currently do it for the Network Subgraph.
       url: argv.epochSubgraphEndpoint,
+    },
+    tapSubgraph: {
+      url: argv.tapSubgraphEndpoint,
     },
   }
 
@@ -424,7 +439,7 @@ export async function createNetworkSpecification(
     }
   }
 
-  const escrowAddressBook = loadFile(argv.escrowAddressBook)
+  const tapAddressBook = loadFile(argv.tapAddressBook)
 
   try {
     return spec.NetworkSpecification.parse({
@@ -435,7 +450,7 @@ export async function createNetworkSpecification(
       subgraphs,
       networkProvider,
       addressBook: argv.addressBook,
-      escrowAddressBook,
+      tapAddressBook,
       dai,
     })
   } catch (parsingError) {
