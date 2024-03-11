@@ -42,6 +42,9 @@ export const testNetworkSpecification: specification.NetworkSpecification =
       epochSubgraph: {
         url: 'http://test-url.xyz',
       },
+      tapSubgraph: {
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia',
+      },
     },
     transactionMonitoring: {
       gasIncreaseTimeout: 240000,
@@ -49,8 +52,8 @@ export const testNetworkSpecification: specification.NetworkSpecification =
       baseFeePerGasMax: 100 * 10 ** 9,
       maxTransactionAttempts: 0,
     },
-    escrowAddressBook: {
-      '5': {
+    tapAddressBook: {
+      '11155111': {
         TAPVerifier: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
         AllocationIDTracker: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
         Escrow: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',

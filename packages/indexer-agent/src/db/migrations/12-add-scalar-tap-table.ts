@@ -121,11 +121,20 @@ export async function up({ context }: Context): Promise<void> {
       allowNull: false,
       defaultValue: false,
     },
-    createdAt: {
+    last: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    redeemed_at: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    created_at: {
       type: DataTypes.DATE,
       allowNull: false,
     },
-    updatedAt: {
+    updated_at: {
       type: DataTypes.DATE,
       allowNull: false,
     },
