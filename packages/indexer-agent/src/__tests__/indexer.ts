@@ -170,6 +170,9 @@ const setup = async () => {
       epochSubgraph: {
         url: 'http://test-url.xyz',
       },
+      TAPSubgraph: {
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia',
+      },
     },
     transactionMonitoring: {
       gasIncreaseTimeout: 240000,

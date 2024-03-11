@@ -64,15 +64,16 @@ const setup = async () => {
 }
 
 const rav = {
-  allocation_id: toAddress('edde47df40c29949a75a6693c77834c00b8ad626'),
-  final: true,
-  timestamp_ns: 1709067401177959664n,
-  value_aggregate: 20000000000000n,
+  allocationId: toAddress('edde47df40c29949a75a6693c77834c00b8ad626'),
+  last: true,
+  final: false,
+  timestampNs: 1709067401177959664n,
+  valueAggregate: 20000000000000n,
   signature: Buffer.from(
     'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
     'hex',
   ),
-  sender_address: toAddress('ffcf8fdee72ac11b5c542428b35eef5769c409f0'),
+  senderAddress: toAddress('ffcf8fdee72ac11b5c542428b35eef5769c409f0'),
 }
 
 const setupEach = async () => {
@@ -111,7 +112,7 @@ describe('TAP', () => {
       verifyingContract: toAddress('0x5aeef48fe943f91c39a7609049f8968f5b84414e'),
     }
     const [first] = await queryFeeModels.receiptAggregateVouchers.findAll()
-    const signedRav = first.getSingedRAV()
+    const signedRav = first.getSignedRAV()
 
     const signerAddress = utils.verifyTypedData(
       domain,

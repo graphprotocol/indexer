@@ -8,7 +8,7 @@ import {
   AddressBook,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { connectContracts as connectEscrowContracts } from '@semiotic-labs/tap-contracts-bindings'
+import { connectContracts as connectTapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -32,6 +32,8 @@ import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
+
+import { TAPSubgraph } from './tap-subgraph'
 
 export class Network {
   logger: Logger
@@ -125,6 +127,21 @@ export class Network {
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
+
+    const tapSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'TAP Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    const tapSubgraph = new TAPSubgraph(
+      specification.subgraphs.tapSubgraph.url!,
+      tapSubgraphFreshnessChecker,
+      logger.child({ component: 'TAPSubgraph' }),
+    )
 
     // * -----------------------------------------------------------------------
     // * Contracts
@@ -220,10 +237,10 @@ export class Network {
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
 
-    const escrowContracts = await connectEscrowContracts(
+    const tapContracts = await connectTapContracts(
       wallet,
       networkIdentifier.chainId,
-      specification.escrowAddressBook,
+      specification.tapAddressBook,
     )
 
     // --------------------------------------------------------------------------------
@@ -246,9 +263,10 @@ export class Network {
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
-      escrowContracts,
+      tapContracts,
       allocations,
       networkSpecification: specification,
+      tapSubgraph,
     })
 
     // --------------------------------------------------------------------------------
