@@ -3,6 +3,7 @@ import {
   ActionStatus,
   ActionType,
   createIndexerManagementClient,
+  createIndexerManagementYogaClient,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
@@ -62,7 +63,7 @@ export const createTestManagementClient = async (
   injectDai: boolean,
   metrics: Metrics,
   networkIdentifierOverride?: string,
-): Promise<IndexerManagementClient> => {
+) => {
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
 
@@ -111,7 +112,7 @@ export const createTestManagementClient = async (
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  return await createIndexerManagementClient({
+  return createIndexerManagementYogaClient({
     models: managementModels,
     graphNode,
     indexNodeIDs,

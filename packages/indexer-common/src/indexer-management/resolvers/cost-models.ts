@@ -1,14 +1,10 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
-import {
-  CostModelVariables,
-  COST_MODEL_GLOBAL,
-  GraphQLCostModel,
-  parseGraphQLCostModel,
-} from '../models'
+import { CostModelVariables, COST_MODEL_GLOBAL, parseGraphQLCostModel } from '../models'
 import { IndexerManagementResolverContext } from '../context'
 import { compileAsync } from '@graphprotocol/cost-model'
+import { CostModel as GraphQLCostModelType } from '../../schema/types.generated'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getVariable = (vars: CostModelVariables | null, name: string): any | undefined => {
@@ -94,7 +90,7 @@ export default {
   },
 
   setCostModel: async (
-    { costModel }: { deployment: string; costModel: GraphQLCostModel },
+    { costModel }: { deployment: string; costModel: GraphQLCostModelType },
     { models, multiNetworks, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
     if (!multiNetworks) {

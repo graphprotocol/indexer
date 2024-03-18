@@ -6,11 +6,6 @@ import {
   CostModel as GraphQLCostModelType,
   CostModelInput as GraphQLCostModelInput,
 } from '../../schema/types.generated'
-interface GraphQLCostModel {
-  deployment: string
-  model: string | null | undefined
-  variables: string | null | undefined
-}
 
 export const parseGraphQLCostModel = (
   costModel: GraphQLCostModelInput,

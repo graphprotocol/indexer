@@ -41,6 +41,9 @@ type Allocation {
   createdAtEpoch: Int!
   closedAtEpoch: Int
   ageInEpochs: Int!
+  closeDeadlineEpoch: Int!
+  closeDeadlineBlocksRemaining: Int!
+  closeDeadlineTimeRemaining: Int!
   indexingRewards: String!
   queryFeesCollected: String!
   signalledTokens: BigInt!

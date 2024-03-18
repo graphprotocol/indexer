@@ -3,7 +3,6 @@ import { IndexerManagementResolverContext } from '../context'
 import { Logger } from '@graphprotocol/common-ts'
 import {
   Action,
-  ActionFilter,
   ActionInput,
   ActionParams,
   ActionResult,
@@ -20,6 +19,7 @@ import {
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
 import groupBy from 'lodash.groupby'
+import { ActionFilter } from 'indexer-common/src/schema/types.generated'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -176,12 +176,20 @@ export default {
         validateActionInputs(actions, network.networkMonitor, logger),
     )
 
-    const alreadyQueuedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.QUEUED,
-    })
-    const alreadyApprovedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.APPROVED,
-    })
+    const alreadyQueuedActions = await ActionManager.fetchActions(
+      models,
+      {
+        status: ActionStatus.QUEUED,
+      },
+      undefined,
+    )
+    const alreadyApprovedActions = await ActionManager.fetchActions(
+      models,
+      {
+        status: ActionStatus.APPROVED,
+      },
+      undefined,
+    )
     const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
 
     // Fetch recently attempted actions
@@ -189,15 +197,23 @@ export default {
       [Op.gte]: literal("NOW() - INTERVAL '15m'"),
     }
 
-    const recentlyFailedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.FAILED,
-      updatedAt: last15Minutes,
-    })
+    const recentlyFailedActions = await ActionManager.fetchActions(
+      models,
+      {
+        status: ActionStatus.FAILED,
+        updatedAt: last15Minutes,
+      },
+      undefined,
+    )
 
-    const recentlySuccessfulActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.SUCCESS,
-      updatedAt: last15Minutes,
-    })
+    const recentlySuccessfulActions = await ActionManager.fetchActions(
+      models,
+      {
+        status: ActionStatus.SUCCESS,
+        updatedAt: last15Minutes,
+      },
+      undefined,
+    )
 
     logger.trace('Recently attempted actions', {
       recentlySuccessfulActions,

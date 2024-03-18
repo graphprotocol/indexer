@@ -88,8 +88,8 @@ export class IndexingRule
   public createdAt!: Date
   public updatedAt!: Date
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): GraphQLIndexingRuleType {
+    // @ts-expect-error find a way to use `Maybe` with `T | null`
     return { ...this.toJSON(), __typename: 'IndexingRule' }
   }
 

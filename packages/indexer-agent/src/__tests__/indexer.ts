@@ -7,9 +7,7 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementClient,
   defineIndexerManagementModels,
-  IndexerManagementClient,
   IndexerManagementModels,
   GraphNode,
   Operator,
@@ -19,6 +17,7 @@ import {
   QueryFeeModels,
   defineQueryFeeModels,
   MultiNetworks,
+  createIndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
 import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
@@ -111,7 +110,9 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
-let indexerManagementClient: IndexerManagementClient
+let indexerManagementClient: Awaited<
+  ReturnType<typeof createIndexerManagementYogaClient>
+>
 let graphNode: GraphNode
 let operator: Operator
 let metrics: Metrics
@@ -196,7 +197,7 @@ const setup = async () => {
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  indexerManagementClient = await createIndexerManagementClient({
+  indexerManagementClient = await createIndexerManagementYogaClient({
     models,
     graphNode,
     indexNodeIDs,

@@ -327,6 +327,7 @@ export class ActionManager {
       )
     }
     return models.Action.update(
+      // @ts-expect-error need to improve
       { ...action },
       {
         where: actionFilterToWhereOptions(filter),

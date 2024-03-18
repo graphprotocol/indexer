@@ -1,5 +1,4 @@
 import {
-  ActionFilter,
   ActionItem,
   ActionResult,
   ActionStatus,
@@ -22,6 +21,7 @@ import { BigNumber, utils } from 'ethers'
 import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { CombinedError } from '@urql/core'
+import { ActionFilter } from './schema/types.generated'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
