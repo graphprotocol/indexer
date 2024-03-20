@@ -42,7 +42,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'eip155:5',
+  protocolNetwork: 'eip155:11155111',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -63,7 +63,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'eip155:5',
+  protocolNetwork: 'eip155:11155111',
 }
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -116,7 +116,7 @@ let graphNode: GraphNode
 let operator: Operator
 let metrics: Metrics
 
-const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
 
 const testProviderUrl =
   process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
@@ -149,7 +149,7 @@ const setup = async () => {
   )
 
   const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'eip155:5',
+    networkIdentifier: 'eip155:11155111',
     gateway: {
       url: 'http://127.0.0.1:8030/',
     },
@@ -165,7 +165,7 @@ const setup = async () => {
     subgraphs: {
       maxBlockDistance: 10000,
       networkSubgraph: {
-        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
       },
       epochSubgraph: {
         url: 'http://test-url.xyz',
@@ -244,7 +244,7 @@ describe('Indexer tests', () => {
       previousEpochReferenceProof:
         '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
       status: 'potential',
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     const disputes = [badDispute]
@@ -284,7 +284,7 @@ describe('Indexer tests', () => {
       expectedResult,
     )
     await expect(
-      operator.fetchPOIDisputes('potential', 205, 'eip155:5'),
+      operator.fetchPOIDisputes('potential', 205, 'eip155:11155111'),
     ).resolves.toEqual(expectedFilteredResult)
   })
 })

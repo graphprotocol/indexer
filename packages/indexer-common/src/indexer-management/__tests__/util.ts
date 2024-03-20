@@ -14,14 +14,14 @@ import {
 } from '@graphprotocol/indexer-common'
 import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
 
-const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-goerli.publicnode.com'
+const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
 
 const testProviderUrl =
   process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
 
 export const testNetworkSpecification: specification.NetworkSpecification =
   specification.NetworkSpecification.parse({
-    networkIdentifier: 'goerli',
+    networkIdentifier: 'sepolia',
     gateway: {
       url: 'http://127.0.0.1:8030/',
     },
@@ -37,7 +37,7 @@ export const testNetworkSpecification: specification.NetworkSpecification =
     subgraphs: {
       maxBlockDistance: 10000,
       networkSubgraph: {
-        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
       },
       epochSubgraph: {
         url: 'http://test-url.xyz',
@@ -90,7 +90,7 @@ export const createTestManagementClient = async (
       parallelAllocations: 1,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     },
   }
 
@@ -143,7 +143,7 @@ export const queuedAllocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'sepolia',
 } as ActionInput
 
 export const invalidUnallocateAction = {
@@ -157,7 +157,7 @@ export const invalidUnallocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'sepolia',
 } as ActionInput
 
 export const invalidReallocateAction = {
@@ -171,5 +171,5 @@ export const invalidReallocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'sepolia',
 } as ActionInput
