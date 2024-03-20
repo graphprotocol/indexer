@@ -154,7 +154,7 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1000',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expected = {
@@ -171,7 +171,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Update the rule and ensure the right data is returned
@@ -180,7 +180,10 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
-    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
+    const ruleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'sepolia',
+    }
 
     const result = await client
       .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
@@ -205,12 +208,12 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expected = {
       ...input,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Update the rule
@@ -219,7 +222,10 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
-    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
+    const ruleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'sepolia',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
@@ -233,7 +239,7 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
       minSignal: '2',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const original = {
@@ -249,7 +255,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Write the original
@@ -265,13 +271,13 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       autoRenewal: true,
       safety: false,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expected = {
       ...original,
       ...update,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Update the rule
@@ -280,7 +286,10 @@ describe('Indexing rules', () => {
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
-    const ruleIdentifier = { identifier: INDEXING_RULE_GLOBAL, protocolNetwork: 'goerli' }
+    const ruleIdentifier = {
+      identifier: INDEXING_RULE_GLOBAL,
+      protocolNetwork: 'sepolia',
+    }
     await expect(
       client
         .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
@@ -296,7 +305,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const original = {
@@ -312,7 +321,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Write the original
@@ -330,13 +339,13 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: false,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expected = {
       ...original,
       ...update,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Update the rule
@@ -364,14 +373,14 @@ describe('Indexing rules', () => {
       allocationLifetime: null,
       decisionBasis: IndexingDecisionBasis.NEVER,
       autoRenewal: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expectedAgain = {
       ...original,
       ...update,
       ...updateAgain,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
     expectedAgain.identifier = originalIdentifier
 
@@ -402,7 +411,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const deploymentInput = {
@@ -414,7 +423,7 @@ describe('Indexing rules', () => {
       requireSupported: false,
       autoRenewal: false,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const globalExpected = {
@@ -430,7 +439,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     const deploymentExpected = {
@@ -446,7 +455,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
     deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
@@ -461,7 +470,7 @@ describe('Indexing rules', () => {
     // Query the global rule
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     await expect(
       client
@@ -475,7 +484,7 @@ describe('Indexing rules', () => {
     // Query the rule for the deployment
     const deploymentRuleIdentifier = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     await expect(
       client
@@ -489,7 +498,7 @@ describe('Indexing rules', () => {
     // Query all rules together
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
   })
@@ -502,7 +511,7 @@ describe('Indexing rules', () => {
       minSignal: '2',
       allocationLifetime: 20,
       autoRenewal: false,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expected = {
@@ -518,7 +527,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Write the rule
@@ -529,12 +538,12 @@ describe('Indexing rules', () => {
     // Query all rules
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [expected])
 
     // Delete the rule
-    const ruleIdentifier = { identifier: expected.identifier, protocolNetwork: 'goerli' }
+    const ruleIdentifier = { identifier: expected.identifier, protocolNetwork: 'sepolia' }
     await expect(
       client
         .mutation(DELETE_INDEXING_RULE_MUTATION, {
@@ -546,7 +555,7 @@ describe('Indexing rules', () => {
     // Query all rules together
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [])
   })
@@ -558,7 +567,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const expectedBefore = {
@@ -573,7 +582,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: null,
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Write the rule
@@ -584,7 +593,7 @@ describe('Indexing rules', () => {
     // Query all rules
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [expectedBefore])
 
@@ -603,7 +612,7 @@ describe('Indexing rules', () => {
     // Query the rules again to see that the update went through
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [
       { ...expectedBefore, allocationAmount: null },
@@ -622,7 +631,7 @@ describe('Indexing rules', () => {
       requireSupported: true,
       autoRenewal: true,
       safety: false,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const deploymentInput = {
@@ -635,7 +644,7 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const globalExpected = {
@@ -650,7 +659,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
       safety: false,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     const deploymentExpected = {
@@ -666,7 +675,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     const deploymentMergedExpected = {
@@ -682,7 +691,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     // Write the orginals
@@ -696,7 +705,7 @@ describe('Indexing rules', () => {
     // Query the global rule
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     await expect(
       client
@@ -710,7 +719,7 @@ describe('Indexing rules', () => {
     // Query the rule for the deployment merged with the global rule
     const ruleIdentifier = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     await expect(
       client
@@ -724,14 +733,14 @@ describe('Indexing rules', () => {
     // Query all rules together (without merging)
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
 
     // Query all rules together (with merging)
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: true, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: true, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [
       globalExpected,
@@ -747,14 +756,14 @@ describe('Indexing rules', () => {
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
       minAverageQueryFees: '1',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     await expect(
       client
@@ -766,7 +775,7 @@ describe('Indexing rules', () => {
 
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
@@ -783,7 +792,7 @@ describe('Indexing rules', () => {
         minAverageQueryFees: null,
         minSignal: null,
         minStake: null,
-        protocolNetwork: 'eip155:5',
+        protocolNetwork: 'eip155:11155111',
       },
     ])
   })
@@ -798,7 +807,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: '1',
       requireSupported: false,
       safety: false,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     const deploymentInput = {
@@ -808,7 +817,7 @@ describe('Indexing rules', () => {
       minSignal: '2',
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
@@ -818,11 +827,11 @@ describe('Indexing rules', () => {
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
     const deploymentRuleIdentifier = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     }
 
     await expect(
@@ -835,7 +844,7 @@ describe('Indexing rules', () => {
 
     await expect(
       client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
         .toPromise(),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
@@ -854,7 +863,7 @@ describe('Indexing rules', () => {
         minStake: null,
         requireSupported: true,
         safety: true,
-        protocolNetwork: 'eip155:5',
+        protocolNetwork: 'eip155:11155111',
       },
     ])
   })
@@ -879,7 +888,7 @@ describe('Indexing rules', () => {
     // Must not create any Rule in the database
 
     const rows = await client
-      .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'goerli' })
+      .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
       .toPromise()
     expect(rows.data.indexingRules).toEqual([])
   })
