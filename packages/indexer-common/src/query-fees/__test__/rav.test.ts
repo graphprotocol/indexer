@@ -37,8 +37,8 @@ describe('RavData', () => {
         last: value.last,
         senderAddress: value.senderAddress,
         signature: value.signature,
-        timestampNs: BigInt(value.timestampNs).toString(),
-        valueAggregate: BigInt(value.valueAggregate).toString(),
+        timestampNs: value.timestampNs,
+        valueAggregate: value.valueAggregate,
       }),
     ])
   })
