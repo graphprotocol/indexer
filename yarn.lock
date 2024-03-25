@@ -11490,14 +11490,6 @@ table@6.7.5:
     string-width "^4.2.3"
     strip-ansi "^6.0.1"
 
-tap-contracts@semiotic-ai/timeline-aggregation-protocol-contracts#ca1cfa653d0d1d209aee48ab021b0e562d2b5688:
-  version "0.0.1"
-  resolved "https://codeload.github.com/semiotic-ai/timeline-aggregation-protocol-contracts/tar.gz/ca1cfa653d0d1d209aee48ab021b0e562d2b5688"
-  dependencies:
-    "@typechain/ethers-v5" "^11.1.2"
-    abitype "^0.10.3"
-    ethers "5.7.0"
-
 tar-stream@~2.2.0:
   version "2.2.0"
   resolved "https://registry.npmjs.org/tar-stream/-/tar-stream-2.2.0.tgz"

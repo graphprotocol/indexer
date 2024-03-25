@@ -15,7 +15,6 @@ import {
 } from '@graphprotocol/common-ts'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { Sequelize } from 'sequelize'
-import { utils } from 'ethers'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -32,7 +31,6 @@ const startRAVProcessing = jest.spyOn(
   AllocationReceiptCollector.prototype,
   'startRAVProcessing',
 )
-
 const setup = async () => {
   logger = createLogger({
     name: 'Indexer API Client',
@@ -60,6 +58,7 @@ const setup = async () => {
     queryFeeModels,
     graphNode,
     metrics,
+    sequelize.getQueryInterface(),
   )
   receiptCollector = network.receiptCollector
 }
@@ -82,7 +81,6 @@ const rav = {
 
 const setupEach = async () => {
   sequelize = await sequelize.sync({ force: true })
-
   await queryFeeModels.receiptAggregateVouchers.create(rav)
 }
 const teardownEach = async () => {
@@ -95,11 +93,10 @@ const teardownAll = async () => {
 }
 
 describe('TAP', () => {
-  beforeAll(setup)
-  beforeEach(setupEach)
-  afterEach(teardownEach)
-  afterAll(teardownAll)
-
+  beforeAll(setup, timeout)
+  beforeEach(setupEach, timeout)
+  afterEach(teardownEach, timeout)
+  afterAll(teardownAll, timeout)
   test(
     'test if startRAVProcessing is called',
     async () => {
@@ -107,10 +104,12 @@ describe('TAP', () => {
     },
     timeout,
   )
+
   test(
-    'test getPendingRAVsEventual',
+    'test getPendingRAVs',
     async () => {
       const ravs = await receiptCollector['pendingRAVs']()
+
       expect(ravs).toEqual([
         expect.objectContaining({
           allocationId: rav.allocationId,
@@ -118,44 +117,11 @@ describe('TAP', () => {
           last: rav.last,
           senderAddress: rav.senderAddress,
           signature: rav.signature,
-          timestampNs: BigInt(rav.timestampNs).toString(),
-          valueAggregate: BigInt(rav.valueAggregate).toString(),
+          timestampNs: rav.timestampNs,
+          valueAggregate: rav.valueAggregate,
         }),
       ])
     },
     timeout,
   )
-
-  test(
-    'check signature rav',
-    async () => {
-      const domain = {
-        name: 'TAP',
-        version: '1',
-        chainId: 1337,
-        verifyingContract: toAddress('0x5aeef48fe943f91c39a7609049f8968f5b84414e'),
-      }
-      const [first] = await queryFeeModels.receiptAggregateVouchers.findAll()
-      const signedRav = first.getSignedRAV()
-
-      const signerAddress = utils.verifyTypedData(
-        domain,
-        {
-          ReceiptAggregateVoucher: [
-            { name: 'allocationId', type: 'address' },
-            { name: 'timestampNs', type: 'uint64' },
-            { name: 'valueAggregate', type: 'uint128' },
-          ],
-        },
-        signedRav.rav,
-        signedRav.signature,
-      )
-
-      expect(signerAddress).toEqual('0x886574712d0ca20C36FD090A594Df7eCa17cd38e')
-    },
-    timeout,
-  ),
-    test('test submitRAVs', async () => {})
-
-  test('test RAV Processing eventual', async () => {})
 })
