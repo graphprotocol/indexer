@@ -1079,8 +1079,8 @@ export class Agent {
         ])
         const indexingStatus = indexingStatuses.find(
           status =>
-            status.subgraphDeployment ==
-            deploymentAllocationDecision.deployment,
+            status.subgraphDeployment.ipfsHash ==
+            deploymentAllocationDecision.deployment.ipfsHash,
         )
         const failsHealthCheck =
           (indexingStatus &&

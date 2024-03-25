@@ -71,7 +71,7 @@ const setupMonitor = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  ethereum = getTestProvider('goerli')
+  ethereum = getTestProvider('sepolia')
   contracts = await connectContracts(ethereum, 5, undefined)
 
   const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
@@ -86,13 +86,13 @@ const setupMonitor = async () => {
   networkSubgraph = await NetworkSubgraph.create({
     logger,
     endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
     deployment: undefined,
     subgraphFreshnessChecker,
   })
 
   epochSubgraph = new EpochSubgraph(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
+    'https://api.thegraph.com/subgraphs/name/graphprotocol/sepolia-epoch-block-oracle',
     subgraphFreshnessChecker,
     logger,
   )
@@ -112,7 +112,7 @@ const setupMonitor = async () => {
   })
 
   networkMonitor = new NetworkMonitor(
-    resolveChainId('goerli'),
+    resolveChainId('sepolia'),
     contracts,
     indexerOptions,
     logger,
@@ -166,7 +166,7 @@ describe('Indexing Rules', () => {
       allocationAmount: '5000',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'sepolia',
     } as Partial<IndexingRuleAttributes>
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
     expect(setIndexingRuleResult).toHaveProperty(
@@ -184,7 +184,9 @@ describe('Indexing Rules', () => {
     )
 
     //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-    await expect(fetchIndexingRules(models, false, 'eip155:5')).resolves.toHaveLength(1)
+    await expect(
+      fetchIndexingRules(models, false, 'eip155:11155111'),
+    ).resolves.toHaveLength(1)
   })
 })
 
@@ -234,7 +236,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:11155111',
     }
 
     await models.Action.upsert(action)
@@ -285,8 +287,8 @@ describe('Types', () => {
     expect(resolveChainId('mainnet')).toBe('eip155:1')
   })
 
-  test('Resolve chain id: `5`', () => {
-    expect(resolveChainId('5')).toBe('eip155:5')
+  test('Resolve chain id: `11155111`', () => {
+    expect(resolveChainId('11155111')).toBe('eip155:11155111')
   })
 
   test('Resolve chain alias: `eip155:1`', () => {
@@ -300,15 +302,15 @@ describe('Types', () => {
   })
 })
 
-// This test suite requires a graph-node instance connected to Goerli, so we're skipping it for now
+// This test suite requires a graph-node instance connected to Sepolia, so we're skipping it for now
 // Use this test suite locally to test changes to the NetworkMonitor class
 describe.skip('Monitor', () => {
   beforeAll(setupMonitor)
 
-  test('Fetch currentEpoch for `goerli`', async () => {
+  test('Fetch currentEpoch for `sepolia`', async () => {
     await expect(
-      networkMonitor.currentEpoch(resolveChainId('goerli')),
-    ).resolves.toHaveProperty('networkID', 'eip155:5')
+      networkMonitor.currentEpoch(resolveChainId('sepolia')),
+    ).resolves.toHaveProperty('networkID', 'eip155:11155111')
   }, 10000)
 
   test('Fail to fetch currentEpoch: chain not supported by graph-node', async () => {
@@ -328,7 +330,7 @@ describe.skip('Monitor', () => {
   test('Fetch network chain current epoch', async () => {
     await expect(networkMonitor.networkCurrentEpoch()).resolves.toHaveProperty(
       'networkID',
-      'eip155:5',
+      'eip155:11155111',
     )
   })
 
@@ -355,9 +357,12 @@ describe('Network layer detection', () => {
   }
 
   // Should be true for L1 and false for L2
-  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'goerli', 'eip155:5'].map(
-    (name: string) => ({ name, l1: true, l2: false }),
-  )
+  const l1Networks: NetworkLayer[] = [
+    'mainnet',
+    'eip155:1',
+    'sepolia',
+    'eip155:11155111',
+  ].map((name: string) => ({ name, l1: true, l2: false }))
 
   // Should be false for L1 and true for L2
   const l2Networks: NetworkLayer[] = [

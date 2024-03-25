@@ -168,8 +168,8 @@ async function actionInputToExpected(
 
   // We expect the protocol network to be transformed to it's CAIP2-ID
   // form for all inputs
-  if (input.protocolNetwork === 'goerli') {
-    expected.protocolNetwork = 'eip155:5'
+  if (input.protocolNetwork === 'sepolia') {
+    expected.protocolNetwork = 'eip155:11155111'
   }
 
   return expected
@@ -646,7 +646,7 @@ describe('Actions', () => {
 
   // test('Reject unallocate action with inactive allocationID', async () => {
   //   // This allocation has been closed on chain
-  //   const closedAllocation = '0x0001572b5fde192fc1c65630fabb5e13d3ad173e'
+  //   const closedAllocation = '0x0641209ae448c710ab8d04a8c8a13053d138d8c6'
 
   //   // Reuse a valid inputAction but use an allocationID dedicated to this test purpose,
   //   // as the previously used allocationID does not exist on chain.

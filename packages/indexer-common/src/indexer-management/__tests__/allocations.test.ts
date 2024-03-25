@@ -108,8 +108,8 @@ describe('Allocation Manager', () => {
   // so we set its timeout to a higher value than usual.
   jest.setTimeout(30_000)
 
-  // Reuse an existing allocation with 25 sextillion allocated GRT
-  const allocationID = '0x96737b6a31f40edaf96c567efbb98935aa906ab9'
+  // Reuse an existing allocation allocated GRT
+  const allocationID = '0x973a6cfb5dc9eb523c5f0734bd6879995a3c0895'
 
   // Redefine test actions to use that allocation ID
   const unallocateAction = {
@@ -147,7 +147,7 @@ describe('Allocation Manager', () => {
     expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
     expect(unallocate.allocates.isZero()).toBeTruthy()
     expect(unallocate.rewards.isZero()).toBeFalsy()
-    expect(unallocate.unallocates).toStrictEqual(parseGRT('25000'))
+    expect(unallocate.unallocates).toStrictEqual(parseGRT('250'))
     expect(unallocate.balance).toStrictEqual(
       unallocate.allocates.sub(unallocate.unallocates).sub(unallocate.rewards),
     )
@@ -156,8 +156,8 @@ describe('Allocation Manager', () => {
     expect(reallocate.action.type).toBe(ActionType.REALLOCATE)
     expect(reallocate.allocates).toStrictEqual(parseGRT('10000'))
     expect(reallocate.rewards.isZero()).toBeTruthy()
-    expect(reallocate.unallocates).toStrictEqual(parseGRT('25000'))
-    expect(reallocate.balance).toStrictEqual(parseGRT('-15000'))
+    expect(reallocate.unallocates).toStrictEqual(parseGRT('250'))
+    expect(reallocate.balance).toStrictEqual(parseGRT('9750'))
   })
 
   test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {
