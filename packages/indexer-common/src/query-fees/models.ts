@@ -83,7 +83,7 @@ export class ReceiptAggregateVoucher
   getSignedRAV(): SignedRAV {
     return {
       rav: {
-        allocationId: toAddress(this.allocationId),
+        allocationId: this.allocationId,
         timestampNs: this.timestampNs,
         valueAggregate: this.valueAggregate,
       },
@@ -311,13 +311,23 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.BLOB,
         allowNull: false,
       },
+      // ternary operator added to timestampNs and valueAggregate
+      // due to sequelize UPDATE
+      // calls  the getters with undefined data
+      // 0 is returned since no real data is being requested
       timestampNs: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('timestampNs'))
+        },
       },
       valueAggregate: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('valueAggregate'))
+        },
       },
       last: {
         type: DataTypes.BOOLEAN,

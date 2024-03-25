@@ -28,12 +28,12 @@ import {
   tapAllocationIdProof,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
-import { BigNumber, BigNumberish, Contract, utils } from 'ethers'
+import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
 import { TAPSubgraph } from '../tap-subgraph'
 import gql from 'graphql-tag'
-import Sequelize from 'sequelize'
+import { Sequelize } from 'sequelize'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
@@ -86,6 +86,7 @@ export interface AllocationReceiptCollectorOptions {
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
   tapSubgraph: TAPSubgraph
+  sequelize: Sequelize
 }
 
 export interface ReceiptCollector {
@@ -122,6 +123,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare protocolNetwork: string
   declare tapSubgraph: TAPSubgraph
   declare finalityTime: number
+  declare sequelize: Sequelize
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -136,6 +138,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     allocations,
     networkSpecification,
     tapSubgraph,
+    sequelize,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
     collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
@@ -150,6 +153,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
     collector.tapSubgraph = tapSubgraph
+    collector.sequelize = sequelize
 
     // Process Gateway routes
     const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
@@ -463,27 +467,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         const ravs = await this.pendingRAVs()
         return ravs
           .map((rav) => {
-            const domain = {
-              chainId: this.protocolNetwork.split(':')[1],
-              name: 'TAP',
-              version: '1',
-              verifyingContract: this.tapContracts!.tapVerifier.address,
-            }
             const signedRav = rav.getSignedRAV()
-            const signerAddress = utils.verifyTypedData(
-              domain,
-              {
-                ReceiptAggregateVoucher: [
-                  { name: 'allocationId', type: 'address' },
-                  { name: 'timestampNs', type: 'uint64' },
-                  { name: 'valueAggregate', type: 'uint128' },
-                ],
-              },
-              signedRav.rav,
-              signedRav.signature,
-            )
-            console.log({ signerAddress, ravSigner: rav.senderAddress })
-
             return {
               rav: signedRav,
               allocation: allocations.find(
@@ -528,7 +512,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
   // redeem only if last is true
   // Later can add order and limit
-  protected async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
+  private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
     const unfinalizedRAVs = await this.models.receiptAggregateVouchers.findAll({
       where: { last: true, final: false },
     })
@@ -538,7 +522,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     )
 
     if (unfinalizedRavsAllocationIds.length > 0) {
-      console.log(`Get on-chain redeemed RAVs from TAP subgraph`)
       const returnedAllocationIDs = (
         await this.tapSubgraph.query(
           gql`
@@ -565,28 +548,27 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
       // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
       // To handle a chain reorg that "unredeemed" the RAVs.
-      const Op = Sequelize.Op
-      await this.models.receiptAggregateVouchers.update(
-        { redeemedAt: null },
-        {
-          where: {
-            allocationId: { [Op.in]: nonRedeemedAllocationIDsTrunc },
-          },
-        },
-      )
+      // WE use sql directly due to a bug in sequelize update:
+      // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
 
-      // Update those that redeemed_at is older than 60 minutes and mark as final
-      const finalizeTimeFrame = Date.now() - this.finalityTime * 1000
-      await this.models.receiptAggregateVouchers.update(
-        { final: true },
-        {
-          where: {
-            last: true,
-            final: false,
-            redeemedAt: { [Op.lt]: new Date(finalizeTimeFrame) },
-          },
-        },
-      )
+      let query = `
+        UPDATE scalar_tap_ravs
+        SET redeemed_at = NULL
+        WHERE allocation_id IN ('${nonRedeemedAllocationIDsTrunc.join("', '")}')
+      `
+      await this.sequelize.query(query)
+
+      // // Update those that redeemed_at is older than 60 minutes and mark as final
+      const finalizeTimeFrame = new Date(Date.now() - this.finalityTime * 1000)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ')
+      query = `
+        UPDATE scalar_tap_ravs
+        SET final = TRUE
+        WHERE last = TRUE AND final = FALSE AND redeemed_at < '${finalizeTimeFrame}'
+      `
+      await this.sequelize.query(query)
 
       return await this.models.receiptAggregateVouchers.findAll({
         where: { last: true, final: false },
