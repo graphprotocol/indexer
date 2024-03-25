@@ -17,25 +17,10 @@ import {
 } from '../../models'
 import {
   ActionInput,
-  ActionParams,
-  ActionStatus,
-  ActionType,
-  createIndexerManagementYogaClient,
   defineQueryFeeModels,
-  OrderDirection,
   QueryFeeModels,
 } from '@graphprotocol/indexer-common'
-import { CombinedError } from '@urql/core'
-import { GraphQLError } from 'graphql'
-import {
-  createTestManagementClient,
-  invalidReallocateAction,
-  invalidUnallocateAction,
-  queuedAllocateAction,
-  subgraphDeployment1,
-  subgraphDeployment2,
-  subgraphDeployment3,
-} from '../util'
+import { createTestManagementClient, queuedAllocateAction } from '../util'
 import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 
 const QUEUE_ACTIONS_MUTATION = gql`
@@ -239,19 +224,14 @@ describe('Actions', () => {
     const inputAction = queuedAllocateAction
     const expected = await actionInputToExpected(inputAction, 1)
 
-    const result = executor({
-      document: QUEUE_ACTIONS_MUTATION,
-      variables: {
-        actions: [inputAction],
-      },
-    })
-
-    console.log('result', result)
-
-    // await expect(
-    //   executor({document:QUEUE_ACTIONS_MUTATION, variables:{
-    //     { actions: [inputAction]}})
-    // ).resolves.toHaveProperty('data.queueActions', [expected])
+    await expect(
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: {
+          actions: [inputAction],
+        },
+      }),
+    ).resolves.toHaveProperty('data.queueActions', [expected])
 
     // await expect(
     //   client

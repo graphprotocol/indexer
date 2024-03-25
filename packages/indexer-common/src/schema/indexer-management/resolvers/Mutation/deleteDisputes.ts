@@ -1,4 +1,4 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from "../../../../parsers/validators"
 import type { MutationResolvers } from './../../../types.generated'
 import groupBy from 'lodash.groupby'
 

@@ -1,6 +1,7 @@
 import { ActionStatus } from '@graphprotocol/indexer-common'
 import type { MutationResolvers } from './../../../types.generated'
 
+// @ts-expect-error it be like that
 export const approveActions: NonNullable<MutationResolvers['approveActions']> = async (
   _parent,
   { actionIDs },

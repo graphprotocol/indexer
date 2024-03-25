@@ -1,4 +1,4 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type {
   Action,
   ActionInput,
@@ -10,8 +10,8 @@ import {
   ActionStatus,
   ActionType,
   validateActionInputs,
-} from 'indexer-common/src/actions'
-import { ActionManager } from 'indexer-common/src/indexer-management/actions'
+} from '../../../../actions'
+import { ActionManager } from '../../../../indexer-management/actions'
 import { Op, Transaction, literal } from 'sequelize'
 import { Logger } from '@graphprotocol/common-ts'
 import { IndexerManagementModels } from '@graphprotocol/indexer-common'

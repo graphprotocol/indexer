@@ -1,6 +1,6 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type { QueryResolvers } from './../../../types.generated'
-import { Network } from 'indexer-common/src/network'
+import { Network } from '../../../../network'
 
 const URL_VALIDATION_TEST = {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -1,6 +1,6 @@
 import { Op, WhereOptions } from 'sequelize'
 import type { QueryResolvers } from './../../../types.generated'
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 
 export const disputes: NonNullable<QueryResolvers['disputes']> = async (
   _parent,

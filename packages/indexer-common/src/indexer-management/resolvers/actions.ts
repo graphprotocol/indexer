@@ -19,7 +19,7 @@ import {
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
 import groupBy from 'lodash.groupby'
-import { ActionFilter } from 'indexer-common/src/schema/types.generated'
+import { ActionFilter } from  "../../schema/types.generated"
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID

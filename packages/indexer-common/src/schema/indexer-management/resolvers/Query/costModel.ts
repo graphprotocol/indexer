@@ -1,4 +1,4 @@
-import { COST_MODEL_GLOBAL } from 'indexer-common/src/indexer-management/models'
+import { COST_MODEL_GLOBAL } from '../../../../indexer-management/models'
 import type { QueryResolvers } from './../../../types.generated'
 
 export const costModel: NonNullable<QueryResolvers['costModel']> = async (

@@ -1,8 +1,8 @@
-import { extractNetwork } from 'indexer-common/src/indexer-management/resolvers/utils'
+import { extractNetwork } from  "../../../../indexer-management/resolvers/utils"
 import type { QueryResolvers } from './../../../types.generated'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { IndexerErrorCode, indexerError } from 'indexer-common/src/errors'
+import { IndexerErrorCode, indexerError } from "../../../../errors"
 
 export const indexerAllocations: NonNullable<
   QueryResolvers['indexerAllocations']

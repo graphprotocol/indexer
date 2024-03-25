@@ -1,5 +1,5 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
-import { fetchIndexingRules } from 'indexer-common/src/indexer-management/rules'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
+import { fetchIndexingRules } from '../../../../indexer-management/rules'
 import type { QueryResolvers } from './../../../types.generated'
 
 export const indexingRules: NonNullable<QueryResolvers['indexingRules']> = async (

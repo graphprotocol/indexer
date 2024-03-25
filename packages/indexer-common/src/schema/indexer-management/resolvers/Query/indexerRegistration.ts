@@ -1,4 +1,4 @@
-import { extractNetwork } from 'indexer-common/src/indexer-management/resolvers/utils'
+import { extractNetwork } from  "../../../../indexer-management/resolvers/utils"
 import geohash from 'ngeohash'
 import type { QueryResolvers } from './../../../types.generated'
 

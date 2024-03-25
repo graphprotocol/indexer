@@ -1,4 +1,4 @@
-import { ActionManager } from 'indexer-common/src/indexer-management/actions'
+import { ActionManager } from '../../../../indexer-management/actions'
 import type { MutationResolvers } from './../../../types.generated'
 
 export const updateActions: NonNullable<MutationResolvers['updateActions']> = async (

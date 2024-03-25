@@ -1,7 +1,7 @@
 import {
   CostModelVariables,
   parseGraphQLCostModel,
-} from 'indexer-common/src/indexer-management/models/cost-model'
+} from '../../../../indexer-management/models/cost-model'
 import type { MutationResolvers } from './../../../types.generated'
 import { compileAsync } from '@graphprotocol/cost-model'
 

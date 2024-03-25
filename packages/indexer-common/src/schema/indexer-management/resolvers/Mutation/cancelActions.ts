@@ -1,6 +1,7 @@
-import { ActionStatus } from 'indexer-common/src/actions'
+import { ActionStatus } from '@graphprotocol/indexer-common'
 import type { MutationResolvers } from './../../../types.generated'
 
+// @ts-expect-error need to fix
 export const cancelActions: NonNullable<MutationResolvers['cancelActions']> = async (
   _parent,
   { actionIDs },

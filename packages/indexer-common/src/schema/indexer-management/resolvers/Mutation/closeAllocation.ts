@@ -1,13 +1,13 @@
-import { extractNetwork } from 'indexer-common/src/indexer-management/resolvers/utils'
+import { extractNetwork } from "../../../../indexer-management/resolvers/utils"
 import type { MutationResolvers } from './../../../types.generated'
 import { BigNumber, utils } from 'ethers'
-import { IndexerErrorCode, indexerError } from 'indexer-common/src/errors'
-import { NetworkMonitor } from 'indexer-common/src/indexer-management/monitor'
-import { GraphNode } from 'indexer-common/src/graph-node'
+import { IndexerErrorCode, indexerError } from "../../../../errors"
+import { NetworkMonitor } from '../../../../indexer-management/monitor'
+import { GraphNode } from '../../../../graph-node'
 import { formatGRT } from '@graphprotocol/common-ts'
-import { SubgraphIdentifierType } from 'indexer-common/src/subgraphs'
-import { IndexingDecisionBasis } from 'indexer-common/src/indexer-management/models/indexing-rule'
-import { Allocation } from 'indexer-common/src/allocations/types'
+import { SubgraphIdentifierType } from '../../../../subgraphs'
+import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
+import { Allocation } from '../../../../allocations/types'
 
 async function resolvePOI(
   networkMonitor: NetworkMonitor,
@@ -109,8 +109,8 @@ export const closeAllocation: NonNullable<MutationResolvers['closeAllocation']> 
       )
     }
 
-    poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi, force)
-
+    poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi || undefined, Boolean(force))
+    
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
     // Note: We're checking the allocation state here, which is defined as

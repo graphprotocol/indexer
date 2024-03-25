@@ -1,8 +1,8 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type { MutationResolvers } from './../../../types.generated'
 import groupBy from 'lodash.groupby'
-import { processIdentifier } from 'indexer-common/src/subgraphs'
-import { resetGlobalRule } from 'indexer-common/src/indexer-management/resolvers/indexing-rules'
+import { processIdentifier } from '../../../../subgraphs'
+import { resetGlobalRule } from '../../../../indexer-management/resolvers/indexing-rules'
 
 export const deleteIndexingRules: NonNullable<
   MutationResolvers['deleteIndexingRules']

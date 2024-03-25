@@ -2,18 +2,16 @@ import {
   ActionInput,
   ActionStatus,
   ActionType,
-  createIndexerManagementClient,
-  createIndexerManagementYogaClient,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
-  IndexerManagementClient,
   IndexerManagementDefaults,
   MultiNetworks,
   Network,
   specification,
 } from '@graphprotocol/indexer-common'
 import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
+import { createIndexerManagementYogaClient } from '../../indexer-management/yoga'
 
 const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
 
@@ -56,14 +54,14 @@ export const testNetworkSpecification: specification.NetworkSpecification =
     },
   })
 
-export const createTestManagementClient = async (
+export async function createTestManagementClient(
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   databaseOptions: any,
   logger: Logger,
   injectDai: boolean,
   metrics: Metrics,
   networkIdentifierOverride?: string,
-) => {
+) {
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
 
@@ -112,7 +110,7 @@ export const createTestManagementClient = async (
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  return createIndexerManagementYogaClient({
+  return await createIndexerManagementYogaClient({
     models: managementModels,
     graphNode,
     indexNodeIDs,

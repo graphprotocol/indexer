@@ -1,5 +1,5 @@
 import type { QueryResolvers } from './../../../types.generated'
-import { actionFilterToWhereOptions } from 'indexer-common/src/actions'
+import { actionFilterToWhereOptions } from '../../../../actions'
 import { Order } from 'sequelize'
 
 export const actions: NonNullable<QueryResolvers['actions']> = async (

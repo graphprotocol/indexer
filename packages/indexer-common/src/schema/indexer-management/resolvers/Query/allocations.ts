@@ -1,7 +1,7 @@
-import { queryAllocations } from 'indexer-common/src/indexer-management/resolvers/allocations'
+import { queryAllocations } from '../../../../indexer-management/resolvers/allocations'
 import type { QueryResolvers } from './../../../types.generated'
 import { toAddress } from '@graphprotocol/common-ts'
-import { epochElapsedBlocks } from 'indexer-common/src/indexer-management'
+import { epochElapsedBlocks } from '../../../../indexer-management'
 
 export const allocations: NonNullable<QueryResolvers['allocations']> = async (
   _parent,

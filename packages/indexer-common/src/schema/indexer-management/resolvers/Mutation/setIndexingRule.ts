@@ -1,6 +1,6 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type { MutationResolvers } from './../../../types.generated'
-import { processIdentifier } from 'indexer-common/src/subgraphs'
+import { processIdentifier } from '../../../../subgraphs'
 
 export const setIndexingRule: NonNullable<MutationResolvers['setIndexingRule']> = async (
   _parent,

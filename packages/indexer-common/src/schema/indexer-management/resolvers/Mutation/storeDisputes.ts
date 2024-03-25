@@ -1,4 +1,4 @@
-import { validateNetworkIdentifier } from 'indexer-common/src/parsers/validators'
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type { MutationResolvers } from './../../../types.generated'
 
 export const storeDisputes: NonNullable<MutationResolvers['storeDisputes']> = async (

@@ -6,9 +6,9 @@ import { WritableEventual, mutable } from '@graphprotocol/common-ts'
 import { ActionManager } from './actions'
 import { IndexerManagementClientOptions } from './client'
 
-export const createIndexerManagementYogaClient = async (
+export async function createIndexerManagementYogaClient(
   options: IndexerManagementClientOptions,
-) => {
+) {
   const { models, graphNode, logger, defaults, multiNetworks } = options
 
   const dai: WritableEventual<string> = mutable()
