@@ -34,6 +34,7 @@ import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
 
 import { TAPSubgraph } from './tap-subgraph'
+import { QueryInterface } from 'sequelize'
 
 export class Network {
   logger: Logger
@@ -47,6 +48,7 @@ export class Network {
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
+  queryInterface: QueryInterface | undefined
 
   private constructor(
     logger: Logger,
@@ -60,6 +62,7 @@ export class Network {
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
+    queryInterface?: QueryInterface,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -72,6 +75,7 @@ export class Network {
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
+    this.queryInterface = queryInterface
   }
 
   static async create(
@@ -80,6 +84,7 @@ export class Network {
     queryFeeModels: QueryFeeModels,
     graphNode: GraphNode,
     metrics: Metrics,
+    queryInterface?: QueryInterface,
   ): Promise<Network> {
     // Incomplete logger for initial operations, will be replaced as new labels emerge.
     let logger = parentLogger.child({
@@ -267,6 +272,8 @@ export class Network {
       allocations,
       networkSpecification: specification,
       tapSubgraph,
+      networkSubgraph,
+      queryInterface: queryInterface!,
     })
 
     // --------------------------------------------------------------------------------
