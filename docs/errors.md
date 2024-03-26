@@ -886,4 +886,4 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 
 **Solution**
 
-Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `goerli`, `gnosis`) and is on or after version 0.28.0.
+Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `sepolia`, `gnosis`) and is on or after version 0.28.0.
