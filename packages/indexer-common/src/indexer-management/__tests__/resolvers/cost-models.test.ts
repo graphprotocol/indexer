@@ -6,12 +6,10 @@ import {
   connectDatabase,
   createMetrics,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '../../client'
 import { defineIndexerManagementModels, IndexerManagementModels } from '../../models'
-import { CombinedError } from '@urql/core'
-import { GraphQLError } from 'graphql'
 import { createTestManagementClient } from '../util'
 import { defineQueryFeeModels } from '../../../query-fees/models'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -71,8 +69,9 @@ const GET_COST_MODELS_DEPLOYMENTS_QUERY = gql`
 let sequelize: Sequelize
 let models: IndexerManagementModels
 let logger: Logger
-let client: IndexerManagementClient
+let executor: ReturnType<typeof buildHTTPExecutor>
 const metrics = createMetrics()
+let setDai: (dai: string) => Promise<void>
 
 const setupAll = async () => {
   logger = createLogger({
@@ -92,13 +91,18 @@ const setupAll = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
 
-  client = await createTestManagementClient(
+  const client = await createTestManagementClient(
     __DATABASE__,
     logger,
     true,
     metrics,
     'eip155:1', // Override with mainnet to enable the Cost Model feature
   )
+
+  setDai = client.setDai
+  executor = buildHTTPExecutor({
+    fetch: client.yoga.fetch,
+  })
 }
 
 const teardownAll = async () => {
@@ -133,11 +137,10 @@ describe('Cost models', () => {
     const expected = { ...input }
 
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
-          costModel: input,
-        })
-        .toPromise(),
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
   })
 
@@ -154,11 +157,12 @@ describe('Cost models', () => {
     }
 
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: {
           costModel: input,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
   })
 
@@ -175,11 +179,12 @@ describe('Cost models', () => {
     }
 
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: {
           costModel: input,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
   })
 
@@ -193,49 +198,50 @@ describe('Cost models', () => {
     const expected = { ...input }
 
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
-          costModel: input,
-        })
-        .toPromise(),
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
 
     //Double check
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: {
           deployment: 'global',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModel', expected)
 
     //Check non-existent
     const expectFallback = expected
     expectFallback.deployment = 'blah'
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: {
           deployment: 'blah',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModel', expected)
 
     //Delete global cost model
     await expect(
-      client
-        .mutation(DELETE_COST_MODELS_MUTATION, {
+      executor({
+        document: DELETE_COST_MODELS_MUTATION,
+        variables: {
           deployments: [input.deployment],
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteCostModels', 1)
 
     //Check non-existent without global cost model
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
-          deployment: 'blah',
-        })
-        .toPromise(),
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: { deployment: 'blah' },
+      }),
     ).resolves.toHaveProperty('data.costModel', null)
   })
 
@@ -291,23 +297,25 @@ describe('Cost models', () => {
 
     for (const update of updates) {
       await expect(
-        client
-          .mutation(SET_COST_MODEL_MUTATION, {
+        executor({
+          document: SET_COST_MODEL_MUTATION,
+          variables: {
             costModel: update.input,
-          })
-          .toPromise(),
+          },
+        }),
       ).resolves.toHaveProperty('data.setCostModel', update.expected)
     }
   })
 
   test('Get non-existent model', async () => {
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: {
           deployment:
             '0x0000000000000000000000000000000000000000000000000000000000000000',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModel', null)
   })
 
@@ -315,11 +323,10 @@ describe('Cost models', () => {
     const deployment = 'QmTBxvMF6YnbT1eYeRx9XQpH4WvxTV53vdptCCZFiZSprg'
     // Model doesn't exist when global is not set
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
-          deployment,
-        })
-        .toPromise(),
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: { deployment },
+      }),
     ).resolves.toHaveProperty('data.costModel', null)
 
     // Set global model
@@ -333,22 +340,24 @@ describe('Cost models', () => {
 
     // Global model set
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: {
           costModel: input,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
 
     // Global fallback to non-existent model
     const expectFallback = expected
     expectFallback.deployment = deployment
     await expect(
-      client
-        .query(GET_COST_MODEL_QUERY, {
+      executor({
+        document: GET_COST_MODEL_QUERY,
+        variables: {
           deployment,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModel', expectFallback)
   })
 
@@ -367,12 +376,18 @@ describe('Cost models', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
     for (const input of inputs) {
       await expect(
-        client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
+        executor({
+          document: GET_COST_MODEL_QUERY,
+          variables: { deployment: input.deployment },
+        }),
       ).resolves.toHaveProperty('data.costModel', input)
     }
   })
@@ -392,13 +407,15 @@ describe('Cost models', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
-      'data.costModels',
-      inputs,
-    )
+    await expect(
+      executor({ document: GET_COST_MODELS_QUERY }).toPromise(),
+    ).resolves.toHaveProperty('data.costModels', inputs)
   })
 
   test('Get cost models with defined global models', async () => {
@@ -418,16 +435,20 @@ describe('Cost models', () => {
       '0x2222222222222222222222222222222222222222222222222222222222222222'
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
     // only defined cost models are returned
     await expect(
-      client
-        .query(GET_COST_MODELS_DEPLOYMENTS_QUERY, {
+      executor({
+        document: GET_COST_MODELS_DEPLOYMENTS_QUERY,
+        variables: {
           deployments: inputs.map((model) => model.deployment).concat([nonexisting]),
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModels', inputs)
 
     // Set global model
@@ -438,21 +459,23 @@ describe('Cost models', () => {
     }
     const expected = { ...global_input }
     await expect(
-      client
-        .mutation(SET_COST_MODEL_MUTATION, {
+      executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: {
           costModel: global_input,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.setCostModel', expected)
 
     // Global fallback
     global_input.deployment = nonexisting
     await expect(
-      client
-        .query(GET_COST_MODELS_DEPLOYMENTS_QUERY, {
+      executor({
+        document: GET_COST_MODELS_DEPLOYMENTS_QUERY,
+        variables: {
           deployments: inputs.map((model) => model.deployment).concat([nonexisting]),
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.costModels', inputs.concat([global_input]))
   })
 
@@ -463,7 +486,7 @@ describe('Cost models', () => {
       variables: JSON.stringify({ n: 100 }),
     }
 
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    await executor({ document: SET_COST_MODEL_MUTATION, variables: { costModel: input } })
 
     input = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -476,9 +499,9 @@ describe('Cost models', () => {
       variables: JSON.stringify({}),
     }
 
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+    await executor({ document: SET_COST_MODEL_MUTATION, variables: { costModel: input } })
 
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+    await expect(executor({ document: GET_COST_MODELS_QUERY })).resolves.toHaveProperty(
       'data.costModels',
       [expected],
     )
@@ -499,20 +522,27 @@ describe('Cost models', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
     for (const input of inputs) {
       await expect(
-        client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
+        executor({
+          document: GET_COST_MODEL_QUERY,
+          variables: { deployment: input.deployment },
+        }),
       ).resolves.toHaveProperty('data.costModel', input)
     }
 
     for (const input of inputs) {
       await expect(
-        client
-          .mutation(DELETE_COST_MODELS_MUTATION, { deployments: [input.deployment] })
-          .toPromise(),
+        executor({
+          document: DELETE_COST_MODELS_MUTATION,
+          variables: { deployments: [input.deployment] },
+        }),
       ).resolves.toHaveProperty('data.deleteCostModels', 1)
     }
   })
@@ -532,21 +562,28 @@ describe('Cost models', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
     for (const input of inputs) {
       await expect(
-        client.query(GET_COST_MODEL_QUERY, { deployment: input.deployment }).toPromise(),
+        executor({
+          document: GET_COST_MODEL_QUERY,
+          variables: { deployment: input.deployment },
+        }),
       ).resolves.toHaveProperty('data.costModel', input)
     }
 
     await expect(
-      client
-        .mutation(DELETE_COST_MODELS_MUTATION, {
+      executor({
+        document: DELETE_COST_MODELS_MUTATION,
+        variables: {
           deployments: inputs.map((d) => d.deployment),
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteCostModels', 2)
   })
 
@@ -565,15 +602,19 @@ describe('Cost models', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
     await expect(
-      client
-        .mutation(DELETE_COST_MODELS_MUTATION, {
+      executor({
+        document: DELETE_COST_MODELS_MUTATION,
+        variables: {
           deployments: inputs.map((d) => d.deployment),
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteCostModels', 2)
   })
 })
@@ -588,16 +629,22 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    await executor({
+      document: SET_COST_MODEL_MUTATION,
+      variables: { costModel: initial },
+    })
 
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: null,
       variables: JSON.stringify({}),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
+    await executor({
+      document: SET_COST_MODEL_MUTATION,
+      variables: { costModel: update },
+    })
 
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+    await expect(executor({ document: GET_COST_MODELS_QUERY })).resolves.toHaveProperty(
       'data.costModels',
       [initial],
     )
@@ -609,17 +656,24 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ DAI: '10.0' }),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    await executor({
+      variables: { costModel: initial },
+      document: SET_COST_MODEL_MUTATION,
+    })
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: initial.model,
       variables: JSON.stringify({ DAI: '15.0' }),
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
-      'data.costModels',
-      [update],
-    )
+    await executor({
+      document: SET_COST_MODEL_MUTATION,
+      variables: { costModel: update },
+    })
+    await expect(
+      executor({
+        document: GET_COST_MODELS_QUERY,
+      }),
+    ).resolves.toHaveProperty('data.costModels', [update])
   })
 
   test('$DAI updates are applied to all cost models', async () => {
@@ -637,12 +691,15 @@ describe('Feature: Inject $DAI variable', () => {
     ]
 
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        variables: { costModel: input },
+        document: SET_COST_MODEL_MUTATION,
+      })
     }
 
-    await client.setDai('15.3')
+    await setDai('15.3')
 
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+    await expect(executor({ document: GET_COST_MODELS_QUERY })).resolves.toHaveProperty(
       'data.costModels',
       [
         {
@@ -674,28 +731,32 @@ describe('Feature: Inject $DAI variable', () => {
     ]
 
     // This time, set the DAI value first
-    await client.setDai('15.3')
+    await setDai('15.3')
 
     // THEN add new cost models
     for (const input of inputs) {
-      await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
+      await executor({
+        document: SET_COST_MODEL_MUTATION,
+        variables: { costModel: input },
+      })
     }
 
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
-      'data.costModels',
-      [
-        {
-          ...inputs[0],
-          // DAI was replaced here
-          variables: JSON.stringify({ n: 100, DAI: '15.3' }),
-        },
-        {
-          ...inputs[1],
-          // DAI was added here
-          variables: JSON.stringify({ n: 10, DAI: '15.3' }),
-        },
-      ],
-    )
+    await expect(
+      executor({
+        document: GET_COST_MODELS_QUERY,
+      }),
+    ).resolves.toHaveProperty('data.costModels', [
+      {
+        ...inputs[0],
+        // DAI was replaced here
+        variables: JSON.stringify({ n: 100, DAI: '15.3' }),
+      },
+      {
+        ...inputs[1],
+        // DAI was added here
+        variables: JSON.stringify({ n: 10, DAI: '15.3' }),
+      },
+    ])
   })
 
   test('$DAI is preserved when cost model is updated', async () => {
@@ -705,14 +766,20 @@ describe('Feature: Inject $DAI variable', () => {
       variables: JSON.stringify({ n: 5, DAI: '10.0' }),
     }
 
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: initial }).toPromise()
+    await executor({
+      document: SET_COST_MODEL_MUTATION,
+      variables: { costModel: initial },
+    })
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: 'default => 1;',
       variables: null,
     }
-    await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
-    await expect(client.query(GET_COST_MODELS_QUERY).toPromise()).resolves.toHaveProperty(
+    await executor({
+      document: SET_COST_MODEL_MUTATION,
+      variables: { costModel: update },
+    })
+    await expect(executor({ document: GET_COST_MODELS_QUERY })).resolves.toHaveProperty(
       'data.costModels',
       [
         {
@@ -737,19 +804,25 @@ describe('Feature: Inject $DAI variable', () => {
       model: 'query { votes } => 10 * $n;',
       variables: JSON.stringify({ n: 5, DAI: '10.0' }),
     }
-    await clientNoInjectDai
-      .mutation(SET_COST_MODEL_MUTATION, { costModel: initial })
-      .toPromise()
+
+    await buildHTTPExecutor({
+      fetch: clientNoInjectDai.yoga.fetch,
+    })({ document: SET_COST_MODEL_MUTATION, variables: { costModel: initial } })
+
     const update = {
       deployment: '0x0000000000000000000000000000000000000000000000000000000000000000',
       model: initial.model,
       variables: JSON.stringify({}),
     }
-    await clientNoInjectDai
-      .mutation(SET_COST_MODEL_MUTATION, { costModel: update })
-      .toPromise()
+
+    const a = await buildHTTPExecutor({
+      fetch: clientNoInjectDai.yoga.fetch,
+    })({ document: SET_COST_MODEL_MUTATION, variables: { costModel: update } })
+console.log(a)
     await expect(
-      clientNoInjectDai.query(GET_COST_MODELS_QUERY).toPromise(),
+      buildHTTPExecutor({
+        fetch: clientNoInjectDai.yoga.fetch,
+      })({ document: GET_COST_MODELS_QUERY }),
     ).resolves.toHaveProperty('data.costModels', [update])
   })
 })
@@ -763,17 +836,14 @@ describe('Cost model validation', () => {
     }
 
     await expect(
-      client.mutation(SET_COST_MODEL_MUTATION, { costModel }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            'Invalid cost model or variables: Failed to compile cost model',
-          ),
-        ],
-      }),
-    )
+      executor({ document: SET_COST_MODEL_MUTATION, variables: { costModel } }),
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['setCostModel'],
+        locations: [{ line: 2, column: 3 }],
+        message: 'Invalid cost model or variables: Failed to compile cost model',
+      },
+    ])
   })
 
   test('Invalid cost model variables are rejected', async () => {
@@ -784,16 +854,13 @@ describe('Cost model validation', () => {
     }
 
     await expect(
-      client.mutation(SET_COST_MODEL_MUTATION, { costModel }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            'Invalid cost model or variables: Failed to compile cost model',
-          ),
-        ],
-      }),
-    )
+      executor({ document: SET_COST_MODEL_MUTATION, variables: { costModel } }),
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['setCostModel'],
+        locations: [{ line: 2, column: 3 }],
+        message: 'Invalid cost model or variables: Failed to compile cost model',
+      },
+    ])
   })
 })
