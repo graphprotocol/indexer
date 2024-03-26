@@ -6,7 +6,7 @@ import {
   createLogger,
   Logger,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '../../client'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
@@ -181,7 +181,7 @@ function toObjectArray(disputes: POIDisputeAttributes[]): Record<string, any>[] 
 let sequelize: Sequelize
 let models: IndexerManagementModels
 let logger: Logger
-let client: IndexerManagementClient
+let executor: ReturnType<typeof buildHTTPExecutor>
 const metrics = createMetrics()
 
 const setupAll = async () => {
@@ -195,7 +195,10 @@ const setupAll = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  const client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  executor = buildHTTPExecutor({
+    fetch: client.yoga.fetch,
+  })
   logger.info('Finished setting up Test Indexer Management Client')
 }
 
@@ -226,11 +229,12 @@ describe('POI disputes', () => {
     const expected = toObjectArray(disputes)
 
     await expect(
-      client
-        .mutation(STORE_POI_DISPUTES_MUTATION, {
+      executor({
+        document: STORE_POI_DISPUTES_MUTATION,
+        variables: {
           disputes: disputes,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.storeDisputes', expected)
   })
 
@@ -240,14 +244,17 @@ describe('POI disputes', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
+      executor({ document: GET_POI_DISPUTE_QUERY, variables: { identifier } }),
     ).resolves.toHaveProperty('data.dispute', null)
   })
 
   test('Get one dispute at a time', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+    await executor({
+      document: STORE_POI_DISPUTES_MUTATION,
+      variables: { disputes: disputes },
+    })
 
     for (const dispute of disputes) {
       const identifier = {
@@ -256,7 +263,7 @@ describe('POI disputes', () => {
       }
       const expected = { ...dispute, protocolNetwork: 'eip155:11155111' }
       await expect(
-        client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
+        executor({ document: GET_POI_DISPUTE_QUERY, variables: { identifier } }),
       ).resolves.toHaveProperty('data.dispute', expected)
     }
   })
@@ -264,7 +271,10 @@ describe('POI disputes', () => {
   test('Get all potential disputes', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+    await executor({
+      document: STORE_POI_DISPUTES_MUTATION,
+      variables: { disputes: disputes },
+    })
 
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
     const expected = disputes.map((dispute) => ({
@@ -273,39 +283,47 @@ describe('POI disputes', () => {
     }))
 
     await expect(
-      client
-        .query(GET_POI_DISPUTES_QUERY, {
+      executor({
+        document: GET_POI_DISPUTES_QUERY,
+        variables: {
           status: 'potential',
           minClosedEpoch: 0,
           protocolNetwork: 'sepolia',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Get disputes with closed epoch greater than', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+    await executor({
+      document: STORE_POI_DISPUTES_MUTATION,
+      variables: { disputes: disputes },
+    })
 
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
     const expected = [{ ...TEST_DISPUTE_2, protocolNetwork: 'eip155:11155111' }]
 
     await expect(
-      client
-        .query(GET_POI_DISPUTES_QUERY, {
+      executor({
+        document: GET_POI_DISPUTES_QUERY,
+        variables: {
           status: 'potential',
           minClosedEpoch: 205,
           protocolNetwork: 'sepolia',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove dispute from store', async () => {
     const disputes = TEST_DISPUTES_ARRAY
 
-    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+    await executor({
+      document: STORE_POI_DISPUTES_MUTATION,
+      variables: { disputes: disputes },
+    })
 
     const identifiers = [
       {
@@ -314,11 +332,12 @@ describe('POI disputes', () => {
       },
     ]
     await expect(
-      client
-        .mutation(DELETE_POI_DISPUTES_QUERY, {
+      executor({
+        document: DELETE_POI_DISPUTES_QUERY,
+        variables: {
           identifiers,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteDisputes', 1)
     disputes.splice(0, 1)
 
@@ -329,20 +348,24 @@ describe('POI disputes', () => {
     }))
 
     await expect(
-      client
-        .query(GET_POI_DISPUTES_QUERY, {
+      executor({
+        document: GET_POI_DISPUTES_QUERY,
+        variables: {
           status: 'potential',
           minClosedEpoch: 0,
           protocolNetwork: 'sepolia',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.disputes', expected)
   })
 
   test('Remove multiple disputes from store', async () => {
     const disputes = [TEST_DISPUTE_1, TEST_DISPUTE_2, TEST_DISPUTE_3]
 
-    await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
+    await executor({
+      document: STORE_POI_DISPUTES_MUTATION,
+      variables: { disputes: disputes },
+    })
 
     const identifiers = [
       {
@@ -356,7 +379,7 @@ describe('POI disputes', () => {
     ]
 
     await expect(
-      client.mutation(DELETE_POI_DISPUTES_QUERY, { identifiers }).toPromise(),
+      executor({ document: DELETE_POI_DISPUTES_QUERY, variables: { identifiers } }),
     ).resolves.toHaveProperty('data.deleteDisputes', 2)
     disputes.splice(0, 2)
 
@@ -367,13 +390,14 @@ describe('POI disputes', () => {
     }))
 
     await expect(
-      client
-        .query(GET_POI_DISPUTES_QUERY, {
+      executor({
+        document: GET_POI_DISPUTES_QUERY,
+        variables: {
           status: 'potential',
           minClosedEpoch: 0,
           protocolNetwork: 'sepolia',
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.disputes', expected)
   })
 })
