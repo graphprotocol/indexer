@@ -4,13 +4,13 @@ The Graph Network's testnet is on Sepolia (eip155:11155111). Sepolia network inf
 
 ## Latest Releases
 
-| Component       | Release                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| contracts       | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)         |
-| indexer-agent   | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| indexer-cli     | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| indexer-service | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| graph-node      | [0.34.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.34.0)     |
+| Component       | Release                                                                             |
+| --------------- | ------------------------------------------------------------------------------------|
+| contracts       | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)             |
+| indexer-agent   | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| indexer-cli     | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| indexer-service | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| graph-node      | [0.35.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.0-rc.0)|
 
 ## Network Parameters
 
