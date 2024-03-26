@@ -28,11 +28,7 @@ const SET_COST_MODEL_MUTATION = gql`
 
 const DELETE_COST_MODELS_MUTATION = gql`
   mutation deleteCostModels($deployments: [String!]!) {
-    deleteCostModels(deployments: $deployments) {
-      deployment
-      model
-      variables
-    }
+    deleteCostModels(deployments: $deployments)
   }
 `
 
@@ -413,9 +409,10 @@ describe('Cost models', () => {
       })
     }
 
-    await expect(
-      executor({ document: GET_COST_MODELS_QUERY }).toPromise(),
-    ).resolves.toHaveProperty('data.costModels', inputs)
+    await expect(executor({ document: GET_COST_MODELS_QUERY })).resolves.toHaveProperty(
+      'data.costModels',
+      inputs,
+    )
   })
 
   test('Get cost models with defined global models', async () => {
