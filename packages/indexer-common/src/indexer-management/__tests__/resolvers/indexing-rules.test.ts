@@ -6,7 +6,7 @@ import {
   Logger,
   createMetrics,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient } from '../../client'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
@@ -110,7 +110,7 @@ const INDEXING_RULES_QUERY = gql`
 let sequelize: Sequelize
 let models: IndexerManagementModels
 let logger: Logger
-let client: IndexerManagementClient
+let executor: ReturnType<typeof buildHTTPExecutor>
 const metrics = createMetrics()
 
 const setupAll = async () => {
@@ -124,7 +124,10 @@ const setupAll = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  const client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  executor = buildHTTPExecutor({
+    fetch: client.yoga.fetch,
+  })
 }
 
 const teardownAll = async () => {
@@ -153,7 +156,7 @@ describe('Indexing rules', () => {
     const input = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
-      allocationAmount: '1000',
+      allocationAmount: 1000,
       protocolNetwork: 'sepolia',
     }
 
@@ -176,7 +179,7 @@ describe('Indexing rules', () => {
 
     // Update the rule and ensure the right data is returned
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
+      executor({ variables: { rule: input }, document: SET_INDEXING_RULE_MUTATION }),
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
@@ -185,25 +188,27 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
 
-    const result = await client
-      .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
-      .toPromise()
-    expect(result).toHaveProperty('data.indexingRule', expected)
+    await expect(
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: { identifier: ruleIdentifier, merged: false },
+      }),
+    ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
   test('Set and get global rule (complete)', async () => {
     const input = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
-      allocationAmount: '1',
+      allocationAmount: 1,
       allocationLifetime: 10,
       autoRenewal: true,
       parallelAllocations: 1,
       maxAllocationPercentage: 0.5,
-      minSignal: '2',
-      maxSignal: '3',
-      minStake: '4',
-      minAverageQueryFees: '5',
+      minSignal: 2,
+      maxSignal: 3,
+      minStake: 4,
+      minAverageQueryFees: 5,
       custom: JSON.stringify({ foo: 'bar' }),
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
@@ -218,7 +223,7 @@ describe('Indexing rules', () => {
 
     // Update the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
+      executor({ document: SET_INDEXING_RULE_MUTATION, variables: { rule: input } }),
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
@@ -226,10 +231,12 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       protocolNetwork: 'sepolia',
     }
+
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: { identifier: ruleIdentifier, merged: false },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
@@ -237,8 +244,8 @@ describe('Indexing rules', () => {
     const originalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
-      allocationAmount: '1',
-      minSignal: '2',
+      allocationAmount: 1,
+      minSignal: 2,
       protocolNetwork: 'sepolia',
     }
 
@@ -260,14 +267,17 @@ describe('Indexing rules', () => {
 
     // Write the original
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: originalInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: null,
-      maxSignal: '3',
+      maxSignal: 3,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       autoRenewal: true,
       safety: false,
@@ -282,7 +292,7 @@ describe('Indexing rules', () => {
 
     // Update the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: update }).toPromise(),
+      executor({ document: SET_INDEXING_RULE_MUTATION, variables: { rule: update } }),
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
@@ -291,9 +301,10 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, { identifier: ruleIdentifier, merged: false })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: { identifier: ruleIdentifier, merged: false },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', expected)
   })
 
@@ -302,8 +313,8 @@ describe('Indexing rules', () => {
     const originalInput = {
       identifier: originalIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      allocationAmount: '1',
-      minSignal: '2',
+      allocationAmount: 1,
+      minSignal: 1,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       protocolNetwork: 'sepolia',
     }
@@ -326,14 +337,17 @@ describe('Indexing rules', () => {
 
     // Write the original
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: originalInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
 
     const update = {
       identifier: originalIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: null,
-      maxSignal: '3',
+      maxSignal: 3,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
       allocationLifetime: 2,
       autoRenewal: false,
@@ -350,7 +364,7 @@ describe('Indexing rules', () => {
 
     // Update the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: update }).toPromise(),
+      executor({ document: SET_INDEXING_RULE_MUTATION, variables: { rule: update } }),
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query the rule to make sure it's updated in the db
@@ -359,12 +373,13 @@ describe('Indexing rules', () => {
       protocolNetwork: update.protocolNetwork,
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: {
           identifier: ruleIdentifier,
           merged: false,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', expected)
 
     const updateAgain = {
@@ -386,7 +401,10 @@ describe('Indexing rules', () => {
 
     // Update the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: updateAgain }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: updateAgain },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', expectedAgain)
 
     // Query the rule to make sure it's updated in the db
@@ -395,12 +413,13 @@ describe('Indexing rules', () => {
       protocolNetwork: updateAgain.protocolNetwork,
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: {
           identifier: ruleIdentifierAgain,
           merged: false,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', expectedAgain)
   })
 
@@ -408,8 +427,8 @@ describe('Indexing rules', () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
-      allocationAmount: '1',
-      minSignal: '1',
+      allocationAmount: 1,
+      minSignal: 1,
       decisionBasis: IndexingDecisionBasis.NEVER,
       protocolNetwork: 'sepolia',
     }
@@ -417,8 +436,8 @@ describe('Indexing rules', () => {
     const deploymentInput = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      allocationAmount: '1',
-      minSignal: '2',
+      allocationAmount: 1,
+      minSignal: 2,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       autoRenewal: false,
@@ -461,10 +480,16 @@ describe('Indexing rules', () => {
 
     // Write the orginals
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: globalInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', globalExpected)
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: deploymentInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', deploymentExpected)
 
     // Query the global rule
@@ -473,12 +498,10 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
-          identifier: globalRuleIdentifier,
-          merged: false,
-        })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: { identifier: globalRuleIdentifier, merged: false },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', globalExpected)
 
     // Query the rule for the deployment
@@ -487,19 +510,21 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: {
           identifier: deploymentRuleIdentifier,
           merged: false,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', deploymentExpected)
 
     // Query all rules together
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
   })
 
@@ -507,8 +532,8 @@ describe('Indexing rules', () => {
     const input = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      allocationAmount: '1',
-      minSignal: '2',
+      allocationAmount: 1,
+      minSignal: 2,
       allocationLifetime: 20,
       autoRenewal: false,
       protocolNetwork: 'sepolia',
@@ -532,31 +557,34 @@ describe('Indexing rules', () => {
 
     // Write the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
+      executor({ document: SET_INDEXING_RULE_MUTATION, variables: { rule: input } }),
     ).resolves.toHaveProperty('data.setIndexingRule', expected)
 
     // Query all rules
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [expected])
 
     // Delete the rule
     const ruleIdentifier = { identifier: expected.identifier, protocolNetwork: 'sepolia' }
     await expect(
-      client
-        .mutation(DELETE_INDEXING_RULE_MUTATION, {
+      executor({
+        document: DELETE_INDEXING_RULE_MUTATION,
+        variables: {
           identifier: ruleIdentifier,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
 
     // Query all rules together
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [])
   })
 
@@ -564,7 +592,7 @@ describe('Indexing rules', () => {
     const input = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      allocationAmount: '1',
+      allocationAmount: 1,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'sepolia',
@@ -587,23 +615,25 @@ describe('Indexing rules', () => {
 
     // Write the rule
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: input }).toPromise(),
+      executor({ document: SET_INDEXING_RULE_MUTATION, variables: { rule: input } }),
     ).resolves.toHaveProperty('data.setIndexingRule', expectedBefore)
 
     // Query all rules
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [expectedBefore])
 
     // Clear the allocationAmount field
     await expect(
-      client
-        .mutation(SET_INDEXING_RULE_MUTATION, {
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: {
           rule: { ...expectedBefore, allocationAmount: null },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', {
       ...expectedBefore,
       allocationAmount: null,
@@ -611,9 +641,10 @@ describe('Indexing rules', () => {
 
     // Query the rules again to see that the update went through
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [
       { ...expectedBefore, allocationAmount: null },
     ])
@@ -623,10 +654,10 @@ describe('Indexing rules', () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
-      allocationAmount: '1',
-      minSignal: '1',
+      allocationAmount: 1,
+      minSignal: 1,
       decisionBasis: IndexingDecisionBasis.NEVER,
-      minAverageQueryFees: '1',
+      minAverageQueryFees: 1,
       allocationLifetime: 15,
       requireSupported: true,
       autoRenewal: true,
@@ -637,8 +668,8 @@ describe('Indexing rules', () => {
     const deploymentInput = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      allocationAmount: '1',
-      minSignal: '2',
+      allocationAmount: 1,
+      minSignal: 2,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       allocationLifetime: 10,
       autoRenewal: false,
@@ -686,7 +717,7 @@ describe('Indexing rules', () => {
       maxAllocationPercentage: null,
       maxSignal: null,
       minStake: null,
-      minAverageQueryFees: '1',
+      minAverageQueryFees: 1,
       custom: null,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
@@ -696,10 +727,16 @@ describe('Indexing rules', () => {
 
     // Write the orginals
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: globalInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', globalExpected)
     await expect(
-      client.mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput }).toPromise(),
+      executor({
+        document: SET_INDEXING_RULE_MUTATION,
+        variables: { rule: deploymentInput },
+      }),
     ).resolves.toHaveProperty('data.setIndexingRule', deploymentExpected)
 
     // Query the global rule
@@ -708,12 +745,13 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: {
           identifier: globalRuleIdentifier,
           merged: false,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', globalExpected)
 
     // Query the rule for the deployment merged with the global rule
@@ -722,26 +760,29 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .query(INDEXING_RULE_QUERY, {
+      executor({
+        document: INDEXING_RULE_QUERY,
+        variables: {
           identifier: ruleIdentifier,
           merged: true,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.indexingRule', deploymentMergedExpected)
 
     // Query all rules together (without merging)
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
 
     // Query all rules together (with merging)
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: true, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: true, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [
       globalExpected,
       deploymentMergedExpected,
@@ -759,24 +800,29 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
 
-    await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
+    await executor({
+      document: SET_INDEXING_RULE_MUTATION,
+      variables: { rule: globalInput },
+    })
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
       protocolNetwork: 'sepolia',
     }
     await expect(
-      client
-        .mutation(DELETE_INDEXING_RULE_MUTATION, {
+      executor({
+        document: DELETE_INDEXING_RULE_MUTATION,
+        variables: {
           identifier: globalRuleIdentifier,
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteIndexingRule', true)
 
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
         ...defaults.globalIndexingRule,
@@ -820,10 +866,14 @@ describe('Indexing rules', () => {
       protocolNetwork: 'sepolia',
     }
 
-    await client.mutation(SET_INDEXING_RULE_MUTATION, { rule: globalInput }).toPromise()
-    await client
-      .mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput })
-      .toPromise()
+    await executor({
+      document: SET_INDEXING_RULE_MUTATION,
+      variables: { rule: globalInput },
+    })
+    await executor({
+      document: SET_INDEXING_RULE_MUTATION,
+      variables: { rule: deploymentInput },
+    })
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
@@ -835,17 +885,19 @@ describe('Indexing rules', () => {
     }
 
     await expect(
-      client
-        .mutation(DELETE_INDEXING_RULES_MUTATION, {
+      executor({
+        document: DELETE_INDEXING_RULES_MUTATION,
+        variables: {
           identifiers: [globalRuleIdentifier, deploymentRuleIdentifier],
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.deleteIndexingRules', true)
 
     await expect(
-      client
-        .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-        .toPromise(),
+      executor({
+        document: INDEXING_RULES_QUERY,
+        variables: { merged: false, protocolNetwork: 'sepolia' },
+      }),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
         ...defaults.globalIndexingRule,
@@ -878,18 +930,20 @@ describe('Indexing rules', () => {
       protocolNetwork: 'unsupported',
     }
 
-    const result = await client
-      .mutation(SET_INDEXING_RULE_MUTATION, { rule: deploymentInput })
-      .toPromise()
+    const result = await executor({
+      document: SET_INDEXING_RULE_MUTATION,
+      variables: { rule: deploymentInput },
+    })
 
     // Mutation must not succeed
     expect(result).toHaveProperty('data', null)
 
     // Must not create any Rule in the database
 
-    const rows = await client
-      .query(INDEXING_RULES_QUERY, { merged: false, protocolNetwork: 'sepolia' })
-      .toPromise()
+    const rows = await executor({
+      document: INDEXING_RULES_QUERY,
+      variables: { merged: false, protocolNetwork: 'sepolia' },
+    })
     expect(rows.data.indexingRules).toEqual([])
   })
 })
