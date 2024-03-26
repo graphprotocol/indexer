@@ -19,6 +19,7 @@ export async function createIndexerManagementYogaClient(
 
   return createYoga<IndexerManagementResolverContext>({
     schema: createSchema({ typeDefs, resolvers }),
+    maskedErrors: false,
     context: {
       models,
       graphNode,
