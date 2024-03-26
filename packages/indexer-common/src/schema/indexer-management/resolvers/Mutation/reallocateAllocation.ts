@@ -1,16 +1,13 @@
-import { extractNetwork } from  "../../../../indexer-management/resolvers/utils"
+import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
 import type { MutationResolvers } from './../../../types.generated'
 import { formatGRT, parseGRT, toAddress } from '@graphprotocol/common-ts'
 import { Allocation, AllocationStatus } from '../../../../allocations/types'
-import { IndexerErrorCode, indexerError } from "../../../../errors"
+import { IndexerErrorCode, indexerError } from '../../../../errors'
 import { BigNumber, utils } from 'ethers'
 import { NetworkMonitor } from '../../../../indexer-management/monitor'
 import { GraphNode } from '../../../../graph-node'
-import {
-  allocationIdProof,
-  uniqueAllocationID,
-} from '../../../../allocations/keys'
-import { SubgraphIdentifierType } from "../../../../subgraphs"
+import { allocationIdProof, uniqueAllocationID } from '../../../../allocations/keys'
+import { SubgraphIdentifierType } from '../../../../subgraphs'
 import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
 
 async function resolvePOI(

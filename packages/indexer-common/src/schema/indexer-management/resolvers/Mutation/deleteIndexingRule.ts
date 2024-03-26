@@ -1,4 +1,4 @@
-import { processIdentifier } from "../../../../subgraphs"
+import { processIdentifier } from '../../../../subgraphs'
 import type { MutationResolvers } from './../../../types.generated'
 import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import { resetGlobalRule } from '../../../../indexer-management/resolvers/indexing-rules'

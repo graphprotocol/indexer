@@ -1,6 +1,6 @@
-import { processIdentifier } from "../../../../subgraphs"
+import { processIdentifier } from '../../../../subgraphs'
 import type { QueryResolvers } from './../../../types.generated'
-import { validateNetworkIdentifier } from "../../../../parsers/validators"
+import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import { INDEXING_RULE_GLOBAL } from '../../../../indexer-management/models/indexing-rule'
 
 export const indexingRule: NonNullable<QueryResolvers['indexingRule']> = async (

@@ -6,11 +6,7 @@ import type {
   MutationResolvers,
 } from './../../../types.generated'
 import groupBy from 'lodash.groupby'
-import {
-  ActionStatus,
-  ActionType,
-  validateActionInputs,
-} from '../../../../actions'
+import { ActionStatus, ActionType, validateActionInputs } from '../../../../actions'
 import { ActionManager } from '../../../../indexer-management/actions'
 import { Op, Transaction, literal } from 'sequelize'
 import { Logger } from '@graphprotocol/common-ts'

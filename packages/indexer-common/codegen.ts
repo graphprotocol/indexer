@@ -7,7 +7,7 @@ const config: CodegenConfig = {
     'src/schema': defineConfig({
       typesPluginsConfig: {
         contextType: '@graphprotocol/indexer-common#IndexerManagementResolverContext',
-      enumsAsTypes: true,
+        enumsAsTypes: true,
       },
     }),
   },

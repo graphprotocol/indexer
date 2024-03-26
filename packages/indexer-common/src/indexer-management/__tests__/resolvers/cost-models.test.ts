@@ -818,7 +818,7 @@ describe('Feature: Inject $DAI variable', () => {
     const a = await buildHTTPExecutor({
       fetch: clientNoInjectDai.yoga.fetch,
     })({ document: SET_COST_MODEL_MUTATION, variables: { costModel: update } })
-console.log(a)
+    console.log(a)
     await expect(
       buildHTTPExecutor({
         fetch: clientNoInjectDai.yoga.fetch,

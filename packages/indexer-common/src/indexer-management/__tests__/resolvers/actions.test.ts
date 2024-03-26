@@ -199,7 +199,7 @@ const setup = async () => {
   })
   const client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
   executor = buildHTTPExecutor({
-    fetch: client.fetch,
+    fetch: client.yoga.fetch,
   })
 }
 

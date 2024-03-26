@@ -1,7 +1,7 @@
-import { extractNetwork } from "../../../../indexer-management/resolvers/utils"
+import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
 import type { MutationResolvers } from './../../../types.generated'
 import { BigNumber, utils } from 'ethers'
-import { IndexerErrorCode, indexerError } from "../../../../errors"
+import { IndexerErrorCode, indexerError } from '../../../../errors'
 import { NetworkMonitor } from '../../../../indexer-management/monitor'
 import { GraphNode } from '../../../../graph-node'
 import { formatGRT } from '@graphprotocol/common-ts'
@@ -109,8 +109,14 @@ export const closeAllocation: NonNullable<MutationResolvers['closeAllocation']> 
       )
     }
 
-    poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi || undefined, Boolean(force))
-    
+    poi = await resolvePOI(
+      networkMonitor,
+      graphNode,
+      allocationData,
+      poi || undefined,
+      Boolean(force),
+    )
+
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
     // Note: We're checking the allocation state here, which is defined as

@@ -1,12 +1,9 @@
-import { extractNetwork } from  "../../../../indexer-management/resolvers/utils"
+import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
 import type { MutationResolvers } from './../../../types.generated'
 import { SubgraphDeploymentID, formatGRT, parseGRT } from '@graphprotocol/common-ts'
 import { AllocationStatus } from '../../../../allocations/types'
-import { IndexerErrorCode, indexerError } from "../../../../errors"
-import {
-  allocationIdProof,
-  uniqueAllocationID,
-} from "../../../../allocations/keys"
+import { IndexerErrorCode, indexerError } from '../../../../errors'
+import { allocationIdProof, uniqueAllocationID } from '../../../../allocations/keys'
 import { utils } from 'ethers'
 import { SubgraphIdentifierType } from '../../../../subgraphs'
 import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
