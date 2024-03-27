@@ -28,6 +28,17 @@ export const setIndexingRule: NonNullable<MutationResolvers['setIndexingRule']> 
   rule.identifier = identifier
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [updatedRule, _created] = await models.IndexingRule.upsert(rule)
+  const [updatedRule, _created] = await models.IndexingRule.upsert({
+    ...rule,
+    allocationAmount: rule.allocationAmount?.toString(),
+    autoRenewal: Boolean(rule.autoRenewal),
+    minSignal: rule.minSignal?.toString(),
+    maxSignal: rule.maxSignal?.toString(),
+    minStake: rule.minStake?.toString(),
+    minAverageQueryFees: rule.minAverageQueryFees?.toString(),
+    decisionBasis: rule.decisionBasis || undefined,
+    requireSupported: Boolean(rule.requireSupported),
+    safety: Boolean(rule.safety),
+  })
   return updatedRule.toGraphQL()
 }

@@ -1,4 +1,3 @@
-import { ActionStatus } from '@graphprotocol/indexer-common'
 import type { MutationResolvers } from './../../../types.generated'
 
 // @ts-expect-error need to fix
@@ -11,7 +10,7 @@ export const cancelActions: NonNullable<MutationResolvers['cancelActions']> = as
     actionIDs,
   })
   const [, canceledActions] = await models.Action.update(
-    { status: ActionStatus.CANCELED },
+    { status: 'canceled' },
     { where: { id: actionIDs }, returning: true },
   )
 

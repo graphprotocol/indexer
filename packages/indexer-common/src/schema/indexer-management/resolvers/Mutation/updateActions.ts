@@ -23,5 +23,5 @@ export const updateActions: NonNullable<MutationResolvers['updateActions']> = as
   logger.info(`'${results[0]}' actions updated`)
   const response = results[1]
 
-  return response
+  return response.map((action) => action.toGraphQL())
 }

@@ -128,7 +128,7 @@ input ActionUpdateInput {
   id: Int
   deploymentID: String
   allocationID: String
-  amount: Int
+  amount: String 
   poi: String
   force: Boolean
   type: ActionType

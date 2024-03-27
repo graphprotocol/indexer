@@ -1,8 +1,6 @@
 import {
   ActionItem,
   ActionResult,
-  ActionStatus,
-  ActionType,
   Allocation,
   AllocationDecision,
   AllocationManagementMode,
@@ -10,7 +8,6 @@ import {
   IndexerErrorCode,
   IndexerManagementClient,
   IndexingRuleAttributes,
-  SubgraphIdentifierType,
   indexerError,
   specification as spec,
   Action,
@@ -21,7 +18,12 @@ import { BigNumber, utils } from 'ethers'
 import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { CombinedError } from '@urql/core'
-import { ActionFilter } from './schema/types.generated'
+import {
+  ActionFilter,
+  ActionStatus,
+  ActionType,
+  IdentifierType,
+} from './schema/types.generated'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
@@ -167,7 +169,7 @@ export class Operator {
 
         const defaults = {
           ...identifier,
-          identifierType: SubgraphIdentifierType.GROUP,
+          identifierType: IdentifierType.group,
           allocationAmount:
             this.specification.indexerOptions.defaultAllocationAmount.toString(),
           parallelAllocations: 1,
@@ -259,15 +261,15 @@ export class Operator {
   }
 
   async queueAction(action: ActionItem): Promise<Action[]> {
-    let status = ActionStatus.QUEUED
+    let status: ActionStatus = ActionStatus.queued
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
         throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
       case AllocationManagementMode.AUTO:
-        status = ActionStatus.APPROVED
+        status = ActionStatus.approved
         break
       case AllocationManagementMode.OVERSIGHT:
-        status = ActionStatus.QUEUED
+        status = ActionStatus.queued
     }
 
     const actionInput = {
@@ -369,7 +371,7 @@ export class Operator {
         deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
         amount: formatGRT(desiredAllocationAmount),
       },
-      type: ActionType.ALLOCATE,
+      type: ActionType.allocate,
       reason: deploymentAllocationDecision.reasonString(),
       protocolNetwork: deploymentAllocationDecision.protocolNetwork,
     })
@@ -408,7 +410,7 @@ export class Operator {
               poi: undefined,
               force: false,
             },
-            type: ActionType.UNALLOCATE,
+            type: ActionType.unallocate,
             reason: deploymentAllocationDecision.reasonString(),
             protocolNetwork: deploymentAllocationDecision.protocolNetwork,
           } as ActionItem)
@@ -444,7 +446,7 @@ export class Operator {
               deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
               amount: formatGRT(desiredAllocationAmount),
             },
-            type: ActionType.REALLOCATE,
+            type: ActionType.reallocate,
             reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
             protocolNetwork: deploymentAllocationDecision.protocolNetwork,
           })

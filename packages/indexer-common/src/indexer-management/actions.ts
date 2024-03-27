@@ -2,7 +2,6 @@ import {
   Action,
   actionFilterToWhereOptions,
   ActionParams,
-  ActionStatus,
   ActionUpdateInput,
   AllocationManager,
   AllocationManagementMode,
@@ -22,7 +21,11 @@ import {
 import { Order, Transaction, WhereOperators } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
-import { ActionFilter as GraphQLActionFilter, Maybe } from '../schema/types.generated'
+import {
+  ActionStatus,
+  ActionFilter as GraphQLActionFilter,
+  Maybe,
+} from '../schema/types.generated'
 
 type ActionFilter = GraphQLActionFilter & {
   updatedAt?: WhereOperators
@@ -128,7 +131,7 @@ export class ActionManager {
           actions = await ActionManager.fetchActions(
             this.models,
             {
-              status: ActionStatus.APPROVED,
+              status: ActionStatus.approved,
             },
             null,
           )
@@ -213,7 +216,7 @@ export class ActionManager {
   ): Promise<Action[]> {
     let updatedActions: Action[] = []
     for (const result of results) {
-      const status = isActionFailure(result) ? ActionStatus.FAILED : ActionStatus.SUCCESS
+      const status = isActionFailure(result) ? ActionStatus.failed : ActionStatus.success
       const [, updatedAction] = await this.models.Action.update(
         {
           status: status,
@@ -255,7 +258,7 @@ export class ActionManager {
           approvedActions = (
             await this.models.Action.findAll({
               where: {
-                status: ActionStatus.APPROVED,
+                status: ActionStatus.approved,
                 protocolNetwork,
               },
               order: [['priority', 'ASC']],

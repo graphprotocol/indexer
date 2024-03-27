@@ -52,7 +52,6 @@ export class CostModel
   public createdAt!: Date
   public updatedAt!: Date
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): GraphQLCostModelType {
     return {
       ...this.toJSON(),

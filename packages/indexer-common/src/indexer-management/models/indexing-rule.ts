@@ -1,23 +1,20 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
-import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
+import { processIdentifier } from '../../subgraphs'
 import { caip2IdRegex } from '../../parsers'
-import { IndexingRule as GraphQLIndexingRuleType } from '../../schema/types.generated'
-
-export enum IndexingDecisionBasis {
-  RULES = 'rules',
-  NEVER = 'never',
-  ALWAYS = 'always',
-  OFFCHAIN = 'offchain',
-}
+import {
+  IndexingRule as GraphQLIndexingRuleType,
+  IdentifierType,
+  IndexingDecisionBasis,
+} from '../../schema/types.generated'
 
 export const INDEXING_RULE_GLOBAL = 'global'
 
 export interface IndexingRuleAttributes {
   id: number
   identifier: string
-  identifierType: SubgraphIdentifierType
+  identifierType: IdentifierType
   allocationAmount: string | null
   allocationLifetime: number | null
   autoRenewal: boolean
@@ -69,7 +66,7 @@ export class IndexingRule
 {
   public id!: number
   public identifier!: string
-  public identifierType!: SubgraphIdentifierType
+  public identifierType!: IdentifierType
   public allocationAmount!: string | null
   public allocationLifetime!: number | null
   public autoRenewal!: boolean
@@ -167,7 +164,11 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         },
       },
       identifierType: {
-        type: DataTypes.ENUM('deployment', 'subgraph', 'group'),
+        type: DataTypes.ENUM(
+          IdentifierType.deployment,
+          IdentifierType.subgraph,
+          IdentifierType.group,
+        ),
         defaultValue: 'group',
       },
       allocationAmount: {
@@ -247,7 +248,12 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: true,
       },
       decisionBasis: {
-        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain'),
+        type: DataTypes.ENUM(
+          IndexingDecisionBasis.rules,
+          IndexingDecisionBasis.never,
+          IndexingDecisionBasis.always,
+          IndexingDecisionBasis.offchain,
+        ),
         allowNull: false,
         defaultValue: 'rules',
       },

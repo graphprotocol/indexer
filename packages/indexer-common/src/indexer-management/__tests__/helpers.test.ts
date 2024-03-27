@@ -10,15 +10,14 @@ import {
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
-  IndexingDecisionBasis,
   IndexingRuleAttributes,
 } from '../models'
 import { defineQueryFeeModels, specification as spec } from '../../index'
 import { networkIsL1, networkIsL2 } from '../types'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
-import { SubgraphFreshnessChecker, SubgraphIdentifierType } from '../../subgraphs'
+import { SubgraphFreshnessChecker } from '../../subgraphs'
 import { ActionManager } from '../actions'
-import { actionFilterToWhereOptions, ActionStatus, ActionType } from '../../actions'
+import { actionFilterToWhereOptions } from '../../actions'
 import { literal, Op, Sequelize } from 'sequelize'
 import {
   Allocation,
@@ -35,6 +34,12 @@ import {
   getTestProvider,
 } from '@graphprotocol/indexer-common'
 import { mockLogger, mockProvider } from '../../__tests__/subgraph.test'
+import {
+  ActionStatus,
+  ActionType,
+  IdentifierType,
+  IndexingDecisionBasis,
+} from '../../schema/types.generated'
 import { BigNumber, ethers, utils } from 'ethers'
 
 // Make global Jest variable available
@@ -164,8 +169,8 @@ describe('Indexing Rules', () => {
     const indexingRule = {
       identifier: deployment,
       allocationAmount: '5000',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.ALWAYS,
+      identifierType: IdentifierType.deployment,
+      decisionBasis: IndexingDecisionBasis.always,
       protocolNetwork: 'sepolia',
     } as Partial<IndexingRuleAttributes>
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
@@ -176,11 +181,11 @@ describe('Indexing Rules', () => {
     expect(setIndexingRuleResult).toHaveProperty('identifier', deployment)
     expect(setIndexingRuleResult).toHaveProperty(
       'identifierType',
-      SubgraphIdentifierType.DEPLOYMENT.toString(),
+      IdentifierType.deployment.toString(),
     )
     expect(setIndexingRuleResult).toHaveProperty(
       'decisionBasis',
-      IndexingDecisionBasis.ALWAYS,
+      IndexingDecisionBasis.always,
     )
 
     //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
@@ -195,8 +200,8 @@ describe('Actions', () => {
 
   test('Generate where options', async () => {
     const ActionFilter = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
     }
     expect(actionFilterToWhereOptions(ActionFilter)).toEqual({
       [Op.and]: [{ status: 'failed' }, { type: 'allocate' }],
@@ -204,8 +209,8 @@ describe('Actions', () => {
 
     const yesterday = literal("NOW() - INTERVAL '1d'")
     const ActionFilter2 = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
       updatedAt: { [Op.gte]: yesterday },
     }
 
@@ -227,8 +232,8 @@ describe('Actions', () => {
 
   test('Insert and fetch actions', async () => {
     const action = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
       deploymentID: 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
       amount: '10000',
       force: false,
@@ -242,8 +247,8 @@ describe('Actions', () => {
     await models.Action.upsert(action)
 
     const filterOptions = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
     }
 
     const whereOptions = actionFilterToWhereOptions(filterOptions)
@@ -263,8 +268,8 @@ describe('Actions', () => {
       ActionManager.fetchActions(
         models,
         {
-          status: ActionStatus.FAILED,
-          type: ActionType.ALLOCATE,
+          status: ActionStatus.failed,
+          type: ActionType.allocate,
           updatedAt: { [Op.gte]: literal("NOW() - INTERVAL '1d'") },
         },
         undefined,
@@ -277,8 +282,8 @@ describe('Actions', () => {
       ActionManager.fetchActions(
         models,
         {
-          status: ActionStatus.FAILED,
-          type: ActionType.ALLOCATE,
+          status: ActionStatus.failed,
+          type: ActionType.allocate,
           updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
         },
         undefined,

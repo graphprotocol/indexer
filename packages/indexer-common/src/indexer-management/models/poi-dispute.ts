@@ -69,9 +69,12 @@ export class POIDispute
   public createdAt!: Date
   public updatedAt!: Date
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): GraphQLPOIDispute {
-    return { ...this.toJSON(), __typename: 'POIDispute' }
+    return {
+      ...this.toJSON(),
+      __typename: 'POIDispute',
+      allocationAmount: BigInt(this.allocationAmount),
+    }
   }
 }
 

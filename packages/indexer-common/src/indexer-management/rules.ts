@@ -12,7 +12,7 @@ export const fetchIndexingRules = async (
   models: IndexerManagementModels,
   merged: boolean,
   protocolNetwork?: string,
-): Promise<IndexingRuleAttributes[]> => {
+) => {
   // If unspecified, select indexing rules from all protocol networks
   const whereClause = protocolNetwork ? { protocolNetwork } : {}
   const rules = await models.IndexingRule.findAll({

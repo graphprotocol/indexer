@@ -15,13 +15,7 @@ import {
   defineIndexerManagementModels,
   IndexerManagementModels,
 } from '../../models'
-import {
-  ActionInput,
-  ActionStatus,
-  ActionType,
-  defineQueryFeeModels,
-  QueryFeeModels,
-} from '@graphprotocol/indexer-common'
+import { defineQueryFeeModels, QueryFeeModels } from '@graphprotocol/indexer-common'
 import {
   createTestManagementClient,
   invalidReallocateAction,
@@ -34,6 +28,7 @@ import {
 import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 import { GraphQLError } from 'graphql'
 import { isAsyncIterable } from 'graphql-yoga'
+import { ActionStatus, ActionType, ActionInput } from '../../../schema/types.generated'
 
 const QUEUE_ACTIONS_MUTATION = gql`
   mutation queueActions($actions: [ActionInput!]!) {
@@ -248,7 +243,7 @@ describe('Actions', () => {
     await expect(
       executor({
         document: ACTIONS_QUERY,
-        variables: { filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' } },
+        variables: { filter: { status: ActionStatus.queued, source: 'indexerAgent' } },
       }),
     ).resolves.toHaveProperty('data.actions', [expected])
   })
@@ -287,8 +282,8 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.QUEUED,
-            type: ActionType.ALLOCATE,
+            status: ActionStatus.queued,
+            type: ActionType.allocate,
           },
           orderBy: 'source',
           orderDirection: 'desc',
@@ -331,8 +326,8 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.QUEUED,
-            type: ActionType.ALLOCATE,
+            status: ActionStatus.queued,
+            type: ActionType.allocate,
             source: 'indexerAgent',
           },
           orderBy: 'adonut',
@@ -381,7 +376,7 @@ describe('Actions', () => {
     const toCancel = expecteds.map((action) => action.id.toString())
 
     const expectedCancels = expecteds.map((action) => {
-      action.status = ActionStatus.CANCELED
+      action.status = ActionStatus.canceled
       return action
     })
 
@@ -394,7 +389,7 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.CANCELED,
+            status: ActionStatus.canceled,
             source: 'indexerAgent',
           },
           orderBy: 'id',
@@ -431,7 +426,7 @@ describe('Actions', () => {
     const actions = await executor({
       document: ACTIONS_QUERY,
       variables: {
-        filter: { type: ActionType.ALLOCATE },
+        filter: { type: ActionType.allocate },
       },
     })
 
@@ -449,7 +444,7 @@ describe('Actions', () => {
       (action) => action.deploymentID === subgraphDeployment2,
     )
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
-    expectedApprovedAction!['status'] = ActionStatus.APPROVED
+    expectedApprovedAction!['status'] = ActionStatus.approved
 
     await expect(
       executor({
@@ -463,7 +458,7 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
         },
@@ -497,7 +492,7 @@ describe('Actions', () => {
 
     const actions = await executor({
       document: ACTIONS_QUERY,
-      variables: { filter: { type: ActionType.ALLOCATE } },
+      variables: { filter: { type: ActionType.allocate } },
     })
     if (isAsyncIterable(actions)) {
       throw new Error('Expected actions to be an array')
@@ -564,7 +559,7 @@ describe('Actions', () => {
       executor({
         document: ACTIONS_QUERY,
         variables: {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
+          filter: { status: ActionStatus.queued, source: 'indexerAgent' },
         },
       }),
     ).resolves.toHaveProperty('data.actions', [])
@@ -585,7 +580,7 @@ describe('Actions', () => {
       executor({
         document: ACTIONS_QUERY,
         variables: {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
+          filter: { status: ActionStatus.queued, source: 'indexerAgent' },
         },
       }),
     ).resolves.toHaveProperty(
@@ -617,7 +612,7 @@ describe('Actions', () => {
 
     const actions = await executor({
       document: ACTIONS_QUERY,
-      variables: { filter: { type: ActionType.ALLOCATE } },
+      variables: { filter: { type: ActionType.allocate } },
     })
 
     if (isAsyncIterable(actions)) {
@@ -632,7 +627,7 @@ describe('Actions', () => {
 
     const expectedApprovedAction = { ...expected }
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
-    expectedApprovedAction!['status'] = ActionStatus.APPROVED
+    expectedApprovedAction!['status'] = ActionStatus.approved
 
     await expect(
       executor({
@@ -646,7 +641,7 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
         },
@@ -655,7 +650,7 @@ describe('Actions', () => {
 
     const updateAction = { ...inputAction }
     updateAction.amount = '25000'
-    updateAction.status = ActionStatus.APPROVED
+    updateAction.status = ActionStatus.approved
 
     const expectedUpdated = { ...expectedApprovedAction }
     expectedUpdated.amount = '25000'
@@ -671,7 +666,7 @@ describe('Actions', () => {
       executor({
         document: ACTIONS_QUERY,
         variables: {
-          filter: { status: ActionStatus.APPROVED, source: 'indexerAgent' },
+          filter: { status: ActionStatus.approved, source: 'indexerAgent' },
         },
       }),
     ).resolves.toHaveProperty('data.actions', [expectedUpdated])
@@ -741,7 +736,7 @@ describe('Actions', () => {
         document: ACTIONS_QUERY,
         variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
         },
@@ -751,8 +746,8 @@ describe('Actions', () => {
 
   test('Reject queueing for action that has recently failed', async () => {
     const failedAction = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -761,18 +756,18 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:11155111',
-    } as ActionInput
+    } satisfies ActionInput
 
     const proposedAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(failedAction, {
       validate: true,
@@ -805,8 +800,8 @@ describe('Actions', () => {
 
   test('Reject queueing for action that has recently succeeded', async () => {
     const successfulAction = {
-      status: ActionStatus.SUCCESS,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.success,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -815,18 +810,18 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:11155111',
-    } as ActionInput
+    } satisfies ActionInput
 
     const proposedAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(successfulAction, {
       validate: true,
@@ -857,8 +852,8 @@ describe('Actions', () => {
 
   test('Update all queued unallocate actions', async () => {
     const queuedUnallocateAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.UNALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.unallocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -867,11 +862,11 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:11155111',
-    } as ActionInput
+    } satisfies ActionInput
 
     const queuedAllocateAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       force: false,
       amount: '10000',
@@ -879,7 +874,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(queuedUnallocateAction, {
       validate: true,

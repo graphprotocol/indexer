@@ -18,9 +18,11 @@ export const actions: NonNullable<QueryResolvers['actions']> = async (
     ? [[orderBy.toString(), orderDirection ?? 'desc']]
     : [['id', 'desc']]
 
-  return models.Action.findAll({
+  const actions = await models.Action.findAll({
     where: actionFilterToWhereOptions(filter || {}),
     order: orderObject,
     limit: first || undefined,
   })
+
+  return actions.map((action) => action.toGraphQL())
 }

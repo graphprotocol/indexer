@@ -5,7 +5,11 @@ import {
 } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
-import { Allocation as AllocationInfo } from '../../schema/types.generated'
+import {
+  Allocation as AllocationInfo,
+  IdentifierType,
+  IndexingDecisionBasis,
+} from '../../schema/types.generated'
 import pMap from 'p-map'
 import gql from 'graphql-tag'
 import { BigNumber, utils } from 'ethers'
@@ -27,12 +31,10 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexerManagementResolverContext,
-  IndexingDecisionBasis,
   IndexingRuleAttributes,
   GraphNode,
   NetworkSubgraph,
   ReallocateAllocationResult,
-  SubgraphIdentifierType,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 import { extractNetwork } from './utils'
@@ -585,8 +587,8 @@ export default {
       const indexingRule = {
         identifier: subgraphDeployment.ipfsHash,
         allocationAmount: allocationAmount.toString(),
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        identifierType: IdentifierType.deployment,
+        decisionBasis: IndexingDecisionBasis.always,
         protocolNetwork,
       } as Partial<IndexingRuleAttributes>
 
@@ -756,8 +758,8 @@ export default {
       const offchainIndexingRule = {
         protocolNetwork: network.specification.networkIdentifier,
         identifier: allocationData.subgraphDeployment.id.ipfsHash,
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        identifierType: IdentifierType.deployment,
+        decisionBasis: IndexingDecisionBasis.offchain,
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(offchainIndexingRule)
@@ -1078,8 +1080,8 @@ export default {
       const indexingRule = {
         identifier: allocationData.subgraphDeployment.id.ipfsHash,
         allocationAmount: allocationAmount.toString(),
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        identifierType: IdentifierType.deployment,
+        decisionBasis: IndexingDecisionBasis.always,
         protocolNetwork,
       } as Partial<IndexingRuleAttributes>
 

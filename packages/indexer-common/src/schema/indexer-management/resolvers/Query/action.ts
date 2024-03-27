@@ -1,4 +1,5 @@
 import type { QueryResolvers } from './../../../types.generated'
+
 export const action: NonNullable<QueryResolvers['action']> = async (
   _parent,
   { actionID },
@@ -7,7 +8,10 @@ export const action: NonNullable<QueryResolvers['action']> = async (
   logger.debug(`Execute 'action' query`, {
     actionID,
   })
-  return models.Action.findOne({
+
+  const action = await models.Action.findOne({
     where: { id: actionID },
   })
+
+  return action?.toGraphQL() ?? null
 }

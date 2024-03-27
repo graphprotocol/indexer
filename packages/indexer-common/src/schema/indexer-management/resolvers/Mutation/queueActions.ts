@@ -1,12 +1,12 @@
 import { validateNetworkIdentifier } from '../../../../parsers/validators'
-import type {
-  Action,
-  ActionInput,
-  ActionResult,
-  MutationResolvers,
+import {
+  ActionStatus,
+  type Action,
+  type ActionInput,
+  type MutationResolvers,
 } from './../../../types.generated'
 import groupBy from 'lodash.groupby'
-import { ActionStatus, ActionType, validateActionInputs } from '../../../../actions'
+import { validateActionInputs } from '../../../../actions'
 import { ActionManager } from '../../../../indexer-management/actions'
 import { Op, Transaction, literal } from 'sequelize'
 import { Logger } from '@graphprotocol/common-ts'
@@ -33,11 +33,11 @@ function compareActions(enqueued: Action, proposed: ActionInput): boolean {
   const poi = enqueued.poi == proposed.poi
   const force = enqueued.force == proposed.force
   switch (proposed.type) {
-    case ActionType.ALLOCATE:
+    case 'allocate':
       return amount
-    case ActionType.UNALLOCATE:
+    case 'unallocate':
       return poi && force
-    case ActionType.REALLOCATE:
+    case 'reallocate':
       return amount && poi && force
     default:
       return false
@@ -80,13 +80,19 @@ async function executeQueueOperation(
   )
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
-    return [
-      await models.Action.create(action, {
+    const createdAction = await models.Action.create(
+      {
+        ...action,
+        // @ts-expect-error - at this point we have a deploymentID. With new TS upgrade the filter check will make it assert the type
+        deploymentID: action.deploymentID,
+      },
+      {
         validate: true,
         returning: true,
         transaction,
-      }),
-    ]
+      },
+    )
+    return [createdAction.toGraphQL()]
   } else if (duplicateActions.length === 1) {
     if (
       duplicateActions[0].source === action.source &&
@@ -103,7 +109,11 @@ async function executeQueueOperation(
         },
       )
       const [, updatedAction] = await models.Action.update(
-        { ...action },
+        {
+          ...action,
+          // @ts-expect-error - at this point we have a deploymentID. With new TS upgrade the filter check will make it assert the type
+          deploymentID: action.deploymentID,
+        },
         {
           where: { id: duplicateActions[0].id },
           returning: true,
@@ -111,7 +121,7 @@ async function executeQueueOperation(
           transaction,
         },
       )
-      return updatedAction
+      return updatedAction.map((a) => a.toGraphQL())
     } else {
       const message =
         `Duplicate action found in queue that effects '${action.deploymentID}' but NOT overwritten because it has a different source and/or status. If you ` +
@@ -160,18 +170,20 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
   const alreadyQueuedActions = await ActionManager.fetchActions(
     models,
     {
-      status: ActionStatus.QUEUED,
+      status: ActionStatus.queued,
     },
     null,
   )
   const alreadyApprovedActions = await ActionManager.fetchActions(
     models,
     {
-      status: ActionStatus.APPROVED,
+      status: ActionStatus.approved,
     },
     null,
   )
-  const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
+  const actionsAwaitingExecution = alreadyQueuedActions
+    .concat(alreadyApprovedActions)
+    .map((a) => a.toGraphQL())
 
   // Fetch recently attempted actions
   const last15Minutes = {
@@ -181,7 +193,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
   const recentlyFailedActions = await ActionManager.fetchActions(
     models,
     {
-      status: ActionStatus.FAILED,
+      status: ActionStatus.failed,
       updatedAt: last15Minutes,
     },
     null,
@@ -190,7 +202,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
   const recentlySuccessfulActions = await ActionManager.fetchActions(
     models,
     {
-      status: ActionStatus.SUCCESS,
+      status: ActionStatus.success,
       updatedAt: last15Minutes,
     },
     null,
@@ -201,9 +213,11 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
     recentlyFailedActions,
   })
 
-  const recentlyAttemptedActions = recentlyFailedActions.concat(recentlySuccessfulActions)
+  const recentlyAttemptedActions = recentlyFailedActions
+    .concat(recentlySuccessfulActions)
+    .map((a) => a.toGraphQL())
 
-  let results: ActionResult[] = []
+  let results: Action[] = []
 
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   await models.Action.sequelize!.transaction(async (transaction) => {

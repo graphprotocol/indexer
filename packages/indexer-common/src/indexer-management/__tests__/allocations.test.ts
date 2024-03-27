@@ -1,6 +1,5 @@
 import {
   Action,
-  ActionType,
   AllocationManager,
   defineIndexerManagementModels,
   defineQueryFeeModels,
@@ -24,6 +23,7 @@ import {
   testNetworkSpecification,
 } from './util'
 import { Sequelize } from 'sequelize'
+import { ActionType } from '../../schema/types.generated'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -137,14 +137,14 @@ describe('Allocation Manager', () => {
     const reallocate = balances[2]
 
     // Allocate test action
-    expect(allocate.action.type).toBe(ActionType.ALLOCATE)
+    expect(allocate.action.type).toBe(ActionType.allocate)
     expect(allocate.allocates).toStrictEqual(parseGRT('10000'))
     expect(allocate.rewards.isZero()).toBeTruthy()
     expect(allocate.unallocates.isZero()).toBeTruthy()
     expect(allocate.balance).toStrictEqual(parseGRT('10000'))
 
     // Unallocate test action
-    expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
+    expect(unallocate.action.type).toBe(ActionType.unallocate)
     expect(unallocate.allocates.isZero()).toBeTruthy()
     expect(unallocate.rewards.isZero()).toBeFalsy()
     expect(unallocate.unallocates).toStrictEqual(parseGRT('250'))
@@ -153,7 +153,7 @@ describe('Allocation Manager', () => {
     )
 
     // This Reallocate test Action intentionally uses a null or zeroed POI, so it should not accrue rewards.
-    expect(reallocate.action.type).toBe(ActionType.REALLOCATE)
+    expect(reallocate.action.type).toBe(ActionType.reallocate)
     expect(reallocate.allocates).toStrictEqual(parseGRT('10000'))
     expect(reallocate.rewards.isZero()).toBeTruthy()
     expect(reallocate.unallocates).toStrictEqual(parseGRT('250'))

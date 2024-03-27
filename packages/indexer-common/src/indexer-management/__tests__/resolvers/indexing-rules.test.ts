@@ -10,16 +10,13 @@ import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 import {
   defineIndexerManagementModels,
   IndexerManagementModels,
-  IndexingDecisionBasis,
   INDEXING_RULE_GLOBAL,
 } from '../../models'
-import {
-  SubgraphIdentifierType,
-  defineQueryFeeModels,
-} from '@graphprotocol/indexer-common'
+import { defineQueryFeeModels } from '@graphprotocol/indexer-common'
 
 import { createTestManagementClient, defaults } from '../util'
 import { isAsyncIterable } from 'graphql-yoga'
+import { IdentifierType, IndexingDecisionBasis } from '../../../schema/types.generated'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -156,7 +153,7 @@ describe('Indexing rules', () => {
   test('Set and get global rule (partial)', async () => {
     const input = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: 1000,
       protocolNetwork: 'sepolia',
     }
@@ -172,7 +169,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -200,7 +197,7 @@ describe('Indexing rules', () => {
   test('Set and get global rule (complete)', async () => {
     const input = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: 1,
       allocationLifetime: 10,
       autoRenewal: true,
@@ -211,7 +208,7 @@ describe('Indexing rules', () => {
       minStake: 4,
       minAverageQueryFees: 5,
       custom: JSON.stringify({ foo: 'bar' }),
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'sepolia',
@@ -244,7 +241,7 @@ describe('Indexing rules', () => {
   test('Set and get global rule (partial update)', async () => {
     const originalInput = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: 1,
       minSignal: 2,
       protocolNetwork: 'sepolia',
@@ -260,7 +257,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -276,10 +273,10 @@ describe('Indexing rules', () => {
 
     const update = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: null,
       maxSignal: 3,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       autoRenewal: true,
       safety: false,
       protocolNetwork: 'sepolia',
@@ -313,10 +310,10 @@ describe('Indexing rules', () => {
     const originalIdentifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
     const originalInput = {
       identifier: originalIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: 1,
       minSignal: 1,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       protocolNetwork: 'sepolia',
     }
 
@@ -330,7 +327,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -346,10 +343,10 @@ describe('Indexing rules', () => {
 
     const update = {
       identifier: originalIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: null,
       maxSignal: 3,
-      decisionBasis: IndexingDecisionBasis.ALWAYS,
+      decisionBasis: IndexingDecisionBasis.always,
       allocationLifetime: 2,
       autoRenewal: false,
       requireSupported: false,
@@ -385,9 +382,9 @@ describe('Indexing rules', () => {
 
     const updateAgain = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationLifetime: null,
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       autoRenewal: true,
       protocolNetwork: 'sepolia',
     }
@@ -427,19 +424,19 @@ describe('Indexing rules', () => {
   test('Set and get global and deployment rule', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: 1,
       minSignal: 1,
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       protocolNetwork: 'sepolia',
     }
 
     const deploymentInput = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: 1,
       minSignal: 2,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       autoRenewal: false,
       safety: true,
@@ -456,7 +453,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -472,7 +469,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -532,7 +529,7 @@ describe('Indexing rules', () => {
   test('Set, delete and get rule', async () => {
     const input = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: 1,
       minSignal: 2,
       allocationLifetime: 20,
@@ -550,7 +547,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -592,7 +589,7 @@ describe('Indexing rules', () => {
   test('Clear a parameter', async () => {
     const input = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: 1,
       requireSupported: true,
       safety: true,
@@ -610,7 +607,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: IndexingDecisionBasis.rules,
       protocolNetwork: 'eip155:11155111',
     }
 
@@ -654,10 +651,10 @@ describe('Indexing rules', () => {
   test('Set and get global and deployment rule (merged)', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: 1,
       minSignal: 1,
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       minAverageQueryFees: 1,
       allocationLifetime: 15,
       requireSupported: true,
@@ -668,10 +665,10 @@ describe('Indexing rules', () => {
 
     const deploymentInput = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: 1,
       minSignal: 2,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       allocationLifetime: 10,
       autoRenewal: false,
       requireSupported: false,
@@ -688,7 +685,7 @@ describe('Indexing rules', () => {
       maxSignal: null,
       minStake: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       requireSupported: true,
       safety: false,
       protocolNetwork: 'eip155:11155111',
@@ -704,7 +701,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: null,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -720,7 +717,7 @@ describe('Indexing rules', () => {
       minStake: null,
       minAverageQueryFees: 1,
       custom: null,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
       protocolNetwork: 'eip155:11155111',
@@ -793,10 +790,10 @@ describe('Indexing rules', () => {
   test('Delete global rules (which should reset)', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: '1',
       minSignal: '1',
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       minAverageQueryFees: '1',
       protocolNetwork: 'sepolia',
     }
@@ -831,7 +828,7 @@ describe('Indexing rules', () => {
         custom: null,
         decisionBasis: 'rules',
         identifier: INDEXING_RULE_GLOBAL,
-        identifierType: SubgraphIdentifierType.GROUP,
+        identifierType: IdentifierType.group,
         allocationLifetime: null,
         autoRenewal: true,
         maxAllocationPercentage: null,
@@ -847,10 +844,10 @@ describe('Indexing rules', () => {
   test('Delete multiple rules, including global (which should reset)', async () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: IdentifierType.group,
       allocationAmount: '1',
       minSignal: '1',
-      decisionBasis: IndexingDecisionBasis.NEVER,
+      decisionBasis: IndexingDecisionBasis.never,
       minAverageQueryFees: '1',
       requireSupported: false,
       safety: false,
@@ -859,7 +856,7 @@ describe('Indexing rules', () => {
 
     const deploymentInput = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: '1',
       minSignal: '2',
       requireSupported: true,
@@ -906,7 +903,7 @@ describe('Indexing rules', () => {
         custom: null,
         decisionBasis: 'rules',
         identifier: INDEXING_RULE_GLOBAL,
-        identifierType: SubgraphIdentifierType.GROUP,
+        identifierType: IdentifierType.group,
         allocationLifetime: null,
         autoRenewal: true,
         maxAllocationPercentage: null,
@@ -923,7 +920,7 @@ describe('Indexing rules', () => {
   test('Invalid protocolNetwork value prevents rule creation', async () => {
     const deploymentInput = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: IdentifierType.deployment,
       allocationAmount: '1',
       minSignal: '2',
       requireSupported: true,

@@ -1,12 +1,14 @@
 import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
-import type { MutationResolvers } from './../../../types.generated'
+import {
+  IdentifierType,
+  IndexingDecisionBasis,
+  type MutationResolvers,
+} from './../../../types.generated'
 import { SubgraphDeploymentID, formatGRT, parseGRT } from '@graphprotocol/common-ts'
 import { AllocationStatus } from '../../../../allocations/types'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
 import { allocationIdProof, uniqueAllocationID } from '../../../../allocations/keys'
 import { utils } from 'ethers'
-import { SubgraphIdentifierType } from '../../../../subgraphs'
-import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
 
 export const createAllocation: NonNullable<
   MutationResolvers['createAllocation']
@@ -202,8 +204,8 @@ export const createAllocation: NonNullable<
     const indexingRule = {
       identifier: subgraphDeployment.ipfsHash,
       allocationAmount: allocationAmount.toString(),
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.ALWAYS,
+      identifierType: IdentifierType.deployment,
+      decisionBasis: IndexingDecisionBasis.always,
       protocolNetwork,
     }
 

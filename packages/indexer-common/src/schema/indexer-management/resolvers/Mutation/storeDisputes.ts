@@ -14,15 +14,21 @@ export const storeDisputes: NonNullable<MutationResolvers['storeDisputes']> = as
     dispute.protocolNetwork = validateNetworkIdentifier(dispute.protocolNetwork)
   }
 
-  const createdDisputes = await models.POIDispute.bulkCreate(disputes, {
-    returning: true,
-    validate: true,
-    updateOnDuplicate: [
-      'closedEpochReferenceProof',
-      'previousEpochReferenceProof',
-      'status',
-    ],
-    conflictAttributes: ['allocationID', 'protocolNetwork'],
-  })
+  const createdDisputes = await models.POIDispute.bulkCreate(
+    disputes.map((dispute) => ({
+      ...dispute,
+      allocationAmount: dispute.allocationAmount.toString(),
+    })),
+    {
+      returning: true,
+      validate: true,
+      updateOnDuplicate: [
+        'closedEpochReferenceProof',
+        'previousEpochReferenceProof',
+        'status',
+      ],
+      conflictAttributes: ['allocationID', 'protocolNetwork'],
+    },
+  )
   return createdDisputes.map((dispute) => dispute.toGraphQL())
 }

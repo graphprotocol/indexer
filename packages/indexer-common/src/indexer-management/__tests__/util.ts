@@ -1,7 +1,4 @@
 import {
-  ActionInput,
-  ActionStatus,
-  ActionType,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
@@ -12,6 +9,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
 import { createIndexerManagementYogaClient } from '../../indexer-management/yoga'
+import { ActionInput, ActionStatus, ActionType } from '../../schema/types.generated'
 
 const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
 
@@ -134,8 +132,8 @@ export const subgraphDeployment2 = 'QmWq1pmnhEvx25qxpYYj9Yp6E1xMKMVoUjXVQBxUJmre
 export const subgraphDeployment3 = 'QmRhH2nhNibDVPZmYqq3TUZZARZ77vgjYCvPNiGBCogtgM'
 
 export const queuedAllocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.ALLOCATE,
+  status: ActionStatus.queued,
+  type: ActionType.allocate,
   deploymentID: subgraphDeployment1,
   amount: '10000',
   force: false,
@@ -146,8 +144,8 @@ export const queuedAllocateAction = {
 } as ActionInput
 
 export const invalidUnallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.UNALLOCATE,
+  status: ActionStatus.queued,
+  type: ActionType.unallocate,
   allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
   deploymentID: subgraphDeployment1,
   amount: undefined,
@@ -160,8 +158,8 @@ export const invalidUnallocateAction = {
 } as ActionInput
 
 export const invalidReallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.REALLOCATE,
+  status: ActionStatus.queued,
+  type: ActionType.reallocate,
   deploymentID: subgraphDeployment1,
   allocationID: '0x000009a610d8b4fd4d1e020e22cc55a623fe7d2a',
   poi: '0x0000000000000000000000000000000000000000000000000000000000000000',

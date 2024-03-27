@@ -1,5 +1,4 @@
-import { ActionStatus } from '@graphprotocol/indexer-common'
-import type { MutationResolvers } from './../../../types.generated'
+import { type MutationResolvers } from './../../../types.generated'
 
 // @ts-expect-error it be like that
 export const approveActions: NonNullable<MutationResolvers['approveActions']> = async (
@@ -11,7 +10,7 @@ export const approveActions: NonNullable<MutationResolvers['approveActions']> = 
     actionIDs,
   })
   const [, updatedActions] = await models.Action.update(
-    { status: ActionStatus.APPROVED },
+    { status: 'approved' },
     { where: { id: actionIDs }, returning: true },
   )
 

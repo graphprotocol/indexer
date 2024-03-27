@@ -1,5 +1,9 @@
 import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
-import type { MutationResolvers } from './../../../types.generated'
+import {
+  IdentifierType,
+  IndexingDecisionBasis,
+  type MutationResolvers,
+} from './../../../types.generated'
 import { formatGRT, parseGRT, toAddress } from '@graphprotocol/common-ts'
 import { Allocation, AllocationStatus } from '../../../../allocations/types'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
@@ -7,8 +11,6 @@ import { BigNumber, utils } from 'ethers'
 import { NetworkMonitor } from '../../../../indexer-management/monitor'
 import { GraphNode } from '../../../../graph-node'
 import { allocationIdProof, uniqueAllocationID } from '../../../../allocations/keys'
-import { SubgraphIdentifierType } from '../../../../subgraphs'
-import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
 
 async function resolvePOI(
   networkMonitor: NetworkMonitor,
@@ -359,8 +361,8 @@ export const reallocateAllocation: NonNullable<
     const indexingRule = {
       identifier: allocationData.subgraphDeployment.id.ipfsHash,
       allocationAmount: allocationAmount.toString(),
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.ALWAYS,
+      identifierType: IdentifierType.deployment,
+      decisionBasis: IndexingDecisionBasis.always,
       protocolNetwork,
     }
 

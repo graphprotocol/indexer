@@ -1,12 +1,14 @@
 import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
-import type { MutationResolvers } from './../../../types.generated'
+import {
+  IdentifierType,
+  IndexingDecisionBasis,
+  type MutationResolvers,
+} from './../../../types.generated'
 import { BigNumber, utils } from 'ethers'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
 import { NetworkMonitor } from '../../../../indexer-management/monitor'
 import { GraphNode } from '../../../../graph-node'
 import { formatGRT } from '@graphprotocol/common-ts'
-import { SubgraphIdentifierType } from '../../../../subgraphs'
-import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
 import { Allocation } from '../../../../allocations/types'
 
 async function resolvePOI(
@@ -207,8 +209,8 @@ export const closeAllocation: NonNullable<MutationResolvers['closeAllocation']> 
     const offchainIndexingRule = {
       protocolNetwork: network.specification.networkIdentifier,
       identifier: allocationData.subgraphDeployment.id.ipfsHash,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      identifierType: IdentifierType.deployment,
+      decisionBasis: IndexingDecisionBasis.offchain,
     }
 
     await models.IndexingRule.upsert(offchainIndexingRule)

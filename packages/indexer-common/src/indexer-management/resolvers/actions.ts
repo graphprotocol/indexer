@@ -3,11 +3,8 @@ import { IndexerManagementResolverContext } from '../context'
 import { Logger } from '@graphprotocol/common-ts'
 import {
   Action,
-  ActionInput,
   ActionParams,
   ActionResult,
-  ActionStatus,
-  ActionType,
   ActionUpdateInput,
   IndexerManagementModels,
   Network,
@@ -19,7 +16,12 @@ import {
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
 import groupBy from 'lodash.groupby'
-import { ActionFilter } from '../../schema/types.generated'
+import {
+  ActionFilter,
+  ActionInput,
+  ActionStatus,
+  ActionType,
+} from '../../schema/types.generated'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -58,11 +60,18 @@ async function executeQueueOperation(
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
     return [
-      await models.Action.create(action, {
-        validate: true,
-        returning: true,
-        transaction,
-      }),
+      await models.Action.create(
+        {
+          ...action,
+          // @ts-expect-error once we upgrade to latest TS types will get asserted with the filter
+          deploymentID: action.deploymentID,
+        },
+        {
+          validate: true,
+          returning: true,
+          transaction,
+        },
+      ),
     ]
   } else if (duplicateActions.length === 1) {
     if (
@@ -80,7 +89,11 @@ async function executeQueueOperation(
         },
       )
       const [, updatedAction] = await models.Action.update(
-        { ...action },
+        {
+          ...action,
+          // @ts-expect-error once we upgrade to latest TS types will get asserted with the filter
+          deploymentID: action.deploymentID,
+        },
         {
           where: { id: duplicateActions[0].id },
           returning: true,
@@ -179,14 +192,14 @@ export default {
     const alreadyQueuedActions = await ActionManager.fetchActions(
       models,
       {
-        status: ActionStatus.QUEUED,
+        status: ActionStatus.queued,
       },
       undefined,
     )
     const alreadyApprovedActions = await ActionManager.fetchActions(
       models,
       {
-        status: ActionStatus.APPROVED,
+        status: ActionStatus.approved,
       },
       undefined,
     )
@@ -200,7 +213,7 @@ export default {
     const recentlyFailedActions = await ActionManager.fetchActions(
       models,
       {
-        status: ActionStatus.FAILED,
+        status: ActionStatus.failed,
         updatedAt: last15Minutes,
       },
       undefined,
@@ -209,7 +222,7 @@ export default {
     const recentlySuccessfulActions = await ActionManager.fetchActions(
       models,
       {
-        status: ActionStatus.SUCCESS,
+        status: ActionStatus.success,
         updatedAt: last15Minutes,
       },
       undefined,
@@ -252,7 +265,7 @@ export default {
       actionIDs,
     })
     const [, canceledActions] = await models.Action.update(
-      { status: ActionStatus.CANCELED },
+      { status: ActionStatus.canceled },
       { where: { id: actionIDs }, returning: true },
     )
 
@@ -341,7 +354,7 @@ export default {
       actionIDs,
     })
     const [, updatedActions] = await models.Action.update(
-      { status: ActionStatus.APPROVED },
+      { status: ActionStatus.approved },
       { where: { id: actionIDs }, returning: true },
     )
 
@@ -404,11 +417,13 @@ function compareActions(enqueued: Action, proposed: ActionInput): boolean {
   const poi = enqueued.poi == proposed.poi
   const force = enqueued.force == proposed.force
   switch (proposed.type) {
-    case ActionType.ALLOCATE:
+    case ActionType.allocate:
       return amount
-    case ActionType.UNALLOCATE:
+    case ActionType.unallocate:
       return poi && force
-    case ActionType.REALLOCATE:
+    case ActionType.reallocate:
       return amount && poi && force
+    default:
+      return false
   }
 }
