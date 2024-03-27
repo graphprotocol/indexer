@@ -19,6 +19,7 @@ import {
 } from '@graphprotocol/indexer-common'
 
 import { createTestManagementClient, defaults } from '../util'
+import { isAsyncIterable } from 'graphql-yoga'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -944,6 +945,11 @@ describe('Indexing rules', () => {
       document: INDEXING_RULES_QUERY,
       variables: { merged: false, protocolNetwork: 'sepolia' },
     })
+
+    if (isAsyncIterable(rows)) {
+      throw new Error('Expected rows to be an array, but it is an async iterable')
+    }
+
     expect(rows.data.indexingRules).toEqual([])
   })
 })

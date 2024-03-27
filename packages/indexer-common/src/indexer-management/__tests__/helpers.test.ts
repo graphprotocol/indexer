@@ -251,28 +251,40 @@ describe('Actions', () => {
       [Op.and]: [{ status: 'failed' }, { type: 'allocate' }],
     })
 
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
-
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
-
     await expect(
-      ActionManager.fetchActions(models, {
-        status: ActionStatus.FAILED,
-        type: ActionType.ALLOCATE,
-        updatedAt: { [Op.gte]: literal("NOW() - INTERVAL '1d'") },
-      }),
+      ActionManager.fetchActions(models, filterOptions, undefined, undefined, undefined),
     ).resolves.toHaveLength(1)
 
     await expect(
-      ActionManager.fetchActions(models, {
-        status: ActionStatus.FAILED,
-        type: ActionType.ALLOCATE,
-        updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
-      }),
+      ActionManager.fetchActions(models, filterOptions, undefined, undefined, undefined),
+    ).resolves.toHaveLength(1)
+
+    await expect(
+      ActionManager.fetchActions(
+        models,
+        {
+          status: ActionStatus.FAILED,
+          type: ActionType.ALLOCATE,
+          updatedAt: { [Op.gte]: literal("NOW() - INTERVAL '1d'") },
+        },
+        undefined,
+        undefined,
+        undefined,
+      ),
+    ).resolves.toHaveLength(1)
+
+    await expect(
+      ActionManager.fetchActions(
+        models,
+        {
+          status: ActionStatus.FAILED,
+          type: ActionType.ALLOCATE,
+          updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
+        },
+        undefined,
+        undefined,
+        undefined,
+      ),
     ).resolves.toHaveLength(0)
   })
 })

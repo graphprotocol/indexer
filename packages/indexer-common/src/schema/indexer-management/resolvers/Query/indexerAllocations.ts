@@ -4,9 +4,7 @@ import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
 
-export const indexerAllocations: NonNullable<
-  QueryResolvers['indexerAllocations']
-> = async (_parent, { protocolNetwork }, { multiNetworks, logger }) => {
+export const indexerAllocations: NonNullable<QueryResolvers['indexerAllocations']> = async (_parent, { protocolNetwork }, { multiNetworks, logger }) => {
   if (!multiNetworks) {
     throw Error(
       'IndexerManagementClient must be in `network` mode to fetch indexer allocations',
