@@ -8,7 +8,9 @@ import { utils } from 'ethers'
 import { SubgraphIdentifierType } from '../../../../subgraphs'
 import { IndexingDecisionBasis } from '../../../../indexer-management/models/indexing-rule'
 
-export const createAllocation: NonNullable<MutationResolvers['createAllocation']> = async (
+export const createAllocation: NonNullable<
+  MutationResolvers['createAllocation']
+> = async (
   _parent,
   { deployment, amount, protocolNetwork },
   { logger, multiNetworks, graphNode, models },

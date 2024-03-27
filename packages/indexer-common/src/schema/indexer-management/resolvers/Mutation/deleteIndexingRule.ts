@@ -3,7 +3,9 @@ import type { MutationResolvers } from './../../../types.generated'
 import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import { resetGlobalRule } from '../../../../indexer-management/resolvers/indexing-rules'
 
-export const deleteIndexingRule: NonNullable<MutationResolvers['deleteIndexingRule']> = async (_parent, { identifier: indexingRuleIdentifier }, { models, defaults }) => {
+export const deleteIndexingRule: NonNullable<
+  MutationResolvers['deleteIndexingRule']
+> = async (_parent, { identifier: indexingRuleIdentifier }, { models, defaults }) => {
   const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
     all: false,
     global: true,

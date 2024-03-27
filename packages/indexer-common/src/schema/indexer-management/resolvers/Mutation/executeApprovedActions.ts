@@ -1,6 +1,8 @@
 import type { MutationResolvers } from './../../../types.generated'
 
-export const executeApprovedActions: NonNullable<MutationResolvers['executeApprovedActions']> = async (_parent, _arg, { logger: parentLogger, actionManager }) => {
+export const executeApprovedActions: NonNullable<
+  MutationResolvers['executeApprovedActions']
+> = async (_parent, _arg, { logger: parentLogger, actionManager }) => {
   const logger = parentLogger.child({ function: 'executeApprovedActions' })
   logger.trace(`Begin executing 'executeApprovedActions' mutation`)
   if (!actionManager) {

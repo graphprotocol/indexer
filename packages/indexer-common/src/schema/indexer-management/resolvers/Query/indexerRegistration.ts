@@ -2,7 +2,9 @@ import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
 import geohash from 'ngeohash'
 import type { QueryResolvers } from './../../../types.generated'
 
-export const indexerRegistration: NonNullable<QueryResolvers['indexerRegistration']> = async (
+export const indexerRegistration: NonNullable<
+  QueryResolvers['indexerRegistration']
+> = async (
   _parent,
   { protocolNetwork: unvalidatedProtocolNetwork },
   { multiNetworks },

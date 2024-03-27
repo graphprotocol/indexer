@@ -80,7 +80,9 @@ async function resolvePOI(
   }
 }
 
-export const reallocateAllocation: NonNullable<MutationResolvers['reallocateAllocation']> = async (
+export const reallocateAllocation: NonNullable<
+  MutationResolvers['reallocateAllocation']
+> = async (
   _parent,
   { allocation, poi, amount, force, protocolNetwork },
   { logger, graphNode, models, multiNetworks },

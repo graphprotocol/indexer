@@ -4,7 +4,9 @@ import groupBy from 'lodash.groupby'
 import { processIdentifier } from '../../../../subgraphs'
 import { resetGlobalRule } from '../../../../indexer-management/resolvers/indexing-rules'
 
-export const deleteIndexingRules: NonNullable<MutationResolvers['deleteIndexingRules']> = async (_parent, { identifiers: indexingRuleIdentifiers }, { models, defaults }) => {
+export const deleteIndexingRules: NonNullable<
+  MutationResolvers['deleteIndexingRules']
+> = async (_parent, { identifiers: indexingRuleIdentifiers }, { models, defaults }) => {
   let totalNumDeleted = 0
 
   // Sanitize protocol network identifiers
