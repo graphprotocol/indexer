@@ -2,11 +2,11 @@ import { Logger } from '@graphprotocol/common-ts'
 import {
   IndexerManagementModels,
   INDEXING_RULE_GLOBAL,
-  IndexingRule,
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import { parseIndexingRule } from '../rules'
 import groupBy from 'lodash.groupby'
+import { IndexingRule } from '../schema/types.generated'
 
 export const fetchIndexingRules = async (
   models: IndexerManagementModels,
@@ -55,5 +55,5 @@ export const upsertIndexingRule = async (
     },
   )
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return updatedRule!
+  return updatedRule.toGraphQL()!
 }

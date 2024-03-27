@@ -2,12 +2,12 @@ import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { SubgraphDeployment } from './types'
-import { INDEXING_RULE_GLOBAL, IndexingRuleAttributes } from './indexer-management'
+import { INDEXING_RULE_GLOBAL } from './indexer-management'
 import { DocumentNode, print } from 'graphql'
 import gql from 'graphql-tag'
 import { QueryResult } from './network-subgraph'
 import { mergeSelectionSets, sleep } from './utils'
-import { IdentifierType } from './schema/types.generated'
+import { IdentifierType, IndexingRule } from './schema/types.generated'
 
 export async function validateSubgraphID(s: string | undefined): Promise<IdentifierType> {
   const type = IdentifierType.subgraph
@@ -149,7 +149,7 @@ export enum ActivationCriteria {
 }
 
 interface RuleMatch {
-  rule: IndexingRuleAttributes | undefined
+  rule: IndexingRule | undefined
   activationCriteria: ActivationCriteria
 }
 
@@ -161,7 +161,7 @@ export class AllocationDecision {
 
   constructor(
     deployment: SubgraphDeploymentID,
-    matchingRule: IndexingRuleAttributes | undefined,
+    matchingRule: IndexingRule | undefined,
     toAllocate: boolean,
     ruleActivator: ActivationCriteria,
     protocolNetwork: string,
@@ -184,7 +184,7 @@ export class AllocationDecision {
 export function evaluateDeployments(
   logger: Logger,
   networkDeployments: SubgraphDeployment[],
-  rules: IndexingRuleAttributes[],
+  rules: IndexingRule[],
 ): AllocationDecision[] {
   return networkDeployments.map((deployment) =>
     isDeploymentWorthAllocatingTowards(logger, deployment, rules),
@@ -194,7 +194,7 @@ export function evaluateDeployments(
 export function isDeploymentWorthAllocatingTowards(
   logger: Logger,
   deployment: SubgraphDeployment,
-  rules: IndexingRuleAttributes[],
+  rules: IndexingRule[],
 ): AllocationDecision {
   const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
   const deploymentRule =
