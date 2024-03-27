@@ -16,16 +16,7 @@ import { BigNumber } from 'ethers'
 import { Op, Sequelize } from 'sequelize'
 import { GraphNode } from '../graph-node'
 import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
-
-export interface IndexerManagementResolverContext {
-  models: IndexerManagementModels
-  graphNode: GraphNode
-  logger: Logger
-  defaults: IndexerManagementDefaults
-  actionManager: ActionManager | undefined
-  multiNetworks: MultiNetworks<Network> | undefined
-  dai: WritableEventual<string>
-}
+import { IndexerManagementResolverContext } from './context'
 
 const SCHEMA_SDL = gql`
   scalar BigInt
@@ -388,7 +379,6 @@ const SCHEMA_SDL = gql`
       minClosedEpoch: Int!
       protocolNetwork: String
     ): [POIDispute]!
-    disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
     allocations(filter: AllocationFilter!): [Allocation!]!
 

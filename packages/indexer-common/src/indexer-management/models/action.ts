@@ -9,7 +9,11 @@ import {
   Sequelize,
 } from 'sequelize'
 import { caip2IdRegex } from '../../parsers'
-import { ActionStatus, ActionType } from '@graphprotocol/indexer-common'
+import {
+  Action as GraphQLAction,
+  ActionType,
+  ActionStatus,
+} from '../../schema/types.generated'
 
 export class Action extends Model<
   InferAttributes<Action>,
@@ -37,9 +41,13 @@ export class Action extends Model<
 
   declare protocolNetwork: string
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  public toGraphQL(): object {
-    return { ...this.toJSON(), __typename: 'Action' }
+  public toGraphQL(): GraphQLAction {
+    return {
+      ...this.toJSON(),
+      __typename: 'Action',
+      createdAt: BigInt(this.createdAt.getMilliseconds()),
+      updatedAt: BigInt(this.updatedAt.getMilliseconds()),
+    }
   }
 }
 
@@ -58,9 +66,9 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       },
       type: {
         type: DataTypes.ENUM(
-          ActionType.ALLOCATE,
-          ActionType.UNALLOCATE,
-          ActionType.REALLOCATE,
+          ActionType.allocate,
+          ActionType.unallocate,
+          ActionType.reallocate,
         ),
         allowNull: false,
         validate: {
@@ -76,12 +84,12 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       },
       status: {
         type: DataTypes.ENUM(
-          ActionStatus.SUCCESS,
-          ActionStatus.FAILED,
-          ActionStatus.QUEUED,
-          ActionStatus.APPROVED,
-          ActionStatus.PENDING,
-          ActionStatus.CANCELED,
+          ActionStatus.success,
+          ActionStatus.failed,
+          ActionStatus.queued,
+          ActionStatus.approved,
+          ActionStatus.pending,
+          ActionStatus.canceled,
         ),
         allowNull: false,
         defaultValue: 'queued',
@@ -158,21 +166,21 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       validate: {
         requiredActionParams() {
           switch (this.type) {
-            case ActionType.ALLOCATE:
+            case ActionType.allocate:
               if (this.deploymentID === null || this.amount === null) {
                 throw new Error(
                   `ActionType.ALLOCATE action must have required params: ['deploymentID','amount']`,
                 )
               }
               break
-            case ActionType.UNALLOCATE:
+            case ActionType.unallocate:
               if (this.deploymentID === null || this.allocationID === null) {
                 throw new Error(
                   `ActionType.UNALLOCATE action must have required params: ['deploymentID','allocationID']`,
                 )
               }
               break
-            case ActionType.REALLOCATE:
+            case ActionType.reallocate:
               if (
                 this.deploymentID === null ||
                 this.allocationID === null ||

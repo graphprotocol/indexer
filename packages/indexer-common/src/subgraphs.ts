@@ -2,26 +2,15 @@ import { base58 } from 'ethers/lib/utils'
 import { BigNumber, utils } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { SubgraphDeployment } from './types'
-import {
-  INDEXING_RULE_GLOBAL,
-  IndexingDecisionBasis,
-  IndexingRuleAttributes,
-} from './indexer-management'
+import { INDEXING_RULE_GLOBAL } from './indexer-management'
 import { DocumentNode, print } from 'graphql'
 import gql from 'graphql-tag'
 import { QueryResult } from './network-subgraph'
 import { mergeSelectionSets, sleep } from './utils'
+import { IdentifierType, IndexingRule } from './schema/types.generated'
 
-export enum SubgraphIdentifierType {
-  DEPLOYMENT = 'deployment',
-  SUBGRAPH = 'subgraph',
-  GROUP = 'group',
-}
-
-export async function validateSubgraphID(
-  s: string | undefined,
-): Promise<SubgraphIdentifierType> {
-  const type = SubgraphIdentifierType.SUBGRAPH
+export async function validateSubgraphID(s: string | undefined): Promise<IdentifierType> {
+  const type = IdentifierType.subgraph
   // Case 1: undefined
   if (s === undefined) {
     throw new Error(`No subgraph ID provided. Must be a valid subgraph ID`)
@@ -47,8 +36,8 @@ export async function validateSubgraphID(
 
 export async function validateDeploymentID(
   s: string | undefined,
-): Promise<SubgraphIdentifierType> {
-  const type = SubgraphIdentifierType.DEPLOYMENT
+): Promise<IdentifierType> {
+  const type = IdentifierType.deployment
   // Case 1: undefined
   if (s === undefined) {
     throw new Error(`No deployment ID provided. Must be a valid deployment ID`)
@@ -83,8 +72,8 @@ export async function validateDeploymentID(
 export async function validateSubgraphGroupID(
   s: string | undefined,
   { all, global }: { all?: boolean; global?: boolean },
-): Promise<SubgraphIdentifierType> {
-  const type = SubgraphIdentifierType.GROUP
+): Promise<IdentifierType> {
+  const type = IdentifierType.group
   // Case 1: undefined
   if (s === undefined) {
     throw new Error(
@@ -110,8 +99,8 @@ export async function validateSubgraphGroupID(
 export async function processIdentifier(
   identifier: string,
   { all, global }: { all?: boolean; global?: boolean },
-): Promise<[string, SubgraphIdentifierType]> {
-  let type = SubgraphIdentifierType.GROUP
+): Promise<[string, IdentifierType]> {
+  let type: IdentifierType = IdentifierType.group
   const validationActions = [
     validateDeploymentID(identifier),
     validateSubgraphID(identifier),
@@ -123,7 +112,7 @@ export async function processIdentifier(
   ) as PromiseRejectedResult[]
   const fulfilled = results.filter(
     (result) => result.status === 'fulfilled',
-  ) as PromiseFulfilledResult<SubgraphIdentifierType>[]
+  ) as PromiseFulfilledResult<IdentifierType>[]
   if (rejected.length > 2 || fulfilled.length !== 1) {
     throw new Error(
       `Invalid subgraph identifier "${identifier}". Subgraph identifier should match 1 type of [deployment ID, subgraph ID, group identifier].`,
@@ -132,7 +121,7 @@ export async function processIdentifier(
   type = fulfilled[0].value
 
   return [
-    type == SubgraphIdentifierType.DEPLOYMENT
+    type == IdentifierType.deployment
       ? new SubgraphDeploymentID(identifier).ipfsHash
       : identifier,
     type,
@@ -160,7 +149,7 @@ export enum ActivationCriteria {
 }
 
 interface RuleMatch {
-  rule: IndexingRuleAttributes | undefined
+  rule: IndexingRule | undefined
   activationCriteria: ActivationCriteria
 }
 
@@ -172,7 +161,7 @@ export class AllocationDecision {
 
   constructor(
     deployment: SubgraphDeploymentID,
-    matchingRule: IndexingRuleAttributes | undefined,
+    matchingRule: IndexingRule | undefined,
     toAllocate: boolean,
     ruleActivator: ActivationCriteria,
     protocolNetwork: string,
@@ -195,7 +184,7 @@ export class AllocationDecision {
 export function evaluateDeployments(
   logger: Logger,
   networkDeployments: SubgraphDeployment[],
-  rules: IndexingRuleAttributes[],
+  rules: IndexingRule[],
 ): AllocationDecision[] {
   return networkDeployments.map((deployment) =>
     isDeploymentWorthAllocatingTowards(logger, deployment, rules),
@@ -205,12 +194,12 @@ export function evaluateDeployments(
 export function isDeploymentWorthAllocatingTowards(
   logger: Logger,
   deployment: SubgraphDeployment,
-  rules: IndexingRuleAttributes[],
+  rules: IndexingRule[],
 ): AllocationDecision {
   const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
   const deploymentRule =
     rules
-      .filter((rule) => rule.identifierType == SubgraphIdentifierType.DEPLOYMENT)
+      .filter((rule) => rule.identifierType == 'deployment')
       .find(
         (rule) =>
           new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
@@ -256,7 +245,7 @@ export function isDeploymentWorthAllocatingTowards(
         deployment.protocolNetwork,
       )
 
-    case IndexingDecisionBasis.ALWAYS:
+    case 'always':
       return new AllocationDecision(
         deployment.id,
         deploymentRule,
@@ -264,7 +253,7 @@ export function isDeploymentWorthAllocatingTowards(
         ActivationCriteria.ALWAYS,
         deployment.protocolNetwork,
       )
-    case IndexingDecisionBasis.NEVER:
+    case 'never':
       return new AllocationDecision(
         deployment.id,
         deploymentRule,
@@ -272,7 +261,7 @@ export function isDeploymentWorthAllocatingTowards(
         ActivationCriteria.NEVER,
         deployment.protocolNetwork,
       )
-    case IndexingDecisionBasis.OFFCHAIN:
+    case 'offchain':
       return new AllocationDecision(
         deployment.id,
         deploymentRule,
@@ -280,7 +269,7 @@ export function isDeploymentWorthAllocatingTowards(
         ActivationCriteria.OFFCHAIN,
         deployment.protocolNetwork,
       )
-    case IndexingDecisionBasis.RULES: {
+    case 'rules': {
       const stakedTokens = BigNumber.from(deployment.stakedTokens)
       const signalledTokens = BigNumber.from(deployment.signalledTokens)
       const avgQueryFees = BigNumber.from(deployment.queryFeesAmount)

@@ -3,7 +3,7 @@
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
 import { caip2IdRegex } from '../../parsers'
-
+import { POIDispute as GraphQLPOIDispute } from '../../schema/types.generated'
 export interface POIDisputeAttributes {
   allocationID: string
   subgraphDeploymentID: string
@@ -69,9 +69,12 @@ export class POIDispute
   public createdAt!: Date
   public updatedAt!: Date
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  public toGraphQL(): object {
-    return { ...this.toJSON(), __typename: 'POIDispute' }
+  public toGraphQL(): GraphQLPOIDispute {
+    return {
+      ...this.toJSON(),
+      __typename: 'POIDispute',
+      allocationAmount: BigInt(this.allocationAmount),
+    }
   }
 }
 

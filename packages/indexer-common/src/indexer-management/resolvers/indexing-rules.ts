@@ -6,14 +6,15 @@ import {
   IndexingRuleIdentifier,
   IndexingRuleCreationAttributes,
 } from '../models'
-import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
+import { IndexerManagementDefaults } from '../client'
+import { IndexerManagementResolverContext } from '../context'
 import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules } from '../rules'
 import { processIdentifier } from '../../'
 import { validateNetworkIdentifier } from '../../parsers'
 import groupBy from 'lodash.groupby'
 
-const resetGlobalRule = async (
+export const resetGlobalRule = async (
   ruleIdentifier: IndexingRuleIdentifier,
   defaults: IndexerManagementDefaults['globalIndexingRule'],
   models: IndexerManagementModels,

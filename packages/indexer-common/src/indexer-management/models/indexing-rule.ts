@@ -1,22 +1,20 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
-import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
+import { processIdentifier } from '../../subgraphs'
 import { caip2IdRegex } from '../../parsers'
-
-export enum IndexingDecisionBasis {
-  RULES = 'rules',
-  NEVER = 'never',
-  ALWAYS = 'always',
-  OFFCHAIN = 'offchain',
-}
+import {
+  IndexingRule as GraphQLIndexingRuleType,
+  IdentifierType,
+  IndexingDecisionBasis,
+} from '../../schema/types.generated'
 
 export const INDEXING_RULE_GLOBAL = 'global'
 
 export interface IndexingRuleAttributes {
   id: number
   identifier: string
-  identifierType: SubgraphIdentifierType
+  identifierType: IdentifierType
   allocationAmount: string | null
   allocationLifetime: number | null
   autoRenewal: boolean
@@ -68,7 +66,7 @@ export class IndexingRule
 {
   public id!: number
   public identifier!: string
-  public identifierType!: SubgraphIdentifierType
+  public identifierType!: IdentifierType
   public allocationAmount!: string | null
   public allocationLifetime!: number | null
   public autoRenewal!: boolean
@@ -87,8 +85,8 @@ export class IndexingRule
   public createdAt!: Date
   public updatedAt!: Date
 
-  // eslint-disable-next-line @typescript-eslint/ban-types
-  public toGraphQL(): object {
+  public toGraphQL(): GraphQLIndexingRuleType {
+    // @ts-expect-error find a way to use `Maybe` with `T | null`
     return { ...this.toJSON(), __typename: 'IndexingRule' }
   }
 
@@ -116,7 +114,7 @@ export class IndexingRule
   }
 
   // eslint-disable-next-line @typescript-eslint/ban-types
-  public mergeToGraphQL(global: IndexingRule | null): object {
+  public mergeToGraphQL(global: IndexingRule | null): GraphQLIndexingRuleType {
     if (global instanceof IndexingRule) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const globalRule: { [key: string]: any } | null = global.toJSON()
@@ -133,6 +131,7 @@ export class IndexingRule
           rule[k] = globalRule[k]
         }
       }
+      // @ts-expect-error TODO: very hacky, we need a better way to ensure this type is correct.
       return { ...rule, __typename: 'IndexingRule' }
     } else {
       return this.toGraphQL()
@@ -165,7 +164,11 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         },
       },
       identifierType: {
-        type: DataTypes.ENUM('deployment', 'subgraph', 'group'),
+        type: DataTypes.ENUM(
+          IdentifierType.deployment,
+          IdentifierType.subgraph,
+          IdentifierType.group,
+        ),
         defaultValue: 'group',
       },
       allocationAmount: {
@@ -245,7 +248,12 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: true,
       },
       decisionBasis: {
-        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain'),
+        type: DataTypes.ENUM(
+          IndexingDecisionBasis.rules,
+          IndexingDecisionBasis.never,
+          IndexingDecisionBasis.always,
+          IndexingDecisionBasis.offchain,
+        ),
         allowNull: false,
         defaultValue: 'rules',
       },
