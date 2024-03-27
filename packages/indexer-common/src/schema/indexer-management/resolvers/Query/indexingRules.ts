@@ -11,6 +11,5 @@ export const indexingRules: NonNullable<QueryResolvers['indexingRules']> = async
   const protocolNetwork = uncheckedProtocolNetwork
     ? validateNetworkIdentifier(uncheckedProtocolNetwork)
     : undefined
-  const rules = await fetchIndexingRules(models, merged, protocolNetwork)
-  return rules.map((r) => r.toGraphQL())
+  return fetchIndexingRules(models, merged, protocolNetwork)
 }

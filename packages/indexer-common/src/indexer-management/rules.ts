@@ -22,6 +22,7 @@ export const fetchIndexingRules = async (
       ['identifier', 'ASC'],
     ],
   })
+
   if (merged) {
     // Merge rules by protocol network
     return Object.entries(groupBy(rules, (rule) => rule.protocolNetwork))
@@ -30,11 +31,11 @@ export const fetchIndexingRules = async (
         if (!global) {
           throw Error(`Could not find global rule for network '${protocolNetwork}'`)
         }
-        return rules.map((rule) => rule.mergeGlobal(global))
+        return rules.map((rule) => rule.mergeToGraphQL(global))
       })
       .flat()
   } else {
-    return rules
+    return rules.map((rule) => rule.toGraphQL())
   }
 }
 

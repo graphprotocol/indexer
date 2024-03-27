@@ -30,15 +30,15 @@ export const setIndexingRule: NonNullable<MutationResolvers['setIndexingRule']> 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [updatedRule, _created] = await models.IndexingRule.upsert({
     ...rule,
-    allocationAmount: rule.allocationAmount?.toString(),
-    autoRenewal: Boolean(rule.autoRenewal),
+    allocationAmount: rule.allocationAmount?.toString() ?? null,
+    autoRenewal: rule.autoRenewal === null ? undefined : rule.autoRenewal,
     minSignal: rule.minSignal?.toString(),
     maxSignal: rule.maxSignal?.toString(),
     minStake: rule.minStake?.toString(),
     minAverageQueryFees: rule.minAverageQueryFees?.toString(),
-    decisionBasis: rule.decisionBasis || undefined,
-    requireSupported: Boolean(rule.requireSupported),
-    safety: Boolean(rule.safety),
+    decisionBasis: rule.decisionBasis === null ? undefined : rule.decisionBasis,
+    requireSupported: rule.requireSupported === null ? undefined : rule.requireSupported,
+    safety: rule.safety === null ? undefined : rule.safety,
   })
   return updatedRule.toGraphQL()
 }
