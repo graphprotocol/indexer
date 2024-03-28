@@ -3,6 +3,9 @@ import { defineConfig } from '@eddeee888/gcg-typescript-resolver-files'
 
 const config: CodegenConfig = {
   schema: 'src/indexer-management/schema.graphql',
+  hooks: {
+    afterOneFileWrite: ['yarn format'],
+  },
   generates: {
     'src/schema': defineConfig({
       typesPluginsConfig: {
