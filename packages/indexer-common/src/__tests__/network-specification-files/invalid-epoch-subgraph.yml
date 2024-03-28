@@ -29,6 +29,8 @@ subgraphs:
   epochSubgraph:
     deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
     # <-- Missing `url` field
+  tapSubgraph:
+    url: http://subgraph
 networkProvider:
   url: http://provider
 dai:

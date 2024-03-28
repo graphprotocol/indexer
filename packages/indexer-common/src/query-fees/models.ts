@@ -1,7 +1,7 @@
-import { DataTypes, Sequelize, Model, Association } from 'sequelize'
-import { Address } from '@graphprotocol/common-ts'
+import { DataTypes, Sequelize, Model, Association, CreationOptional } from 'sequelize'
+import { Address, toAddress } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
-
+import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
 export interface AllocationReceiptAttributes {
   id: string
   allocation: Address
@@ -46,6 +46,53 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
     allocationSummary: Association<Voucher, AllocationSummary>
   }
 }
+
+export interface ReceiptAggregateVoucherAttributes {
+  allocationId: string
+  senderAddress: string
+  signature: Uint8Array
+  timestampNs: bigint
+  valueAggregate: bigint
+  last: boolean
+  redeemedAt: Date | null
+  final: boolean
+}
+
+export class ReceiptAggregateVoucher
+  extends Model<ReceiptAggregateVoucherAttributes>
+  implements ReceiptAggregateVoucherAttributes
+{
+  public allocationId!: Address
+  public senderAddress!: Address
+  public signature!: Uint8Array
+  public timestampNs!: bigint
+  public valueAggregate!: bigint
+  public final!: boolean
+  public last!: boolean
+  public redeemedAt!: Date | null
+
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+
+  public readonly allocationSummary?: AllocationSummary
+
+  public static associations: {
+    allocationSummary: Association<ReceiptAggregateVoucher, AllocationSummary>
+  }
+
+  getSignedRAV(): SignedRAV {
+    return {
+      rav: {
+        allocationId: this.allocationId,
+        timestampNs: this.timestampNs,
+        valueAggregate: this.valueAggregate,
+      },
+      signature: this.signature,
+    }
+  }
+}
+
+export type SignedRAV = TAPVerifier.SignedRAVStruct
 
 export interface TransferReceiptAttributes {
   id: number
@@ -141,17 +188,22 @@ export class AllocationSummary
   public readonly transfers?: Transfer[]
   public readonly allocationReceipts?: AllocationReceipt[]
   public readonly voucher?: Voucher
+  public readonly receiptAggregateVoucher?: ReceiptAggregateVoucher
+
+  public voucherType?: 'Voucher' | 'ReceiptAggregateVoucher'
 
   public static associations: {
     transfers: Association<AllocationSummary, Transfer>
     allocationReceipts: Association<AllocationSummary, AllocationReceipt>
     voucher: Association<AllocationSummary, Voucher>
+    receiptAggregateVoucher: Association<AllocationSummary, ReceiptAggregateVoucher>
   }
 }
 
 export interface QueryFeeModels {
   allocationReceipts: typeof AllocationReceipt
   vouchers: typeof Voucher
+  receiptAggregateVouchers: typeof ReceiptAggregateVoucher
   transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
@@ -225,6 +277,79 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       },
     },
     { sequelize, tableName: 'vouchers' },
+  )
+
+  ReceiptAggregateVoucher.init(
+    {
+      allocationId: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('allocationId')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('allocationId', addressWithoutPrefix)
+        },
+      },
+      senderAddress: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('senderAddress')
+          return toAddress(rawValue)
+        },
+        set(value: string) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('senderAddress', addressWithoutPrefix)
+        },
+      },
+      signature: {
+        type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      // ternary operator added to timestampNs and valueAggregate
+      // due to sequelize UPDATE
+      // calls  the getters with undefined data
+      // 0 is returned since no real data is being requested
+      timestampNs: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('timestampNs'))
+        },
+      },
+      valueAggregate: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('valueAggregate'))
+        },
+      },
+      last: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      final: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      redeemedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
+    },
+    {
+      underscored: true,
+      sequelize,
+      tableName: 'scalar_tap_ravs',
+    },
   )
 
   TransferReceipt.init(
@@ -374,12 +499,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     as: 'allocationReceipts',
   })
 
-  AllocationSummary.hasOne(Voucher, {
-    sourceKey: 'allocation',
-    foreignKey: 'allocation',
-    as: 'voucher',
-  })
-
   Transfer.belongsTo(AllocationSummary, {
     targetKey: 'allocation',
     foreignKey: 'allocation',
@@ -398,9 +517,16 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     as: 'allocationSummary',
   })
 
+  ReceiptAggregateVoucher.belongsTo(AllocationSummary, {
+    targetKey: 'allocation',
+    foreignKey: 'allocation_id',
+    as: 'allocationSummary',
+  })
+
   return {
     allocationReceipts: AllocationReceipt,
     vouchers: Voucher,
+    receiptAggregateVouchers: ReceiptAggregateVoucher,
     transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,

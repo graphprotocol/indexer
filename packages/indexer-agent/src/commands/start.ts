@@ -33,6 +33,7 @@ import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { BigNumber } from 'ethers'
 import { displayZodParsingError } from './error-handling'
+import { readFileSync } from 'fs'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
@@ -149,6 +150,12 @@ export const start = {
         type: 'string',
         group: 'Network Subgraph',
       })
+      .option('tap-subgraph-endpoint', {
+        description: 'Endpoint to query the tap subgraph from',
+        array: false,
+        type: 'string',
+        group: 'TAP Subgraph',
+      })
       .option('allocate-on-network-subgraph', {
         description: 'Whether to allocate to the network subgraph',
         type: 'boolean',
@@ -237,6 +244,16 @@ export const start = {
         description: 'Graph contracts address book file path',
         type: 'string',
         required: false,
+      })
+      .option('tap-address-book', {
+        description: 'TAP contracts address book file path',
+        type: 'string',
+        required: false,
+      })
+      .option('chain-finalize-time', {
+        description: 'The time in seconds that the chain finalizes blocks',
+        type: 'number',
+        default: 3600,
       })
       .option('dai-contract', {
         description:
@@ -347,6 +364,7 @@ export async function createNetworkSpecification(
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
+    finalityTime: argv.chainFinalizeTime,
   }
 
   const transactionMonitoring = {
@@ -368,6 +386,9 @@ export async function createNetworkSpecification(
       // TODO: We should consider indexing the Epoch Subgraph, similar
       // to how we currently do it for the Network Subgraph.
       url: argv.epochSubgraphEndpoint,
+    },
+    tapSubgraph: {
+      url: argv.tapSubgraphEndpoint,
     },
   }
 
@@ -418,6 +439,8 @@ export async function createNetworkSpecification(
     }
   }
 
+  const tapAddressBook = loadFile(argv.tapAddressBook)
+
   try {
     return spec.NetworkSpecification.parse({
       networkIdentifier,
@@ -427,12 +450,18 @@ export async function createNetworkSpecification(
       subgraphs,
       networkProvider,
       addressBook: argv.addressBook,
+      tapAddressBook,
       dai,
     })
   } catch (parsingError) {
     displayZodParsingError(parsingError)
     process.exit(1)
   }
+}
+
+function loadFile(path: string | undefined): unknown | undefined {
+  const obj = path ? JSON.parse(readFileSync(path).toString()) : undefined
+  return obj
 }
 
 export async function run(
@@ -557,7 +586,14 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+      Network.create(
+        logger,
+        spec,
+        queryFeeModels,
+        graphNode,
+        metrics,
+        sequelize,
+      ),
   )
 
   // --------------------------------------------------------------------------------

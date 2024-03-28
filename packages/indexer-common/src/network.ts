@@ -6,7 +6,9 @@ import {
   connectContracts,
   Eventual,
   AddressBook,
+  toAddress,
 } from '@graphprotocol/common-ts'
+import { connectContracts as connectTapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -19,6 +21,7 @@ import {
   NetworkMonitor,
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
+  monitorEligibleAllocations,
 } from '.'
 import { providers, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
@@ -29,6 +32,9 @@ import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
+
+import { TAPSubgraph } from './tap-subgraph'
+import { Sequelize } from 'sequelize'
 
 export class Network {
   logger: Logger
@@ -42,6 +48,7 @@ export class Network {
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
+  sequelize: Sequelize | undefined
 
   private constructor(
     logger: Logger,
@@ -55,6 +62,7 @@ export class Network {
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
+    sequelize?: Sequelize,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -67,6 +75,7 @@ export class Network {
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
+    this.sequelize = sequelize
   }
 
   static async create(
@@ -75,6 +84,7 @@ export class Network {
     queryFeeModels: QueryFeeModels,
     graphNode: GraphNode,
     metrics: Metrics,
+    sequelize?: Sequelize,
   ): Promise<Network> {
     // Incomplete logger for initial operations, will be replaced as new labels emerge.
     let logger = parentLogger.child({
@@ -122,6 +132,21 @@ export class Network {
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
+
+    const tapSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'TAP Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    const tapSubgraph = new TAPSubgraph(
+      specification.subgraphs.tapSubgraph.url!,
+      tapSubgraphFreshnessChecker,
+      logger.child({ component: 'TAPSubgraph' }),
+    )
 
     // * -----------------------------------------------------------------------
     // * Contracts
@@ -213,6 +238,28 @@ export class Network {
     )
 
     // --------------------------------------------------------------------------------
+    // * Escrow contract
+    // --------------------------------------------------------------------------------
+    const networkIdentifier = await networkProvider.getNetwork()
+
+    const tapContracts = await connectTapContracts(
+      wallet,
+      networkIdentifier.chainId,
+      specification.tapAddressBook,
+    )
+
+    // --------------------------------------------------------------------------------
+    // * Allocation and allocation signers
+    // --------------------------------------------------------------------------------
+    const allocations = monitorEligibleAllocations({
+      indexer: toAddress(specification.indexerOptions.address),
+      logger,
+      networkSubgraph,
+      protocolNetwork: resolveChainId(networkIdentifier.chainId),
+      interval: specification.allocationSyncInterval,
+    })
+
+    // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
     const receiptCollector = await AllocationReceiptCollector.create({
@@ -221,7 +268,11 @@ export class Network {
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
+      tapContracts,
+      allocations,
       networkSpecification: specification,
+      tapSubgraph,
+      sequelize: sequelize!,
     })
 
     // --------------------------------------------------------------------------------

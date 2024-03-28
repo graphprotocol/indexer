@@ -8,7 +8,10 @@ import {
   formatGRT,
   Address,
   Metrics,
+  Eventual,
+  join as joinEventual,
 } from '@graphprotocol/common-ts'
+import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
   Allocation,
   AllocationReceipt,
@@ -16,14 +19,21 @@ import {
   IndexerErrorCode,
   QueryFeeModels,
   Voucher,
+  ReceiptAggregateVoucher,
   ensureAllocationSummary,
   TransactionManager,
   specification as spec,
+  SignedRAV,
+  allocationSigner,
+  tapAllocationIdProof,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
+import { TAPSubgraph } from '../tap-subgraph'
+import gql from 'graphql-tag'
+import { Sequelize } from 'sequelize'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
@@ -54,6 +64,11 @@ interface ReceiptMetrics {
   vouchersRedeemDuration: Histogram<string>
   vouchersBatchRedeemSize: Gauge<never>
   voucherCollectedFees: Gauge<string>
+  successRavRedeems: Counter<string>
+  invalidRavRedeems: Counter<string>
+  failedRavRedeems: Counter<string>
+  ravsRedeemDuration: Histogram<string>
+  ravCollectedFees: Gauge<string>
 }
 
 export interface AllocationPartialVouchers {
@@ -66,13 +81,28 @@ export interface AllocationReceiptCollectorOptions {
   metrics: Metrics
   transactionManager: TransactionManager
   allocationExchange: Contract
+  tapContracts?: TapContracts
+  allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
+  tapSubgraph: TAPSubgraph
+  sequelize: Sequelize
 }
 
 export interface ReceiptCollector {
   rememberAllocations(actionID: number, allocationIDs: Address[]): Promise<boolean>
   collectReceipts(actionID: number, allocation: Allocation): Promise<boolean>
+}
+
+interface ValidRavs {
+  belowThreshold: RavWithAllocation[]
+  eligible: RavWithAllocation[]
+}
+
+interface RavWithAllocation {
+  rav: SignedRAV
+  allocation: Allocation
+  sender: Address
 }
 
 export class AllocationReceiptCollector implements ReceiptCollector {
@@ -81,6 +111,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare models: QueryFeeModels
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
+  declare tapContracts?: TapContracts
+  declare allocations: Eventual<Allocation[]>
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
   declare voucherEndpoint: URL
@@ -89,6 +121,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare voucherRedemptionBatchThreshold: BigNumber
   declare voucherRedemptionMaxBatchSize: number
   declare protocolNetwork: string
+  declare tapSubgraph: TAPSubgraph
+  declare finalityTime: number
+  declare sequelize: Sequelize
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -99,7 +134,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     transactionManager,
     models,
     allocationExchange,
+    tapContracts,
+    allocations,
     networkSpecification,
+    tapSubgraph,
+    sequelize,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
     collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
@@ -110,7 +149,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.transactionManager = transactionManager
     collector.models = models
     collector.allocationExchange = allocationExchange
+    collector.tapContracts = tapContracts
+    collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
+    collector.tapSubgraph = tapSubgraph
+    collector.sequelize = sequelize
 
     // Process Gateway routes
     const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
@@ -122,16 +165,22 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       voucherRedemptionThreshold,
       voucherRedemptionBatchThreshold,
       voucherRedemptionMaxBatchSize,
+      finalityTime,
     } = networkSpecification.indexerOptions
     collector.voucherRedemptionThreshold = voucherRedemptionThreshold
     collector.voucherRedemptionBatchThreshold = voucherRedemptionBatchThreshold
     collector.voucherRedemptionMaxBatchSize = voucherRedemptionMaxBatchSize
+    collector.finalityTime = finalityTime
 
     // Start the AllocationReceiptCollector
     // TODO: Consider calling methods conditionally based on a boolean
     // flag during startup.
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
+    if (collector.tapContracts) {
+      collector.logger.info(`RAV processing is initiated`)
+      collector.startRAVProcessing()
+    }
     await collector.queuePendingReceiptsFromDatabase()
     return collector
   }
@@ -367,12 +416,165 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     })
   }
 
-  private async pendingVouchers(): Promise<Voucher[]> {
+  protected async pendingVouchers(): Promise<Voucher[]> {
     return this.models.vouchers.findAll({
       where: { protocolNetwork: this.protocolNetwork },
       order: [['amount', 'DESC']], // sorted by highest value to maximise the value of the batch
       limit: this.voucherRedemptionMaxBatchSize, // limit the number of vouchers to the max batch size
     })
+  }
+
+  //TODO: Consider adding new configurations for RAV similar to vouchers
+  // (voucherRedemptionThreshold, voucherRedemptionMaxBatchSize, voucherRedemptionBatchThreshold)
+  startRAVProcessing() {
+    const notifyAndMapEligible = (signedRavs: ValidRavs) => {
+      if (signedRavs.belowThreshold.length > 0) {
+        const logger = this.logger.child({})
+        const totalValueGRT = formatGRT(
+          signedRavs.belowThreshold.reduce(
+            (total, signedRav) =>
+              total.add(BigNumber.from(signedRav.rav.rav.valueAggregate)),
+            BigNumber.from(0),
+          ),
+        )
+        logger.info(`Query RAVs below the redemption threshold`, {
+          hint: 'If you would like to redeem vouchers like this, reduce the voucher redemption threshold',
+          voucherRedemptionThreshold: formatGRT(this.voucherRedemptionThreshold),
+          belowThresholdCount: signedRavs.belowThreshold.length,
+          totalValueGRT,
+          allocations: signedRavs.belowThreshold.map(
+            (signedRav) => signedRav.rav.rav.allocationId,
+          ),
+        })
+      }
+      return signedRavs.eligible
+    }
+
+    const pendingRAVs = this.getPendingRAVsEventual()
+    const signedRAVs = this.getSignedRAVsEventual(pendingRAVs)
+    const eligibleRAVs = signedRAVs
+      .map(notifyAndMapEligible)
+      .filter((signedRavs) => signedRavs.length > 0)
+    eligibleRAVs.pipe(async (ravs) => await this.submitRAVs(ravs))
+  }
+
+  protected getPendingRAVsEventual(): Eventual<RavWithAllocation[]> {
+    return joinEventual({
+      timer: timer(30_000),
+      allocations: this.allocations,
+    }).tryMap(
+      async ({ allocations }) => {
+        const ravs = await this.pendingRAVs()
+        return ravs
+          .map((rav) => {
+            const signedRav = rav.getSignedRAV()
+            return {
+              rav: signedRav,
+              allocation: allocations.find(
+                (a) => a.id === toAddress(signedRav.rav.allocationId),
+              ),
+              sender: rav.senderAddress,
+            }
+          })
+          .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
+      },
+      { onError: (err) => this.logger.error(`Failed to query pending RAVs`, { err }) },
+    )
+  }
+
+  protected getSignedRAVsEventual(
+    pendingRAVs: Eventual<RavWithAllocation[]>,
+  ): Eventual<ValidRavs> {
+    return pendingRAVs.tryMap(
+      async (pendingRAVs) => {
+        return await pReduce(
+          pendingRAVs,
+          async (results, rav) => {
+            // allocationId doesn't have 0x prefix, but still matched in contract calls
+            // destory voucher if AllocationIDTracker.isAllocationIdUsed(rav.allocationId)
+            if (
+              BigNumber.from(rav.rav.rav.valueAggregate).lt(
+                this.voucherRedemptionThreshold,
+              )
+            ) {
+              results.belowThreshold.push(rav)
+            } else {
+              results.eligible.push(rav)
+            }
+            return results
+          },
+          { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
+        )
+      },
+      { onError: (err) => this.logger.error(`Failed to reduce to signed RAVs`, { err }) },
+    )
+  }
+
+  // redeem only if last is true
+  // Later can add order and limit
+  private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
+    const unfinalizedRAVs = await this.models.receiptAggregateVouchers.findAll({
+      where: { last: true, final: false },
+    })
+    // Obtain allocationIds to use as filter in subgraph
+    const unfinalizedRavsAllocationIds = unfinalizedRAVs.map((rav) =>
+      rav.getSignedRAV().rav.allocationId.toLowerCase(),
+    )
+
+    if (unfinalizedRavsAllocationIds.length > 0) {
+      const returnedAllocationIDs = (
+        await this.tapSubgraph.query(
+          gql`
+            query transactions($unfinalizedRavsAllocationIds: [String!]!) {
+              transactions(
+                where: { type: "redeem", allocationID_in: $unfinalizedRavsAllocationIds }
+              ) {
+                allocationID
+              }
+            }
+          `,
+          { unfinalizedRavsAllocationIds },
+        )
+      ).data.transactions.map((transaction) => transaction.allocationID)
+
+      // Filter unfinalized RAVs from DB to keep the ones not redeemed on-chain
+      const nonRedeemedAllocationIDAddresses = unfinalizedRavsAllocationIds.filter(
+        (allocationID) => !returnedAllocationIDs.includes(allocationID),
+      )
+      // Lowercase and remove '0x' prefix of addresses to match format in TAP DB Tables
+      const nonRedeemedAllocationIDsTrunc = nonRedeemedAllocationIDAddresses.map(
+        (allocationID) => allocationID.toLowerCase().replace('0x', ''),
+      )
+
+      // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
+      // To handle a chain reorg that "unredeemed" the RAVs.
+      // WE use sql directly due to a bug in sequelize update:
+      // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+
+      let query = `
+        UPDATE scalar_tap_ravs
+        SET redeemed_at = NULL
+        WHERE allocation_id IN ('${nonRedeemedAllocationIDsTrunc.join("', '")}')
+      `
+      await this.sequelize.query(query)
+
+      // // Update those that redeemed_at is older than 60 minutes and mark as final
+      const finalizeTimeFrame = new Date(Date.now() - this.finalityTime * 1000)
+        .toISOString()
+        .slice(0, 19)
+        .replace('T', ' ')
+      query = `
+        UPDATE scalar_tap_ravs
+        SET final = TRUE
+        WHERE last = TRUE AND final = FALSE AND redeemed_at < '${finalizeTimeFrame}'
+      `
+      await this.sequelize.query(query)
+
+      return await this.models.receiptAggregateVouchers.findAll({
+        where: { last: true, final: false },
+      })
+    }
+    return []
   }
 
   private encodeReceiptBatch(receipts: AllocationReceipt[]): BytesWriter {
@@ -624,6 +826,126 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
   }
 
+  private async submitRAVs(signedRavs: RavWithAllocation[]): Promise<void> {
+    const logger = this.logger.child({
+      function: 'submitRAVs()',
+      signedRavSize: signedRavs.length,
+    })
+    if (!this.tapContracts) {
+      logger.error(
+        `Undefined escrow contracts, but this shouldn't happen as RAV process is only triggered when escrow is provided`,
+        {
+          signedRavs,
+        },
+      )
+      return
+    }
+    const escrow = this.tapContracts
+
+    logger.info(`Redeem last RAVs on chain individually`, {
+      signedRavs,
+    })
+
+    // Redeem RAV one-by-one as no plual version available
+    for (const { rav: signedRav, allocation, sender } of signedRavs) {
+      const { rav } = signedRav
+      const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+        allocation: rav.allocationId,
+      })
+      try {
+        // compute allocation id proof
+        //
+
+        const proof = await tapAllocationIdProof(
+          allocationSigner(this.transactionManager.wallet, allocation),
+          parseInt(this.protocolNetwork.split(':')[1]),
+          sender,
+          toAddress(rav.allocationId),
+          toAddress(escrow.escrow.address),
+        )
+        this.logger.debug(`Computed allocationIdProof`, {
+          allocationId: rav.allocationId,
+          proof,
+        })
+        // Submit the signed RAV on chain
+        const txReceipt = await this.transactionManager.executeTransaction(
+          () => escrow.escrow.estimateGas.redeem(signedRav, proof),
+          (gasLimit) =>
+            escrow.escrow.redeem(signedRav, proof, {
+              gasLimit,
+            }),
+          logger.child({ function: 'redeem' }),
+        )
+
+        // get tx receipt and post process
+        if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+          this.metrics.invalidRavRedeems.inc({ allocation: rav.allocationId })
+          return
+        }
+        this.metrics.ravCollectedFees.set(
+          { allocation: rav.allocationId },
+          parseFloat(rav.valueAggregate.toString()),
+        )
+
+        try {
+          const addressWithoutPrefix = rav.allocationId.toLowerCase().replace('0x', '')
+          await this.models.receiptAggregateVouchers.update(
+            { redeemedAt: new Date() },
+            { where: { allocationId: addressWithoutPrefix } },
+          )
+          logger.info(
+            `Updated receipt aggregate vouchers table with redeemed_at for allocation ${addressWithoutPrefix}`,
+          )
+        } catch (err) {
+          logger.warn(
+            `Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
+            {
+              err,
+            },
+          )
+        }
+      } catch (err) {
+        this.metrics.failedRavRedeems.inc({ allocation: rav.allocationId })
+        logger.error(`Failed to redeem RAV`, {
+          err: indexerError(IndexerErrorCode.IE055, err),
+        })
+        return
+      }
+      stopTimer()
+    }
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.allocationSummaries.sequelize!.transaction(
+        async (transaction) => {
+          for (const { rav: signedRav } of signedRavs) {
+            const { rav } = signedRav
+            const [summary] = await ensureAllocationSummary(
+              this.models,
+              toAddress(rav.allocationId),
+              transaction,
+              this.protocolNetwork,
+            )
+            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
+              .add(rav.valueAggregate)
+              .toString()
+            await summary.save({ transaction })
+          }
+        },
+      )
+
+      logger.info(`Updated allocation summaries table with withdrawn fees`)
+    } catch (err) {
+      logger.warn(`Failed to update allocation summaries`, {
+        err,
+      })
+    }
+
+    signedRavs.map((signedRav) =>
+      this.metrics.successRavRedeems.inc({ allocation: signedRav.allocation.id }),
+    )
+  }
+
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
     // Obtain all closed allocations
     const closedAllocations = await this.models.allocationSummaries.findAll({
@@ -766,6 +1088,41 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
   voucherCollectedFees: new metrics.client.Gauge({
     name: `indexer_agent_voucher_collected_fees_${networkIdentifier}`,
     help: 'Amount of query fees collected for a voucher',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  successRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_ok_${networkIdentifier}`,
+    help: 'Successfully redeemed ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  invalidRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_exchanges_invalid_${networkIdentifier}`,
+    help: 'Invalid ravs redeems - tx paused or unauthorized',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  failedRavRedeems: new metrics.client.Counter({
+    name: `indexer_agent_rav_redeems_failed_${networkIdentifier}`,
+    help: 'Failed redeems for ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravsRedeemDuration: new metrics.client.Histogram({
+    name: `indexer_agent_ravs_redeem_duration_${networkIdentifier}`,
+    help: 'Duration of redeeming ravs',
+    registers: [metrics.registry],
+    labelNames: ['allocation'],
+  }),
+
+  ravCollectedFees: new metrics.client.Gauge({
+    name: `indexer_agent_rav_collected_fees_${networkIdentifier}`,
+    help: 'Amount of query fees collected for a rav',
     registers: [metrics.registry],
     labelNames: ['allocation'],
   }),

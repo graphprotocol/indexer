@@ -30,6 +30,8 @@ subgraphs:
     deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
   epochSubgraph:
     url: http://subgraph
+  tapSubgraph:
+    url: http://subgraph
 networkProvider:
   url: http://provider
 dai:

@@ -57,6 +57,7 @@ export const IndexerOptions = z
     autoAllocationMinBatchSize: positiveNumber().default(1),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
+    finalityTime: positiveNumber().default(3600),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
@@ -101,6 +102,7 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(5_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
+    tapSubgraph: Subgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
@@ -110,6 +112,24 @@ export const ProtocolSubgraphs = z
     path: ['epochSubgraph', 'url'],
   })
 export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
+
+export const TapContracts = z
+  .record(
+    z.string(),
+    z.object({
+      TAPVerifier: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      AllocationIDTracker: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      Escrow: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+    }),
+  )
+  .optional()
+export type TapContracts = z.infer<typeof TapContracts>
 
 export const NetworkProvider = z
   .object({
@@ -144,6 +164,8 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
+    tapAddressBook: TapContracts,
+    allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })
   .strict()

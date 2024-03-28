@@ -28,6 +28,8 @@ subgraphs:
     deployment: abcdefg # <-- invalid base58 field
   epochSubgraph:
     url: http://subgraph
+  tapSubgraph:
+    url: http://subgraph
 networkProvider:
   url: http://provider
 dai:

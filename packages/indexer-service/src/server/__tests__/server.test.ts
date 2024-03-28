@@ -20,7 +20,7 @@ import {
 
 import { createServer } from '..'
 import { QueryProcessor } from '../../queries'
-import { ensureAttestationSigners, monitorEligibleAllocations } from '../../allocations'
+import { ensureAttestationSigners } from '../../allocations'
 import { AllocationReceiptManager } from '../../query-fees'
 import {
   createIndexerManagementClient,
@@ -29,6 +29,7 @@ import {
   IndexerManagementClient,
   IndexerManagementModels,
   IndexingStatusResolver,
+  monitorEligibleAllocations,
   NetworkSubgraph,
   QueryFeeModels,
   getTestProvider,
