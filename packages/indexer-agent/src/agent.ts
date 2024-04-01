@@ -17,7 +17,6 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexerManagementClient,
-  IndexingRuleAttributes,
   Network,
   POIDisputeAttributes,
   RewardsPool,
@@ -51,7 +50,7 @@ const deploymentInList = (
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
 const deploymentRuleInList = (
-  list: IndexingRuleAttributes[],
+  list: GeneratedGraphQLTypes.IndexingRule[],
   deployment: SubgraphDeploymentID,
 ): boolean =>
   list.find(
@@ -72,11 +71,11 @@ const uniqueDeployments = (
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
 
 export const convertSubgraphBasedRulesToDeploymentBased = (
-  rules: IndexingRuleAttributes[],
+  rules: GeneratedGraphQLTypes.IndexingRule[],
   subgraphs: Subgraph[],
   previousVersionBuffer: number,
-): IndexingRuleAttributes[] => {
-  const toAdd: IndexingRuleAttributes[] = []
+): GeneratedGraphQLTypes.IndexingRule[] => {
+  const toAdd: GeneratedGraphQLTypes.IndexingRule[] = []
   rules.map(rule => {
     if (rule.identifierType !== 'subgraph') {
       return rule
@@ -290,40 +289,41 @@ export class Agent {
       },
     )
 
-    const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
-      timer(20_000).tryMap(
-        async () => {
-          return this.multiNetworks.map(async ({ network, operator }) => {
-            logger.trace('Fetching indexing rules', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            let rules = await operator.indexingRules(true)
-            const subgraphRuleIds = rules
-              .filter(rule => rule.identifierType == 'subgraph')
-              .map(rule => rule.identifier!)
-            const subgraphsMatchingRules =
-              await network.networkMonitor.subgraphs(subgraphRuleIds)
-            if (subgraphsMatchingRules.length >= 1) {
-              const epochLength =
-                await network.contracts.epochManager.epochLength()
-              const blockPeriod = 15
-              const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
-              rules = convertSubgraphBasedRulesToDeploymentBased(
-                rules,
-                subgraphsMatchingRules,
-                bufferPeriod,
-              )
-            }
-            return rules
+    const indexingRules: Eventual<
+      NetworkMapped<GeneratedGraphQLTypes.IndexingRule[]>
+    > = timer(20_000).tryMap(
+      async () => {
+        return this.multiNetworks.map(async ({ network, operator }) => {
+          logger.trace('Fetching indexing rules', {
+            protocolNetwork: network.specification.networkIdentifier,
           })
-        },
-        {
-          onError: error =>
-            logger.warn(`Failed to obtain indexing rules, trying again later`, {
-              error,
-            }),
-        },
-      )
+          let rules = await operator.indexingRules(true)
+          const subgraphRuleIds = rules
+            .filter(rule => rule.identifierType == 'subgraph')
+            .map(rule => rule.identifier!)
+          const subgraphsMatchingRules =
+            await network.networkMonitor.subgraphs(subgraphRuleIds)
+          if (subgraphsMatchingRules.length >= 1) {
+            const epochLength =
+              await network.contracts.epochManager.epochLength()
+            const blockPeriod = 15
+            const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+            rules = convertSubgraphBasedRulesToDeploymentBased(
+              rules,
+              subgraphsMatchingRules,
+              bufferPeriod,
+            )
+          }
+          return rules
+        })
+      },
+      {
+        onError: error =>
+          logger.warn(`Failed to obtain indexing rules, trying again later`, {
+            error,
+          }),
+      },
+    )
 
     const activeDeployments: Eventual<SubgraphDeploymentID[]> = timer(
       60_000,
@@ -417,10 +417,7 @@ export class Agent {
       ({ indexingRules, networkDeployments }) => {
         return mapValues(
           this.multiNetworks.zip(indexingRules, networkDeployments),
-          ([indexingRules, networkDeployments]: [
-            IndexingRuleAttributes[],
-            SubgraphDeployment[],
-          ]) => {
+          ([indexingRules, networkDeployments]) => {
             // Identify subgraph deployments on the network that are worth picking up;
             // these may overlap with the ones we're already indexing
             logger.trace('Evaluating which deployments are worth allocating to')

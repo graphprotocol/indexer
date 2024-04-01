@@ -12,6 +12,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  GeneratedGraphQLTypes,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { BigNumber, utils } from 'ethers'
@@ -88,7 +89,7 @@ export class Operator {
   // * Indexing Rules
   // --------------------------------------------------------------------------------
   // Retrieves the indexing rules from the indexer management API.
-  async indexingRules(merged: boolean): Promise<IndexingRuleAttributes[]> {
+  async indexingRules(merged: boolean): Promise<GeneratedGraphQLTypes.IndexingRule[]> {
     try {
       this.logger.debug('Fetching indexing rules')
       const result = await this.indexerManagement

@@ -3,10 +3,8 @@ import {
   consolidateAllocationDecisions,
 } from '../agent'
 import {
+  GeneratedGraphQLTypes,
   INDEXING_RULE_GLOBAL,
-  IndexingDecisionBasis,
-  IndexingRuleAttributes,
-  SubgraphIdentifierType,
   SubgraphVersion,
 } from '@graphprotocol/indexer-common'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
@@ -16,8 +14,8 @@ describe('Agent convenience function tests', () => {
     const inputRules = [
       {
         identifier: INDEXING_RULE_GLOBAL,
-        identifierType: SubgraphIdentifierType.GROUP,
-        allocationAmount: '2300',
+        identifierType: 'group',
+        allocationAmount: BigInt(2300),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -25,12 +23,16 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
+        protocolNetwork: 'sepolia',
       },
       {
         identifier: '0x0000000000000000000000000000000000000000-0',
-        identifierType: SubgraphIdentifierType.SUBGRAPH,
-        allocationAmount: '3000',
+        identifierType: 'subgraph',
+        allocationAmount: BigInt(3000),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -38,12 +40,16 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
+        protocolNetwork: 'sepolia',
       },
       {
         identifier: 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        allocationAmount: '12000',
+        identifierType: 'deployment',
+        allocationAmount: BigInt(12000),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -51,9 +57,13 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
-    ] as IndexingRuleAttributes[]
+    ] satisfies GeneratedGraphQLTypes.IndexingRule[]
 
     const subgraphs = [
       {
@@ -73,8 +83,8 @@ describe('Agent convenience function tests', () => {
     const expectedRules = [
       {
         identifier: INDEXING_RULE_GLOBAL,
-        identifierType: SubgraphIdentifierType.GROUP,
-        allocationAmount: '2300',
+        identifierType: 'group',
+        allocationAmount: BigInt(2300),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -82,13 +92,17 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
       {
         identifier:
           '0xc9d18c59e4aaf2c1f86dfef16fbdc0f81eae8ada58d87a23d2666c45704b8823',
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        allocationAmount: '3000',
+        identifierType: 'deployment',
+        allocationAmount: BigInt(3000),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -96,12 +110,16 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
       {
         identifier: 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        allocationAmount: '12000',
+        identifierType: 'deployment',
+        allocationAmount: BigInt(12000),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -109,9 +127,13 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
-    ] as IndexingRuleAttributes[]
+    ] satisfies GeneratedGraphQLTypes.IndexingRule[]
 
     expect(
       convertSubgraphBasedRulesToDeploymentBased(inputRules, subgraphs, 1000),
@@ -122,8 +144,8 @@ describe('Agent convenience function tests', () => {
     const inputRules = [
       {
         identifier: INDEXING_RULE_GLOBAL,
-        identifierType: SubgraphIdentifierType.GROUP,
-        allocationAmount: '2300',
+        identifierType: 'group',
+        allocationAmount: BigInt(2300),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -131,12 +153,16 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
       {
         identifier: 'QmZZtzZkfzCWMNrajxBf22q7BC9HzoT5iJUK3S8qA6zNZr',
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        allocationAmount: '12000',
+        identifierType: 'deployment',
+        allocationAmount: BigInt(12000),
         parallelAllocations: null,
         maxAllocationPercentage: null,
         minSignal: null,
@@ -144,9 +170,13 @@ describe('Agent convenience function tests', () => {
         minStake: null,
         minAverageQueryFees: null,
         custom: null,
-        decisionBasis: IndexingDecisionBasis.RULES,
+        decisionBasis: 'rules',
+        protocolNetwork: 'sepolia',
+        autoRenewal: false,
+        requireSupported: false,
+        safety: false,
       },
-    ] as IndexingRuleAttributes[]
+    ] satisfies GeneratedGraphQLTypes.IndexingRule[]
 
     const subgraphs = [
       {
