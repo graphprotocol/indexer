@@ -9,14 +9,13 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   ActivationCriteria,
-  ActionStatus,
+  GeneratedGraphQLTypes,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
   AllocationStatus,
   indexerError,
   IndexerErrorCode,
-  IndexingDecisionBasis,
   IndexerManagementClient,
   IndexingRuleAttributes,
   Network,
@@ -24,7 +23,6 @@ import {
   RewardsPool,
   Subgraph,
   SubgraphDeployment,
-  SubgraphIdentifierType,
   evaluateDeployments,
   AllocationDecision,
   GraphNode,
@@ -58,7 +56,7 @@ const deploymentRuleInList = (
 ): boolean =>
   list.find(
     rule =>
-      rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
+      rule.identifierType == 'deployment' &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
         deployment.toString(),
   ) !== undefined
@@ -80,7 +78,7 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
 ): IndexingRuleAttributes[] => {
   const toAdd: IndexingRuleAttributes[] = []
   rules.map(rule => {
-    if (rule.identifierType !== SubgraphIdentifierType.SUBGRAPH) {
+    if (rule.identifierType !== 'subgraph') {
       return rule
     }
     const ruleSubgraph = subgraphs.find(
@@ -94,7 +92,7 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
       if (latestDeploymentVersion) {
         if (!deploymentRuleInList(rules, latestDeploymentVersion!.deployment)) {
           rule.identifier = latestDeploymentVersion!.deployment.toString()
-          rule.identifierType = SubgraphIdentifierType.DEPLOYMENT
+          rule.identifierType = 'deployment'
         }
 
         const currentTimestamp = Math.floor(Date.now() / 1000)
@@ -112,8 +110,7 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
             const previousDeploymentRule = { ...rule }
             previousDeploymentRule.identifier =
               previousDeploymentVersion!.deployment.toString()
-            previousDeploymentRule.identifierType =
-              SubgraphIdentifierType.DEPLOYMENT
+            previousDeploymentRule.identifierType = 'deployment'
             toAdd.push(previousDeploymentRule)
           }
         }
@@ -302,9 +299,7 @@ export class Agent {
             })
             let rules = await operator.indexingRules(true)
             const subgraphRuleIds = rules
-              .filter(
-                rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
-              )
+              .filter(rule => rule.identifierType == 'subgraph')
               .map(rule => rule.identifier!)
             const subgraphsMatchingRules =
               await network.networkMonitor.subgraphs(subgraphRuleIds)
@@ -546,9 +541,7 @@ export class Agent {
         // Add offchain subgraphs to the deployment list from rules
         Object.values(indexingRules)
           .flat()
-          .filter(
-            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
-          )
+          .filter(rule => rule?.decisionBasis === 'offchain')
           .forEach(rule => {
             targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
           })
@@ -1208,7 +1201,7 @@ export class Agent {
       ) => {
         // Do nothing if there are already approved actions in the queue awaiting execution
         const approvedActions = await operator.fetchActions({
-          status: ActionStatus.APPROVED,
+          status: GeneratedGraphQLTypes.ActionStatus.approved,
           protocolNetwork: network.specification.networkIdentifier,
         })
         if (approvedActions.length > 0) {
