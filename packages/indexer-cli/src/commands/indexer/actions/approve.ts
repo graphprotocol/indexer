@@ -10,7 +10,7 @@ import {
   extractProtocolNetworkOption,
 } from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
-import { ActionStatus, resolveChainAlias } from '@graphprotocol/indexer-common'
+import { GeneratedGraphQLTypes, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
@@ -65,7 +65,7 @@ module.exports = {
           )
         }
         const queuedActions = await fetchActions(client, {
-          status: ActionStatus.QUEUED,
+          status: GeneratedGraphQLTypes.ActionStatus.queued,
           protocolNetwork,
         })
 

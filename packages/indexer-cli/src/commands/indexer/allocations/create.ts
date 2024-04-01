@@ -7,7 +7,6 @@ import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
 import {
   processIdentifier,
-  SubgraphIdentifierType,
   validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { printObjectOrArray } from '../../../command-helpers'
@@ -73,7 +72,7 @@ module.exports = {
         all: false,
         global: false,
       })
-      if (type !== SubgraphIdentifierType.DEPLOYMENT) {
+      if (type !== 'deployment') {
         throw Error(
           `Invalid 'deploymentID' provided (${deploymentID}), must be bytes32 or base58 formatted)`,
         )

@@ -1,16 +1,12 @@
 import {
-  ActionFilter,
-  ActionInput,
   ActionParams,
   ActionResult,
-  ActionStatus,
-  ActionType,
   ActionUpdateInput,
+  GeneratedGraphQLTypes,
   IndexerManagementClient,
   nullPassThrough,
   OrderDirection,
   parseBoolean,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -27,17 +23,17 @@ export interface GenericActionInputParams {
 
 // Make separate functions for each action type parsing from generic?
 export async function buildActionInput(
-  type: ActionType,
+  type: GeneratedGraphQLTypes.ActionType,
   actionParams: GenericActionInputParams,
   source: string,
   reason: string,
-  status: ActionStatus,
+  status: GeneratedGraphQLTypes.ActionStatus,
   priority: number,
   protocolNetwork: string,
-): Promise<ActionInput> {
+): Promise<GeneratedGraphQLTypes.ActionInput> {
   await validateActionInput(type, actionParams)
   switch (type) {
-    case ActionType.ALLOCATE:
+    case 'allocate':
       return {
         deploymentID: actionParams.targetDeployment,
         amount: actionParams.param1?.toString(),
@@ -48,7 +44,7 @@ export async function buildActionInput(
         priority,
         protocolNetwork,
       }
-    case ActionType.UNALLOCATE: {
+    case 'unallocate': {
       let poi = actionParams.param2
       if (poi == '0' || poi == '0x0') {
         poi = utils.hexlify(Array(32).fill(0))
@@ -66,7 +62,7 @@ export async function buildActionInput(
         protocolNetwork,
       }
     }
-    case ActionType.REALLOCATE: {
+    case 'reallocate': {
       let poi = actionParams.param3
       if (poi == '0' || poi == '0x0') {
         poi = utils.hexlify(Array(32).fill(0))
@@ -89,18 +85,18 @@ export async function buildActionInput(
 }
 
 export async function validateActionInput(
-  type: ActionType,
+  type: GeneratedGraphQLTypes.ActionType,
   actionParams: GenericActionInputParams,
 ): Promise<void> {
   let requiredFields: string[] = []
   switch (type) {
-    case ActionType.ALLOCATE:
+    case 'allocate':
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
       break
-    case ActionType.UNALLOCATE:
+    case 'unallocate':
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
       break
-    case ActionType.REALLOCATE:
+    case 'reallocate':
       requiredFields = requiredFields.concat(['targetDeployment', 'param1', 'param2'])
   }
 
@@ -110,30 +106,34 @@ export async function validateActionInput(
   )
 }
 
-export function validateActionType(input: string): ActionType {
-  const validVariants = Object.keys(ActionType).map(variant =>
-    variant.toLocaleLowerCase(),
+export function validateActionType(input: string): GeneratedGraphQLTypes.ActionType {
+  const validVariants = Object.keys(GeneratedGraphQLTypes.ActionType).map(variant =>
+    variant.toLowerCase(),
   )
-  if (!validVariants.includes(input.toLocaleLowerCase())) {
+  if (!validVariants.includes(input.toLowerCase())) {
     throw Error(
       `Invalid 'ActionType' "${input}", must be one of ['${validVariants.join(`', '`)}']`,
     )
   }
-  return ActionType[input.toUpperCase() as keyof typeof ActionType]
+  return GeneratedGraphQLTypes.ActionType[
+    input.toLowerCase() as keyof typeof GeneratedGraphQLTypes.ActionType
+  ]
 }
 
-export function validateActionStatus(input: string): ActionStatus {
-  const validVariants = Object.keys(ActionStatus).map(variant =>
-    variant.toLocaleLowerCase(),
+export function validateActionStatus(input: string): GeneratedGraphQLTypes.ActionStatus {
+  const validVariants = Object.keys(GeneratedGraphQLTypes.ActionStatus).map(variant =>
+    variant.toLowerCase(),
   )
-  if (!validVariants.includes(input.toLocaleLowerCase())) {
+  if (!validVariants.includes(input.toLowerCase())) {
     throw Error(
       `Invalid 'ActionStatus' "${input}", must be one of ['${validVariants.join(
         `', '`,
       )}']`,
     )
   }
-  return ActionStatus[input.toUpperCase() as keyof typeof ActionStatus]
+  return GeneratedGraphQLTypes.ActionStatus[
+    input.toUpperCase() as keyof typeof GeneratedGraphQLTypes.ActionStatus
+  ]
 }
 
 export function buildActionFilter(
@@ -142,8 +142,8 @@ export function buildActionFilter(
   status: string | undefined,
   source: string | undefined,
   reason: string | undefined,
-): ActionFilter {
-  const filter: ActionFilter = {}
+): GeneratedGraphQLTypes.ActionFilter {
+  const filter: GeneratedGraphQLTypes.ActionFilter = {}
   if (id) {
     filter.id = +id
   }
@@ -169,7 +169,7 @@ export function buildActionFilter(
 
 export async function queueActions(
   client: IndexerManagementClient,
-  actions: ActionInput[],
+  actions: GeneratedGraphQLTypes.ActionInput[],
 ): Promise<ActionResult[]> {
   const result = await client
     .mutation(
@@ -202,8 +202,11 @@ export async function queueActions(
   return result.data.queueActions
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> = {
+const ACTION_PARAMS_PARSERS: Record<
+  keyof GeneratedGraphQLTypes.ActionUpdateInput,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (x: never) => any
+> = {
   deploymentID: x => nullPassThrough(x),
   allocationID: x => x,
   amount: nullPassThrough(parseGRT),
@@ -212,7 +215,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
-  protocolNetwork: x => validateNetworkIdentifier(x),
+  id: x => nullPassThrough(x),
 }
 
 /**
@@ -374,7 +377,7 @@ export async function fetchAction(
 
 export async function fetchActions(
   client: IndexerManagementClient,
-  actionFilter: ActionFilter,
+  actionFilter: GeneratedGraphQLTypes.ActionFilter,
   first?: number,
   orderBy?: ActionParams,
   orderDirection?: OrderDirection,
@@ -461,7 +464,7 @@ export async function deleteActions(
 
 export async function updateActions(
   client: IndexerManagementClient,
-  filter: ActionFilter,
+  filter: GeneratedGraphQLTypes.ActionFilter,
   action: ActionUpdateInput,
 ): Promise<ActionResult[]> {
   const result = await client

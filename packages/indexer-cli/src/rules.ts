@@ -5,7 +5,6 @@ import {
   parseDecisionBasis,
   IndexerManagementClient,
   IndexingRuleAttributes,
-  IndexingDecisionBasis,
   IndexingRuleIdentifier,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
@@ -213,12 +212,8 @@ export const displayRules = (
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rules = ruleOrRules.map(rule => formatIndexingRule(pickFields(rule, keys)))
 
-    const onchainRules = rules.filter(
-      rule => rule?.decisionBasis !== IndexingDecisionBasis.OFFCHAIN,
-    )
-    const offchainRules = rules.filter(
-      rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
-    )
+    const onchainRules = rules.filter(rule => rule?.decisionBasis !== 'offchain')
+    const offchainRules = rules.filter(rule => rule?.decisionBasis === 'offchain')
 
     // Display indexing rules set to sync off-chain if any
     const offchainRulesDisplay = offchainRules.length
