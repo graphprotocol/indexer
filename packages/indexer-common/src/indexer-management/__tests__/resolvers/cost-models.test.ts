@@ -812,7 +812,7 @@ describe('Feature: Inject $DAI variable', () => {
       variables: JSON.stringify({}),
     }
 
-   await buildHTTPExecutor({
+    await buildHTTPExecutor({
       fetch: clientNoInjectDai.yoga.fetch,
     })({ document: SET_COST_MODEL_MUTATION, variables: { costModel: update } })
     await expect(
