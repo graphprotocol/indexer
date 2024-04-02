@@ -47,6 +47,7 @@ export async function createIndexerManagementYogaClient(
   return {
     setDai,
     yoga: createYoga<IndexerManagementResolverContext>({
+      graphqlEndpoint: '/',
       schema: createSchema({ typeDefs, resolvers }),
       maskedErrors: false,
       context: {

@@ -19,7 +19,6 @@ import {
   MultiNetworks,
   createIndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
-import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
@@ -63,45 +62,6 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
   protocolNetwork: 'eip155:11155111',
-}
-
-const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
-  keyof POIDisputeAttributes,
-  (x: never) => string | BigNumber | number | undefined
-> = {
-  allocationID: x => x,
-  subgraphDeploymentID: x => x,
-  allocationIndexer: x => x,
-  allocationAmount: x => x,
-  allocationProof: x => x,
-  closedEpoch: x => +x,
-  closedEpochStartBlockHash: x => x,
-  closedEpochStartBlockNumber: x => +x,
-  closedEpochReferenceProof: x => x,
-  previousEpochStartBlockHash: x => x,
-  previousEpochStartBlockNumber: x => +x,
-  previousEpochReferenceProof: x => x,
-  status: x => x,
-  protocolNetwork: x => x,
-}
-
-/**
- * Parses a POI dispute returned from the indexer management GraphQL
- * API into normalized form.
- */
-const disputeFromGraphQL = (
-  dispute: Partial<POIDisputeAttributes>,
-): POIDisputeAttributes => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const obj = {} as any
-  for (const [key, value] of Object.entries(dispute)) {
-    if (key === '__typename') {
-      continue
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    obj[key] = (POI_DISPUTES_CONVERTERS_FROM_GRAPHQL as any)[key](value)
-  }
-  return obj as POIDisputeAttributes
 }
 
 declare const __DATABASE__: never
