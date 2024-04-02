@@ -17,4 +17,4 @@ export * from './utils'
 export * from './parsers'
 export * as specification from './network-specification'
 export * from './multi-networks'
-export * as GeneratedGraphQLTypes from "./schema/types.generated"
+export * as GeneratedGraphQLTypes from './schema/types.generated'
