@@ -61,3 +61,7 @@ export async function createIndexerManagementYogaClient(
     }),
   }
 }
+
+export type IndexerManagementYogaClient = Awaited<
+  ReturnType<typeof createIndexerManagementYogaClient>
+>

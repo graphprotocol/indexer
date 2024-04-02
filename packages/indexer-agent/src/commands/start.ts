@@ -11,8 +11,8 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementClient,
   createIndexerManagementServer,
+  createIndexerManagementYogaClient,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
@@ -568,7 +568,7 @@ export async function run(
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  const indexerManagementClient = await createIndexerManagementClient({
+  const indexerManagementClient = await createIndexerManagementYogaClient({
     models: managementModels,
     graphNode,
     indexNodeIDs: argv.indexNodeIds,

@@ -16,7 +16,6 @@ import {
   AllocationStatus,
   indexerError,
   IndexerErrorCode,
-  IndexerManagementClient,
   Network,
   POIDisputeAttributes,
   RewardsPool,
@@ -33,6 +32,7 @@ import {
   networkIsL2,
   networkIsL1,
   DeploymentManagementMode,
+  IndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -187,7 +187,7 @@ export class Agent {
   metrics: Metrics
   graphNode: GraphNode
   multiNetworks: MultiNetworks<NetworkAndOperator>
-  indexerManagement: IndexerManagementClient
+  indexerManagement: IndexerManagementYogaClient
   offchainSubgraphs: SubgraphDeploymentID[]
   autoMigrationSupport: boolean
   deploymentManagement: DeploymentManagementMode
@@ -197,7 +197,7 @@ export class Agent {
     metrics: Metrics,
     graphNode: GraphNode,
     operators: Operator[],
-    indexerManagement: IndexerManagementClient,
+    indexerManagement: IndexerManagementYogaClient,
     networks: Network[],
     offchainSubgraphs: SubgraphDeploymentID[],
     autoMigrationSupport: boolean,

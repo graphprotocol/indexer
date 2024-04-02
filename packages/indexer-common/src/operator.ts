@@ -6,25 +6,26 @@ import {
   AllocationManagementMode,
   INDEXING_RULE_GLOBAL,
   IndexerErrorCode,
-  IndexerManagementClient,
   IndexingRuleAttributes,
   indexerError,
   specification as spec,
   Action,
   POIDisputeAttributes,
   GeneratedGraphQLTypes,
+  IndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { BigNumber, utils } from 'ethers'
 import gql from 'graphql-tag'
 import pMap from 'p-map'
-import { CombinedError } from '@urql/core'
 import {
   ActionFilter,
   ActionStatus,
   ActionType,
   IdentifierType,
 } from './schema/types.generated'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
+import { isAsyncIterable } from 'graphql-yoga'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
@@ -69,12 +70,13 @@ const disputeFromGraphQL = (
 // POI disputes.
 export class Operator {
   logger: Logger
-  indexerManagement: IndexerManagementClient
+  indexerManagement: IndexerManagementYogaClient
   specification: spec.NetworkSpecification
+  private executor: ReturnType<typeof buildHTTPExecutor>
 
   constructor(
     logger: Logger,
-    indexerManagement: IndexerManagementClient,
+    indexerManagement: IndexerManagementYogaClient,
     specification: spec.NetworkSpecification,
   ) {
     this.logger = logger.child({
@@ -83,6 +85,9 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+    this.executor = buildHTTPExecutor({
+      fetch: this.indexerManagement.yoga.fetch,
+    })
   }
 
   // --------------------------------------------------------------------------------
@@ -92,36 +97,39 @@ export class Operator {
   async indexingRules(merged: boolean): Promise<GeneratedGraphQLTypes.IndexingRule[]> {
     try {
       this.logger.debug('Fetching indexing rules')
-      const result = await this.indexerManagement
-        .query(
-          gql`
-            query indexingRules($merged: Boolean!, $protocolNetwork: String) {
-              indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
-                identifier
-                identifierType
-                allocationAmount
-                allocationLifetime
-                autoRenewal
-                parallelAllocations
-                maxAllocationPercentage
-                minSignal
-                maxSignal
-                minStake
-                minAverageQueryFees
-                custom
-                decisionBasis
-                requireSupported
-                protocolNetwork
-              }
+      const result = await this.executor({
+        document: gql`
+          query indexingRules($merged: Boolean!, $protocolNetwork: String) {
+            indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
+              identifier
+              identifierType
+              allocationAmount
+              allocationLifetime
+              autoRenewal
+              parallelAllocations
+              maxAllocationPercentage
+              minSignal
+              maxSignal
+              minStake
+              minAverageQueryFees
+              custom
+              decisionBasis
+              requireSupported
+              protocolNetwork
             }
-          `,
-          { merged, protocolNetwork: this.specification.networkIdentifier },
-        )
-        .toPromise()
+          }
+        `,
+        variables: { merged, protocolNetwork: this.specification.networkIdentifier },
+      })
 
-      if (result.error) {
-        throw result.error
+      if (isAsyncIterable(result)) {
+        throw Error('Result is an async iterable')
       }
+
+      if (result.errors) {
+        throw result.errors
+      }
+
       this.logger.trace('Fetched indexing rules', {
         count: result.data.indexingRules.length,
         rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
@@ -147,23 +155,25 @@ export class Operator {
       protocolNetwork: this.specification.networkIdentifier,
     }
     try {
-      const globalRule = await this.indexerManagement
-        .query(
-          gql`
-            query indexingRule($identifier: IndexingRuleIdentifier!) {
-              indexingRule(identifier: $identifier, merged: false) {
-                identifier
-                identifierType
-                allocationAmount
-                decisionBasis
-                requireSupported
-                protocolNetwork
-              }
+      const globalRule = await this.executor({
+        document: gql`
+          query indexingRule($identifier: IndexingRuleIdentifier!) {
+            indexingRule(identifier: $identifier, merged: false) {
+              identifier
+              identifierType
+              allocationAmount
+              decisionBasis
+              requireSupported
+              protocolNetwork
             }
-          `,
-          { identifier },
-        )
-        .toPromise()
+          }
+        `,
+        variables: { identifier },
+      })
+
+      if (isAsyncIterable(globalRule)) {
+        throw Error('Result is an async iterable')
+      }
 
       if (!globalRule.data.indexingRule) {
         this.logger.info(`Creating default "global" indexing rule`)
@@ -179,36 +189,38 @@ export class Operator {
           safety: true,
         }
 
-        const defaultGlobalRule = await this.indexerManagement
-          .mutation(
-            gql`
-              mutation setIndexingRule($rule: IndexingRuleInput!) {
-                setIndexingRule(rule: $rule) {
-                  identifier
-                  identifierType
-                  allocationAmount
-                  allocationLifetime
-                  autoRenewal
-                  parallelAllocations
-                  maxAllocationPercentage
-                  minSignal
-                  maxSignal
-                  minStake
-                  minAverageQueryFees
-                  custom
-                  decisionBasis
-                  requireSupported
-                  safety
-                  protocolNetwork
-                }
+        const defaultGlobalRule = await this.executor({
+          document: gql`
+            mutation setIndexingRule($rule: IndexingRuleInput!) {
+              setIndexingRule(rule: $rule) {
+                identifier
+                identifierType
+                allocationAmount
+                allocationLifetime
+                autoRenewal
+                parallelAllocations
+                maxAllocationPercentage
+                minSignal
+                maxSignal
+                minStake
+                minAverageQueryFees
+                custom
+                decisionBasis
+                requireSupported
+                safety
+                protocolNetwork
               }
-            `,
-            { rule: defaults },
-          )
-          .toPromise()
+            }
+          `,
+          variables: { rule: defaults },
+        })
 
-        if (defaultGlobalRule.error) {
-          throw defaultGlobalRule.error
+        if (isAsyncIterable(defaultGlobalRule)) {
+          throw Error('Result is an async iterable')
+        }
+
+        if (defaultGlobalRule.errors) {
+          throw defaultGlobalRule.errors
         }
 
         this.logger.info(`Created default "global" indexing rule`, {
@@ -229,33 +241,35 @@ export class Operator {
   // --------------------------------------------------------------------------------
 
   async fetchActions(actionFilter: ActionFilter): Promise<ActionResult[]> {
-    const result = await this.indexerManagement
-      .query(
-        gql`
-          query actions($filter: ActionFilter!) {
-            actions(filter: $filter) {
-              id
-              type
-              allocationID
-              deploymentID
-              amount
-              poi
-              force
-              source
-              reason
-              priority
-              transaction
-              status
-              failureReason
-            }
+    const result = await this.executor({
+      document: gql`
+        query actions($filter: ActionFilter!) {
+          actions(filter: $filter) {
+            id
+            type
+            allocationID
+            deploymentID
+            amount
+            poi
+            force
+            source
+            reason
+            priority
+            transaction
+            status
+            failureReason
           }
-        `,
-        { filter: actionFilter },
-      )
-      .toPromise()
+        }
+      `,
+      variables: { filter: actionFilter },
+    })
 
-    if (result.error) {
-      throw result.error
+    if (isAsyncIterable(result)) {
+      throw Error('Result is an async iterable')
+    }
+
+    if (result.errors) {
+      throw result.errors
     }
 
     return result.data.actions
@@ -285,42 +299,50 @@ export class Operator {
     this.logger.trace(`Queueing action input`, {
       actionInput,
     })
-    const actionResult = await this.indexerManagement
-      .mutation(
-        gql`
-          mutation queueActions($actions: [ActionInput!]!) {
-            queueActions(actions: $actions) {
-              id
-              type
-              deploymentID
-              source
-              reason
-              priority
-              status
-              protocolNetwork
-            }
-          }
-        `,
-        { actions: [actionInput] },
-      )
-      .toPromise()
 
-    if (actionResult.error) {
-      if (actionResult.error instanceof CombinedError) {
-        if (actionResult.error.message.includes('Duplicate')) {
-          this.logger.warn(
-            `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
-            { action },
-          )
-        } else if (actionResult.error.message.includes('Recently executed')) {
-          this.logger.warn(
-            `Action not queued: A recently executed action was found targeting ${actionInput.deploymentID}`,
-            { action },
-          )
+    const actionResult = await this.executor({
+      document: gql`
+        mutation queueActions($actions: [ActionInput!]!) {
+          queueActions(actions: $actions) {
+            id
+            type
+            deploymentID
+            source
+            reason
+            priority
+            status
+            protocolNetwork
+          }
         }
+      `,
+      variables: { actions: [actionInput] },
+    })
+
+    if (isAsyncIterable(actionResult)) {
+      throw Error('Result is an async iterable')
+    }
+
+    if (actionResult.errors) {
+      if (actionResult.errors.filter((e) => e.message.includes('Duplicate')).length > 0) {
+        this.logger.warn(
+          `Action not queued: Already a queued action targeting ${actionInput.deploymentID} from another source`,
+          { action },
+        )
         return []
       }
-      throw actionResult.error
+
+      if (
+        actionResult.errors.filter((e) => e.message.includes('Recently executed'))
+          .length > 0
+      ) {
+        this.logger.warn(
+          `Action not queued: A recently executed action was found targeting ${actionInput.deploymentID}`,
+          { action },
+        )
+        return []
+      }
+
+      throw actionResult.errors
     }
 
     if (actionResult.data.queueActions.length > 0) {
@@ -476,34 +498,36 @@ export class Operator {
     disputes: POIDisputeAttributes[],
   ): Promise<POIDisputeAttributes[]> {
     try {
-      const result = await this.indexerManagement
-        .mutation(
-          gql`
-            mutation storeDisputes($disputes: [POIDisputeInput!]!) {
-              storeDisputes(disputes: $disputes) {
-                allocationID
-                subgraphDeploymentID
-                allocationIndexer
-                allocationAmount
-                allocationProof
-                closedEpoch
-                closedEpochStartBlockHash
-                closedEpochStartBlockNumber
-                closedEpochReferenceProof
-                previousEpochStartBlockHash
-                previousEpochStartBlockNumber
-                previousEpochReferenceProof
-                status
-                protocolNetwork
-              }
+      const result = await this.executor({
+        document: gql`
+          mutation storeDisputes($disputes: [POIDisputeInput!]!) {
+            storeDisputes(disputes: $disputes) {
+              allocationID
+              subgraphDeploymentID
+              allocationIndexer
+              allocationAmount
+              allocationProof
+              closedEpoch
+              closedEpochStartBlockHash
+              closedEpochStartBlockNumber
+              closedEpochReferenceProof
+              previousEpochStartBlockHash
+              previousEpochStartBlockNumber
+              previousEpochReferenceProof
+              status
+              protocolNetwork
             }
-          `,
-          { disputes: disputes },
-        )
-        .toPromise()
+          }
+        `,
+        variables: { disputes: disputes },
+      })
 
-      if (result.error) {
-        throw result.error
+      if (isAsyncIterable(result)) {
+        throw Error('Result is an async iterable')
+      }
+
+      if (result.errors) {
+        throw result.errors
       }
 
       return result.data.storeDisputes.map(
@@ -527,46 +551,48 @@ export class Operator {
     protocolNetwork: string | undefined,
   ): Promise<POIDisputeAttributes[]> {
     try {
-      const result = await this.indexerManagement
-        .query(
-          gql`
-            query disputes(
-              $status: String!
-              $minClosedEpoch: Int!
-              $protocolNetwork: String!
+      const result = await this.executor({
+        document: gql`
+          query disputes(
+            $status: String!
+            $minClosedEpoch: Int!
+            $protocolNetwork: String!
+          ) {
+            disputes(
+              status: $status
+              minClosedEpoch: $minClosedEpoch
+              protocolNetwork: $protocolNetwork
             ) {
-              disputes(
-                status: $status
-                minClosedEpoch: $minClosedEpoch
-                protocolNetwork: $protocolNetwork
-              ) {
-                allocationID
-                subgraphDeploymentID
-                allocationIndexer
-                allocationAmount
-                allocationProof
-                closedEpoch
-                closedEpochStartBlockHash
-                closedEpochStartBlockNumber
-                closedEpochReferenceProof
-                previousEpochStartBlockHash
-                previousEpochStartBlockNumber
-                previousEpochReferenceProof
-                status
-                protocolNetwork
-              }
+              allocationID
+              subgraphDeploymentID
+              allocationIndexer
+              allocationAmount
+              allocationProof
+              closedEpoch
+              closedEpochStartBlockHash
+              closedEpochStartBlockNumber
+              closedEpochReferenceProof
+              previousEpochStartBlockHash
+              previousEpochStartBlockNumber
+              previousEpochReferenceProof
+              status
+              protocolNetwork
             }
-          `,
-          {
-            status,
-            minClosedEpoch,
-            protocolNetwork,
-          },
-        )
-        .toPromise()
+          }
+        `,
+        variables: {
+          status,
+          minClosedEpoch,
+          protocolNetwork,
+        },
+      })
 
-      if (result.error) {
-        throw result.error
+      if (isAsyncIterable(result)) {
+        throw Error('Result is an async iterable')
+      }
+
+      if (result.errors) {
+        throw result.errors
       }
 
       return result.data.disputes.map(

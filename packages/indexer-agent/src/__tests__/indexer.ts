@@ -258,34 +258,34 @@ describe('Indexer tests', () => {
   test('Store POI Disputes is idempotent', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expectedResult = disputes.map((dispute: Record<string, any>) => {
-      return disputeFromGraphQL(dispute)
-    })
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
+    const result1 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result1).toEqual(disputes)
+    const result2 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result2).toEqual(disputes)
+    const result3 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result3).toEqual(disputes)
   })
 
   test('Fetch POIDisputes', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expectedResult = disputes.map((dispute: Record<string, any>) => {
-      return disputeFromGraphQL(dispute)
-    })
-    const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(
-      operator.fetchPOIDisputes('potential', 205, 'eip155:11155111'),
-    ).resolves.toEqual(expectedFilteredResult)
+    const result1 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result1).toEqual(disputes)
+    const result2 = (
+      await operator.fetchPOIDisputes('potential', 205, 'eip155:11155111')
+    ).map(a => ({ ...a, allocationAmount: a.allocationAmount.toString() }))
+    expect(result2).toEqual([TEST_DISPUTE_2])
   })
 })

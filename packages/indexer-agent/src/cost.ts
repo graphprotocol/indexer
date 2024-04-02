@@ -8,7 +8,10 @@ import {
   timer,
   Address,
 } from '@graphprotocol/common-ts'
-import { IndexerManagementClient, Network } from '@graphprotocol/indexer-common'
+import {
+  IndexerManagementYogaClient,
+  Network,
+} from '@graphprotocol/indexer-common'
 import { Contract, providers } from 'ethers'
 
 interface CostModelAutomationMetrics {
@@ -34,7 +37,7 @@ const registerMetrics = (metrics: Metrics): CostModelAutomationMetrics => ({
 export interface StartCostModelAutomationOptions {
   logger: Logger
   networks: Network[]
-  indexerManagement: IndexerManagementClient
+  indexerManagement: IndexerManagementYogaClient
   metrics: Metrics
 }
 
@@ -43,7 +46,7 @@ interface CostModelAutomationOptions {
   logger: Logger
   ethereum: providers.BaseProvider
   contracts: NetworkContracts
-  indexerManagement: IndexerManagementClient
+  indexerManagement: IndexerManagementYogaClient
   daiContractAddress: Address
   metrics: CostModelAutomationMetrics
 }
