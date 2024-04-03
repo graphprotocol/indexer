@@ -3,8 +3,8 @@ import chalk from 'chalk'
 
 import {
   Action,
-  ActionFilter,
   ActionUpdateInput,
+  GeneratedGraphQLTypes,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
@@ -44,7 +44,7 @@ module.exports = {
 
     const [...setValues] = fixParameters(parameters, { h, help }) || []
     let updateActionInput: ActionUpdateInput = {}
-    let actionFilter: ActionFilter = {}
+    let actionFilter: GeneratedGraphQLTypes.ActionFilter = {}
 
     const outputFormat = o || output || 'table'
 

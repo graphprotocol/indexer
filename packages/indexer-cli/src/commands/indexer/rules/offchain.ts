@@ -8,7 +8,7 @@ import {
   fixParameters,
   parseOutputFormat,
 } from '../../../command-helpers'
-import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
+import { processIdentifier } from '@graphprotocol/indexer-common'
 import { setIndexingRule, displayRules, parseIndexingRule } from '../../../rules'
 
 const HELP = `
@@ -56,7 +56,7 @@ module.exports = {
         identifier,
         identifierType,
         protocolNetwork,
-        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        decisionBasis: 'offchain',
       })
 
       // Update the indexing rule according to the key/value pairs

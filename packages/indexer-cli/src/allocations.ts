@@ -4,7 +4,6 @@ import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
 import { OutputFormat, parseOutputFormat, pickFields } from './command-helpers'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import {
   CloseAllocationResult,
@@ -12,6 +11,7 @@ import {
   ReallocateAllocationResult,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
+import { Client } from '@urql/core'
 
 export interface IndexerAllocation {
   id: number
@@ -171,7 +171,7 @@ function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
 }
 
 export const createAllocation = async (
-  client: IndexerManagementClient,
+  client: Client,
   deployment: string,
   amount: BigNumber,
   indexNode: string | undefined,
@@ -216,7 +216,7 @@ export const createAllocation = async (
 }
 
 export const closeAllocation = async (
-  client: IndexerManagementClient,
+  client: Client,
   allocationID: string,
   poi: string | undefined,
   force: boolean,
@@ -262,7 +262,7 @@ export const closeAllocation = async (
 }
 
 export const reallocateAllocation = async (
-  client: IndexerManagementClient,
+  client: Client,
   allocationID: string,
   poi: string | undefined,
   amount: BigNumber,

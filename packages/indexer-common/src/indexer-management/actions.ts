@@ -1,9 +1,7 @@
 import {
   Action,
-  ActionFilter,
   actionFilterToWhereOptions,
   ActionParams,
-  ActionStatus,
   ActionUpdateInput,
   AllocationManager,
   AllocationManagementMode,
@@ -20,9 +18,18 @@ import {
   GraphNode,
 } from '@graphprotocol/indexer-common'
 
-import { Order, Transaction } from 'sequelize'
+import { Order, Transaction, WhereOperators } from 'sequelize'
 import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
+import {
+  ActionStatus,
+  ActionFilter as GraphQLActionFilter,
+  Maybe,
+} from '../schema/types.generated'
+
+type ActionFilter = GraphQLActionFilter & {
+  updatedAt?: WhereOperators
+}
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
@@ -121,9 +128,13 @@ export class ActionManager {
         logger.trace('Fetching approved actions')
         let actions: Action[] = []
         try {
-          actions = await ActionManager.fetchActions(this.models, {
-            status: ActionStatus.APPROVED,
-          })
+          actions = await ActionManager.fetchActions(
+            this.models,
+            {
+              status: ActionStatus.approved,
+            },
+            null,
+          )
           logger.trace(`Fetched ${actions.length} approved actions`)
         } catch (err) {
           logger.warn('Failed to fetch approved actions from queue', { err })
@@ -205,7 +216,7 @@ export class ActionManager {
   ): Promise<Action[]> {
     let updatedActions: Action[] = []
     for (const result of results) {
-      const status = isActionFailure(result) ? ActionStatus.FAILED : ActionStatus.SUCCESS
+      const status = isActionFailure(result) ? ActionStatus.failed : ActionStatus.success
       const [, updatedAction] = await this.models.Action.update(
         {
           status: status,
@@ -247,7 +258,7 @@ export class ActionManager {
           approvedActions = (
             await this.models.Action.findAll({
               where: {
-                status: ActionStatus.APPROVED,
+                status: ActionStatus.approved,
                 protocolNetwork,
               },
               order: [['priority', 'ASC']],
@@ -293,7 +304,7 @@ export class ActionManager {
   public static async fetchActions(
     models: IndexerManagementModels,
     filter: ActionFilter,
-    orderBy?: ActionParams,
+    orderBy: Maybe<ActionParams>,
     orderDirection?: OrderDirection,
     first?: number,
   ): Promise<Action[]> {
@@ -318,7 +329,8 @@ export class ActionManager {
         'Cannot bulk update actions without a filter, please provide a least 1 filter value',
       )
     }
-    return await models.Action.update(
+    return models.Action.update(
+      // @ts-expect-error need to improve
       { ...action },
       {
         where: actionFilterToWhereOptions(filter),

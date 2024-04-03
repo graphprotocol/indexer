@@ -92,8 +92,8 @@ module.exports = {
     } = parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
-    let orderByParam = ActionParams.ID
-    let orderDirectionValue = OrderDirection.DESC
+    let orderByParam: ActionParams = ActionParams.id
+    let orderDirectionValue: OrderDirection = OrderDirection.desc
     const outputFormat = o || output || 'table'
 
     const protocolNetwork: string | undefined = extractProtocolNetworkOption(
@@ -140,10 +140,10 @@ module.exports = {
       }
 
       if (orderBy) {
-        orderByParam = ActionParams[orderBy.toUpperCase() as keyof typeof ActionParams]
+        orderByParam = ActionParams[orderBy as keyof typeof ActionParams]
         orderDirectionValue = orderDirection
-          ? OrderDirection[orderDirection.toUpperCase() as keyof typeof OrderDirection]
-          : OrderDirection.DESC
+          ? OrderDirection[orderDirection.toLowerCase() as keyof typeof OrderDirection]
+          : OrderDirection.desc
       }
 
       if (!['undefined', 'number'].includes(typeof first)) {

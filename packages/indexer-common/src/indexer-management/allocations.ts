@@ -8,7 +8,6 @@ import {
 import {
   Action,
   ActionFailure,
-  ActionType,
   Allocation,
   allocationIdProof,
   AllocationResult,
@@ -21,14 +20,12 @@ import {
   IndexerError,
   IndexerErrorCode,
   IndexerManagementModels,
-  IndexingDecisionBasis,
   IndexingRuleAttributes,
   IndexingStatus,
   isActionFailure,
   isDeploymentWorthAllocatingTowards,
   Network,
   ReallocateAllocationResult,
-  SubgraphIdentifierType,
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
@@ -43,6 +40,7 @@ import {
 
 import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
+import { IdentifierType, IndexingDecisionBasis } from '../schema/types.generated'
 
 export interface TransactionPreparationContext {
   activeAllocations: Allocation[]
@@ -209,7 +207,7 @@ export class AllocationManager {
     }
 
     switch (action.type) {
-      case ActionType.ALLOCATE:
+      case 'allocate':
         return await this.confirmAllocate(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -218,14 +216,14 @@ export class AllocationManager {
           action.amount!,
           receipt,
         )
-      case ActionType.UNALLOCATE:
+      case 'unallocate':
         return await this.confirmUnallocate(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
         )
-      case ActionType.REALLOCATE:
+      case 'reallocate':
         return await this.confirmReallocate(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -262,7 +260,7 @@ export class AllocationManager {
     })
     try {
       switch (action.type) {
-        case ActionType.ALLOCATE:
+        case 'allocate':
           return await this.prepareAllocate(
             logger,
             context,
@@ -271,7 +269,7 @@ export class AllocationManager {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
           )
-        case ActionType.UNALLOCATE:
+        case 'unallocate':
           return await this.prepareUnallocate(
             logger,
             context,
@@ -280,7 +278,7 @@ export class AllocationManager {
             action.poi === null ? undefined : action.poi,
             action.force === null ? false : action.force,
           )
-        case ActionType.REALLOCATE:
+        case 'reallocate':
           return await this.prepareReallocate(
             logger,
             context,
@@ -463,8 +461,8 @@ export class AllocationManager {
       const indexingRule = {
         identifier: deployment,
         allocationAmount: amount,
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        identifierType: IdentifierType.deployment,
+        decisionBasis: IndexingDecisionBasis.always,
         protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
@@ -629,8 +627,8 @@ export class AllocationManager {
     const offchainIndexingRule = {
       identifier: allocation.subgraphDeployment.id.ipfsHash,
       protocolNetwork: this.network.specification.networkIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      identifierType: IdentifierType.deployment,
+      decisionBasis: IndexingDecisionBasis.offchain,
     } as Partial<IndexingRuleAttributes>
 
     await upsertIndexingRule(logger, this.models, offchainIndexingRule)
@@ -932,8 +930,8 @@ export class AllocationManager {
       const indexingRule = {
         identifier: allocation.subgraphDeployment.id.ipfsHash,
         allocationAmount: formatGRT(createAllocationEventLogs.tokens),
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        identifierType: IdentifierType.deployment,
+        decisionBasis: IndexingDecisionBasis.always,
         protocolNetwork: this.network.specification.networkIdentifier,
       } as Partial<IndexingRuleAttributes>
 
@@ -1024,7 +1022,7 @@ export class AllocationManager {
     // We intentionally don't check if the allocation is active now because it will be checked
     // later, when we prepare the transaction.
 
-    if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
+    if (action.type === 'unallocate' || action.type === 'reallocate') {
       // Ensure this Action have a valid allocationID
       if (action.allocationID === null || action.allocationID === undefined) {
         throw Error(
