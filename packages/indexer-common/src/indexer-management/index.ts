@@ -1,9 +1,10 @@
 export * from './actions'
 export * from './allocations'
-export * from './client'
 export * from './models'
 export * from './monitor'
 export * from './server'
 export * from './rules'
 export * from './types'
 export * from './context'
+
+export { isAsyncIterable } from 'graphql-yoga'

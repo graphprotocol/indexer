@@ -1,11 +1,26 @@
 import { createYoga, createSchema } from 'graphql-yoga'
 import { typeDefs } from '../schema/typeDefs.generated'
 import { resolvers } from '../schema/resolvers.generated'
-import { IndexerManagementResolverContext } from './context'
-import { WritableEventual, equal, mutable } from '@graphprotocol/common-ts'
+import { IndexerManagementDefaults, IndexerManagementResolverContext } from './context'
+import { Logger, WritableEventual, equal, mutable } from '@graphprotocol/common-ts'
 import { ActionManager } from './actions'
-import { IndexerManagementClientOptions } from './client'
 import { Op, Sequelize } from 'sequelize'
+import { IndexerManagementModels } from './models'
+import { GraphNode } from '../graph-node'
+import { MultiNetworks } from '../multi-networks'
+import { Network } from '../network'
+
+interface IndexerManagementClientOptions {
+  logger: Logger
+  models: IndexerManagementModels
+  graphNode: GraphNode
+  // TODO:L2: Do we need this information? The GraphNode class auto-selects nodes based
+  // on availability.
+  // Ford: there were some edge cases where the GraphNode was not able to auto handle it on its own
+  indexNodeIDs: string[]
+  multiNetworks: MultiNetworks<Network> | undefined
+  defaults: IndexerManagementDefaults
+}
 
 export async function createIndexerManagementYogaClient(
   options: IndexerManagementClientOptions,

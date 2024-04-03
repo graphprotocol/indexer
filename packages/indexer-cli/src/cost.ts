@@ -1,14 +1,11 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  CostModelAttributes,
-  GeneratedGraphQLTypes,
-  IndexerManagementClient,
-} from '@graphprotocol/indexer-common'
+import { CostModelAttributes, GeneratedGraphQLTypes } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { OutputFormat, pickFields } from './command-helpers'
+import { Client } from '@urql/core'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'all' | 'global'
 
@@ -190,7 +187,7 @@ export const printCostModels = (
 }
 
 export const costModels = async (
-  client: IndexerManagementClient,
+  client: Client,
 ): Promise<Partial<CostModelAttributes>[]> => {
   const result = await client
     .query(gql`
@@ -212,7 +209,7 @@ export const costModels = async (
 }
 
 export const costModel = async (
-  client: IndexerManagementClient,
+  client: Client,
   deployment: SubgraphDeploymentIDIsh,
 ): Promise<Partial<CostModelAttributes> | null> => {
   const result = await client
@@ -242,7 +239,7 @@ export const costModel = async (
 }
 
 export const setCostModel = async (
-  client: IndexerManagementClient,
+  client: Client,
   costModel: Partial<CostModelAttributes>,
 ): Promise<Partial<CostModelAttributes>> => {
   const result = await client
@@ -268,7 +265,7 @@ export const setCostModel = async (
 }
 
 export const deleteCostModels = async (
-  client: IndexerManagementClient,
+  client: Client,
   deployments: string[],
 ): Promise<number> => {
   const result = await client

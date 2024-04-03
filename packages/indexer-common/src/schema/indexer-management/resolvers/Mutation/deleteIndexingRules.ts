@@ -2,7 +2,7 @@ import { validateNetworkIdentifier } from '../../../../parsers/validators'
 import type { MutationResolvers } from './../../../types.generated'
 import groupBy from 'lodash.groupby'
 import { processIdentifier } from '../../../../subgraphs'
-import { resetGlobalRule } from '../../../../indexer-management/resolvers/indexing-rules'
+import { resetGlobalRule } from '../utils'
 
 export const deleteIndexingRules: NonNullable<
   MutationResolvers['deleteIndexingRules']

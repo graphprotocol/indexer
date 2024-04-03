@@ -3,7 +3,6 @@ import {
   ActionResult,
   ActionUpdateInput,
   GeneratedGraphQLTypes,
-  IndexerManagementClient,
   nullPassThrough,
   OrderDirection,
   parseBoolean,
@@ -12,6 +11,7 @@ import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
 import { utils } from 'ethers'
 import { parseGRT } from '@graphprotocol/common-ts'
+import { Client } from '@urql/core'
 
 export interface GenericActionInputParams {
   targetDeployment: string
@@ -168,7 +168,7 @@ export function buildActionFilter(
 }
 
 export async function queueActions(
-  client: IndexerManagementClient,
+  client: Client,
   actions: GeneratedGraphQLTypes.ActionInput[],
 ): Promise<ActionResult[]> {
   const result = await client
@@ -235,9 +235,7 @@ export const parseActionUpdateInput = (input: object): ActionUpdateInput => {
   return obj as ActionUpdateInput
 }
 
-export async function executeApprovedActions(
-  client: IndexerManagementClient,
-): Promise<ActionResult[]> {
+export async function executeApprovedActions(client: Client): Promise<ActionResult[]> {
   const result = await client
     .mutation(gql`
       mutation executeApprovedActions {
@@ -268,7 +266,7 @@ export async function executeApprovedActions(
 }
 
 export async function approveActions(
-  client: IndexerManagementClient,
+  client: Client,
   actionIDs: number[],
 ): Promise<ActionResult[]> {
   const result = await client
@@ -304,7 +302,7 @@ export async function approveActions(
 }
 
 export async function cancelActions(
-  client: IndexerManagementClient,
+  client: Client,
   actionIDs: number[],
 ): Promise<ActionResult[]> {
   const result = await client
@@ -340,7 +338,7 @@ export async function cancelActions(
 }
 
 export async function fetchAction(
-  client: IndexerManagementClient,
+  client: Client,
   actionID: number,
 ): Promise<ActionResult> {
   const result = await client
@@ -376,7 +374,7 @@ export async function fetchAction(
 }
 
 export async function fetchActions(
-  client: IndexerManagementClient,
+  client: Client,
   actionFilter: GeneratedGraphQLTypes.ActionFilter,
   first?: number,
   orderBy?: ActionParams,
@@ -426,7 +424,7 @@ export async function fetchActions(
 }
 
 export async function deleteActions(
-  client: IndexerManagementClient,
+  client: Client,
   actionIDs: number[],
 ): Promise<ActionResult[]> {
   const result = await client
@@ -463,7 +461,7 @@ export async function deleteActions(
 }
 
 export async function updateActions(
-  client: IndexerManagementClient,
+  client: Client,
   filter: GeneratedGraphQLTypes.ActionFilter,
   action: ActionUpdateInput,
 ): Promise<ActionResult[]> {

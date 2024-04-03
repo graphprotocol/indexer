@@ -1,8 +1,17 @@
 import { Logger, WritableEventual } from '@graphprotocol/common-ts'
-import { IndexerManagementModels } from './models'
+import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 import { GraphNode } from '../graph-node'
-import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
-import { IndexerManagementDefaults } from './client'
+import { BigNumber } from 'ethers'
+import { ActionManager } from './actions'
+import { MultiNetworks } from '../multi-networks'
+import { Network } from '../network'
+
+export interface IndexerManagementDefaults {
+  globalIndexingRule: Omit<
+    IndexingRuleCreationAttributes,
+    'identifier' | 'allocationAmount'
+  > & { allocationAmount: BigNumber }
+}
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels

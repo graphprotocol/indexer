@@ -3,7 +3,6 @@ import {
   nullPassThrough,
   parseBoolean,
   parseDecisionBasis,
-  IndexerManagementClient,
   IndexingRuleAttributes,
   IndexingRuleIdentifier,
   resolveChainAlias,
@@ -14,6 +13,7 @@ import { table, getBorderCharacters } from 'table'
 import { BigNumber, utils } from 'ethers'
 import { OutputFormat, pickFields } from './command-helpers'
 import chalk from 'chalk'
+import { Client } from '@urql/core'
 
 export type SubgraphDeploymentIDIsh = SubgraphDeploymentID | 'global' | 'all'
 
@@ -237,7 +237,7 @@ export const displayRules = (
 }
 
 export const indexingRules = async (
-  client: IndexerManagementClient,
+  client: Client,
   merged: boolean,
   protocolNetwork?: string,
 ): Promise<Partial<IndexingRuleAttributes>[]> => {
@@ -277,7 +277,7 @@ export const indexingRules = async (
 }
 
 export const indexingRule = async (
-  client: IndexerManagementClient,
+  client: Client,
   identifier: IndexingRuleIdentifier,
   merged: boolean,
 ): Promise<Partial<IndexingRuleAttributes> | null> => {
@@ -321,7 +321,7 @@ export const indexingRule = async (
 }
 
 export const setIndexingRule = async (
-  client: IndexerManagementClient,
+  client: Client,
   rule: Partial<IndexingRuleAttributes>,
 ): Promise<Partial<IndexingRuleAttributes>> => {
   const result = await client
@@ -360,7 +360,7 @@ export const setIndexingRule = async (
 }
 
 export const deleteIndexingRules = async (
-  client: IndexerManagementClient,
+  client: Client,
   deployments: IndexingRuleIdentifier[],
 ): Promise<void> => {
   const result = await client

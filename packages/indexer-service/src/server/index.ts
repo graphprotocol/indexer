@@ -15,7 +15,7 @@ import {
 import {
   indexerError,
   IndexerErrorCode,
-  IndexerManagementClient,
+  IndexerManagementYogaClient,
   NetworkSubgraph,
 } from '@graphprotocol/indexer-common'
 import { createCostServer } from './cost'
@@ -30,7 +30,7 @@ export interface ServerOptions {
   queryProcessor: QueryProcessor
   freeQueryAuthToken: string | undefined
   graphNodeStatusEndpoint: string
-  indexerManagementClient: IndexerManagementClient
+  indexerManagementClient: IndexerManagementYogaClient
   release: {
     version: string
     dependencies: { [key: string]: string }

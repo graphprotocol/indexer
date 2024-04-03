@@ -1,8 +1,12 @@
 import {
+  IndexerManagementDefaults,
+  IndexerManagementModels,
   MultiNetworks,
   Network,
   validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
+import { IndexingRuleIdentifier } from '../../types.generated'
+import { Transaction } from 'sequelize'
 
 export function extractNetwork(
   unvalidatedNetworkIdentifier: string,
@@ -23,4 +27,20 @@ export function extractNetwork(
     )
   }
   return network
+}
+
+export const resetGlobalRule = async (
+  ruleIdentifier: IndexingRuleIdentifier,
+  defaults: IndexerManagementDefaults['globalIndexingRule'],
+  models: IndexerManagementModels,
+  transaction: Transaction,
+) => {
+  await models.IndexingRule.upsert(
+    {
+      ...defaults,
+      ...ruleIdentifier,
+      allocationAmount: defaults.allocationAmount.toString(),
+    },
+    { transaction },
+  )
 }

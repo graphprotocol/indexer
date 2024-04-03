@@ -1,5 +1,4 @@
 import {
-  IndexerManagementClient,
   POIDisputeAttributes,
   indexerError,
   IndexerErrorCode,
@@ -10,6 +9,7 @@ import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { OutputFormat } from './command-helpers'
+import { Client } from '@urql/core'
 
 const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => string> = {
   allocationID: x => x,
@@ -129,7 +129,7 @@ export const printDisputes = (
 }
 
 export const disputes = async (
-  client: IndexerManagementClient,
+  client: Client,
   status: string,
   minClosedEpoch: number,
   protocolNetwork: string | undefined,

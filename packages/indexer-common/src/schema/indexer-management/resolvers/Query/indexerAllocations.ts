@@ -1,4 +1,4 @@
-import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
+import { extractNetwork } from '../utils'
 import type { QueryResolvers } from './../../../types.generated'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'

@@ -1,4 +1,4 @@
-import { extractNetwork } from '../../../../indexer-management/resolvers/utils'
+import { extractNetwork } from '../utils'
 import {
   IdentifierType,
   IndexingDecisionBasis,
