@@ -54,7 +54,6 @@ export async function up({ context }: Context): Promise<void> {
   }
 
   logger.debug('Create function and trigger using raw SQL')
-
   const functionSQL = `
     CREATE FUNCTION scalar_tap_receipt_notify()
     RETURNS trigger AS
@@ -70,25 +69,58 @@ export async function up({ context }: Context): Promise<void> {
     ON scalar_tap_receipts
     FOR EACH ROW EXECUTE PROCEDURE scalar_tap_receipt_notify();
   `
-  const indexSQL = `
-    CREATE INDEX IF NOT EXISTS scalar_tap_receipts_allocation_id_idx ON scalar_tap_receipts (allocation_id);
-    CREATE INDEX IF NOT EXISTS scalar_tap_receipts_timestamp_ns_idx ON scalar_tap_receipts (timestamp_ns);
-  `
+  queryInterface.addIndex('scalar_tap_receipts', ['allocation_id'], {name: 'scalar_tap_receipts_allocation_id_idx'})
+  queryInterface.addIndex('scalar_tap_receipts', ['timestamp_ns'], {name: 'scalar_tap_receipts_timestamp_ns_idx'})
 
-  const functionLogsInvalidRavsSQL = `
-    CREATE TABLE IF NOT EXISTS scalar_tap_receipts_invalid (
-    id BIGSERIAL PRIMARY KEY,
-    allocation_id CHAR(40) NOT NULL,
-    signer_address CHAR(40) NOT NULL,
-    timestamp_ns NUMERIC(20) NOT NULL,
-    value NUMERIC(39) NOT NULL,
-    received_receipt JSON NOT NULL
-    );
-  `
+  if (tables.includes('scalar_tap_receipts_invalid')) {
+    logger.info(`scalar_tap_receipts_invalid already exist, migration not necessary`)
+    return
+  }
+  // Create the scalar_tap_ravs table if it doesn't exist
+  await queryInterface.createTable('scalar_tap_receipts_invalid', {
+    id: {
+      type: DataTypes.BIGINT,
+      autoIncrement: true,
+      primaryKey: true,
+      allowNull: false,
+    },
+    allocation_id: {
+      type: DataTypes.CHAR(40),
+      allowNull: false,
+    },
+    sender_address: {
+      type: DataTypes.CHAR(40),
+      allowNull: false,
+    },
+    signer_address: {
+      type: DataTypes.CHAR(40),
+      allowNull: false,
+    },
+    timestamp_ns: {
+      type: DataTypes.DECIMAL,
+      allowNull: false,
+    },
+    value: {
+      type: DataTypes.DECIMAL(20),
+      allowNull: false,
+    },
+    final: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    last: {
+      type: DataTypes.BOOLEAN,
+      allowNull: false,
+      defaultValue: false,
+    },
+    received_receipt: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
+  })
   await queryInterface.sequelize.query(functionSQL)
   await queryInterface.sequelize.query(triggerSQL)
-  await queryInterface.sequelize.query(indexSQL)
-  await queryInterface.sequelize.query(functionLogsInvalidRavsSQL)
 
   if (tables.includes('scalar_tap_ravs')) {
     logger.info(`scalar_tap_ravs already exist, migration not necessary`)
