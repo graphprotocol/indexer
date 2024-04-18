@@ -592,7 +592,7 @@ export async function run(
         queryFeeModels,
         graphNode,
         metrics,
-        sequelize,
+        sequelize.getQueryInterface(),
       ),
   )
 
