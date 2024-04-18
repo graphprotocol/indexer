@@ -15,7 +15,9 @@ import {
   createMetrics,
   Logger,
   Metrics,
+  mutable,
   parseGRT,
+  WritableEventual,
 } from '@graphprotocol/common-ts'
 import {
   invalidReallocateAction,
@@ -165,5 +167,18 @@ describe('Allocation Manager', () => {
     expect(reordered[0]).toStrictEqual(unallocateAction)
     expect(reordered[1]).toStrictEqual(reallocateAction)
     expect(reordered[2]).toStrictEqual(queuedAllocateAction)
+  })
+
+  test('waitForEventualSequential() waits for a number to be pushed to the stream', async () => {
+    const latestBlockNumberStream: WritableEventual<number> = mutable(0)
+    latestBlockNumberStream.push(1)
+    latestBlockNumberStream.push(2)
+    latestBlockNumberStream.push(3)
+    await allocationManager.waitForBlockNumberOnEventual(
+      logger,
+      3,
+      latestBlockNumberStream,
+    )
+    expect(await latestBlockNumberStream.value()).toBe(3)
   })
 })
