@@ -70,15 +70,15 @@ export async function up({ context }: Context): Promise<void> {
     FOR EACH ROW EXECUTE PROCEDURE scalar_tap_receipt_notify();
   `
   queryInterface.addIndex('scalar_tap_receipts', ['allocation_id'], {
-    name: 'scalar_tap_receipts_allocation_id_idx'
+    name: 'scalar_tap_receipts_allocation_id_idx',
   })
   queryInterface.addIndex('scalar_tap_receipts', ['timestamp_ns'], {
-    name: 'scalar_tap_receipts_timestamp_ns_idx'
+    name: 'scalar_tap_receipts_timestamp_ns_idx',
   })
 
   if (tables.includes('scalar_tap_receipts_invalid')) {
     logger.info(
-      `scalar_tap_receipts_invalid already exist, migration not necessary`
+      `scalar_tap_receipts_invalid already exist, migration not necessary`,
     )
     return
   }
