@@ -15,7 +15,6 @@ import {
 } from '@graphprotocol/common-ts'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { Sequelize } from 'sequelize'
-//import { utils } from 'ethers'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -28,11 +27,10 @@ let queryFeeModels: QueryFeeModels
 let sequelize: Sequelize
 const timeout = 30000
 
-// const startRAVProcessing = jest.spyOn(
-//   AllocationReceiptCollector.prototype,
-//   'startRAVProcessing',
-// )
-
+const startRAVProcessing = jest.spyOn(
+  AllocationReceiptCollector.prototype,
+  'startRAVProcessing',
+)
 const setup = async () => {
   logger = createLogger({
     name: 'Indexer API Client',
@@ -60,7 +58,7 @@ const setup = async () => {
     queryFeeModels,
     graphNode,
     metrics,
-    sequelize,
+    sequelize.getQueryInterface(),
   )
   receiptCollector = network.receiptCollector
 }
@@ -99,16 +97,16 @@ describe('TAP', () => {
   beforeEach(setupEach, timeout)
   afterEach(teardownEach, timeout)
   afterAll(teardownAll, timeout)
-
-  // test(
-  //   'test if startRAVProcessing is called',
-  //   async () => {
-  //     expect(startRAVProcessing).toHaveBeenCalled()
-  //   },
-  //   timeout,
-  // )
   test(
-    'test getPendingRAVsEventual',
+    'test if startRAVProcessing is called',
+    async () => {
+      expect(startRAVProcessing).toHaveBeenCalled()
+    },
+    timeout,
+  )
+
+  test(
+    'test getPendingRAVs',
     async () => {
       const ravs = await receiptCollector['pendingRAVs']()
 
