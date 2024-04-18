@@ -5,6 +5,8 @@ import {
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
+  indexerError,
+  IndexerErrorCode,
   IndexerManagementModels,
   Network,
   QueryFeeModels,
@@ -15,7 +17,9 @@ import {
   createMetrics,
   Logger,
   Metrics,
+  mutable,
   parseGRT,
+  WritableEventual,
 } from '@graphprotocol/common-ts'
 import {
   invalidReallocateAction,
@@ -165,5 +169,51 @@ describe('Allocation Manager', () => {
     expect(reordered[0]).toStrictEqual(unallocateAction)
     expect(reordered[1]).toStrictEqual(reallocateAction)
     expect(reordered[2]).toStrictEqual(queuedAllocateAction)
+  })
+
+  test('waitForEventualSequential waits for a number to be pushed to the stream', async () => {
+    const latestBlockNumberStream: WritableEventual<number> = mutable(0)
+    latestBlockNumberStream.push(1)
+    latestBlockNumberStream.push(2)
+    latestBlockNumberStream.push(3)
+    await allocationManager.waitForBlockNumberOnEventual(
+      logger,
+      3,
+      latestBlockNumberStream,
+    )
+    expect(await latestBlockNumberStream.value()).toBe(3)
+  })
+
+  test('waitForEventualSequential throws an error if MAX_BLOCK_WAIT_ATTEMPTS is exceeded', async () => {
+    const latestBlockNumberStream: WritableEventual<number> = mutable(0)
+    async function* pushValue(latestBlockNumberStream: WritableEventual<number>) {
+      latestBlockNumberStream.push((await latestBlockNumberStream.value()) + 1)
+      yield
+    }
+
+    const operations: Promise<IteratorResult<undefined, void>>[] = []
+    for (let i = 1; i <= 100; i++) {
+      operations.push(pushValue(latestBlockNumberStream).next())
+    }
+
+    await expect(
+      Promise.all([
+        async () => {
+          // values need to be produced in the stream while waiting
+          for (const operation of operations) {
+            await operation
+          }
+        },
+        async () => {
+          await expect(async () => {
+            await allocationManager.waitForBlockNumberOnEventual(
+              logger,
+              100,
+              latestBlockNumberStream,
+            )
+          }).toThrowError(indexerError(IndexerErrorCode.IE076))
+        },
+      ]),
+    ).resolves
   })
 })

@@ -1,4 +1,5 @@
 import {
+  Eventual,
   formatGRT,
   Logger,
   parseGRT,
@@ -429,6 +430,8 @@ export class AllocationManager {
       )
     }
 
+    await this.waitForBlockNumber(logger, receipt.blockNumber)
+
     const createAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationCreated',
       this.network.contracts.staking.interface,
@@ -479,6 +482,39 @@ export class AllocationManager {
       allocation: createAllocationEventLogs.allocationID,
       allocatedTokens: amount,
       protocolNetwork: this.network.specification.networkIdentifier,
+    }
+  }
+
+  async waitForBlockNumber(logger: Logger, blockNumber: number): Promise<void> {
+    await this.waitForBlockNumberOnEventual(
+      logger,
+      blockNumber,
+      this.network.networkSubgraph.deployment!.status.map(
+        (status) => status.latestBlock?.number ?? 0,
+      ),
+    )
+  }
+
+  async waitForBlockNumberOnEventual(
+    logger: Logger,
+    number: number,
+    sequentialNumberStream: Eventual<number>,
+  ): Promise<void> {
+    let attempts = 0
+    const MAX_BLOCK_WAIT_ATTEMPTS = 10
+    for await (const latestSequentialNumber of sequentialNumberStream.values()) {
+      if (attempts > MAX_BLOCK_WAIT_ATTEMPTS) {
+        throw indexerError(IndexerErrorCode.IE076)
+      }
+      attempts += 1
+      if (latestSequentialNumber >= number) {
+        return
+      } else {
+        logger.debug('Waiting for block to be reached', {
+          blockNumber: number,
+          latestBlock: latestSequentialNumber,
+        })
+      }
     }
   }
 
@@ -838,6 +874,8 @@ export class AllocationManager {
         `Allocation '${allocationID}' could not be closed: ${receipt}`,
       )
     }
+
+    await this.waitForBlockNumber(logger, receipt.blockNumber)
 
     const closeAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationClosed',
