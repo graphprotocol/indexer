@@ -79,6 +79,7 @@ module.exports = {
     const {
       type,
       status,
+      deployment,
       source,
       reason,
       orderBy,
@@ -192,6 +193,7 @@ module.exports = {
           {
             type,
             status,
+            deploymentID: deployment,
             source,
             reason,
             protocolNetwork,

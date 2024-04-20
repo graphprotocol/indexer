@@ -157,6 +157,7 @@ export interface ActionFilter {
   id?: number | undefined
   type?: ActionType
   status?: ActionStatus
+  deploymentID?: string
   source?: string
   reason?: string
   updatedAt?: WhereOperators

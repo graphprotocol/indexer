@@ -248,6 +248,42 @@ describe('Actions', () => {
     ).resolves.toHaveProperty('data.actions', [expected])
   })
 
+  test('Fetch actions for a specific deploymentID', async () => {
+    const queuedAllocateAction1 = { ...queuedAllocateAction }
+    const queuedAllocateAction2 = { ...queuedAllocateAction }
+    const queuedAllocateAction3 = { ...queuedAllocateAction }
+    queuedAllocateAction2.deploymentID = subgraphDeployment2
+    queuedAllocateAction3.deploymentID = subgraphDeployment2
+
+    const inputActions = [
+      queuedAllocateAction1,
+      queuedAllocateAction2,
+      queuedAllocateAction3,
+    ]
+    const expecteds = await Promise.all(
+      inputActions.filter((action) => action.deploymentID === subgraphDeployment2).map(async (action, key) => {
+        return await actionInputToExpected(action, key + 1)
+      }),
+    )
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', expecteds)
+
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: {
+            deploymentID: subgraphDeployment2,
+          },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty(
+      'data.actions',
+      expecteds.sort((a, b) => (a.source > b.source ? -1 : 1)),
+    )
+  })
+
   test('Queue many actions and retrieve all of a certain status with certain ordering', async () => {
     const queuedAllocateAction1 = { ...queuedAllocateAction }
     const queuedAllocateAction2 = { ...queuedAllocateAction }
