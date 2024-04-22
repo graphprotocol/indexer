@@ -251,16 +251,16 @@ describe('Actions', () => {
       [Op.and]: [{ status: 'failed' }, { type: 'allocate' }],
     })
 
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
-
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
+    await expect(
+      ActionManager.fetchActions(models, null, filterOptions),
+    ).resolves.toHaveLength(1)
 
     await expect(
-      ActionManager.fetchActions(models, {
+      ActionManager.fetchActions(models, null, filterOptions),
+    ).resolves.toHaveLength(1)
+
+    await expect(
+      ActionManager.fetchActions(models, null, {
         status: ActionStatus.FAILED,
         type: ActionType.ALLOCATE,
         updatedAt: { [Op.gte]: literal("NOW() - INTERVAL '1d'") },
@@ -268,7 +268,7 @@ describe('Actions', () => {
     ).resolves.toHaveLength(1)
 
     await expect(
-      ActionManager.fetchActions(models, {
+      ActionManager.fetchActions(models, null, {
         status: ActionStatus.FAILED,
         type: ActionType.ALLOCATE,
         updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
