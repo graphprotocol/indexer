@@ -568,7 +568,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       await this.queryInterface.sequelize.query(query)
 
       return await this.models.receiptAggregateVouchers.findAll({
-        where: { last: true, final: false },
+        where: { redeemedAt: null, final: false },
       })
     }
     return []
