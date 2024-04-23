@@ -883,10 +883,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
         try {
           const addressWithoutPrefix = rav.allocationId.toLowerCase().replace('0x', '')
-          await this.models.receiptAggregateVouchers.update(
-            { redeemedAt: new Date() },
-            { where: { allocationId: addressWithoutPrefix } },
-          )
+          // WE use sql directly due to a bug in sequelize update:
+          // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+          const query = `
+            UPDATE scalar_tap_ravs
+            SET redeemed_at = '${new Date().toISOString().slice(0, 19).replace('T', ' ')}'
+            WHERE allocation_id = '${addressWithoutPrefix}'
+          `
+          await this.queryInterface.sequelize.query(query)
+
           logger.info(
             `Updated receipt aggregate vouchers table with redeemed_at for allocation ${addressWithoutPrefix}`,
           )
