@@ -74,7 +74,7 @@ option can be used.
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                          |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmT8UDGK7zKd2u2NQZwhLYHdA4KM55QsivkE3ouCuX6fEj`                                |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`   |
-| `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xe1EC4339019eC9628438F8755f847e3023e4ff9c`                                    |
+| `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xac01B0b3B2Dc5D8E0D484c02c4d077C15C96a7b4`                                    |
 
 ### Graph Node
 
