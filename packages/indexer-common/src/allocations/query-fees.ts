@@ -472,7 +472,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           this.logger.info(`No pending RAVs to process`)
           return []
         }
-        const allocations: Allocation[] = await this.getAllocationfromAllocationId(ravs)
+        const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
         this.logger.info(`Retrieved allocations for pending RAVs \n: ${allocations}`)
         return ravs
           .map((rav) => {
@@ -491,13 +491,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     )
   }
 
-  private async getAllocationfromAllocationId(
+  private async getAllocationsfromAllocationIds(
     ravs: ReceiptAggregateVoucher[],
   ): Promise<Allocation[]> {
     const allocationIds: string[] = ravs.map((rav) =>
       rav.getSignedRAV().rav.allocationId.toLowerCase(),
     )
-    const returnedAllocations = (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const returnedAllocations: any[] = (
       await this.networkSubgraph.query(
         gql`
           query allocations($allocationIds: [String!]!) {
@@ -529,15 +530,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         { allocationIds },
       )
     ).data.allocations
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const allocations: any[] = []
-    allocations.push(...returnedAllocations)
-    if (allocations.length == 0) {
+
+    if (returnedAllocations.length == 0) {
       this.logger.error(
         `No allocations returned for ${allocationIds} in network subgraph`,
       )
     }
-    return allocations.map((x) => parseGraphQLAllocation(x, this.protocolNetwork))
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return returnedAllocations.map((x) => parseGraphQLAllocation(x, this.protocolNetwork))
   }
 
   private getSignedRAVsEventual(
@@ -615,20 +615,17 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       await this.queryInterface.sequelize.query(query)
 
       // // Update those that redeemed_at is older than 60 minutes and mark as final
-      const finalizeTimeFrame = new Date(Date.now() - this.finalityTime * 1000)
-        .toISOString()
-        .slice(0, 19)
-        .replace('T', ' ')
-
       query = `
         UPDATE scalar_tap_ravs
         SET final = TRUE
-        WHERE last = TRUE AND final = FALSE AND redeemed_at < '${finalizeTimeFrame}'
+        WHERE last = TRUE AND final = FALSE 
+        AND redeemed_at < NOW() - INTERVAL '${this.finalityTime} second'
+        AND redeemed_at IS NOT NULL
       `
       await this.queryInterface.sequelize.query(query)
 
       return await this.models.receiptAggregateVouchers.findAll({
-        where: { redeemedAt: null, final: false },
+        where: { redeemedAt: null, final: false, last: true },
       })
     }
     return []
