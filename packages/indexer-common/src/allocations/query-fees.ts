@@ -947,7 +947,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
           const query = `
             UPDATE scalar_tap_ravs
-            SET redeemed_at = '${new Date().toISOString().slice(0, 19).replace('T', ' ')}'
+            SET redeemed_at = NOW()
             WHERE allocation_id = '${addressWithoutPrefix}'
           `
           await this.queryInterface.sequelize.query(query)
