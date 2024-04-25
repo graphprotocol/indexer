@@ -272,6 +272,7 @@ export class Network {
       allocations,
       networkSpecification: specification,
       tapSubgraph,
+      networkSubgraph,
       queryInterface: queryInterface!,
     })
 

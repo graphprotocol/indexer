@@ -26,12 +26,14 @@ import {
   SignedRAV,
   allocationSigner,
   tapAllocationIdProof,
+  parseGraphQLAllocation,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
 import { TAPSubgraph } from '../tap-subgraph'
+import { NetworkSubgraph } from '../network-subgraph'
 import gql from 'graphql-tag'
 import { QueryInterface } from 'sequelize'
 
@@ -86,6 +88,7 @@ export interface AllocationReceiptCollectorOptions {
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
   tapSubgraph: TAPSubgraph
+  networkSubgraph: NetworkSubgraph
   queryInterface: QueryInterface
 }
 
@@ -122,6 +125,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare voucherRedemptionMaxBatchSize: number
   declare protocolNetwork: string
   declare tapSubgraph: TAPSubgraph
+  declare networkSubgraph: NetworkSubgraph
   declare finalityTime: number
   declare queryInterface: QueryInterface
 
@@ -138,6 +142,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     allocations,
     networkSpecification,
     tapSubgraph,
+    networkSubgraph,
     queryInterface,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
@@ -153,6 +158,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.allocations = allocations
     collector.protocolNetwork = networkSpecification.networkIdentifier
     collector.tapSubgraph = tapSubgraph
+    collector.networkSubgraph = networkSubgraph
     collector.queryInterface = queryInterface
 
     // Process Gateway routes
@@ -459,10 +465,15 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   private getPendingRAVs(): Eventual<RavWithAllocation[]> {
     return joinEventual({
       timer: timer(30_000),
-      allocations: this.allocations,
     }).tryMap(
-      async ({ allocations }) => {
+      async () => {
         const ravs = await this.pendingRAVs()
+        if (ravs.length === 0) {
+          this.logger.info(`No pending RAVs to process`)
+          return []
+        }
+        const allocations: Allocation[] = await this.getAllocationfromAllocationId(ravs)
+        this.logger.info(`Retrieved allocations for pending RAVs \n: ${allocations}`)
         return ravs
           .map((rav) => {
             const signedRav = rav.getSignedRAV()
@@ -478,6 +489,55 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       },
       { onError: (err) => this.logger.error(`Failed to query pending RAVs`, { err }) },
     )
+  }
+
+  private async getAllocationfromAllocationId(
+    ravs: ReceiptAggregateVoucher[],
+  ): Promise<Allocation[]> {
+    const allocationIds: string[] = ravs.map((rav) =>
+      rav.getSignedRAV().rav.allocationId.toLowerCase(),
+    )
+    const returnedAllocations = (
+      await this.networkSubgraph.query(
+        gql`
+          query allocations($allocationIds: [String!]!) {
+            allocations(where: { id_in: $allocationIds }) {
+              id
+              status
+              subgraphDeployment {
+                id
+                stakedTokens
+                signalledTokens
+                queryFeesAmount
+                deniedAt
+              }
+              indexer {
+                id
+              }
+              allocatedTokens
+              createdAtEpoch
+              createdAtBlockHash
+              closedAtEpoch
+              closedAtEpoch
+              closedAtBlockHash
+              poi
+              queryFeeRebates
+              queryFeesCollected
+            }
+          }
+        `,
+        { allocationIds },
+      )
+    ).data.allocations
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allocations: any[] = []
+    allocations.push(...returnedAllocations)
+    if (allocations.length == 0) {
+      this.logger.error(
+        `No allocations returned for ${allocationIds} in network subgraph`,
+      )
+    }
+    return allocations.map((x) => parseGraphQLAllocation(x, this.protocolNetwork))
   }
 
   private getSignedRAVsEventual(
