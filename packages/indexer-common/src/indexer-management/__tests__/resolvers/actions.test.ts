@@ -532,6 +532,27 @@ describe('Actions', () => {
         .toPromise(),
     ).resolves.toHaveProperty('data.actions', [])
   })
+  
+  test('Rejects duplicate queued actions', async () => {
+    const inputAction = queuedAllocateAction
+    const mutations: Promise<any>[] = []
+    for (let i = 0; i < 50; i++) {
+      mutations.push(client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise())
+    }
+
+    const results = await Promise.all(mutations)
+    for (const result of results) {
+      expect(result.data).not.toBeNull()
+    }
+
+    const actions = await client
+      .query(ACTIONS_QUERY, { filter: { type: ActionType.ALLOCATE } })
+      .toPromise()
+
+    expect(actions.data.actions).toHaveLength(1)
+    console.log('actions.data.actions', actions.data.actions)
+  })
+
 
   test('Reject duplicate queued action from different source', async () => {
     const inputAction = queuedAllocateAction
