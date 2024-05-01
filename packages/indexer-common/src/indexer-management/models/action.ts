@@ -155,6 +155,13 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
     {
       modelName: 'Action',
       sequelize,
+      indexes: [
+        {
+          fields: ['deploymentID', 'source'],
+          unique: true,
+          name: 'Actions_ckey_unique_deploymentID_source',
+        },
+      ],
       validate: {
         requiredActionParams() {
           switch (this.type) {

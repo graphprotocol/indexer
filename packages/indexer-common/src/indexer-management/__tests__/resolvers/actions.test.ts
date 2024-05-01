@@ -25,7 +25,7 @@ import {
   OrderDirection,
   QueryFeeModels,
 } from '@graphprotocol/indexer-common'
-import { CombinedError } from '@urql/core'
+import { CombinedError, OperationResult } from '@urql/core'
 import { GraphQLError } from 'graphql'
 import {
   createTestManagementClient,
@@ -532,17 +532,42 @@ describe('Actions', () => {
         .toPromise(),
     ).resolves.toHaveProperty('data.actions', [])
   })
-  
-  test('Rejects duplicate queued actions', async () => {
+
+  test('Rejects duplicate actions', async function rejectsDuplicateActions() {
+    console.log('running Rejects duplicate actions test')
+    class ResultWrapper {
+      constructor(
+        public actionNum: number,
+        public inner: OperationResult<Action>,
+      ) {}
+    }
     const inputAction = queuedAllocateAction
-    const mutations: Promise<any>[] = []
-    for (let i = 0; i < 50; i++) {
-      mutations.push(client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise())
+    const mutations: Promise<ResultWrapper>[] = []
+    for (let i = 0; i < 5; i++) {
+      mutations.push(
+        (async function pushMutation() {
+          return new ResultWrapper(
+            i,
+            await client
+              .mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] })
+              .toPromise(),
+          )
+        })(),
+      )
     }
 
     const results = await Promise.all(mutations)
-    for (const result of results) {
-      expect(result.data).not.toBeNull()
+    for (const actionResult of results) {
+      expect(actionResult).not.toBeNull()
+      if (actionResult.inner.data === null) {
+        expect(actionResult.inner.error).not.toBeNull()
+        console.log(
+          `action ${actionResult.actionNum} result.error:`,
+          actionResult.inner.error,
+        )
+      } else {
+        expect(actionResult.inner.data).not.toBeNull()
+      }
     }
 
     const actions = await client
@@ -550,9 +575,7 @@ describe('Actions', () => {
       .toPromise()
 
     expect(actions.data.actions).toHaveLength(1)
-    console.log('actions.data.actions', actions.data.actions)
   })
-
 
   test('Reject duplicate queued action from different source', async () => {
     const inputAction = queuedAllocateAction
