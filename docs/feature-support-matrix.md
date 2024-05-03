@@ -40,7 +40,7 @@ graph-node: >=0.35.0 <0.36.0
 
 ### Latest Council snapshot
 
-[GPP-0037 Update Feature Support Matrix (Graph Node v0.34.1)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x840a7de34b1dac9c7ef03d3170540abc5957ffd00564777aac9b253068a93723)
+[GGP-0040: Updated Feature Support (ens, arweave, 0.35.x)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x214ad88959a8e09e7341b21650699ab67345493d9386118dc524c827bd011090)
 
 ### Other notes
 
