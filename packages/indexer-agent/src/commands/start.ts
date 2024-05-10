@@ -200,13 +200,13 @@ export const start = {
       .option('rebate-claim-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
         type: 'number',
-        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        default: 1, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
       })
       .option('rebate-claim-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'number',
-        default: 2000,
+        default: 5,
         group: 'Query Fees',
       })
       .option('rebate-claim-max-batch-size', {
@@ -218,13 +218,13 @@ export const start = {
       .option('voucher-redemption-threshold', {
         description: `Minimum value of rebate for a single allocation (in GRT) in order for it to be included in a batch rebate claim on-chain`,
         type: 'number',
-        default: 200, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
+        default: 1, // This value (the marginal gain of a claim in GRT), should always exceed the marginal cost of a claim (in ETH gas)
         group: 'Query Fees',
       })
       .option('voucher-redemption-batch-threshold', {
         description: `Minimum total value of all rebates in an batch (in GRT) before the batch is claimed on-chain`,
         type: 'number',
-        default: 2000,
+        default: 5,
         group: 'Query Fees',
       })
       .option('voucher-redemption-max-batch-size', {
