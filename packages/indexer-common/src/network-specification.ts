@@ -41,14 +41,14 @@ export const IndexerOptions = z
     url: z.string().url(),
     geoCoordinates: z.number().array().length(2).default([31.780715, -41.179504]),
     restakeRewards: z.boolean().default(true),
-    rebateClaimThreshold: GRT().default(200),
-    rebateClaimBatchThreshold: GRT().default(200),
+    rebateClaimThreshold: GRT().default(1),
+    rebateClaimBatchThreshold: GRT().default(5),
     rebateClaimMaxBatchSize: positiveNumber().default(100),
     poiDisputeMonitoring: z.boolean().default(false),
     poiDisputableEpochs: positiveNumber().default(1),
     defaultAllocationAmount: GRT().default(0.1),
-    voucherRedemptionThreshold: GRT().default(200),
-    voucherRedemptionBatchThreshold: GRT().default(2000),
+    voucherRedemptionThreshold: GRT().default(1),
+    voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
