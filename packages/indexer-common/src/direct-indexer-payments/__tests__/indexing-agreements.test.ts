@@ -15,6 +15,7 @@ import {
   IndexingAgreementVoucherABIFields,
   SubgraphIndexingAgreementVoucherMetadataABI,
   SubgraphIndexingVoucherMetadataABIFields,
+  fromSignatureAndData,
 } from '../abi'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -50,8 +51,15 @@ const randomBytes32 = () => hexlify(ethers.utils.randomBytes(32))
 const randomBigInt = () =>
   BigInt(parseInt(ethers.utils.hexlify(ethers.utils.randomBytes(8))))
 
-// Function to generate mock data
-async function generateMockData(): Promise<{
+/**
+ * @returns A mock voucher with random data
+ * @field signerAddress The address of the signer
+ * @field signature The signature of the voucher
+ * @field data The ABI encoded voucher
+ * @field voucher The voucher generated
+ * @field metadata The metadata of the voucher
+ */
+async function generateMockVoucher(): Promise<{
   signerAddress: string
   signature: string
   data: string
@@ -73,10 +81,7 @@ async function generateMockData(): Promise<{
     maxEpochsPerCollection: Math.floor(Math.random() * 10) + 1,
     minEpochsPerCollection: Math.floor(Math.random() * 5) + 1,
     durationEpochs: Math.floor(Math.random() * 30) + 10,
-    metadata: ethers.utils.defaultAbiCoder.encode(
-      SubgraphIndexingVoucherMetadataABIFields,
-      [metadata.subgraphDeploymentId, metadata.pricePerBlock],
-    ),
+    metadata: encodeMetadataABI(metadata),
   }
 
   const wallet = Wallet.createRandom()
@@ -85,6 +90,13 @@ async function generateMockData(): Promise<{
   const signature = await wallet.signMessage(data)
 
   return { signerAddress, signature, data, voucher, metadata }
+}
+
+function encodeMetadataABI(metadata: SubgraphIndexingAgreementVoucherMetadataABI) {
+  return ethers.utils.defaultAbiCoder.encode(SubgraphIndexingVoucherMetadataABIFields, [
+    metadata.subgraphDeploymentId,
+    metadata.pricePerBlock,
+  ])
 }
 
 // This is here in the test since we don't plan on encoding the voucher in the indexer.
@@ -109,17 +121,52 @@ describe('Direct Indexer Payments', () => {
   afterEach(teardownEach)
   afterAll(teardownAll)
 
-  it('should create a new agreement', async () => {
-    const { signerAddress, signature, data, voucher, metadata } = await generateMockData()
+  it('should throw an error when the signer is not valid', async () => {
+    const { signature, data } = await generateMockVoucher()
+    const validSigners = [randomAddress(), randomAddress()]
+    expect(() => fromSignatureAndData(signature, data, validSigners)).toThrow()
+  })
 
-    const fromAbi: IndexingVoucher = await paymentModels.IndexingVoucherModel.fromABI(
-      signature,
-      voucher,
-      metadata,
+  it('should deserialize a voucher from an ABI encoded values', async () => {
+    const { signerAddress, signature, data, voucher } = await generateMockVoucher()
+    const deserialized: IndexingVoucher = fromSignatureAndData(signature, data, [
+      signerAddress,
+    ])
+    expect(deserialized.payer).toEqual(voucher.payer)
+    expect(deserialized.payee).toEqual(voucher.payee)
+    expect(deserialized.service).toEqual(voucher.service)
+    expect(deserialized.maxInitialAmount).toEqual(voucher.maxInitialAmount)
+    expect(deserialized.maxOngoingAmountPerEpoch).toEqual(
+      voucher.maxOngoingAmountPerEpoch,
     )
-    const agreement = await paymentModels.IndexingVoucherModel.create(fromAbi)
+  })
 
-    expect(agreement.signature).toEqual(signature)
-    expect(agreement.subgraphDeploymentId).toEqual('Qm1234')
+  it('should create a new agreement from a voucher recieved', async () => {
+    const { signerAddress, signature, data } = await generateMockVoucher()
+
+    try {
+      const newVoucher = await fromSignatureAndData(signature, data, [signerAddress])
+      const savedVoucher = await paymentModels.IndexingVoucherModel.create(newVoucher)
+
+      const savedAgreement = await paymentModels.IndexingAgreementModel.create({
+        signature,
+        subgraphDeploymentId: newVoucher.subgraphDeploymentId,
+        openedAt: new Date(),
+        status: IndexingAgreementState.OPEN,
+      })
+
+      expect(savedAgreement.signature).toEqual(savedVoucher.signature)
+
+      const agreement = await paymentModels.IndexingAgreementModel.findOne({
+        where: {
+          signature: signature,
+        },
+      })
+
+      expect(agreement).not.toBeNull()
+    } catch (e) {
+      console.log(e)
+      throw e
+    }
   })
 })

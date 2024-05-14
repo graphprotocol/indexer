@@ -42,7 +42,7 @@ export const SubgraphIndexingVoucherMetadataABIFields = [
 ]
 
 /** Retrieve the valid signers from the environment */
-function getValidSignersFromEnv(): string[] {
+export function getValidSignersFromEnv(): string[] {
   const validSigners = process.env.VALID_SIGNERS
   if (!validSigners) {
     throw new Error('VALID_SIGNERS not set')
@@ -51,15 +51,19 @@ function getValidSignersFromEnv(): string[] {
   return validSigners.split(',')
 }
 
-function verify(signature: string, data: string): boolean {
-  const validSigners = getValidSignersFromEnv()
+function verify(signature: string, data: string, validSigners: string[]): boolean {
   const recoveredAddress = ethers.utils.verifyMessage(data, signature)
   return validSigners.includes(recoveredAddress)
 }
 
 /** Deserialize ABI encoded Indexing agreement voucher from data. */
-export function fromSignatureAndData(signature: string, data: string): IndexingVoucher {
-  if (!verify(signature, data)) {
+export function fromSignatureAndData(
+  signature: string,
+  data: string,
+  validSigners: string[],
+): IndexingVoucher {
+  if (!verify(signature, data, validSigners)) {
+    // TODO: error type specific to invalid signature
     throw new Error('Invalid signature')
   }
 
@@ -79,13 +83,13 @@ export function fromSignatureAndData(signature: string, data: string): IndexingV
     payer: decoded.payer,
     payee: decoded.payee,
     service: decoded.service,
-    maxInitialAmount: decoded.maxInitialAmount,
-    maxOngoingAmountPerEpoch: decoded.maxOngoingAmountPerEpoch,
-    deadline: decoded.deadline,
+    maxInitialAmount: BigInt(decoded.maxInitialAmount),
+    maxOngoingAmountPerEpoch: BigInt(decoded.maxOngoingAmountPerEpoch),
+    deadline: BigInt(decoded.deadline),
     maxEpochsPerCollection: decoded.maxEpochsPerCollection,
     minEpochsPerCollection: decoded.minEpochsPerCollection,
     // metadata fields
     subgraphDeploymentId: metadata.subgraphDeploymentId,
-    pricePerBlock: metadata.pricePerBlock,
+    pricePerBlock: BigInt(metadata.pricePerBlock),
   }
 }

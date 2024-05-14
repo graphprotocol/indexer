@@ -59,7 +59,7 @@ export enum IndexingAgreementState {
 /**
  * Represents an indexing agreement, which is an instance of a voucher attached to a status.
  */
-export interface IndexingAgreementStatus {
+export interface IndexingAgreement {
   /** The agreement's signature */
   signature: string
 
@@ -77,19 +77,14 @@ export interface IndexingAgreementStatus {
 }
 
 export class IndexingAgreementModel
-  extends Model<IndexingAgreementStatus>
-  implements IndexingAgreementStatus
+  extends Model<IndexingAgreement>
+  implements IndexingAgreement
 {
   public signature!: string
   public subgraphDeploymentId!: string
   public openedAt!: Date
-  public set status(value: IndexingAgreementState) {
-    this.statusModifiedAt = new Date()
-    this.status = value
-  }
-  public get status(): IndexingAgreementState {
-    return this.status
-  }
+
+  public status!: IndexingAgreementState
   public statusModifiedAt: Date | null = null
 
   public readonly voucher?: IndexingVoucher
@@ -119,6 +114,7 @@ export class IndexingVoucherModel
     const payer = toAddress(abi.payer)
     const payee = toAddress(abi.payee)
     const service = toAddress(abi.service)
+    console.log('length of address: ', payer.length)
     return {
       signature: signature,
       payer: payer,
@@ -172,7 +168,7 @@ export function defineDirectIndexingPaymentModels(
   IndexingVoucherModel.init(
     {
       signature: {
-        type: DataTypes.STRING(),
+        type: DataTypes.STRING(132),
         allowNull: false,
         primaryKey: true,
       },
@@ -189,16 +185,18 @@ export function defineDirectIndexingPaymentModels(
         allowNull: false,
       },
       maxInitialAmount: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
       },
       maxOngoingAmountPerEpoch: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
+        validate: { min: 0.0 },
       },
       deadline: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
+        validate: { min: 0.0 },
       },
       maxEpochsPerCollection: {
         type: DataTypes.INTEGER,
@@ -213,8 +211,9 @@ export function defineDirectIndexingPaymentModels(
         allowNull: false,
       },
       pricePerBlock: {
-        type: DataTypes.BIGINT,
+        type: DataTypes.DECIMAL,
         allowNull: false,
+        validate: { min: 0.0 },
       },
     },
     {
