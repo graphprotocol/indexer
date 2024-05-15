@@ -218,9 +218,14 @@ export const createApp = async ({
         try {
           logger.info(`Handle network subgraph query`)
 
+          let networkSubgraphAuthValue: string | undefined
+          if (networkSubgraphAuthToken) {
+            networkSubgraphAuthValue = `Bearer ${networkSubgraphAuthToken}`
+          }
+
           if (
-            networkSubgraphAuthToken &&
-            req.headers['authorization'] !== networkSubgraphAuthToken
+            networkSubgraphAuthValue &&
+            req.headers['authorization'] !== networkSubgraphAuthValue
           ) {
             throw new Error(`Invalid auth token`)
           }
