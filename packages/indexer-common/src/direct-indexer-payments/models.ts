@@ -76,6 +76,15 @@ export interface IndexingAgreement {
   openedAt: Date
 }
 
+/** Represents the price per block that an indexer proposees for incoming agreements. */
+export interface IndexingPrice {
+  /** The subgraph deployment id. */
+  subgraphDeploymentId: string
+
+  /** The price per block in wei GRT. */
+  pricePerBlock: bigint
+}
+
 export class IndexingAgreementModel
   extends Model<IndexingAgreement>
   implements IndexingAgreement
@@ -129,6 +138,11 @@ export class IndexingVoucherModel
       pricePerBlock: metadata.pricePerBlock,
     }
   }
+}
+
+export class IndexingPriceModel extends Model<IndexingPrice> implements IndexingPrice {
+  public subgraphDeploymentId!: string
+  public pricePerBlock!: bigint
 }
 
 export function defineDirectIndexingPaymentModels(
@@ -222,13 +236,34 @@ export function defineDirectIndexingPaymentModels(
     },
   )
 
+  IndexingPriceModel.init(
+    {
+      subgraphDeploymentId: {
+        type: DataTypes.STRING(66),
+        allowNull: false,
+        primaryKey: true,
+      },
+      pricePerBlock: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        validate: { min: 0.0 },
+      },
+    },
+    {
+      sequelize,
+      modelName: 'IndexingPrice',
+    },
+  )
+
   return {
     IndexingAgreementModel: IndexingAgreementModel,
     IndexingVoucherModel: IndexingVoucherModel,
+    IndexingPriceModel: IndexingPriceModel,
   }
 }
 
 export interface DirectIndexerPaymentModels {
   IndexingAgreementModel: typeof IndexingAgreementModel
   IndexingVoucherModel: typeof IndexingVoucherModel
+  IndexingPriceModel: typeof IndexingPriceModel
 }
