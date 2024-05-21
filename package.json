@@ -14,8 +14,8 @@
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
     "release": "./scripts/release.sh",
-    "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service",
-    "test:ci": "lerna --concurrency 1 run test:ci --stream --ignore @graphprotocol/indexer-service",
+    "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service --ignore @graphprotocol/indexer-integration-tests",
+    "test:ci": "lerna --concurrency 1 run test:ci --stream --ignore @graphprotocol/indexer-service --ignore @graphprotocol/indexer-integration-tests",
     "update-common-ts": "./scripts/update-common-ts.sh 1.8.3",
     "clean": "lerna run clean && rm -rf ./node_modules",
     "compile": "lerna run compile"

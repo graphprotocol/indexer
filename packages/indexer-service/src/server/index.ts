@@ -1,5 +1,8 @@
 import express from 'express'
+import rateLimit from 'express-rate-limit'
+import http from 'http'
 import cors from 'cors'
+
 import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Stream } from 'stream'
@@ -20,8 +23,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
-import rateLimit from 'express-rate-limit'
-import http from 'http'
+import { createIndexingPaymentServer as createIndexingPaymentsServer } from './direct-indexer-payments'
 
 export interface ServerOptions {
   logger: Logger
@@ -207,6 +209,22 @@ export const createApp = async ({
   if (freeQueryAuthToken) {
     freeQueryAuthValue = `Bearer ${freeQueryAuthToken}`
   }
+
+  app.post(
+    '/indexing-payments',
+    slowLimiter,
+    bodyParser.json(),
+    (req, res, next) => {
+      // debug log request only middleware
+      console.log(req.headers)
+      console.log(req.body)
+      next()
+    },
+    await createIndexingPaymentsServer({
+      client: indexerManagementClient,
+      logger,
+    }),
+  )
 
   if (serveNetworkSubgraph) {
     // Endpoint for network subgraph queries
