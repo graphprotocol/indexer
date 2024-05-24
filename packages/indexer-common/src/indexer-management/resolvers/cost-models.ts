@@ -97,8 +97,8 @@ export default {
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
     { models, multiNetworks, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
-    if (!multiNetworks) {
-      throw Error('IndexerManagementClient must be in `network` mode to set cost models')
+    if (Object.keys(multiNetworks.inner).length > 1) {
+      throw Error('Must be in single network mode to set cost models')
     }
 
     const update = parseGraphQLCostModel(costModel)

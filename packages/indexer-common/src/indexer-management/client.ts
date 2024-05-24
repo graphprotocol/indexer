@@ -23,7 +23,7 @@ export interface IndexerManagementResolverContext {
   logger: Logger
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
-  multiNetworks: MultiNetworks<Network> | undefined
+  multiNetworks: MultiNetworks<Network>
   dai: WritableEventual<string>
 }
 
@@ -457,7 +457,7 @@ export interface IndexerManagementClientOptions {
   // on availability.
   // Ford: there were some edge cases where the GraphNode was not able to auto handle it on its own
   indexNodeIDs: string[]
-  multiNetworks: MultiNetworks<Network> | undefined
+  multiNetworks: MultiNetworks<Network>
   defaults: IndexerManagementDefaults
 }
 
