@@ -23,6 +23,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:250                 | fantom        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:137                 | polygon       | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:10                  | optimism      | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:8453                | base          | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:341690              | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:243192              | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
@@ -30,6 +33,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | File data sources: IPFS    |               | Yes         | Yes          | No                | Yes                  | Yes              |
 | Substreams: mainnet        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | Substreams: optimism       |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| Substreams: base           |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| Substreams: scroll         |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| Substreams: linea          |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
 
 The accepted `graph-node` version range must always be specified; it always comprises the latest available version and the one immediately preceding it.
 The latest for the feature matrix above:
