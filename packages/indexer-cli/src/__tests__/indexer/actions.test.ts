@@ -1,10 +1,16 @@
-import { cliTest, deleteFromAllTables, seedActions, setup, teardown } from '../util'
+import {
+  cliTest,
+  deleteFromAllTables,
+  seedActions,
+  setupMultiNetworks,
+  teardown,
+} from '../util'
 import path from 'path'
 
 const baseDir = path.join(__dirname, '..')
 describe('Indexer actions tests', () => {
   describe('With indexer management server', () => {
-    beforeAll(setup)
+    beforeAll(setupMultiNetworks)
     afterAll(teardown)
     beforeEach(seedActions)
     afterEach(deleteFromAllTables)

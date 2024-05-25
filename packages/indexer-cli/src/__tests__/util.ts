@@ -103,7 +103,15 @@ export const testNetworkSpecification = specification.NetworkSpecification.parse
   },
 })
 
-export const setup = async () => {
+export const setupMultiNetworks = async () => {
+  return await setup(true)
+}
+
+export const setupSingleNetwork = async () => {
+  return await setup(false)
+}
+
+export const setup = async (multiNetworksEnabled: boolean) => {
   logger = createLogger({
     name: 'Setup',
     async: false,
@@ -141,10 +149,12 @@ export const setup = async () => {
   const fakeMainnetNetwork = cloneDeep(network) as Network
   fakeMainnetNetwork.specification.networkIdentifier = 'eip155:1'
 
-  const multiNetworks = new MultiNetworks(
-    [network, fakeMainnetNetwork],
-    (n: Network) => n.specification.networkIdentifier,
-  )
+  const multiNetworks = multiNetworksEnabled
+    ? new MultiNetworks(
+        [network, fakeMainnetNetwork],
+        (n: Network) => n.specification.networkIdentifier,
+      )
+    : new MultiNetworks([network], (n: Network) => n.specification.networkIdentifier)
 
   const defaults: IndexerManagementDefaults = {
     globalIndexingRule: {
