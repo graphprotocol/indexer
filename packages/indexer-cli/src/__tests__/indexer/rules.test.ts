@@ -1,10 +1,10 @@
 import {
   cliTest,
   connect,
-  setup,
   teardown,
   deleteFromAllTables,
   seedIndexingRules,
+  setupMultiNetworks,
 } from '../util'
 import path from 'path'
 
@@ -12,7 +12,7 @@ const baseDir = path.join(__dirname, '..')
 
 describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
-    beforeAll(setup)
+    beforeAll(setupMultiNetworks)
     afterAll(teardown)
     beforeEach(seedIndexingRules)
     afterEach(deleteFromAllTables)
