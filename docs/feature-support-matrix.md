@@ -46,7 +46,7 @@ graph-node: >=0.35.0 <0.36.0
 
 ### Latest Council snapshot
 
-[GGP-0040: Updated Feature Support (ens, arweave, 0.35.x)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x214ad88959a8e09e7341b21650699ab67345493d9386118dc524c827bd011090)
+[GGP-0042: Updated Feature Matrix Support (base, scroll, linea)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x21cd2337c58bf680281c1b4d795d07fe35bb83cf7c1071190bb3ca8fc20088aa)
 
 ### Other notes
 
