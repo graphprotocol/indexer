@@ -24,8 +24,8 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:137                 | polygon       | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:10                  | optimism      | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:8453                | base          | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:341690              | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:243192              | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:534352              | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:59144               | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
