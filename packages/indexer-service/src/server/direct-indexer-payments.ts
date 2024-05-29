@@ -1,16 +1,18 @@
 import { Request, Response } from 'express'
 
-import { generateIndexingPaymentsSchema } from '@graphprotocol/indexer-common'
+import {
+  IndexerManagementClient,
+  generateIndexingPaymentsSchema,
+} from '@graphprotocol/indexer-common'
 import { graphqlHTTP } from 'express-graphql'
-import { IndexingPaymentResolverContext } from 'indexer-common/src/direct-indexer-payments/resolvers'
 
 export const createIndexingPaymentServer = async (
-  context: IndexingPaymentResolverContext,
+  client: IndexerManagementClient,
 ): Promise<(request: Request, response: Response) => Promise<void>> => {
   return graphqlHTTP({
     schema: generateIndexingPaymentsSchema(),
     graphiql: false,
-    context,
+    context: client,
     customFormatErrorFn: error => {
       console.error(error)
       return error

@@ -56,6 +56,12 @@ export enum IndexingAgreementState {
   ENDED = 'ENDED',
 }
 
+/** Encoded form of the indexing agreement. Represents an agreement in the form we recieve it from the gateway.*/
+export interface IndexingAgreementData {
+  signature: string
+  data: string
+}
+
 /**
  * Represents an indexing agreement, which is an instance of a voucher attached to a status.
  */
@@ -80,6 +86,9 @@ export interface IndexingAgreement {
 export interface IndexingPrice {
   /** The subgraph deployment id. */
   subgraphDeploymentId: string
+
+  /** protocol network */
+  protocolNetwork: string
 
   /** The price per block in wei GRT. */
   pricePerBlock: bigint
@@ -142,7 +151,14 @@ export class IndexingVoucherModel
 
 export class IndexingPriceModel extends Model<IndexingPrice> implements IndexingPrice {
   public subgraphDeploymentId!: string
+  public protocolNetwork!: string
   public pricePerBlock!: bigint
+}
+
+export interface DirectIndexerPaymentModels {
+  IndexingAgreementModel: typeof IndexingAgreementModel
+  IndexingVoucherModel: typeof IndexingVoucherModel
+  IndexingPriceModel: typeof IndexingPriceModel
 }
 
 export function defineDirectIndexingPaymentModels(
@@ -243,6 +259,10 @@ export function defineDirectIndexingPaymentModels(
         allowNull: false,
         primaryKey: true,
       },
+      protocolNetwork: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+      },
       pricePerBlock: {
         type: DataTypes.DECIMAL,
         allowNull: false,
@@ -256,14 +276,8 @@ export function defineDirectIndexingPaymentModels(
   )
 
   return {
-    IndexingAgreementModel: IndexingAgreementModel,
-    IndexingVoucherModel: IndexingVoucherModel,
-    IndexingPriceModel: IndexingPriceModel,
+    ['IndexingAgreementModel']: IndexingAgreementModel,
+    ['IndexingVoucherModel']: IndexingVoucherModel,
+    ['IndexingPriceModel']: IndexingPriceModel,
   }
-}
-
-export interface DirectIndexerPaymentModels {
-  IndexingAgreementModel: typeof IndexingAgreementModel
-  IndexingVoucherModel: typeof IndexingVoucherModel
-  IndexingPriceModel: typeof IndexingPriceModel
 }

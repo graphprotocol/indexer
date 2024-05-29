@@ -16,9 +16,17 @@ export const SCHEMA_SDL = gql`
   type Query {
     agreement(signature: String!): IndexingAgreement
     price(subgraphDeploymentID: String!, protocolNetwork: String!): IndexingPrice
+    prices: [IndexingPrice]
   }
 
   type Mutation {
     createIndexingAgreement(signature: String!, data: String!): IndexingAgreement
+    cancelIndexingAgreement(signature: String!): IndexingAgreement
+    createPrice(
+      subgraphDeploymentID: String!
+      price: Float!
+      protocolNetwork: String!
+    ): IndexingPrice
+    removePrice(subgraphDeploymentID: String!, protocolNetwork: String!): IndexingPrice
   }
 `

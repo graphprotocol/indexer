@@ -220,10 +220,7 @@ export const createApp = async ({
       console.log(req.body)
       next()
     },
-    await createIndexingPaymentsServer({
-      client: indexerManagementClient,
-      logger,
-    }),
+    await createIndexingPaymentsServer(indexerManagementClient),
   )
 
   if (serveNetworkSubgraph) {
