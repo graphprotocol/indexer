@@ -185,6 +185,29 @@ export default {
         type: 'string',
         required: false,
       })
+      .option('info-rate-limit', {
+        description:
+          'Max requests per minute before returning 429 status codes, applies to paths: /cost, /subgraphs/health, /operator',
+        type: 'number',
+        required: false,
+        default: 300,
+        group: 'Server options',
+      })
+      .option('status-rate-limit', {
+        description:
+          'Max requests per minute before returning 429 status codes, applies to paths: /status, /network',
+        type: 'number',
+        required: false,
+        default: 300,
+        group: 'Server options',
+      })
+      .option('body-size-limit', {
+        description: 'Max body size per request (mb)',
+        type: 'number',
+        required: false,
+        default: 0.1,
+        group: 'Server options',
+      })
 
       .check(argv => {
         if (!argv['network-subgraph-endpoint'] && !argv['network-subgraph-deployment']) {
@@ -486,6 +509,9 @@ export default {
       networkSubgraph,
       networkSubgraphAuthToken: argv.networkSubgraphAuthToken,
       serveNetworkSubgraph: argv.serveNetworkSubgraph,
+      infoRateLimit: argv.infoRateLimit,
+      statusRateLimit: argv.statusRateLimit,
+      bodySizeLimit: argv.bodySizeLimit,
     })
   },
 }

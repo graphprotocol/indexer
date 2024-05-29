@@ -39,6 +39,9 @@ export interface ServerOptions {
   networkSubgraph: NetworkSubgraph
   networkSubgraphAuthToken: string | undefined
   serveNetworkSubgraph: boolean
+  infoRateLimit: number
+  statusRateLimit: number
+  bodySizeLimit: number
 }
 
 export const createApp = async ({
@@ -53,6 +56,9 @@ export const createApp = async ({
   networkSubgraph,
   networkSubgraphAuthToken,
   serveNetworkSubgraph,
+  infoRateLimit,
+  statusRateLimit,
+  bodySizeLimit,
 }: ServerOptions): Promise<express.Express> => {
   // Install metrics for incoming queries
   const serverMetrics = {
@@ -142,16 +148,24 @@ export const createApp = async ({
 
   const app = express()
 
-  // Limit status requests to 9000/30min (5/s)
-  const slowLimiter = rateLimit({
-    windowMs: 30 * 60 * 1000, // 1 minutes
-    max: 9000,
+  // Body parsers
+  const bodySizeLimitString = `${bodySizeLimit}mb`
+  const jsonParser = bodyParser.json({ limit: bodySizeLimitString })
+  const rawParser = bodyParser.raw({
+    limit: bodySizeLimitString,
+    type: 'application/json',
   })
 
-  // Limit network requests to 90000/30min (50/s)
+  // Limit status requests
+  const slowLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: infoRateLimit,
+  })
+
+  // Limit network requests per minute
   const networkLimiter = rateLimit({
-    windowMs: 30 * 60 * 1000, // 1 minutes
-    max: 90000,
+    windowMs: 60 * 1000, // 1 minute
+    max: statusRateLimit,
   })
 
   // Log requests to the logger stream
@@ -176,7 +190,7 @@ export const createApp = async ({
   app.use(
     '/status',
     networkLimiter,
-    bodyParser.json(),
+    jsonParser,
     await createStatusServer({ graphNodeStatusEndpoint }),
   )
 
@@ -191,7 +205,7 @@ export const createApp = async ({
   app.use(
     '/cost',
     slowLimiter,
-    bodyParser.json(),
+    jsonParser,
     await createCostServer({ indexerManagementClient, metrics }),
   )
 
@@ -199,7 +213,7 @@ export const createApp = async ({
   app.use(
     '/operator',
     slowLimiter,
-    bodyParser.json(),
+    jsonParser,
     await createOperatorServer({ operatorPublicKey }),
   )
 
@@ -210,34 +224,29 @@ export const createApp = async ({
 
   if (serveNetworkSubgraph) {
     // Endpoint for network subgraph queries
-    app.post(
-      `/network`,
-      networkLimiter,
-      bodyParser.raw({ type: 'application/json' }),
-      async (req, res) => {
-        try {
-          logger.info(`Handle network subgraph query`)
+    app.post(`/network`, networkLimiter, rawParser, async (req, res) => {
+      try {
+        logger.info(`Handle network subgraph query`)
 
-          let networkSubgraphAuthValue: string | undefined
-          if (networkSubgraphAuthToken) {
-            networkSubgraphAuthValue = `Bearer ${networkSubgraphAuthToken}`
-          }
-
-          if (
-            networkSubgraphAuthValue &&
-            req.headers['authorization'] !== networkSubgraphAuthValue
-          ) {
-            throw new Error(`Invalid auth token`)
-          }
-
-          const result = await networkSubgraph.queryRaw(req.body)
-          res.status(200).contentType('application/json').send(result.data)
-        } catch (err) {
-          logger.warn(`Failed to handle network subgraph query`, { err })
-          return res.status(200).send({ errors: [{ message: err.message }] })
+        let networkSubgraphAuthValue: string | undefined
+        if (networkSubgraphAuthToken) {
+          networkSubgraphAuthValue = `Bearer ${networkSubgraphAuthToken}`
         }
-      },
-    )
+
+        if (
+          networkSubgraphAuthValue &&
+          req.headers['authorization'] !== networkSubgraphAuthValue
+        ) {
+          throw new Error(`Invalid auth token`)
+        }
+
+        const result = await networkSubgraph.queryRaw(req.body)
+        res.status(200).contentType('application/json').send(result.data)
+      } catch (err) {
+        logger.warn(`Failed to handle network subgraph query`, { err })
+        return res.status(200).send({ errors: [{ message: err.message }] })
+      }
+    })
   }
 
   // Endpoint for subgraph queries
@@ -245,7 +254,7 @@ export const createApp = async ({
     '/subgraphs/id/:id',
 
     // Accept JSON but don't parse it
-    bodyParser.raw({ type: 'application/json' }),
+    rawParser,
 
     async (req, res) => {
       const { id } = req.params
@@ -369,6 +378,9 @@ export const createServer = async ({
   networkSubgraph,
   networkSubgraphAuthToken,
   serveNetworkSubgraph,
+  infoRateLimit,
+  statusRateLimit,
+  bodySizeLimit,
 }: ServerOptions): Promise<http.Server> => {
   const app = await createApp({
     logger,
@@ -382,6 +394,9 @@ export const createServer = async ({
     networkSubgraph,
     networkSubgraphAuthToken,
     serveNetworkSubgraph,
+    infoRateLimit,
+    statusRateLimit,
+    bodySizeLimit,
   })
 
   return app.listen(port, () => {
