@@ -381,11 +381,10 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
-    epoch: number,
   ): Promise<void> {
-    const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations
-      .filter((allocation) => allocation.createdAtEpoch < epoch)
-      .map((allocation) => allocation.id)
+    const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations.map(
+      (allocation) => allocation.id,
+    )
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocationsEligibleForClose.length > 0) {
       logger.info(
