@@ -17,9 +17,9 @@
     "compile": "tsc --build",
     "prepare": "yarn format && yarn lint && yarn compile",
     "start": "node ./dist/index.js start",
-    "test": "jest --colors --verbose --detectOpenHandles",
-    "test:ci": "jest --verbose --ci",
-    "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose",
+    "test": "jest --colors --verbose --detectOpenHandles --runInBand",
+    "test:ci": "jest --verbose --ci --runInBand",
+    "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose --runInBand",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "bin": {
