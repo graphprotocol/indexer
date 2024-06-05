@@ -14,14 +14,19 @@ export const createPrice = async (
   const result = await client
     .mutation(
       gql`
-    mutation {
-      createPrice(subgraphDeploymentID: "${price.subgraphDeploymentId}", price: ${price.pricePerBlock}, protocolNetwork: "${price.protocolNetwork}") {
-        subgraphDeploymentID
-        price
-        protocolNetwork
-      }
-    }
-  `,
+        mutation {
+          createPrice(
+            pricePerBlock: $pricePerBlock
+            protocolNetwork: "$protocolNetwork"
+            chainId: "$chainId"
+          ) {
+            pricePerBlock
+            chainId
+            protocolNetwork
+          }
+        }
+      `,
+      price,
     )
     .toPromise()
   if (result.error) {
@@ -31,26 +36,19 @@ export const createPrice = async (
 }
 
 export const removePrice = async (
-  {
-    subgraphDeploymentId,
-    protocolNetwork,
-  }: {
-    subgraphDeploymentId: string
-    protocolNetwork: string
-  },
+  priceId: number,
   client: IndexerManagementClient,
 ): Promise<void> => {
   const result = await client
     .mutation(
       gql`
-      mutation {
-        removePrice(subgraphDeploymentID: "${subgraphDeploymentId}", protocolNetwork: "${protocolNetwork}") {
-          subgraphDeploymentID
-          price
-          protocolNetwork
+        mutation {
+          removePrice(id: $priceId) {
+            id
+          }
         }
-      }
-  `,
+      `,
+      { priceId },
     )
     .toPromise()
   if (result.error) {

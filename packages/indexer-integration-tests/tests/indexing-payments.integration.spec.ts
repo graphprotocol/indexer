@@ -5,6 +5,7 @@ import {
 } from '@graphprotocol/indexer-common' // Update with actual path
 import axios from 'axios'
 import * as dockerCompose from 'docker-compose'
+import path from 'path'
 
 const GRAPHQL_ENDPOINT = 'http://localhost:7601/indexing-payments'
 const HEADERS = { 'Content-Type': 'application/json' }
@@ -22,6 +23,11 @@ const HEADERS = { 'Content-Type': 'application/json' }
 //   await client.end()
 // }
 
+interface Service {
+  name: string
+  options?: dockerCompose.IDockerComposeOptions
+}
+
 /** Restart a list of docker-compose services
  *
  * @param serviceNames - list of services to restart
@@ -33,73 +39,40 @@ const HEADERS = { 'Content-Type': 'application/json' }
  * `[c, b, a]`
  */
 async function restartDockerComposeServices(
-  serviceNames: string[],
-  dockerComposeYamlDir: string,
+  services: Service[],
+  defaultOptions: dockerCompose.IDockerComposeOptions,
 ): Promise<void> {
-  const options = {
-    cwd: dockerComposeYamlDir,
-    config: 'docker-compose.yaml',
-    env: {
-      ...process.env,
-      INDEXER_SERVICE_SOURCE_ROOT: '../../',
-    },
-  }
-
-  const initialPs = await dockerCompose.ps(options)
-  const initialRunningServices = initialPs.data.services.filter(
-    service => service.state === 'running' && service.name in serviceNames,
-  )
-
-  const serviceEnvs: ServiceEnv[] = []
-
-  interface ServiceEnv {
-    name: string
-    command: string
-    env: string | Record<string, string>
-  }
-
-  for (const service of initialRunningServices) {
-    console.log(`Initial(${service.name})`)
-    const env = await dockerCompose.config(options)
-    if (!env.data.config) {
-      throw new Error(
-        `No config found found for discovered service ${service.name} in ${dockerComposeYamlDir}/docker-compose.yaml`,
-      )
-    }
-    serviceEnvs.push({
-      name: service.name,
-      command: service.command,
-      env: env.data.config.services[service.name],
-    })
-  }
-
+  const serviceNames = services.map(service => service.name)
   console.log(`Restarting services ${serviceNames}`)
 
-  for (const serviceName of serviceNames) {
-    console.log(`Restart(${serviceName}) - stopOne`)
-    await dockerCompose.stopOne(serviceName, options)
+  for (const service of services) {
+    console.log(`Restart(${service.name}) - stopOne`)
+    await dockerCompose.stopOne(service.name, service.options || defaultOptions)
   }
 
-  for (const serviceName of serviceNames.slice().reverse()) {
-    console.log(`Restart(${serviceName}) - upOne`)
-    const upResult = await dockerCompose.upOne(serviceName, options)
-    console.log(`Restarted(${serviceName}) - upOne result`, upResult)
+  for (const service of services.slice().reverse()) {
+    console.log(`Restart(${service.name}) - upOne`)
+    const upResult = await dockerCompose.upOne(
+      service.name,
+      service.options || defaultOptions,
+    )
+    console.log(`Restarted(${service.name}) - upOne result`, upResult)
   }
 
-  const ps = await dockerCompose.ps(options)
-  console.log('serviceNames', serviceNames)
-  console.log('ps.data.services', ps.data.services)
-
-  for (const serviceName of serviceNames) {
-    if (!ps.data.services.some(service => service.name === serviceName)) {
-      console.log(`Restart(${serviceName}) - not running`)
+  const ps = await dockerCompose.ps(defaultOptions)
+  for (const service of services) {
+    if (!ps.data.services.some(s => s.name === service.name)) {
+      console.log(`Restart(${service.name}) - not running`)
       console.error('Service logs:')
-      const logs = await dockerCompose.logs(serviceName, options)
+      const logs = await dockerCompose.logs(
+        service.name,
+        service.options || defaultOptions,
+      )
       const data = logs.out.split('\n')
-      console.error('docker-compose logs for service', data)
-      throw new Error(`Service ${serviceName} not running after restart`)
+      console.error(data)
+      throw new Error(`Service ${service.name} not running after restart`)
     } else {
-      console.log(`Restart(${serviceName}) - running`)
+      console.log(`Restart(${service.name}) - running`)
     }
   }
 }
@@ -110,17 +83,37 @@ async function waitForSeconds(seconds: number): Promise<void> {
 
 const TIMEOUT = 30000
 beforeEach(async () => {
+  const sourceRoot = path.resolve(__dirname, '../../../')
+  console.log('sourceRoot', sourceRoot)
+
+  const defaultOptions = {
+    cwd: path.resolve(sourceRoot, '../local-network'),
+    config: 'docker-compose.yaml',
+    env: {
+      ...process.env,
+      INDEXER_SERVICE_SOURCE_ROOT: sourceRoot,
+    },
+  }
   await restartDockerComposeServices(
-    ['indexer-service-ts', 'postgres'],
-    '../../../local-network',
+    [
+      {
+        name: 'indexer-service-ts',
+        options: {
+          ...defaultOptions,
+          config: [
+            'docker-compose.yaml',
+            // use the dev env overrides to test against the local checkout
+            'overrides/indexer-service-ts-dev/indexer-service-ts-dev.yaml',
+          ],
+        },
+      },
+      { name: 'postgres' },
+    ],
+    defaultOptions,
   )
 
   // wait for the service to start. TODO use a docker-compose health check instead
   await waitForSeconds(5)
-}, TIMEOUT)
-
-beforeEach(async () => {
-  // await resetDatabase(INDEXER_COMPONENTS_DB)
 }, TIMEOUT)
 
 describe('indexer-payments', () => {
