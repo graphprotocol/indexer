@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "rootDir": "tests",
+    "rootDir": "src/tests",
     "outDir": "dist",
     "target": "es2020",
     "module": "commonjs",
@@ -12,7 +12,7 @@
     "composite": true,
     "lib": ["es2015", "es6", "esnext.asynciterable", "dom", "ES2020.Promise"]
   },
-  "include": ["tests/**/*.ts", "tests/**/*.d.ts"],
-  "exclude": ["tests/**/__tests__/*.ts"],
+  "include": ["src/tests/**/*.ts", "src/tests/**/*.d.ts"],
+  "exclude": ["src/tests/**/__tests__/*.ts"],
   "references": [{ "path": "../indexer-common" }]
 }
