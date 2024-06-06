@@ -102,7 +102,7 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(5_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
-    tapSubgraph: Subgraph,
+    tapSubgraph: Subgraph.optional(),
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
@@ -164,7 +164,7 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
-    tapAddressBook: TapContracts,
+    tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })

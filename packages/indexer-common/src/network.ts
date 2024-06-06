@@ -132,7 +132,6 @@ export class Network {
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
-
     const tapSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
       'TAP Subgraph',
       networkProvider,
@@ -143,7 +142,7 @@ export class Network {
     )
 
     const tapSubgraph = new TAPSubgraph(
-      specification.subgraphs.tapSubgraph.url!,
+      specification.subgraphs.tapSubgraph!.url!,
       tapSubgraphFreshnessChecker,
       logger.child({ component: 'TAPSubgraph' }),
     )
