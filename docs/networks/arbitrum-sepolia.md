@@ -4,13 +4,13 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 
 ## Latest Releases
 
-| Component       | Release                                                                         |
-| --------------- | ------------------------------------------------------------------------------- |
-| contracts       | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)         |
-| indexer-agent   | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| indexer-cli     | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| indexer-service | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)       |
-| graph-node      | [0.35.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.0-rc.0)|
+| Component       | Release                                                                             |
+| --------------- | ----------------------------------------------------------------------------------- |
+| contracts       | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)             |
+| indexer-agent   | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| indexer-cli     | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| indexer-service | [0.20.22](https://github.com/graphprotocol/indexer/releases/tag/v0.20.22)           |
+| graph-node      | [0.35.1-rc.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1-rc.1)|
 
 ## Network Parameters
 
@@ -21,8 +21,8 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 
 ## Contracts & accounts
 
-| Name               | Address                                                                                                                        |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Name               | Address                                                                                                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------  |
 | Graph Token (GRT ) | [`0xf8c05dCF59E8B28BFD5eed176C562bEbcfc7Ac04`](https://arbiscan.io/address/0xf8c05dCF59E8B28BFD5eed176C562bEbcfc7Ac04) |
 | Staking            | [`0x865365C425f3A593Ffe698D9c4E6707D14d51e08`](https://arbiscan.io/address/0x865365C425f3A593Ffe698D9c4E6707D14d51e08) |
 
@@ -41,18 +41,18 @@ testnet (for now) are Mainnet subgraphs. This means:
 
 ### Indexer Agent
 
-| Environment Variable                        | CLI Argument                    | Value                                                                             |
-| ------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                 |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                         |
-| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                               |
-| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                 |
-| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                            |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                  |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`     |
-| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                               |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway-arbitrum.testnet.thegraph.com/collect-receipts`                           |
-| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/arbitrum-sepolia-ebo`|
+| Environment Variable                        | CLI Argument                    | Value                                                                                     |
+| ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------- |
+| `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                         |
+| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                        |
+| `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                       |
+| `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                         |
+| `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                    |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                          |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`    |
+| `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                                       |
+| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway-arbitrum.testnet.thegraph.com/collect-receipts`                          |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/arbitrum-sepolia-ebo`              |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -66,15 +66,15 @@ option can be used.
 
 ### Indexer Service
 
-| Environment Variable                          | CLI Argument                    | Value                                                                           |
-| --------------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------- |
-| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                               |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                       |
-| `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                             |
-| `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                          |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`   |
-| `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xac01B0b3B2Dc5D8E0D484c02c4d077C15C96a7b4`                                    |
+| Environment Variable                          | CLI Argument                    | Value                                                                                   |
+| --------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------------------- |
+| `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                       |
+| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                      |
+| `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                     |
+| `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                  |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                        |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`  |
+| `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0xac01B0b3B2Dc5D8E0D484c02c4d077C15C96a7b4`                                            |
 
 ### Graph Node
 
