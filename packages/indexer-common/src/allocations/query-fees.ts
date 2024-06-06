@@ -87,7 +87,7 @@ export interface AllocationReceiptCollectorOptions {
   allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
-  tapSubgraph: TAPSubgraph
+  tapSubgraph: TAPSubgraph | undefined
   networkSubgraph: NetworkSubgraph
   queryInterface: QueryInterface
 }
@@ -124,7 +124,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare voucherRedemptionBatchThreshold: BigNumber
   declare voucherRedemptionMaxBatchSize: number
   declare protocolNetwork: string
-  declare tapSubgraph: TAPSubgraph
+  declare tapSubgraph: TAPSubgraph | undefined
   declare networkSubgraph: NetworkSubgraph
   declare finalityTime: number
   declare queryInterface: QueryInterface
@@ -578,8 +578,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     )
 
     if (unfinalizedRavsAllocationIds.length > 0) {
-      const alreadyRedeemedAllocations = (
-        await this.tapSubgraph.query(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let tapSubgraphResponse: any
+      if (!this.tapSubgraph) {
+        tapSubgraphResponse = { data: { transactions: [] } }
+      } else {
+        tapSubgraphResponse = await this.tapSubgraph!.query(
           gql`
             query transactions($unfinalizedRavsAllocationIds: [String!]!) {
               transactions(
@@ -591,7 +595,10 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           `,
           { unfinalizedRavsAllocationIds },
         )
-      ).data.transactions.map((transaction) => transaction.allocationID)
+      }
+      const alreadyRedeemedAllocations = tapSubgraphResponse.data.transactions.map(
+        (transaction) => transaction.allocationID,
+      )
 
       // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
       const nonRedeemedAllocationIDAddresses = unfinalizedRavsAllocationIds.filter(
