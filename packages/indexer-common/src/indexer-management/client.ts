@@ -431,6 +431,7 @@ const SCHEMA_SDL = gql`
       force: Boolean
       protocolNetwork: String!
     ): ReallocateAllocationResult!
+    submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
 
     updateAction(action: ActionInput!): Action!
     updateActions(filter: ActionFilter!, action: ActionUpdateInput!): [Action]!

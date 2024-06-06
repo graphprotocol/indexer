@@ -21,6 +21,7 @@ Manage indexer configuration
   indexer allocations reallocate     Reallocate to subgraph deployment                                
   indexer allocations get            List one or more allocations                                     
   indexer allocations create         Create an allocation                                             
+  indexer allocations collect        Collect receipts for an allocation                               
   indexer allocations close          Close an allocation                                              
   indexer allocations                Manage indexer allocations                                       
   indexer actions update             Update one or more actions                                       
