@@ -26,6 +26,7 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:8453                | base          | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:534352              | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:59144               | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:56                  | bsc           | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
