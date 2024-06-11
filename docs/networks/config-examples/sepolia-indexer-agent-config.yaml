@@ -17,10 +17,10 @@ gateway:
   url: 'https://gateway.testnet.thegraph.com'
 subgraphs:
   networkSubgraph:
-    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia'
+    url: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8pVKDwHniAz87CHEQsiz2wgFXGZXrbMDkrxgauVVfMJC'
     deployment: 'QmdwyUJ2GNAkSxLc3dRgFULf5fN1mZWYeQLjXsdowQcfTg'
   epochSubgraph:
-    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/sepolia-epoch-block-oracle'
+    url: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3nEnuQEQd1aP6wksKvRUnuwLQcQy1zD3HPFaHZ8cMVqM'
     deployment: 'QmUXAKvt84bYpkctHgXqWBjq1YY7DaTCKfmxEh8w9Xxb5X'
 networkProvider:
   url: '?'
