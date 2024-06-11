@@ -19,10 +19,10 @@ subgraphs:
   maxBlockDistance: 60
   freshnessSleepMilliseconds: 10000
   networkSubgraph:
-    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia'
+    url: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV'
     deployment: 'QmT8UDGK7zKd2u2NQZwhLYHdA4KM55QsivkE3ouCuX6fEj'
   epochSubgraph:
-    url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/arbitrum-sepolia-ebo'
+    url: 'https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS'
     deployment: 'QmTpu2mVquoMpr4SWSM77nGkU3tcUS1Bhk1sVHpjDrAUAx'
 networkProvider:
   url: '?'
