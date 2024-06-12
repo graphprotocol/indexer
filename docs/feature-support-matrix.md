@@ -34,10 +34,6 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | File data sources: IPFS    |               | Yes         | Yes          | No                | Yes                  | Yes              |
 | Substreams: mainnet        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | Substreams: optimism       |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| Substreams: base           |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| Substreams: scroll         |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| Substreams: linea          |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| Substreams: bsc            |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
 
 The accepted `graph-node` version range must always be specified; it always comprises the latest available version and the one immediately preceding it.
 The latest for the feature matrix above:
