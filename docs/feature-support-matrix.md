@@ -44,7 +44,7 @@ graph-node: >=0.35.0 <0.36.0
 
 ### Latest Council snapshot
 
-[GGP-0042: Updated Feature Matrix Support (base, scroll, linea)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x229e88da4839f8ba7f349323dfc564f991f72e4faef84506a7205b1c5059f631)
+[GGP-0043: Updated Feature Matrix Support (base, bsc, scroll, linea)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x4226f917346416b76f77369181881bebbc9b4e3f66e9681e5fc4e56d7460eba7)
 
 ### Other notes
 
