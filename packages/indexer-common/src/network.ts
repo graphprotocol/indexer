@@ -240,12 +240,18 @@ export class Network {
     // * Escrow contract
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
-
-    const tapContracts = await connectTapContracts(
-      wallet,
-      networkIdentifier.chainId,
-      specification.tapAddressBook,
-    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tapContracts: any;
+    try {
+      tapContracts = await connectTapContracts(
+        wallet,
+        networkIdentifier.chainId,
+        specification.tapAddressBook,
+      )
+    } catch (err) {
+      logger.error(`Failed to connect to tap contract bindings:`, { err })
+    }
+    
 
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
