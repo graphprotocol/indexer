@@ -177,7 +177,12 @@ export async function up({ context }: Context): Promise<void> {
     logger.info(
       `Remove one-to-one relationship between AllocationSummary and Voucher`,
     )
-    await queryInterface.removeConstraint('allocation_summaries', 'voucher')
+    try{
+      await queryInterface.removeConstraint('allocation_summaries', 'voucher')
+    }catch(err){
+      logger.warn('Not able to remove relationship, this could happen due to error when shutting down the db last time', {err})
+    }
+    
 
     logger.info(`Add RAV association with AllocationSummary`)
     await queryInterface.addConstraint('scalar_tap_ravs', {
