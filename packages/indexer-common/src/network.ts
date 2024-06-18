@@ -241,7 +241,7 @@ export class Network {
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tapContracts: any;
+    let tapContracts: any
     try {
       tapContracts = await connectTapContracts(
         wallet,
@@ -251,7 +251,6 @@ export class Network {
     } catch (err) {
       logger.error(`Failed to connect to tap contract bindings:`, { err })
     }
-    
 
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
