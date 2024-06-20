@@ -25,8 +25,8 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------- |
 | Graph Token (GRT)  | [`0x9623063377AD1B27544C965cCd7342f7EA7e88C7`](https://arbiscan.io/address/0x9623063377AD1B27544C965cCd7342f7EA7e88C7) |
 | Staking            | [`0x00669A4CF01450B64E8A2A20E9b1FCB71E61eF03`](https://arbiscan.io/address/0x00669A4CF01450B64E8A2A20E9b1FCB71E61eF03) |
-| Data Edge          | [``](https://arbiscan.io/address/) |
-| Block Oracle Owner | [``](https://arbiscan.io/address/) |
+| Data Edge          | [`0x633bb9790d7c4c59991cebd377c0ed6501a35ebe`](https://arbiscan.io/address/0x633bb9790d7c4c59991cebd377c0ed6501a35ebe) |
+| Block Oracle Owner | [`0x5f49491e965895ded343af13389ee45ef60ed793`](https://arbiscan.io/address/0x5f49491e965895ded343af13389ee45ef60ed793) |
 
 Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/dev/addresses.json#L752).
 
