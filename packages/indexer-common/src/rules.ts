@@ -36,6 +36,7 @@ const INDEXING_RULE_READABLE_TO_MODEL_PARSERS: Record<
   requireSupported: (x) => parseBoolean(x),
   safety: (x) => parseBoolean(x),
   protocolNetwork: (x: string) => validateNetworkIdentifier(x),
+  tag: (x: string) => x,
 }
 
 export const parseIndexingRule = (

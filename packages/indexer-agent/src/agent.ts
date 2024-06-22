@@ -573,7 +573,7 @@ export class Agent {
     }).tryMap(
       async ({ indexingRules }) => {
         logger.trace('Resolving deployment tags')
-        const deploymentTags: Map<SubgraphDeploymentID, string> = {}
+        const deploymentTags: Map<SubgraphDeploymentID, string> = new Map()
 
         // Add offchain subgraphs to the deployment list from rules
         Object.values(indexingRules)
@@ -582,16 +582,18 @@ export class Agent {
             rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
           )
           .forEach(rule => {
-            deploymentTags.set(rule.identifier, rule.tag)
+            deploymentTags.set(
+              new SubgraphDeploymentID(rule.identifier),
+              rule.tag,
+            )
           })
-        return deploymentTags
+        return new Map(deploymentTags)
       },
       {
         onError: error =>
-          logger.warn(
-            `Failed to resolve deployment tags, trying again later`,
-            { error },
-          ),
+          logger.warn(`Failed to resolve deployment tags, trying again later`, {
+            error,
+          }),
       },
     )
 
@@ -740,6 +742,7 @@ export class Agent {
                 activeDeployments,
                 targetDeployments,
                 eligibleAllocations,
+                deploymentTags,
               )
             } catch (err) {
               logger.warn(
@@ -1003,7 +1006,15 @@ export class Agent {
     // Index all new deployments worth indexing
     await queue.addAll(
       deploy.map(deployment => async () => {
-        const name = `${deploymentTags.get(deployment.display) ? deploymentTags.get(deployment.display) : 'indexer-agent'}/${deployment.ipfsHash.slice(-10)}`
+        const name = `${
+          deploymentTags.get(
+            new SubgraphDeploymentID(deployment.display.ipfsHash),
+          )
+            ? deploymentTags.get(
+                new SubgraphDeploymentID(deployment.display.ipfsHash),
+              )
+            : 'indexer-agent'
+        }/${deployment.ipfsHash.slice(-10)}`
 
         logger.info(`Index subgraph deployment`, {
           name,

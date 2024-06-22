@@ -61,6 +61,7 @@ export interface IndexingRuleCreationAttributes
     | 'requireSupported'
     | 'safety'
     | 'protocolNetwork'
+    | 'tag'
   > {}
 
 export class IndexingRule
@@ -84,6 +85,7 @@ export class IndexingRule
   public requireSupported!: boolean
   public safety!: boolean
   public protocolNetwork!: string
+  public tag!: string
 
   public createdAt!: Date
   public updatedAt!: Date
@@ -267,6 +269,12 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         validate: {
           is: caip2IdRegex,
         },
+      },
+      tag: {
+        type: DataTypes.STRING,
+        primaryKey: true,
+        allowNull: false,
+        defaultValue: 'indexer-agent',
       },
     },
     {

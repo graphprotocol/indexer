@@ -24,9 +24,7 @@ export async function up({ context }: Context): Promise<void> {
   const table = await queryInterface.describeTable('IndexingRules')
   const subgraphTagColumn = table.tag
   if (subgraphTagColumn) {
-    logger.info(
-      `'tag' column already exists, migration not necessary`,
-    )
+    logger.info(`'tag' column already exists, migration not necessary`)
     return
   }
 
@@ -36,7 +34,6 @@ export async function up({ context }: Context): Promise<void> {
     primaryKey: false,
     defaultValue: 'indexer-agent',
   })
-
 }
 
 export async function down({ context }: Context): Promise<void> {
@@ -47,11 +44,9 @@ export async function down({ context }: Context): Promise<void> {
 
     if (tables.includes('IndexingRules')) {
       logger.info(`Remove 'tag' column`)
-      await context.queryInterface.removeColumn(
-        'IndexingRules',
-        'tag',
-        { transaction },
-      )
+      await context.queryInterface.removeColumn('IndexingRules', 'tag', {
+        transaction,
+      })
     }
   })
 }
