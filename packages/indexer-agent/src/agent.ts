@@ -567,13 +567,13 @@ export class Agent {
       },
     )
 
-    const deploymentTags: Eventual<Map<SubgraphDeploymentID, string>> = join({
+    const deploymentTags: Eventual<Map<string, string>> = join({
       ticker: timer(120_000),
       indexingRules,
     }).tryMap(
       async ({ indexingRules }) => {
         logger.trace('Resolving deployment tags')
-        const deploymentTags: Map<SubgraphDeploymentID, string> = new Map()
+        const deploymentTags: Map<string, string> = new Map()
 
         // Add offchain subgraphs to the deployment list from rules
         Object.values(indexingRules)
@@ -583,7 +583,7 @@ export class Agent {
           )
           .forEach(rule => {
             deploymentTags.set(
-              new SubgraphDeploymentID(rule.identifier),
+              new SubgraphDeploymentID(rule.identifier).toString(),
               rule.tag,
             )
           })
@@ -936,7 +936,7 @@ export class Agent {
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
     eligibleAllocations: Allocation[],
-    deploymentTags: Map<SubgraphDeploymentID, string>,
+    deploymentTags: Map<string, string>,
   ): Promise<void> {
     const logger = this.logger.child({ function: 'reconcileDeployments' })
     logger.debug('Reconcile deployments')
@@ -1008,12 +1008,8 @@ export class Agent {
     await queue.addAll(
       deploy.map(deployment => async () => {
         const name = `${
-          deploymentTags.get(
-            new SubgraphDeploymentID(deployment.display.ipfsHash),
-          )
-            ? deploymentTags.get(
-                new SubgraphDeploymentID(deployment.display.ipfsHash),
-              )
+          deploymentTags.get(deployment.toString())
+            ? deploymentTags.get(deployment.toString())
             : 'indexer-agent'
         }/${deployment.ipfsHash.slice(-10)}`
 
