@@ -31,6 +31,7 @@ export interface IndexingRuleAttributes {
   requireSupported: boolean
   safety: boolean
   protocolNetwork: string
+  tag: string
 }
 
 // Unambiguously identify a Indexing Rule in the Database.
