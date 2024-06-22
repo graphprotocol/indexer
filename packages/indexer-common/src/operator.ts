@@ -109,6 +109,7 @@ export class Operator {
                 decisionBasis
                 requireSupported
                 protocolNetwork
+                tag
               }
             }
           `,
