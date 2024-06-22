@@ -568,7 +568,7 @@ export class Agent {
     )
 
     const deploymentTags: Eventual<Map<string, string>> = join({
-      ticker: timer(120_000),
+      ticker: timer(60_000),
       indexingRules,
     }).tryMap(
       async ({ indexingRules }) => {
@@ -578,9 +578,7 @@ export class Agent {
         // Add offchain subgraphs to the deployment list from rules
         Object.values(indexingRules)
           .flat()
-          .filter(
-            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
-          )
+          .filter(rule => rule?.identifier !== 'global')
           .forEach(rule => {
             deploymentTags.set(
               new SubgraphDeploymentID(rule.identifier).toString(),
@@ -1008,9 +1006,7 @@ export class Agent {
     await queue.addAll(
       deploy.map(deployment => async () => {
         const name = `${
-          deploymentTags.get(deployment.toString())
-            ? deploymentTags.get(deployment.toString())
-            : 'indexer-agent'
+          deploymentTags.get(deployment.toString()) || 'indexer-agent'
         }/${deployment.ipfsHash.slice(-10)}`
 
         logger.info(`Index subgraph deployment`, {
