@@ -738,11 +738,12 @@ export class Agent {
         switch (this.deploymentManagement) {
           case DeploymentManagementMode.AUTO:
             try {
+              const resolvedDeploymentTags = await deploymentTags.value()
               await this.reconcileDeployments(
                 activeDeployments,
                 targetDeployments,
                 eligibleAllocations,
-                deploymentTags,
+                resolvedDeploymentTags,
               )
             } catch (err) {
               logger.warn(
