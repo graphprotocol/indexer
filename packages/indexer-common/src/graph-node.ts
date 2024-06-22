@@ -383,7 +383,6 @@ export class GraphNode {
           })[0].id
       await this.create(name)
       await this.deploy(name, deployment, targetNode)
-      await this.reassign(deployment, targetNode)
     } catch (error) {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020
