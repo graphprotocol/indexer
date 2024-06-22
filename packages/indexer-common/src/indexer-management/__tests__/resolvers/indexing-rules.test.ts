@@ -45,6 +45,7 @@ const SET_INDEXING_RULE_MUTATION = gql`
       requireSupported
       safety
       protocolNetwork
+      tag
     }
   }
 `

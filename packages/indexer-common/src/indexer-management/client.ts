@@ -263,6 +263,7 @@ const SCHEMA_SDL = gql`
     requireSupported: Boolean!
     safety: Boolean!
     protocolNetwork: String!
+    tag: String
   }
 
   input IndexingRuleInput {
@@ -282,6 +283,7 @@ const SCHEMA_SDL = gql`
     requireSupported: Boolean
     safety: Boolean
     protocolNetwork: String!
+    tag: String
   }
 
   input IndexingRuleIdentifier {
