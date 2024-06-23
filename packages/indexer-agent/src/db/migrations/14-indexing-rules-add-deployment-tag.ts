@@ -32,6 +32,7 @@ export async function up({ context }: Context): Promise<void> {
   await queryInterface.addColumn('IndexingRules', 'tag', {
     type: DataTypes.STRING,
     primaryKey: false,
+    allowNull: false,
     defaultValue: 'indexer-agent',
   })
 }

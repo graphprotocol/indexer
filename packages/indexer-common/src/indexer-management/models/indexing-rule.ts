@@ -272,7 +272,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
       },
       tag: {
         type: DataTypes.STRING,
-        primaryKey: true,
+        primaryKey: false,
         allowNull: false,
         defaultValue: 'indexer-agent',
       },
