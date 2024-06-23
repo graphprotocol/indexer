@@ -311,3 +311,33 @@ export const reallocateAllocation = async (
 
   return result.data.reallocateAllocation
 }
+
+export const submitCollectReceiptsJob = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  protocolNetwork: string,
+): Promise<void> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation submitCollectReceiptsJob(
+          $allocation: String!
+          $protocolNetwork: String!
+        ) {
+          submitCollectReceiptsJob(
+            allocation: $allocation
+            protocolNetwork: $protocolNetwork
+          )
+        }
+      `,
+      {
+        allocation: allocationID,
+        protocolNetwork,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+}
