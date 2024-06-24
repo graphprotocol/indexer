@@ -25,8 +25,7 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Graph Token (GRT ) | [`0xf8c05dCF59E8B28BFD5eed176C562bEbcfc7Ac04`](https://arbiscan.io/address/0xf8c05dCF59E8B28BFD5eed176C562bEbcfc7Ac04) |
 | Staking            | [`0x865365C425f3A593Ffe698D9c4E6707D14d51e08`](https://arbiscan.io/address/0x865365C425f3A593Ffe698D9c4E6707D14d51e08) |
-
-| Data Edge | [`0x9b9402939133F27c6eba81a321dfBFa1feE6714E`](https://arbiscan.io/address/0x9b9402939133F27c6eba81a321dfBFa1feE6714E) |
+| Data Edge          | [`0x9b9402939133F27c6eba81a321dfBFa1feE6714E`](https://arbiscan.io/address/0x9b9402939133F27c6eba81a321dfBFa1feE6714E) |
 | Block Oracle Owner | [`0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868`](https://arbiscan.io/address/0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868) |
 
 Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/main/addresses.json#L1220-L1425).

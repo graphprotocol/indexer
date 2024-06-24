@@ -25,8 +25,7 @@ The Graph Network's testnet is on Sepolia (eip155:11155111). Sepolia network inf
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | Graph Token (GRT ) | [`0xCA59cCeb39bE1808d7aA607153f4A5062daF3a83`](https://sepolia.etherscan.io/address/0xCA59cCeb39bE1808d7aA607153f4A5062daF3a83) |
 | Staking            | [`0x14e9B07Dc56A0B03ac8A58453B5cCCB289d6ec90`](https://sepolia.etherscan.io/address/0x14e9B07Dc56A0B03ac8A58453B5cCCB289d6ec90) |
-
-| Data Edge | [`0xEFC8D47673777b899f2FB597C6FC0E87ecce98Cb`](https://sepolia.etherscan.io/address/0xEFC8D47673777b899f2FB597C6FC0E87ecce98Cb) |
+| Data Edge          | [`0xEFC8D47673777b899f2FB597C6FC0E87ecce98Cb`](https://sepolia.etherscan.io/address/0xEFC8D47673777b899f2FB597C6FC0E87ecce98Cb) |
 | Block Oracle Owner | [`0xC9d59d6D2D43105357a1D9C15244751A4517f42C`](https://sepolia.etherscan.io/address/0xfA711DA0f9336f27E7B7483398cbd8F0880f259a) |
 
 Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/main/addresses.json#L1426-L1645).
