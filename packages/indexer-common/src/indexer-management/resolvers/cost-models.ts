@@ -110,7 +110,6 @@ export default {
         `Can't set cost model: DAI injection enabled but not on Ethereum Mainnet`,
       )
     }
-
     const update = parseGraphQLCostModel(costModel)
 
     // Validate cost model
@@ -121,22 +120,17 @@ export default {
     } catch (err) {
       throw new Error(`Invalid cost model or variables: ${err.message}`)
     }
-    const [model] = await models.CostModel.findOrBuild({
+    const [oldModel] = await models.CostModel.findOrBuild({
       where: { deployment: update.deployment },
+      order: [['created_at', 'DESC']],
     })
-    // logger.info('Fetched current model', { current: model, update })
-    // model.set('deployment', update.deployment || model.deployment)
-    // // model.set('model', update.model || model.model)
-    // model.model = update.model || model.model
-    // logger.info('Merged models', { now: model })
-    model.deployment = update.deployment || model.deployment
-    model.model = update.model || model.model
+    const model = models.CostModel.build()
 
-    // Update the model variables (fall back to current value if unchanged)
-    let variables = update.variables || model.variables
-
+    model.deployment = update.deployment || oldModel.deployment
+    model.model = update.model || oldModel.model
+    let variables = update.variables || oldModel.variables
     if (injectDai) {
-      const oldDai = getVariable(model.variables, 'DAI')
+      const oldDai = getVariable(oldModel.variables, 'DAI')
       const newDai = getVariable(update.variables, 'DAI')
 
       // Inject the latest DAI value if available
