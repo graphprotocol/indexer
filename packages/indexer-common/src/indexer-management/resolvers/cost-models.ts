@@ -52,6 +52,7 @@ export default {
   ): Promise<object | null> => {
     const model = await models.CostModel.findOne({
       where: { deployment },
+      order: [['id', 'DESC']],
     })
     if (model) {
       return model.toGraphQL()
@@ -59,6 +60,7 @@ export default {
 
     const globalModel = await models.CostModel.findOne({
       where: { deployment: COST_MODEL_GLOBAL },
+      order: [['id', 'DESC']],
     })
     if (globalModel) {
       globalModel.setDataValue('deployment', deployment)
@@ -73,14 +75,37 @@ export default {
     { deployments }: { deployments: string[] | null | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    const costModels = await models.CostModel.findAll({
-      where: deployments ? { deployment: deployments } : undefined,
-      order: [['deployment', 'ASC']],
+    const sequelize = models.CostModel.sequelize
+    if (!sequelize) {
+      throw new Error('No sequelize instance available')
+    }
+    const query = `
+      SELECT id,
+       deployment,
+       model,
+       variables,
+       "createdAt",
+       "updatedAt"
+      FROM "CostModelsHistory" t1
+      JOIN
+      (
+          SELECT MAX(id)
+          FROM "CostModelsHistory"
+          ${deployments ? 'WHERE deployment IN (:deployments)' : ''}
+          GROUP BY deployment
+      ) t2
+        ON t1.id = t2.MAX;
+    `
+    const costModels = await sequelize.query(query, {
+      replacements: { deployments: deployments ? deployments : [] },
+      mapToModel: true,
+      model: models.CostModel,
     })
     const definedDeployments = new Set(costModels.map((model) => model.deployment))
     const undefinedDeployments = deployments?.filter((d) => !definedDeployments.has(d))
     const globalModel = await models.CostModel.findOne({
       where: { deployment: COST_MODEL_GLOBAL },
+      order: [['id', 'DESC']],
     })
     if (globalModel && undefinedDeployments) {
       const mergedCostModels = undefinedDeployments.map((d) => {
@@ -110,7 +135,6 @@ export default {
         `Can't set cost model: DAI injection enabled but not on Ethereum Mainnet`,
       )
     }
-
     const update = parseGraphQLCostModel(costModel)
 
     // Validate cost model
@@ -121,36 +145,43 @@ export default {
     } catch (err) {
       throw new Error(`Invalid cost model or variables: ${err.message}`)
     }
-    const [model] = await models.CostModel.findOrBuild({
+    const oldModel = await models.CostModel.findOne({
       where: { deployment: update.deployment },
+      order: [['id', 'DESC']],
     })
-    // logger.info('Fetched current model', { current: model, update })
-    // model.set('deployment', update.deployment || model.deployment)
-    // // model.set('model', update.model || model.model)
-    // model.model = update.model || model.model
-    // logger.info('Merged models', { now: model })
-    model.deployment = update.deployment || model.deployment
-    model.model = update.model || model.model
+    const model = models.CostModel.build({
+      deployment: update.deployment,
+      model: update.model || oldModel?.model,
+      variables: update.variables || oldModel?.variables,
+    })
+    if (oldModel) {
+      let variables = update.variables || oldModel!.variables
+      if (injectDai) {
+        const oldDai = getVariable(oldModel!.variables, 'DAI')
+        const newDai = getVariable(update.variables, 'DAI')
 
-    // Update the model variables (fall back to current value if unchanged)
-    let variables = update.variables || model.variables
-
-    if (injectDai) {
-      const oldDai = getVariable(model.variables, 'DAI')
-      const newDai = getVariable(update.variables, 'DAI')
-
-      // Inject the latest DAI value if available
-      if (dai.valueReady) {
-        variables = setVariable(variables, 'DAI', await dai.value())
-      } else if (newDai === undefined && oldDai !== undefined) {
-        // Otherwise preserve the old DAI value if there is one;
-        // this ensures it's never dropped
-        variables = setVariable(variables, 'DAI', oldDai)
+        // Inject the latest DAI value if available
+        if (dai.valueReady) {
+          variables = setVariable(variables, 'DAI', await dai.value())
+        } else if (newDai === undefined && oldDai !== undefined) {
+          // Otherwise preserve the old DAI value if there is one;
+          // this ensures it's never dropped
+          variables = setVariable(variables, 'DAI', oldDai)
+        }
+        // Apply new variables
+        model.variables = variables
+      }
+    } else {
+      let variables = update.variables
+      if (injectDai) {
+        // Inject the latest DAI value if available
+        if (dai.valueReady) {
+          variables = setVariable(variables, 'DAI', await dai.value())
+        }
+        // Apply new variables
+        model.variables = variables
       }
     }
-
-    // Apply new variables
-    model.variables = variables
 
     return (await model.save()).toGraphQL()
   },
