@@ -567,6 +567,34 @@ export class Agent {
       },
     )
 
+    const deploymentTags: Eventual<Map<string, string>> = join({
+      ticker: timer(60_000),
+      indexingRules,
+    }).tryMap(
+      async ({ indexingRules }) => {
+        logger.trace('Resolving deployment tags')
+        const deploymentTags: Map<string, string> = new Map()
+
+        // Add offchain subgraphs to the deployment list from rules
+        Object.values(indexingRules)
+          .flat()
+          .filter(rule => rule?.identifier !== 'global')
+          .forEach(rule => {
+            deploymentTags.set(
+              new SubgraphDeploymentID(rule.identifier).toString(),
+              rule.tag,
+            )
+          })
+        return new Map(deploymentTags)
+      },
+      {
+        onError: error =>
+          logger.warn(`Failed to resolve deployment tags, trying again later`, {
+            error,
+          }),
+      },
+    )
+
     const activeAllocations: Eventual<NetworkMapped<Allocation[]>> = timer(
       120_000,
     ).tryMap(
@@ -708,10 +736,12 @@ export class Agent {
         switch (this.deploymentManagement) {
           case DeploymentManagementMode.AUTO:
             try {
+              const resolvedDeploymentTags = await deploymentTags.value()
               await this.reconcileDeployments(
                 activeDeployments,
                 targetDeployments,
                 eligibleAllocations,
+                resolvedDeploymentTags,
               )
             } catch (err) {
               logger.warn(
@@ -904,6 +934,7 @@ export class Agent {
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
     eligibleAllocations: Allocation[],
+    deploymentTags: Map<string, string>,
   ): Promise<void> {
     const logger = this.logger.child({ function: 'reconcileDeployments' })
     logger.debug('Reconcile deployments')
@@ -974,7 +1005,9 @@ export class Agent {
     // Index all new deployments worth indexing
     await queue.addAll(
       deploy.map(deployment => async () => {
-        const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
+        const name = `${
+          deploymentTags.get(deployment.toString()) || 'indexer-agent'
+        }/${deployment.ipfsHash.slice(-10)}`
 
         logger.info(`Index subgraph deployment`, {
           name,

@@ -37,6 +37,7 @@ const INDEXING_RULE_PARSERS: Record<keyof IndexingRuleAttributes, (x: never) => 
   requireSupported: x => parseBoolean(x),
   safety: x => parseBoolean(x),
   protocolNetwork: x => x,
+  tag: x => x,
 }
 
 const INDEXING_RULE_FORMATTERS: Record<
@@ -61,6 +62,7 @@ const INDEXING_RULE_FORMATTERS: Record<
   requireSupported: x => x,
   safety: x => x,
   protocolNetwork: resolveChainAlias,
+  tag: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
@@ -85,6 +87,7 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   requireSupported: x => x,
   safety: x => x,
   protocolNetwork: x => x,
+  tag: x => x,
 }
 
 const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
@@ -109,6 +112,7 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   requireSupported: x => x,
   safety: x => x,
   protocolNetwork: x => x,
+  tag: x => x,
 }
 
 /**
@@ -267,6 +271,7 @@ export const indexingRules = async (
             decisionBasis
             requireSupported
             safety
+            tag
           }
         }
       `,
@@ -307,6 +312,7 @@ export const indexingRule = async (
             requireSupported
             safety
             protocolNetwork
+            tag
           }
         }
       `,
@@ -350,6 +356,7 @@ export const setIndexingRule = async (
             requireSupported
             safety
             protocolNetwork
+            tag
           }
         }
       `,

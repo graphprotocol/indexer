@@ -101,6 +101,7 @@ export const createTestManagementClient = async (
       requireSupported: true,
       safety: true,
       protocolNetwork: 'sepolia',
+      tag: 'indexer-agent',
     },
   }
 
@@ -137,6 +138,7 @@ export const defaults: IndexerManagementDefaults = {
     parallelAllocations: 1,
     requireSupported: true,
     safety: true,
+    tag: 'indexer-agent',
   },
 }
 
