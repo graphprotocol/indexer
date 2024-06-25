@@ -141,11 +141,14 @@ export class Network {
       Infinity,
     )
 
-    const tapSubgraph = new TAPSubgraph(
-      specification.subgraphs.tapSubgraph!.url!,
-      tapSubgraphFreshnessChecker,
-      logger.child({ component: 'TAPSubgraph' }),
-    )
+    let tapSubgraph: TAPSubgraph | undefined = undefined
+    if (specification.subgraphs.tapSubgraph && specification.subgraphs.tapSubgraph.url) {
+      tapSubgraph = new TAPSubgraph(
+        specification.subgraphs.tapSubgraph!.url!,
+        tapSubgraphFreshnessChecker,
+        logger.child({ component: 'TAPSubgraph' }),
+      )
+    }
 
     // * -----------------------------------------------------------------------
     // * Contracts
