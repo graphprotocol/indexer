@@ -77,6 +77,7 @@ export function fromSignatureAndData(
     decoded.metadata,
   )
 
+  // TODO refactor to BigNumber from etheres
   return {
     signature,
     // voucher fields

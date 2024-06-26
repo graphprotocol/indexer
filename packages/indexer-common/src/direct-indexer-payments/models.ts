@@ -6,6 +6,8 @@ import {
 } from './abi'
 
 /** Represents a signed indexing agreement voucher.  */
+
+// REVIEW INT TYPES
 export interface IndexingVoucher {
   /** signature of voucher data. */
   signature: string
@@ -83,12 +85,17 @@ export interface IndexingAgreement {
 }
 
 /** Represents the price per block that an indexer proposees for incoming agreements. */
+// prices will eventually be stored in the contract
 export interface IndexingPrice {
-  /** The subgraph deployment id. */
-  subgraphDeploymentId: string
+  /** The id of the price record */
+  id?: number
 
-  /** protocol network */
+  // in prod always arbitrum one, else arbitrum sepolia
+  /** protocol network - where the contract lives and therefore where you allocate */
   protocolNetwork: string
+
+  /** chainid - what network is indexed by that deployment*/
+  chainId: string
 
   /** The price per block in wei GRT. */
   pricePerBlock: bigint
@@ -150,9 +157,10 @@ export class IndexingVoucherModel
 }
 
 export class IndexingPriceModel extends Model<IndexingPrice> implements IndexingPrice {
-  public subgraphDeploymentId!: string
-  public protocolNetwork!: string
+  public id!: number
   public pricePerBlock!: bigint
+  public protocolNetwork!: string
+  public chainId!: string
 }
 
 export interface DirectIndexerPaymentModels {
@@ -254,19 +262,23 @@ export function defineDirectIndexingPaymentModels(
 
   IndexingPriceModel.init(
     {
-      subgraphDeploymentId: {
-        type: DataTypes.STRING(66),
+      id: {
+        type: DataTypes.INTEGER,
         allowNull: false,
         primaryKey: true,
-      },
-      protocolNetwork: {
-        type: DataTypes.STRING(42),
-        allowNull: false,
       },
       pricePerBlock: {
         type: DataTypes.DECIMAL,
         allowNull: false,
         validate: { min: 0.0 },
+      },
+      protocolNetwork: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
+      },
+      chainId: {
+        type: DataTypes.STRING(42),
+        allowNull: false,
       },
     },
     {

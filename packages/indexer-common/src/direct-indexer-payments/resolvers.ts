@@ -8,8 +8,8 @@ export default {
       return client.query(gql`
         query {
           prices {
-            subgraphDeploymentID
             price
+            chainId
             protocolNetwork
           }
         }
@@ -18,39 +18,37 @@ export default {
 
     price: async (
       parent,
-      {
-        subgraphDeploymentId,
-        protocolNetwork,
-      }: {
-        subgraphDeploymentId: string
+      chainAndProtocolNetwork: {
+        chainId: string
         protocolNetwork: string
       },
       client: IndexerManagementClient,
     ) => {
-      // const network = extractNetwork(protocolNetwork, multiNetworks)
-      const networkIdTODO = protocolNetwork
-      return client.query(gql`
-        query {
-          price(subgraphDeploymentID: "${subgraphDeploymentId}", protocolNetwork: "${
-            // network.specification.networkIdentifier
-            networkIdTODO
-          }") {
-            subgraphDeploymentID
-            pricePerBlock
-            protocolNetwork
+      return client.query(
+        gql`
+          query {
+            price(chainId: "$chainId", protocolNetwork: "$protocolNetwork") {
+              pricePerBlock
+              chainId
+              protocolNetwork
+            }
           }
-        }
-      `)
+        `,
+        chainAndProtocolNetwork,
+      )
     },
     agreement: async (parent, { signature }, client: IndexerManagementClient) => {
-      return client.query(gql`
-        query {
-          agreement(signature: "${signature}") {
-            signature
-            data
+      return client.query(
+        gql`
+          query {
+            agreement(signature: "$signature") {
+              signature
+              data
+            }
           }
-        }
-      `)
+        `,
+        { signature },
+      )
     },
   },
 
@@ -60,27 +58,33 @@ export default {
       agreement: IndexingAgreementData,
       client: IndexerManagementClient,
     ) => {
-      return client.mutation(gql`
+      return client.mutation(
+        gql`
         mutation {
-          createIndexingAgreement(signature: "${agreement.signature}", data: "${agreement.data}") {
+          createIndexingAgreement(signature: "$signature", data: "$data") {
             signature
             data
           }
-      `)
+      `,
+        agreement,
+      )
     },
 
     cancelIndexingAgreement: async (
       parent,
-      { signature }: { signature: string },
+      hasSignature: { signature: string },
       client: IndexerManagementClient,
     ) => {
-      return client.mutation(gql`
-        mutation {
-          cancelIndexingAgreement(signature: "${signature}") {
-            signature
+      return client.mutation(
+        gql`
+          mutation {
+            cancelIndexingAgreement(signature: "$signature") {
+              signature
+            }
           }
-        }
-      `)
+        `,
+        hasSignature,
+      )
     },
   },
 }

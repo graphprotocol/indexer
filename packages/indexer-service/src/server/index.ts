@@ -215,7 +215,7 @@ export const createApp = async ({
     slowLimiter,
     bodyParser.json(),
     (req, res, next) => {
-      // debug log request only middleware
+      // TODO(dwerner): debug log request only middleware
       console.log(req.headers)
       console.log(req.body)
       next()

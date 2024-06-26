@@ -8,14 +8,14 @@ export const SCHEMA_SDL = gql`
   }
 
   type IndexingPrice {
-    subgraphDeploymentID: String!
-    price: Float!
+    pricePerBlock: Float!
+    chainId: String!
     protocolNetwork: String!
   }
 
   type Query {
     agreement(signature: String!): IndexingAgreement
-    price(subgraphDeploymentID: String!, protocolNetwork: String!): IndexingPrice
+    price(protocolNetwork: String!, chainId: String!): IndexingPrice
     prices: [IndexingPrice]
   }
 
@@ -23,10 +23,10 @@ export const SCHEMA_SDL = gql`
     createIndexingAgreement(signature: String!, data: String!): IndexingAgreement
     cancelIndexingAgreement(signature: String!): IndexingAgreement
     createPrice(
-      subgraphDeploymentID: String!
-      price: Float!
+      pricePerBlock: Float!
       protocolNetwork: String!
+      chainId: String!
     ): IndexingPrice
-    removePrice(subgraphDeploymentID: String!, protocolNetwork: String!): IndexingPrice
+    removePrice(priceId: Int!): IndexingPrice
   }
 `

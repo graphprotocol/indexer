@@ -9,9 +9,9 @@ ${chalk.bold('graph indexer indexing-payments create-price')} [options]
 
 ${chalk.dim('Options:')}
     -h, --help        Show usage information
-    --subgraphDeploymentId        Subgraph deployment ID
-    --protocolNetwork              Protocol network
     --pricePerBlock                Price per block
+    --chainId                      Chain Id - EIP 155 
+    --protocolNetwork              Protocol network - EIP 155
 `
 
 export default {
@@ -19,8 +19,7 @@ export default {
   description: 'Create a price for a subgraph deployment',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
-    const { h, help, subgraphDeploymentId, protocolNetwork, pricePerBlock } =
-      parameters.options
+    const { h, help, pricePerBlock, chainId, protocolNetwork } = parameters.options
     if (help || h) {
       print.info(HELP)
       return
@@ -29,12 +28,13 @@ export default {
     const client = await createIndexerManagementClient({ url: config.api })
     await createPrice(
       {
-        subgraphDeploymentId,
-        protocolNetwork,
+        id: 0,
         pricePerBlock,
+        protocolNetwork,
+        chainId,
       },
       client,
     )
-    console.log(`Price created for subgraph deployment ${subgraphDeploymentId}`)
+    console.log(`Price created (${pricePerBlock}/block) for chainId ${chainId}`)
   },
 }

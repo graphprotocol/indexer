@@ -38,4 +38,3 @@ export const PRICE_QUERY = `
     }
   }
 `
-
