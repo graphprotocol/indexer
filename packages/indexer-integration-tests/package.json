@@ -9,6 +9,8 @@
     "integration-test": "jest"
   },
   "dependencies": {
+    "axios": "^0.21.1",
+    "docker-compose": "^0.24.8",
     "jest": "^29.7.0"
   },
   "devDependencies": {

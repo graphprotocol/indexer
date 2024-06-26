@@ -4,7 +4,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
-  roots: ['<rootDir>/tests'],
+  roots: ['<rootDir>/src'],
   transform: {
       '^.+\\.ts?$': 'ts-jest',
   },
