@@ -250,7 +250,7 @@ describe('TAP', () => {
     'test mark final rav',
     async () => {
       const anotherFuncSpy = jest
-        .spyOn(receiptCollector.tapSubgraph, 'query')
+        .spyOn(receiptCollector.tapSubgraph!, 'query')
         .mockImplementation(async (): Promise<QueryResult<unknown>> => {
           return {
             data: {

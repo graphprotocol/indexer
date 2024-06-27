@@ -83,16 +83,44 @@ export const TransactionMonitoring = z
 
 export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
 
+const UnvalidatedSubgraph = z.object({
+  url: z.string().url().optional(),
+  deployment: z.string().transform(transformIpfsHash).optional(),
+})
+
 // Generic subgraph specification
-export const Subgraph = z
-  .object({
-    url: z.string().url().optional(),
-    deployment: z.string().transform(transformIpfsHash).optional(),
-  })
-  .strict()
-  .refine((obj) => !(!obj.url && !obj.deployment), {
+export const Subgraph = UnvalidatedSubgraph.refine(
+  (obj) => !(!obj.url && !obj.deployment),
+  {
     message: 'At least one of `url` or `deployment` must be set',
-  })
+  },
+)
+
+// Optional subgraph specification
+export const OptionalSubgraph = UnvalidatedSubgraph.optional().superRefine((obj, ctx) => {
+  // Nested optionals with zod *actually* result in an instance of any parent objects.
+  // This collides with the validation we have where we manually refine the object to have at least one of the properties.
+
+  // zod provides obj: { url: undefined } when the optional subgraph is not defined.
+  if (
+    obj &&
+    ((Object.prototype.hasOwnProperty.call(obj, 'url') && obj['url'] === undefined) ||
+      (Object.prototype.hasOwnProperty.call(obj, 'deployment') &&
+        obj['deployment'] === undefined))
+  ) {
+    return
+  }
+
+  if (obj && !(obj.url || obj.deployment)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'At least one of `url` or `deployment` must be set (IF the optional subgraph is defined)',
+    })
+  }
+})
+
+export type OptionalSubgraph = z.infer<typeof OptionalSubgraph>
 export type Subgraph = z.infer<typeof Subgraph>
 
 // All pertinent subgraphs in the protocol
@@ -102,7 +130,7 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(5_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
-    tapSubgraph: Subgraph,
+    tapSubgraph: OptionalSubgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
@@ -164,7 +192,7 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
-    tapAddressBook: TapContracts,
+    tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })

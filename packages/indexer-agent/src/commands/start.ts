@@ -32,7 +32,7 @@ import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { BigNumber } from 'ethers'
-import { displayZodParsingError } from './error-handling'
+import { displayZodParsingError } from '@graphprotocol/indexer-common/src/parsers/error-handling'
 import { readFileSync } from 'fs'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
@@ -43,6 +43,7 @@ const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
   50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
 const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
 
+// NOTE: This is run only in single-network mode
 export const start = {
   command: 'start',
   describe: 'Start the agent',
@@ -237,7 +238,7 @@ export const start = {
         description:
           'Inject the GRT to DAI/USDC conversion rate into cost model variables',
         type: 'boolean',
-        default: true,
+        default: false,
         group: 'Cost Models',
       })
       .option('address-book', {
@@ -437,6 +438,12 @@ export async function createNetworkSpecification(
         },
       )
     }
+  }
+
+  if (chainId !== 1 && dai.inject) {
+    throw new Error(
+      `The DAI injection feature for cost models is only supported on Ethereum Mainnet`,
+    )
   }
 
   const tapAddressBook = loadFile(argv.tapAddressBook)
