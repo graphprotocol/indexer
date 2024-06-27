@@ -595,10 +595,7 @@ export class NetworkMonitor {
       try {
         const result = await this.networkSubgraph.checkedQuery(
           gql`
-            query subgraphDeployments(
-              $first: Int!
-              $lastId: String!
-            ) {
+            query subgraphDeployments($first: Int!, $lastId: String!) {
               subgraphDeployments(
                 where: { id_gt: $lastId }
                 orderBy: id
