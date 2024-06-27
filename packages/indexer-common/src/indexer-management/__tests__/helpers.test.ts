@@ -83,16 +83,16 @@ const setupMonitor = async () => {
     1,
   )
 
+  const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   networkSubgraph = await NetworkSubgraph.create({
     logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
+    endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`,
     deployment: undefined,
     subgraphFreshnessChecker,
   })
 
   epochSubgraph = new EpochSubgraph(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/sepolia-epoch-block-oracle',
+    `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS`,
     subgraphFreshnessChecker,
     logger,
   )
@@ -166,7 +166,7 @@ describe('Indexing Rules', () => {
       allocationAmount: '5000',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     } as Partial<IndexingRuleAttributes>
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
     expect(setIndexingRuleResult).toHaveProperty(
@@ -185,7 +185,7 @@ describe('Indexing Rules', () => {
 
     //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
     await expect(
-      fetchIndexingRules(models, false, 'eip155:11155111'),
+      fetchIndexingRules(models, false, 'eip155:421614'),
     ).resolves.toHaveLength(1)
   })
 })
@@ -236,7 +236,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     await models.Action.upsert(action)
@@ -330,7 +330,7 @@ describe.skip('Monitor', () => {
   test('Fetch network chain current epoch', async () => {
     await expect(networkMonitor.networkCurrentEpoch()).resolves.toHaveProperty(
       'networkID',
-      'eip155:11155111',
+      'eip155:421614',
     )
   })
 
@@ -357,19 +357,15 @@ describe('Network layer detection', () => {
   }
 
   // Should be true for L1 and false for L2
-  const l1Networks: NetworkLayer[] = [
-    'mainnet',
-    'eip155:1',
-    'sepolia',
-    'eip155:11155111',
-  ].map((name: string) => ({ name, l1: true, l2: false }))
+  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'sepolia'].map(
+    (name: string) => ({ name, l1: true, l2: false }),
+  )
 
   // Should be false for L1 and true for L2
   const l2Networks: NetworkLayer[] = [
     'arbitrum-one',
     'eip155:42161',
-    'arbitrum-goerli',
-    'eip155:421613',
+    'eip155:421614',
   ].map((name: string) => ({ name, l1: false, l2: true }))
 
   // Those will be false for L1 and L2

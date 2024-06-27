@@ -284,5 +284,5 @@ export function networkIsL1(networkIdentifier: string): boolean {
 export function networkIsL2(networkIdentifier: string): boolean {
   // Normalize network identifier
   networkIdentifier = resolveChainId(networkIdentifier)
-  return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421613'
+  return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421614'
 }

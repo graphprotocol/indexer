@@ -32,7 +32,7 @@ import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { BigNumber } from 'ethers'
-import { displayZodParsingError } from './error-handling'
+import { displayZodParsingError } from '@graphprotocol/indexer-common/src/parsers/error-handling'
 import { readFileSync } from 'fs'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any

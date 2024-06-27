@@ -69,10 +69,11 @@ const setup = async () => {
     logger: logger,
     statusEndpoint,
   })
+
+  const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   networkSubgraph = await NetworkSubgraph.create({
     logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-testnet',
+    endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`,
     deployment: undefined,
   })
   const indexNodeIDs = ['node_1']
