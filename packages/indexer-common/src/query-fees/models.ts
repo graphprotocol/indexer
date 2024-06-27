@@ -347,12 +347,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
-        references: {
-          model: 'allocation_summaries',
-          key: 'allocation',
-        },
-        onUpdate: 'CASCADE',
-        onDelete: 'CASCADE',
         get() {
           const rawValue = this.getDataValue('allocationId')
           return toAddress(rawValue)
@@ -710,12 +704,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
   Voucher.belongsTo(AllocationSummary, {
     targetKey: 'allocation',
     foreignKey: 'allocation',
-    as: 'allocationSummary',
-  })
-
-  ReceiptAggregateVoucher.belongsTo(AllocationSummary, {
-    targetKey: 'allocation',
-    foreignKey: 'allocation_id',
     as: 'allocationSummary',
   })
 

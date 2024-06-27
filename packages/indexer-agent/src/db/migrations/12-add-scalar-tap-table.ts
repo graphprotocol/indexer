@@ -69,6 +69,9 @@ export async function up({ context }: Context): Promise<void> {
     ON scalar_tap_receipts
     FOR EACH ROW EXECUTE PROCEDURE scalar_tap_receipt_notify();
   `
+  await queryInterface.sequelize.query(functionSQL)
+  await queryInterface.sequelize.query(triggerSQL)
+
   queryInterface.addIndex('scalar_tap_receipts', ['allocation_id'], {
     name: 'scalar_tap_receipts_allocation_id_idx',
   })
@@ -80,92 +83,90 @@ export async function up({ context }: Context): Promise<void> {
     logger.info(
       `scalar_tap_receipts_invalid already exist, migration not necessary`,
     )
-    return
+  } else {
+    // Create the scalar_tap_ravs table if it doesn't exist
+    await queryInterface.createTable('scalar_tap_receipts_invalid', {
+      id: {
+        type: DataTypes.BIGINT,
+        primaryKey: true,
+        autoIncrement: true,
+      },
+      allocation_id: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      signer_address: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      signature: {
+        type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      timestamp_ns: {
+        type: DataTypes.DECIMAL(20),
+        allowNull: false,
+      },
+      nonce: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+      },
+      value: {
+        type: DataTypes.DECIMAL(39),
+        allowNull: false,
+      },
+    })
   }
-  // Create the scalar_tap_ravs table if it doesn't exist
-  await queryInterface.createTable('scalar_tap_receipts_invalid', {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-    },
-    allocation_id: {
-      type: DataTypes.CHAR(40),
-      allowNull: false,
-    },
-    signer_address: {
-      type: DataTypes.CHAR(40),
-      allowNull: false,
-    },
-    signature: {
-      type: DataTypes.BLOB,
-      allowNull: false,
-    },
-    timestamp_ns: {
-      type: DataTypes.DECIMAL(20),
-      allowNull: false,
-    },
-    nonce: {
-      type: DataTypes.DECIMAL,
-      allowNull: false,
-    },
-    value: {
-      type: DataTypes.DECIMAL(39),
-      allowNull: false,
-    },
-  })
-  await queryInterface.sequelize.query(functionSQL)
-  await queryInterface.sequelize.query(triggerSQL)
 
   if (tables.includes('scalar_tap_ravs')) {
     logger.info(`scalar_tap_ravs already exist, migration not necessary`)
-    return
+  } else {
+    // Create the scalar_tap_ravs table if it doesn't exist
+    await queryInterface.createTable('scalar_tap_ravs', {
+      allocation_id: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      sender_address: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      signature: {
+        type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      timestamp_ns: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+      },
+      value_aggregate: {
+        type: DataTypes.DECIMAL(20),
+        allowNull: false,
+      },
+      final: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      last: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      redeemed_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+    })
   }
-  // Create the scalar_tap_ravs table if it doesn't exist
-  await queryInterface.createTable('scalar_tap_ravs', {
-    allocation_id: {
-      type: DataTypes.CHAR(40),
-      allowNull: false,
-    },
-    sender_address: {
-      type: DataTypes.CHAR(40),
-      allowNull: false,
-    },
-    signature: {
-      type: DataTypes.BLOB,
-      allowNull: false,
-    },
-    timestamp_ns: {
-      type: DataTypes.DECIMAL,
-      allowNull: false,
-    },
-    value_aggregate: {
-      type: DataTypes.DECIMAL(20),
-      allowNull: false,
-    },
-    final: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    last: {
-      type: DataTypes.BOOLEAN,
-      allowNull: false,
-      defaultValue: false,
-    },
-    redeemed_at: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-    updated_at: {
-      type: DataTypes.DATE,
-      allowNull: false,
-    },
-  })
 
   logger.info(`Add primary key`)
   await queryInterface.addConstraint('scalar_tap_ravs', {
@@ -173,27 +174,6 @@ export async function up({ context }: Context): Promise<void> {
     type: 'primary key',
     name: 'pk_scalar_tap_ravs',
   })
-  if (tables.includes('allocation_summaries')) {
-    logger.info(
-      `Remove one-to-one relationship between AllocationSummary and Voucher`,
-    )
-    await queryInterface.removeConstraint('allocation_summaries', 'voucher')
-
-    logger.info(`Add RAV association with AllocationSummary`)
-    await queryInterface.addConstraint('scalar_tap_ravs', {
-      fields: ['allocation_id'],
-      type: 'foreign key',
-      name: 'allocation_summary',
-      references: {
-        table: 'allocation_summaries',
-        field: 'allocation',
-      },
-      onDelete: 'cascade',
-      onUpdate: 'cascade',
-    })
-  } else {
-    logger.error(`Table allocation_summaries does not exist`)
-  }
 
   await queryInterface.createTable('scalar_tap_rav_requests_failed', {
     id: {
@@ -226,28 +206,9 @@ export async function up({ context }: Context): Promise<void> {
 
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
-
-  logger.info(`Remove foreign relationship`)
-  await queryInterface.removeConstraint('scalar_tap_ravs', 'allocationSummary')
-
   // Drop the scalar_tap_ravs table
   logger.info(`Drop table`)
   await queryInterface.dropTable('scalar_tap_ravs')
-
-  logger.info(
-    `Re-add the one-to-one relationship between AllocationSummary and Voucher`,
-  )
-  await queryInterface.addConstraint('vouchers', {
-    fields: ['allocation'],
-    type: 'foreign key',
-    name: 'allocationSummary',
-    references: {
-      table: 'allocation_summaries',
-      field: 'allocation',
-    },
-    onUpdate: 'CASCADE',
-    onDelete: 'SET NULL',
-  })
 
   logger.info(`Drop function, trigger, indices, and table`)
   await queryInterface.sequelize.query(
