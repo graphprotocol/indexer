@@ -64,11 +64,15 @@ const setup = async () => {
   contracts = await connectContracts(getTestProvider('sepolia'), 11155111, undefined)
   sequelize = await sequelize.sync({ force: true })
   const statusEndpoint = 'http://127.0.0.1:8030/graphql'
-  const queryEndpoint = 'http://127.0.0.1:8000'
+  indexingStatusResolver = new IndexingStatusResolver({
+    logger: logger,
+    statusEndpoint,
+  })
+
+  const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   networkSubgraph = await NetworkSubgraph.create({
     logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
+    endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`,
     deployment: undefined,
   })
   const indexNodeIDs = ['node_1']

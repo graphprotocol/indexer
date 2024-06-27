@@ -141,11 +141,14 @@ export class Network {
       Infinity,
     )
 
-    const tapSubgraph = new TAPSubgraph(
-      specification.subgraphs.tapSubgraph!.url!,
-      tapSubgraphFreshnessChecker,
-      logger.child({ component: 'TAPSubgraph' }),
-    )
+    let tapSubgraph: TAPSubgraph | undefined = undefined
+    if (specification.subgraphs.tapSubgraph && specification.subgraphs.tapSubgraph.url) {
+      tapSubgraph = new TAPSubgraph(
+        specification.subgraphs.tapSubgraph!.url!,
+        tapSubgraphFreshnessChecker,
+        logger.child({ component: 'TAPSubgraph' }),
+      )
+    }
 
     // * -----------------------------------------------------------------------
     // * Contracts
@@ -240,12 +243,17 @@ export class Network {
     // * Escrow contract
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
-
-    const tapContracts = await connectTapContracts(
-      wallet,
-      networkIdentifier.chainId,
-      specification.tapAddressBook,
-    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let tapContracts: any
+    try {
+      tapContracts = await connectTapContracts(
+        wallet,
+        networkIdentifier.chainId,
+        specification.tapAddressBook,
+      )
+    } catch (err) {
+      logger.error(`Failed to connect to tap contract bindings:`, { err })
+    }
 
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers

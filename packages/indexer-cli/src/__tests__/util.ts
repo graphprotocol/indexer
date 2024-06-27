@@ -19,6 +19,7 @@ import {
   IndexerManagementDefaults,
   IndexerManagementModels,
   IndexingDecisionBasis,
+  loadTestYamlConfig,
   MultiNetworks,
   Network,
   QueryFeeModels,
@@ -53,55 +54,8 @@ let server: http.Server
 let sockets: Socket[] = []
 let metrics: Metrics
 
-// TODO:
-//  - Update other tests to use Sepolia so can share process.env.INDEXER_TEST_JRPC_PROVIDER_URL again
-//  - Use process.env.INDEXER_TEST_JRPC_PROVIDER_URL value here if available (like other tests)
-const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
-
-export const testNetworkSpecification = specification.NetworkSpecification.parse({
-  networkIdentifier: 'sepolia',
-  gateway: {
-    url: 'http://127.0.0.1:8030/',
-  },
-  networkProvider: {
-    url: PUBLIC_JSON_RPC_ENDPOINT,
-  },
-  indexerOptions: {
-    address: '0x56577167dcdd1a3de2e58d53fc2be0b622d82a7c',
-    mnemonic:
-      'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
-    url: 'http://test-indexer.xyz',
-  },
-  subgraphs: {
-    maxBlockDistance: 10000,
-    networkSubgraph: {
-      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
-    },
-    epochSubgraph: {
-      url: 'http://test-url.xyz',
-    },
-    tapSubgraph: {
-      url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/scalar-tap-arbitrum-sepolia',
-    },
-  },
-  transactionMonitoring: {
-    gasIncreaseTimeout: 240000,
-    gasIncreaseFactor: 1.2,
-    baseFeePerGasMax: 100 * 10 ** 9,
-    maxTransactionAttempts: 0,
-  },
-  tapAddressBook: {
-    '11155111': {
-      TAPVerifier: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
-      AllocationIDTracker: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
-      Escrow: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
-    },
-  },
-  dai: {
-    contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-    inject: false,
-  },
-})
+const yamlObj = loadTestYamlConfig()
+const testNetworkSpecification = specification.NetworkSpecification.parse(yamlObj)
 
 export const setupMultiNetworks = async () => {
   return await setup(true)
@@ -218,7 +172,7 @@ export const seedIndexingRules = async () => {
       id: 1,
       identifier: 'global',
       identifierType: SubgraphIdentifierType.GROUP,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
@@ -230,7 +184,7 @@ export const seedIndexingRules = async () => {
       id: 2,
       identifier: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
@@ -240,7 +194,7 @@ export const seedIndexingRules = async () => {
       id: 3,
       identifier: 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: true,
       safety: true,
@@ -250,7 +204,7 @@ export const seedIndexingRules = async () => {
       id: 4,
       identifier: '0x0000000000000000000000000000000000000000-0',
       identifierType: SubgraphIdentifierType.SUBGRAPH,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
@@ -261,7 +215,7 @@ export const seedIndexingRules = async () => {
       id: 5,
       identifier: '0x0000000000000000000000000000000000000000-1',
       identifierType: SubgraphIdentifierType.SUBGRAPH,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: true,
       safety: true,
@@ -271,7 +225,7 @@ export const seedIndexingRules = async () => {
       id: 6,
       identifier: '0x0000000000000000000000000000000000000000-2',
       identifierType: SubgraphIdentifierType.SUBGRAPH,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
       allocationAmount: parseGRT('1000').toString(),
       allocationLifetime: 12,
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
@@ -333,7 +287,7 @@ export const seedActions = async () => {
       deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       source: 'test',
       reason: 'test',
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     })
     await models.Action.create({
       id: 2,
@@ -342,7 +296,7 @@ export const seedActions = async () => {
       deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       source: 'test',
       reason: 'test',
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     })
   } catch (e) {
     logger.error('Failed to seed ', { error: e })
