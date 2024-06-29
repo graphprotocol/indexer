@@ -41,12 +41,12 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                  |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                             |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmfVipKy3sKva3vYQW8vesh5xPirEPyoKybPY5pfLGcjSS`                                   |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet`                                             |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmWaCrvdyepm1Pe6RPkJFT3u8KmaZahAvJEFCt27HRWyK4`                                   |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9Co7EQe5PgW3ugCUJrJgRv4u9zdEuDJf8NvMWftNsBH8`                                             |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` (USDC)                                |
 | `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.network.thegraph.com/collect-receipts`                            |
 | `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                                               |
-| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://api.thegraph.com/subgraphs/name/graphprotocol/mainnet-epoch-block-oracle` |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/Fg36gCZE7pXEuZ3p8sxYzFE5UbgHtk7kcJiC5HBbfgmY` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -54,8 +54,8 @@ option can be used.
 
 | Environment Variable                         | CLI Argument                      | Value                                                                                     |
 | -------------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------- |
-| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 200)                |
-| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 2000)        |
+| `INDEXER_AGENT_REBATE_CLAIM_THRESHOLD`       | `--rebate-claim-threshold`        | Minimum rebate (in GRT) received for an allocation to claim (Default: 1)                |
+| `INDEXER_AGENT_REBATE_CLAIM_BATCH_THRESHOLD` | `--rebate-claim-batch-threshold`  | Minimum total rebates (in GRT) before a batched claim is processed (Default: 5)        |
 | `INDEXER_AGENT_VOUCHER_EXPIRATION`           | `--voucher-expiration`            | Time (in seconds) to permanently delete vouchers with too few query fees  (Default: 2160) |            
 
 ### Indexer Service
@@ -66,8 +66,8 @@ option can be used.
 | `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `mainnet`                                        |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer              |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator           |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmfVipKy3sKva3vYQW8vesh5xPirEPyoKybPY5pfLGcjSS` |
-| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-mainnet`           |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmWaCrvdyepm1Pe6RPkJFT3u8KmaZahAvJEFCt27HRWyK4` |
+| `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/9Co7EQe5PgW3ugCUJrJgRv4u9zdEuDJf8NvMWftNsBH8`           |
 | `INDEXER_SERVICE_CLIENT_SIGNER_ADDRESS`       | `--client-signer-address`       | `0x982D10c56b8BBbD6e09048F5c5f01b43C65D5aE0`     |
 
 ### Graph Node
@@ -76,4 +76,3 @@ option can be used.
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`   |
 | `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
-
