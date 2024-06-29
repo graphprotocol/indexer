@@ -119,3 +119,4 @@ yalc.lock
 # IDE
 .idea/
 .envrc
+.vscode

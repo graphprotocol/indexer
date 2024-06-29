@@ -141,6 +141,7 @@ export default {
     })
     return await ActionManager.fetchActions(
       models,
+      null,
       filter,
       orderBy,
       orderDirection,
@@ -176,42 +177,54 @@ export default {
         validateActionInputs(actions, network.networkMonitor, logger),
     )
 
-    const alreadyQueuedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.QUEUED,
-    })
-    const alreadyApprovedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.APPROVED,
-    })
-    const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
-
-    // Fetch recently attempted actions
-    const last15Minutes = {
-      [Op.gte]: literal("NOW() - INTERVAL '15m'"),
-    }
-
-    const recentlyFailedActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.FAILED,
-      updatedAt: last15Minutes,
-    })
-
-    const recentlySuccessfulActions = await ActionManager.fetchActions(models, {
-      status: ActionStatus.SUCCESS,
-      updatedAt: last15Minutes,
-    })
-
-    logger.trace('Recently attempted actions', {
-      recentlySuccessfulActions,
-      recentlyFailedActions,
-    })
-
-    const recentlyAttemptedActions = recentlyFailedActions.concat(
-      recentlySuccessfulActions,
-    )
-
     let results: ActionResult[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await models.Action.sequelize!.transaction(async (transaction) => {
+      const alreadyQueuedActions = await ActionManager.fetchActions(models, transaction, {
+        status: ActionStatus.QUEUED,
+      })
+      const alreadyApprovedActions = await ActionManager.fetchActions(
+        models,
+        transaction,
+        {
+          status: ActionStatus.APPROVED,
+        },
+      )
+      const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
+
+      // Fetch recently attempted actions
+      const last15Minutes = {
+        [Op.gte]: literal("NOW() - INTERVAL '15m'"),
+      }
+
+      const recentlyFailedActions = await ActionManager.fetchActions(
+        models,
+        transaction,
+        {
+          status: ActionStatus.FAILED,
+          updatedAt: last15Minutes,
+        },
+      )
+
+      const recentlySuccessfulActions = await ActionManager.fetchActions(
+        models,
+        transaction,
+        {
+          status: ActionStatus.SUCCESS,
+          updatedAt: last15Minutes,
+        },
+      )
+
+      logger.trace('Recently attempted actions', {
+        recentlySuccessfulActions,
+        recentlyFailedActions,
+      })
+
+      const recentlyAttemptedActions = recentlyFailedActions.concat(
+        recentlySuccessfulActions,
+      )
+
       for (const action of actions) {
         const result = await executeQueueOperation(
           logger,

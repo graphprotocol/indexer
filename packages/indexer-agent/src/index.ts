@@ -7,10 +7,8 @@ import {
   AgentOptions,
   run,
 } from './commands/start'
-import {
-  startMultiNetwork,
-  parseNetworkSpecifications,
-} from './commands/start-multi-network'
+import { startMultiNetwork } from './commands/start-multi-network'
+import { parseNetworkSpecifications } from '@graphprotocol/indexer-common'
 
 const MULTINETWORK_MODE: boolean =
   !!process.env.INDEXER_AGENT_MULTINETWORK_MODE &&

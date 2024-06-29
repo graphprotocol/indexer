@@ -670,19 +670,6 @@ export default {
     const allocationData = await networkMonitor.allocation(allocation)
 
     try {
-      // Ensure allocation is old enough to close
-      const currentEpoch = await contracts.epochManager.currentEpoch()
-      if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
-        throw indexerError(
-          IndexerErrorCode.IE064,
-          `Allocation '${
-            allocationData.id
-          }' cannot be closed until epoch ${currentEpoch.add(
-            1,
-          )}. (Allocations cannot be closed in the same epoch they were created)`,
-        )
-      }
-
       poi = await resolvePOI(networkMonitor, graphNode, allocationData, poi, force)
 
       // Double-check whether the allocation is still active on chain, to
@@ -864,18 +851,7 @@ export default {
     }
 
     try {
-      // Ensure allocation is old enough to close
       const currentEpoch = await contracts.epochManager.currentEpoch()
-      if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
-        throw indexerError(
-          IndexerErrorCode.IE064,
-          `Allocation '${
-            allocationData.id
-          }' cannot be closed until epoch ${currentEpoch.add(
-            1,
-          )}. (Allocations cannot be closed in the same epoch they were created)`,
-        )
-      }
 
       logger.debug('Resolving POI')
       const allocationPOI = await resolvePOI(

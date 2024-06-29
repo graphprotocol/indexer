@@ -87,11 +87,11 @@ Query Fees
                                             allocation (in GRT) in order for it
                                             to be included in a batch rebate
                                             claim on-chain
-                                                         [number] [default: 200]
+                                                         [number] [default: 1]
   --rebate-claim-batch-threshold            Minimum total value of all rebates
                                             in an batch (in GRT) before the
                                             batch is claimed on-chain
-                                                        [number] [default: 2000]
+                                                        [number] [default: 5]
   --rebate-claim-max-batch-size             Maximum number of rebates inside a
                                             batch. Upper bound is constrained by
                                             available system memory, and by the
@@ -101,11 +101,11 @@ Query Fees
                                             allocation (in GRT) in order for it
                                             to be included in a batch rebate
                                             claim on-chain
-                                                         [number] [default: 200]
+                                                         [number] [default: 1]
   --voucher-redemption-batch-threshold      Minimum total value of all rebates
                                             in an batch (in GRT) before the
                                             batch is claimed on-chain
-                                                        [number] [default: 2000]
+                                                        [number] [default: 5]
   --voucher-redemption-max-batch-size       Maximum number of rebates inside a
                                             batch. Upper bound is constrained by
                                             available system memory, and by the

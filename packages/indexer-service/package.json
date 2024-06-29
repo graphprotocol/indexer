@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-service",
-  "version": "0.21.2",
+  "version": "0.21.3",
   "description": "Indexer service",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -17,9 +17,9 @@
     "compile": "tsc --build",
     "prepare": "yarn format && yarn lint && yarn compile",
     "start": "node ./dist/index.js start",
-    "test": "jest --colors --verbose --detectOpenHandles",
-    "test:ci": "jest --verbose --ci",
-    "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose",
+    "test": "jest --colors --verbose --detectOpenHandles --runInBand",
+    "test:ci": "jest --verbose --ci --runInBand",
+    "test:watch": "jest --watch --passWithNoTests --detectOpenHandles --verbose --runInBand",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "bin": {
@@ -33,7 +33,7 @@
   "dependencies": {
     "@google-cloud/profiler": "4.1.7",
     "@graphprotocol/common-ts": "2.0.9",
-    "@graphprotocol/indexer-common": "^0.21.2",
+    "@graphprotocol/indexer-common": "^0.21.3",
     "@graphprotocol/indexer-native": "0.20.11",
     "@graphql-tools/load": "8.0.0",
     "@graphql-tools/url-loader": "8.0.0",

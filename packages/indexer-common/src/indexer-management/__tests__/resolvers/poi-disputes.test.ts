@@ -112,7 +112,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'arbitrum-sepolia',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -132,7 +132,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'arbitrum-sepolia',
 }
 
 const TEST_DISPUTE_3: POIDisputeAttributes = {
@@ -153,7 +153,7 @@ const TEST_DISPUTE_3: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'goerli',
+  protocolNetwork: 'arbitrum-sepolia',
 }
 
 const TEST_DISPUTES_ARRAY = [TEST_DISPUTE_1, TEST_DISPUTE_2]
@@ -163,8 +163,8 @@ function toObject(dispute: POIDisputeAttributes): Record<string, any> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expected: Record<string, any> = Object.assign({}, dispute)
   expected.allocationAmount = expected.allocationAmount.toString()
-  if (expected.protocolNetwork === 'goerli') {
-    expected.protocolNetwork = 'eip155:5'
+  if (expected.protocolNetwork === 'arbitrum-sepolia') {
+    expected.protocolNetwork = 'eip155:421614'
   }
   return expected
 }
@@ -237,7 +237,7 @@ describe('POI disputes', () => {
   test('Get non-existent dispute', async () => {
     const identifier = {
       allocationID: '0x0000000000000000000000000000000000000001',
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
@@ -252,9 +252,9 @@ describe('POI disputes', () => {
     for (const dispute of disputes) {
       const identifier = {
         allocationID: dispute.allocationID,
-        protocolNetwork: 'eip155:5',
+        protocolNetwork: 'eip155:421614',
       }
-      const expected = { ...dispute, protocolNetwork: 'eip155:5' }
+      const expected = { ...dispute, protocolNetwork: 'eip155:421614' }
       await expect(
         client.query(GET_POI_DISPUTE_QUERY, { identifier }).toPromise(),
       ).resolves.toHaveProperty('data.dispute', expected)
@@ -269,7 +269,7 @@ describe('POI disputes', () => {
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
     const expected = disputes.map((dispute) => ({
       ...dispute,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:421614',
     }))
 
     await expect(
@@ -277,7 +277,7 @@ describe('POI disputes', () => {
         .query(GET_POI_DISPUTES_QUERY, {
           status: 'potential',
           minClosedEpoch: 0,
-          protocolNetwork: 'goerli',
+          protocolNetwork: 'arbitrum-sepolia',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', expected)
@@ -289,14 +289,14 @@ describe('POI disputes', () => {
     await client.mutation(STORE_POI_DISPUTES_MUTATION, { disputes: disputes }).toPromise()
 
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
-    const expected = [{ ...TEST_DISPUTE_2, protocolNetwork: 'eip155:5' }]
+    const expected = [{ ...TEST_DISPUTE_2, protocolNetwork: 'eip155:421614' }]
 
     await expect(
       client
         .query(GET_POI_DISPUTES_QUERY, {
           status: 'potential',
           minClosedEpoch: 205,
-          protocolNetwork: 'goerli',
+          protocolNetwork: 'arbitrum-sepolia',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', expected)
@@ -310,7 +310,7 @@ describe('POI disputes', () => {
     const identifiers = [
       {
         allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
-        protocolNetwork: 'goerli',
+        protocolNetwork: 'arbitrum-sepolia',
       },
     ]
     await expect(
@@ -325,7 +325,7 @@ describe('POI disputes', () => {
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
     const expected = disputes.map((dispute) => ({
       ...dispute,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:421614',
     }))
 
     await expect(
@@ -333,7 +333,7 @@ describe('POI disputes', () => {
         .query(GET_POI_DISPUTES_QUERY, {
           status: 'potential',
           minClosedEpoch: 0,
-          protocolNetwork: 'goerli',
+          protocolNetwork: 'arbitrum-sepolia',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', expected)
@@ -347,11 +347,11 @@ describe('POI disputes', () => {
     const identifiers = [
       {
         allocationID: '0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C',
-        protocolNetwork: 'goerli',
+        protocolNetwork: 'arbitrum-sepolia',
       },
       {
         allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
-        protocolNetwork: 'goerli',
+        protocolNetwork: 'arbitrum-sepolia',
       },
     ]
 
@@ -363,7 +363,7 @@ describe('POI disputes', () => {
     // Once persisted, the protocol network identifier assumes the CAIP2-ID format
     const expected = disputes.map((dispute) => ({
       ...dispute,
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:421614',
     }))
 
     await expect(
@@ -371,7 +371,7 @@ describe('POI disputes', () => {
         .query(GET_POI_DISPUTES_QUERY, {
           status: 'potential',
           minClosedEpoch: 0,
-          protocolNetwork: 'goerli',
+          protocolNetwork: 'arbitrum-sepolia',
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.disputes', expected)

@@ -162,11 +162,11 @@ Indexer Infrastructure
   --rebate-claim-threshold              Minimum value of rebate for a single
                                         allocation (in GRT) in order for it to
                                         be included in a batch rebate claim
-                                        on-chain       [string] [default: "200"]
+                                        on-chain       [string] [default: "1"]
   --rebate-claim-batch-threshold        Minimum total value of all rebates in an
                                         batch (in GRT) before the batch is
                                         claimed on-chain
-                                                      [string] [default: "2000"]
+                                                      [string] [default: "5"]
   --rebate-claim-max-batch-size         Maximum number of rebates inside a
                                         batch. Upper bound is constrained by
                                         available system memory, and by the
@@ -174,11 +174,11 @@ Indexer Infrastructure
   --voucher-redemption-threshold        Minimum value of rebate for a single
                                         allocation (in GRT) in order for it to
                                         be included in a batch rebate claim
-                                        on-chain       [string] [default: "200"]
+                                        on-chain       [string] [default: "1"]
   --voucher-redemption-batch-threshold  Minimum total value of all rebates in an
                                         batch (in GRT) before the batch is
                                         claimed on-chain
-                                                      [string] [default: "2000"]
+                                                      [string] [default: "5"]
   --voucher-redemption-max-batch-size   Maximum number of rebates inside a
                                         batch. Upper bound is constrained by
                                         available system memory, and by the

@@ -71,7 +71,7 @@ const setupMonitor = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  ethereum = getTestProvider('goerli')
+  ethereum = getTestProvider('sepolia')
   contracts = await connectContracts(ethereum, 5, undefined)
 
   const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
@@ -83,16 +83,16 @@ const setupMonitor = async () => {
     1,
   )
 
+  const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
   networkSubgraph = await NetworkSubgraph.create({
     logger,
-    endpoint:
-      'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-goerli',
+    endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV`,
     deployment: undefined,
     subgraphFreshnessChecker,
   })
 
   epochSubgraph = new EpochSubgraph(
-    'https://api.thegraph.com/subgraphs/name/graphprotocol/goerli-epoch-block-oracle',
+    `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS`,
     subgraphFreshnessChecker,
     logger,
   )
@@ -112,7 +112,7 @@ const setupMonitor = async () => {
   })
 
   networkMonitor = new NetworkMonitor(
-    resolveChainId('goerli'),
+    resolveChainId('sepolia'),
     contracts,
     indexerOptions,
     logger,
@@ -166,7 +166,7 @@ describe('Indexing Rules', () => {
       allocationAmount: '5000',
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       decisionBasis: IndexingDecisionBasis.ALWAYS,
-      protocolNetwork: 'goerli',
+      protocolNetwork: 'arbitrum-sepolia',
     } as Partial<IndexingRuleAttributes>
     const setIndexingRuleResult = await upsertIndexingRule(logger, models, indexingRule)
     expect(setIndexingRuleResult).toHaveProperty(
@@ -184,7 +184,9 @@ describe('Indexing Rules', () => {
     )
 
     //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-    await expect(fetchIndexingRules(models, false, 'eip155:5')).resolves.toHaveLength(1)
+    await expect(
+      fetchIndexingRules(models, false, 'eip155:421614'),
+    ).resolves.toHaveLength(1)
   })
 })
 
@@ -234,7 +236,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:5',
+      protocolNetwork: 'eip155:421614',
     }
 
     await models.Action.upsert(action)
@@ -249,16 +251,16 @@ describe('Actions', () => {
       [Op.and]: [{ status: 'failed' }, { type: 'allocate' }],
     })
 
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
-
-    await expect(ActionManager.fetchActions(models, filterOptions)).resolves.toHaveLength(
-      1,
-    )
+    await expect(
+      ActionManager.fetchActions(models, null, filterOptions),
+    ).resolves.toHaveLength(1)
 
     await expect(
-      ActionManager.fetchActions(models, {
+      ActionManager.fetchActions(models, null, filterOptions),
+    ).resolves.toHaveLength(1)
+
+    await expect(
+      ActionManager.fetchActions(models, null, {
         status: ActionStatus.FAILED,
         type: ActionType.ALLOCATE,
         updatedAt: { [Op.gte]: literal("NOW() - INTERVAL '1d'") },
@@ -266,7 +268,7 @@ describe('Actions', () => {
     ).resolves.toHaveLength(1)
 
     await expect(
-      ActionManager.fetchActions(models, {
+      ActionManager.fetchActions(models, null, {
         status: ActionStatus.FAILED,
         type: ActionType.ALLOCATE,
         updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
@@ -285,8 +287,8 @@ describe('Types', () => {
     expect(resolveChainId('mainnet')).toBe('eip155:1')
   })
 
-  test('Resolve chain id: `5`', () => {
-    expect(resolveChainId('5')).toBe('eip155:5')
+  test('Resolve chain id: `11155111`', () => {
+    expect(resolveChainId('11155111')).toBe('eip155:11155111')
   })
 
   test('Resolve chain alias: `eip155:1`', () => {
@@ -300,15 +302,15 @@ describe('Types', () => {
   })
 })
 
-// This test suite requires a graph-node instance connected to Goerli, so we're skipping it for now
+// This test suite requires a graph-node instance connected to Sepolia, so we're skipping it for now
 // Use this test suite locally to test changes to the NetworkMonitor class
-describe.skip('Monitor', () => {
+describe.skip('Monitor: local', () => {
   beforeAll(setupMonitor)
 
-  test('Fetch currentEpoch for `goerli`', async () => {
+  test('Fetch currentEpoch for `sepolia`', async () => {
     await expect(
-      networkMonitor.currentEpoch(resolveChainId('goerli')),
-    ).resolves.toHaveProperty('networkID', 'eip155:5')
+      networkMonitor.currentEpoch(resolveChainId('sepolia')),
+    ).resolves.toHaveProperty('networkID', 'eip155:11155111')
   }, 10000)
 
   test('Fail to fetch currentEpoch: chain not supported by graph-node', async () => {
@@ -328,7 +330,7 @@ describe.skip('Monitor', () => {
   test('Fetch network chain current epoch', async () => {
     await expect(networkMonitor.networkCurrentEpoch()).resolves.toHaveProperty(
       'networkID',
-      'eip155:5',
+      'eip155:421614',
     )
   })
 
@@ -347,6 +349,134 @@ describe.skip('Monitor', () => {
   })
 })
 
+describe('Monitor: CI', () => {
+  beforeAll(setupMonitor)
+
+  test('Fetch subgraphs', async () => {
+    const subgraphs = await networkMonitor.subgraphs([
+      'HvYz9828kSW9vhDef42agWaJVEifgYh8qQ1vUTy1aiYB',
+      'BgGaFXhu17ikYBjezuyYXGgaDtP6nVhnk3FmEw7rVDPH',
+      'Dtopx26mi8QZUz8TQGeEk8ranuVGUnmPgi7qAZbGtsFi',
+      'DRc8dd1ugk7To99Q51UG3PrJppneR3XtbWu5xkQFCqh7',
+      '7gEARKTwgN8xbTnaDBmfSuxi2s5dWRpqGEKjc7gx1znW',
+      '5bSJRNJFjMJy87v2uwuo82GQyyGAps2u96x2UQyN8Uhc',
+      'JBZfGX5pWpya4HJHkY54EcjQe1tJhNfszDTbjZGjgGjV',
+      'Gj5g62GNwRdAjRcGj9qh7M3iwR5SULVYDqAk8wsi1XJq',
+      '3XKjubSDj6pzn8BasduK6kJGNkAVg3fWUuCBzP5jzCCM',
+      '66CJq5efooGv6Zu2tE8t2xWiGF1cMZqLQxVLBF3SquKR',
+      'A5iZuVkBbxU2GwJcQKN35JvUSaUcLJeygwwnpukhPvjG',
+      'CdJLdxVQPigWi3LJoDdwf8r6mXBL8nzn1kdVWp2HeLBN',
+      '6qMkvRupvTRuHbYHaSRgP6ebjqM1ELjCHrkQoH9eJQcA',
+      'ELxt8ANmxY7i1EXEnP3tv8tYi8S5rTwt9WDP4yYJkwyR',
+      'ASB13Eew3Td483LX8A5G6wTiApvySgvYLqrFM3yJiG6E',
+      '5etifdh5PjGTAx4hwS2baYDEwZMzvPDXFXmAT5kVKk4E',
+      'HzfmvtAPCTmrmiupvWYUdesW21UeDZXgN3oVdTGhV57J',
+      '2a9q1MCYJw5HHc9n87uUr9dvRcQd16ghd55cZRGSzGa2',
+      'EiJPdVWJYtZKdtQjwDdfMahHc5aNncQMXVK2JZACFuFV',
+      '8ScER3UC5cP12BDpxX6a5WyW41LcUkCZtbXfF31zdrXS',
+      'GLRGaAVXu3qHs3h6GKmEV6kpVFiN7VS2fwcfPvBJPUbq',
+      'CBirSH123kAM7eEVJ1WRYUm8RDwnKPn96zakbDPLoKjV',
+      'BzV6inHQyfYh3Gtd8WWSJ3YY5ghmAHd7aT3Eu84ZfHTK',
+      'EgPkp3cJm3J3wHdkJBN9kbgW5e3ZTMTnR6aKs81mCp39',
+      '8vZCBf6XcYDGS6XxvhNbenT71qwn6SYwti6KwdoKNzn6',
+      'HfWJgc9Xg2APHKTqCi3VnvrtbPHPwXZEvdmShaFSdyCL',
+      'Ayqu513Ky67HJP5uednpdRwPSTXj1vftCqF7t3dZCrZ2',
+      '7a4xK25hdSygHSjiZfhgcqJLmP28XwYUJLaK77w55h8V',
+      'ANCYpT6k2rBVC72cQH4M9w3nPhMGxNDvibFQjjDqAbaY',
+      'Bo8SSPTVT6S9aUSMfMMtQxeLvWHpwfyVBoN1m5WbQAyf',
+      'DybNNj1H5Yo9JV4zQTSZTrWdWLWGdYPM84LCL53uCyjS',
+      'ADkZT6CyyfV2xCE7GHhD592E4UMy7DBA8vKR4maTSHJo',
+      'CgA4yPyXkTLNQTj8vqTahEe4xvsNRjfQ4YuF22qhir4u',
+      '4C7iR2BKUYPsPADBiKqBZ9iYnhVrcqbrCSsLhFHCYqxS',
+      '6vQd7Sw4pQHyB6rkPW6s9j3ir6jQeHjqXtnGr4tRVuFz',
+      'EtDixXg72aFinnVSoLewXyuGd7ZG1wJ3E1Z8h7W1bRLK',
+      '5AcdpucdAigyCCw7dYnY9UkWFQusmD3bMW7Q6M5MLyiM',
+      'CJu2REP2NFdaGnUhENbLm4mLu3Zwggf574ZEaqBoRN9Y',
+      'Nvgja9qFMA4XteMWrXqwDiJae1VgwVnC9KtEK9bV3F7',
+      '2ggc5UTwzsUaYe3EFmo5vp8Jek7KeHxxZjaLfYvSXFP8',
+      '9NkN2mq5PbFEjYHMH2L77Udsesux3JL7fnYqMrcveMku',
+      '7wZkJrw56S8kcJ67VsYCvxQPu72GGyCLZPPz86DCRqCe',
+      'AN8YMdsAwwh6uCJgPmpVxzoyL391QjX9tmU7GWzRKxdA',
+      'HW8LumeFnPGGZfBSM4NuZ7yp9PALYAUErLT2b8CssHUc',
+      '6HJctiD7icf3W9HcYHUx4WrZBpkMnJxDKLBXgDeuipfz',
+      '6UhCCSzz8jMKnQtFjiVainFLDWKTCepRakvjGDsih46',
+      'J5s1Q5ECEuvcyr8hfCVJxdebmwiQTGWbNGXu8GLfnSBj',
+      'BcPHsbz9MxxnfX2BWNVAz8vbyJ8JAzr2TyMcUZxgbZPk',
+      'Dc5pZQFUtmMY4tqf37KhBxwSHoFDiWDWShdfpbjtYVqG',
+      '22W58bMNpfn5Nsf6ifvT4r8j622t3ez6cLNHP19DJN8i',
+      '69vjj2v5Ke56t1xiz3JEvWBvPxw6aCVdEfQyaiSxw5M1',
+      '6WWUQuethroETYkvjHwzK8SBsBrFXRU6N3r3wGGHhBNJ',
+      '7s8mN56GZAwv7xUsYG5NGJUY28zXRYfM2MC3adV8fzmS',
+      '36YoDeNb5vbzocAxrBFqs75DPwBHVVQyR1HE792rEZhU',
+      '8uaT7jBZeZquyCGZf2guEXT6qxRzJLRupWqNo7J9GVWC',
+      'HMwbgUHTSUByt1wn939V7ZmtkLmZzSwDrQF8g735Ke7b',
+      'Hz57mJ1hFHNKqedeSL2XKLCVUgZz4KrmhrBUpqaof7w2',
+      '2YKP9Gdvu8mZHTQ2gVs3GFhE6CFuPmzhKor9rWS2dNcb',
+      '2t356FsLEPcMRT7Nf6wCtYhxDGPqGk617h7H3QDTWadN',
+      '34eG1YjaeTuhAXRAgQ9iiALNBBANmc17M1r7EGsfiVSJ',
+      'GcfmCd2iTPW66ZmerMSJQGdF5BvMdsGdjeRr8jdgWJvc',
+      'oHHaActByLEv9ju6x6EieuTkw7yswf3cD8T6zL7d8Mp',
+      'XvVPwD5vksVYQFbn56ZkKCRptMkycPwYTKUWNB2Xh5f',
+      '8gqQ8Z2Voot9UVEUEvo95sbUSb5jRnTVFgh2fyJ1gpuW',
+      'H5skicpD6dtAy2KmbZMCPk4nL5xx8Ye26PZuoJLNDXkX',
+      '6CBsUzoznswJLacHuv5nbRExvdiTQo5MD4A4AMm2S5vc',
+      '6Fh1ibLTEukUKEsxHiomJRe1pyrJ9LWLiGhgg5huugHw',
+      'ARCYeKaxqU6gZhWCzYHeyFMPEAT87yVrQrnVESsm3NfW',
+      '9DQrJomnSKjakL9paTgMkFXazwHuRBg83kEj9K7jQxKq',
+      'BNJm3VSrZEvKsCpVA5h2Ya7Z6BHWMSnQWtShcHVWgQpL',
+      '6skFEGLGTjPDWbh384aA2MXLafNwDjAJoB7fFhgX8o7E',
+      'CMJsyibqSGLENXoCMR66fSQ1tSgoK9qBbao765CRy9i3',
+      '9D1KdYAmkeb9kav8rDLnqQ3SdxKjLxgjgV8yT8cPHPGP',
+      '6VB3T5xSpefLx6otMyN8SdCow54GSzibbBe8epdrreTk',
+      'CBJNRDCv8xKST8T5pQjTrhSMPNMfdFKyMMaoLbZd5CfZ',
+      '5h89RnR4SBk3ZJaDoCEZvrbpSozxQEvtR66DbGAiCWRh',
+      'AtMK1PwRJ9FWLJQwnJrWXSrS1e87RkXieVyxpGXNtTe3',
+      '6xCGdHHdtqN4BkaZ4CqXVjNXnhv9ig6iQmUgQFC5o4KA',
+      'Fb1eSwi1EaXDYJmMtDX6nESuzkJEPxgnaEa2Qy87hvnv',
+      '7HRYsuMBw3NGb7r7EhoukNfHWxgswRHA7MDFy6ynJ6Jd',
+      '2rNEuiiMbruTbBv1RTdhnLbV8XW2wpxZ2ToHW3pRZsyn',
+      '6tFRMbJ9r8D19PzHDzowFsANGz5zpJ7q68ve8sCtLhUK',
+      '2FxttPXDzPr3hp8th55jGwKQDK658eY9fAYgPS5BQsgG',
+      '9oSK1nvoTuP1w6jhEWuJcC9dQRDVrBaeih4SFcvhtd1D',
+      'AXmvC1aTytCFHK7gpLSwA4jmBDeboxP3ihMrZbneHrU8',
+      'Cy8qmbBqNt5s6iv7QMKaEaSSh42qcjdSHBX7f6MXLFqj',
+      '6C6sYnvJ8UAZ1uNgMbNeab8pM4emZn4zricGn16YZuX1',
+      'GwWgugJfPeu7t2eybUEuvJk454pWPngMvuK4VAs6YMoF',
+      '4z6tVjyfWGSvY413cSfQXaGhatfo81hnZwsWZiNtjnac',
+      'GSV9W7bhDtbyb8XTq4Dy5TUuWxRH69DEixmW38EdgJdM',
+      '9M5fLJZiYTUUmrK7kCqBfqDFLdmsTWeoU1s3bTGrB64t',
+      'HCDKJuiXenPM8e1Qaa268HTPDH8k6jdoBPBHWPfBHTfx',
+      '48U9e6UbwY59KcUUvEegyRBS54MLx4A24hjLxFonGkH4',
+      '7emAwR6QUXGehvZdeCHH7efkjCkDD1U95ksxQhrpxAqg',
+      '5y4rHLyv4C9Y8YBDyBex9fanCggE5vSLUJgYsCyWpX2w',
+      '9nQ3a8fFGjT3Z1U2Fn3hzvXmG5jGQ3AXpchAE1LQSJ7y',
+      '2wP9kvh3Uwm4Y3Zprsx2PxFPxMxZw5mePWwp7ukBQtms',
+      'HZG6KXnzP7ZgWYabSAUvHcyxG85DVUkQf2UBUcCEEdTy',
+      'Fm7cMpTzBwyNybmEu67mU29FpKJZXCz38VuHiCh3MA3Z',
+      '6HJutXDqXLUo3otxnLWtC7FiXkxePbLZoa84TYaJ4qg7',
+      'DtXURXnabk5EsPAQhivDYhZWYYQScLGDVyZdfmfGiTWA',
+      'E3CpBTZ2ZprQ5XKprw5TBQkbJ3DzYGJQx1AhyApyKvch',
+      'CupTKerusECgKEqYzuSMk7wtKYnmo5WXZ2gtJtKreS6R',
+      'DTBkMR3i697w7JPwcvCdrcqtxRhS8FtgoHZqp87Sodqf',
+      '5fRc469U46WVkH9WWYQ2wUuS3cdrX14WNmHGyaqg87Fe',
+      'HGZgSEpRbwY3H54vyrUfqn8RXqDA23qT9yLqyxZXZTNW',
+    ])
+    await expect(subgraphs.length).toEqual(106)
+  })
+
+  //TODO: Setup constrained subraphDeployments query that works both against graph-node and the gateway
+
+  // test('Fetch subgraph deployments (constrained)', async () => {
+  //   const deployments = await networkMonitor.subgraphDeployments(59022843)
+  //   await expect(deployments.length).toEqual(589)
+  // }, 30000)
+
+  test('Fetch subgraph deployments (unconstrained block)', async () => {
+    const deployments = await networkMonitor.subgraphDeployments()
+    await expect(deployments.length).toBeGreaterThan(500)
+  }, 30000)
+})
+
 describe('Network layer detection', () => {
   interface NetworkLayer {
     name: string
@@ -355,7 +485,7 @@ describe('Network layer detection', () => {
   }
 
   // Should be true for L1 and false for L2
-  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'goerli', 'eip155:5'].map(
+  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'sepolia'].map(
     (name: string) => ({ name, l1: true, l2: false }),
   )
 
@@ -363,8 +493,7 @@ describe('Network layer detection', () => {
   const l2Networks: NetworkLayer[] = [
     'arbitrum-one',
     'eip155:42161',
-    'arbitrum-goerli',
-    'eip155:421613',
+    'eip155:421614',
   ].map((name: string) => ({ name, l1: false, l2: true }))
 
   // Those will be false for L1 and L2

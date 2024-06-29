@@ -98,7 +98,17 @@ export default {
     { models, multiNetworks, dai }: IndexerManagementResolverContext,
   ): Promise<object> => {
     if (!multiNetworks) {
-      throw Error('IndexerManagementClient must be in `network` mode to set cost models')
+      throw new Error('No network configuration available')
+    }
+    if (Object.keys(multiNetworks.inner).length !== 1) {
+      throw Error('Must be in single network mode to set cost models')
+    }
+    const network = Object.values(multiNetworks.inner)[0]
+    const injectDai = network.specification.dai.inject
+    if (network.specification.networkIdentifier !== 'eip155:1' && injectDai) {
+      throw new Error(
+        `Can't set cost model: DAI injection enabled but not on Ethereum Mainnet`,
+      )
     }
 
     const update = parseGraphQLCostModel(costModel)
@@ -111,13 +121,6 @@ export default {
     } catch (err) {
       throw new Error(`Invalid cost model or variables: ${err.message}`)
     }
-    const network = multiNetworks.inner['eip155:1']
-    if (!network) {
-      throw new Error(
-        `Can't set cost model: Indexer Agent does not have Ethereum Mainnet network configured.`,
-      )
-    }
-    const injectDai = !!network.specification.dai.inject
     const [model] = await models.CostModel.findOrBuild({
       where: { deployment: update.deployment },
     })
