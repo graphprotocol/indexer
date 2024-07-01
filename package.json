@@ -30,7 +30,9 @@
     "@ethersproject/bignumber": "5.7.0",
     "@ethersproject/providers": "5.7.0",
     "@urql/core": "2.4.4",
-    "@urql/exchange-execute": "1.2.2"
+    "@urql/exchange-execute": "1.2.2",
+    "punycode": "2.3.1",
+    "uri-js": "4.2.2"
   },
   "overrides": {
     "ethers": "5.7.0",
