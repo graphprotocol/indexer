@@ -360,12 +360,14 @@ const SCHEMA_SDL = gql`
     deployment: String!
     model: String
     variables: String
+    protocolNetwork: String!
   }
 
   input CostModelInput {
     deployment: String!
     model: String
     variables: String
+    protocolNetwork: String!
   }
 
   type Query {
