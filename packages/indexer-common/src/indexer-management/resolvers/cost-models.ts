@@ -52,6 +52,7 @@ export default {
   ): Promise<object | null> => {
     const model = await models.CostModel.findOne({
       where: { deployment },
+      order: [['created_at', 'DESC']],
     })
     if (model) {
       return model.toGraphQL()
@@ -59,6 +60,7 @@ export default {
 
     const globalModel = await models.CostModel.findOne({
       where: { deployment: COST_MODEL_GLOBAL },
+      order: [['created_at', 'DESC']],
     })
     if (globalModel) {
       globalModel.setDataValue('deployment', deployment)
@@ -73,14 +75,31 @@ export default {
     { deployments }: { deployments: string[] | null | undefined },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    const costModels = await models.CostModel.findAll({
-      where: deployments ? { deployment: deployments } : undefined,
-      order: [['deployment', 'ASC']],
+    const sequelize = models.CostModel.sequelize
+    if (!sequelize) {
+      throw new Error('No sequelize instance available')
+    }
+    const query = `
+      WITH cost_model_temp AS (
+        SELECT *, ROW_NUMBER() OVER (PARTITION BY deployment ORDER BY created_at DESC) as row_num
+        FROM cost_models
+      )
+      SELECT *
+      FROM cost_model_temp
+      WHERE row_num = 1
+      ${deployments ? 'AND deployment IN (:deployments)' : ''}
+      ;
+    `
+    const costModels = await sequelize.query(query, {
+      replacements: { deployments: deployments ? deployments : [] },
+      mapToModel: true,
+      model: models.CostModel,
     })
     const definedDeployments = new Set(costModels.map((model) => model.deployment))
     const undefinedDeployments = deployments?.filter((d) => !definedDeployments.has(d))
     const globalModel = await models.CostModel.findOne({
       where: { deployment: COST_MODEL_GLOBAL },
+      order: [['created_at', 'DESC']],
     })
     if (globalModel && undefinedDeployments) {
       const mergedCostModels = undefinedDeployments.map((d) => {
