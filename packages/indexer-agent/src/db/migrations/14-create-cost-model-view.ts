@@ -91,6 +91,31 @@ export async function up({ context }: Context): Promise<void> {
   `
 
   await queryInterface.sequelize.query(viewSQL)
+  const functionSQL = `
+        CREATE FUNCTION cost_models_update_notify()
+        RETURNS trigger AS
+        $$
+        BEGIN
+          IF TG_OP = 'DELETE' THEN
+            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "DELETE", "deployment": "%s"}', OLD.deployment));
+            RETURN OLD;
+          ELSIF TG_OP = 'INSERT' THEN
+            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "INSERT", "deployment": "%s"}', NEW.deployment));
+            RETURN NEW;
+          ELSE -- UPDATE OR TRUNCATE, should never happen
+            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "%s", "deployment": null}', TG_OP, NEW.deployment));
+            RETURN NEW;
+          END IF;
+        END;
+        $$ LANGUAGE 'plpgsql';
+    `
+  const triggerSQL = `
+        CREATE TRIGGER cost_models_update AFTER INSERT OR UPDATE OR DELETE
+        ON cost_models
+        FOR EACH ROW EXECUTE PROCEDURE cost_models_update_notify();
+    `
+  await queryInterface.sequelize.query(functionSQL)
+  await queryInterface.sequelize.query(triggerSQL)
 }
 
 export async function down({ context }: Context): Promise<void> {
