@@ -2,6 +2,9 @@ const bail = s => {
   throw new Error(s)
 }
 
+// until we find a way to avoid `punycode` we suppress the warnings in tests
+process.env.NODE_NO_WARNINGS = '1'
+
 module.exports = {
   collectCoverage: true,
   forceExit: true,
@@ -9,10 +12,13 @@ module.exports = {
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
   transform: {
-    '^.+\\.tsx?$': ['ts-jest', {
-      isolatedModules: true,
-      tsconfig: 'tsconfig.json'
-    }],
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+        tsconfig: 'tsconfig.json',
+      },
+    ],
   },
   globals: {
     __DATABASE__: {
