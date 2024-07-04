@@ -1,6 +1,7 @@
-import { Address } from '@graphprotocol/common-ts'
 import { BigNumber } from 'ethers'
-import { SubgraphDeployment } from '@graphprotocol/indexer-common'
+import { NetworkSubgraph, SubgraphDeployment } from '@graphprotocol/indexer-common'
+
+import { Logger, Address } from '@graphprotocol/common-ts'
 
 export interface Allocation {
   id: Address
@@ -25,4 +26,12 @@ export enum AllocationStatus {
   CLOSED = 'Closed',
   FINALIZED = 'Finalized',
   CLAIMED = 'Claimed',
+}
+
+export interface MonitorEligibleAllocationsOptions {
+  indexer: Address
+  logger: Logger
+  networkSubgraph: NetworkSubgraph
+  interval: number
+  protocolNetwork: string
 }

@@ -121,7 +121,7 @@ export class ActionManager {
         logger.trace('Fetching approved actions')
         let actions: Action[] = []
         try {
-          actions = await ActionManager.fetchActions(this.models, {
+          actions = await ActionManager.fetchActions(this.models, null, {
             status: ActionStatus.APPROVED,
           })
           logger.trace(`Fetched ${actions.length} approved actions`)
@@ -292,6 +292,7 @@ export class ActionManager {
 
   public static async fetchActions(
     models: IndexerManagementModels,
+    transaction: Transaction | null,
     filter: ActionFilter,
     orderBy?: ActionParams,
     orderDirection?: OrderDirection,
@@ -302,6 +303,7 @@ export class ActionManager {
       : [['id', 'desc']]
 
     return await models.Action.findAll({
+      transaction,
       where: actionFilterToWhereOptions(filter),
       order: orderObject,
       limit: first,

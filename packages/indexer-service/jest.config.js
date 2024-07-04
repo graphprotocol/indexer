@@ -8,10 +8,13 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
-  globals: {
-    'ts-jest': {
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
       isolatedModules: true,
-    },
+      tsconfig: 'tsconfig.json'
+    }],
+  },
+  globals: {
     __DATABASE__: {
       host: process.env.POSTGRES_TEST_HOST || bail('POSTGRES_TEST_HOST is not defined'),
       port: parseInt(process.env.POSTGRES_TEST_PORT || '5432'),

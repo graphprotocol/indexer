@@ -41,14 +41,14 @@ export const IndexerOptions = z
     url: z.string().url(),
     geoCoordinates: z.number().array().length(2).default([31.780715, -41.179504]),
     restakeRewards: z.boolean().default(true),
-    rebateClaimThreshold: GRT().default(200),
-    rebateClaimBatchThreshold: GRT().default(200),
+    rebateClaimThreshold: GRT().default(1),
+    rebateClaimBatchThreshold: GRT().default(5),
     rebateClaimMaxBatchSize: positiveNumber().default(100),
     poiDisputeMonitoring: z.boolean().default(false),
     poiDisputableEpochs: positiveNumber().default(1),
     defaultAllocationAmount: GRT().default(0.1),
-    voucherRedemptionThreshold: GRT().default(200),
-    voucherRedemptionBatchThreshold: GRT().default(2000),
+    voucherRedemptionThreshold: GRT().default(1),
+    voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
@@ -57,6 +57,7 @@ export const IndexerOptions = z
     autoAllocationMinBatchSize: positiveNumber().default(1),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
+    finalityTime: positiveNumber().default(3600),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
@@ -82,16 +83,44 @@ export const TransactionMonitoring = z
 
 export type TransactionMonitoring = z.infer<typeof TransactionMonitoring>
 
+const UnvalidatedSubgraph = z.object({
+  url: z.string().url().optional(),
+  deployment: z.string().transform(transformIpfsHash).optional(),
+})
+
 // Generic subgraph specification
-export const Subgraph = z
-  .object({
-    url: z.string().url().optional(),
-    deployment: z.string().transform(transformIpfsHash).optional(),
-  })
-  .strict()
-  .refine((obj) => !(!obj.url && !obj.deployment), {
+export const Subgraph = UnvalidatedSubgraph.refine(
+  (obj) => !(!obj.url && !obj.deployment),
+  {
     message: 'At least one of `url` or `deployment` must be set',
-  })
+  },
+)
+
+// Optional subgraph specification
+export const OptionalSubgraph = UnvalidatedSubgraph.optional().superRefine((obj, ctx) => {
+  // Nested optionals with zod *actually* result in an instance of any parent objects.
+  // This collides with the validation we have where we manually refine the object to have at least one of the properties.
+
+  // zod provides obj: { url: undefined } when the optional subgraph is not defined.
+  if (
+    obj &&
+    ((Object.prototype.hasOwnProperty.call(obj, 'url') && obj['url'] === undefined) ||
+      (Object.prototype.hasOwnProperty.call(obj, 'deployment') &&
+        obj['deployment'] === undefined))
+  ) {
+    return
+  }
+
+  if (obj && !(obj.url || obj.deployment)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        'At least one of `url` or `deployment` must be set (IF the optional subgraph is defined)',
+    })
+  }
+})
+
+export type OptionalSubgraph = z.infer<typeof OptionalSubgraph>
 export type Subgraph = z.infer<typeof Subgraph>
 
 // All pertinent subgraphs in the protocol
@@ -101,6 +130,7 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(5_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
+    tapSubgraph: OptionalSubgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
@@ -110,6 +140,24 @@ export const ProtocolSubgraphs = z
     path: ['epochSubgraph', 'url'],
   })
 export type ProtocolSubgraphs = z.infer<typeof ProtocolSubgraphs>
+
+export const TapContracts = z
+  .record(
+    z.string(),
+    z.object({
+      TAPVerifier: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      AllocationIDTracker: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+      Escrow: z.string().refine((val) => utils.isAddress(val), {
+        message: 'Invalid contract address',
+      }),
+    }),
+  )
+  .optional()
+export type TapContracts = z.infer<typeof TapContracts>
 
 export const NetworkProvider = z
   .object({
@@ -144,6 +192,8 @@ export const NetworkSpecification = z
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
     addressBook: z.string().optional(),
+    tapAddressBook: TapContracts.optional(),
+    allocationSyncInterval: positiveNumber().default(120000),
     dai: Dai,
   })
   .strict()
