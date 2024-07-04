@@ -31,7 +31,7 @@
     "graphql": "16.8.0"
   },
   "dependencies": {
-    "@google-cloud/profiler": "4.1.7",
+    "@google-cloud/profiler": "6.0.1",
     "@graphprotocol/common-ts": "2.0.9",
     "@graphprotocol/indexer-common": "^0.21.3",
     "@graphprotocol/indexer-native": "0.20.11",
