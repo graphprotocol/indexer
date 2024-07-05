@@ -263,14 +263,14 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           },
         )
 
-      this.metrics.receiptsToCollect.set(
-        { allocation: receipts[0]?.allocation },
-        receipts.length,
-      )
       if (receipts.length <= 0) {
         logger.debug(`No receipts to collect for allocation`, { actionID, allocation })
         return false
       }
+      this.metrics.receiptsToCollect.set(
+        { allocation: receipts[0]?.allocation },
+        receipts.length,
+      )
 
       const timeout = now.valueOf() + RECEIPT_COLLECT_DELAY
 
@@ -608,7 +608,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       const nonRedeemedAllocationIDsTrunc = nonRedeemedAllocationIDAddresses.map(
         (allocationID) => allocationID.toLowerCase().replace('0x', ''),
       )
-
       // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
       // To handle a chain reorg that "unredeemed" the RAVs.
       // WE use sql directly due to a bug in sequelize update:
