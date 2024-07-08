@@ -517,18 +517,6 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    // Ensure allocation is old enough to close
-    if (BigNumber.from(allocation.createdAtEpoch).eq(context.currentEpoch)) {
-      throw indexerError(
-        IndexerErrorCode.IE064,
-        `Allocation '${
-          allocation.id
-        }' cannot be closed until epoch ${context.currentEpoch.add(
-          1,
-        )}. (Allocations cannot be closed in the same epoch they were created)`,
-      )
-    }
-
     poi = await this.network.networkMonitor.resolvePOI(allocation, poi, force)
 
     // Double-check whether the allocation is still active on chain, to
@@ -701,16 +689,6 @@ export class AllocationManager {
       throw indexerError(
         IndexerErrorCode.IE063,
         `Reallocation failed: No active allocation with id '${allocationID}' found`,
-      )
-    }
-    if (BigNumber.from(allocation.createdAtEpoch).eq(context.currentEpoch)) {
-      throw indexerError(
-        IndexerErrorCode.IE064,
-        `Allocation '${
-          allocation.id
-        }' cannot be closed until epoch ${context.currentEpoch.add(
-          1,
-        )}. (Allocations cannot be closed in the same epoch they were created)`,
       )
     }
 

@@ -155,7 +155,7 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: IdentifierType.group,
       allocationAmount: 1000,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
@@ -172,7 +172,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule and ensure the right data is returned
@@ -183,7 +183,7 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     const ruleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     await expect(
@@ -211,12 +211,12 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
       ...input,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule
@@ -227,7 +227,7 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     const ruleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     await expect(
@@ -244,7 +244,7 @@ describe('Indexing rules', () => {
       identifierType: IdentifierType.group,
       allocationAmount: 1,
       minSignal: 2,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const original = {
@@ -260,7 +260,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Write the original
@@ -279,13 +279,13 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.offchain,
       autoRenewal: true,
       safety: false,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
       ...original,
       ...update,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule
@@ -296,7 +296,7 @@ describe('Indexing rules', () => {
     // Query the rule to make sure it's updated in the db
     const ruleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -312,9 +312,9 @@ describe('Indexing rules', () => {
       identifier: originalIdentifier,
       identifierType: IdentifierType.deployment,
       allocationAmount: 1,
-      minSignal: 1,
+      minSignal: 2,
       decisionBasis: IndexingDecisionBasis.offchain,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const original = {
@@ -330,7 +330,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Write the original
@@ -351,13 +351,13 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: false,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
       ...original,
       ...update,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule
@@ -386,14 +386,14 @@ describe('Indexing rules', () => {
       allocationLifetime: null,
       decisionBasis: IndexingDecisionBasis.never,
       autoRenewal: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expectedAgain = {
       ...original,
       ...update,
       ...updateAgain,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
     expectedAgain.identifier = originalIdentifier
 
@@ -425,10 +425,10 @@ describe('Indexing rules', () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: IdentifierType.group,
-      allocationAmount: 1,
-      minSignal: 1,
+      allocationAmount: '1',
+      minSignal: '1',
       decisionBasis: IndexingDecisionBasis.never,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const deploymentInput = {
@@ -440,7 +440,7 @@ describe('Indexing rules', () => {
       requireSupported: false,
       autoRenewal: false,
       safety: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const globalExpected = {
@@ -456,7 +456,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.never,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentExpected = {
@@ -472,7 +472,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
     deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
@@ -493,7 +493,7 @@ describe('Indexing rules', () => {
     // Query the global rule
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -505,7 +505,7 @@ describe('Indexing rules', () => {
     // Query the rule for the deployment
     const deploymentRuleIdentifier = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -521,7 +521,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
   })
@@ -534,7 +534,7 @@ describe('Indexing rules', () => {
       minSignal: 2,
       allocationLifetime: 20,
       autoRenewal: false,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
@@ -550,7 +550,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.rules,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Write the rule
@@ -562,12 +562,15 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [expected])
 
     // Delete the rule
-    const ruleIdentifier = { identifier: expected.identifier, protocolNetwork: 'sepolia' }
+    const ruleIdentifier = {
+      identifier: expected.identifier,
+      protocolNetwork: 'arbitrum-sepolia',
+    }
     await expect(
       executor({
         document: DELETE_INDEXING_RULE_MUTATION,
@@ -581,7 +584,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [])
   })
@@ -593,7 +596,7 @@ describe('Indexing rules', () => {
       allocationAmount: 1,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expectedBefore = {
@@ -608,7 +611,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: null,
       custom: null,
       decisionBasis: IndexingDecisionBasis.rules,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Write the rule
@@ -620,7 +623,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [expectedBefore])
 
@@ -641,7 +644,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [
       { ...expectedBefore, allocationAmount: null },
@@ -660,7 +663,7 @@ describe('Indexing rules', () => {
       requireSupported: true,
       autoRenewal: true,
       safety: false,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const deploymentInput = {
@@ -673,7 +676,7 @@ describe('Indexing rules', () => {
       autoRenewal: false,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const globalExpected = {
@@ -688,7 +691,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.never,
       requireSupported: true,
       safety: false,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentExpected = {
@@ -704,7 +707,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentMergedExpected = {
@@ -720,7 +723,7 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.offchain,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     // Write the orginals
@@ -740,7 +743,7 @@ describe('Indexing rules', () => {
     // Query the global rule
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -755,7 +758,7 @@ describe('Indexing rules', () => {
     // Query the rule for the deployment merged with the global rule
     const ruleIdentifier = {
       identifier: 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC',
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -771,7 +774,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [globalExpected, deploymentExpected])
 
@@ -779,7 +782,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: true, protocolNetwork: 'sepolia' },
+        variables: { merged: true, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [
       globalExpected,
@@ -795,7 +798,7 @@ describe('Indexing rules', () => {
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.never,
       minAverageQueryFees: '1',
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     await executor({
@@ -805,7 +808,7 @@ describe('Indexing rules', () => {
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     await expect(
       executor({
@@ -819,7 +822,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
@@ -836,7 +839,7 @@ describe('Indexing rules', () => {
         minAverageQueryFees: null,
         minSignal: null,
         minStake: null,
-        protocolNetwork: 'eip155:11155111',
+        protocolNetwork: 'eip155:421614',
       },
     ])
   })
@@ -851,7 +854,7 @@ describe('Indexing rules', () => {
       minAverageQueryFees: '1',
       requireSupported: false,
       safety: false,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const deploymentInput = {
@@ -861,7 +864,7 @@ describe('Indexing rules', () => {
       minSignal: '2',
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     await executor({
@@ -875,11 +878,11 @@ describe('Indexing rules', () => {
 
     const globalRuleIdentifier = {
       identifier: INDEXING_RULE_GLOBAL,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
     const deploymentRuleIdentifier = {
       identifier: '0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3',
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     }
 
     await expect(
@@ -894,7 +897,7 @@ describe('Indexing rules', () => {
     await expect(
       executor({
         document: INDEXING_RULES_QUERY,
-        variables: { merged: false, protocolNetwork: 'sepolia' },
+        variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
       }),
     ).resolves.toHaveProperty('data.indexingRules', [
       {
@@ -913,7 +916,7 @@ describe('Indexing rules', () => {
         minStake: null,
         requireSupported: true,
         safety: true,
-        protocolNetwork: 'eip155:11155111',
+        protocolNetwork: 'eip155:421614',
       },
     ])
   })
@@ -940,7 +943,7 @@ describe('Indexing rules', () => {
 
     const rows = await executor({
       document: INDEXING_RULES_QUERY,
-      variables: { merged: false, protocolNetwork: 'sepolia' },
+      variables: { merged: false, protocolNetwork: 'arbitrum-sepolia' },
     })
 
     if (isAsyncIterable(rows)) {

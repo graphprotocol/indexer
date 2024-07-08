@@ -160,8 +160,8 @@ async function actionInputToExpected(
 
   // We expect the protocol network to be transformed to it's CAIP2-ID
   // form for all inputs
-  if (input.protocolNetwork === 'sepolia') {
-    expected.protocolNetwork = 'eip155:11155111'
+  if (input.protocolNetwork === 'arbitrum-sepolia') {
+    expected.protocolNetwork = 'eip155:421614'
   }
 
   return expected
@@ -674,7 +674,7 @@ describe('Actions', () => {
 
   test('Reject unallocate action with inactive allocationID', async () => {
     // This allocation has been closed on chain
-    const closedAllocation = '0x0641209ae448c710ab8d04a8c8a13053d138d8c6'
+    const closedAllocation = '0x0046000a95b501716796236d06a16daf52f026ea'
 
     // Reuse a valid inputAction but use an allocationID dedicated to this test purpose,
     // as the previously used allocationID does not exist on chain.
@@ -755,7 +755,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     } satisfies ActionInput
 
     const proposedAction = {
@@ -766,7 +766,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     } satisfies ActionInput
 
     await managementModels.Action.create(failedAction, {
@@ -809,7 +809,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     } satisfies ActionInput
 
     const proposedAction = {
@@ -820,7 +820,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     } satisfies ActionInput
 
     await managementModels.Action.create(successfulAction, {
@@ -861,7 +861,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     } satisfies ActionInput
 
     const queuedAllocateAction = {
@@ -873,7 +873,7 @@ describe('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'sepolia',
+      protocolNetwork: 'arbitrum-sepolia',
     } satisfies ActionInput
 
     await managementModels.Action.create(queuedUnallocateAction, {

@@ -1060,7 +1060,6 @@ export class Agent {
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
-          epoch,
         )
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
@@ -1105,7 +1104,6 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
-              epoch,
             )
           } else {
             // Refresh any expiring allocations

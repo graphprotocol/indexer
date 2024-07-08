@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.21.2",
+  "version": "0.21.3",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -26,6 +26,7 @@
     "@graphprotocol/common-ts": "2.0.9",
     "@graphprotocol/cost-model": "0.1.18",
     "@graphql-tools/executor-http": "^1.0.9",
+    "@semiotic-labs/tap-contracts-bindings": "^1.2.1",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/lodash.intersection": "^4.4.7",
@@ -57,7 +58,9 @@
     "parsimmon": "^1.18.1",
     "sequelize": "6.33.0",
     "ts-custom-error": "^3.3.1",
-    "zod": "^3.21.4"
+    "yaml": "1.10.0",
+    "zod": "^3.21.4",
+    "zod-validation-error": "^1.3.0"
   },
   "devDependencies": {
     "@babel/plugin-transform-modules-commonjs": "^7.23.3",

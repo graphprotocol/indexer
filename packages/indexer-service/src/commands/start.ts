@@ -23,6 +23,7 @@ import {
   indexerError,
   IndexerErrorCode,
   GraphNode,
+  monitorEligibleAllocations,
   Network,
   NetworkSubgraph,
   registerIndexerErrorMetrics,
@@ -32,7 +33,7 @@ import {
 
 import { createServer } from '../server'
 import { QueryProcessor } from '../queries'
-import { ensureAttestationSigners, monitorEligibleAllocations } from '../allocations'
+import { ensureAttestationSigners } from '../allocations'
 import { AllocationReceiptManager } from '../query-fees'
 import pRetry from 'p-retry'
 
@@ -183,6 +184,29 @@ export default {
         description: 'Graph contracts address book file path',
         type: 'string',
         required: false,
+      })
+      .option('info-rate-limit', {
+        description:
+          'Max requests per minute before returning 429 status codes, applies to paths: /cost, /subgraphs/health, /operator',
+        type: 'number',
+        required: false,
+        default: 300,
+        group: 'Server options',
+      })
+      .option('status-rate-limit', {
+        description:
+          'Max requests per minute before returning 429 status codes, applies to paths: /status, /network',
+        type: 'number',
+        required: false,
+        default: 300,
+        group: 'Server options',
+      })
+      .option('body-size-limit', {
+        description: 'Max body size per request (mb)',
+        type: 'number',
+        required: false,
+        default: 0.1,
+        group: 'Server options',
       })
 
       .check(argv => {
@@ -485,6 +509,9 @@ export default {
       networkSubgraph,
       networkSubgraphAuthToken: argv.networkSubgraphAuthToken,
       serveNetworkSubgraph: argv.serveNetworkSubgraph,
+      infoRateLimit: argv.infoRateLimit,
+      statusRateLimit: argv.statusRateLimit,
+      bodySizeLimit: argv.bodySizeLimit,
     })
   },
 }

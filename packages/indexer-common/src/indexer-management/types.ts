@@ -180,6 +180,10 @@ export const Caip2ByChainAlias: { [key: string]: string } = {
   optimism: 'eip155:10',
   fantom: 'eip155:250',
   sepolia: 'eip155:11155111',
+  bsc: 'eip155:56',
+  linea: 'eip155:59144',
+  scroll: 'eip155:534352',
+  base: 'eip155:8453',
 }
 
 export const Caip2ByChainId: { [key: number]: string } = {
@@ -196,6 +200,10 @@ export const Caip2ByChainId: { [key: number]: string } = {
   250: 'eip155:250',
   11155111: 'eip155:11155111',
   421614: 'eip155:421614',
+  56: 'eip155:56',
+  59144: 'eip155:59144',
+  534352: 'eip155:534352',
+  8453: 'eip155:8453',
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
@@ -284,5 +292,5 @@ export function networkIsL1(networkIdentifier: string): boolean {
 export function networkIsL2(networkIdentifier: string): boolean {
   // Normalize network identifier
   networkIdentifier = resolveChainId(networkIdentifier)
-  return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421613'
+  return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421614'
 }

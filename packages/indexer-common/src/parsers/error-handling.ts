@@ -1,9 +1,5 @@
 import { ZodError } from 'zod'
-import {
-  fromZodError,
-  FromZodErrorOptions,
-  ValidationError,
-} from 'zod-validation-error'
+import { fromZodError, FromZodErrorOptions, ValidationError } from 'zod-validation-error'
 
 type ErrorFormatOptions = Pick<
   Required<FromZodErrorOptions>,
@@ -33,8 +29,8 @@ function formatError(
     .toString()
     .substring(prefix.length)
     .split(errorFormatOptions.issueSeparator)
-    .map(issue => issue.trim())
-    .map(issue => `- ${issue}`)
+    .map((issue) => issue.trim())
+    .map((issue) => `- ${issue}`)
     .join('\n')
   const file = filePath ? `  [ file: ${filePath} ]` : ''
   return `${prefix}${file}\n${issues}`
@@ -44,10 +40,6 @@ function formatError(
 // terminal using a human-friendly format
 export function displayZodParsingError(error: ZodError, filePath?: string) {
   const validationError = fromZodError(error, errorFormatOptions)
-  const formattedError = formatError(
-    validationError,
-    errorFormatOptions,
-    filePath,
-  )
+  const formattedError = formatError(validationError, errorFormatOptions, filePath)
   console.error(formattedError)
 }

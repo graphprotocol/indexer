@@ -17,7 +17,7 @@ import {
   QueryFeeModels,
   defineQueryFeeModels,
   MultiNetworks,
-  createIndexerManagementYogaClient,
+  loadTestYamlConfig,
 } from '@graphprotocol/indexer-common'
 import { Sequelize } from 'sequelize'
 
@@ -40,7 +40,7 @@ const TEST_DISPUTE_1: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'eip155:11155111',
+  protocolNetwork: 'eip155:421614',
 }
 const TEST_DISPUTE_2: POIDisputeAttributes = {
   allocationID: '0x085fd2ADc1B96c26c266DecAb6A3098EA0eda619',
@@ -61,7 +61,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   previousEpochReferenceProof:
     '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
   status: 'potential',
-  protocolNetwork: 'eip155:11155111',
+  protocolNetwork: 'eip155:421614',
 }
 
 declare const __DATABASE__: never
@@ -76,11 +76,6 @@ let indexerManagementClient: Awaited<
 let graphNode: GraphNode
 let operator: Operator
 let metrics: Metrics
-
-const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
-
-const testProviderUrl =
-  process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
 
 const setupAll = async () => {
   metrics = createMetrics()
@@ -109,40 +104,8 @@ const setup = async () => {
     indexNodeIDs,
   )
 
-  const networkSpecification = specification.NetworkSpecification.parse({
-    networkIdentifier: 'eip155:11155111',
-    gateway: {
-      url: 'http://127.0.0.1:8030/',
-    },
-    networkProvider: {
-      url: testProviderUrl,
-    },
-    indexerOptions: {
-      address: '0xf56b5d582920E4527A818FBDd801C0D80A394CB8',
-      mnemonic:
-        'famous aspect index polar tornado zero wedding electric floor chalk tenant junk',
-      url: 'http://test-indexer.xyz',
-    },
-    subgraphs: {
-      maxBlockDistance: 10000,
-      networkSubgraph: {
-        url: 'https://api.thegraph.com/subgraphs/name/graphprotocol/graph-network-sepolia',
-      },
-      epochSubgraph: {
-        url: 'http://test-url.xyz',
-      },
-    },
-    transactionMonitoring: {
-      gasIncreaseTimeout: 240000,
-      gasIncreaseFactor: 1.2,
-      baseFeePerGasMax: 100 * 10 ** 9,
-      maxTransactionAttempts: 0,
-    },
-    dai: {
-      contractAddress: '0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448',
-      inject: false,
-    },
-  })
+  const yamlObj = loadTestYamlConfig()
+  const networkSpecification = specification.NetworkSpecification.parse(yamlObj)
 
   const network = await Network.create(
     logger,
@@ -205,7 +168,7 @@ describe('Indexer tests', () => {
       previousEpochReferenceProof:
         '0xd04b5601739a1638719696d0735c92439267a89248c6fd21388d9600f5c942f6',
       status: 'potential',
-      protocolNetwork: 'eip155:11155111',
+      protocolNetwork: 'eip155:421614',
     }
 
     const disputes = [badDispute]
@@ -244,7 +207,7 @@ describe('Indexer tests', () => {
     }))
     expect(result1).toEqual(disputes)
     const result2 = (
-      await operator.fetchPOIDisputes('potential', 205, 'eip155:11155111')
+      await operator.fetchPOIDisputes('potential', 205, 'eip155:421614')
     ).map(a => ({ ...a, allocationAmount: a.allocationAmount.toString() }))
     expect(result2).toEqual([TEST_DISPUTE_2])
   })

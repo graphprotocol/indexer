@@ -2,16 +2,25 @@ const bail = s => {
   throw new Error(s)
 }
 
+// until we find a way to avoid `punycode` we suppress the warnings in tests
+process.env.NODE_NO_WARNINGS = '1'
+
 module.exports = {
   collectCoverage: true,
   forceExit: true,
   preset: 'ts-jest',
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
+  transform: {
+    '^.+\\.tsx?$': [
+      'ts-jest',
+      {
+        isolatedModules: true,
+        tsconfig: 'tsconfig.json',
+      },
+    ],
+  },
   globals: {
-    'ts-jest': {
-      isolatedModules: true,
-    },
     __DATABASE__: {
       host: process.env.POSTGRES_TEST_HOST || bail('POSTGRES_TEST_HOST is not defined'),
       port: parseInt(process.env.POSTGRES_TEST_PORT || '5432'),

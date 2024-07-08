@@ -130,6 +130,7 @@ export class ActionManager {
         try {
           actions = await ActionManager.fetchActions(
             this.models,
+            null,
             {
               status: ActionStatus.approved,
             },
@@ -303,6 +304,7 @@ export class ActionManager {
 
   public static async fetchActions(
     models: IndexerManagementModels,
+    transaction: Transaction | null,
     filter: ActionFilter,
     orderBy: Maybe<ActionParams>,
     orderDirection?: OrderDirection,
@@ -313,6 +315,7 @@ export class ActionManager {
       : [['id', 'desc']]
 
     return await models.Action.findAll({
+      transaction,
       where: actionFilterToWhereOptions(filter),
       order: orderObject,
       limit: first,

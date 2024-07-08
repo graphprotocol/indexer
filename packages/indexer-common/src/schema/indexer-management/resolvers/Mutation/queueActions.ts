@@ -169,6 +169,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
 
   const alreadyQueuedActions = await ActionManager.fetchActions(
     models,
+    null,
     {
       status: ActionStatus.queued,
     },
@@ -176,6 +177,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
   )
   const alreadyApprovedActions = await ActionManager.fetchActions(
     models,
+    null,
     {
       status: ActionStatus.approved,
     },
@@ -192,6 +194,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
 
   const recentlyFailedActions = await ActionManager.fetchActions(
     models,
+    null,
     {
       status: ActionStatus.failed,
       updatedAt: last15Minutes,
@@ -201,6 +204,7 @@ export const queueActions: NonNullable<MutationResolvers['queueActions']> = asyn
 
   const recentlySuccessfulActions = await ActionManager.fetchActions(
     models,
+    null,
     {
       status: ActionStatus.success,
       updatedAt: last15Minutes,
