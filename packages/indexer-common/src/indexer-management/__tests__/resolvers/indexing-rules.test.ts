@@ -425,8 +425,8 @@ describe('Indexing rules', () => {
     const globalInput = {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: IdentifierType.group,
-      allocationAmount: '1',
-      minSignal: '1',
+      allocationAmount: 1,
+      minSignal: 1,
       decisionBasis: IndexingDecisionBasis.never,
       protocolNetwork: 'arbitrum-sepolia',
     }
