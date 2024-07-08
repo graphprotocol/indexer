@@ -16,7 +16,8 @@ import {
 import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
 
 const yamlObj = loadTestYamlConfig()
-export const testNetworkSpecification = specification.NetworkSpecification.parse(yamlObj)
+export const testNetworkSpecification: specification.NetworkSpecification =
+  specification.NetworkSpecification.parse(yamlObj)
 
 export const createTestManagementClient = async (
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
