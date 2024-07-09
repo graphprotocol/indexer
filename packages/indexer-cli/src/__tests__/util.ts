@@ -20,6 +20,7 @@ import {
   QueryFeeModels,
   specification,
   IndexerManagementYogaClient,
+  createIndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
