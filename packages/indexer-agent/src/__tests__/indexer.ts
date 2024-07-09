@@ -17,6 +17,7 @@ import {
   QueryFeeModels,
   defineQueryFeeModels,
   MultiNetworks,
+  createIndexerManagementYogaClient,
   loadTestYamlConfig,
 } from '@graphprotocol/indexer-common'
 import { Sequelize } from 'sequelize'
