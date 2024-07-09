@@ -13,7 +13,8 @@ import { createIndexerManagementYogaClient } from '../../indexer-management/yoga
 import { ActionInput, ActionStatus, ActionType } from '../../schema/types.generated'
 
 const yamlObj = loadTestYamlConfig()
-export const testNetworkSpecification = specification.NetworkSpecification.parse(yamlObj)
+export const testNetworkSpecification: specification.NetworkSpecification =
+  specification.NetworkSpecification.parse(yamlObj)
 
 export async function createTestManagementClient(
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
