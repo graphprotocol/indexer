@@ -593,14 +593,7 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(
-        logger,
-        spec,
-        queryFeeModels,
-        graphNode,
-        metrics,
-        sequelize.getQueryInterface(),
-      ),
+      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
   )
 
   // --------------------------------------------------------------------------------
