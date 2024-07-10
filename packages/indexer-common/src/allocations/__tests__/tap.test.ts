@@ -59,7 +59,6 @@ const setup = async () => {
     queryFeeModels,
     graphNode,
     metrics,
-    sequelize.getQueryInterface(),
   )
   receiptCollector = network.receiptCollector
 }
