@@ -29,6 +29,7 @@ import {
   Network,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
+  SubgraphStatus,
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
@@ -123,6 +124,8 @@ export class AllocationManager {
 
     const validatedActions = await this.validateActionBatchFeasibilty(actions)
     logger.trace('Validated actions', { validatedActions })
+
+    await this.deployBeforeAllocating(logger, validatedActions)
 
     const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
@@ -307,6 +310,28 @@ export class AllocationManager {
     }
   }
 
+  async deployBeforeAllocating(logger: Logger, actions: Action[]): Promise<void> {
+    const allocateActions = actions.filter((action) => action.type == ActionType.ALLOCATE)
+    logger.info('Ensure subgraph deployments are deployed before we allocate to them', {
+      allocateActions,
+    })
+    const currentAssignments = await this.graphNode.subgraphDeploymentsAssignments(
+      SubgraphStatus.ALL,
+    )
+    await pMap(
+      allocateActions,
+      async (action: Action) =>
+        await this.graphNode.ensure(
+          `indexer-agent/${action.deploymentID!.slice(-10)}`,
+          new SubgraphDeploymentID(action.deploymentID!),
+          currentAssignments,
+        ),
+      {
+        stopOnError: false,
+      },
+    )
+  }
+
   async prepareAllocateParams(
     logger: Logger,
     context: TransactionPreparationContext,
@@ -352,8 +377,14 @@ export class AllocationManager {
     )
     if (!status) {
       throw indexerError(
-        IndexerErrorCode.IE020,
+        IndexerErrorCode.IE077,
         `Subgraph deployment, '${deployment.ipfsHash}', is not syncing`,
+      )
+    }
+    if (status?.health == 'failed') {
+      throw indexerError(
+        IndexerErrorCode.IE077,
+        `Subgraph deployment, '${deployment.ipfsHash}', has failed`,
       )
     }
 

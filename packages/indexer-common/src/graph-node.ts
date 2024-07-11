@@ -181,7 +181,7 @@ export class GraphNode {
       return result.data.indexingStatuses
         .filter((status: QueryResult) => {
           if (subgraphStatus === SubgraphStatus.ACTIVE) {
-            return status.node !== 'removed'
+            return !status.paused
           } else if (subgraphStatus === SubgraphStatus.PAUSED) {
             return status.node === 'removed' || status.paused === true
           } else {
@@ -192,6 +192,7 @@ export class GraphNode {
           return {
             id: new SubgraphDeploymentID(status.subgraphDeployment),
             node: status.node,
+            paused: status.paused,
           }
         })
     } catch (error) {
@@ -343,6 +344,29 @@ export class GraphNode {
     }
   }
 
+  async resume(deployment: SubgraphDeploymentID): Promise<void> {
+    try {
+      this.logger.info(`Resume subgraph deployment`, {
+        deployment: deployment.display,
+      })
+      const response = await this.admin.request('subgraph_resume', {
+        deployment: deployment.ipfsHash,
+      })
+      if (response.error) {
+        throw response.error
+      }
+      this.logger.info(`Successfully resumed subgraph deployment`, {
+        deployment: deployment.display,
+      })
+    } catch (error) {
+      const errorCode = IndexerErrorCode.IE076
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
+        deployment: deployment.display,
+        error: indexerError(errorCode, error),
+      })
+    }
+  }
+
   async reassign(deployment: SubgraphDeploymentID, node: string): Promise<void> {
     try {
       this.logger.info(`Reassign subgraph deployment`, {
@@ -374,10 +398,45 @@ export class GraphNode {
     }
   }
 
-  async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
+  async ensure(
+    name: string,
+    deployment: SubgraphDeploymentID,
+    currentAssignments?: SubgraphDeploymentAssignment[],
+  ): Promise<void> {
+    this.logger.debug('Ensure subgraph deployment is syncing', {
+      name,
+      deployment: deployment.ipfsHash,
+    })
     try {
-      await this.create(name)
-      await this.deploy(name, deployment)
+      const deploymentAssignments =
+        currentAssignments ??
+        (await this.subgraphDeploymentsAssignments(SubgraphStatus.ALL))
+      const matchingAssignment = deploymentAssignments.find(
+        (deploymentAssignment) => deploymentAssignment.id.ipfsHash == deployment.ipfsHash,
+      )
+
+      if (matchingAssignment?.paused == false) {
+        this.logger.debug('Subgraph deployment already syncing, ensure() is a no-op', {
+          name,
+          deployment: deployment.ipfsHash,
+        })
+      } else if (matchingAssignment?.paused == true) {
+        this.logger.debug('Subgraph deployment paused, resuming', {
+          name,
+          deployment: deployment.ipfsHash,
+        })
+        await this.resume(deployment)
+      } else {
+        this.logger.debug(
+          'Subgraph deployment not found, creating subgraph name and deploying...',
+          {
+            name,
+            deployment: deployment.ipfsHash,
+          },
+        )
+        await this.create(name)
+        await this.deploy(name, deployment)
+      }
     } catch (error) {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020
