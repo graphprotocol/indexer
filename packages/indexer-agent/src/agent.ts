@@ -36,6 +36,7 @@ import {
   networkIsL2,
   networkIsL1,
   DeploymentManagementMode,
+  SubgraphStatus,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -970,6 +971,8 @@ export class Agent {
     // Deploy/remove up to 10 subgraphs in parallel
     const queue = new PQueue({ concurrency: 10 })
 
+    const currentAssignments =
+      await this.graphNode.subgraphDeploymentsAssignments(SubgraphStatus.ALL)
     // Index all new deployments worth indexing
     await queue.addAll(
       deploy.map(deployment => async () => {
@@ -981,7 +984,7 @@ export class Agent {
         })
 
         // Ensure the deployment is deployed to the indexer
-        await this.graphNode.ensure(name, deployment)
+        await this.graphNode.ensure(name, deployment, currentAssignments)
       }),
     )
 
