@@ -645,14 +645,14 @@ export class AllocationManager {
     logger.debug(
       `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
     )
-    const offchainIndexingRule = {
+    const neverIndexingRule = {
       identifier: allocation.subgraphDeployment.id.ipfsHash,
       protocolNetwork: this.network.specification.networkIdentifier,
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: IndexingDecisionBasis.NEVER,
     } as Partial<IndexingRuleAttributes>
 
-    await upsertIndexingRule(logger, this.models, offchainIndexingRule)
+    await upsertIndexingRule(logger, this.models, neverIndexingRule)
 
     return {
       actionID,
