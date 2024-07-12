@@ -43,7 +43,6 @@ testnet (for now) are Mainnet subgraphs. This means:
 | Environment Variable                        | CLI Argument                    | Value                                                                                                                   |
 | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                                                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                                                      |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                                                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
@@ -68,7 +67,6 @@ option can be used.
 | Environment Variable                          | CLI Argument                    | Value                                                                                  |
 | --------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
 | `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                      |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                     |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                    |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                 |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                       |
