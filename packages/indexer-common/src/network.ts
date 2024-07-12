@@ -121,9 +121,9 @@ export class Network {
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
-              graphNode,
-              deployment: networkSubgraphDeploymentId,
-            }
+            graphNode,
+            deployment: networkSubgraphDeploymentId,
+          }
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
@@ -238,18 +238,19 @@ export class Network {
     // * Escrow contract
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tapContracts: any
-    try {
-      tapContracts = await connectTapContracts(
-        wallet,
-        networkIdentifier.chainId,
-        specification.tapAddressBook,
-      )
-    } catch (err) {
-      logger.error(`Failed to connect to tap contract bindings:`, { err })
+    let tapContracts: TapContracts | undefined = undefined
+    if (tapSubgraph) {
+      try {
+        tapContracts = await connectTapContracts(
+          wallet,
+          networkIdentifier.chainId,
+          specification.tapAddressBook,
+        )
+      } catch (err) {
+        logger.error(`Failed to connect to tap contract bindings:`, { err })
+        throw err
+      }
     }
-
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
     // --------------------------------------------------------------------------------
