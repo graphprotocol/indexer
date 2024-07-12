@@ -126,8 +126,8 @@ export type Subgraph = z.infer<typeof Subgraph>
 // All pertinent subgraphs in the protocol
 export const ProtocolSubgraphs = z
   .object({
-    maxBlockDistance: z.number().nonnegative().finite().default(0),
-    freshnessSleepMilliseconds: positiveNumber().default(5_000),
+    maxBlockDistance: z.number().nonnegative().finite().default(1000),
+    freshnessSleepMilliseconds: positiveNumber().default(10_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
     tapSubgraph: OptionalSubgraph,
