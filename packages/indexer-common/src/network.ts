@@ -8,7 +8,10 @@ import {
   AddressBook,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { connectContracts as connectTapContracts } from '@semiotic-labs/tap-contracts-bindings'
+import {
+  connectContracts as connectTapContracts,
+  NetworkContracts as TapContracts,
+} from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -121,9 +124,9 @@ export class Network {
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
-            graphNode,
-            deployment: networkSubgraphDeploymentId,
-          }
+              graphNode,
+              deployment: networkSubgraphDeploymentId,
+            }
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
