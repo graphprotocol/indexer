@@ -13,6 +13,7 @@
   "private": false,
   "scripts": {
     "format": "prettier --write 'src/**/*.ts'",
+    "format:check": "prettier --check 'src/**/*.ts'",
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc --build",
     "prepare": "yarn format && yarn lint && yarn compile",
