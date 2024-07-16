@@ -195,7 +195,7 @@ export class GraphNode {
           return {
             id: new SubgraphDeploymentID(status.subgraphDeployment),
             node: status.node,
-            paused: status.paused,
+            paused: status.paused ?? status.node === 'removed',
           }
         })
     } catch (error) {
