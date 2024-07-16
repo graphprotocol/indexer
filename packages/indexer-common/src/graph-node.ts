@@ -175,16 +175,16 @@ export class GraphNode {
       type QueryResult = {
         subgraphDeployment: string
         node: string
-        paused: boolean
+        paused: boolean | undefined
       }
 
       return result.data.indexingStatuses
         .filter((status: QueryResult) => {
           if (subgraphStatus === SubgraphStatus.ACTIVE) {
-            return !status.paused
+            return status.paused === false || (status.paused === undefined && status.node === 'removed')
           } else if (subgraphStatus === SubgraphStatus.PAUSED) {
             return status.node === 'removed' || status.paused === true
-          } else {
+          } else if (subgraphStatus === SubgraphStatus.ALL) {
             return true
           }
         })
