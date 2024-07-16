@@ -181,7 +181,10 @@ export class GraphNode {
       return result.data.indexingStatuses
         .filter((status: QueryResult) => {
           if (subgraphStatus === SubgraphStatus.ACTIVE) {
-            return status.paused === false || (status.paused === undefined && status.node === 'removed')
+            return (
+              status.paused === false ||
+              (status.paused === undefined && status.node === 'removed')
+            )
           } else if (subgraphStatus === SubgraphStatus.PAUSED) {
             return status.node === 'removed' || status.paused === true
           } else if (subgraphStatus === SubgraphStatus.ALL) {
