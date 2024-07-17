@@ -183,7 +183,7 @@ export class GraphNode {
           if (subgraphStatus === SubgraphStatus.ACTIVE) {
             return (
               status.paused === false ||
-              (status.paused === undefined && status.node === 'removed')
+              (status.paused === undefined && status.node !== 'removed')
             )
           } else if (subgraphStatus === SubgraphStatus.PAUSED) {
             return status.node === 'removed' || status.paused === true
