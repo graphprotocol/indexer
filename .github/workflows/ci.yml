@@ -46,7 +46,7 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
       - name: Install jest manually
-      - run: yarn global add jest
+        run: yarn global add jest
       - name: List installed packages
         run: yarn list
       - run: yarn test:ci
