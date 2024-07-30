@@ -13,30 +13,66 @@ use signature_verification::SignatureVerifier;
 
 pub struct SignatureVerifierProxy;
 
+// Lifting neon's `or_throw` extension trait pattern here.
+trait ResultDbgExt<T> {
+    fn or_else_throw<'a, C: Context<'a>>(self, cx: &mut C) -> NeonResult<T>;
+}
+impl<T, E: std::fmt::Debug> ResultDbgExt<T> for Result<T, E> {
+    fn or_else_throw<'a, C: Context<'a>>(self, cx: &mut C) -> NeonResult<T> {
+        self.or_else(|err| cx.throw_error(format!("{err:?}")))
+    }
+}
+
 fn signature_verifier_new(mut cx: FunctionContext) -> JsResult<JsBox<SignatureVerifier>> {
-    let address: Address = cx.argument::<JsString>(0)?.value(&mut cx).parse().unwrap();
+    let address: Address = cx
+        .argument::<JsString>(0)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
     Ok(cx.boxed(SignatureVerifier::new(address)))
 }
 
 fn signature_verifier_verify(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     let this = cx.argument::<JsBox<SignatureVerifier>>(0)?;
-    let message: Bytes = cx.argument::<JsString>(1)?.value(&mut cx).parse().unwrap();
-    let signature: FixedBytes<65> = cx.argument::<JsString>(2)?.value(&mut cx).parse().unwrap();
+    let message: Bytes = cx
+        .argument::<JsString>(1)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
+    let signature: FixedBytes<65> = cx
+        .argument::<JsString>(2)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
     let recovery_id = signature[64] as i32;
     let recovery_id = match recovery_id {
-        0 | 1 => RecoveryId::from_i32(recovery_id).unwrap(),
-        27 | 28 => RecoveryId::from_i32(recovery_id - 27).unwrap(),
+        0 | 1 => RecoveryId::from_i32(recovery_id).or_else_throw(&mut cx)?,
+        27 | 28 => RecoveryId::from_i32(recovery_id - 27).or_else_throw(&mut cx)?,
         _ => panic!("Invalid recovery id"),
     };
-    let signature = RecoverableSignature::from_compact(&signature[..64], recovery_id).unwrap();
-    Ok(cx.boolean(this.verify(&message, &signature).unwrap()))
+    let signature =
+        RecoverableSignature::from_compact(&signature[..64], recovery_id).or_else_throw(&mut cx)?;
+    let verified = this.verify(&message, &signature).or_else_throw(&mut cx)?;
+    Ok(cx.boolean(verified))
 }
 
 fn attestation_signer_new(mut cx: FunctionContext) -> JsResult<JsBox<AttestationSigner>> {
     let chain_id = cx.argument::<JsNumber>(0)?.value(&mut cx) as u64;
-    let dispute_manager: Address = cx.argument::<JsString>(1)?.value(&mut cx).parse().unwrap();
-    let signer: B256 = cx.argument::<JsString>(2)?.value(&mut cx).parse().unwrap();
-    let subgraph_deployment_id: B256 = cx.argument::<JsString>(3)?.value(&mut cx).parse().unwrap();
+    let dispute_manager: Address = cx
+        .argument::<JsString>(1)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
+    let signer: B256 = cx
+        .argument::<JsString>(2)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
+    let subgraph_deployment_id: B256 = cx
+        .argument::<JsString>(3)?
+        .value(&mut cx)
+        .parse()
+        .or_else_throw(&mut cx)?;
     Ok(cx.boxed(AttestationSigner::new(
         U256::from(chain_id),
         dispute_manager,

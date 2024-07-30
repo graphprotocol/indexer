@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-native",
-  "version": "0.20.11",
+  "version": "0.21.4",
   "description": "Performance sensitive indexer code",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -16,13 +16,31 @@
   },
   "author": "Zac Burns <That3Percent@gmail.com>",
   "license": "MIT",
+  "os": [
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm",
+    "arm64"
+  ],
+  "engines": {
+    "node": ">=12.22.0"
+  },
   "scripts": {
-    "build": "cd native && cargo-cp-artifact -nc ../binary/index.node -- cargo build --release --message-format=json-render-diagnostics",
+    "build": "cd native && cargo-cp-artifact -a cdylib indexer_native ../binary/index.node -- cargo build --message-format=json-render-diagnostics",
+    "build-debug": "yarn build --",
+    "build-release": "yarn build --release",
+    "pull-or-build": "node-pre-gyp install --fallback-to-build=false --update-binary || yarn build-release",
+    "package": "node-pre-gyp package",
+    "publish-github-draft": "node-pre-gyp-github publish",
+    "publish-github": "node-pre-gyp-github publish --release",
+    "build-test-pack-publish": "yarn build-release && yarn test && yarn package && yarn publish-github-draft",
     "format": "prettier --write 'lib/**/*.js'",
     "lint": "eslint .",
     "prepare": "yarn format && yarn lint",
-    "test:ci": "jest --verbose --ci",
-    "install": "yarn build",
+    "install": "yarn pull-or-build",
     "test": "yarn build && jest --colors --verbose --forceExit",
     "test:ci": "yarn build && jest --verbose --ci",
     "clean": "rm -rf ./node_modules ./binary ./build ./coverage ./native/target ./native/artifacts.json ./native/index.node"
@@ -40,6 +58,13 @@
     "ethers": "5.7.0",
     "jest": "<30.0.0-0",
     "prettier": "3.0.3"
+  },
+  "binary": {
+    "module_name": "index",
+    "module_path": "./binary",
+    "host": "https://github.com/graphprotocol/indexer/releases/download/",
+    "remote_path": "v{version}",
+    "package_name": "graphprotocol-indexer-native-v{version}-{node_abi}-{platform}-{arch}.tar.gz"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"
 }
