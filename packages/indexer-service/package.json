@@ -34,7 +34,7 @@
     "@google-cloud/profiler": "6.0.1",
     "@graphprotocol/common-ts": "2.0.9",
     "@graphprotocol/indexer-common": "^0.21.4",
-    "@graphprotocol/indexer-native": "0.20.11",
+    "@graphprotocol/indexer-native": "0.21.4",
     "@graphql-tools/load": "8.0.0",
     "@graphql-tools/url-loader": "8.0.0",
     "@graphql-tools/wrap": "10.0.1",

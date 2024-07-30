@@ -44,7 +44,7 @@
     "graphql": "16.8.0"
   },
   "engines": {
-    "node": ">=12.22.0"
+    "node": ">=18.0.0"
   },
   "jest": {
     "transformIgnorePatterns": [
