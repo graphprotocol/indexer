@@ -43,7 +43,7 @@ export async function up({ context }: Context): Promise<void> {
         allowNull: false,
       },
       nonce: {
-        type: DataTypes.DECIMAL(20),
+        type: DataTypes.DECIMAL,
         allowNull: false,
       },
       value: {
@@ -108,11 +108,11 @@ export async function up({ context }: Context): Promise<void> {
         allowNull: false,
       },
       nonce: {
-        type: DataTypes.DECIMAL(20),
+        type: DataTypes.DECIMAL,
         allowNull: false,
       },
       value: {
-        type: DataTypes.DECIMAL(39),
+        type: DataTypes.DECIMAL(20),
         allowNull: false,
       },
     })
