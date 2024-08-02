@@ -1,21 +1,28 @@
 import { Logger, Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   Network,
-  NetworkSubgraph,
-  ReceiptCollector,
   GraphNode,
+  DeploymentManagementMode,
+  IndexerManagementClient,
+  Operator,
 } from '@graphprotocol/indexer-common'
-import { NetworkMonitor } from '@graphprotocol/indexer-common'
 
-export interface AgentConfig {
+// Represents a pair of Network and Operator instances belonging to the same protocol
+// network. Used when mapping over multiple protocol networks.
+export type NetworkAndOperator = {
+  network: Network
+  operator: Operator
+}
+
+export interface AgentConfigs {
   logger: Logger
   metrics: Metrics
-  indexer: GraphNode
-  network: Network
-  networkMonitor: NetworkMonitor
-  networkSubgraph: NetworkSubgraph
-  allocateOnNetworkSubgraph: boolean
-  registerIndexer: boolean
+  graphNode: GraphNode
+  operators: Operator[]
+  indexerManagement: IndexerManagementClient
+  networks: Network[]
+  deploymentManagement: DeploymentManagementMode
+  autoMigrationSupport: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
-  receiptCollector: ReceiptCollector
+  pollingInterval: number
 }
