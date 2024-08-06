@@ -313,7 +313,7 @@ export const reallocateAllocation = async (
 }
 
 export const submitCollectReceiptsJob = async (
-  client: IndexerManagementClient,
+  client: Client,
   allocationID: string,
   protocolNetwork: string,
 ): Promise<void> => {

@@ -3,7 +3,7 @@ import {
   Network,
   GraphNode,
   DeploymentManagementMode,
-  IndexerManagementClient,
+  IndexerManagementYogaClient,
   Operator,
 } from '@graphprotocol/indexer-common'
 
@@ -19,7 +19,7 @@ export interface AgentConfigs {
   metrics: Metrics
   graphNode: GraphNode
   operators: Operator[]
-  indexerManagement: IndexerManagementClient
+  indexerManagement: IndexerManagementYogaClient
   networks: Network[]
   deploymentManagement: DeploymentManagementMode
   autoMigrationSupport: boolean

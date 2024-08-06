@@ -281,33 +281,36 @@ export class Agent {
       },
     )
 
-    const indexingRules: Eventual< NetworkMapped<GeneratedGraphQLTypes.IndexingRule[]>> =
-      timer(requestIntervalSmall).tryMap(
-        async () => {
-          return this.multiNetworks.map(async ({ network, operator }) => {
-            logger.trace('Fetching indexing rules', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            let rules = await operator.indexingRules(true)
-            const subgraphRuleIds = rules
-              .filter(
-                rule => rule.identifierType == GeneratedGraphQLTypes.IdentifierType.subgraph,
-              )
-              .map(rule => rule.identifier!)
-            const subgraphsMatchingRules =
-              await network.networkMonitor.subgraphs(subgraphRuleIds)
-            if (subgraphsMatchingRules.length >= 1) {
-              const epochLength =
-                await network.contracts.epochManager.epochLength()
-              const blockPeriod = 15
-              const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
-              rules = convertSubgraphBasedRulesToDeploymentBased(
-                rules,
-                subgraphsMatchingRules,
-                bufferPeriod,
-              )
-            }
-            return rules
+    const indexingRules: Eventual<
+      NetworkMapped<GeneratedGraphQLTypes.IndexingRule[]>
+    > = timer(requestIntervalSmall).tryMap(
+      async () => {
+        return this.multiNetworks.map(async ({ network, operator }) => {
+          logger.trace('Fetching indexing rules', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          let rules = await operator.indexingRules(true)
+          const subgraphRuleIds = rules
+            .filter(
+              rule =>
+                rule.identifierType ==
+                GeneratedGraphQLTypes.IdentifierType.subgraph,
+            )
+            .map(rule => rule.identifier!)
+          const subgraphsMatchingRules =
+            await network.networkMonitor.subgraphs(subgraphRuleIds)
+          if (subgraphsMatchingRules.length >= 1) {
+            const epochLength =
+              await network.contracts.epochManager.epochLength()
+            const blockPeriod = 15
+            const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+            rules = convertSubgraphBasedRulesToDeploymentBased(
+              rules,
+              subgraphsMatchingRules,
+              bufferPeriod,
+            )
+          }
+          return rules
         })
       },
       {
