@@ -26,20 +26,15 @@ Here is a snippet of an Arbitrum network specification file with the suggested o
 
 ```yaml
 subgraphs:
-  maxBlockDistance: 60
+  maxBlockDistance: 5000
   freshnessSleepMilliseconds: 10000
 ```
 
 ## Practical Implications
 
-The following default values have been established based on **Ethereum** observations:
+The following default values have been established based on **Arbitrum-One** observations:
 
-- **maxBlockDistance:** 0 blocks
-- **freshnessSleepMilliseconds:** 5000 (5 seconds)
-
-The recommended settings for **Arbitrum** networks are:
-
-- **maxBlockDistance:** 60 blocks
+- **maxBlockDistance:** 1000 blocks
 - **freshnessSleepMilliseconds:** 10000 (10 seconds)
 
 

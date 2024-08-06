@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-native",
-  "version": "0.20.11",
+  "version": "0.21.4",
   "description": "Performance sensitive indexer code",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
@@ -41,8 +41,8 @@
     "lint": "eslint .",
     "prepare": "yarn format && yarn lint",
     "install": "yarn pull-or-build",
-    "test": "jest --colors --verbose --forceExit",
-    "test:ci": "jest --verbose --ci",
+    "test": "yarn build && jest --colors --verbose --forceExit",
+    "test:ci": "yarn build && jest --verbose --ci",
     "clean": "rm -rf ./node_modules ./binary ./build ./coverage ./native/target ./native/artifacts.json ./native/index.node"
   },
   "dependencies": {

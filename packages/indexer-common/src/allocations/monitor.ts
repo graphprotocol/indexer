@@ -152,7 +152,9 @@ export const monitorEligibleAllocations = ({
       const allocations = [...activeAllocations, ...recentlyClosedAllocations]
 
       if (allocations.length == 0) {
-        throw new Error(`No data / indexer not found on chain`)
+        logger.warn(`No data / indexer not found on chain`, {
+          allocations: [],
+        })
       }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

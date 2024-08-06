@@ -3,16 +3,16 @@ const { utils, Wallet } = require("ethers");
 const bs58 = require("bs58");
 
 describe("Native Functions", () => {
-  test("Signatures", async () => {
+  test("Signatures", () => {
     let address = "0xc61127cdfb5380df4214b0200b9a07c7c49d34f9";
     let native = new NativeSignatureVerifier(address);
 
     // Taken from the indexer-service code matching
     // the Scalar format.
-    let verifyReceipt = async (receipt) => {
+    let verifyReceipt = (receipt) => {
       const message = receipt.slice(64, 136);
       const signature = receipt.slice(136, 266);
-      return await native.verify(message, signature);
+      return native.verify(message, signature);
     };
 
     // Testing multiple true/false values in this order on the same NativeSignatureVerifier
@@ -33,15 +33,15 @@ describe("Native Functions", () => {
       "640000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000090000000259d1189ce128a2a3b4786035aed37cca0968c638c67e73ed1496a50fbda043d5553a7702bb8b0f71409dd0199533161e322b17826a91236cfb22504a093d0a451c";
     // The awaits give time for each previous task to resolve, ensuring that the
     // fast path is taken for subsequent runs.
-    await expect(verifyReceipt(receipt0Tampered)).resolves.toEqual(false);
-    await expect(verifyReceipt(receipt0________)).resolves.toEqual(true);
-    await expect(verifyReceipt(receipt1________)).resolves.toEqual(true);
-    await expect(verifyReceipt(receipt1Tampered)).resolves.toEqual(false);
+    expect(verifyReceipt(receipt0Tampered)).toEqual(false);
+    expect(verifyReceipt(receipt0________)).toEqual(true);
+    expect(verifyReceipt(receipt1________)).toEqual(true);
+    expect(verifyReceipt(receipt1Tampered)).toEqual(false);
     // When running the tests locally with some debug information, to ensure
     // that the fast path was transitioned to it only printed 3/4 messages.
     // Adding this redundant test printed 4/5 messages. Assuming the problem
     // is just flushing output.
-    await expect(verifyReceipt(receipt1Tampered)).resolves.toEqual(false);
+    expect(verifyReceipt(receipt1Tampered)).toEqual(false);
   });
 
   test("Create attestation", async () => {
@@ -75,9 +75,9 @@ describe("Native Functions", () => {
       r: "0x702af3e8dec0aab1b29e5663b7ba6843689a55c2c178a26dcce3bc1eeb3a1de9",
       s: "0x7b24b529fcf92c9426179146bb7bfed6540043e2c30132e59d994a3cc718f2be",
     };
-    await expect(
-      signer.createAttestation("request", "response"),
-    ).resolves.toEqual(expected);
+    await expect(signer.createAttestation("request", "response")).toEqual(
+      expected,
+    );
   });
 
   test("Fail to initialize signer", async () => {

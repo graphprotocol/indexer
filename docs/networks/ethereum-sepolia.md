@@ -43,14 +43,13 @@ testnet (for now) are Mainnet subgraphs. This means:
 | Environment Variable                        | CLI Argument                    | Value                                                                                                                   |
 | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Ethereum Sepolia node/provider                                                                                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `sepolia`                                                                                                               |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                                                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmP3Vf8hp3FDHhmZ2JvZd1NbDC27CTkp2uK1TQcCYB8GCo`                                                                        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/8pVKDwHniAz87CHEQsiz2wgFXGZXrbMDkrxgauVVfMJC` |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                                                                     |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway.testnet.thegraph.com/collect-receipts`                                                                 |
+| `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gatweay-endpoint`            | `https://gateway.testnet.thegraph.com/`                                                                                 |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3nEnuQEQd1aP6wksKvRUnuwLQcQy1zD3HPFaHZ8cMVqM` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
@@ -68,7 +67,6 @@ option can be used.
 | Environment Variable                          | CLI Argument                    | Value                                                                         |
 | --------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------- |
 | `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Ethereum Sepolia node/provider                                             |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `sepolia`                                                                     |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                           |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                        |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmP3Vf8hp3FDHhmZ2JvZd1NbDC27CTkp2uK1TQcCYB8GCo`                              |

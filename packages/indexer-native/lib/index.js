@@ -1,25 +1,13 @@
-var addon = require("../binary");
-
-function promisify(f) {
-  return new Promise((resolve, reject) =>
-    f((err, result) => {
-      if (err) {
-        reject(err);
-      } else {
-        resolve(result);
-      }
-    }),
-  );
-}
+var addon = require("../binary/index.node");
 
 class NativeSignatureVerifier {
   constructor(address) {
     this.address = address;
-    this._native = new addon.NativeSignatureVerifier(address);
+    this._native = addon.signature_verifier_new(address);
   }
 
-  async verify(message, signature) {
-    return await promisify((cb) => this._native.verify(cb, message, signature));
+  verify(message, signature) {
+    return addon.signature_verifier_verify(this._native, message, signature);
   }
 }
 
@@ -30,16 +18,19 @@ class NativeAttestationSigner {
     privateKey,
     subgraphDeploymentId,
   ) {
-    this._native = new addon.NativeAttestationSigner(
+    this._native = addon.attestation_signer_new(
       chainId,
       disputeManagerAddress,
       privateKey,
       subgraphDeploymentId,
     );
   }
-  async createAttestation(request, response) {
-    return await promisify((cb) =>
-      this._native.createAttestation(cb, request, response),
+
+  createAttestation(request, response) {
+    return addon.attestation_signer_create_attestation(
+      this._native,
+      request,
+      response,
     );
   }
 }

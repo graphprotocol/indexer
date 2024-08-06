@@ -26,6 +26,7 @@ import {
   isDeploymentWorthAllocatingTowards,
   Network,
   ReallocateAllocationResult,
+  SubgraphStatus,
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
@@ -40,7 +41,11 @@ import {
 
 import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
-import { IdentifierType, IndexingDecisionBasis } from '../schema/types.generated'
+import {
+  ActionType,
+  IdentifierType,
+  IndexingDecisionBasis,
+} from '../schema/types.generated'
 
 export interface TransactionPreparationContext {
   activeAllocations: Allocation[]
@@ -121,6 +126,8 @@ export class AllocationManager {
 
     const validatedActions = await this.validateActionBatchFeasibilty(actions)
     logger.trace('Validated actions', { validatedActions })
+
+    await this.deployBeforeAllocating(logger, validatedActions)
 
     const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
@@ -305,6 +312,28 @@ export class AllocationManager {
     }
   }
 
+  async deployBeforeAllocating(logger: Logger, actions: Action[]): Promise<void> {
+    const allocateActions = actions.filter((action) => action.type == ActionType.allocate)
+    logger.info('Ensure subgraph deployments are deployed before we allocate to them', {
+      allocateActions,
+    })
+    const currentAssignments = await this.graphNode.subgraphDeploymentsAssignments(
+      SubgraphStatus.ALL,
+    )
+    await pMap(
+      allocateActions,
+      async (action: Action) =>
+        await this.graphNode.ensure(
+          `indexer-agent/${action.deploymentID!.slice(-10)}`,
+          new SubgraphDeploymentID(action.deploymentID!),
+          currentAssignments,
+        ),
+      {
+        stopOnError: false,
+      },
+    )
+  }
+
   async prepareAllocateParams(
     logger: Logger,
     context: TransactionPreparationContext,
@@ -350,8 +379,14 @@ export class AllocationManager {
     )
     if (!status) {
       throw indexerError(
-        IndexerErrorCode.IE020,
+        IndexerErrorCode.IE077,
         `Subgraph deployment, '${deployment.ipfsHash}', is not syncing`,
+      )
+    }
+    if (status?.health == 'failed') {
+      throw indexerError(
+        IndexerErrorCode.IE077,
+        `Subgraph deployment, '${deployment.ipfsHash}', has failed`,
       )
     }
 
@@ -612,14 +647,14 @@ export class AllocationManager {
     logger.debug(
       `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't reallocate to it`,
     )
-    const offchainIndexingRule = {
+    const neverIndexingRule = {
       identifier: allocation.subgraphDeployment.id.ipfsHash,
       protocolNetwork: this.network.specification.networkIdentifier,
       identifierType: IdentifierType.deployment,
-      decisionBasis: IndexingDecisionBasis.offchain,
+      decisionBasis: IndexingDecisionBasis.never,
     } as Partial<IndexingRuleAttributes>
 
-    await upsertIndexingRule(logger, this.models, offchainIndexingRule)
+    await upsertIndexingRule(logger, this.models, neverIndexingRule)
 
     return {
       actionID,

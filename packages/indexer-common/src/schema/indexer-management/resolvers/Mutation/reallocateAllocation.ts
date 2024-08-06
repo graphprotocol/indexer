@@ -5,89 +5,17 @@ import {
   type MutationResolvers,
 } from './../../../types.generated'
 import { formatGRT, parseGRT, toAddress } from '@graphprotocol/common-ts'
-import { Allocation, AllocationStatus } from '../../../../allocations/types'
+import { AllocationStatus } from '../../../../allocations/types'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
 import { BigNumber, utils } from 'ethers'
-import { NetworkMonitor } from '../../../../indexer-management/monitor'
-import { GraphNode } from '../../../../graph-node'
 import { allocationIdProof, uniqueAllocationID } from '../../../../allocations/keys'
-
-async function resolvePOI(
-  networkMonitor: NetworkMonitor,
-  graphNode: GraphNode,
-  allocation: Allocation,
-  poi: string | undefined,
-  force: boolean,
-): Promise<string> {
-  // poi = undefined, force=true  -- submit even if poi is 0x0
-  // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-  // poi = undefined, force=false -- submit with generated POI if one available
-  // poi = defined,   force=false -- submit user defined POI only if generated POI matches
-  switch (force) {
-    case true:
-      switch (!!poi) {
-        case true:
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          return poi!
-        case false:
-          return (
-            (await graphNode.proofOfIndexing(
-              allocation.subgraphDeployment.id,
-              await networkMonitor.fetchPOIBlockPointer(allocation),
-              allocation.indexer,
-            )) || utils.hexlify(Array(32).fill(0))
-          )
-      }
-      break
-    case false: {
-      const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
-      const generatedPOI = await graphNode.proofOfIndexing(
-        allocation.subgraphDeployment.id,
-        currentEpochStartBlock,
-        allocation.indexer,
-      )
-      switch (poi == generatedPOI) {
-        case true:
-          if (poi == undefined) {
-            const deploymentStatus = await graphNode.indexingStatus([
-              allocation.subgraphDeployment.id,
-            ])
-            throw indexerError(
-              IndexerErrorCode.IE067,
-              `POI not available for deployment at current epoch start block.
-              currentEpochStartBlock: ${currentEpochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
-                  ? JSON.stringify(deploymentStatus)
-                  : 'not deployed'
-              }`,
-            )
-          } else {
-            return poi
-          }
-        case false:
-          if (poi == undefined && generatedPOI !== undefined) {
-            return generatedPOI
-          } else if (poi !== undefined && generatedPOI == undefined) {
-            return poi
-          }
-          throw indexerError(
-            IndexerErrorCode.IE068,
-            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
-            POI: ${poi},
-            referencePOI: ${generatedPOI}`,
-          )
-      }
-    }
-  }
-}
 
 export const reallocateAllocation: NonNullable<
   MutationResolvers['reallocateAllocation']
 > = async (
   _parent,
   { allocation, poi, amount, force, protocolNetwork },
-  { logger, graphNode, models, multiNetworks },
+  { logger, models, multiNetworks },
 ) => {
   logger = logger.child({
     component: 'reallocateAllocationResolver',
@@ -143,9 +71,7 @@ export const reallocateAllocation: NonNullable<
     }
 
     logger.debug('Resolving POI')
-    const allocationPOI = await resolvePOI(
-      networkMonitor,
-      graphNode,
+    const allocationPOI = await networkMonitor.resolvePOI(
       allocationData,
       poi || undefined,
       Boolean(force),

@@ -399,6 +399,7 @@ type Mutation {
     force: Boolean
     protocolNetwork: String!
   ): ReallocateAllocationResult!
+  submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
 
   updateActions(filter: ActionFilter!, action: ActionUpdateInput!): [Action]!
   queueActions(actions: [ActionInput!]!): [Action]!

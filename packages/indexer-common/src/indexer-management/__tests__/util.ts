@@ -38,9 +38,7 @@ export async function createTestManagementClient(
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
-    [],
   )
-  const indexNodeIDs = ['node_1']
 
   const networkSpecification = { ...testNetworkSpecification }
   networkSpecification.dai.inject = injectDai
@@ -75,7 +73,6 @@ export async function createTestManagementClient(
   return await createIndexerManagementYogaClient({
     models: managementModels,
     graphNode,
-    indexNodeIDs,
     logger,
     defaults,
     multiNetworks,

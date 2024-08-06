@@ -59,6 +59,36 @@ export class NetworkMonitor {
     return await this.contracts.staking.maxAllocationEpochs()
   }
 
+  /**
+   * Check if the network of the allocation is supported
+   *
+   * (todo-future: check if present in the epoch subgraph)
+   * @param allocation: Allocation to check
+   * @returns network `alias` if the network is supported, `null` otherwise
+   */
+  async allocationNetworkAlias(allocation: Allocation): Promise<string | null> {
+    // TODO:
+    // resolveChainId will throw an Error when we can't resolve the chainId in
+    // the future, let's get this from the epoch subgraph (perhaps at startup)
+    // and then resolve it here.
+    try {
+      const { network: allocationNetworkAlias } = await this.graphNode.subgraphFeatures(
+        allocation.subgraphDeployment.id,
+      )
+      if (null === allocationNetworkAlias) {
+        return null
+      }
+
+      // TODO: check if the network is present in the epoch subgraph instead of
+      // our hardcoded list
+      resolveChainId(allocationNetworkAlias)
+
+      return allocationNetworkAlias
+    } catch {
+      return null
+    }
+  }
+
   async allocation(allocationID: string): Promise<Allocation> {
     const result = await this.networkSubgraph.checkedQuery(
       gql`
@@ -811,25 +841,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
-  async fetchPOIBlockPointer(allocation: Allocation): Promise<BlockPointer> {
+  async fetchPOIBlockPointer(
+    deploymentNetworkAlias: string,
+    allocation: Allocation,
+  ): Promise<BlockPointer> {
     try {
-      const deploymentIndexingStatuses = await this.graphNode.indexingStatus([
-        allocation.subgraphDeployment.id,
-      ])
-      if (
-        deploymentIndexingStatuses.length != 1 ||
-        deploymentIndexingStatuses[0].chains.length != 1 ||
-        !deploymentIndexingStatuses[0].chains[0].network
-      ) {
-        this.logger.error(
-          `No indexing status data found for ${allocation.subgraphDeployment.id.ipfsHash}`,
-        )
-        throw indexerError(
-          IndexerErrorCode.IE018,
-          `No indexing status data found for ${allocation.subgraphDeployment.id.ipfsHash}`,
-        )
-      }
-      const deploymentNetworkAlias = deploymentIndexingStatuses[0].chains[0].network
       const deploymentNetworkCAIPID = resolveChainId(deploymentNetworkAlias)
       const currentEpoch = await this.currentEpoch(deploymentNetworkCAIPID)
 
@@ -858,6 +874,13 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     poi: string | undefined,
     force: boolean,
   ): Promise<string> {
+    // If the network is not supported, we can't resolve POI, as there will be no active epoch
+    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
+    if (null === supportedNetworkAlias) {
+      this.logger.info("Network is not supported, can't resolve POI")
+      return utils.hexlify(Array(32).fill(0))
+    }
+
     // poi = undefined, force=true  -- submit even if poi is 0x0
     // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
     // poi = undefined, force=false -- submit with generated POI if one available
@@ -872,14 +895,17 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
             return (
               (await this.graphNode.proofOfIndexing(
                 allocation.subgraphDeployment.id,
-                await this.fetchPOIBlockPointer(allocation),
+                await this.fetchPOIBlockPointer(supportedNetworkAlias, allocation),
                 allocation.indexer,
               )) || utils.hexlify(Array(32).fill(0))
             )
         }
         break
       case false: {
-        const epochStartBlock = await this.fetchPOIBlockPointer(allocation)
+        const epochStartBlock = await this.fetchPOIBlockPointer(
+          supportedNetworkAlias,
+          allocation,
+        )
         // Obtain the start block of the current epoch
         const generatedPOI = await this.graphNode.proofOfIndexing(
           allocation.subgraphDeployment.id,

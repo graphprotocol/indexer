@@ -4,88 +4,18 @@ import {
   IndexingDecisionBasis,
   type MutationResolvers,
 } from './../../../types.generated'
-import { BigNumber, utils } from 'ethers'
 import { IndexerErrorCode, indexerError } from '../../../../errors'
-import { NetworkMonitor } from '../../../../indexer-management/monitor'
-import { GraphNode } from '../../../../graph-node'
 import { formatGRT } from '@graphprotocol/common-ts'
-import { Allocation } from '../../../../allocations/types'
-
-async function resolvePOI(
-  networkMonitor: NetworkMonitor,
-  graphNode: GraphNode,
-  allocation: Allocation,
-  poi: string | undefined,
-  force: boolean,
-): Promise<string> {
-  // poi = undefined, force=true  -- submit even if poi is 0x0
-  // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-  // poi = undefined, force=false -- submit with generated POI if one available
-  // poi = defined,   force=false -- submit user defined POI only if generated POI matches
-  switch (force) {
-    case true:
-      switch (!!poi) {
-        case true:
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          return poi!
-        case false:
-          return (
-            (await graphNode.proofOfIndexing(
-              allocation.subgraphDeployment.id,
-              await networkMonitor.fetchPOIBlockPointer(allocation),
-              allocation.indexer,
-            )) || utils.hexlify(Array(32).fill(0))
-          )
-      }
-      break
-    case false: {
-      const currentEpochStartBlock = await networkMonitor.fetchPOIBlockPointer(allocation)
-      const generatedPOI = await graphNode.proofOfIndexing(
-        allocation.subgraphDeployment.id,
-        currentEpochStartBlock,
-        allocation.indexer,
-      )
-      switch (poi == generatedPOI) {
-        case true:
-          if (poi == undefined) {
-            const deploymentStatus = await graphNode.indexingStatus([
-              allocation.subgraphDeployment.id,
-            ])
-            throw indexerError(
-              IndexerErrorCode.IE067,
-              `POI not available for deployment at current epoch start block.
-              currentEpochStartBlock: ${currentEpochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
-                  ? JSON.stringify(deploymentStatus)
-                  : 'not deployed'
-              }`,
-            )
-          } else {
-            return poi
-          }
-        case false:
-          if (poi == undefined && generatedPOI !== undefined) {
-            return generatedPOI
-          } else if (poi !== undefined && generatedPOI == undefined) {
-            return poi
-          }
-          throw indexerError(
-            IndexerErrorCode.IE068,
-            `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
-            POI: ${poi},
-            referencePOI: ${generatedPOI}`,
-          )
-      }
-    }
-  }
-}
 
 export const closeAllocation: NonNullable<MutationResolvers['closeAllocation']> = async (
   _parent,
   { protocolNetwork, allocation, poi, force },
-  { multiNetworks, logger, models, graphNode },
+  { multiNetworks, logger, models },
 ) => {
+  logger.debug('Execute closeAllocation() mutation', {
+    allocationID: allocation,
+    poi: poi || 'none provided',
+  })
   if (!multiNetworks) {
     throw Error('IndexerManagementClient must be in `network` mode to fetch allocations')
   }
@@ -98,22 +28,7 @@ export const closeAllocation: NonNullable<MutationResolvers['closeAllocation']> 
   const allocationData = await networkMonitor.allocation(allocation)
 
   try {
-    // Ensure allocation is old enough to close
-    const currentEpoch = await contracts.epochManager.currentEpoch()
-    if (BigNumber.from(allocationData.createdAtEpoch).eq(currentEpoch)) {
-      throw indexerError(
-        IndexerErrorCode.IE064,
-        `Allocation '${
-          allocationData.id
-        }' cannot be closed until epoch ${currentEpoch.add(
-          1,
-        )}. (Allocations cannot be closed in the same epoch they were created)`,
-      )
-    }
-
-    poi = await resolvePOI(
-      networkMonitor,
-      graphNode,
+    poi = await networkMonitor.resolvePOI(
       allocationData,
       poi || undefined,
       Boolean(force),

@@ -7,9 +7,9 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Component       | Release                                                                              |
 | --------------- | ------------------------------------------------------------------------------------ |
 | contracts       | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)              |
-| indexer-agent   | [0.21.3](https://github.com/graphprotocol/indexer/releases/tag/v0.21.3)              |
-| indexer-cli     | [0.21.3](https://github.com/graphprotocol/indexer/releases/tag/v0.21.3)              |
-| indexer-service | [0.21.3](https://github.com/graphprotocol/indexer/releases/tag/v0.21.3)              |
+| indexer-agent   | [0.21.4-rc](https://github.com/graphprotocol/indexer/releases/tag/v0.21.4-rc)              |
+| indexer-cli     | [0.21.4-rc](https://github.com/graphprotocol/indexer/releases/tag/v0.21.4-rc)              |
+| indexer-service | [0.21.4-rc](https://github.com/graphprotocol/indexer/releases/tag/v0.21.4-rc)              |
 | graph-node      | [0.35.0-rc.0](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.0-rc.0) |
 
 ## Network Parameters
@@ -43,14 +43,13 @@ testnet (for now) are Mainnet subgraphs. This means:
 | Environment Variable                        | CLI Argument                    | Value                                                                                                                   |
 | ------------------------------------------- | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `INDEXER_AGENT_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                                                       |
-| `INDEXER_AGENT_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                                                      |
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                                                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                                                        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | `0x9e7e607afd22906f7da6f1ec8f432d6f244278be` (GDAI)                                                                     |
-| `INDEXER_AGENT_COLLECT_RECEIPTS_ENDPOINT`   | `--collect-receipts-endpoint`   | `https://gateway-arbitrum.testnet.thegraph.com/collect-receipts`                                                        |
+| `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.testnet.thegraph.com/`                                                                        |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
@@ -68,7 +67,6 @@ option can be used.
 | Environment Variable                          | CLI Argument                    | Value                                                                                  |
 | --------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------- |
 | `INDEXER_SERVICE_ETHEREUM`                    | `--ethereum`                    | An Arbitrum Sepolia node/provider                                                      |
-| `INDEXER_SERVICE_ETHEREUM_NETWORK`            | `--ethereum-network`            | `arbitrum-sepolia`                                                                     |
 | `INDEXER_SERVICE_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                    |
 | `INDEXER_SERVICE_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                 |
 | `INDEXER_SERVICE_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                       |

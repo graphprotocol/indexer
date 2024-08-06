@@ -35,7 +35,6 @@ import pReduce from 'p-reduce'
 import { TAPSubgraph } from '../tap-subgraph'
 import { NetworkSubgraph } from '../network-subgraph'
 import gql from 'graphql-tag'
-import { QueryInterface } from 'sequelize'
 
 // Receipts are collected with a delay of 20 minutes after
 // the corresponding allocation was closed
@@ -89,7 +88,6 @@ export interface AllocationReceiptCollectorOptions {
   networkSpecification: spec.NetworkSpecification
   tapSubgraph: TAPSubgraph | undefined
   networkSubgraph: NetworkSubgraph
-  queryInterface: QueryInterface
 }
 
 export interface ReceiptCollector {
@@ -114,7 +112,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare models: QueryFeeModels
   declare transactionManager: TransactionManager
   declare allocationExchange: Contract
-  declare tapContracts?: TapContracts
+  declare tapContracts: TapContracts | undefined
   declare allocations: Eventual<Allocation[]>
   declare collectEndpoint: URL
   declare partialVoucherEndpoint: URL
@@ -127,7 +125,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare tapSubgraph: TAPSubgraph | undefined
   declare networkSubgraph: NetworkSubgraph
   declare finalityTime: number
-  declare queryInterface: QueryInterface
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -143,7 +140,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     networkSpecification,
     tapSubgraph,
     networkSubgraph,
-    queryInterface,
   }: AllocationReceiptCollectorOptions): Promise<AllocationReceiptCollector> {
     const collector = new AllocationReceiptCollector()
     collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
@@ -159,7 +155,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     collector.protocolNetwork = networkSpecification.networkIdentifier
     collector.tapSubgraph = tapSubgraph
     collector.networkSubgraph = networkSubgraph
-    collector.queryInterface = queryInterface
 
     // Process Gateway routes
     const gatewayUrls = processGatewayRoutes(networkSpecification.gateway.url)
@@ -619,7 +614,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         SET redeemed_at = NULL
         WHERE allocation_id IN ('${nonRedeemedAllocationIDsTrunc.join("', '")}')
       `
-      await this.queryInterface.sequelize.query(query)
+      await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
       // // Update those that redeemed_at is older than 60 minutes and mark as final
       query = `
@@ -629,7 +624,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         AND redeemed_at < NOW() - INTERVAL '${this.finalityTime} second'
         AND redeemed_at IS NOT NULL
       `
-      await this.queryInterface.sequelize.query(query)
+      await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
       return await this.models.receiptAggregateVouchers.findAll({
         where: { redeemedAt: null, final: false, last: true },
@@ -955,7 +950,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             SET redeemed_at = NOW()
             WHERE allocation_id = '${addressWithoutPrefix}'
           `
-          await this.queryInterface.sequelize.query(query)
+          await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
           logger.info(
             `Updated receipt aggregate vouchers table with redeemed_at for allocation ${addressWithoutPrefix}`,

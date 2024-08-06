@@ -21,6 +21,7 @@ interface indexNode {
 export interface SubgraphDeploymentAssignment {
   id: SubgraphDeploymentID
   node: string
+  paused: boolean
 }
 
 export interface IndexingStatusFetcherOptions {
@@ -31,6 +32,12 @@ export interface IndexingStatusFetcherOptions {
 export interface SubgraphFeatures {
   // `null` is only expected when Graph Node detects validation errors in the Subgraph Manifest.
   network: string | null
+}
+
+export enum SubgraphStatus {
+  ACTIVE = 'active',
+  PAUSED = 'paused',
+  ALL = 'all',
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -65,14 +72,12 @@ export class GraphNode {
   private queryBaseURL: URL
   status: Client
   logger: Logger
-  indexNodeIDs: string[]
 
   constructor(
     logger: Logger,
     adminEndpoint: string,
     queryEndpoint: string,
     statusEndpoint: string,
-    indexNodeIDs: string[],
   ) {
     this.logger = logger.child({ component: 'GraphNode' })
     this.status = createClient({
@@ -90,8 +95,6 @@ export class GraphNode {
     }
 
     this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
-
-    this.indexNodeIDs = indexNodeIDs
   }
 
   async connect(): Promise<void> {
@@ -136,10 +139,14 @@ export class GraphNode {
   }
 
   public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
-    return (await this.subgraphDeploymentsAssignments()).map((details) => details.id)
+    return (await this.subgraphDeploymentsAssignments(SubgraphStatus.ACTIVE)).map(
+      (details) => details.id,
+    )
   }
 
-  public async subgraphDeploymentsAssignments(): Promise<SubgraphDeploymentAssignment[]> {
+  public async subgraphDeploymentsAssignments(
+    subgraphStatus: SubgraphStatus,
+  ): Promise<SubgraphDeploymentAssignment[]> {
     try {
       this.logger.debug('Fetch subgraph deployment assignments')
       const result = await this.status
@@ -148,6 +155,7 @@ export class GraphNode {
             indexingStatuses {
               subgraphDeployment: subgraph
               node
+              paused
             }
           }
         `)
@@ -164,14 +172,30 @@ export class GraphNode {
         return []
       }
 
-      type QueryResult = { subgraphDeployment: string; node: string }
+      type QueryResult = {
+        subgraphDeployment: string
+        node: string
+        paused: boolean | undefined
+      }
 
       return result.data.indexingStatuses
-        .filter((status: QueryResult) => status.node && status.node !== 'removed')
+        .filter((status: QueryResult) => {
+          if (subgraphStatus === SubgraphStatus.ACTIVE) {
+            return (
+              status.paused === false ||
+              (status.paused === undefined && status.node !== 'removed')
+            )
+          } else if (subgraphStatus === SubgraphStatus.PAUSED) {
+            return status.node === 'removed' || status.paused === true
+          } else if (subgraphStatus === SubgraphStatus.ALL) {
+            return true
+          }
+        })
         .map((status: QueryResult) => {
           return {
             id: new SubgraphDeploymentID(status.subgraphDeployment),
             node: status.node,
+            paused: status.paused ?? status.node === 'removed',
           }
         })
     } catch (error) {
@@ -258,27 +282,20 @@ export class GraphNode {
     }
   }
 
-  async deploy(
-    name: string,
-    deployment: SubgraphDeploymentID,
-    node_id: string,
-  ): Promise<void> {
+  async deploy(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
       this.logger.info(`Deploy subgraph deployment`, {
         name,
         deployment: deployment.display,
-        node_id,
       })
       const response = await this.admin.request('subgraph_deploy', {
         name,
         ipfs_hash: deployment.ipfsHash,
-        node_id: node_id,
       })
 
       this.logger.trace(`Response from 'subgraph_deploy' call`, {
         deployment: deployment.display,
         name,
-        node_id,
         response,
       })
 
@@ -307,23 +324,45 @@ export class GraphNode {
     }
   }
 
-  async remove(deployment: SubgraphDeploymentID): Promise<void> {
+  async pause(deployment: SubgraphDeploymentID): Promise<void> {
     try {
-      this.logger.info(`Remove subgraph deployment`, {
+      this.logger.info(`Pause subgraph deployment`, {
         deployment: deployment.display,
       })
-      const response = await this.admin.request('subgraph_reassign', {
-        node_id: 'removed',
-        ipfs_hash: deployment.ipfsHash,
+      const response = await this.admin.request('subgraph_pause', {
+        deployment: deployment.ipfsHash,
       })
       if (response.error) {
         throw response.error
       }
-      this.logger.info(`Successfully removed subgraph deployment`, {
+      this.logger.info(`Successfully paused subgraph deployment`, {
         deployment: deployment.display,
       })
     } catch (error) {
       const errorCode = IndexerErrorCode.IE027
+      this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
+        deployment: deployment.display,
+        error: indexerError(errorCode, error),
+      })
+    }
+  }
+
+  async resume(deployment: SubgraphDeploymentID): Promise<void> {
+    try {
+      this.logger.info(`Resume subgraph deployment`, {
+        deployment: deployment.display,
+      })
+      const response = await this.admin.request('subgraph_resume', {
+        deployment: deployment.ipfsHash,
+      })
+      if (response.error) {
+        throw response.error
+      }
+      this.logger.info(`Successfully resumed subgraph deployment`, {
+        deployment: deployment.display,
+      })
+    } catch (error) {
+      const errorCode = IndexerErrorCode.IE076
       this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
         deployment: deployment.display,
         error: indexerError(errorCode, error),
@@ -362,28 +401,45 @@ export class GraphNode {
     }
   }
 
-  async ensure(name: string, deployment: SubgraphDeploymentID): Promise<void> {
+  async ensure(
+    name: string,
+    deployment: SubgraphDeploymentID,
+    currentAssignments?: SubgraphDeploymentAssignment[],
+  ): Promise<void> {
+    this.logger.debug('Ensure subgraph deployment is syncing', {
+      name,
+      deployment: deployment.ipfsHash,
+    })
     try {
-      // Randomly assign to unused nodes if they exist,
-      // otherwise use the node with lowest deployments assigned
-      const indexNodes = (await this.indexNodes()).filter(
-        (node: { id: string; deployments: Array<string> }) => {
-          return node.id && node.id !== 'removed'
-        },
-      )
-      const usedIndexNodeIDs = indexNodes.map((node) => node.id)
-      const unusedNodes = this.indexNodeIDs.filter(
-        (nodeID) => !(nodeID in usedIndexNodeIDs),
+      const deploymentAssignments =
+        currentAssignments ??
+        (await this.subgraphDeploymentsAssignments(SubgraphStatus.ALL))
+      const matchingAssignment = deploymentAssignments.find(
+        (deploymentAssignment) => deploymentAssignment.id.ipfsHash == deployment.ipfsHash,
       )
 
-      const targetNode = unusedNodes
-        ? unusedNodes[Math.floor(Math.random() * unusedNodes.length)]
-        : indexNodes.sort((nodeA, nodeB) => {
-            return nodeA.deployments.length - nodeB.deployments.length
-          })[0].id
-      await this.create(name)
-      await this.deploy(name, deployment, targetNode)
-      await this.reassign(deployment, targetNode)
+      if (matchingAssignment?.paused == false) {
+        this.logger.debug('Subgraph deployment already syncing, ensure() is a no-op', {
+          name,
+          deployment: deployment.ipfsHash,
+        })
+      } else if (matchingAssignment?.paused == true) {
+        this.logger.debug('Subgraph deployment paused, resuming', {
+          name,
+          deployment: deployment.ipfsHash,
+        })
+        await this.resume(deployment)
+      } else {
+        this.logger.debug(
+          'Subgraph deployment not found, creating subgraph name and deploying...',
+          {
+            name,
+            deployment: deployment.ipfsHash,
+          },
+        )
+        await this.create(name)
+        await this.deploy(name, deployment)
+      }
     } catch (error) {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020

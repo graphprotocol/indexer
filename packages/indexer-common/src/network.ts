@@ -8,7 +8,10 @@ import {
   AddressBook,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { connectContracts as connectTapContracts } from '@semiotic-labs/tap-contracts-bindings'
+import {
+  connectContracts as connectTapContracts,
+  NetworkContracts as TapContracts,
+} from '@semiotic-labs/tap-contracts-bindings'
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
@@ -34,7 +37,6 @@ import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
 
 import { TAPSubgraph } from './tap-subgraph'
-import { QueryInterface } from 'sequelize'
 
 export class Network {
   logger: Logger
@@ -48,7 +50,6 @@ export class Network {
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
-  queryInterface: QueryInterface | undefined
 
   private constructor(
     logger: Logger,
@@ -62,7 +63,6 @@ export class Network {
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
-    queryInterface?: QueryInterface,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -75,7 +75,6 @@ export class Network {
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
-    this.queryInterface = queryInterface
   }
 
   static async create(
@@ -84,7 +83,6 @@ export class Network {
     queryFeeModels: QueryFeeModels,
     graphNode: GraphNode,
     metrics: Metrics,
-    queryInterface?: QueryInterface,
   ): Promise<Network> {
     // Incomplete logger for initial operations, will be replaced as new labels emerge.
     let logger = parentLogger.child({
@@ -243,18 +241,19 @@ export class Network {
     // * Escrow contract
     // --------------------------------------------------------------------------------
     const networkIdentifier = await networkProvider.getNetwork()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let tapContracts: any
-    try {
-      tapContracts = await connectTapContracts(
-        wallet,
-        networkIdentifier.chainId,
-        specification.tapAddressBook,
-      )
-    } catch (err) {
-      logger.error(`Failed to connect to tap contract bindings:`, { err })
+    let tapContracts: TapContracts | undefined = undefined
+    if (tapSubgraph) {
+      try {
+        tapContracts = await connectTapContracts(
+          wallet,
+          networkIdentifier.chainId,
+          specification.tapAddressBook,
+        )
+      } catch (err) {
+        logger.error(`Failed to connect to tap contract bindings:`, { err })
+        throw err
+      }
     }
-
     // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
     // --------------------------------------------------------------------------------
@@ -280,7 +279,6 @@ export class Network {
       networkSpecification: specification,
       tapSubgraph,
       networkSubgraph,
-      queryInterface: queryInterface!,
     })
 
     // --------------------------------------------------------------------------------

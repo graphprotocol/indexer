@@ -34,6 +34,7 @@ import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network
 import { BigNumber } from 'ethers'
 import { displayZodParsingError } from '@graphprotocol/indexer-common'
 import { readFileSync } from 'fs'
+import { AgentConfigs } from '../types'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
@@ -298,6 +299,13 @@ export const start = {
         default: 'auto',
         group: 'Indexer Infrastructure',
       })
+      .option('polling-interval', {
+        description: 'Polling interval for data collection',
+        type: 'number',
+        required: false,
+        default: 120_000,
+        group: 'Indexer Infrastructure',
+      })
       .option('auto-allocation-min-batch-size', {
         description: `Minimum number of allocation transactions inside a batch for auto allocation management. No obvious upperbound, with default of 1`,
         type: 'number',
@@ -514,7 +522,6 @@ export async function run(
     argv.graphNodeAdminEndpoint,
     argv.graphNodeQueryEndpoint,
     argv.graphNodeStatusEndpoint,
-    argv.indexNodeIds,
   )
 
   // --------------------------------------------------------------------------------
@@ -558,6 +565,7 @@ export async function run(
         logger,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
         networkSpecifications,
+        graphNode: graphNode,
       },
       storage: new SequelizeStorage({ sequelize }),
       logger: console,
@@ -593,14 +601,7 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(
-        logger,
-        spec,
-        queryFeeModels,
-        graphNode,
-        metrics,
-        sequelize.getQueryInterface(),
-      ),
+      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
   )
 
   // --------------------------------------------------------------------------------
@@ -614,7 +615,6 @@ export async function run(
   const indexerManagementClient = await createIndexerManagementYogaClient({
     models: managementModels,
     graphNode,
-    indexNodeIDs: argv.indexNodeIds,
     logger,
     defaults: {
       globalIndexingRule: {
@@ -675,17 +675,21 @@ export async function run(
   // --------------------------------------------------------------------------------
   // * The Agent itself
   // --------------------------------------------------------------------------------
-  const agent = new Agent(
+  const agentConfigs: AgentConfigs = {
     logger,
     metrics,
     graphNode,
     operators,
-    indexerManagementClient,
+    indexerManagement: indexerManagementClient,
     networks,
-    argv.offchainSubgraphs.map((s: string) => new SubgraphDeploymentID(s)),
-    argv.enableAutoMigrationSupport,
-    argv.deploymentManagement,
-  )
+    deploymentManagement: argv.deploymentManagement,
+    autoMigrationSupport: argv.enableAutoMigrationSupport,
+    offchainSubgraphs: argv.offchainSubgraphs.map(
+      (s: string) => new SubgraphDeploymentID(s),
+    ),
+    pollingInterval: argv.pollingInterval,
+  }
+  const agent = new Agent(agentConfigs)
   await agent.start()
 }
 
