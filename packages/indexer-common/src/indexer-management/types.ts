@@ -207,6 +207,9 @@ export const Caip2ByChainId: { [key: number]: string } = {
   59144: 'eip155:59144',
   534352: 'eip155:534352',
   8453: 'eip155:8453',
+  1284: 'eip155:1284',
+  122: 'eip155:122',
+  81457: 'eip155:81457',
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
