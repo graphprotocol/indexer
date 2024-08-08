@@ -4,7 +4,7 @@ import fs from 'fs'
 
 import { loadValidatedConfig } from '../../../../config'
 import { createIndexerManagementClient } from '../../../../client'
-import { fixParameters } from '../../../../command-helpers'
+import { extractProtocolNetworkOption, fixParameters } from '../../../../command-helpers'
 import {
   parseCostModel,
   parseDeploymentID,
@@ -18,7 +18,7 @@ ${chalk.bold('graph indexer cost set model')} [options] <deployment-id> <file>
 ${chalk.bold('graph indexer cost set model')} [options] global <file>
 
 ${chalk.dim('Options:')}
-
+  -n, --network                 Protocol network
   -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -31,6 +31,13 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, merged, o, output } = parameters.options
+
+    const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+
+    if (!protocolNetwork) {
+      throw new Error('Protocol network is required')
+    }
+
     const [deployment, filename] = fixParameters(parameters, { h, help, merged }) || []
     const outputFormat = o || output || 'table'
 
@@ -69,6 +76,7 @@ module.exports = {
       deployment,
       model,
       variables: null,
+      protocolNetwork,
     })
 
     try {
