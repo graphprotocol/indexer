@@ -112,7 +112,7 @@ export async function up({ context }: Context): Promise<void> {
         allowNull: false,
       },
       value: {
-        type: DataTypes.DECIMAL(39),
+        type: DataTypes.DECIMAL(20),
         allowNull: false,
       },
     })
@@ -140,7 +140,7 @@ export async function up({ context }: Context): Promise<void> {
         allowNull: false,
       },
       value_aggregate: {
-        type: DataTypes.DECIMAL(20),
+        type: DataTypes.DECIMAL(39),
         allowNull: false,
       },
       final: {
