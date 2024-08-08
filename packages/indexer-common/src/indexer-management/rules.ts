@@ -2,17 +2,17 @@ import { Logger } from '@graphprotocol/common-ts'
 import {
   IndexerManagementModels,
   INDEXING_RULE_GLOBAL,
-  IndexingRule,
   IndexingRuleAttributes,
 } from '@graphprotocol/indexer-common'
 import { parseIndexingRule } from '../rules'
 import groupBy from 'lodash.groupby'
+import { IndexingRule } from '../schema/types.generated'
 
 export const fetchIndexingRules = async (
   models: IndexerManagementModels,
   merged: boolean,
   protocolNetwork?: string,
-): Promise<IndexingRuleAttributes[]> => {
+) => {
   // If unspecified, select indexing rules from all protocol networks
   const whereClause = protocolNetwork ? { protocolNetwork } : {}
   const rules = await models.IndexingRule.findAll({
@@ -22,6 +22,7 @@ export const fetchIndexingRules = async (
       ['identifier', 'ASC'],
     ],
   })
+
   if (merged) {
     // Merge rules by protocol network
     return Object.entries(groupBy(rules, (rule) => rule.protocolNetwork))
@@ -30,11 +31,11 @@ export const fetchIndexingRules = async (
         if (!global) {
           throw Error(`Could not find global rule for network '${protocolNetwork}'`)
         }
-        return rules.map((rule) => rule.mergeGlobal(global))
+        return rules.map((rule) => rule.mergeToGraphQL(global))
       })
       .flat()
   } else {
-    return rules
+    return rules.map((rule) => rule.toGraphQL())
   }
 }
 
@@ -54,5 +55,5 @@ export const upsertIndexingRule = async (
     },
   )
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  return updatedRule!
+  return updatedRule.toGraphQL()!
 }

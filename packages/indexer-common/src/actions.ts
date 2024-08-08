@@ -1,50 +1,26 @@
 import { NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
 import { Logger } from '@graphprotocol/common-ts'
-import { WhereOperators, WhereOptions } from 'sequelize'
+import { WhereOptions } from 'sequelize'
 import { Op } from 'sequelize'
 import { WhereAttributeHashValue } from 'sequelize/types/model'
 import { validateNetworkIdentifier } from './parsers'
+import {
+  ActionFilter,
+  ActionUpdateInput,
+  ActionParams,
+  ActionInput,
+  ActionType,
+  ActionStatus,
+} from './schema/types.generated'
 
-export interface ActionParamsInput {
-  deploymentID?: string
-  allocationID?: string
-  amount?: string
-  poi?: string
-  force?: boolean
-}
+export { ActionUpdateInput, ActionParams }
 
 export interface ActionItem {
-  params: ActionParamsInput
+  params: ActionUpdateInput
   type: ActionType
   reason: string
   status?: ActionStatus
-  protocolNetwork: string
-}
-
-export interface ActionUpdateInput {
-  deploymentID?: string
-  allocationID?: string
-  amount?: string
-  poi?: string
-  force?: boolean
-  type?: ActionType
-  status?: ActionStatus
-  reason?: string
-  protocolNetwork?: string
-}
-
-export interface ActionInput {
-  type: ActionType
-  deploymentID: string
-  allocationID?: string
-  amount?: string
-  poi?: string
-  force?: boolean
-  source: string
-  reason: string
-  status: ActionStatus
-  priority: number | undefined
   protocolNetwork: string
 }
 
@@ -57,14 +33,14 @@ export const isValidActionInput = (
   }
   let hasActionParams = false
   switch (variableToCheck.type) {
-    case ActionType.ALLOCATE:
+    case ActionType.allocate:
       hasActionParams = 'deploymentID' in variableToCheck && 'amount' in variableToCheck
       break
-    case ActionType.UNALLOCATE:
+    case ActionType.unallocate:
       hasActionParams =
         'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
       break
-    case ActionType.REALLOCATE:
+    case ActionType.reallocate:
       hasActionParams =
         'deploymentID' in variableToCheck &&
         'allocationID' in variableToCheck &&
@@ -110,12 +86,10 @@ export const validateActionInputs = async (
 
     // Must have status QUEUED or APPROVED
     if (
-      [
-        ActionStatus.FAILED,
-        ActionStatus.SUCCESS,
-        ActionStatus.PENDING,
-        ActionStatus.CANCELED,
-      ].includes(action.status)
+      action.status === 'failed' ||
+      action.status === 'success' ||
+      action.status === 'pending' ||
+      action.status === 'canceled'
     ) {
       throw Error(
         `Cannot queue action with status ${action.status}, must be one of ['APPROVED', 'QUEUED']`,
@@ -124,6 +98,7 @@ export const validateActionInputs = async (
 
     // Action must target an existing subgraph deployment
     const subgraphDeployment = await networkMonitor.subgraphDeployment(
+      // @ts-expect-error - deploymentID should be here
       action.deploymentID,
     )
     if (!subgraphDeployment) {
@@ -133,7 +108,7 @@ export const validateActionInputs = async (
     }
 
     // Unallocate & reallocate actions must target an active allocationID
-    if ([ActionType.UNALLOCATE, ActionType.REALLOCATE].includes(action.type)) {
+    if (action.type === 'unallocate' || action.type === 'reallocate') {
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const allocation = await networkMonitor.allocation(action.allocationID!)
@@ -151,16 +126,6 @@ export const validateActionInputs = async (
       }
     }
   }
-}
-
-export interface ActionFilter {
-  id?: number | undefined
-  type?: ActionType
-  status?: ActionStatus
-  source?: string
-  reason?: string
-  updatedAt?: WhereOperators
-  protocolNetwork?: string
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -192,37 +157,4 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
-}
-
-export enum ActionType {
-  ALLOCATE = 'allocate',
-  UNALLOCATE = 'unallocate',
-  REALLOCATE = 'reallocate',
-}
-
-export enum ActionStatus {
-  QUEUED = 'queued',
-  APPROVED = 'approved',
-  PENDING = 'pending',
-  SUCCESS = 'success',
-  FAILED = 'failed',
-  CANCELED = 'canceled',
-}
-
-export enum ActionParams {
-  ID = 'id',
-  STATUS = 'status',
-  TYPE = 'type',
-  DEPLOYMENT_ID = 'deploymentID',
-  ALLOCATION_ID = 'allocationID',
-  TRANSACTION = 'transaction',
-  AMOUNT = 'amount',
-  POI = 'poi',
-  FORCE = 'force',
-  SOURCE = 'source',
-  REASON = 'reason',
-  PRIORITY = 'priority',
-  CREATED_AT = 'createdAt',
-  UPDATED_AT = 'updatedAt',
-  PROTOCOL_NETWORK = 'protocolNetwork',
 }

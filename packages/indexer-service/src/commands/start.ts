@@ -17,7 +17,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementClient,
+  createIndexerManagementYogaClient,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   indexerError,
@@ -479,7 +479,7 @@ export default {
       queryTimingLogs: argv.queryTimingLogs,
     })
 
-    const indexerManagementClient = await createIndexerManagementClient({
+    const indexerManagementClient = await createIndexerManagementYogaClient({
       models,
       graphNode,
       logger,

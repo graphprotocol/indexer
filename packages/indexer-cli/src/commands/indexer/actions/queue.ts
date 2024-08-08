@@ -8,11 +8,7 @@ import {
   printObjectOrArray,
 } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
-import {
-  ActionInput,
-  ActionStatus,
-  resolveChainAlias,
-} from '@graphprotocol/indexer-common'
+import { GeneratedGraphQLTypes, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -65,7 +61,7 @@ module.exports = {
     const [type, targetDeployment, param1, param2, param3, param4] =
       parameters.array || []
 
-    let actionInputParams: ActionInput
+    let actionInputParams: GeneratedGraphQLTypes.ActionInput
     try {
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -80,7 +76,7 @@ module.exports = {
         { targetDeployment, param1, param2, param3, param4 },
         decisionSource,
         decisionReason,
-        ActionStatus.QUEUED,
+        'queued',
         executionPriority,
         networkIdentifier,
       )

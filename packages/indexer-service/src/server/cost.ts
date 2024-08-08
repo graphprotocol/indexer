@@ -1,17 +1,21 @@
 import { graphqlHTTP } from 'express-graphql'
 import { Request, Response } from 'express'
 import { makeExecutableSchema } from '@graphql-tools/schema'
-import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import { Metrics, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  IndexerManagementYogaClient,
+  isAsyncIterable,
+} from '@graphprotocol/indexer-common'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
 
 export interface GraphQLServerOptions {
-  indexerManagementClient: IndexerManagementClient
+  indexerManagementClient: IndexerManagementYogaClient
   metrics: Metrics
 }
 
 interface Context {
-  client: IndexerManagementClient
+  client: IndexerManagementYogaClient
 }
 
 interface CostModelsArgs {
@@ -105,6 +109,10 @@ export const createCostServer = async ({
     resolvers: {
       Query: {
         costModels: async (parent, args: CostModelsArgs, context: Context) => {
+          const executor = buildHTTPExecutor({
+            fetch: context.client.yoga.fetch,
+          })
+
           resolverMetrics.costModelBatchQueries.inc()
 
           if (!args.deployments) {
@@ -118,27 +126,29 @@ export const createCostServer = async ({
 
           const stopTimer = resolverMetrics.costModelBatchQueryDuration.startTimer()
           try {
-            const result = await context.client
-              .query(
-                gql`
-                  query costModels($deployments: [String!]) {
-                    costModels(deployments: $deployments) {
-                      deployment
-                      model
-                      variables
-                    }
+            const result = await executor({
+              document: gql`
+                query costModels($deployments: [String!]) {
+                  costModels(deployments: $deployments) {
+                    deployment
+                    model
+                    variables
                   }
-                `,
-                {
-                  deployments: args.deployments
-                    ? args.deployments.map(s => new SubgraphDeploymentID(s).bytes32)
-                    : null,
-                },
-              )
-              .toPromise()
+                }
+              `,
+              variables: {
+                deployments: args.deployments
+                  ? args.deployments.map(s => new SubgraphDeploymentID(s).bytes32)
+                  : null,
+              },
+            })
 
-            if (result.error) {
-              throw result.error
+            if (isAsyncIterable(result)) {
+              throw new Error('Expected a single result, but got an async iterable')
+            }
+
+            if (result.errors) {
+              throw result.errors
             }
 
             return result.data.costModels
@@ -152,6 +162,9 @@ export const createCostServer = async ({
 
         costModel: async (parent, args: CostModelArgs, context: Context) => {
           const deployment = new SubgraphDeploymentID(args.deployment).bytes32
+          const executor = buildHTTPExecutor({
+            fetch: context.client.yoga.fetch,
+          })
 
           if (!deployment) {
             resolverMetrics.invalidCostModelQueries.inc()
@@ -164,23 +177,25 @@ export const createCostServer = async ({
             deployment,
           })
           try {
-            const result = await context.client
-              .query(
-                gql`
-                  query costModel($deployment: String!) {
-                    costModel(deployment: $deployment) {
-                      deployment
-                      model
-                      variables
-                    }
+            const result = await executor({
+              document: gql`
+                query costModel($deployment: String!) {
+                  costModel(deployment: $deployment) {
+                    deployment
+                    model
+                    variables
                   }
-                `,
-                { deployment },
-              )
-              .toPromise()
+                }
+              `,
+              variables: { deployment },
+            })
 
-            if (result.error) {
-              throw result.error
+            if (isAsyncIterable(result)) {
+              throw new Error('Expected a single result, but got an async iterable')
+            }
+
+            if (result.errors) {
+              throw result.errors
             }
 
             return result.data.costModel

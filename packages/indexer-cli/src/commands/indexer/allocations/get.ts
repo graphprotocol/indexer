@@ -6,7 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
+import { GeneratedGraphQLTypes, processIdentifier } from '@graphprotocol/indexer-common'
 import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
 import { utils } from 'ethers'
 
@@ -75,14 +75,14 @@ module.exports = {
       }
 
       let deploymentString: string | undefined = undefined
-      let type: SubgraphIdentifierType
+      let type: GeneratedGraphQLTypes.IdentifierType
 
       if (deployment) {
         ;[deploymentString, type] = await processIdentifier(deployment, {
           all: true,
           global: false,
         })
-        if (type !== SubgraphIdentifierType.DEPLOYMENT) {
+        if (type !== 'deployment') {
           throw Error(
             `Invalid '--deployment' must be a valid deployment ID (bytes32 or base58 formatted)`,
           )
