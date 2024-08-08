@@ -73,14 +73,14 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
   CostModel.init(
     {
       id: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.BIGINT,
         autoIncrement: true,
+        primaryKey: true,
         unique: true,
       },
       deployment: {
         type: DataTypes.STRING,
         allowNull: false,
-        primaryKey: true,
         validate: {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           isDeploymentID: (value: any) => {
@@ -122,7 +122,8 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
       },
     },
     {
-      modelName: 'CostModel',
+      modelName: 'CostModelsHistory',
+      freezeTableName: true,
       sequelize,
     },
   )
