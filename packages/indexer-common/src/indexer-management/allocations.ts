@@ -371,7 +371,6 @@ export class AllocationManager {
     // Check that the subgraph is syncing and healthy before allocating
     // Throw error if:
     //    - subgraph deployment is not syncing,
-    //    - subgraph deployment is failed
     const status = context.indexingStatuses.find(
       (status) => status.subgraphDeployment.ipfsHash == deployment.ipfsHash,
     )
@@ -379,12 +378,6 @@ export class AllocationManager {
       throw indexerError(
         IndexerErrorCode.IE077,
         `Subgraph deployment, '${deployment.ipfsHash}', is not syncing`,
-      )
-    }
-    if (status?.health == 'failed') {
-      throw indexerError(
-        IndexerErrorCode.IE077,
-        `Subgraph deployment, '${deployment.ipfsHash}', has failed`,
       )
     }
 
