@@ -27,7 +27,6 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:534352              | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:59144               | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:56                  | bsc           | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:1284                | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:122                 | fuse          | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:81457               | blast         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
