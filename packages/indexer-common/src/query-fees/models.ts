@@ -11,6 +11,7 @@ export interface ScalarTapReceiptsAttributes {
   timestamp_ns: bigint
   nonce: bigint
   value: bigint
+  error_log?: string
 }
 export class ScalarTapReceipts
   extends Model<ScalarTapReceiptsAttributes>
@@ -39,6 +40,7 @@ export class ScalarTapReceiptsInvalid
   public nonce!: bigint
   public value!: bigint
   public signature!: Uint8Array
+  public error_log!: string
 
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
@@ -656,6 +658,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       signature: {
         type: DataTypes.BLOB,
         allowNull: false,
+      },
+      error_log: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        defaultValue: '',
       },
     },
     {
