@@ -182,14 +182,14 @@ export class GraphNode {
       const result = await this.status
         .query(
           gql`
-          {
-            indexingStatuses($subgraphs) {
-              subgraphDeployment: subgraph
-              node
-              paused
+            query indexingStatuses($subgraphs: [String!]!) {
+              indexingStatuses(subgraphs: $subgraphs) {
+                subgraphDeployment: subgraph
+                node
+                paused
+              }
             }
-          }
-        `,
+          `,
           { subgraphs: withAssignments },
         )
         .toPromise()
