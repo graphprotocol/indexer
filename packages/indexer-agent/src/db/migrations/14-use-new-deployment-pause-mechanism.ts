@@ -2,6 +2,7 @@ import { Logger } from '@graphprotocol/common-ts'
 import {
   GraphNode,
   specification,
+  SubgraphDeploymentAssignment,
   SubgraphStatus,
 } from '@graphprotocol/indexer-common'
 import { QueryInterface } from 'sequelize'
@@ -38,8 +39,14 @@ export async function up({ context }: Context): Promise<void> {
       return nodeA.deployments.length - nodeB.deployments.length
     })[0]?.id || 'default'
 
-  const virtuallyPausedDeploymentAssignments =
+  const pausedDeploymentAssignments =
     await graphNode.subgraphDeploymentsAssignments(SubgraphStatus.PAUSED)
+
+  const virtuallyPausedDeploymentAssignments =
+    pausedDeploymentAssignments.filter(
+      (assignment: SubgraphDeploymentAssignment) =>
+        assignment.node === 'removed',
+    )
 
   logger.info(
     'Reassigning paused subgraphs to valid node_id (targetNode), then pausing',
