@@ -173,7 +173,7 @@ export class GraphNode {
 
       const withAssignments: string[] = nodeOnlyResult.data.indexingStatuses
         .filter((result: QueryResult) => {
-          return result.node !== undefined
+          return result.node !== null && result.node !== undefined
         })
         .map((result: QueryResult) => {
           return result.subgraphDeployment
