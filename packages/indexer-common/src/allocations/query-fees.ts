@@ -106,6 +106,21 @@ interface RavWithAllocation {
   sender: Address
 }
 
+export interface TapSubgraphResponse {
+  transactions: {
+    allocationID: string
+    timestamp: number
+    sender: {
+      id: string
+    }
+  }[]
+  _meta: {
+    block: {
+      timestamp: number
+    }
+  }
+}
+
 export class AllocationReceiptCollector implements ReceiptCollector {
   declare logger: Logger
   declare metrics: ReceiptMetrics
@@ -178,9 +193,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     // flag during startup.
     collector.startReceiptCollecting()
     collector.startVoucherProcessing()
-    if (collector.tapContracts) {
+    if (collector.tapContracts && collector.tapSubgraph) {
       collector.logger.info(`RAV processing is initiated`)
       collector.startRAVProcessing()
+    } else {
+      collector.logger.info(`RAV process not initiated. 
+        Tap Contracts: ${!!collector.tapSubgraph}. 
+        Tap Subgraph: ${!!collector.tapSubgraph}.`)
     }
     await collector.queuePendingReceiptsFromDatabase()
     return collector
@@ -462,13 +481,18 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       timer: timer(30_000),
     }).tryMap(
       async () => {
-        const ravs = await this.pendingRAVs()
+        let ravs = await this.pendingRAVs()
         if (ravs.length === 0) {
           this.logger.info(`No pending RAVs to process`)
           return []
         }
+        if (ravs.length > 0) {
+          ravs = await this.filterAndUpdateRavs(ravs)
+        }
         const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
-        this.logger.info(`Retrieved allocations for pending RAVs \n: ${allocations}`)
+        this.logger.info(
+          `Retrieved allocations for pending RAVs \n: ${JSON.stringify(allocations)}`,
+        )
         return ravs
           .map((rav) => {
             const signedRav = rav.getSignedRAV()
@@ -564,73 +588,154 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   // redeem only if last is true
   // Later can add order and limit
   private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
-    const unfinalizedRAVs = await this.models.receiptAggregateVouchers.findAll({
+    return await this.models.receiptAggregateVouchers.findAll({
       where: { last: true, final: false },
     })
-    // Obtain allocationIds to use as filter in subgraph
-    const unfinalizedRavsAllocationIds = unfinalizedRAVs.map((rav) =>
-      rav.getSignedRAV().rav.allocationId.toLowerCase(),
+  }
+
+  private async filterAndUpdateRavs(
+    ravLastNotFinal: ReceiptAggregateVoucher[],
+  ): Promise<ReceiptAggregateVoucher[]> {
+    const tapSubgraphResponse = await this.findTransactionsForRavs(ravLastNotFinal)
+
+    const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions.filter(
+      (tx) =>
+        !ravLastNotFinal.find(
+          (rav) =>
+            toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
+            toAddress(rav.allocationId) === toAddress(tx.allocationID),
+        ),
     )
 
-    if (unfinalizedRavsAllocationIds.length > 0) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let tapSubgraphResponse: any
-      if (!this.tapSubgraph) {
-        tapSubgraphResponse = { data: { transactions: [] } }
-      } else {
-        tapSubgraphResponse = await this.tapSubgraph!.query(
-          gql`
-            query transactions($unfinalizedRavsAllocationIds: [String!]!) {
-              transactions(
-                where: { type: "redeem", allocationID_in: $unfinalizedRavsAllocationIds }
-              ) {
-                allocationID
-              }
-            }
-          `,
-          { unfinalizedRavsAllocationIds },
+    // for each transaction that is not redeemed on our database
+    // but was redeemed on the blockchain, update it to redeemed
+    if (redeemedRavsNotOnOurDatabase.length > 0) {
+      for (const rav of redeemedRavsNotOnOurDatabase) {
+        await this.markRavAsRedeemed(
+          toAddress(rav.allocationID),
+          toAddress(rav.sender.id),
+          rav.timestamp,
         )
       }
-      const alreadyRedeemedAllocations = tapSubgraphResponse.data.transactions.map(
-        (transaction) => transaction.allocationID,
+    }
+
+    // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
+    const nonRedeemedRavs = ravLastNotFinal
+      .filter((rav) => !!rav.redeemedAt)
+      .filter(
+        (rav) =>
+          !tapSubgraphResponse.transactions.find(
+            (tx) =>
+              toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
+              toAddress(rav.allocationId) === toAddress(tx.allocationID),
+          ),
       )
 
-      // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
-      const nonRedeemedAllocationIDAddresses = unfinalizedRavsAllocationIds.filter(
-        (allocationID) => !alreadyRedeemedAllocations.includes(allocationID),
-      )
-      // Lowercase and remove '0x' prefix of addresses to match format in TAP DB Tables
-      const nonRedeemedAllocationIDsTrunc = nonRedeemedAllocationIDAddresses.map(
-        (allocationID) => allocationID.toLowerCase().replace('0x', ''),
-      )
+    // we use the subgraph timestamp to make decisions
+    // block timestamp minus 1 minute (because of blockchain timestamp uncertainty)
+    const ONE_MINUTE = 60
+    const blockTimestampSecs = tapSubgraphResponse._meta.block.timestamp - ONE_MINUTE
 
-      // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
-      // To handle a chain reorg that "unredeemed" the RAVs.
-      // WE use sql directly due to a bug in sequelize update:
-      // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+    // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
+    // To handle a chain reorg that "unredeemed" the RAVs.
+    // WE use sql directly due to a bug in sequelize update:
+    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+    if (nonRedeemedRavs.length > 0) {
+      await this.revertRavsRedeemed(nonRedeemedRavs, blockTimestampSecs)
+    }
 
-      let query = `
+    // For all RAVs that passed finality time, we mark it as final
+    await this.markRavsAsFinal(blockTimestampSecs)
+
+    return await this.models.receiptAggregateVouchers.findAll({
+      where: { redeemedAt: null, final: false, last: true },
+    })
+  }
+
+  public async findTransactionsForRavs(
+    ravs: ReceiptAggregateVoucher[],
+  ): Promise<TapSubgraphResponse> {
+    const response = await this.tapSubgraph!.query<TapSubgraphResponse>(
+      gql`
+        query transactions(
+          $unfinalizedRavsAllocationIds: [String!]!
+          $senderAddresses: [String!]!
+        ) {
+          transactions(
+            where: {
+              type: "redeem"
+              allocationID_in: $unfinalizedRavsAllocationIds
+              _sender: { id_in: $senderAddresses }
+            }
+          ) {
+            allocationID
+            timestamp
+            sender {
+              id
+            }
+          }
+          _meta {
+            block {
+              timestamp
+            }
+          }
+        }
+      `,
+      {
+        unfinalizedRavsAllocationIds: ravs.map((value) =>
+          toAddress(value.allocationId).toLowerCase(),
+        ),
+        senderAddresses: ravs.map((value) =>
+          toAddress(value.senderAddress).toLowerCase(),
+        ),
+      },
+    )
+    return response.data!
+  }
+
+  // for every allocation_id of this list that contains the redeemedAt less than the current
+  // subgraph timestamp
+  private async revertRavsRedeemed(
+    ravsNotRedeemed: { allocationId: Address; senderAddress: Address }[],
+    blockTimestampSecs: number,
+  ) {
+    if (ravsNotRedeemed.length == 0) {
+      return
+    }
+    const query = `
         UPDATE scalar_tap_ravs
         SET redeemed_at = NULL
-        WHERE allocation_id IN ('${nonRedeemedAllocationIDsTrunc.join("', '")}')
+        WHERE (allocation_id::char(40), sender_address::char(40)) IN (VALUES ${ravsNotRedeemed
+          .map(
+            (rav) =>
+              `('${rav.allocationId
+                .toString()
+                .toLowerCase()
+                .replace('0x', '')}'::char(40), '${rav.senderAddress
+                .toString()
+                .toLowerCase()
+                .replace('0x', '')}'::char(40))`,
+          )
+          .join(', ')})
+        AND redeemed_at < to_timestamp(${blockTimestampSecs})
       `
-      await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
-      // // Update those that redeemed_at is older than 60 minutes and mark as final
-      query = `
+    await this.models.receiptAggregateVouchers.sequelize?.query(query)
+  }
+
+  // we use blockTimestamp instead of NOW() because we must be older than
+  // the subgraph timestamp
+  private async markRavsAsFinal(blockTimestampSecs: number) {
+    const query = `
         UPDATE scalar_tap_ravs
         SET final = TRUE
-        WHERE last = TRUE AND final = FALSE 
-        AND redeemed_at < NOW() - INTERVAL '${this.finalityTime} second'
+        WHERE last = TRUE 
+        AND final = FALSE 
         AND redeemed_at IS NOT NULL
+        AND redeemed_at < to_timestamp(${blockTimestampSecs - this.finalityTime})
       `
-      await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
-      return await this.models.receiptAggregateVouchers.findAll({
-        where: { redeemedAt: null, final: false, last: true },
-      })
-    }
-    return []
+    await this.models.receiptAggregateVouchers.sequelize?.query(query)
   }
 
   private encodeReceiptBatch(receipts: AllocationReceipt[]): BytesWriter {
@@ -942,18 +1047,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         )
 
         try {
-          const addressWithoutPrefix = rav.allocationId.toLowerCase().replace('0x', '')
-          // WE use sql directly due to a bug in sequelize update:
-          // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
-          const query = `
-            UPDATE scalar_tap_ravs
-            SET redeemed_at = NOW()
-            WHERE allocation_id = '${addressWithoutPrefix}'
-          `
-          await this.models.receiptAggregateVouchers.sequelize?.query(query)
-
+          await this.markRavAsRedeemed(toAddress(rav.allocationId), sender)
           logger.info(
-            `Updated receipt aggregate vouchers table with redeemed_at for allocation ${addressWithoutPrefix}`,
+            `Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
           )
         } catch (err) {
           logger.warn(
@@ -1003,6 +1099,29 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     signedRavs.map((signedRav) =>
       this.metrics.ravRedeemsSuccess.inc({ allocation: signedRav.allocation.id }),
     )
+  }
+
+  private async markRavAsRedeemed(
+    allocationId: Address,
+    senderAddress: Address,
+    timestamp?: number,
+  ) {
+    // WE use sql directly due to a bug in sequelize update:
+    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+    const query = `
+            UPDATE scalar_tap_ravs
+            SET redeemed_at = ${timestamp ? timestamp : 'NOW()'}
+            WHERE allocation_id = '${allocationId
+              .toString()
+              .toLowerCase()
+              .replace('0x', '')}'
+            AND sender_address = '${senderAddress
+              .toString()
+              .toLowerCase()
+              .replace('0x', '')}'
+          `
+
+    await this.models.receiptAggregateVouchers.sequelize?.query(query)
   }
 
   public async queuePendingReceiptsFromDatabase(): Promise<void> {
