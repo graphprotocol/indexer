@@ -4,9 +4,10 @@ import {
   GraphNode,
   Network,
   QueryFeeModels,
-  QueryResult,
+  TapSubgraphResponse,
 } from '@graphprotocol/indexer-common'
 import {
+  Address,
   connectDatabase,
   createLogger,
   createMetrics,
@@ -15,7 +16,7 @@ import {
   toAddress,
 } from '@graphprotocol/common-ts'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
-import { Sequelize } from 'sequelize'
+import { Op, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
 
 // Make global Jest variables available
@@ -63,8 +64,17 @@ const setup = async () => {
   receiptCollector = network.receiptCollector
 }
 
+const ALLOCATION_ID_1 = toAddress('edde47df40c29949a75a6693c77834c00b8ad626')
+const ALLOCATION_ID_2 = toAddress('dead47df40c29949a75a6693c77834c00b8ad624')
+const ALLOCATION_ID_3 = toAddress('6aea8894b5ab5a36cdc2d8be9290046801dd5fed')
+
+const SENDER_ADDRESS_1 = toAddress('ffcf8fdee72ac11b5c542428b35eef5769c409f0')
+const SENDER_ADDRESS_2 = toAddress('dead47df40c29949a75a6693c77834c00b8ad624')
+const SENDER_ADDRESS_3 = toAddress('6aea8894b5ab5a36cdc2d8be9290046801dd5fed')
+
+// last rav not redeemed
 const rav = {
-  allocationId: toAddress('edde47df40c29949a75a6693c77834c00b8ad626'),
+  allocationId: ALLOCATION_ID_1,
   last: true,
   final: false,
   timestampNs: 1709067401177959664n,
@@ -73,15 +83,31 @@ const rav = {
     'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
     'hex',
   ),
-  senderAddress: toAddress('ffcf8fdee72ac11b5c542428b35eef5769c409f0'),
+  senderAddress: SENDER_ADDRESS_1,
   redeemedAt: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
 }
+
+const SIGNATURE = Buffer.from(
+  'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
+  'hex',
+)
 
 const setupEach = async () => {
   sequelize = await sequelize.sync({ force: true })
   await queryFeeModels.receiptAggregateVouchers.create(rav)
+
+  jest
+    .spyOn(receiptCollector, 'findTransactionsForRavs')
+    .mockImplementation(async (): Promise<TapSubgraphResponse> => {
+      return {
+        transactions: [],
+        _meta: {
+          block: {
+            timestamp: Date.now(),
+          },
+        },
+      }
+    })
 }
 const teardownEach = async () => {
   // Clear out query fee model tables
@@ -125,25 +151,209 @@ describe('TAP', () => {
     timeout,
   )
 
+  test('should revert the rav request', async () => {
+    // we have a redeemed non-final rav in our database
+    const nowSecs = Math.floor(Date.now() / 1000)
+    // redeemed rav but non-final
+    const ravList = [
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_1,
+        new Date((nowSecs - 1) * 1000),
+      ),
+      createLastNonFinalRav(ALLOCATION_ID_3, SENDER_ADDRESS_2, new Date(nowSecs * 1000)),
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_3,
+        new Date((nowSecs + 1) * 1000),
+      ),
+    ]
+
+    await queryFeeModels.receiptAggregateVouchers.bulkCreate(ravList)
+
+    // it's not showing on the subgraph on a specific point in time
+    // the timestamp of the subgraph is greater than the receipt id
+    // should revert the rav
+    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs - 1)
+
+    let lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: {
+        last: true,
+        final: false,
+        redeemedAt: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    expect(lastRedeemedRavs).toEqual([
+      expect.objectContaining(ravList[0]),
+      expect.objectContaining(ravList[1]),
+      expect.objectContaining(ravList[2]),
+    ])
+
+    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs)
+
+    lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: {
+        last: true,
+        final: false,
+        redeemedAt: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    expect(lastRedeemedRavs).toEqual([
+      expect.objectContaining(ravList[1]),
+      expect.objectContaining(ravList[2]),
+    ])
+
+    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs + 1)
+
+    lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: {
+        last: true,
+        final: false,
+        redeemedAt: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    expect(lastRedeemedRavs).toEqual([expect.objectContaining(ravList[2])])
+
+    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs + 2)
+
+    lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: {
+        last: true,
+        final: false,
+        redeemedAt: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    expect(lastRedeemedRavs).toEqual([])
+  })
+
+  test('should not revert the rav request, allocation_id not in the list ', async () => {
+    // we have a redeemed non-final rav in our database
+    const nowSecs = Math.floor(Date.now() / 1000)
+    // redeemed rav but non-final
+    const ravList = [
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_1,
+        new Date((nowSecs - 1) * 1000),
+      ),
+      createLastNonFinalRav(ALLOCATION_ID_3, SENDER_ADDRESS_2, new Date(nowSecs * 1000)),
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_3,
+        new Date((nowSecs + 1) * 1000),
+      ),
+    ]
+
+    await queryFeeModels.receiptAggregateVouchers.bulkCreate(ravList)
+
+    // it's showing on the subgraph on a specific point in time
+    await receiptCollector['revertRavsRedeemed'](
+      [
+        {
+          allocationId: ALLOCATION_ID_1,
+          senderAddress: SENDER_ADDRESS_1,
+        },
+      ],
+      nowSecs + 2,
+    )
+    // the timestamp of the subgraph is greater than the receipt id
+    // should not revert the rav
+
+    const lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: {
+        last: true,
+        final: false,
+        redeemedAt: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    expect(lastRedeemedRavs).toEqual([
+      expect.objectContaining(ravList[0]),
+      expect.objectContaining(ravList[1]),
+      expect.objectContaining(ravList[2]),
+    ])
+  })
+
+  test('should mark ravs as final via `markRavsAsFinal`', async () => {
+    // we have a redeemed non-final rav in our database
+    const nowSecs = Math.floor(Date.now() / 1000)
+    // redeemed rav but non-final
+    const default_finality_time = 3600
+    const ravList = [
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_1,
+        new Date((nowSecs - default_finality_time - 1) * 1000),
+      ),
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_2,
+        new Date((nowSecs - default_finality_time) * 1000),
+      ),
+      createLastNonFinalRav(
+        ALLOCATION_ID_3,
+        SENDER_ADDRESS_3,
+        new Date((nowSecs - default_finality_time + 1) * 1000),
+      ),
+    ]
+    await queryFeeModels.receiptAggregateVouchers.bulkCreate(ravList)
+
+    await receiptCollector['markRavsAsFinal'](nowSecs - 1)
+
+    let finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: { last: true, final: true },
+    })
+
+    expect(finalRavs).toEqual([])
+
+    await receiptCollector['markRavsAsFinal'](nowSecs)
+    finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: { last: true, final: true },
+    })
+    expect(finalRavs).toEqual([expect.objectContaining({ ...ravList[0], final: true })])
+
+    await receiptCollector['markRavsAsFinal'](nowSecs + 1)
+    finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: { last: true, final: true },
+    })
+    expect(finalRavs).toEqual([
+      expect.objectContaining({ ...ravList[0], final: true }),
+      expect.objectContaining({ ...ravList[1], final: true }),
+    ])
+
+    await receiptCollector['markRavsAsFinal'](nowSecs + 2)
+    finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
+      where: { last: true, final: true },
+    })
+    expect(finalRavs).toEqual([
+      expect.objectContaining({ ...ravList[0], final: true }),
+      expect.objectContaining({ ...ravList[1], final: true }),
+      expect.objectContaining({ ...ravList[2], final: true }),
+    ])
+  })
   test(
     'test ignore final rav',
     async () => {
       const date = new Date()
       const redeemDate = date.setHours(date.getHours() - 2)
       const rav2 = {
-        allocationId: toAddress('dead47df40c29949a75a6693c77834c00b8ad624'),
+        allocationId: ALLOCATION_ID_2,
         last: true,
         final: true,
         timestampNs: 1709067401177959664n,
         valueAggregate: 20000000000000n,
-        signature: Buffer.from(
-          'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
-          'hex',
-        ),
-        senderAddress: toAddress('deadbeefcafedeadceefcafedeadbeefcafedead'),
+        signature: SIGNATURE,
+        senderAddress: SENDER_ADDRESS_3,
         redeemedAt: new Date(redeemDate),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
       const ravs = await receiptCollector['pendingRAVs']()
@@ -171,23 +381,21 @@ describe('TAP', () => {
       const date = new Date()
       const redeemDate = date.setHours(date.getHours() - 2)
       const rav2 = {
-        allocationId: toAddress('dead47df40c29949a75a6693c77834c00b8ad624'),
+        allocationId: ALLOCATION_ID_2,
         last: true,
         final: false,
         timestampNs: 1709067401177959664n,
         valueAggregate: 20000000000000n,
-        signature: Buffer.from(
-          'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
-          'hex',
-        ),
-        senderAddress: toAddress('deadbeefcafedeadceefcafedeadbeefcafedead'),
+        signature: SIGNATURE,
+        senderAddress: SENDER_ADDRESS_3,
         redeemedAt: new Date(redeemDate),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
-      const ravs = await receiptCollector['pendingRAVs']()
+
+      let ravs = await receiptCollector['pendingRAVs']()
+      ravs = await receiptCollector['filterAndUpdateRavs'](ravs)
       // The point is it will only return the rav that is not final
+
       expect(ravs).toEqual([
         expect.objectContaining({
           allocationId: rav.allocationId,
@@ -245,68 +453,72 @@ describe('TAP', () => {
   )
 
   test(
-    'test mark final rav',
+    'test mark final rav via filterAndUpdateRavs',
     async () => {
+      const date = new Date()
+      const redeemDate = date.setHours(date.getHours() - 2)
+      const redeemDateSecs = Math.floor(redeemDate / 1000)
+      const nowSecs = Math.floor(Date.now() / 1000)
       const anotherFuncSpy = jest
-        .spyOn(receiptCollector.tapSubgraph!, 'query')
-        .mockImplementation(async (): Promise<QueryResult<unknown>> => {
+        .spyOn(receiptCollector, 'findTransactionsForRavs')
+        .mockImplementation(async (): Promise<TapSubgraphResponse> => {
           return {
-            data: {
-              transactions: [
-                { allocationID: '0xdead47df40c29949a75a6693c77834c00b8ad624' },
-              ],
+            transactions: [
+              {
+                allocationID: ALLOCATION_ID_2.toString().toLowerCase().replace('0x', ''),
+                timestamp: redeemDateSecs,
+                sender: {
+                  id: SENDER_ADDRESS_3.toString().toLowerCase().replace('0x', ''),
+                },
+              },
+            ],
+            _meta: {
+              block: {
+                timestamp: nowSecs,
+              },
             },
           }
         })
 
-      const date = new Date()
-      const redeemDate = date.setHours(date.getHours() - 2)
       const rav2 = {
-        allocationId: toAddress('dead47df40c29949a75a6693c77834c00b8ad624'),
+        allocationId: ALLOCATION_ID_2,
         last: true,
         final: false,
         timestampNs: 1709067401177959664n,
         valueAggregate: 20000000000000n,
-        signature: Buffer.from(
-          'ede3f7ca5ace3629009f190bb51271f30c1aeaf565f82c25c447c7c9501f3ff31b628efcaf69138bf12960dd663924a692ee91f401785901848d8d7a639003ad1b',
-          'hex',
-        ),
-        senderAddress: toAddress('deadbeefcafedeadceefcafedeadbeefcafedead'),
+        signature: SIGNATURE,
+        senderAddress: SENDER_ADDRESS_3,
         redeemedAt: new Date(redeemDate),
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
-      const ravs = await receiptCollector['pendingRAVs']()
+      let ravs = await receiptCollector['pendingRAVs']()
+      ravs = await receiptCollector['filterAndUpdateRavs'](ravs)
       expect(anotherFuncSpy).toBeCalled()
       const finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
         where: { last: true, final: true },
       })
       //Final rav wont be returned here
-      expect(ravs).toEqual([
-        expect.objectContaining({
-          allocationId: rav.allocationId,
-          final: rav.final,
-          last: rav.last,
-          senderAddress: rav.senderAddress,
-          signature: rav.signature,
-          timestampNs: rav.timestampNs,
-          valueAggregate: rav.valueAggregate,
-        }),
-      ])
+      expect(ravs).toEqual([expect.objectContaining(rav)])
       // Expect final rav to be returned here
-      expect(finalRavs).toEqual([
-        expect.objectContaining({
-          allocationId: rav2.allocationId,
-          final: true,
-          last: rav2.last,
-          senderAddress: rav2.senderAddress,
-          signature: rav2.signature,
-          timestampNs: rav2.timestampNs,
-          valueAggregate: rav2.valueAggregate,
-        }),
-      ])
+      expect(finalRavs).toEqual([expect.objectContaining({ ...rav2, final: true })])
     },
     timeout,
   )
 })
+
+function createLastNonFinalRav(
+  allocationId: Address,
+  senderAddress: Address,
+  redeemedAt: Date,
+) {
+  return {
+    allocationId,
+    last: true,
+    final: false,
+    timestampNs: 1709067401177959664n,
+    valueAggregate: 20000000000000n,
+    signature: SIGNATURE,
+    senderAddress,
+    redeemedAt,
+  }
+}
