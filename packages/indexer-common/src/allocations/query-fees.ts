@@ -690,7 +690,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
         ),
       },
     )
-    return response.data!
+    if (!response.data) {
+      throw `There was an error while querying Tap Subgraph. Errors: ${response.error}`
+    }
+
+    return response.data
   }
 
   // for every allocation_id of this list that contains the redeemedAt less than the current
