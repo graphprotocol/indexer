@@ -726,6 +726,12 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       `
 
     await this.models.receiptAggregateVouchers.sequelize?.query(query)
+
+    this.logger.warn(
+      `Reverted Redeemed RAVs: ${ravsNotRedeemed
+        .map((rav) => `(${rav.senderAddress},${rav.allocationId})`)
+        .join(', ')}`,
+    )
   }
 
   // we use blockTimestamp instead of NOW() because we must be older than
