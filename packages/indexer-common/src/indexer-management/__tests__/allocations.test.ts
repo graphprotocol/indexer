@@ -144,7 +144,9 @@ describe('Allocation Manager', () => {
 
     // Unallocate test action
     expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
+    expect(unallocate.allocates).toStrictEqual(parseGRT('0'))
     expect(unallocate.allocates.isZero()).toBeTruthy()
+    expect(unallocate.rewards).toStrictEqual(parseGRT('0'))
     expect(unallocate.rewards.isZero()).toBeFalsy()
     expect(unallocate.unallocates).toStrictEqual(parseGRT('10000'))
     expect(unallocate.balance).toStrictEqual(
