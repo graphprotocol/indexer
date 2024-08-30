@@ -151,7 +151,7 @@ describe('TAP', () => {
     timeout,
   )
 
-  test('should revert the rav request', async () => {
+  test('`revertRavsRedeemed` should revert RAV redeem status in DB only if older than subgraph last block', async () => {
     // we have a redeemed non-final rav in our database
     const nowSecs = Math.floor(Date.now() / 1000)
     // redeemed rav but non-final
@@ -234,10 +234,8 @@ describe('TAP', () => {
     expect(lastRedeemedRavs).toEqual([])
   })
 
-  test('should not revert the rav request, allocation_id not in the list ', async () => {
-    // we have a redeemed non-final rav in our database
+  test('revertRavsRedeemed` should not revert the RAV redeem status in DB if (allocation, sender) not in the revert list', async () => {
     const nowSecs = Math.floor(Date.now() / 1000)
-    // redeemed rav but non-final
     const ravList = [
       createLastNonFinalRav(
         ALLOCATION_ID_3,
@@ -453,7 +451,7 @@ describe('TAP', () => {
   )
 
   test(
-    'test mark final rav via filterAndUpdateRavs',
+    'test mark final rav via `filterAndUpdateRavs`',
     async () => {
       const date = new Date()
       const redeemDate = date.setHours(date.getHours() - 2)

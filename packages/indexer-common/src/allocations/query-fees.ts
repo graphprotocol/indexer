@@ -198,7 +198,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       collector.startRAVProcessing()
     } else {
       collector.logger.info(`RAV process not initiated. 
-        Tap Contracts: ${!!collector.tapSubgraph}. 
+        Tap Contracts: ${!!collector.tapContracts}. 
         Tap Subgraph: ${!!collector.tapSubgraph}.`)
     }
     await collector.queuePendingReceiptsFromDatabase()
@@ -594,13 +594,13 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }
 
   private async filterAndUpdateRavs(
-    ravLastNotFinal: ReceiptAggregateVoucher[],
+    ravsLastNotFinal: ReceiptAggregateVoucher[],
   ): Promise<ReceiptAggregateVoucher[]> {
-    const tapSubgraphResponse = await this.findTransactionsForRavs(ravLastNotFinal)
+    const tapSubgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
     const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions.filter(
       (tx) =>
-        !ravLastNotFinal.find(
+        !ravsLastNotFinal.find(
           (rav) =>
             toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
             toAddress(rav.allocationId) === toAddress(tx.allocationID),
@@ -620,7 +620,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
 
     // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
-    const nonRedeemedRavs = ravLastNotFinal
+    const nonRedeemedRavs = ravsLastNotFinal
       .filter((rav) => !!rav.redeemedAt)
       .filter(
         (rav) =>
@@ -638,8 +638,6 @@ export class AllocationReceiptCollector implements ReceiptCollector {
 
     // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
     // To handle a chain reorg that "unredeemed" the RAVs.
-    // WE use sql directly due to a bug in sequelize update:
-    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
     if (nonRedeemedRavs.length > 0) {
       await this.revertRavsRedeemed(nonRedeemedRavs, blockTimestampSecs)
     }
@@ -706,6 +704,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     if (ravsNotRedeemed.length == 0) {
       return
     }
+
+    // WE use sql directly due to a bug in sequelize update:
+    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
     const query = `
         UPDATE scalar_tap_ravs
         SET redeemed_at = NULL
