@@ -665,7 +665,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             where: {
               type: "redeem"
               allocationID_in: $unfinalizedRavsAllocationIds
-              _sender: { id_in: $senderAddresses }
+              sender_: { id_in: $senderAddresses }
             }
           ) {
             allocationID
