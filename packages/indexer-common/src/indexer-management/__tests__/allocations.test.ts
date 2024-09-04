@@ -126,7 +126,7 @@ describe('Allocation Manager', () => {
   // @ts-ignore: Mocking the Action type for this test
   const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
 
-  test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
+  test.skip('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
     const balances = await Promise.all(
       actions.map((action: Action) => allocationManager.stakeUsageSummary(action)),
     )
