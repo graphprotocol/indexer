@@ -7,24 +7,20 @@ import path from 'path'
 import { Sequelize } from 'sequelize'
 import stripAnsi from 'strip-ansi'
 import {
-  ActionStatus,
-  ActionType,
   CostModelVariables,
-  createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
-  IndexerManagementClient,
   IndexerManagementDefaults,
   IndexerManagementModels,
-  IndexingDecisionBasis,
   loadTestYamlConfig,
   MultiNetworks,
   Network,
   QueryFeeModels,
   specification,
-  SubgraphIdentifierType,
+  IndexerManagementYogaClient,
+  createIndexerManagementYogaClient,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -49,7 +45,7 @@ let sequelize: Sequelize
 let models: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
-let indexerManagementClient: IndexerManagementClient
+let indexerManagementClient: IndexerManagementYogaClient
 let server: http.Server
 let sockets: Socket[] = []
 let metrics: Metrics
@@ -117,7 +113,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     },
   }
 
-  indexerManagementClient = await createIndexerManagementClient({
+  indexerManagementClient = await createIndexerManagementYogaClient({
     models,
     graphNode,
     logger,
@@ -168,9 +164,9 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 1,
       identifier: 'global',
-      identifierType: SubgraphIdentifierType.GROUP,
+      identifierType: 'group',
       protocolNetwork: 'eip155:421614',
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: 'rules',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -180,9 +176,9 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 2,
       identifier: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: 'deployment',
       protocolNetwork: 'eip155:421614',
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: 'rules',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -190,9 +186,9 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 3,
       identifier: 'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      identifierType: 'deployment',
       protocolNetwork: 'eip155:421614',
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: 'offchain',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -200,9 +196,9 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 4,
       identifier: '0x0000000000000000000000000000000000000000-0',
-      identifierType: SubgraphIdentifierType.SUBGRAPH,
+      identifierType: 'subgraph',
       protocolNetwork: 'eip155:421614',
-      decisionBasis: IndexingDecisionBasis.RULES,
+      decisionBasis: 'rules',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -211,9 +207,9 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 5,
       identifier: '0x0000000000000000000000000000000000000000-1',
-      identifierType: SubgraphIdentifierType.SUBGRAPH,
+      identifierType: 'subgraph',
       protocolNetwork: 'eip155:421614',
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: 'offchain',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -221,11 +217,11 @@ export const seedIndexingRules = async () => {
     await models.IndexingRule.create({
       id: 6,
       identifier: '0x0000000000000000000000000000000000000000-2',
-      identifierType: SubgraphIdentifierType.SUBGRAPH,
+      identifierType: 'subgraph',
       protocolNetwork: 'eip155:421614',
       allocationAmount: parseGRT('1000').toString(),
       allocationLifetime: 12,
-      decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+      decisionBasis: 'offchain',
       requireSupported: true,
       safety: true,
       autoRenewal: true,
@@ -279,8 +275,8 @@ export const seedActions = async () => {
     logger.debug('Seed Actions')
     await models.Action.create({
       id: 1,
-      type: ActionType.ALLOCATE,
-      status: ActionStatus.SUCCESS,
+      type: 'allocate',
+      status: 'success',
       deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       source: 'test',
       reason: 'test',
@@ -288,8 +284,8 @@ export const seedActions = async () => {
     })
     await models.Action.create({
       id: 2,
-      type: ActionType.UNALLOCATE,
-      status: ActionStatus.FAILED,
+      type: 'unallocate',
+      status: 'failed',
       deploymentID: 'QmSrf6VVPyg9NGdS1xhLmoosk3qZQaWhfoSTHE2H7sht6Q',
       source: 'test',
       reason: 'test',

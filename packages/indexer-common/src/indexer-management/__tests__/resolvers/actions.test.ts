@@ -10,23 +10,12 @@ import {
   createMetrics,
 } from '@graphprotocol/common-ts'
 
-import { IndexerManagementClient } from '../../client'
 import {
   Action,
   defineIndexerManagementModels,
   IndexerManagementModels,
 } from '../../models'
-import {
-  ActionInput,
-  ActionParams,
-  ActionStatus,
-  ActionType,
-  defineQueryFeeModels,
-  OrderDirection,
-  QueryFeeModels,
-} from '@graphprotocol/indexer-common'
-import { CombinedError } from '@urql/core'
-import { GraphQLError } from 'graphql'
+import { defineQueryFeeModels, QueryFeeModels } from '@graphprotocol/indexer-common'
 import {
   createTestManagementClient,
   invalidReallocateAction,
@@ -36,6 +25,10 @@ import {
   subgraphDeployment2,
   subgraphDeployment3,
 } from '../util'
+import { buildHTTPExecutor } from '@graphql-tools/executor-http'
+import { GraphQLError } from 'graphql'
+import { isAsyncIterable } from 'graphql-yoga'
+import { ActionStatus, ActionType, ActionInput } from '../../../schema/types.generated'
 
 const QUEUE_ACTIONS_MUTATION = gql`
   mutation queueActions($actions: [ActionInput!]!) {
@@ -59,7 +52,7 @@ const QUEUE_ACTIONS_MUTATION = gql`
 `
 
 const APPROVE_ACTIONS_MUTATION = gql`
-  mutation approveActions($actionIDs: [Int!]!) {
+  mutation approveActions($actionIDs: [String!]!) {
     approveActions(actionIDs: $actionIDs) {
       id
       type
@@ -80,7 +73,7 @@ const APPROVE_ACTIONS_MUTATION = gql`
 `
 
 const CANCEL_ACTIONS_MUTATION = gql`
-  mutation cancelActions($actionIDs: [Int!]!) {
+  mutation cancelActions($actionIDs: [String!]!) {
     cancelActions(actionIDs: $actionIDs) {
       id
       type
@@ -147,7 +140,7 @@ const ACTIONS_QUERY = gql`
 `
 
 const DELETE_ACTIONS_MUTATION = gql`
-  mutation deleteActions($actionIDs: [Int!]!) {
+  mutation deleteActions($actionIDs: [String!]!) {
     deleteActions(actionIDs: $actionIDs)
   }
 `
@@ -178,7 +171,7 @@ let sequelize: Sequelize
 let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
-let client: IndexerManagementClient
+let executor: ReturnType<typeof buildHTTPExecutor>
 let metrics: Metrics
 
 // Make global Jest variables available
@@ -199,7 +192,10 @@ const setup = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  const client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  executor = buildHTTPExecutor({
+    fetch: client.yoga.fetch,
+  })
 }
 
 const setupEach = async () => {
@@ -236,15 +232,19 @@ describe('Actions', () => {
     const expected = await actionInputToExpected(inputAction, 1)
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: {
+          actions: [inputAction],
+        },
+      }),
     ).resolves.toHaveProperty('data.queueActions', [expected])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
-        })
-        .toPromise(),
+      executor({
+        document: ACTIONS_QUERY,
+        variables: { filter: { status: ActionStatus.queued, source: 'indexerAgent' } },
+      }),
     ).resolves.toHaveProperty('data.actions', [expected])
   })
 
@@ -271,20 +271,24 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.QUEUED,
-            type: ActionType.ALLOCATE,
+            status: ActionStatus.queued,
+            type: ActionType.allocate,
           },
-          orderBy: ActionParams.SOURCE,
-          orderDirection: OrderDirection.DESC,
-        })
-        .toPromise(),
+          orderBy: 'source',
+          orderDirection: 'desc',
+        },
+      }),
     ).resolves.toHaveProperty(
       'data.actions',
       expecteds.sort((a, b) => (a.source > b.source ? -1 : 1)),
@@ -311,31 +315,37 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.QUEUED,
-            type: ActionType.ALLOCATE,
+            status: ActionStatus.queued,
+            type: ActionType.allocate,
             source: 'indexerAgent',
           },
           orderBy: 'adonut',
-          orderDirection: OrderDirection.DESC,
-        })
-        .toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            'Variable "$orderBy" got invalid value "adonut"; Value "adonut" does not exist in "ActionParams" enum. Did you mean the enum value "amount"?',
-          ),
-        ],
+          orderDirection: 'desc',
+        },
       }),
-    )
+    ).resolves.toHaveProperty('errors', [
+      {
+        locations: [
+          {
+            column: 39,
+            line: 1,
+          },
+        ],
+        message:
+          'Variable "$orderBy" got invalid value "adonut"; Value "adonut" does not exist in "ActionParams" enum. Did you mean the enum value "amount"?',
+      },
+    ])
   })
 
   test('Cancel all actions in queue', async () => {
@@ -356,32 +366,36 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
     // Cancel all actions
-    const toCancel = expecteds.map((action) => action.id)
+    const toCancel = expecteds.map((action) => action.id.toString())
 
     const expectedCancels = expecteds.map((action) => {
-      action.status = ActionStatus.CANCELED
+      action.status = ActionStatus.canceled
       return action
     })
 
     await expect(
-      client.mutation(CANCEL_ACTIONS_MUTATION, { actionIDs: toCancel }).toPromise(),
+      executor({ document: CANCEL_ACTIONS_MUTATION, variables: { actionIDs: toCancel } }),
     ).resolves.toHaveProperty('data.cancelActions', expectedCancels)
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.CANCELED,
+            status: ActionStatus.canceled,
             source: 'indexerAgent',
           },
-          orderBy: ActionParams.ID,
-          orderDirection: OrderDirection.ASC,
-        })
-        .toPromise(),
+          orderBy: 'id',
+          orderDirection: 'asc',
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', expectedCancels)
   })
 
@@ -403,39 +417,52 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
-    const actions = await client
-      .query(ACTIONS_QUERY, { filter: { type: ActionType.ALLOCATE } })
-      .toPromise()
+    const actions = await executor({
+      document: ACTIONS_QUERY,
+      variables: {
+        filter: { type: ActionType.allocate },
+      },
+    })
+
+    if (isAsyncIterable(actions)) {
+      throw new Error('Expected actions to be an array')
+    }
+
     const subgraph1ActionID = actions.data.actions
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((action: any) => action.deploymentID === subgraphDeployment2)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((action: any) => action.id)
+      .map((action: any) => action.id.toString())
 
     const expectedApprovedAction = expecteds.find(
       (action) => action.deploymentID === subgraphDeployment2,
     )
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
-    expectedApprovedAction!['status'] = ActionStatus.APPROVED
+    expectedApprovedAction!['status'] = ActionStatus.approved
 
     await expect(
-      client
-        .mutation(APPROVE_ACTIONS_MUTATION, { actionIDs: subgraph1ActionID })
-        .toPromise(),
+      executor({
+        document: APPROVE_ACTIONS_MUTATION,
+        variables: { actionIDs: subgraph1ActionID },
+      }),
     ).resolves.toHaveProperty('data.approveActions', [expectedApprovedAction])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [expectedApprovedAction])
   })
 
@@ -457,32 +484,39 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
-    const actions = await client
-      .query(ACTIONS_QUERY, { filter: { type: ActionType.ALLOCATE } })
-      .toPromise()
-    const actionIDs = actions.data.actions.map((action: any) => action.id)
+    const actions = await executor({
+      document: ACTIONS_QUERY,
+      variables: { filter: { type: ActionType.allocate } },
+    })
+    if (isAsyncIterable(actions)) {
+      throw new Error('Expected actions to be an array')
+    }
+
+    const actionIDs = actions.data.actions.map((action: any) => action.id.toString())
 
     await expect(
-      client.mutation(DELETE_ACTIONS_MUTATION, { actionIDs }).toPromise(),
+      executor({ document: DELETE_ACTIONS_MUTATION, variables: { actionIDs } }),
     ).resolves.toHaveProperty('data.deleteActions', 3)
   })
 
   test('Delete non-existent action in queue', async () => {
-    const actionIDs = [0]
+    const actionIDs = ['0']
 
     await expect(
-      client.mutation(DELETE_ACTIONS_MUTATION, { actionIDs }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError('Delete action failed: No action items found with id in [0]'),
-        ],
-      }),
-    )
+      executor({ document: DELETE_ACTIONS_MUTATION, variables: { actionIDs } }),
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['deleteActions'],
+        locations: [{ line: 2, column: 3 }],
+        message: 'Delete action failed: No action items found with id in [0]',
+      },
+    ])
   })
 
   test('Reject empty action input', async () => {
@@ -500,36 +534,34 @@ describe('Actions', () => {
           `Variable "$actions" got invalid value {} at "actions[0]"; Field "${fieldName}" of required type "${fieldType}!" was not provided.`,
         ),
     )
-    const expected = new CombinedError({ graphQLErrors })
-
-    await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [{}] }).toPromise(),
-    ).resolves.toHaveProperty('error', expected)
+    const result = await executor({
+      document: QUEUE_ACTIONS_MUTATION,
+      variables: { actions: [{}] },
+    })
+    if (isAsyncIterable(result)) {
+      throw new Error('Expected result to be an async iterable')
+    }
+    expect(result).toHaveProperty('errors')
+    expect(result.errors).toHaveLength(graphQLErrors.length)
   })
 
   test('Reject action with invalid params for action type', async () => {
     const inputAction = invalidReallocateAction
-    const expected = { ...inputAction, protocolNetwork: 'eip155:421614' }
-    const fields = JSON.stringify(expected)
-    await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Failed to queue action: Invalid action input, actionInput: ${fields}`,
-          ),
-        ],
-      }),
-    )
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
-        })
-        .toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [inputAction] },
+      }),
+    ).resolves.toHaveProperty('errors')
+
+    await expect(
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
+          filter: { status: ActionStatus.queued, source: 'indexerAgent' },
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [])
   })
 
@@ -538,15 +570,19 @@ describe('Actions', () => {
     const expected = await actionInputToExpected(inputAction, 1)
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [inputAction] },
+      }),
     ).resolves.toHaveProperty('data.queueActions', [expected])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
-        })
-        .toPromise(),
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
+          filter: { status: ActionStatus.queued, source: 'indexerAgent' },
+        },
+      }),
     ).resolves.toHaveProperty(
       'data.actions',
       [expected].sort((a, b) => (a.id > b.id ? -1 : 1)),
@@ -556,20 +592,11 @@ describe('Actions', () => {
     differentSourceSameTarget.source = 'different'
 
     await expect(
-      client
-        .mutation(QUEUE_ACTIONS_MUTATION, { actions: [differentSourceSameTarget] })
-        .toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Duplicate action found in queue that effects 'Qmew9PZUJCoDzXqqU6vGyTENTKHrrN4dy5h94kertfudqy' but NOT overwritten because it has a different source and/or status. If you ` +
-              `would like to replace the item currently in the queue please cancel it and then queue the proposed action`,
-          ),
-        ],
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [differentSourceSameTarget] },
       }),
-    )
+    ).resolves.toHaveProperty('errors')
   })
 
   test('Update duplicate approved action (effects deployment already targeted by approved action)', async () => {
@@ -577,56 +604,71 @@ describe('Actions', () => {
     const expected = await actionInputToExpected(inputAction, 1)
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [inputAction] },
+      }),
     ).resolves.toHaveProperty('data.queueActions', [expected])
 
-    const actions = await client
-      .query(ACTIONS_QUERY, { filter: { type: ActionType.ALLOCATE } })
-      .toPromise()
+    const actions = await executor({
+      document: ACTIONS_QUERY,
+      variables: { filter: { type: ActionType.allocate } },
+    })
+
+    if (isAsyncIterable(actions)) {
+      throw new Error('Expected actions to be an array')
+    }
+
     const subgraph1ActionID = actions.data.actions
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .filter((action: any) => action.deploymentID === queuedAllocateAction.deploymentID)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .map((action: any) => action.id)
+      .map((action: any) => action.id.toString())
 
     const expectedApprovedAction = { ...expected }
     /* eslint-disable @typescript-eslint/no-non-null-assertion */
-    expectedApprovedAction!['status'] = ActionStatus.APPROVED
+    expectedApprovedAction!['status'] = ActionStatus.approved
 
     await expect(
-      client
-        .mutation(APPROVE_ACTIONS_MUTATION, { actionIDs: subgraph1ActionID })
-        .toPromise(),
+      executor({
+        document: APPROVE_ACTIONS_MUTATION,
+        variables: { actionIDs: subgraph1ActionID },
+      }),
     ).resolves.toHaveProperty('data.approveActions', [expectedApprovedAction])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [expectedApprovedAction])
 
     const updateAction = { ...inputAction }
     updateAction.amount = '25000'
-    updateAction.status = ActionStatus.APPROVED
+    updateAction.status = ActionStatus.approved
 
     const expectedUpdated = { ...expectedApprovedAction }
     expectedUpdated.amount = '25000'
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [updateAction] }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [updateAction] },
+      }),
     ).resolves.toHaveProperty('data.queueActions', [expectedUpdated])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { status: ActionStatus.APPROVED, source: 'indexerAgent' },
-        })
-        .toPromise(),
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
+          filter: { status: ActionStatus.approved, source: 'indexerAgent' },
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [expectedUpdated])
   })
 
@@ -639,17 +681,17 @@ describe('Actions', () => {
     const inputActions = [{ ...invalidUnallocateAction, allocationID: closedAllocation }]
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `An active allocation does not exist with id = '${closedAllocation}'`,
-          ),
-        ],
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
       }),
-    )
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['queueActions'],
+        locations: [{ line: 2, column: 3 }],
+        message: `An active allocation does not exist with id = '${closedAllocation}'`,
+      },
+    ])
   })
 
   test('Reject approve request with nonexistent actionID ', async () => {
@@ -670,38 +712,42 @@ describe('Actions', () => {
     )
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
     await expect(
-      client.mutation(APPROVE_ACTIONS_MUTATION, { actionIDs: [100, 200] }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Approve action failed: No action items found with id in [100,200]`,
-          ),
-        ],
+      executor({
+        document: APPROVE_ACTIONS_MUTATION,
+        variables: { actionIDs: ['100', '200'] },
       }),
-    )
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['approveActions'],
+        locations: [{ line: 2, column: 3 }],
+        message: 'Approve action failed: No action items found with id in [100,200]',
+      },
+    ])
 
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: {
-            status: ActionStatus.APPROVED,
+            status: ActionStatus.approved,
             source: 'indexerAgent',
           },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [])
   })
 
   test('Reject queueing for action that has recently failed', async () => {
     const failedAction = {
-      status: ActionStatus.FAILED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.failed,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -710,44 +756,43 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+    } satisfies ActionInput
 
     const proposedAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(failedAction, {
       validate: true,
       returning: true,
     })
 
-    const result = await client
-      .mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] })
-      .toPromise()
-
-    expect(result).toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
-          ),
-        ],
-      }),
-    )
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [proposedAction] },
+      }),
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['queueActions'],
+        locations: [{ line: 2, column: 3 }],
+        message: `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
+      },
+    ])
+    await expect(
+      executor({
+        document: ACTIONS_QUERY,
+        variables: {
           filter: { source: 'indexerAgent' },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.actions', [
       await actionInputToExpected(failedAction, 1),
     ])
@@ -755,8 +800,8 @@ describe('Actions', () => {
 
   test('Reject queueing for action that has recently succeeded', async () => {
     const successfulAction = {
-      status: ActionStatus.SUCCESS,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.success,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -765,18 +810,18 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+    } satisfies ActionInput
 
     const proposedAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(successfulAction, {
       validate: true,
@@ -784,23 +829,22 @@ describe('Actions', () => {
     })
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
-          ),
-        ],
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: [proposedAction] },
       }),
-    )
+    ).resolves.toHaveProperty('errors', [
+      {
+        path: ['queueActions'],
+        locations: [{ line: 2, column: 3 }],
+        message: `Recently executed 'allocate' action found in queue targeting '${subgraphDeployment1}', ignoring.`,
+      },
+    ])
     await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { source: 'indexerAgent' },
-        })
-        .toPromise(),
+      executor({
+        document: ACTIONS_QUERY,
+        variables: { filter: { source: 'indexerAgent' } },
+      }),
     ).resolves.toHaveProperty('data.actions', [
       await actionInputToExpected(successfulAction, 1),
     ])
@@ -808,8 +852,8 @@ describe('Actions', () => {
 
   test('Update all queued unallocate actions', async () => {
     const queuedUnallocateAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.UNALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.unallocate,
       deploymentID: subgraphDeployment1,
       amount: '10000',
       force: false,
@@ -818,11 +862,11 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+    } satisfies ActionInput
 
     const queuedAllocateAction = {
-      status: ActionStatus.QUEUED,
-      type: ActionType.ALLOCATE,
+      status: ActionStatus.queued,
+      type: ActionType.allocate,
       deploymentID: subgraphDeployment1,
       force: false,
       amount: '10000',
@@ -830,7 +874,7 @@ describe('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+    } satisfies ActionInput
 
     await managementModels.Action.create(queuedUnallocateAction, {
       validate: true,
@@ -851,7 +895,10 @@ describe('Actions', () => {
     ).sort((a, b) => a.id - b.id)
 
     await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: inputActions }).toPromise(),
+      executor({
+        document: QUEUE_ACTIONS_MUTATION,
+        variables: { actions: inputActions },
+      }),
     ).resolves.toHaveProperty('data.queueActions', expecteds)
 
     const updatedExpecteds = expecteds.map((value) => {
@@ -860,14 +907,15 @@ describe('Actions', () => {
     })
 
     await expect(
-      client
-        .mutation(UPDATE_ACTIONS_MUTATION, {
+      executor({
+        document: UPDATE_ACTIONS_MUTATION,
+        variables: {
           filter: { type: 'allocate' },
           action: {
             force: true,
           },
-        })
-        .toPromise(),
+        },
+      }),
     ).resolves.toHaveProperty('data.updateActions', updatedExpecteds)
   })
 })

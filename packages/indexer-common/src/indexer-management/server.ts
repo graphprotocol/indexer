@@ -5,12 +5,12 @@ import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
 
-import { IndexerManagementClient } from './client'
 import http from 'http'
+import { IndexerManagementYogaClient } from './yoga'
 
 export interface CreateIndexerManagementServerOptions {
   logger: Logger
-  client: IndexerManagementClient
+  client: IndexerManagementYogaClient
   port: number
 }
 
@@ -41,17 +41,7 @@ export const createIndexerManagementServer = async ({
 
   // GraphQL endpoint
   app.post('/', bodyParser.json(), async (req, res) => {
-    const { query, variables } = req.body
-
-    const result = query.startsWith('mutation')
-      ? await client.mutation(query, variables).toPromise()
-      : await client.query(query, variables).toPromise()
-
-    res.status(200).send({
-      data: result.data,
-      errors: result.error ? result.error.graphQLErrors : null,
-      extensions: result.extensions,
-    })
+    return client.yoga.handle(req, res)
   })
 
   const server = app.listen(port, () => {

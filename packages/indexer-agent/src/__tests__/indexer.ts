@@ -7,9 +7,7 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 import {
-  createIndexerManagementClient,
   defineIndexerManagementModels,
-  IndexerManagementClient,
   IndexerManagementModels,
   GraphNode,
   Operator,
@@ -19,9 +17,9 @@ import {
   QueryFeeModels,
   defineQueryFeeModels,
   MultiNetworks,
+  createIndexerManagementYogaClient,
   loadTestYamlConfig,
 } from '@graphprotocol/indexer-common'
-import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
@@ -67,52 +65,15 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
   protocolNetwork: 'eip155:421614',
 }
 
-const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
-  keyof POIDisputeAttributes,
-  (x: never) => string | BigNumber | number | undefined
-> = {
-  allocationID: x => x,
-  subgraphDeploymentID: x => x,
-  allocationIndexer: x => x,
-  allocationAmount: x => x,
-  allocationProof: x => x,
-  closedEpoch: x => +x,
-  closedEpochStartBlockHash: x => x,
-  closedEpochStartBlockNumber: x => +x,
-  closedEpochReferenceProof: x => x,
-  previousEpochStartBlockHash: x => x,
-  previousEpochStartBlockNumber: x => +x,
-  previousEpochReferenceProof: x => x,
-  status: x => x,
-  protocolNetwork: x => x,
-}
-
-/**
- * Parses a POI dispute returned from the indexer management GraphQL
- * API into normalized form.
- */
-const disputeFromGraphQL = (
-  dispute: Partial<POIDisputeAttributes>,
-): POIDisputeAttributes => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const obj = {} as any
-  for (const [key, value] of Object.entries(dispute)) {
-    if (key === '__typename') {
-      continue
-    }
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    obj[key] = (POI_DISPUTES_CONVERTERS_FROM_GRAPHQL as any)[key](value)
-  }
-  return obj as POIDisputeAttributes
-}
-
 declare const __DATABASE__: never
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let logger: Logger
-let indexerManagementClient: IndexerManagementClient
+let indexerManagementClient: Awaited<
+  ReturnType<typeof createIndexerManagementYogaClient>
+>
 let graphNode: GraphNode
 let operator: Operator
 let metrics: Metrics
@@ -157,7 +118,7 @@ const setup = async () => {
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  indexerManagementClient = await createIndexerManagementClient({
+  indexerManagementClient = await createIndexerManagementYogaClient({
     models,
     graphNode,
     logger,
@@ -217,34 +178,34 @@ describe('Indexer tests', () => {
   test('Store POI Disputes is idempotent', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expectedResult = disputes.map((dispute: Record<string, any>) => {
-      return disputeFromGraphQL(dispute)
-    })
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
+    const result1 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result1).toEqual(disputes)
+    const result2 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result2).toEqual(disputes)
+    const result3 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result3).toEqual(disputes)
   })
 
   test('Fetch POIDisputes', async () => {
     const disputes: POIDisputeAttributes[] = [TEST_DISPUTE_1, TEST_DISPUTE_2]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const expectedResult = disputes.map((dispute: Record<string, any>) => {
-      return disputeFromGraphQL(dispute)
-    })
-    const expectedFilteredResult = [disputeFromGraphQL(TEST_DISPUTE_2)]
-    await expect(operator.storePoiDisputes(disputes)).resolves.toEqual(
-      expectedResult,
-    )
-    await expect(
-      operator.fetchPOIDisputes('potential', 205, 'eip155:421614'),
-    ).resolves.toEqual(expectedFilteredResult)
+    const result1 = (await operator.storePoiDisputes(disputes)).map(a => ({
+      ...a,
+      allocationAmount: a.allocationAmount.toString(),
+    }))
+    expect(result1).toEqual(disputes)
+    const result2 = (
+      await operator.fetchPOIDisputes('potential', 205, 'eip155:421614')
+    ).map(a => ({ ...a, allocationAmount: a.allocationAmount.toString() }))
+    expect(result2).toEqual([TEST_DISPUTE_2])
   })
 })
