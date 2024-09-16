@@ -71,15 +71,16 @@ option can be used.
 They are configured using a TOML file provided with `--config`. You should start with [the minimal config example](https://github.com/graphprotocol/indexer-rs/blob/main/config/minimal-config-example.toml). You can find the full config [here](https://github.com/graphprotocol/indexer-rs/blob/main/config/maximal-config-example.toml) and the default values 
 [here](https://github.com/graphprotocol/indexer-rs/blob/main/config/default_values.toml).
 
-| Variable                          | Value                                                                                                                   |
-| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `indexer.indexer_address`         | Ethereum address of testnet indexer                                                                                     |
-| `indexer.operator_mnemonic`       | Ethereum mnemonic for testnet operator                                                                                  |
-| `subgraphs.network.deployment_id` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                                                        |
-| `subgraphs.network.query_url`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
-| `subgraphs.escrow.deployment_id`  | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
-| `subgraphs.escrow.query_url`      | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
-| `tap.sender_aggregator_endpoints` | `0xC3dDf37906724732FfD748057FEBe23379b0710D = https://tap-aggregator.testnet.thegraph.com`                              |
+| Variable                               | Value                                                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `indexer.indexer_address`              | Ethereum address of testnet indexer                                                                                     |
+| `indexer.operator_mnemonic`            | Ethereum mnemonic for testnet operator                                                                                  |
+| `subgraphs.network.deployment_id`      | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                                                        |
+| `subgraphs.network.query_url`          | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
+| `subgraphs.escrow.deployment_id`       | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
+| `subgraphs.escrow.query_url`           | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
+| `blockchain.receipts_verifier_address` | `0xfC24cE7a4428A6B89B52645243662A02BA734ECF`                                                                            |
+| `tap.sender_aggregator_endpoints`      | `0xC3dDf37906724732FfD748057FEBe23379b0710D = https://tap-aggregator.testnet.thegraph.com`                              |
 
 Notes:
 - You can supply those nested values using environment variables as such: `indexer.indexer_address` -> `INDEXER_SERVICE_INDEXER__INDEXER_ADDRESS` (mind the double `_`)
