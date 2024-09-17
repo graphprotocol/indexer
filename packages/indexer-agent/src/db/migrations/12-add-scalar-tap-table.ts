@@ -115,10 +115,6 @@ export async function up({ context }: Context): Promise<void> {
         type: DataTypes.DECIMAL(20),
         allowNull: false,
       },
-      error_log:{
-        type: DataTypes.TEXT,
-        allowNull: false,
-      }
     })
   }
 
