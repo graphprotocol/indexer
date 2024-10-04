@@ -101,6 +101,7 @@ const setupEach = async () => {
         _meta: {
           block: {
             timestamp: Date.now(),
+            hash: 'str',
           },
         },
       }
@@ -460,6 +461,7 @@ describe('TAP', () => {
           return {
             transactions: [
               {
+                id: 'test',
                 allocationID: ALLOCATION_ID_2.toString().toLowerCase().replace('0x', ''),
                 timestamp: redeemDateSecs,
                 sender: {
@@ -470,6 +472,7 @@ describe('TAP', () => {
             _meta: {
               block: {
                 timestamp: nowSecs,
+                hash: 'test',
               },
             },
           }
