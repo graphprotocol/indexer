@@ -37,6 +37,7 @@ import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
 
 import { TAPSubgraph } from './tap-subgraph'
+import { TapCollector } from './allocations/tap-collector'
 
 export class Network {
   logger: Logger
@@ -47,6 +48,7 @@ export class Network {
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
   receiptCollector: AllocationReceiptCollector
+  tapCollector: TapCollector | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
@@ -60,6 +62,7 @@ export class Network {
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
     receiptCollector: AllocationReceiptCollector,
+    tapCollector: TapCollector | undefined,
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
@@ -72,6 +75,7 @@ export class Network {
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
     this.receiptCollector = receiptCollector
+    this.tapCollector = tapCollector
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
@@ -268,18 +272,38 @@ export class Network {
     // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
-    const receiptCollector = await AllocationReceiptCollector.create({
+    const scalarCollector = await AllocationReceiptCollector.create({
       logger,
       metrics,
       transactionManager: transactionManager,
       models: queryFeeModels,
       allocationExchange: contracts.allocationExchange,
-      tapContracts,
       allocations,
       networkSpecification: specification,
-      tapSubgraph,
       networkSubgraph,
     })
+
+    // --------------------------------------------------------------------------------
+    // * TAP Collector
+    // --------------------------------------------------------------------------------
+    let tapCollector: TapCollector | undefined = undefined
+    if (tapContracts && tapSubgraph) {
+      tapCollector = await TapCollector.create({
+        logger,
+        metrics,
+        transactionManager: transactionManager,
+        models: queryFeeModels,
+        tapContracts,
+        allocations,
+        networkSpecification: specification,
+        tapSubgraph,
+        networkSubgraph,
+      })
+    } else {
+      logger.info(`RAV process not initiated. 
+        Tap Contracts: ${!!tapContracts}. 
+        Tap Subgraph: ${!!tapSubgraph}.`)
+    }
 
     // --------------------------------------------------------------------------------
     // * Network
@@ -292,7 +316,8 @@ export class Network {
       networkProvider,
       transactionManager,
       networkMonitor,
-      receiptCollector,
+      scalarCollector,
+      tapCollector,
       specification,
       paused,
       isOperator,
