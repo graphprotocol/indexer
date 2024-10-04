@@ -1,5 +1,4 @@
 import {
-  AllocationReceiptCollector,
   defineQueryFeeModels,
   GraphNode,
   Network,
@@ -18,22 +17,20 @@ import {
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { Op, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
+import { TapCollector } from '../tap-collector'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
 declare const __LOG_LEVEL__: never
 let logger: Logger
-let receiptCollector: AllocationReceiptCollector
+let tapCollector: TapCollector
 let metrics: Metrics
 let queryFeeModels: QueryFeeModels
 let sequelize: Sequelize
 const timeout = 30000
 
-const startRAVProcessing = jest.spyOn(
-  AllocationReceiptCollector.prototype,
-  'startRAVProcessing',
-)
+const startRAVProcessing = jest.spyOn(TapCollector.prototype, 'startRAVProcessing')
 const setup = async () => {
   logger = createLogger({
     name: 'Indexer API Client',
@@ -61,7 +58,7 @@ const setup = async () => {
     graphNode,
     metrics,
   )
-  receiptCollector = network.receiptCollector
+  tapCollector = network.tapCollector!
 }
 
 const ALLOCATION_ID_1 = toAddress('edde47df40c29949a75a6693c77834c00b8ad626')
@@ -97,7 +94,7 @@ const setupEach = async () => {
   await queryFeeModels.receiptAggregateVouchers.create(rav)
 
   jest
-    .spyOn(receiptCollector, 'findTransactionsForRavs')
+    .spyOn(tapCollector, 'findTransactionsForRavs')
     .mockImplementation(async (): Promise<TapSubgraphResponse> => {
       return {
         transactions: [],
@@ -134,7 +131,7 @@ describe('TAP', () => {
   test(
     'test getPendingRAVs',
     async () => {
-      const ravs = await receiptCollector['pendingRAVs']()
+      const ravs = await tapCollector['pendingRAVs']()
 
       expect(ravs).toEqual([
         expect.objectContaining({
@@ -174,7 +171,7 @@ describe('TAP', () => {
     // it's not showing on the subgraph on a specific point in time
     // the timestamp of the subgraph is greater than the receipt id
     // should revert the rav
-    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs - 1)
+    await tapCollector['revertRavsRedeemed'](ravList, nowSecs - 1)
 
     let lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: {
@@ -191,7 +188,7 @@ describe('TAP', () => {
       expect.objectContaining(ravList[2]),
     ])
 
-    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs)
+    await tapCollector['revertRavsRedeemed'](ravList, nowSecs)
 
     lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: {
@@ -207,7 +204,7 @@ describe('TAP', () => {
       expect.objectContaining(ravList[2]),
     ])
 
-    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs + 1)
+    await tapCollector['revertRavsRedeemed'](ravList, nowSecs + 1)
 
     lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: {
@@ -220,7 +217,7 @@ describe('TAP', () => {
     })
     expect(lastRedeemedRavs).toEqual([expect.objectContaining(ravList[2])])
 
-    await receiptCollector['revertRavsRedeemed'](ravList, nowSecs + 2)
+    await tapCollector['revertRavsRedeemed'](ravList, nowSecs + 2)
 
     lastRedeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: {
@@ -253,7 +250,7 @@ describe('TAP', () => {
     await queryFeeModels.receiptAggregateVouchers.bulkCreate(ravList)
 
     // it's showing on the subgraph on a specific point in time
-    await receiptCollector['revertRavsRedeemed'](
+    await tapCollector['revertRavsRedeemed'](
       [
         {
           allocationId: ALLOCATION_ID_1,
@@ -305,7 +302,7 @@ describe('TAP', () => {
     ]
     await queryFeeModels.receiptAggregateVouchers.bulkCreate(ravList)
 
-    await receiptCollector['markRavsAsFinal'](nowSecs - 1)
+    await tapCollector['markRavsAsFinal'](nowSecs - 1)
 
     let finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: { last: true, final: true },
@@ -313,13 +310,13 @@ describe('TAP', () => {
 
     expect(finalRavs).toEqual([])
 
-    await receiptCollector['markRavsAsFinal'](nowSecs)
+    await tapCollector['markRavsAsFinal'](nowSecs)
     finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: { last: true, final: true },
     })
     expect(finalRavs).toEqual([expect.objectContaining({ ...ravList[0], final: true })])
 
-    await receiptCollector['markRavsAsFinal'](nowSecs + 1)
+    await tapCollector['markRavsAsFinal'](nowSecs + 1)
     finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: { last: true, final: true },
     })
@@ -328,7 +325,7 @@ describe('TAP', () => {
       expect.objectContaining({ ...ravList[1], final: true }),
     ])
 
-    await receiptCollector['markRavsAsFinal'](nowSecs + 2)
+    await tapCollector['markRavsAsFinal'](nowSecs + 2)
     finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: { last: true, final: true },
     })
@@ -354,7 +351,7 @@ describe('TAP', () => {
         redeemedAt: new Date(redeemDate),
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
-      const ravs = await receiptCollector['pendingRAVs']()
+      const ravs = await tapCollector['pendingRAVs']()
       // The point is it will only return the rav that is not final
       expect(ravs.length).toEqual(1)
       expect(ravs).toEqual([
@@ -390,8 +387,8 @@ describe('TAP', () => {
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
 
-      let ravs = await receiptCollector['pendingRAVs']()
-      ravs = await receiptCollector['filterAndUpdateRavs'](ravs)
+      let ravs = await tapCollector['pendingRAVs']()
+      ravs = await tapCollector['filterAndUpdateRavs'](ravs)
       // The point is it will only return the rav that is not final
 
       expect(ravs).toEqual([
@@ -458,7 +455,7 @@ describe('TAP', () => {
       const redeemDateSecs = Math.floor(redeemDate / 1000)
       const nowSecs = Math.floor(Date.now() / 1000)
       const anotherFuncSpy = jest
-        .spyOn(receiptCollector, 'findTransactionsForRavs')
+        .spyOn(tapCollector, 'findTransactionsForRavs')
         .mockImplementation(async (): Promise<TapSubgraphResponse> => {
           return {
             transactions: [
@@ -489,8 +486,8 @@ describe('TAP', () => {
         redeemedAt: new Date(redeemDate),
       }
       await queryFeeModels.receiptAggregateVouchers.create(rav2)
-      let ravs = await receiptCollector['pendingRAVs']()
-      ravs = await receiptCollector['filterAndUpdateRavs'](ravs)
+      let ravs = await tapCollector['pendingRAVs']()
+      ravs = await tapCollector['filterAndUpdateRavs'](ravs)
       expect(anotherFuncSpy).toBeCalled()
       const finalRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
         where: { last: true, final: true },
