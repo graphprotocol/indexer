@@ -1,0 +1,64 @@
+import { Address, toAddress } from '@graphprotocol/common-ts'
+import { TAPSubgraph } from '../tap-subgraph'
+import gql from 'graphql-tag'
+
+type U256 = bigint
+
+type EscrowAccountResponse = {
+  escrowAccounts: {
+    balance: string
+    sender: {
+      id: string
+    }
+  }[]
+}
+
+export class EscrowAccounts {
+  constructor(private sendersBalances: Map<Address, U256>) {}
+
+  getBalanceForSender(sender: Address): U256 {
+    const balance = this.sendersBalances.get(sender)
+    if (balance === undefined) {
+      throw new Error(`No balance found for sender: ${sender}`)
+    }
+    return balance
+  }
+
+  subtractSenderBalance(sender: Address, ravValue: U256) {
+    const balance = this.getBalanceForSender(sender)
+    const newBalance = balance - ravValue
+    this.sendersBalances.set(sender, newBalance)
+  }
+
+  static fromResponse(response: EscrowAccountResponse): EscrowAccounts {
+    const sendersBalances = new Map<Address, U256>()
+    response.escrowAccounts.forEach((account) => {
+      sendersBalances.set(toAddress(account.sender.id), BigInt(account.balance))
+    })
+
+    return new EscrowAccounts(sendersBalances)
+  }
+}
+
+export const getEscrowAccounts = async (
+  tapSubgraph: TAPSubgraph,
+  indexer: Address,
+): Promise<EscrowAccounts> => {
+  const result = await tapSubgraph.query<EscrowAccountResponse>(
+    gql`
+      query EscrowAccountQuery($indexer: ID!) {
+        escrowAccounts(where: { receiver_: { id: $indexer } }) {
+          balance
+          sender {
+            id
+          }
+        }
+      }
+    `,
+    { indexer },
+  )
+  if (!result.data) {
+    throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
+  }
+  return EscrowAccounts.fromResponse(result.data)
+}
