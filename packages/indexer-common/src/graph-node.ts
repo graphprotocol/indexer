@@ -62,9 +62,9 @@ export const parseGraphQLChain = (chain: any): ChainIndexingStatus => ({
 export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
   block
     ? {
-        number: +block.number,
-        hash: block.hash,
-      }
+      number: +block.number,
+      hash: block.hash,
+    }
     : null
 
 export class GraphNode {
@@ -153,45 +153,16 @@ export class GraphNode {
   ): Promise<SubgraphDeploymentAssignment[]> {
     try {
       this.logger.debug('Fetch subgraph deployment assignments')
-
-      // FIXME: remove this initial check for just node when graph-node releases
-      // https://github.com/graphprotocol/graph-node/pull/5551
-      const nodeOnlyResult = await this.status
+      const result = await this.status
         .query(gql`
-          {
+          query indexingStatuses {
             indexingStatuses {
               subgraphDeployment: subgraph
               node
+              paused
             }
           }
         `)
-        .toPromise()
-
-      if (nodeOnlyResult.error) {
-        throw nodeOnlyResult.error
-      }
-
-      const withAssignments: string[] = nodeOnlyResult.data.indexingStatuses
-        .filter((result: QueryResult) => {
-          return result.node !== null && result.node !== undefined
-        })
-        .map((result: QueryResult) => {
-          return result.subgraphDeployment
-        })
-
-      const result = await this.status
-        .query(
-          gql`
-            query indexingStatuses($subgraphs: [String!]!) {
-              indexingStatuses(subgraphs: $subgraphs) {
-                subgraphDeployment: subgraph
-                node
-                paused
-              }
-            }
-          `,
-          { subgraphs: withAssignments },
-        )
         .toPromise()
 
       if (result.error) {
@@ -273,9 +244,9 @@ export class GraphNode {
           node
             ? node.deployments.push(status.subgraphDeployment)
             : indexNodes.push({
-                id: status.node,
-                deployments: [status.subgraphDeployment],
-              })
+              id: status.node,
+              deployments: [status.subgraphDeployment],
+            })
         },
       )
 
@@ -669,8 +640,7 @@ export class GraphNode {
 
           if (!result.data || !result.data.blockHashFromNumber || result.error) {
             throw new Error(
-              `Failed to query graph node for blockHashFromNumber: ${
-                result.error ?? 'no data returned'
+              `Failed to query graph node for blockHashFromNumber: ${result.error ?? 'no data returned'
               }`,
             )
           }
