@@ -30,7 +30,7 @@
     "@graphprotocol/indexer-common": "^0.21.4",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
-    "@urql/core": "2.4.4",
+    "@urql/core": "3.1.0",
     "chalk": "4.1.2",
     "env-paths": "2.2.1",
     "ethers": "5.7.0",
