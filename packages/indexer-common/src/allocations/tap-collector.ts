@@ -30,7 +30,8 @@ import { TAPSubgraph } from '../tap-subgraph'
 import { NetworkSubgraph } from '../network-subgraph'
 import gql from 'graphql-tag'
 
-const RAV_CHECK_INTERVAL_MS = 30_000
+// every 15 minutes
+const RAV_CHECK_INTERVAL_MS = 900_000
 
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
