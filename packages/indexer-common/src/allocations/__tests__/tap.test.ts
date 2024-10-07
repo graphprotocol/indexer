@@ -4,6 +4,7 @@ import {
   Network,
   QueryFeeModels,
   TapSubgraphResponse,
+  TapCollector,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -17,7 +18,6 @@ import {
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { Op, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
-import { TapCollector } from '../tap-collector'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
