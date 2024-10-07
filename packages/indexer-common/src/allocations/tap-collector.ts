@@ -29,6 +29,7 @@ import pReduce from 'p-reduce'
 import { TAPSubgraph } from '../tap-subgraph'
 import { NetworkSubgraph, QueryResult } from '../network-subgraph'
 import gql from 'graphql-tag'
+import { getEscrowAccounts } from './escrow-accounts'
 
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
@@ -109,6 +110,7 @@ export class TapCollector {
   declare tapSubgraph: TAPSubgraph
   declare networkSubgraph: NetworkSubgraph
   declare finalityTime: number
+  declare indexerAddress: Address
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -138,10 +140,11 @@ export class TapCollector {
     collector.tapSubgraph = tapSubgraph
     collector.networkSubgraph = networkSubgraph
 
-    const { voucherRedemptionThreshold, finalityTime } =
+    const { voucherRedemptionThreshold, finalityTime, address } =
       networkSpecification.indexerOptions
     collector.ravRedemptionThreshold = voucherRedemptionThreshold
     collector.finalityTime = finalityTime
+    collector.indexerAddress = address
 
     collector.logger.info(`RAV processing is initiated`)
     collector.startRAVProcessing()
@@ -531,10 +534,28 @@ export class TapCollector {
     logger.info(`Redeem last RAVs on chain individually`, {
       signedRavs,
     })
+    const escrowAccounts = await getEscrowAccounts(this.tapSubgraph, this.indexerAddress)
 
     // Redeem RAV one-by-one as no plual version available
     for (const { rav: signedRav, allocation, sender } of signedRavs) {
       const { rav } = signedRav
+
+      // verify escrow balances
+      const ravValue = BigInt(rav.valueAggregate.toString())
+      const senderBalance = escrowAccounts.getBalanceForSender(sender)
+      if (senderBalance < ravValue) {
+        this.logger.warn(
+          'RAV was not sent to the blockchain \
+          because its value aggregate is lower than escrow balance.',
+          {
+            rav,
+            sender,
+            senderBalance,
+          },
+        )
+        continue
+      }
+
       const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
         allocation: rav.allocationId,
       })
@@ -565,6 +586,10 @@ export class TapCollector {
           this.metrics.ravRedeemsInvalid.inc({ allocation: rav.allocationId })
           return
         }
+        // subtract from the escrow account
+        // THIS IS A MUT OPERATION
+        escrowAccounts.subtractSenderBalance(sender, ravValue)
+
         this.metrics.ravCollectedFees.set(
           { allocation: rav.allocationId },
           parseFloat(rav.valueAggregate.toString()),
