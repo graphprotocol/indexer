@@ -94,6 +94,7 @@ export const createCostServer = async ({
         deployment: String!
         model: String
         variables: String
+        protocolNetwork: String!
       }
 
       type Query {
@@ -126,6 +127,7 @@ export const createCostServer = async ({
                       deployment
                       model
                       variables
+                      protocolNetwork
                     }
                   }
                 `,
@@ -172,6 +174,7 @@ export const createCostServer = async ({
                       deployment
                       model
                       variables
+                      protocolNetwork
                     }
                   }
                 `,
