@@ -156,7 +156,7 @@ export class GraphNode {
       const result = await this.status
         .query(
           gql`
-            query indexingStatuses {
+            {
               indexingStatuses {
                 subgraphDeployment: subgraph
                 node
@@ -164,8 +164,7 @@ export class GraphNode {
               }
             }
           `,
-          [],
-          [],
+          undefined,
         )
         .toPromise()
 
@@ -226,8 +225,7 @@ export class GraphNode {
               }
             }
           `,
-          [],
-          [],
+          undefined,
         )
         .toPromise()
 
