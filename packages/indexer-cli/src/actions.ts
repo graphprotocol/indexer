@@ -256,8 +256,7 @@ export async function executeApprovedActions(
           }
         }
       `,
-      [],
-      [],
+      undefined,
     )
     .toPromise()
 

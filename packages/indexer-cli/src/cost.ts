@@ -203,8 +203,7 @@ export const costModels = async (
           }
         }
       `,
-      [],
-      [],
+      undefined,
     )
     .toPromise()
 

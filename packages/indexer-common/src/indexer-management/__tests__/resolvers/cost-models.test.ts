@@ -396,7 +396,7 @@ describe('Cost models', () => {
     }
 
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', inputs)
   })
 
@@ -478,7 +478,7 @@ describe('Cost models', () => {
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: input }).toPromise()
 
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [expected])
   })
 
@@ -596,7 +596,7 @@ describe('Feature: Inject $DAI variable', () => {
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
 
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [initial])
   })
 
@@ -614,7 +614,7 @@ describe('Feature: Inject $DAI variable', () => {
     }
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [update])
   })
 
@@ -639,7 +639,7 @@ describe('Feature: Inject $DAI variable', () => {
     await client.setDai('15.3')
 
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [
       {
         ...inputs[0],
@@ -677,7 +677,7 @@ describe('Feature: Inject $DAI variable', () => {
     }
 
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [
       {
         ...inputs[0],
@@ -707,7 +707,7 @@ describe('Feature: Inject $DAI variable', () => {
     }
     await client.mutation(SET_COST_MODEL_MUTATION, { costModel: update }).toPromise()
     await expect(
-      client.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      client.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [
       {
         ...update,
@@ -742,7 +742,7 @@ describe('Feature: Inject $DAI variable', () => {
       .mutation(SET_COST_MODEL_MUTATION, { costModel: update })
       .toPromise()
     await expect(
-      clientNoInjectDai.query(GET_COST_MODELS_QUERY, [], []).toPromise(),
+      clientNoInjectDai.query(GET_COST_MODELS_QUERY, undefined).toPromise(),
     ).resolves.toHaveProperty('data.costModels', [update])
   })
 })
