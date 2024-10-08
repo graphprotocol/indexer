@@ -154,72 +154,70 @@ export class AllocationReceiptManager implements ReceiptManager {
       const transact = async () => {
         // Put this in a transaction because this has a write which is
         // dependent on a read and must be atomic or receipt updates could be dropped.
-        await this._sequelize.transaction(
-          { isolationLevel: Transaction.ISOLATION_LEVELS.REPEATABLE_READ },
-          async (transaction: Transaction) => {
-            logger.trace('Begin database transaction to process receipt')
-            const [summary, isNewSummary] = await ensureAllocationSummary(
-              this._queryFeeModels,
-              receipt.allocation,
+        await this._sequelize.transaction({}, async (transaction: Transaction) => {
+          logger.trace('Begin database transaction to process receipt')
+          const [summary, isNewSummary] = await ensureAllocationSummary(
+            this._queryFeeModels,
+            receipt.allocation,
+            transaction,
+            this.protocolNetwork,
+          )
+          logger.trace('Built allocation summary', {
+            allocationSummary: summary,
+            new: isNewSummary,
+          })
+          if (isNewSummary) {
+            await summary.save({ transaction })
+          }
+
+          const [state, isNew] =
+            await this._queryFeeModels.allocationReceipts.findOrBuild({
+              where: { id: receipt.id },
+              defaults: {
+                id: receipt.id,
+                allocation: receipt.allocation,
+                signature: receipt.signature,
+                fees: receipt.fees,
+                protocolNetwork: this.protocolNetwork,
+              },
               transaction,
-              this.protocolNetwork,
-            )
-            logger.trace('Built allocation summary', {
-              allocationSummary: summary,
-              new: isNewSummary,
             })
-            if (isNewSummary) {
-              await summary.save({ transaction })
-            }
+          logger.trace('Built allocation receipt', {
+            allocationReceipt: state,
+            new: isNew,
+            relatedAllocationSummary: summary,
+          })
 
-            const [state, isNew] =
-              await this._queryFeeModels.allocationReceipts.findOrBuild({
-                where: { id: receipt.id },
-                defaults: {
-                  id: receipt.id,
-                  allocation: receipt.allocation,
-                  signature: receipt.signature,
-                  fees: receipt.fees,
-                  protocolNetwork: this.protocolNetwork,
+          // Don't save if we already have a version of the receipt
+          // with a higher amount of fees
+          if (!isNew) {
+            const storedFees = BigNumber.from(state.getDataValue('fees'))
+            if (storedFees.gte(receipt.fees)) {
+              logger.trace(
+                `Stored fees found in allocation receipt are greater than the current receipt, ignoring.`,
+                {
+                  storedFees,
+                  receiptFees: receipt.fees,
+                  allocationReceipt: state,
+                  relatedAllocationSummary: summary,
                 },
-                transaction,
-              })
-            logger.trace('Built allocation receipt', {
-              allocationReceipt: state,
-              new: isNew,
-              relatedAllocationSummary: summary,
-            })
-
-            // Don't save if we already have a version of the receipt
-            // with a higher amount of fees
-            if (!isNew) {
-              const storedFees = BigNumber.from(state.getDataValue('fees'))
-              if (storedFees.gte(receipt.fees)) {
-                logger.trace(
-                  `Stored fees found in allocation receipt are greater than the current receipt, ignoring.`,
-                  {
-                    storedFees,
-                    receiptFees: receipt.fees,
-                    allocationReceipt: state,
-                    relatedAllocationSummary: summary,
-                  },
-                )
-                return
-              }
+              )
+              return
             }
+          }
 
-            // Make sure the new receipt fee amount and signature are set
-            state.set('fees', receipt.fees)
-            state.set('signature', receipt.signature)
-            logger.trace('Saving allocation')
+          // Make sure the new receipt fee amount and signature are set
+          state.set('fees', receipt.fees)
+          state.set('signature', receipt.signature)
+          logger.trace('Saving allocation')
 
-            // Save the new or updated receipt to the db
-            await state.save({ transaction })
-            logger.trace('Saved allocation receipt', {
-              allocationReceipt: state,
-              relatedAllocationSummary: summary,
-            })
-          },
+          // Save the new or updated receipt to the db
+          await state.save({ transaction })
+          logger.trace('Saved allocation receipt', {
+            allocationReceipt: state,
+            relatedAllocationSummary: summary,
+          })
+        },
         )
         logger.trace('End database transaction to process receipt')
       }
