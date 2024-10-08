@@ -236,25 +236,29 @@ export async function executeApprovedActions(
   client: IndexerManagementClient,
 ): Promise<ActionResult[]> {
   const result = await client
-    .mutation(gql`
-      mutation executeApprovedActions {
-        executeApprovedActions {
-          id
-          protocolNetwork
-          status
-          type
-          deploymentID
-          allocationID
-          amount
-          poi
-          force
-          source
-          reason
-          transaction
-          failureReason
+    .mutation(
+      gql`
+        mutation executeApprovedActions {
+          executeApprovedActions {
+            id
+            protocolNetwork
+            status
+            type
+            deploymentID
+            allocationID
+            amount
+            poi
+            force
+            source
+            reason
+            transaction
+            failureReason
+          }
         }
-      }
-    `)
+      `,
+      [],
+      [],
+    )
     .toPromise()
 
   if (result.error) {

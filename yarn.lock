@@ -893,15 +893,15 @@
   resolved "https://registry.yarnpkg.com/@google-cloud/promisify/-/promisify-4.0.0.tgz#a906e533ebdd0f754dca2509933334ce58b8c8b1"
   integrity sha512-Orxzlfb9c67A15cq2JQEyVc7wEsmFBmHjZWZYQMUyJ1qivXyMwdyNOs9odi79hze+2zqdTtu1E19IM/FtqZ10g==
 
-"@graphprotocol/common-ts@2.0.9":
-  version "2.0.9"
-  resolved "https://registry.npmjs.org/@graphprotocol/common-ts/-/common-ts-2.0.9.tgz"
-  integrity sha512-ZPONJg1+uMe6kAIILjl/YjKvK8nTcuz4GqL5yLZjPh/0w5fsGs5KCH6yKMLVAf4ZH6YNY0l9xJlRd1Nkb8JH+w==
+"@graphprotocol/common-ts@2.0.10":
+  version "2.0.10"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/common-ts/-/common-ts-2.0.10.tgz#a2bd7810b6f2b41a5724bcd45b1320a2c6c316a9"
+  integrity sha512-7aAoskggNyMTr54es+7C6sXbSxEz0qxeqVeMqslYnLSAhUtO/TF0UOLdRa06A6RhaVZl5xKh4FUPC1Lr2NiBwQ==
   dependencies:
     "@graphprotocol/contracts" "5.3.3"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
-    "@urql/core" "2.4.4"
-    "@urql/exchange-execute" "1.2.2"
+    "@urql/core" "3.1.0"
+    "@urql/exchange-execute" "2.1.0"
     body-parser "1.20.2"
     bs58 "5.0.0"
     cors "2.8.5"
@@ -3645,14 +3645,14 @@
   resolved "https://registry.npmjs.org/@uniswap/v2-core/-/v2-core-1.0.1.tgz"
   integrity sha512-MtybtkUPSyysqLY2U210NBDeCHX+ltHt3oADGdjqoThZaFRDKwM6k1Nb3F0A3hk5hwuQvytFWhrWHOEq6nVJ8Q==
 
-"@urql/core@2.4.4", "@urql/core@3.1.0", "@urql/core@>=3.1.0":
+"@urql/core@3.1.0", "@urql/core@>=3.1.0":
   version "3.1.0"
   resolved "https://registry.yarnpkg.com/@urql/core/-/core-3.1.0.tgz#b77c6e444da35507b234645caed383cbb04d8ac9"
   integrity sha512-6pYB4/WGZmuCxCc+h8AX9h+g1o75cPgMrcan+G/pYEDGAd6+PXoEuDumhEXpwu4vnkqCvVnFELEYcqkaM8ddPg==
   dependencies:
     wonka "^6.1.2"
 
-"@urql/exchange-execute@1.2.2", "@urql/exchange-execute@2.1.0":
+"@urql/exchange-execute@2.1.0":
   version "2.1.0"
   resolved "https://registry.yarnpkg.com/@urql/exchange-execute/-/exchange-execute-2.1.0.tgz#70058969248e204494526decf2bb75c11c965ad1"
   integrity sha512-b84hq5EPgbERmg+98SqmMZqD5W3YrFkFii/6ZWVm5zsVdb+c0ZhRpUrpOCSemh5Jl5X291PG0WUUy2hdMtjraQ==
