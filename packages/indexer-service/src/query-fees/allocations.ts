@@ -217,8 +217,7 @@ export class AllocationReceiptManager implements ReceiptManager {
             allocationReceipt: state,
             relatedAllocationSummary: summary,
           })
-        },
-        )
+        })
         logger.trace('End database transaction to process receipt')
       }
 
