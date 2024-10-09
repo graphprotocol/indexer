@@ -1,3 +1,4 @@
+export * from './escrow-accounts'
 export * from './keys'
 export * from './query-fees'
 export * from './tap-collector'
