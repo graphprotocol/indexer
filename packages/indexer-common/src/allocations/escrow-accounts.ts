@@ -4,7 +4,7 @@ import gql from 'graphql-tag'
 
 type U256 = bigint
 
-type EscrowAccountResponse = {
+export type EscrowAccountResponse = {
   escrowAccounts: {
     balance: string
     sender: {
@@ -26,6 +26,9 @@ export class EscrowAccounts {
 
   subtractSenderBalance(sender: Address, ravValue: U256) {
     const balance = this.getBalanceForSender(sender)
+    if (balance < ravValue) {
+      throw new Error(`Negative balances are not allowed`)
+    }
     const newBalance = balance - ravValue
     this.sendersBalances.set(sender, newBalance)
   }
