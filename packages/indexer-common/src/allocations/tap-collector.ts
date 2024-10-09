@@ -61,7 +61,7 @@ interface ValidRavs {
   eligible: RavWithAllocation[]
 }
 
-interface RavWithAllocation {
+export interface RavWithAllocation {
   rav: SignedRAV
   allocation: Allocation
   sender: Address
@@ -529,7 +529,6 @@ export class TapCollector {
       function: 'submitRAVs()',
       ravsToSubmit: signedRavs.length,
     })
-    const escrow = this.tapContracts
 
     logger.info(`Redeem last RAVs on chain individually`, {
       signedRavs,
@@ -560,54 +559,10 @@ export class TapCollector {
         allocation: rav.allocationId,
       })
       try {
-        const proof = await tapAllocationIdProof(
-          allocationSigner(this.transactionManager.wallet, allocation),
-          parseInt(this.protocolNetwork.split(':')[1]),
-          sender,
-          toAddress(rav.allocationId),
-          toAddress(escrow.escrow.address),
-        )
-        this.logger.debug(`Computed allocationIdProof`, {
-          allocationId: rav.allocationId,
-          proof,
-        })
-        // Submit the signed RAV on chain
-        const txReceipt = await this.transactionManager.executeTransaction(
-          () => escrow.escrow.estimateGas.redeem(signedRav, proof),
-          (gasLimit) =>
-            escrow.escrow.redeem(signedRav, proof, {
-              gasLimit,
-            }),
-          logger.child({ function: 'redeem' }),
-        )
-
-        // get tx receipt and post process
-        if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
-          this.metrics.ravRedeemsInvalid.inc({ allocation: rav.allocationId })
-          return
-        }
+        await this.redeemRav(logger, allocation, sender, signedRav)
         // subtract from the escrow account
         // THIS IS A MUT OPERATION
         escrowAccounts.subtractSenderBalance(sender, ravValue)
-
-        this.metrics.ravCollectedFees.set(
-          { allocation: rav.allocationId },
-          parseFloat(rav.valueAggregate.toString()),
-        )
-
-        try {
-          await this.markRavAsRedeemed(toAddress(rav.allocationId), sender)
-          logger.info(
-            `Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
-          )
-        } catch (err) {
-          logger.warn(
-            `Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
-            {
-              err,
-            },
-          )
-        }
       } catch (err) {
         this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId })
         logger.error(`Failed to redeem RAV`, {
@@ -648,6 +603,63 @@ export class TapCollector {
     signedRavs.map((signedRav) =>
       this.metrics.ravRedeemsSuccess.inc({ allocation: signedRav.allocation.id }),
     )
+  }
+
+  public async redeemRav(
+    logger: Logger,
+    allocation: Allocation,
+    sender: Address,
+    signedRav: SignedRAV,
+  ) {
+    const { rav } = signedRav
+
+    const escrow = this.tapContracts
+
+    const proof = await tapAllocationIdProof(
+      allocationSigner(this.transactionManager.wallet, allocation),
+      parseInt(this.protocolNetwork.split(':')[1]),
+      sender,
+      toAddress(rav.allocationId),
+      toAddress(escrow.escrow.address),
+    )
+    this.logger.debug(`Computed allocationIdProof`, {
+      allocationId: rav.allocationId,
+      proof,
+    })
+    // Submit the signed RAV on chain
+    const txReceipt = await this.transactionManager.executeTransaction(
+      () => escrow.escrow.estimateGas.redeem(signedRav, proof),
+      (gasLimit) =>
+        escrow.escrow.redeem(signedRav, proof, {
+          gasLimit,
+        }),
+      logger.child({ function: 'redeem' }),
+    )
+
+    // get tx receipt and post process
+    if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+      this.metrics.ravRedeemsInvalid.inc({ allocation: rav.allocationId })
+      return
+    }
+
+    this.metrics.ravCollectedFees.set(
+      { allocation: rav.allocationId },
+      parseFloat(rav.valueAggregate.toString()),
+    )
+
+    try {
+      await this.markRavAsRedeemed(toAddress(rav.allocationId), sender)
+      logger.info(
+        `Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
+      )
+    } catch (err) {
+      logger.warn(
+        `Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
+        {
+          err,
+        },
+      )
+    }
   }
 
   private async markRavAsRedeemed(
