@@ -28,7 +28,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:59144               | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:56                  | bsc           | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:122                 | fuse          | Yes         | Yes          | Yes               | Yes                  | Yes              |
-| eip155:81457               | blast         | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:81457               | blast-mainnet | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:288                 | boba          | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:56288               | boba-bnb      | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
