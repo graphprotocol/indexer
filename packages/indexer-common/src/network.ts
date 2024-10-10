@@ -288,7 +288,7 @@ export class Network {
     // --------------------------------------------------------------------------------
     let tapCollector: TapCollector | undefined = undefined
     if (tapContracts && tapSubgraph) {
-      tapCollector = await TapCollector.create({
+      tapCollector = TapCollector.create({
         logger,
         metrics,
         transactionManager: transactionManager,
