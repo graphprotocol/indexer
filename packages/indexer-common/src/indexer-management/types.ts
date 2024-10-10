@@ -186,7 +186,9 @@ export const Caip2ByChainAlias: { [key: string]: string } = {
   base: 'eip155:8453',
   moonbeam: 'eip155:1284',
   fuse: 'eip155:122',
-  blast: 'eip155:81457',
+  'blast-mainnet': 'eip155:81457',
+  boba: 'eip155:288',
+  'boba-bnb': 'eip155:56288',
 }
 
 export const Caip2ByChainId: { [key: number]: string } = {
@@ -210,6 +212,8 @@ export const Caip2ByChainId: { [key: number]: string } = {
   1284: 'eip155:1284',
   122: 'eip155:122',
   81457: 'eip155:81457',
+  288: 'eip155:288',
+  56288: 'eip155:56288',
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
