@@ -72,56 +72,10 @@ function paginateArray<T>(
   return array.slice(startIndex, startIndex + pageSize)
 }
 
-const mockQueryTapSubgraph = jest
-  .fn()
-  .mockImplementation(async (_, variables): Promise<QueryResult<TapSubgraphResponse>> => {
-    const pageSize: number = variables.pageSize
-    const lastId: string | undefined = variables.lastId
-
-    const paginatedTransactions = paginateArray(
-      transactions,
-      (tx) => tx.id,
-      pageSize,
-      lastId,
-    )
-
-    return {
-      data: {
-        transactions: paginatedTransactions,
-        _meta: {
-          block: {
-            hash: 'blockhash',
-            timestamp: 100000,
-          },
-        },
-      },
-    }
-  })
-
-const mockQueryNetworkSubgraph = jest
-  .fn()
-  .mockImplementation(async (_, variables): Promise<QueryResult<AllocationsResponse>> => {
-    const pageSize: number = variables.pageSize
-    const lastId: string | undefined = variables.lastId
-
-    const paginatedAllocations = paginateArray(
-      allocations,
-      (allocation) => allocation.id,
-      pageSize,
-      lastId,
-    )
-
-    return {
-      data: {
-        allocations: paginatedAllocations,
-        meta: {
-          block: {
-            hash: 'blockhash',
-          },
-        },
-      },
-    }
-  })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockQueryNetworkSubgraph: jest.Mock<any, any, any>
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mockQueryTapSubgraph: jest.Mock<any, any, any>
 
 jest.spyOn(TapCollector.prototype, 'startRAVProcessing').mockImplementation()
 const setup = () => {
@@ -133,34 +87,92 @@ const setup = () => {
   const metrics = createMetrics()
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
-  const transactionManager = null as unknown as TransactionManager
-  const models = null as unknown as QueryFeeModels
-  const tapContracts = null as unknown as TapContracts
-  const allocations = null as unknown as Eventual<Allocation[]>
-  const networkSpecification = {
-    indexerOptions: { voucherRedemptionThreshold: 0, finalityTime: 0 },
-    networkIdentifier: 'test',
-  } as unknown as NetworkSpecification
 
-  const tapSubgraph = {
-    query: mockQueryTapSubgraph,
-  } as unknown as TAPSubgraph
-  const networkSubgraph = {
-    query: mockQueryNetworkSubgraph,
-  } as unknown as NetworkSubgraph
+  mockQueryTapSubgraph = jest
+    .fn()
+    .mockImplementation(
+      async (_, variables): Promise<QueryResult<TapSubgraphResponse>> => {
+        console.log('MOCKING IMPLEMENTATION FOR TAP SUBGRAPH')
+        const pageSize: number = variables.pageSize
+        const lastId: string | undefined = variables.lastId
 
-  tapCollector = TapCollector.create({
-    logger,
-    metrics,
-    transactionManager,
-    models,
-    tapContracts,
-    allocations,
-    networkSpecification,
+        const paginatedTransactions = paginateArray(
+          transactions,
+          (tx) => tx.id,
+          pageSize,
+          lastId,
+        )
 
-    networkSubgraph,
-    tapSubgraph,
-  })
+        return {
+          data: {
+            transactions: paginatedTransactions,
+            _meta: {
+              block: {
+                hash: 'blockhash',
+                timestamp: 100000,
+              },
+            },
+          },
+        }
+      },
+    )
+
+  mockQueryNetworkSubgraph = jest
+    .fn()
+    .mockImplementation(
+      async (_, variables): Promise<QueryResult<AllocationsResponse>> => {
+        const pageSize: number = variables.pageSize
+        const lastId: string | undefined = variables.lastId
+
+        const paginatedAllocations = paginateArray(
+          allocations,
+          (allocation) => allocation.id,
+          pageSize,
+          lastId,
+        )
+
+        return {
+          data: {
+            allocations: paginatedAllocations,
+            meta: {
+              block: {
+                hash: 'blockhash',
+              },
+            },
+          },
+        }
+      },
+    )
+  {
+    const transactionManager = null as unknown as TransactionManager
+    const models = null as unknown as QueryFeeModels
+    const tapContracts = null as unknown as TapContracts
+    const allocations = null as unknown as Eventual<Allocation[]>
+    const networkSpecification = {
+      indexerOptions: { voucherRedemptionThreshold: 0, finalityTime: 0 },
+      networkIdentifier: 'test',
+    } as unknown as NetworkSpecification
+
+    const tapSubgraph = {
+      query: mockQueryTapSubgraph,
+    } as unknown as TAPSubgraph
+    const networkSubgraph = {
+      query: mockQueryNetworkSubgraph,
+    } as unknown as NetworkSubgraph
+
+    tapCollector = TapCollector.create({
+      logger,
+      metrics,
+      transactionManager,
+      models,
+      tapContracts,
+      allocations,
+      networkSpecification,
+
+      networkSubgraph,
+      tapSubgraph,
+    })
+  }
 }
 
 describe('TAP Pagination', () => {

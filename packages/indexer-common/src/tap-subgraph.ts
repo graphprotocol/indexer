@@ -43,6 +43,8 @@ export class TAPSubgraph {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     variables?: Record<string, any>,
   ): Promise<QueryResult<Data>> {
+    // magic solution for jest tests https://stackoverflow.com/questions/69976411/jest-tlswrap-open-handle-error-using-simple-node-postgres-pool-query-fixed-wit/70012434#70012434
+    await Promise.resolve(process.nextTick(Boolean))
     const response = await this.endpointClient.post('', {
       query: print(query),
       variables,

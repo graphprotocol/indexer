@@ -69,6 +69,7 @@ describe('Validate TAP queries', () => {
       // this subgraph is in an eventual
       // we check if it was called more than 0 times
       expect(mockedFunc).toBeCalled()
+      mockedFunc.mockReset()
     },
     timeout,
   )
@@ -77,10 +78,12 @@ describe('Validate TAP queries', () => {
     'test `findTransactionsForRavs` query is valid',
     async () => {
       const mockedFunc = jest.spyOn(tapCollector.tapSubgraph, 'query')
+
       const result = await tapCollector['findTransactionsForRavs']([])
       expect(result.transactions).toEqual([])
       expect(result._meta.block.hash.length).toEqual(66)
       expect(mockedFunc).toBeCalledTimes(1)
+      mockedFunc.mockReset()
     },
     timeout,
   )
