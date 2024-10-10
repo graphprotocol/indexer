@@ -33,6 +33,8 @@ import gql from 'graphql-tag'
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
 
+const PAGE_SIZE = 1000
+
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
   ravRedeemsInvalid: Counter<string>
@@ -111,7 +113,7 @@ export class TapCollector {
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
 
-  public static async create({
+  public static create({
     logger,
     metrics,
     transactionManager,
@@ -121,7 +123,7 @@ export class TapCollector {
     networkSpecification,
     tapSubgraph,
     networkSubgraph,
-  }: TapCollectorOptions): Promise<TapCollector> {
+  }: TapCollectorOptions): TapCollector {
     const collector = new TapCollector()
     collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
     collector.metrics = registerReceiptMetrics(
@@ -219,11 +221,10 @@ export class TapCollector {
       rav.getSignedRAV().rav.allocationId.toLowerCase(),
     )
 
-    let hash: string | undefined = undefined
+    let block: { hash: string } | undefined = undefined
     let lastId = ''
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const returnedAllocations: any[] = []
-    const pageSize = 1000
 
     for (;;) {
       const result = await this.networkSubgraph.query<AllocationsResponse>(
@@ -231,10 +232,10 @@ export class TapCollector {
           query allocations(
             $lastId: String!
             $pageSize: Int!
-            $hash: String
+            $block: Block_height
             $allocationIds: [String!]!
           ) {
-            meta: _meta(block: { hash: $hash }) {
+            meta: _meta(block: $block) {
               block {
                 number
                 hash
@@ -243,7 +244,9 @@ export class TapCollector {
             }
             allocations(
               first: $pageSize
-              block: { hash: $hash }
+              block: $block
+              orderBy: id,
+              orderDirection: asc,
               where: { id_gt: $lastId, id_in: $allocationIds }
             ) {
               id
@@ -270,16 +273,17 @@ export class TapCollector {
             }
           }
         `,
-        { allocationIds, lastId, pageSize, hash },
+        { allocationIds, lastId, pageSize: PAGE_SIZE, block },
       )
+      console.log("called query!")
       if (!result.data) {
         throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
 
-      if (result.data.allocations.length < pageSize) {
+      if (result.data.allocations.length < PAGE_SIZE) {
         break
       }
-      hash = result.data.meta.block.hash
+      block = { hash: result.data.meta.block.hash }
       lastId = result.data.allocations.slice(-1)[0].id
       returnedAllocations.push(...result.data.allocations)
     }
@@ -388,22 +392,32 @@ export class TapCollector {
     let meta: TapMeta | undefined = undefined
     let lastId = ''
     const transactions: TapTransaction[] = []
-    const pageSize = 1000
 
     for (;;) {
-      const hash = meta?.block?.hash
+      let block: { hash: string } | undefined = undefined
+      if (meta?.block?.hash) {
+        block = {
+          hash: meta?.block?.hash,
+        }
+      }
+
       const result: QueryResult<TapSubgraphResponse> =
         await this.tapSubgraph.query<TapSubgraphResponse>(
           gql`
             query transactions(
               $lastId: String!
               $pageSize: Int!
-              $hash: String
+              $block: Block_height
               $unfinalizedRavsAllocationIds: [String!]!
               $senderAddresses: [String!]!
             ) {
               transactions(
+                first: $pageSize
+                block: $block
+                orderBy: id,
+                orderDirection: asc,
                 where: {
+                  id_gt: $lastId
                   type: "redeem"
                   allocationID_in: $unfinalizedRavsAllocationIds
                   sender_: { id_in: $senderAddresses }
@@ -426,8 +440,8 @@ export class TapCollector {
           `,
           {
             lastId,
-            pageSize,
-            hash,
+            pageSize: PAGE_SIZE,
+            block,
             unfinalizedRavsAllocationIds: ravs.map((value) =>
               toAddress(value.allocationId).toLowerCase(),
             ),
@@ -441,7 +455,7 @@ export class TapCollector {
         throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
       }
       meta = result.data._meta
-      if (result.data.transactions.length < pageSize) {
+      if (result.data.transactions.length < PAGE_SIZE) {
         break
       }
       lastId = result.data.transactions.slice(-1)[0].id
