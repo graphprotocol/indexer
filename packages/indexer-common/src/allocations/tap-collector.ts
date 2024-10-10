@@ -78,7 +78,7 @@ interface TapMeta {
   }
 }
 
-interface TapTransaction {
+export interface TapTransaction {
   id: string
   allocationID: string
   timestamp: number
@@ -245,8 +245,8 @@ export class TapCollector {
             allocations(
               first: $pageSize
               block: $block
-              orderBy: id,
-              orderDirection: asc,
+              orderBy: id
+              orderDirection: asc
               where: { id_gt: $lastId, id_in: $allocationIds }
             ) {
               id
@@ -275,17 +275,16 @@ export class TapCollector {
         `,
         { allocationIds, lastId, pageSize: PAGE_SIZE, block },
       )
-      console.log("called query!")
       if (!result.data) {
         throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
 
+      returnedAllocations.push(...result.data.allocations)
+      block = { hash: result.data.meta.block.hash }
       if (result.data.allocations.length < PAGE_SIZE) {
         break
       }
-      block = { hash: result.data.meta.block.hash }
       lastId = result.data.allocations.slice(-1)[0].id
-      returnedAllocations.push(...result.data.allocations)
     }
 
     if (returnedAllocations.length == 0) {
@@ -414,8 +413,8 @@ export class TapCollector {
               transactions(
                 first: $pageSize
                 block: $block
-                orderBy: id,
-                orderDirection: asc,
+                orderBy: id
+                orderDirection: asc
                 where: {
                   id_gt: $lastId
                   type: "redeem"
@@ -455,11 +454,11 @@ export class TapCollector {
         throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
       }
       meta = result.data._meta
+      transactions.push(...result.data.transactions)
       if (result.data.transactions.length < PAGE_SIZE) {
         break
       }
       lastId = result.data.transactions.slice(-1)[0].id
-      transactions.push(...result.data.transactions)
     }
 
     return {
