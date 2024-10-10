@@ -122,7 +122,7 @@ const setupMonitor = async () => {
   )
 }
 
-const createMockAllocation = (): Allocation => {
+export const createMockAllocation = (): Allocation => {
   const mockDeployment = {
     id: new SubgraphDeploymentID('QmcpeU4pZxzKB9TJ6fzH6PyZi9h8PJ6pG1c4izb9VAakJq'),
     deniedAt: 0,
