@@ -45,7 +45,7 @@ npm run compile
   contracts graphToken approve --account 0x35e3Cb6B317690d662160d5d02A5b364578F62c9 --amount <grt>
 ```
 
-Afterwards, stake this amount:
+Afterward, stake this amount:
 
 ```bash
 ./cli/cli.ts -m <indexer-mnemonic> -p <arbitrum-sepolia-node> \
