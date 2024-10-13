@@ -89,7 +89,7 @@ Query Fees
                                             claim on-chain
                                                          [number] [default: 1]
   --rebate-claim-batch-threshold            Minimum total value of all rebates
-                                            in an batch (in GRT) before the
+                                            in a batch (in GRT) before the
                                             batch is claimed on-chain
                                                         [number] [default: 5]
   --rebate-claim-max-batch-size             Maximum number of rebates inside a
@@ -103,7 +103,7 @@ Query Fees
                                             claim on-chain
                                                          [number] [default: 1]
   --voucher-redemption-batch-threshold      Minimum total value of all rebates
-                                            in an batch (in GRT) before the
+                                            in a batch (in GRT) before the
                                             batch is claimed on-chain
                                                         [number] [default: 5]
   --voucher-redemption-max-batch-size       Maximum number of rebates inside a
