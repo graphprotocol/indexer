@@ -162,7 +162,7 @@ defined in one of the following environment variables / command-line options:
 - `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 - `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 
-There can be a nuber of reasons for this:
+There can be a number of reasons for this:
 
 - The endpoint is unhealthy or unreliable.
 - The endpoint is out of date.
@@ -450,7 +450,7 @@ Failing to process a paid query can have a number of reasons:
   likely cause for this is that the network subgraph endpoint specified via
   `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` or `--network-subgraph-endpoint`
   is unhealthy and failing repeatedly. This particular situation would manifest
-  itself in a `Unable to sign the query response attesattion` error message.
+  itself in a `Unable to sign the query response attestattion` error message.
 - The indexer service either fails to forward queries to the graph/query node
   or nodes, or the graph/query node or nodes fail to execute the query.
 - The indexer service fails to push the payment or attestation into the
@@ -584,7 +584,7 @@ the database cannot be reached for some reason.
 
 A Vector transfer cannot be stored in the database. Most likely, this is a
 database connection error but it could also be a bug caused by a conflict
-with data that is already in the database. The error cause in the logs should
+with data that is already in the database. The error caused in the logs should
 reveal what the exact problem is.
 
 **Solution**
@@ -597,7 +597,7 @@ See also: [#IE041](#ie041).
 
 A Vector transfer cannot be marked as resolved in the database. Most likely,
 this is a database connection error but it could also be a bug caused by a
-conflict with data that is already in the database. The error cause in the
+conflict with data that is already in the database. The error caused in the
 logs should reveal what the exact problem is.
 
 **Solution**
@@ -828,7 +828,7 @@ Check the allocation ID and network sync status. If the allocation ID is correct
 
 **Summary**
 
-Allocation not created: Allocation ID already exist.
+Allocation not created: Allocation ID already exists.
 
 **Solution**
 
