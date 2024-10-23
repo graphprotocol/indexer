@@ -137,7 +137,14 @@ export const validateActionInputs = async (
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const allocation = await networkMonitor.allocation(action.allocationID!)
-      if (allocation.status !== AllocationStatus.ACTIVE) {
+
+      const forcedReallocate =
+        action.type === ActionType.REALLOCATE && action.force === true
+      // TODO && isZeroPOI(action.poi)
+
+      if (forcedReallocate) {
+        logger.info(`forcing reallocate of id = '${action.allocationID}'`)
+      } else if (allocation.status !== AllocationStatus.ACTIVE) {
         throw new Error(
           `An active allocation does not exist with id = '${action.allocationID}'`,
         )
