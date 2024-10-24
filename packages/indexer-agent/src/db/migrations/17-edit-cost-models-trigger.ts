@@ -31,10 +31,10 @@ export async function up({ context }: Context): Promise<void> {
             PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "DELETE", "deployment": "%s"}', OLD.deployment));
             RETURN OLD;
           ELSIF TG_OP = 'INSERT' THEN
-            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "INSERT", "deployment": "%s", "model": "%s"}', NEW.deployment, NEW.model));
+            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "INSERT", "deployment": "%s", "model": "%s", "variables": "%s"}', NEW.deployment, NEW.model, NEW.variables));
             RETURN NEW;
           ELSE
-            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "%s", "deployment": "%s", "model": "%s"}', NEW.deployment, NEW.model));
+            PERFORM pg_notify('cost_models_update_notification', format('{"tg_op": "%s", "deployment": "%s", "model": "%s", "variables": "%s" }', NEW.deployment, NEW.model, NEW.variables));
             RETURN NEW;
           END IF;
         END;
@@ -52,5 +52,11 @@ export async function up({ context }: Context): Promise<void> {
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
   logger.info(`Drop function, trigger, indices, and table`)
-  queryInterface.removeColumn('scalar_tap_receipts_invalid', 'error_log')
+  await queryInterface.sequelize.query(
+    'DROP TRIGGER IF EXISTS cost_models_update ON "CostModelsHistory" CASCADE;',
+  )
+
+  await queryInterface.sequelize.query(
+    'DROP FUNCTION IF EXISTS cost_models_update_notify() CASCADE;',
+  )
 }
