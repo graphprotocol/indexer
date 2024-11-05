@@ -1,7 +1,0 @@
-apiVersion: cloud.google.com/v1beta1
-kind: BackendConfig
-metadata:
-  name: indexer-service-backend-config
-spec:
-  connectionDraining:
-    drainingTimeoutSec: 0

@@ -1,7 +1,6 @@
 # Graph Protocol Indexer Components
 
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
-[![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-service)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
 **NOTE: THIS PROJECT IS BETA SOFTWARE.**
@@ -19,7 +18,6 @@ query fees, can be found [here](./docs/scalar.md).
 The indexer service, agent and CLI can be installed as NPM packages, using
 
 ```sh
-npm install -g @graphprotocol/indexer-service
 npm install -g @graphprotocol/indexer-agent
 
 # Indexer CLI is a plugin for Graph CLI, so both need to be installed:
