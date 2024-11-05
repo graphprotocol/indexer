@@ -49,7 +49,7 @@
     "eslint-config-prettier": "8.5.0",
     "lodash.clonedeep": "^4.5.0",
     "prettier": "3.0.3",
-    "ts-jest": "29.1.1",
+    "ts-jest": "^29.2.5",
     "typescript": "5.2.2"
   },
   "resolutions": {

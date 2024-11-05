@@ -512,7 +512,7 @@ issues with your Ethereum node or provider, but it may also simply be an
 internal error in ethers.js, in which case you can ignore this error.
 
 If the error is _not_ related to Ethereum requests, it is likely to be an
-unhandled error in indexer-agent and indexer-service and is best reported as an
+unhandled error in indexer-agent and is best reported as an
 issue on https://github.com/graphprotocol/indexer/issues.
 
 ## IE036
@@ -523,7 +523,7 @@ An operation failed somewhere in the system but this error wasn't handled.
 
 **Solution**
 
-This is likely to be an unhandled error in indexer-agent and indexer-service and
+This is likely to be an unhandled error in indexer-agent and
 is best reported as an issue on https://github.com/graphprotocol/indexer/issues.
 
 ## IE037
