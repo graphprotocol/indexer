@@ -9,8 +9,8 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | contracts          | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)          |
 | indexer-agent      | [0.21.5](https://github.com/graphprotocol/indexer/releases/tag/v0.21.5)            |
 | indexer-cli        | [0.21.5](https://github.com/graphprotocol/indexer/releases/tag/v0.21.5)            |
-| indexer-service-rs | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)           |
-| tap-agent          | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)           |
+| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
+| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
 | graph-node         | [0.35.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1)         |
 
 ## Network Parameters
