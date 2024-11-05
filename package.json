@@ -6,7 +6,6 @@
       "packages/indexer-common",
       "packages/indexer-cli",
       "packages/indexer-agent",
-      "packages/indexer-service",
       "packages/indexer-native"
     ]
   },
@@ -14,8 +13,8 @@
     "bootstrap": "lerna bootstrap",
     "prepare": "lerna run prepare",
     "release": "./scripts/release.sh",
-    "test": "lerna --concurrency 1 run test --stream --ignore @graphprotocol/indexer-service",
-    "test:ci": "lerna --concurrency 1 run test:ci --stream --ignore @graphprotocol/indexer-service",
+    "test": "lerna --concurrency 1 run test --stream",
+    "test:ci": "lerna --concurrency 1 run test:ci --stream",
     "clean": "lerna run clean && rm -rf ./node_modules",
     "compile": "lerna run compile"
   },

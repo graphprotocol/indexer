@@ -1,7 +1,6 @@
 # Graph Protocol Indexer Components
 
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
-[![Docker Image: Indexer Service](https://github.com/graphprotocol/indexer/workflows/Indexer%20Service%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-service)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
 **NOTE: THIS PROJECT IS BETA SOFTWARE.**
@@ -19,7 +18,6 @@ query fees, can be found [here](./docs/scalar.md).
 The indexer service, agent and CLI can be installed as NPM packages, using
 
 ```sh
-npm install -g @graphprotocol/indexer-service
 npm install -g @graphprotocol/indexer-agent
 
 # Indexer CLI is a plugin for Graph CLI, so both need to be installed:
@@ -30,9 +28,6 @@ npm install -g @graphprotocol/indexer-cli
 After that, they can be run with the following commands:
 
 ```sh
-# Indexer service
-graph-indexer-service start ...
-
 # Indexer agent
 graph-indexer-agent start ...
 
@@ -41,68 +36,6 @@ graph indexer ...
 ```
 
 ## Usage
-
-### Indexer service
-
-```sh
-$ graph-indexer-service start --help
-
-Start the service
-
-Ethereum
-  --ethereum                   Ethereum node or provider URL [string] [required]
-  --ethereum-network           Ethereum network    [string] [default: "mainnet"]
-  --ethereum-polling-interval  Polling interval for the Ethereum provider (ms)
-                                                        [number] [default: 4000]
-  --mnemonic                   Mnemonic for the operator wallet
-                                                             [string] [required]
-  --indexer-address            Ethereum address of the indexer
-                                                             [string] [required]
-
-Indexer Infrastructure
-  --port                        Port to serve queries at[number] [default: 7600]
-  --metrics-port                Port to serve Prometheus metrics at
-                                                        [number] [default: 7300]
-  --graph-node-query-endpoint   Graph Node endpoint to forward queries to
-                                                             [string] [required]
-  --graph-node-status-endpoint  Graph Node endpoint for indexing statuses etc.
-                                                             [string] [required]
-  --log-level                   Log level            [string] [default: "debug"]
-
-Postgres
-  --postgres-host      Postgres host                         [string] [required]
-  --postgres-port      Postgres port                    [number] [default: 5432]
-  --postgres-username  Postgres username          [string] [default: "postgres"]
-  --postgres-password  Postgres password                  [string] [default: ""]
-  --postgres-database  Postgres database name                [string] [required]
-
-Network Subgraph
-  --network-subgraph-endpoint    Endpoint to query the network subgraph from
-                                                             [string] [required]
-  --network-subgraph-auth-token  Bearer token to require for /network queries
-                                                                        [string]
-  --serve-network-subgraph       Whether to serve the network subgraph at
-                                 /network             [boolean] [default: false]
-  --allocation-syncing-interval  Interval (in ms) for syncing indexer
-                                 allocations from the network
-                                                      [number] [default: 120000]
-
-Query Fees
-  --vector-node                 URL of a vector node                    [string]
-  --vector-router               Public identifier of the vector router  [string]
-  --vector-transfer-definition  Address of the Graph transfer definition
-                                contract              [string] [default: "auto"]
-
-Options:
-  --version                Show version number                         [boolean]
-  --help                   Show help                                   [boolean]
-  --gcloud-profiling       Whether to enable Google Cloud profiling
-                                                      [boolean] [default: false]
-  --free-query-auth-token  Auth token that clients can use to query for free
-                                                                         [array]
-  --client-signer-address  Address that signs query fee receipts from a known
-                           client                                       [string]
-```
 
 ### Indexer agent
 
@@ -287,13 +220,9 @@ build the packages:
 yarn
 ```
 
-After this, the indexer service and agent can be run with:
+After this, the agent can be run with:
 
 ```sh
-# Indexer service
-cd packages/indexer-service
-./bin/graph-indexer-service start ...
-
 # Indexer agent
 cd packages/indexer-agent
 ./bin/graph-indexer-agent start ...
@@ -301,23 +230,16 @@ cd packages/indexer-agent
 
 ## Docker images
 
-The easiest way to run the indexer service agent is by using Docker. Docker
+The easiest way to run the indexer agent is by using Docker. Docker
 images can either be pulled via
 
 ```sh
-docker pull ghcr.io/graphprotocol/indexer-service:latest
 docker pull ghcr.io/graphprotocol/indexer-agent:latest
 ```
 
 or built locally with
 
 ```sh
-# Indexer service
-docker build \
-  -f Dockerfile.indexer-service \
-  -t indexer-service:latest \
-  .
-
 # Indexer agent
 docker build \
   -f Dockerfile.indexer-agent \
@@ -325,18 +247,9 @@ docker build \
   .
 ```
 
-After this, the indexer agent and service can be run as follows:
+After this, the indexer agent can be run as follows:
 
-1. Indexer service:
-
-   ```sh
-   docker run -p 7600:7600 -it indexer-service:latest ...
-   ```
-
-   After this, the indexer service should be up and running at
-   http://localhost:7600/.
-
-2. Indexer Agent
+1. Indexer Agent
 
    ```sh
    docker run -p 18000:8000 -it indexer-agent:latest ...
@@ -364,7 +277,6 @@ workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
 [chan](https://github.com/geut/chan/tree/master/packages/chan) is
 used to maintain the following changelogs:
 
-- [indexer-service](packages/indexer-service/CHANGELOG.md)
 - [indexer-agent](packages/indexer-agent/CHANGELOG.md)
 - [indexer-cli](packages/indexer-cli/CHANGELOG.md)
 - [indexer-common](packages/indexer-common/CHANGELOG.md)
@@ -374,14 +286,10 @@ Creating a new release involves the following steps:
 1. Update all changelogs:
 
    ```sh
-   pushd packages/indexer-service
+   pushd packages/indexer-agent
    chan added ...
    chan fixed ...
    chan changed ...
-   popd
-
-   pushd packages/indexer-agent
-   ...
    popd
 
    pushd packages/indexer-cli
