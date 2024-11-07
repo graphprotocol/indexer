@@ -126,6 +126,13 @@ export default {
         required: false,
         group: 'Postgres',
       })
+      .option('postgres-sslenabled', {
+        description: 'Postgres SSL Enabled',
+        type: 'boolean',
+        default: 'false',
+        required: false,
+        group: 'Postgres',
+      })
       .option('postgres-database', {
         description: 'Postgres database name',
         type: 'string',
@@ -300,6 +307,7 @@ export default {
       username: argv.postgresUsername,
       password: argv.postgresPassword,
       database: argv.postgresDatabase,
+      sslEnabled: argv.postgresSslEnabled,
     })
     const queryFeeModels = defineQueryFeeModels(sequelize)
     const models = defineIndexerManagementModels(sequelize)
