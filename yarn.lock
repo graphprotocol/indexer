@@ -893,10 +893,10 @@
   resolved "https://registry.yarnpkg.com/@google-cloud/promisify/-/promisify-4.0.0.tgz#a906e533ebdd0f754dca2509933334ce58b8c8b1"
   integrity sha512-Orxzlfb9c67A15cq2JQEyVc7wEsmFBmHjZWZYQMUyJ1qivXyMwdyNOs9odi79hze+2zqdTtu1E19IM/FtqZ10g==
 
-"@graphprotocol/common-ts@2.0.10":
-  version "2.0.10"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/common-ts/-/common-ts-2.0.10.tgz#a2bd7810b6f2b41a5724bcd45b1320a2c6c316a9"
-  integrity sha512-7aAoskggNyMTr54es+7C6sXbSxEz0qxeqVeMqslYnLSAhUtO/TF0UOLdRa06A6RhaVZl5xKh4FUPC1Lr2NiBwQ==
+"@graphprotocol/common-ts@2.0.11":
+  version "2.0.11"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/common-ts/-/common-ts-2.0.11.tgz#29f92e7a9666a6b8baccd15e51281d87658978c9"
+  integrity sha512-WtQGYMGVwaXDIli+OCAZUSqh8+ql9THzjztqvLGeSbAIPKxysvej9vua0voMguqEkI/RyEEMBajelodMzzZlEw==
   dependencies:
     "@graphprotocol/contracts" "5.3.3"
     "@graphprotocol/pino-sentry-simple" "0.7.1"
