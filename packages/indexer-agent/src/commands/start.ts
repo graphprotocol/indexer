@@ -540,6 +540,7 @@ export async function run(
     username: argv.postgresUsername,
     password: argv.postgresPassword,
     database: argv.postgresDatabase,
+    sslEnabled: argv.postgresSslEnabled,
     poolMin: 0,
     poolMax: argv.postgresPoolSize,
   })

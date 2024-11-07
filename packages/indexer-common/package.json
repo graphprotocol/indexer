@@ -22,7 +22,7 @@
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.10",
+    "@graphprotocol/common-ts": "2.0.11",
     "@graphprotocol/cost-model": "0.1.18",
     "@semiotic-labs/tap-contracts-bindings": "^1.2.1",
     "@thi.ng/heaps": "1.2.38",
