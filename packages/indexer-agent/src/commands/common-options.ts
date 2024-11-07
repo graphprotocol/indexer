@@ -75,6 +75,13 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       required: false,
       group: 'Postgres',
     })
+    .option('postgres-sslenabled', {
+      description: 'Postgres SSL Enabled',
+      type: 'boolean',
+      default: 'false',
+      required: false,
+      group: 'Postgres',
+    })
     .option('postgres-database', {
       description: 'Postgres database name',
       type: 'string',
