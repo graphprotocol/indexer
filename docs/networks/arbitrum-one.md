@@ -6,12 +6,12 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 
 | Component          | Release                                                                            |
 | ------------------ | ---------------------------------------------------------------------------------- |
-| contracts          | [1.11.1](https://github.com/graphprotocol/contracts/releases/tag/v1.11.1)          |
-| indexer-agent      | [0.21.4](https://github.com/graphprotocol/indexer/releases/tag/v0.21.4)            |
-| indexer-cli        | [0.21.4](https://github.com/graphprotocol/indexer/releases/tag/v0.21.4)            |
-| indexer-service-rs | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)           |
-| tap-agent          | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)           |
-| graph-node         | [0.35.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1)         |
+| contracts          | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/contracts)](https://github.com/graphprotocol/contracts/releases)          |
+| indexer-agent      | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)           |
+| indexer-cli        | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)            |
+| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
+| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
+| graph-node         | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/graph-node)](https://github.com/graphprotocol/graph-node/releases)         |
 
 ## Network Parameters
 
@@ -43,7 +43,7 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                                                       |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                                                         |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                                                                    |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmSWxvd8SaQK6qZKJ7xtfxCCGoRzGnoi2WNzmJYYJW9BXY`                                                                          |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2FDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3DDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp)   |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp`   |
 | `INDEXER_AGENT_DAI_CONTRACT`                | `--dai-contract`                | TBD                                                                                                                       |
 | `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.network.thegraph.com/`                                                                          |
@@ -71,9 +71,9 @@ They are configured using a TOML file provided with `--config`. You should start
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `indexer.indexer_address`              | Ethereum address of testnet indexer                                                                                     |
 | `indexer.operator_mnemonic`            | Ethereum mnemonic for testnet operator                                                                                  |
-| `subgraphs.network.deployment_id`      | `QmSWxvd8SaQK6qZKJ7xtfxCCGoRzGnoi2WNzmJYYJW9BXY`                                                                        |
+| `subgraphs.network.deployment_id`      | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2FDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3DDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp)                   |
 | `subgraphs.network.query_url`          | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp` |
-| `subgraphs.escrow.deployment_id`       | `QmUhiH6Z5xo6o3GNzsSvqpGKLmCt6w5WzKQ1yHk6C8AA8S`                                                                        |
+| `subgraphs.escrow.deployment_id`       | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2F4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3D4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1)   |
 | `subgraphs.escrow.query_url`           | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1` |
 | `blockchain.receipts_verifier_address` | `0x33f9E93266ce0E108fc85DdE2f71dab555A0F05a`                                                                            |
 | `tap.sender_aggregator_endpoints`      | `0xDDE4cfFd3D9052A9cb618fC05a1Cd02be1f2F467 = https://tap-aggregator.network.thegraph.com`                              |
