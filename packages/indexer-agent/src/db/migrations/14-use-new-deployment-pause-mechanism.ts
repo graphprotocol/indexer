@@ -34,10 +34,14 @@ export async function up({ context }: Context): Promise<void> {
     indexNodes,
   })
 
-  const targetNode =
+  const specifiedTargetNode = process.env.INDEXER_PAUSED_TARGET_NODE
+  const leastDeploymentsNode =
     indexNodes.sort((nodeA, nodeB) => {
       return nodeA.deployments.length - nodeB.deployments.length
     })[0]?.id || 'default'
+
+  // If the target node is specified, use it. Otherwise, use the node with the least deployments
+  const targetNode = specifiedTargetNode || leastDeploymentsNode
 
   const pausedDeploymentAssignments =
     await graphNode.subgraphDeploymentsAssignments(SubgraphStatus.PAUSED)
@@ -49,7 +53,7 @@ export async function up({ context }: Context): Promise<void> {
     )
 
   logger.info(
-    'Reassigning paused subgraphs to valid node_id (targetNode), then pausing',
+    'Pausing subgraphs, then reassigning them to valid node_id (targetNode)',
     {
       pausedSubgraphs: virtuallyPausedDeploymentAssignments.map(
         details => details.id,
@@ -59,9 +63,10 @@ export async function up({ context }: Context): Promise<void> {
   )
 
   for (const deploymentAssignment of virtuallyPausedDeploymentAssignments) {
-    await graphNode.reassign(deploymentAssignment.id, targetNode)
+    // Here we first pause the subgraph to ensure it does not start indexing
     await graphNode.pause(deploymentAssignment.id)
-    logger.debug('Successfully reassigned and paused deployment', {
+    await graphNode.reassign(deploymentAssignment.id, targetNode)
+    logger.debug('Successfully paused and reassigned deployment', {
       deployment: deploymentAssignment.id.ipfsHash,
     })
   }
