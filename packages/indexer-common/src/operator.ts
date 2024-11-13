@@ -278,6 +278,7 @@ export class Operator {
       reason: action.reason,
       priority: 0,
       protocolNetwork: action.protocolNetwork,
+      syncingNetork: 'unknown',
     }
     this.logger.trace(`Queueing action input`, {
       actionInput,

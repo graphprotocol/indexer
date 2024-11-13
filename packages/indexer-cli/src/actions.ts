@@ -47,6 +47,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -64,6 +65,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     }
     case ActionType.REALLOCATE: {
@@ -83,6 +85,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     }
   }
@@ -399,6 +402,7 @@ export async function fetchActions(
           ) {
             id
             protocolNetwork
+            syncingNetwork
             type
             allocationID
             deploymentID

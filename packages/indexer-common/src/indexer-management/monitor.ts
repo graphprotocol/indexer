@@ -520,6 +520,48 @@ export class NetworkMonitor {
     }
   }
 
+  async deploymentSyncingNetwork(ipfsHash: string): Promise<string> {
+    try {
+      const result = await this.networkSubgraph.checkedQuery(
+        gql`
+          query subgraphDeploymentManifest($ipfsHash: String!) {
+            subgraphDeploymentManifest(id: $ipfsHash) {
+              network
+            }
+          }
+        `,
+        {
+          ipfsHash: ipfsHash,
+        },
+      )
+
+      if (result.error) {
+        throw result.error
+      }
+
+      if (!result.data || !result.data.subgraphDeploymentManifest) {
+        throw new Error(
+          `SubgraphDeployment with ipfsHash = ${ipfsHash} not found on chain`,
+        )
+      }
+
+      if (result.data.subgraphDeploymentManifest.network == undefined) {
+        return 'unknown'
+      }
+
+      return result.data.subgraphDeploymentManifest.network
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE078, error)
+      this.logger.error(
+        `Failed to query subgraphDeploymentManifest with ipfsHash = ${ipfsHash}`,
+        {
+          err,
+        },
+      )
+      throw err
+    }
+  }
+
   async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
     this.logger.debug('Querying the Network for transferred subgraph deployments')
     try {

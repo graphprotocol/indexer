@@ -135,6 +135,7 @@ const SCHEMA_SDL = gql`
     createdAt: BigInt!
     updatedAt: BigInt
     protocolNetwork: String!
+    syncingNetwork: String!
   }
 
   input ActionInput {
@@ -149,6 +150,7 @@ const SCHEMA_SDL = gql`
     reason: String!
     priority: Int!
     protocolNetwork: String!
+    syncingNetwork: String!
   }
 
   input ActionUpdateInput {
@@ -201,6 +203,7 @@ const SCHEMA_SDL = gql`
   input ActionFilter {
     id: Int
     protocolNetwork: String
+    syncingNetwork: String
     type: ActionType
     status: String
     source: String
