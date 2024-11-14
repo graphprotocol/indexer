@@ -35,6 +35,13 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       default: 'debug',
       group: 'Indexer Infrastructure',
     })
+    .option('polling-interval', {
+      description: 'Polling interval for data collection',
+      type: 'number',
+      required: false,
+      default: 120_000,
+      group: 'Indexer Infrastructure',
+    })
     .option('offchain-subgraphs', {
       description: 'Subgraphs to index that are not on chain (comma-separated)',
       type: 'string',
