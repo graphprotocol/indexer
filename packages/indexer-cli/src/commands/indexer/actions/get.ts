@@ -14,6 +14,7 @@ import {
   fixParameters,
   printObjectOrArray,
   extractProtocolNetworkOption,
+  extractSyncingNetworkOption,
 } from '../../../command-helpers'
 import { fetchAction, fetchActions } from '../../../actions'
 
@@ -23,6 +24,7 @@ ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
   -n, --network                                                     Filter by protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -s, --syncing                                                     Filter by the syncing network (see https://thegraph.com/networks/ for supported networks) 
       --type    allocate|unallocate|reallocate|collect              Filter by type
       --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
@@ -37,6 +39,7 @@ ${chalk.dim('Options:')}
 const actionFields: (keyof Action)[] = [
   'id',
   'protocolNetwork',
+  'syncingNetwork',
   'type',
   'deploymentID',
   'allocationID',
@@ -51,7 +54,7 @@ const actionFields: (keyof Action)[] = [
   'reason',
 ]
 
-/// Validates input for the `--fieds` option.
+/// Validates input for the `--fields` option.
 function validateFields(fields: string | undefined): (keyof Action)[] {
   if (fields === undefined) {
     return []
@@ -95,10 +98,8 @@ module.exports = {
     let orderByParam = ActionParams.ID
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
-
-    const protocolNetwork: string | undefined = extractProtocolNetworkOption(
-      parameters.options,
-    )
+    let protocolNetwork: string | undefined = undefined
+    let syncingNetwork: string | undefined = undefined
 
     if (help || h) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -106,6 +107,10 @@ module.exports = {
     }
     let selectedFields: (keyof Action)[]
     try {
+      protocolNetwork = extractProtocolNetworkOption(parameters.options)
+
+      syncingNetwork = extractSyncingNetworkOption(parameters.options)
+
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
           `Invalid output format "${outputFormat}" must be one of ['json', 'yaml' or 'table']`,
@@ -195,6 +200,7 @@ module.exports = {
             source,
             reason,
             protocolNetwork,
+            syncingNetwork,
           },
           first,
           orderByParam,
@@ -213,9 +219,10 @@ module.exports = {
       )
 
       // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      actions.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
-      )
+      actions.forEach(action => {
+        action.protocolNetwork = resolveChainAlias(action.protocolNetwork)
+        action.syncingNetwork = resolveChainAlias(action.syncingNetwork)
+      })
 
       printObjectOrArray(print, outputFormat, actions, displayProperties)
     } catch (error) {

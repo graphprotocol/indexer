@@ -36,7 +36,10 @@ export enum OutputFormat {
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
 import { utils } from 'ethers'
-import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import {
+  validateNetworkIdentifier,
+  validateSupportedNetworkIdentifier,
+} from '@graphprotocol/indexer-common'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -237,7 +240,7 @@ export function extractProtocolNetworkOption(
   const input = (network ?? n) as string
 
   try {
-    return validateNetworkIdentifier(input)
+    return validateSupportedNetworkIdentifier(input)
   } catch (parseError) {
     throw new Error(`Invalid value for the option '--network'. ${parseError}`)
   }
@@ -250,4 +253,38 @@ export function requireProtocolNetworkOption(options: { [key: string]: any }): s
     throw new Error("The option '--network' is required")
   }
   return protocolNetwork
+}
+
+export function extractSyncingNetworkOption(
+  options: {
+    [key: string]: any
+  },
+  required = false,
+): string | undefined {
+  const { s, syncing } = options
+
+  // Tries to extract the --network option from Gluegun options.
+  // Throws if required is set to true and the option is not found.
+  if (!s && !syncing) {
+    if (required) {
+      throw new Error("The option '--syncing' is required")
+    } else {
+      return undefined
+    }
+  }
+
+  // Check for invalid usage
+  const allowedUsages =
+    (s === undefined && typeof syncing === 'string') ||
+    (syncing === undefined && typeof s === 'string')
+  if (!allowedUsages) {
+    throw new Error("Invalid usage of the option '--network'")
+  }
+  const input = (syncing ?? s) as string
+
+  try {
+    return validateNetworkIdentifier(input)
+  } catch (parseError) {
+    throw new Error(`Invalid value for the option '--syncing'. ${parseError}`)
+  }
 }

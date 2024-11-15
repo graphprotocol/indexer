@@ -10,7 +10,7 @@ import {
   nullPassThrough,
   OrderDirection,
   parseBoolean,
-  validateNetworkIdentifier,
+  validateSupportedNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -215,7 +215,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
-  protocolNetwork: x => validateNetworkIdentifier(x),
+  protocolNetwork: x => validateSupportedNetworkIdentifier(x),
 }
 
 /**

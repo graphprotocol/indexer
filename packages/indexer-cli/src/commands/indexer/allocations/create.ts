@@ -8,7 +8,7 @@ import { createAllocation } from '../../../allocations'
 import {
   processIdentifier,
   SubgraphIdentifierType,
-  validateNetworkIdentifier,
+  validateSupportedNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { printObjectOrArray } from '../../../command-helpers'
 
@@ -64,7 +64,7 @@ module.exports = {
 
       // This nested try block is necessary to complement the parsing error with the 'network' field.
       try {
-        validateNetworkIdentifier(protocolNetwork)
+        validateSupportedNetworkIdentifier(protocolNetwork)
       } catch (parsingError) {
         throw new Error(`Invalid 'network' provided. ${parsingError}`)
       }
