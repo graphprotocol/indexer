@@ -473,7 +473,7 @@ describe('Monitor: CI', () => {
   test('Fetch subgraph deployments (unconstrained block)', async () => {
     const deployments = await networkMonitor.subgraphDeployments()
     await expect(deployments.length).toBeGreaterThan(500)
-  }, 30000)
+  }, 40000)
 })
 
 describe('Network layer detection', () => {

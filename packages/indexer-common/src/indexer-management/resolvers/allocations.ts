@@ -66,8 +66,13 @@ interface AllocationInfo {
 
 const ALLOCATION_QUERIES = {
   [AllocationQuery.all]: gql`
-    query allocations($indexer: String!) {
-      allocations(where: { indexer: $indexer }, first: 1000) {
+    query allocations($indexer: String!, $lastId: String!) {
+      allocations(
+        where: { indexer: $indexer, id_gt: $lastId }
+        orderBy: id
+        orderDirection: asc
+        first: 1000
+      ) {
         id
         subgraphDeployment {
           id
@@ -87,8 +92,13 @@ const ALLOCATION_QUERIES = {
     }
   `,
   [AllocationQuery.active]: gql`
-    query allocations($indexer: String!) {
-      allocations(where: { indexer: $indexer, status: Active }, first: 1000) {
+    query allocations($indexer: String!, $lastId: String!) {
+      allocations(
+        where: { indexer: $indexer, id_gt: $lastId, status: Active }
+        orderBy: id
+        orderDirection: asc
+        first: 1000
+      ) {
         id
         subgraphDeployment {
           id
@@ -108,8 +118,13 @@ const ALLOCATION_QUERIES = {
     }
   `,
   [AllocationQuery.closed]: gql`
-    query allocations($indexer: String!) {
-      allocations(where: { indexer: $indexer, status: Closed }, first: 1000) {
+    query allocations($indexer: String!, $lastId: String!) {
+      allocations(
+        where: { indexer: $indexer, id_gt: $lastId, status: Closed }
+        orderBy: id
+        orderDirection: asc
+        first: 1000
+      ) {
         id
         subgraphDeployment {
           id
@@ -129,8 +144,13 @@ const ALLOCATION_QUERIES = {
     }
   `,
   [AllocationQuery.allocation]: gql`
-    query allocations($allocation: String!) {
-      allocations(where: { id: $allocation }, first: 1000) {
+    query allocations($allocation: String!, $lastId: String!) {
+      allocations(
+        where: { id: $allocation, id_gt: $lastId }
+        orderBy: id
+        orderDirection: asc
+        first: 1000
+      ) {
         id
         subgraphDeployment {
           id
@@ -203,27 +223,44 @@ async function queryAllocations(
     )
   }
 
-  const result = await networkSubgraph.checkedQuery(
-    ALLOCATION_QUERIES[filterType],
-    filterVars,
-  )
+  let lastId = ''
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const resultAllocations: any[] = []
+  for (;;) {
+    const pageVars = {
+      ...filterVars,
+      lastId,
+    }
+    const result = await networkSubgraph.checkedQuery(
+      ALLOCATION_QUERIES[filterType],
+      pageVars,
+    )
 
-  if (result.data.allocations.length == 0) {
+    if (result.error) {
+      logger.warning('Querying allocations failed', {
+        error: result.error,
+        lastId: lastId,
+      })
+      throw result.error
+    }
+
+    if (result.data.allocations.length == 0) {
+      break
+    }
+    // merge results
+    resultAllocations.push(...result.data.allocations)
+    lastId = result.data.allocations.slice(-1)[0].id
+  }
+
+  if (resultAllocations.length == 0) {
     // TODO: Is 'Claimable' still the correct term here, after Exponential Rebates?
     logger.info(`No 'Claimable' allocations found`)
     return []
   }
 
-  if (result.error) {
-    logger.warning('Query failed', {
-      error: result.error,
-    })
-    throw result.error
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return pMap(
-    result.data.allocations,
+    resultAllocations,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (allocation: any): Promise<AllocationInfo> => {
       const deadlineEpoch = allocation.createdAtEpoch + context.maxAllocationEpochs
