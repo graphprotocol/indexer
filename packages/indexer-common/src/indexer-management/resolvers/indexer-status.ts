@@ -124,33 +124,52 @@ export default {
     const address = network.specification.indexerOptions.address
 
     try {
-      const result = await network.networkSubgraph.checkedQuery(
-        gql`
-          query allocations($indexer: String!) {
-            allocations(
-              where: { indexer: $indexer, status: Active }
-              first: 1000
-              orderDirection: desc
-            ) {
-              id
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              subgraphDeployment {
+      let lastId = ''
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const allAllocations: any[] = []
+      for (;;) {
+        const result = await network.networkSubgraph.checkedQuery(
+          gql`
+            query allocations($indexer: String!, $lastId: String!) {
+              allocations(
+                where: { indexer: $indexer, status: Active, id_gt: $lastId }
+                first: 1000
+                orderBy: id
+                orderDirection: asc
+              ) {
                 id
-                stakedTokens
-                signalledTokens
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                }
               }
             }
-          }
-        `,
-        { indexer: address.toLocaleLowerCase() },
-      )
-      if (result.error) {
-        throw result.error
+          `,
+          { indexer: address.toLocaleLowerCase(), lastId },
+        )
+
+        if (result.error) {
+          logger.warning('Querying allocations failed', {
+            error: result.error,
+            lastId: lastId,
+          })
+          throw result.error
+        }
+
+        if (result.data.allocations.length === 0) {
+          break
+        }
+
+        allAllocations.push(...result.data.allocations)
+        lastId = result.data.allocations.slice(-1)[0].id
       }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return result.data.allocations.map((allocation: any) => ({
+      return allAllocations.map((allocation: any) => ({
         ...allocation,
         subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
           .ipfsHash,
