@@ -145,6 +145,8 @@ export function buildActionFilter(
   status: string | undefined,
   source: string | undefined,
   reason: string | undefined,
+  protocolNetwork: string | undefined,
+  syncingNetwork: string | undefined,
 ): ActionFilter {
   const filter: ActionFilter = {}
   if (id) {
@@ -161,6 +163,12 @@ export function buildActionFilter(
   }
   if (reason) {
     filter.reason = reason
+  }
+  if (protocolNetwork) {
+    filter.protocolNetwork = protocolNetwork
+  }
+  if (syncingNetwork) {
+    filter.syncingNetwork = syncingNetwork
   }
   if (Object.keys(filter).length === 0) {
     throw Error(
