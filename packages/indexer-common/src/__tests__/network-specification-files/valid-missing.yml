@@ -28,5 +28,3 @@ subgraphs:
     url: http://subgraph
 networkProvider:
   url: http://provider
-dai:
-  contractAddress: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
