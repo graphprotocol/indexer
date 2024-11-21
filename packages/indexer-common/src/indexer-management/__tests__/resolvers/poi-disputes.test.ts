@@ -195,7 +195,7 @@ const setupAll = async () => {
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
-  client = await createTestManagementClient(__DATABASE__, logger, true, metrics)
+  client = await createTestManagementClient(__DATABASE__, logger, metrics)
   logger.info('Finished setting up Test Indexer Management Client')
 }
 

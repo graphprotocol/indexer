@@ -9,7 +9,6 @@ import stripAnsi from 'strip-ansi'
 import {
   ActionStatus,
   ActionType,
-  CostModelVariables,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -254,12 +253,6 @@ export const seedCostModels = async () => {
         'QmZfeJYR86UARzp9HiXbURWunYgC9ywvPvoePNbuaATrEK',
       ).toString(),
       model: 'default => 0.00025;',
-    })
-    await models.CostModel.create({
-      deployment: new SubgraphDeploymentID(
-        'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
-      ).toString(),
-      variables: { DAI: '0.5' } as CostModelVariables,
     })
   } catch (e) {
     logger.error('Failed to seed CostModel table', { error: e })

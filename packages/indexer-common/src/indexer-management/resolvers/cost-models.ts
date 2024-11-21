@@ -1,49 +1,9 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
-import {
-  CostModelVariables,
-  COST_MODEL_GLOBAL,
-  GraphQLCostModel,
-  parseGraphQLCostModel,
-} from '../models'
+import { COST_MODEL_GLOBAL, GraphQLCostModel, parseGraphQLCostModel } from '../models'
 import { IndexerManagementResolverContext } from '../client'
 import { compileAsync } from '@graphprotocol/cost-model'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getVariable = (vars: CostModelVariables | null, name: string): any | undefined => {
-  if (vars === null) {
-    return undefined
-  } else {
-    try {
-      if (Object.prototype.hasOwnProperty.call(vars, name)) {
-        return vars[name]
-      } else {
-        return undefined
-      }
-    } catch (e) {
-      return undefined
-    }
-  }
-}
-
-const setVariable = (
-  vars: CostModelVariables | null,
-  name: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  value: any,
-): CostModelVariables => {
-  if (vars === null) {
-    return { [name]: value }
-  } else {
-    try {
-      vars[name] = value
-      return vars
-    } catch (e) {
-      return vars
-    }
-  }
-}
 
 export default {
   costModel: async (
@@ -120,20 +80,13 @@ export default {
 
   setCostModel: async (
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
-    { models, multiNetworks, dai }: IndexerManagementResolverContext,
+    { models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object> => {
     if (!multiNetworks) {
       throw new Error('No network configuration available')
     }
     if (Object.keys(multiNetworks.inner).length !== 1) {
       throw Error('Must be in single network mode to set cost models')
-    }
-    const network = Object.values(multiNetworks.inner)[0]
-    const injectDai = network.specification.dai.inject
-    if (network.specification.networkIdentifier !== 'eip155:1' && injectDai) {
-      throw new Error(
-        `Can't set cost model: DAI injection enabled but not on Ethereum Mainnet`,
-      )
     }
     const update = parseGraphQLCostModel(costModel)
 
@@ -154,34 +107,6 @@ export default {
       model: update.model || oldModel?.model,
       variables: update.variables || oldModel?.variables,
     })
-    if (oldModel) {
-      let variables = update.variables || oldModel!.variables
-      if (injectDai) {
-        const oldDai = getVariable(oldModel!.variables, 'DAI')
-        const newDai = getVariable(update.variables, 'DAI')
-
-        // Inject the latest DAI value if available
-        if (dai.valueReady) {
-          variables = setVariable(variables, 'DAI', await dai.value())
-        } else if (newDai === undefined && oldDai !== undefined) {
-          // Otherwise preserve the old DAI value if there is one;
-          // this ensures it's never dropped
-          variables = setVariable(variables, 'DAI', oldDai)
-        }
-        // Apply new variables
-        model.variables = variables
-      }
-    } else {
-      let variables = update.variables
-      if (injectDai) {
-        // Inject the latest DAI value if available
-        if (dai.valueReady) {
-          variables = setVariable(variables, 'DAI', await dai.value())
-        }
-        // Apply new variables
-        model.variables = variables
-      }
-    }
 
     return (await model.save()).toGraphQL()
   },

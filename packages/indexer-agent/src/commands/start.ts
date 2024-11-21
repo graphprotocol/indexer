@@ -26,7 +26,6 @@ import {
   specification as spec,
 } from '@graphprotocol/indexer-common'
 import { Agent } from '../agent'
-import { startCostModelAutomation } from '../cost'
 import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
@@ -235,13 +234,6 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
-      .option('inject-dai', {
-        description:
-          'Inject the GRT to DAI/USDC conversion rate into cost model variables',
-        type: 'boolean',
-        default: false,
-        group: 'Cost Models',
-      })
       .option('address-book', {
         description: 'Graph contracts address book file path',
         type: 'string',
@@ -256,13 +248,6 @@ export const start = {
         description: 'The time in seconds that the chain finalizes blocks',
         type: 'number',
         default: 3600,
-      })
-      .option('dai-contract', {
-        description:
-          'Address of the DAI or USDC contract to use for the --inject-dai conversion rate',
-        type: 'string',
-        // Default to USDC
-        default: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
       })
       .option('register', {
         description: 'Whether to register the indexer on chain',
@@ -394,11 +379,6 @@ export async function createNetworkSpecification(
     },
   }
 
-  const dai = {
-    contractAddress: argv.daiContractAddress,
-    inject: argv.injectDai,
-  }
-
   const networkProvider = {
     url: argv.networkProvider,
     pollingInterval: argv.ethereumPollingInterval,
@@ -441,12 +421,6 @@ export async function createNetworkSpecification(
     }
   }
 
-  if (chainId !== 1 && dai.inject) {
-    throw new Error(
-      `The DAI injection feature for cost models is only supported on Ethereum Mainnet`,
-    )
-  }
-
   const tapAddressBook = loadFile(argv.tapAddressBook)
 
   try {
@@ -459,7 +433,6 @@ export async function createNetworkSpecification(
       networkProvider,
       addressBook: argv.addressBook,
       tapAddressBook,
-      dai,
     })
   } catch (parsingError) {
     displayZodParsingError(parsingError)
@@ -632,16 +605,6 @@ export async function run(
     port: argv.indexerManagementPort,
   })
   logger.info(`Successfully launched indexer management API server`)
-
-  // --------------------------------------------------------------------------------
-  // * Cost Model Automation
-  // --------------------------------------------------------------------------------
-  await startCostModelAutomation({
-    logger,
-    networks,
-    indexerManagement: indexerManagementClient,
-    metrics,
-  })
 
   // --------------------------------------------------------------------------------
   // * Syncing Server
