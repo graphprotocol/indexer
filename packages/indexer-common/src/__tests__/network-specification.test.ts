@@ -66,11 +66,6 @@ describe('Failed deserialization', () => {
       message: 'Invalid IPFS hash',
     },
     {
-      file: 'invalid-address.yml',
-      path: ['dai', 'contractAddress'],
-      message: 'Invalid contract address',
-    },
-    {
       file: 'invalid-negative-max-block-distance.yml',
       path: ['subgraphs', 'maxBlockDistance'],
       message: 'Number must be greater than or equal to 0',

@@ -54,23 +54,6 @@ describe('Indexer cost tests singleNetwork', () => {
         },
       )
       cliTest(
-        'Indexer cost set variable deployment id - success',
-        [
-          'indexer',
-          'cost',
-          'set',
-          'variables',
-          'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
-          `'{"DAI": "0.5"}'`,
-        ],
-        'references/indexer-cost-variables-deployment',
-        {
-          expectedExitCode: 0,
-          cwd: baseDir,
-          timeout: 10000,
-        },
-      )
-      cliTest(
         'Indexer cost set model deployment id - no arg',
         [
           'indexer',
@@ -251,23 +234,6 @@ describe('Indexer cost tests multiNetworks', () => {
         'references/basic.agora',
       ],
       'references/indexer-cost-model-deployment-multinetworks',
-      {
-        expectedExitCode: 1,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
-    cliTest(
-      'Indexer cost set variable deployment id - reject multinetwork mode',
-      [
-        'indexer',
-        'cost',
-        'set',
-        'variables',
-        'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
-        `'{"DAI": "0.5"}'`,
-      ],
-      'references/indexer-cost-variables-deployment-multinetworks',
       {
         expectedExitCode: 1,
         cwd: baseDir,

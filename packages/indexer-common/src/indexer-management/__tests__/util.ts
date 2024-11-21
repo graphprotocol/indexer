@@ -23,7 +23,6 @@ export const createTestManagementClient = async (
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   databaseOptions: any,
   logger: Logger,
-  injectDai: boolean,
   metrics: Metrics,
   networkIdentifierOverride?: string,
 ): Promise<IndexerManagementClient> => {
@@ -44,7 +43,6 @@ export const createTestManagementClient = async (
   )
 
   const networkSpecification = { ...testNetworkSpecification }
-  networkSpecification.dai.inject = injectDai
 
   const defaults: IndexerManagementDefaults = {
     globalIndexingRule: {
