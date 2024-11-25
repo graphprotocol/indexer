@@ -101,6 +101,12 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       default: 50,
       group: 'Postgres',
     })
+    .option('ipfs-endpoint', {
+      description: 'Ipfs endpoint for querying manifests',
+      type: 'string',
+      required: true,
+      group: 'Indexer Infrastructure',
+    })
     .option('graph-node-query-endpoint', {
       description: 'Graph Node endpoint for querying subgraphs',
       type: 'string',
