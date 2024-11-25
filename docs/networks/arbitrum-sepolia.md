@@ -7,8 +7,8 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Component          | Release                                                                              |
 | ------------------ | ------------------------------------------------------------------------------------ |
 | contracts          | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)              |
-| indexer-agent      | [0.21.8-2](https://github.com/graphprotocol/indexer/releases/tag/v0.21.8-2)              |
-| indexer-cli        | [0.21.8-2](https://github.com/graphprotocol/indexer/releases/tag/v0.21.8-2)              |
+| indexer-agent      | [0.21.9](https://github.com/graphprotocol/indexer/releases/tag/v0.21.9)              |
+| indexer-cli        | [0.21.9](https://github.com/graphprotocol/indexer/releases/tag/v0.21.9)              |
 | indexer-service-rs | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | tap-agent          | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | graph-node         | [0.35.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1)           |
