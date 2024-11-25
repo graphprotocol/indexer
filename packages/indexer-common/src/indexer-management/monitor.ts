@@ -130,56 +130,75 @@ export class NetworkMonitor {
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       this.logger.debug(`Fetch ${status} allocations`)
-      const result = await this.networkSubgraph.checkedQuery(
-        gql`
-          query allocations($indexer: String!, $status: AllocationStatus!) {
-            allocations(
-              where: { indexer: $indexer, status: $status }
-              first: 1000
-              orderBy: createdAtBlockNumber
-              orderDirection: asc
+      let dataRemaining = true
+      let allocations: Allocation[] = []
+      let lastId = ''
+
+      while (dataRemaining) {
+        const result = await this.networkSubgraph.checkedQuery(
+          gql`
+            query allocations(
+              $indexer: String!
+              $status: AllocationStatus!
+              $lastId: String!
             ) {
-              id
-              indexer {
+              allocations(
+                where: { indexer: $indexer, status: $status, id_gt: $lastId }
+                first: 1000
+                orderBy: id
+                orderDirection: asc
+              ) {
                 id
-              }
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                  queryFeesAmount
+                }
               }
             }
-          }
-        `,
-        {
-          indexer: this.indexerOptions.address.toLocaleLowerCase(),
-          status: status,
-        },
-      )
+          `,
+          {
+            indexer: this.indexerOptions.address.toLocaleLowerCase(),
+            status: status,
+            lastId,
+          },
+        )
 
-      if (result.error) {
-        throw result.error
+        if (result.error) {
+          throw result.error
+        }
+
+        if (
+          !result.data.allocations ||
+          result.data.length === 0 ||
+          result.data.allocations.length === 0
+        ) {
+          dataRemaining = false
+        } else {
+          lastId = result.data.allocations.slice(-1)[0].id
+          allocations = allocations.concat(
+            result.data.allocations.map(parseGraphQLAllocation),
+          )
+        }
       }
 
-      if (
-        !result.data.allocations ||
-        result.data.length === 0 ||
-        result.data.allocations.length === 0
-      ) {
+      if (allocations.length === 0) {
         this.logger.warn(
           `No ${
             AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
           } allocations found for indexer '${this.indexerOptions.address}'`,
         )
-        return []
       }
 
-      return result.data.allocations.map(parseGraphQLAllocation)
+      return allocations
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer allocations`, {
@@ -231,56 +250,78 @@ export class NetworkMonitor {
   ): Promise<Allocation[]> {
     try {
       this.logger.debug('Fetch recently closed allocations')
-      const result = await this.networkSubgraph.checkedQuery(
-        gql`
-          query allocations($indexer: String!, $closedAtEpochThreshold: Int!) {
-            allocations(
-              where: {
-                indexer: $indexer
-                status: Closed
-                closedAtEpoch_gte: $closedAtEpochThreshold
-              }
-              first: 1000
+      let dataRemaining = true
+      let allocations: Allocation[] = []
+      let lastId = ''
+
+      while (dataRemaining) {
+        const result = await this.networkSubgraph.checkedQuery(
+          gql`
+            query allocations(
+              $indexer: String!
+              $closedAtEpochThreshold: Int!
+              $lastId: String!
             ) {
-              id
-              indexer {
+              allocations(
+                where: {
+                  indexer: $indexer
+                  status: Closed
+                  closedAtEpoch_gte: $closedAtEpochThreshold
+                  id_gt: $lastId
+                }
+                first: 1000
+                orderBy: id
+                orderDirection: desc
+              ) {
                 id
-              }
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
+                indexer {
+                  id
+                }
+                allocatedTokens
+                createdAtEpoch
+                closedAtEpoch
+                createdAtBlockHash
+                subgraphDeployment {
+                  id
+                  stakedTokens
+                  signalledTokens
+                  queryFeesAmount
+                }
               }
             }
-          }
-        `,
-        {
-          indexer: this.indexerOptions.address.toLocaleLowerCase(),
-          closedAtEpochThreshold: currentEpoch - range,
-        },
-      )
+          `,
+          {
+            indexer: this.indexerOptions.address.toLocaleLowerCase(),
+            closedAtEpochThreshold: currentEpoch - range,
+            lastId,
+          },
+        )
 
-      if (result.error) {
-        throw result.error
+        if (result.error) {
+          throw result.error
+        }
+
+        if (
+          !result.data.allocations ||
+          result.data.length === 0 ||
+          result.data.allocations.length === 0
+        ) {
+          dataRemaining = false
+        } else {
+          lastId = result.data.allocations.slice(-1)[0].id
+          allocations = allocations.concat(
+            result.data.allocations.map(parseGraphQLAllocation),
+          )
+        }
       }
 
-      if (
-        !result.data.allocations ||
-        result.data.length === 0 ||
-        result.data.allocations.length === 0
-      ) {
+      if (allocations.length === 0) {
         this.logger.warn(
           `No recently closed allocations found for indexer '${this.indexerOptions.address}'`,
         )
-        return []
       }
 
-      return result.data.allocations.map(parseGraphQLAllocation)
+      return allocations
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer's recently closed allocations`, {
