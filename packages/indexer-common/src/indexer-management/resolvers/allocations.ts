@@ -1,9 +1,12 @@
-import { epochElapsedBlocks, Network } from '@graphprotocol/indexer-common'
+import {
+  AllocationQueryBuilder,
+  epochElapsedBlocks,
+  Network,
+} from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
 import pMap from 'p-map'
-import gql from 'graphql-tag'
 import { BigNumber, utils } from 'ethers'
 
 import {
@@ -38,13 +41,9 @@ interface AllocationFilter {
   protocolNetwork: string | null
 }
 
-enum AllocationQuery {
-  all = 'all',
-  active = 'active',
-  closed = 'closed',
-  allocation = 'allocation',
-}
-
+/**
+ * Flattens some of Allocation, and actually a response type. TODO: move to a separate file.s
+ */
 interface AllocationInfo {
   id: Address
   indexer: Address
@@ -64,118 +63,11 @@ interface AllocationInfo {
   protocolNetwork: string
 }
 
-const ALLOCATION_QUERIES = {
-  [AllocationQuery.all]: gql`
-    query allocations($indexer: String!, $lastId: String!) {
-      allocations(
-        where: { indexer: $indexer, id_gt: $lastId }
-        orderBy: id
-        orderDirection: asc
-        first: 1000
-      ) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-  [AllocationQuery.active]: gql`
-    query allocations($indexer: String!, $lastId: String!) {
-      allocations(
-        where: { indexer: $indexer, id_gt: $lastId, status: Active }
-        orderBy: id
-        orderDirection: asc
-        first: 1000
-      ) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-  [AllocationQuery.closed]: gql`
-    query allocations($indexer: String!, $lastId: String!) {
-      allocations(
-        where: { indexer: $indexer, id_gt: $lastId, status: Closed }
-        orderBy: id
-        orderDirection: asc
-        first: 1000
-      ) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-  [AllocationQuery.allocation]: gql`
-    query allocations($allocation: String!, $lastId: String!) {
-      allocations(
-        where: { id: $allocation, id_gt: $lastId }
-        orderBy: id
-        orderDirection: asc
-        first: 1000
-      ) {
-        id
-        subgraphDeployment {
-          id
-          stakedTokens
-          signalledTokens
-        }
-        indexer {
-          id
-        }
-        allocatedTokens
-        createdAtEpoch
-        closedAtEpoch
-        indexingRewards
-        queryFeesCollected
-        status
-      }
-    }
-  `,
-}
-
 async function queryAllocations(
   logger: Logger,
   networkSubgraph: NetworkSubgraph,
   variables: {
-    indexer: Address
+    indexer: Address | null
     allocation: Address | null
     status: 'active' | 'closed' | null
   },
@@ -194,105 +86,52 @@ async function queryAllocations(
     context,
   })
 
-  let filterType: AllocationQuery
-  let filterVars: object
+  const allocationsQuery = new AllocationQueryBuilder()
+  if (variables.indexer) {
+    allocationsQuery.setIndexer(variables.indexer)
+  }
   if (variables.allocation) {
-    filterType = AllocationQuery.allocation
-    filterVars = {
-      allocation: variables.allocation.toLowerCase(),
-    }
-  } else if (variables.status == null && variables.allocation == null) {
-    filterType = AllocationQuery.all
-    filterVars = {
-      indexer: variables.indexer.toLowerCase(),
-    }
-  } else if (variables.status == 'active') {
-    filterType = AllocationQuery.active
-    filterVars = {
-      indexer: variables.indexer.toLowerCase(),
-    }
-  } else if (variables.status == 'closed') {
-    filterType = AllocationQuery.closed
-    filterVars = {
-      indexer: variables.indexer.toLowerCase(),
-    }
-  } else {
-    // Shouldn't ever get here
-    throw new Error(
-      `Unsupported combination of variables provided, variables: ${variables}`,
-    )
+    allocationsQuery.setAllocation(variables.allocation)
   }
-
-  let lastId = ''
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const resultAllocations: any[] = []
-  for (;;) {
-    const pageVars = {
-      ...filterVars,
-      lastId,
-    }
-    const result = await networkSubgraph.checkedQuery(
-      ALLOCATION_QUERIES[filterType],
-      pageVars,
-    )
-
-    if (result.error) {
-      logger.warning('Querying allocations failed', {
-        error: result.error,
-        lastId: lastId,
-      })
-      throw result.error
-    }
-
-    if (result.data.allocations.length == 0) {
-      break
-    }
-    // merge results
-    resultAllocations.push(...result.data.allocations)
-    lastId = result.data.allocations.slice(-1)[0].id
+  if (variables.status) {
+    allocationsQuery.setStatus(variables.status)
   }
+  const resultAllocations = await networkSubgraph.allocationsQuery(
+    allocationsQuery.build(),
+  )
 
   if (resultAllocations.length == 0) {
-    // TODO: Is 'Claimable' still the correct term here, after Exponential Rebates?
     logger.info(`No 'Claimable' allocations found`)
     return []
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return pMap(
-    resultAllocations,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (allocation: any): Promise<AllocationInfo> => {
-      const deadlineEpoch = allocation.createdAtEpoch + context.maxAllocationEpochs
-      const remainingBlocks =
-        // blocks remaining in current epoch
-        context.blocksPerEpoch -
-        context.currentEpochElapsedBlocks +
-        // blocks in the remaining epochs after this one
-        context.blocksPerEpoch * (deadlineEpoch - context.currentEpoch - 1)
-      return {
-        id: allocation.id,
-        indexer: allocation.indexer.id,
-        subgraphDeployment: new SubgraphDeploymentID(allocation.subgraphDeployment.id)
-          .ipfsHash,
-        signalledTokens: allocation.subgraphDeployment.signalledTokens,
-        stakedTokens: allocation.subgraphDeployment.stakedTokens,
-        allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
-        createdAtEpoch: allocation.createdAtEpoch,
-        closedAtEpoch: allocation.closedAtEpoch,
-        ageInEpochs: allocation.closedAtEpoch
-          ? allocation.closedAtEpoch - allocation.createdAtEpoch
-          : context.currentEpoch - allocation.createdAtEpoch,
-        closeDeadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
-        closeDeadlineBlocksRemaining: remainingBlocks,
-        closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
-        indexingRewards: allocation.indexingRewards,
-        queryFeesCollected: allocation.queryFeesCollected,
-        status: allocation.status,
-        protocolNetwork: context.protocolNetwork,
-      }
-    },
-  )
+  return pMap(resultAllocations, async (allocation): Promise<AllocationInfo> => {
+    const deadlineEpoch = allocation.createdAtEpoch + context.maxAllocationEpochs
+    const remainingBlocks =
+      context.blocksPerEpoch -
+      context.currentEpochElapsedBlocks +
+      context.blocksPerEpoch * (deadlineEpoch - context.currentEpoch - 1)
+    return {
+      id: allocation.id,
+      indexer: allocation.indexer,
+      subgraphDeployment: allocation.subgraphDeployment.id.ipfsHash,
+      signalledTokens: allocation.subgraphDeployment.signalledTokens.toString(),
+      stakedTokens: allocation.subgraphDeployment.stakedTokens.toString(),
+      allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
+      createdAtEpoch: allocation.createdAtEpoch,
+      closedAtEpoch: allocation.closedAtEpoch,
+      ageInEpochs: allocation.closedAtEpoch
+        ? allocation.closedAtEpoch - allocation.createdAtEpoch
+        : context.currentEpoch - allocation.createdAtEpoch,
+      closeDeadlineEpoch: allocation.createdAtEpoch + context.maxAllocationEpochs,
+      closeDeadlineBlocksRemaining: remainingBlocks,
+      closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
+      indexingRewards: allocation.indexingRewards?.toString() ?? '0',
+      queryFeesCollected: allocation.queryFeesCollected?.toString() ?? '0',
+      status: allocation.status,
+      protocolNetwork: context.protocolNetwork,
+    }
+  })
 }
 
 export default {

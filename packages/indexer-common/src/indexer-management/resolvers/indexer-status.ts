@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/ban-types */
 
 import geohash from 'ngeohash'
-import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
@@ -124,50 +123,7 @@ export default {
     const address = network.specification.indexerOptions.address
 
     try {
-      let lastId = ''
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const allAllocations: any[] = []
-      for (;;) {
-        const result = await network.networkSubgraph.checkedQuery(
-          gql`
-            query allocations($indexer: String!, $lastId: String!) {
-              allocations(
-                where: { indexer: $indexer, status: Active, id_gt: $lastId }
-                first: 1000
-                orderBy: id
-                orderDirection: asc
-              ) {
-                id
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                }
-              }
-            }
-          `,
-          { indexer: address.toLocaleLowerCase(), lastId },
-        )
-
-        if (result.error) {
-          logger.warning('Querying allocations failed', {
-            error: result.error,
-            lastId: lastId,
-          })
-          throw result.error
-        }
-
-        if (result.data.allocations.length === 0) {
-          break
-        }
-
-        allAllocations.push(...result.data.allocations)
-        lastId = result.data.allocations.slice(-1)[0].id
-      }
-
+      const allAllocations = await network.networkSubgraph.fetchActiveAllocations(address)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       return allAllocations.map((allocation: any) => ({
         ...allocation,

@@ -117,32 +117,6 @@ const setup = () => {
       },
     )
 
-  mockQueryNetworkSubgraph = jest
-    .fn()
-    .mockImplementation(
-      async (_, variables): Promise<QueryResult<AllocationsResponse>> => {
-        const pageSize: number = variables.pageSize
-        const lastId: string | undefined = variables.lastId
-
-        const paginatedAllocations = paginateArray(
-          allocations,
-          (allocation) => allocation.id,
-          pageSize,
-          lastId,
-        )
-
-        return {
-          data: {
-            allocations: paginatedAllocations,
-            meta: {
-              block: {
-                hash: 'blockhash',
-              },
-            },
-          },
-        }
-      },
-    )
   {
     const transactionManager = null as unknown as TransactionManager
     const models = null as unknown as QueryFeeModels
@@ -156,9 +130,8 @@ const setup = () => {
     const tapSubgraph = {
       query: mockQueryTapSubgraph,
     } as unknown as TAPSubgraph
-    const networkSubgraph = {
-      query: mockQueryNetworkSubgraph,
-    } as unknown as NetworkSubgraph
+
+    const networkSubgraph = {} as unknown as NetworkSubgraph
 
     tapCollector = TapCollector.create({
       logger,
@@ -177,29 +150,6 @@ const setup = () => {
 
 describe('TAP Pagination', () => {
   beforeAll(setup, timeout)
-  test(
-    'test `getAllocationsfromAllocationIds` pagination',
-    async () => {
-      {
-        const allocations = await tapCollector['getAllocationsfromAllocationIds']([])
-        expect(mockQueryNetworkSubgraph).toBeCalledTimes(3)
-        expect(allocations.length).toEqual(2999)
-      }
-      mockQueryNetworkSubgraph.mockClear()
-
-      const mockAllocation = createMockAllocation()
-      allocations.push({
-        ...mockAllocation,
-        id: getContractAddress({ from, nonce: 3000 }) as Address,
-      })
-      {
-        const allocations = await tapCollector['getAllocationsfromAllocationIds']([])
-        expect(mockQueryNetworkSubgraph).toBeCalledTimes(4)
-        expect(allocations.length).toEqual(3000)
-      }
-    },
-    timeout,
-  )
   test(
     'test `findTransactionsForRavs` pagination',
     async () => {

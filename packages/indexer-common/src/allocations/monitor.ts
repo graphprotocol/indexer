@@ -1,8 +1,4 @@
-import {
-  indexerError,
-  IndexerErrorCode,
-  parseGraphQLAllocation,
-} from '@graphprotocol/indexer-common'
+import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 import { Allocation, MonitorEligibleAllocationsOptions } from './types'
 
 import gql from 'graphql-tag'
@@ -47,108 +43,9 @@ export const monitorEligibleAllocations = ({
 
       const currentEpoch = currentEpochResult.data.graphNetwork.currentEpoch
 
-      let lastId = ''
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const activeAllocations: any[] = []
-      for (;;) {
-        const result = await networkSubgraph.query(
-          gql`
-            query allocations($indexer: String!, $lastId: String!) {
-              allocations(
-                where: { indexer: $indexer, id_gt: $lastId, status: Active }
-                orderBy: id
-                orderDirection: asc
-                first: 1000
-              ) {
-                id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtBlockHash
-                createdAtEpoch
-                closedAtEpoch
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            indexer: indexer.toLowerCase(),
-            lastId,
-          },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-        if (result.data.allocations.length == 0) {
-          break
-        }
-        activeAllocations.push(...result.data.allocations)
-        lastId = result.data.allocations.slice(-1)[0].id
-      }
-
-      lastId = ''
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const recentlyClosedAllocations: any[] = []
-      for (;;) {
-        const result = await networkSubgraph.query(
-          gql`
-            query allocations(
-              $indexer: String!
-              $lastId: String!
-              $closedAtEpochThreshold: Int!
-            ) {
-              allocations(
-                where: {
-                  indexer: $indexer
-                  id_gt: $lastId
-                  status: Closed
-                  closedAtEpoch_gte: $closedAtEpochThreshold
-                }
-                orderBy: id
-                orderDirection: asc
-                first: 1000
-              ) {
-                id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtBlockHash
-                createdAtEpoch
-                closedAtEpoch
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            indexer: indexer.toLowerCase(),
-            lastId,
-            closedAtEpochThreshold: currentEpoch - 1, // allocation can be closed within the last epoch or later
-          },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-        if (result.data.allocations.length == 0) {
-          break
-        }
-        recentlyClosedAllocations.push(...result.data.allocations)
-        lastId = result.data.allocations.slice(-1)[0].id
-      }
-
+      const activeAllocations = await networkSubgraph.fetchActiveAllocations(indexer)
+      const recentlyClosedAllocations =
+        await networkSubgraph.fetchRecentlyClosedAllocations(indexer, currentEpoch)
       const allocations = [...activeAllocations, ...recentlyClosedAllocations]
 
       if (allocations.length == 0) {
@@ -157,8 +54,7 @@ export const monitorEligibleAllocations = ({
         })
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return allocations.map((x) => parseGraphQLAllocation(x, protocolNetwork))
+      return allocations
     } catch (err) {
       logger.warn(`Failed to query indexer allocations, keeping existing`, {
         allocations: currentAllocations.map((allocation) => allocation.id),

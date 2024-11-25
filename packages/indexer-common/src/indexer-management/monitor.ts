@@ -130,67 +130,12 @@ export class NetworkMonitor {
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
     try {
       this.logger.debug(`Fetch ${status} allocations`)
-      let dataRemaining = true
-      let allocations: Allocation[] = []
-      let lastId = ''
+      const allocationsByStatus = await this.networkSubgraph.fetchAllocationsByStatus(
+        this.indexerOptions.address.toLocaleLowerCase(),
+        status,
+      )
 
-      while (dataRemaining) {
-        const result = await this.networkSubgraph.checkedQuery(
-          gql`
-            query allocations(
-              $indexer: String!
-              $status: AllocationStatus!
-              $lastId: String!
-            ) {
-              allocations(
-                where: { indexer: $indexer, status: $status, id_gt: $lastId }
-                first: 1000
-                orderBy: id
-                orderDirection: asc
-              ) {
-                id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            indexer: this.indexerOptions.address.toLocaleLowerCase(),
-            status: status,
-            lastId,
-          },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-
-        if (
-          !result.data.allocations ||
-          result.data.length === 0 ||
-          result.data.allocations.length === 0
-        ) {
-          dataRemaining = false
-        } else {
-          lastId = result.data.allocations.slice(-1)[0].id
-          allocations = allocations.concat(
-            result.data.allocations.map(parseGraphQLAllocation),
-          )
-        }
-      }
-
-      if (allocations.length === 0) {
+      if (!allocationsByStatus || allocationsByStatus.length === 0) {
         this.logger.warn(
           `No ${
             AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
@@ -198,7 +143,7 @@ export class NetworkMonitor {
         )
       }
 
-      return allocations
+      return allocationsByStatus
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(`Failed to query indexer allocations`, {
@@ -250,72 +195,14 @@ export class NetworkMonitor {
   ): Promise<Allocation[]> {
     try {
       this.logger.debug('Fetch recently closed allocations')
-      let dataRemaining = true
-      let allocations: Allocation[] = []
-      let lastId = ''
-
-      while (dataRemaining) {
-        const result = await this.networkSubgraph.checkedQuery(
-          gql`
-            query allocations(
-              $indexer: String!
-              $closedAtEpochThreshold: Int!
-              $lastId: String!
-            ) {
-              allocations(
-                where: {
-                  indexer: $indexer
-                  status: Closed
-                  closedAtEpoch_gte: $closedAtEpochThreshold
-                  id_gt: $lastId
-                }
-                first: 1000
-                orderBy: id
-                orderDirection: desc
-              ) {
-                id
-                indexer {
-                  id
-                }
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                createdAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            indexer: this.indexerOptions.address.toLocaleLowerCase(),
-            closedAtEpochThreshold: currentEpoch - range,
-            lastId,
-          },
+      const allocations =
+        await this.networkSubgraph.fetchRecentlyClosedAllocationsByRange(
+          this.indexerOptions.address,
+          currentEpoch,
+          range,
         )
 
-        if (result.error) {
-          throw result.error
-        }
-
-        if (
-          !result.data.allocations ||
-          result.data.length === 0 ||
-          result.data.allocations.length === 0
-        ) {
-          dataRemaining = false
-        } else {
-          lastId = result.data.allocations.slice(-1)[0].id
-          allocations = allocations.concat(
-            result.data.allocations.map(parseGraphQLAllocation),
-          )
-        }
-      }
-
-      if (allocations.length === 0) {
+      if (!allocations || allocations.length === 0) {
         this.logger.warn(
           `No recently closed allocations found for indexer '${this.indexerOptions.address}'`,
         )
@@ -335,52 +222,11 @@ export class NetworkMonitor {
     subgraphDeploymentId: SubgraphDeploymentID,
   ): Promise<Allocation[]> {
     try {
-      const result = await this.networkSubgraph.checkedQuery(
-        gql`
-          query allocations($indexer: String!, $subgraphDeploymentId: String!) {
-            allocations(
-              where: {
-                indexer: $indexer
-                status: Closed
-                subgraphDeployment: $subgraphDeploymentId
-              }
-              first: 5
-              orderBy: closedAtBlockNumber
-              orderDirection: desc
-            ) {
-              id
-              poi
-              indexer {
-                id
-              }
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
-              }
-            }
-          }
-        `,
-        {
-          indexer: this.indexerOptions.address.toLocaleLowerCase(),
-          subgraphDeploymentId: subgraphDeploymentId.display.bytes32,
-        },
+      const allClosedAllocations = await this.networkSubgraph.fetchClosedAllocations(
+        this.indexerOptions.address.toLocaleLowerCase(),
+        subgraphDeploymentId,
       )
-
-      if (result.error) {
-        throw result.error
-      }
-
-      if (
-        !result.data.allocations ||
-        result.data.length === 0 ||
-        result.data.allocations.length === 0
-      ) {
+      if (!allClosedAllocations || allClosedAllocations.length === 0) {
         this.logger.warn('No closed allocations found for deployment', {
           id: subgraphDeploymentId.display.bytes32,
           ipfsHash: subgraphDeploymentId.display,
@@ -388,7 +234,7 @@ export class NetworkMonitor {
         return []
       }
 
-      return result.data.allocations.map(parseGraphQLAllocation)
+      return allClosedAllocations
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
       this.logger.error(
@@ -1081,65 +927,23 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         closedAtEpoch_lte: disputableEpoch,
         queryFeesCollected_gte: this.indexerOptions.rebateClaimThreshold.toString(),
       })
-      const result = await this.networkSubgraph.checkedQuery(
-        gql`
-          query allocations(
-            $indexer: String!
-            $disputableEpoch: Int!
-            $minimumQueryFeesCollected: BigInt!
-          ) {
-            allocations(
-              where: {
-                indexer: $indexer
-                closedAtEpoch_lte: $disputableEpoch
-                queryFeesCollected_gte: $minimumQueryFeesCollected
-                status: Closed
-              }
-              first: 1000
-            ) {
-              id
-              indexer {
-                id
-              }
-              queryFeesCollected
-              allocatedTokens
-              createdAtEpoch
-              closedAtEpoch
-              createdAtBlockHash
-              closedAtBlockHash
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
-              }
-            }
-          }
-        `,
-        {
-          indexer: this.indexerOptions.address.toLocaleLowerCase(),
+      const allClaimableAllocations =
+        await this.networkSubgraph.fetchClaimableAllocations(
+          this.indexerOptions.address,
+          this.indexerOptions.rebateClaimThreshold.toString(),
           disputableEpoch,
-          minimumQueryFeesCollected: this.indexerOptions.rebateClaimThreshold.toString(),
-        },
-      )
+        )
 
-      if (result.error) {
-        throw result.error
-      }
-
-      const totalFees: BigNumber = result.data.allocations.reduce(
-        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
-          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+      const totalFees: BigNumber = allClaimableAllocations.reduce(
+        (total: BigNumber, allocation) => {
+          return total.add(BigNumber.from(allocation.queryFeesCollected))
         },
         BigNumber.from(0),
       )
 
-      const parsedAllocs: Allocation[] =
-        result.data.allocations.map(parseGraphQLAllocation)
-
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
       if (
-        parsedAllocs.length > 0 &&
+        allClaimableAllocations.length > 0 &&
         totalFees.lt(this.indexerOptions.rebateClaimBatchThreshold)
       ) {
         this.logger.info(
@@ -1150,8 +954,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
               this.indexerOptions.rebateClaimBatchThreshold,
             ),
             rebateClaimMaxBatchSize: this.indexerOptions.rebateClaimMaxBatchSize,
-            batchSize: parsedAllocs.length,
-            allocations: parsedAllocs.map((allocation) => {
+            batchSize: allClaimableAllocations.length,
+            allocations: allClaimableAllocations.map((allocation) => {
               return {
                 allocation: allocation.id,
                 deployment: allocation.subgraphDeployment.id.display,
@@ -1165,7 +969,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         return []
       }
       // Otherwise return the allos for claiming since the batch meets the minimum
-      return parsedAllocs
+      return allClaimableAllocations
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE011, error)
       this.logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE011], {
@@ -1174,6 +978,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       throw err
     }
   }
+
   async disputableAllocations(
     currentEpoch: number,
     deployments: SubgraphDeploymentID[],
@@ -1186,77 +991,13 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
 
     logger.debug('Query network for any potentially disputable allocations')
-
-    let dataRemaining = true
-    let allocations: Allocation[] = []
-
     try {
-      const zeroPOI = utils.hexlify(Array(32).fill(0))
-      const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
-      let lastId = ''
-      while (dataRemaining) {
-        const result = await this.networkSubgraph.checkedQuery(
-          gql`
-            query allocations(
-              $deployments: [String!]!
-              $minimumAllocation: Int!
-              $disputableEpoch: Int!
-              $zeroPOI: String!
-              $lastId: String!
-            ) {
-              allocations(
-                where: {
-                  id_gt: $lastId
-                  subgraphDeployment_in: $deployments
-                  allocatedTokens_gt: $minimumAllocation
-                  closedAtEpoch_gte: $disputableEpoch
-                  status: Closed
-                  poi_not: $zeroPOI
-                }
-                first: 1000
-                orderBy: id
-                orderDirection: asc
-              ) {
-                id
-                createdAt
-                indexer {
-                  id
-                }
-                poi
-                allocatedTokens
-                createdAtEpoch
-                closedAtEpoch
-                closedAtBlockHash
-                subgraphDeployment {
-                  id
-                  stakedTokens
-                  signalledTokens
-                  queryFeesAmount
-                }
-              }
-            }
-          `,
-          {
-            deployments: deployments.map((subgraph) => subgraph.bytes32),
-            minimumAllocation,
-            disputableEpoch,
-            lastId,
-            zeroPOI,
-          },
-        )
-
-        if (result.error) {
-          throw result.error
-        }
-        if (result.data.allocations.length == 0) {
-          dataRemaining = false
-        } else {
-          lastId = result.data.allocations.slice(-1)[0].id
-          const parsedResult: Allocation[] =
-            result.data.allocations.map(parseGraphQLAllocation)
-          allocations = allocations.concat(parsedResult)
-        }
-      }
+      const allocations = await this.networkSubgraph.fetchDisputableAllocations(
+        this.indexerOptions.address,
+        deployments,
+        currentEpoch,
+        minimumAllocation,
+      )
 
       // Get the unique set of dispute epochs to reduce the work fetching epoch start block hashes in the next step
       const disputableEpochs = await this.epochs([

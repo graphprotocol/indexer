@@ -8,6 +8,7 @@ export interface Allocation {
   status: AllocationStatus
   subgraphDeployment: SubgraphDeployment
   indexer: Address
+  indexingRewards?: BigNumber
   allocatedTokens: BigNumber
   createdAtEpoch: number
   createdAtBlockHash: string

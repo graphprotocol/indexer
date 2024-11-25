@@ -22,7 +22,6 @@ import {
   SignedRAV,
   allocationSigner,
   tapAllocationIdProof,
-  parseGraphQLAllocation,
 } from '..'
 import { BigNumber } from 'ethers'
 import pReduce from 'p-reduce'
@@ -224,71 +223,12 @@ export class TapCollector {
       rav.getSignedRAV().rav.allocationId.toLowerCase(),
     )
 
-    let block: { hash: string } | undefined = undefined
-    let lastId = ''
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const returnedAllocations: any[] = []
-
-    for (;;) {
-      const result = await this.networkSubgraph.query<AllocationsResponse>(
-        gql`
-          query allocations(
-            $lastId: String!
-            $pageSize: Int!
-            $block: Block_height
-            $allocationIds: [String!]!
-          ) {
-            meta: _meta(block: $block) {
-              block {
-                number
-                hash
-                timestamp
-              }
-            }
-            allocations(
-              first: $pageSize
-              block: $block
-              orderBy: id
-              orderDirection: asc
-              where: { id_gt: $lastId, id_in: $allocationIds }
-            ) {
-              id
-              status
-              subgraphDeployment {
-                id
-                stakedTokens
-                signalledTokens
-                queryFeesAmount
-                deniedAt
-              }
-              indexer {
-                id
-              }
-              allocatedTokens
-              createdAtEpoch
-              createdAtBlockHash
-              closedAtEpoch
-              closedAtEpoch
-              closedAtBlockHash
-              poi
-              queryFeeRebates
-              queryFeesCollected
-            }
-          }
-        `,
-        { allocationIds, lastId, pageSize: PAGE_SIZE, block },
+    const returnedAllocations: any[] =
+      await this.networkSubgraph.fetchTapCollectorAllocationsResponse(
+        allocationIds,
+        PAGE_SIZE,
       )
-      if (!result.data) {
-        throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
-      }
-
-      returnedAllocations.push(...result.data.allocations)
-      block = { hash: result.data.meta.block.hash }
-      if (result.data.allocations.length < PAGE_SIZE) {
-        break
-      }
-      lastId = result.data.allocations.slice(-1)[0].id
-    }
 
     if (returnedAllocations.length == 0) {
       this.logger.error(
@@ -296,7 +236,7 @@ export class TapCollector {
       )
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return returnedAllocations.map((x) => parseGraphQLAllocation(x, this.protocolNetwork))
+    return returnedAllocations
   }
 
   private getSignedRAVsEventual(
