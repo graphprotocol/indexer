@@ -12,6 +12,7 @@ import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
 import pRetry, { Options } from 'p-retry'
 import axios, { AxiosInstance } from 'axios'
 import fetch from 'isomorphic-fetch'
+import yaml from 'yaml'
 
 interface indexNode {
   id: string
@@ -62,14 +63,73 @@ export const parseGraphQLChain = (chain: any): ChainIndexingStatus => ({
 export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
   block
     ? {
-        number: +block.number,
-        hash: block.hash,
-      }
+      number: +block.number,
+      hash: block.hash,
+    }
     : null
+
+export interface SubgraphDependencies {
+  root: SubgraphDeploymentID
+  dependencies: SubgraphDependency[]
+}
+
+export interface SubgraphDependency {
+  base: SubgraphDeploymentID,
+  block: number,
+}
+
+export class SubgraphManifestResolver {
+  private ipfsBaseUrl: URL
+  private ipfsClient: AxiosInstance
+
+  constructor(ipfsEndpoint: string) {
+    this.ipfsBaseUrl = new URL(`/ipfs/`, ipfsEndpoint)
+    this.ipfsClient = axios.create({})
+  }
+
+  /**
+   * 
+   * @param subgraphDeploymentId 
+   * @returns Promise<Manifest>
+   * 
+   * Resolves a subgraph's manifest.
+   */
+  public async resolve(subgraphDeploymentId: SubgraphDeploymentID): Promise<SubgraphDependency> {
+    const response = await this.ipfsClient
+      .get(`${subgraphDeploymentId.ipfsHash}`, {
+        baseURL: this.ipfsBaseUrl.toString(),
+      })
+    return yaml.parse(response.data)
+  }
+
+  public async resolveWithDependencies(subgraphDeploymentId: SubgraphDeploymentID): Promise<SubgraphDependencies> {
+    let deps: SubgraphDependencies = {
+      root: subgraphDeploymentId,
+      dependencies: []
+    }
+    const root = await this.resolve(subgraphDeploymentId)
+    let currentManifest: any = root
+    let dependency: any
+    while (dependency = currentManifest['graft']) {
+      const dep = {
+        block: dependency.block,
+        base: new SubgraphDeploymentID(dependency.base)
+      }
+      deps.dependencies.push(dep)
+      const nextManifest = await this.resolve(dep.base)
+      currentManifest = nextManifest
+    }
+    return deps
+  }
+
+}
 
 export class GraphNode {
   admin: RpcClient
   private queryBaseURL: URL
+  private ipfsBaseUrl: URL
+  private manifestResolver: SubgraphManifestResolver
+
   status: Client
   logger: Logger
 
@@ -78,6 +138,7 @@ export class GraphNode {
     adminEndpoint: string,
     queryEndpoint: string,
     statusEndpoint: string,
+    ipfsEndpoint: string,
   ) {
     this.logger = logger.child({ component: 'GraphNode' })
     this.status = createClient({
@@ -95,6 +156,8 @@ export class GraphNode {
     }
 
     this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
+    this.ipfsBaseUrl = new URL(`/ipfs/`, ipfsEndpoint)
+    this.manifestResolver = new SubgraphManifestResolver(ipfsEndpoint)
   }
 
   async connect(): Promise<void> {
@@ -411,9 +474,9 @@ export class GraphNode {
           node
             ? node.deployments.push(status.subgraphDeployment)
             : indexNodes.push({
-                id: status.node,
-                deployments: [status.subgraphDeployment],
-              })
+              id: status.node,
+              deployments: [status.subgraphDeployment],
+            })
         },
       )
 
@@ -809,8 +872,7 @@ export class GraphNode {
 
           if (!result.data || !result.data.blockHashFromNumber || result.error) {
             throw new Error(
-              `Failed to query graph node for blockHashFromNumber: ${
-                result.error ?? 'no data returned'
+              `Failed to query graph node for blockHashFromNumber: ${result.error ?? 'no data returned'
               }`,
             )
           }
