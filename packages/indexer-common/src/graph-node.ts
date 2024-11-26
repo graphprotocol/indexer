@@ -688,6 +688,33 @@ export class GraphNode {
     }
   }
 
+  /**
+   *  wait for the block to be synced, polling indexing status until it is
+   */
+  public async syncToBlock(blockHeight: number, subgraphDeployment: SubgraphDeploymentID): Promise<void> {
+    for (; ;) {
+      const deployed = (await this.subgraphDeployments()).filter(
+        (assignment) => assignment.ipfsHash == subgraphDeployment.ipfsHash,
+      )
+      if (deployed.length == 0) {
+        this.logger.error(`Subgraph not deployed and active`, {
+          subgraph: subgraphDeployment.ipfsHash,
+        })
+        throw new Error(`Subgraph not deployed and active, cannot sync to block`)
+      }
+      const status = await this.indexingStatus([subgraphDeployment])
+      const chain = status[0].chains[0]
+      if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
+        this.logger.info(`Subgraph synced to block`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          blockHeight,
+        })
+        return
+      }
+    }
+  }
+
+
   // --------------------------------------------------------------------------------
   // * Indexing Status
   // --------------------------------------------------------------------------------
