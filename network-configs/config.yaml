@@ -25,6 +25,3 @@ tapAddressBook:
     TAPVerifier: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"
     AllocationIDTracker: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"
     Escrow: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"
-dai:
-  contractAddress: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
-  inject: false

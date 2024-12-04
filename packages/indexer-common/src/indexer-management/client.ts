@@ -2,7 +2,7 @@ import { buildSchema, print } from 'graphql'
 import gql from 'graphql-tag'
 import { executeExchange } from '@urql/exchange-execute'
 import { Client, ClientOptions } from '@urql/core'
-import { equal, Logger, mutable, WritableEventual } from '@graphprotocol/common-ts'
+import { Logger } from '@graphprotocol/common-ts'
 
 import { IndexerManagementModels, IndexingRuleCreationAttributes } from './models'
 
@@ -13,7 +13,6 @@ import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import { BigNumber } from 'ethers'
-import { Op, Sequelize } from 'sequelize'
 import { GraphNode } from '../graph-node'
 import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
 
@@ -24,7 +23,6 @@ export interface IndexerManagementResolverContext {
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
   multiNetworks: MultiNetworks<Network> | undefined
-  dai: WritableEventual<string>
 }
 
 const SCHEMA_SDL = gql`
@@ -461,44 +459,12 @@ export interface IndexerManagementClientOptions {
 export class IndexerManagementClient extends Client {
   private logger?: Logger
   private models: IndexerManagementModels
-  private dai: WritableEventual<string>
 
-  constructor(
-    clientOptions: ClientOptions,
-    options: IndexerManagementClientOptions,
-    featureOptions: { dai: WritableEventual<string> },
-  ) {
+  constructor(clientOptions: ClientOptions, options: IndexerManagementClientOptions) {
     super(clientOptions)
 
     this.logger = options.logger
     this.models = options.models
-    this.dai = featureOptions.dai
-  }
-
-  public async setDai(value: string): Promise<void> {
-    // Get current value
-    const oldValue = this.dai.valueReady ? await this.dai.value() : undefined
-
-    // Don't do anything if there is no change
-    if (equal(oldValue, value)) {
-      return
-    }
-
-    // Notify others of the new value
-    this.dai.push(value)
-
-    // Update DAI in all cost models
-    const update = `'${JSON.stringify({ DAI: value })}'::jsonb`
-    await this.models.CostModel.update(
-      {
-        // This merges DAI into the variables, overwriting existing values
-        variables: Sequelize.literal(`coalesce(variables, '{}'::jsonb) || ${update}`),
-      },
-      {
-        // TODO: update to match all rows??
-        where: { model: { [Op.not]: null } },
-      },
-    )
   }
 }
 
@@ -518,8 +484,6 @@ export const createIndexerManagementClient = async (
     ...actionResolvers,
   }
 
-  const dai: WritableEventual<string> = mutable()
-
   const actionManager = multiNetworks
     ? await ActionManager.create(multiNetworks, logger, models, graphNode)
     : undefined
@@ -529,7 +493,6 @@ export const createIndexerManagementClient = async (
     graphNode,
     defaults,
     logger: logger.child({ component: 'IndexerManagementClient' }),
-    dai,
     multiNetworks,
     actionManager,
   }
@@ -540,7 +503,5 @@ export const createIndexerManagementClient = async (
     context,
   })
 
-  return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options, {
-    dai,
-  })
+  return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options)
 }

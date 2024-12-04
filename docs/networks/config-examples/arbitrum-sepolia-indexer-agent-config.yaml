@@ -31,6 +31,3 @@ transactionMonitoring:
   gasIncreaseTimeout: 90
   gasIncreaseFactor: 1.5
   maxTransactionAttempts: 20
-dai:
-  contractAddress: '0x9e7e607afd22906f7da6f1ec8f432d6f244278be'
-  inject: true

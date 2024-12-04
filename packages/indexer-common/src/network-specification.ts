@@ -167,21 +167,6 @@ export const NetworkProvider = z
   .strict()
 export type NetworkProvider = z.infer<typeof NetworkProvider>
 
-export const Dai = z
-  .object({
-    contractAddress: z
-      .string()
-      .default('0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48')
-      .refine((val) => utils.isAddress(val), {
-        message: 'Invalid contract address',
-      })
-      .transform(toAddress),
-    inject: z.boolean().default(true),
-  })
-  .strict()
-  .default({}) // defaults will be used for instantiation when the Dai group is absent.
-export type Dai = z.infer<typeof Dai>
-
 // All necessary information to describe a Protocol Network
 export const NetworkSpecification = z
   .object({
@@ -194,7 +179,6 @@ export const NetworkSpecification = z
     addressBook: z.string().optional(),
     tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
-    dai: Dai,
   })
   .strict()
 

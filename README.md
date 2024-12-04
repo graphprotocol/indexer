@@ -206,10 +206,6 @@ Protocol
   --epoch-subgraph-endpoint    Endpoint to query epoch start blocks from
                                                              [string] [required]
 
-Cost Models
-  --inject-dai  Inject the GRT to DAI/USDC conversion rate into cost model
-                variables                              [boolean] [default: true]
-
 Postgres
   --postgres-host      Postgres host                         [string] [required]
   --postgres-port      Postgres port                    [number] [default: 5432]
@@ -238,9 +234,6 @@ Query Fees
 Options:
   --version             Show version number                            [boolean]
   --help                Show help                                      [boolean]
-  --dai-contract        Address of the DAI or USDC contract to use for the
-                        --inject-dai conversion rate
-                [string] [default: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48"]
   --offchain-subgraphs  Subgraphs to index that are not on chain
                         (comma-separated)                  [array] [default: []]
 ```
