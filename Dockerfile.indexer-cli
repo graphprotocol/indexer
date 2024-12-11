@@ -7,10 +7,6 @@ ENV NODE_ENV production
 
 RUN apt-get update && apt-get install -y python3 build-essential git curl
 
-# Install Rust
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs > /tmp/rustup.sh && sh /tmp/rustup.sh -y
-ENV PATH="/root/.cargo/bin:$PATH"
-
 WORKDIR /opt/indexer
 
 # Copy root files
@@ -21,7 +17,6 @@ COPY lerna.json .
 
 # Copy shared and package files
 COPY packages/indexer-common/ ./packages/indexer-common
-COPY packages/indexer-native/ ./packages/indexer-native
 COPY packages/indexer-cli/ ./packages/indexer-cli
 
 # Install dependencies; include dev dependencies
@@ -54,7 +49,6 @@ COPY --from=build /opt/indexer/packages/indexer-common/dist /opt/indexer/package
 COPY --from=build /opt/indexer/packages/indexer-cli/package.json /opt/indexer/packages/indexer-cli/package.json
 COPY --from=build /opt/indexer/packages/indexer-cli/dist /opt/indexer/packages/indexer-cli/dist
 COPY --from=build /opt/indexer/packages/indexer-cli/bin /opt/indexer/packages/indexer-cli/bin
-
 
 
 # Install dependencies; exclude dev dependencies

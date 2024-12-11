@@ -12,9 +12,6 @@ images:
   - name: indexer-agent-image
     newName: ghcr.io/graphprotocol/indexer-agent
     newTag: v0.20.4
-  - name: indexer-service-image
-    newName: ghcr.io/graphprotocol/indexer-service
-    newTag: v0.20.4
   - name: prometheus-image
     newName: prom/prometheus
     newTag: v2.32.1
