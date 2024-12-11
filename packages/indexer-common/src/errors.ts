@@ -88,6 +88,7 @@ export enum IndexerErrorCode {
   IE075 = 'IE075',
   IE076 = 'IE076',
   IE077 = 'IE077',
+  IE078 = 'IE078',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -169,6 +170,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE075: 'Failed to connect to network contracts',
   IE076: 'Failed to resume subgraph deployment',
   IE077: 'Failed to allocate: subgraph not healthily syncing',
+  IE078: 'Failed to query subgraph features from network subgraph',
 }
 
 export type IndexerErrorCause = unknown
