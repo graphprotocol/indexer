@@ -407,15 +407,18 @@ export class NetworkMonitor {
     }
     let subgraphs: Subgraph[] = []
     const queryProgress = {
-      lastId: '',
-      first: 20,
+      pageSize: 1000,
       fetched: 0,
       exhausted: false,
       retriesRemaining: 10,
     }
-    this.logger.info(`Query subgraphs in batches of ${queryProgress.first}`)
+    this.logger.info(`Query subgraphs in batches of ${queryProgress.pageSize}`)
+    const groups: string[][] = []
+    for (let i = 0; i < ids.length; i += queryProgress.pageSize) {
+      groups.push(ids.slice(i, i + queryProgress.pageSize))
+    }
 
-    while (!queryProgress.exhausted) {
+    for (const group of groups) {
       this.logger.debug(`Query subgraphs by id`, {
         queryProgress: queryProgress,
         subgraphIds: ids,
@@ -423,13 +426,8 @@ export class NetworkMonitor {
       try {
         const result = await this.networkSubgraph.checkedQuery(
           gql`
-            query subgraphs($first: Int!, $lastId: String!, $subgraphs: [String!]!) {
-              subgraphs(
-                where: { id_gt: $lastId, id_in: $subgraphs }
-                orderBy: id
-                orderDirection: asc
-                first: $first
-              ) {
+            query subgraphs($subgraphs: [String!]!) {
+              subgraphs(where: { id_in: $subgraphs }, orderBy: id, orderDirection: asc) {
                 id
                 createdAt
                 versionCount
@@ -444,9 +442,7 @@ export class NetworkMonitor {
             }
           `,
           {
-            first: queryProgress.first,
-            lastId: queryProgress.lastId,
-            subgraphs: ids,
+            subgraphs: group,
           },
         )
 
@@ -479,10 +475,7 @@ export class NetworkMonitor {
           throw new Error(`No subgraph deployments found matching provided ids: ${ids}`)
         }
 
-        queryProgress.exhausted = results.length < queryProgress.first
         queryProgress.fetched += results.length
-        queryProgress.lastId = results[results.length - 1].id
-
         subgraphs = subgraphs.concat(results)
       } catch (error) {
         queryProgress.retriesRemaining--
