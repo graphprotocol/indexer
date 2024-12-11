@@ -38,6 +38,7 @@
     "publish-github": "node-pre-gyp-github publish --release",
     "build-test-pack-publish": "yarn build-release && yarn test && yarn package && yarn publish-github-draft",
     "format": "prettier --write 'lib/**/*.js'",
+    "format:check": "prettier --check 'lib/**/*.js'",
     "lint": "eslint .",
     "prepare": "yarn format && yarn lint",
     "install": "yarn pull-or-build",

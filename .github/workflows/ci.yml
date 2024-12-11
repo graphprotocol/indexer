@@ -9,13 +9,34 @@ on:
   pull_request: {}
 
 jobs:
-  build:
+  check:
+    name: Lint and Format Check
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - uses: the-guild-org/shared-config/setup@main
+        name: Setup Env
+        with:
+          nodeVersion: 20
+          packageManager: yarn
+
+      - name: Check Formatting
+        run: yarn format:check
+
+      - name: Lint
+        run: yarn lint
+
+  test:
+    needs: [check]
     strategy:
       matrix:
         node-version: [18, 20, 22]
         system:
           - os: ubuntu-22.04
     runs-on: ${{ matrix.system.os }}
+    name: Test on Node.js v${{ matrix.node-version }} (${{ matrix.system.os }})
     services:
       postgres:
         image: postgres:13
@@ -32,19 +53,24 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@v2
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
       - name: update OS
         run: |
           sudo apt-get update
           sudo apt install -y --no-install-recommends gcc g++ make build-essential
+
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v1
         with:
           node-version: ${{ matrix.node-version }}
           registry-url: https://registry.npmjs.org/
+
       - run: yarn install --frozen-lockfile
         env:
           NODE_AUTH_TOKEN: ${{secrets.npm_token}}
+
       - run: yarn test:ci
         env:
           POSTGRES_TEST_HOST: localhost
