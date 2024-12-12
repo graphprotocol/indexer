@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.21.9",
+  "version": "0.21.11",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
