@@ -199,6 +199,8 @@ const caip2ByChainId: { [key: number]: string } = {
   81457: 'eip155:81457',
   288: 'eip155:288',
   56288: 'eip155:56288',
+  7777777: 'eip155:7777777',
+  34443: 'eip155:34443',
 }
 
 const caip2ByChainAlias: { [key: string]: string } = {
@@ -224,6 +226,8 @@ const caip2ByChainAlias: { [key: string]: string } = {
   'blast-mainnet': 'eip155:81457',
   boba: 'eip155:288',
   'boba-bnb': 'eip155:56288',
+  zora: 'eip155:7777777',
+  mode: 'eip155:34443',
 }
 
 async function buildCaip2MappingsFromRegistry() {
