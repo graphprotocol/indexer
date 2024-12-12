@@ -224,7 +224,8 @@ const teardownAll = async () => {
   await sequelize.drop({})
 }
 
-describe('Actions', () => {
+// Skipped until we can run on local-network based stack.
+describe.skip('Actions', () => {
   jest.setTimeout(60_000)
   beforeAll(setup)
   beforeEach(setupEach)
