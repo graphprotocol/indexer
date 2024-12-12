@@ -652,7 +652,7 @@ export class NetworkMonitor {
     const deployments: SubgraphDeployment[] = []
     const queryProgress = {
       lastId: '',
-      first: 10,
+      first: 1000,
       fetched: 0,
       exhausted: false,
       retriesRemaining: 10,
