@@ -175,7 +175,9 @@ const setup = () => {
   }
 }
 
-describe('TAP Pagination', () => {
+// Skipped because it hits real RPC providers and uses up the API key.
+// Skipping it works around this issue for now but we should turn it back on once we have a better solution.
+describe.skip('TAP Pagination', () => {
   beforeAll(setup, timeout)
   test(
     'test `getAllocationsfromAllocationIds` pagination',

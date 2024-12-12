@@ -348,7 +348,8 @@ describe.skip('Monitor: local', () => {
   })
 })
 
-describe('Monitor: CI', () => {
+// Skipped until we can run on a local-network based stack.
+describe.skip('Monitor: CI', () => {
   beforeAll(setupMonitor)
 
   test('Fetch subgraphs', async () => {

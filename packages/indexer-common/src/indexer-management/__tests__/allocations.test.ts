@@ -97,7 +97,9 @@ const teardownAll = async () => {
   await sequelize.drop({})
 }
 
-describe('Allocation Manager', () => {
+// These tests are skipped because they hit real RPC providers and use up the API key.
+// Skipping them works around this issue for now but we should turn them back on once we have a better solution.
+describe.skip('Allocation Manager', () => {
   beforeAll(setup)
   beforeEach(setupEach)
   afterEach(teardownEach)
@@ -126,7 +128,7 @@ describe('Allocation Manager', () => {
   // @ts-ignore: Mocking the Action type for this test
   const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
 
-  test.skip('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
+  test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
     const balances = await Promise.all(
       actions.map((action: Action) => allocationManager.stakeUsageSummary(action)),
     )

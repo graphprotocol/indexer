@@ -505,7 +505,8 @@ describe('TAP', () => {
     timeout,
   )
 
-  test('test `submitRAVs` with escrow account lower on balance', async () => {
+  // Skipped until we can run with local-network in CI
+  test.skip('test `submitRAVs` with escrow account lower on balance', async () => {
     // mock redeemRav to not call the blockchain
     const redeemRavFunc = jest
       .spyOn(tapCollector, 'redeemRav')
