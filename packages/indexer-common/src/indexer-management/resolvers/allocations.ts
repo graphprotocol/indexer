@@ -24,8 +24,8 @@ import {
   IndexerManagementResolverContext,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
-  NetworkSubgraph,
   ReallocateAllocationResult,
+  SubgraphClient,
   SubgraphIdentifierType,
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
@@ -173,7 +173,7 @@ const ALLOCATION_QUERIES = {
 
 async function queryAllocations(
   logger: Logger,
-  networkSubgraph: NetworkSubgraph,
+  networkSubgraph: SubgraphClient,
   variables: {
     indexer: Address
     allocation: Address | null

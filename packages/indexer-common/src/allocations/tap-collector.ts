@@ -25,8 +25,7 @@ import {
 } from '..'
 import { BigNumber } from 'ethers'
 import pReduce from 'p-reduce'
-import { TAPSubgraph } from '../tap-subgraph'
-import { NetworkSubgraph, QueryResult } from '../network-subgraph'
+import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
 import { getEscrowAccounts } from './escrow-accounts'
 
@@ -52,8 +51,8 @@ interface TapCollectorOptions {
   allocations: Eventual<Allocation[]>
   models: QueryFeeModels
   networkSpecification: spec.NetworkSpecification
-  tapSubgraph: TAPSubgraph
-  networkSubgraph: NetworkSubgraph
+  tapSubgraph: SubgraphClient
+  networkSubgraph: SubgraphClient
 }
 
 interface ValidRavs {
@@ -107,8 +106,8 @@ export class TapCollector {
   declare allocations: Eventual<Allocation[]>
   declare ravRedemptionThreshold: BigNumber
   declare protocolNetwork: string
-  declare tapSubgraph: TAPSubgraph
-  declare networkSubgraph: NetworkSubgraph
+  declare tapSubgraph: SubgraphClient
+  declare networkSubgraph: SubgraphClient
   declare finalityTime: number
   declare indexerAddress: Address
 
