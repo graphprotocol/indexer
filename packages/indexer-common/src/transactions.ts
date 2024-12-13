@@ -20,7 +20,7 @@ import delay from 'delay'
 import { TransactionMonitoring } from './network-specification'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
 import { TransactionConfig, TransactionType } from './types'
-import { NetworkSubgraph } from './network-subgraph'
+import { SubgraphClient } from './subgraph-client'
 import gql from 'graphql-tag'
 
 export class TransactionManager {
@@ -321,7 +321,7 @@ export class TransactionManager {
   async monitorNetworkPauses(
     logger: Logger,
     contracts: NetworkContracts,
-    networkSubgraph: NetworkSubgraph,
+    networkSubgraph: SubgraphClient,
   ): Promise<Eventual<boolean>> {
     return timer(60_000)
       .reduce(

@@ -5,7 +5,7 @@ import {
   ProviderInterface,
   SubgraphQueryInterface,
 } from '../subgraphs'
-import { QueryResult } from '../network-subgraph'
+import { QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
 import { mergeSelectionSets } from '../utils'
 

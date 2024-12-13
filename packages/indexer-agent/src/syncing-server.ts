@@ -7,13 +7,13 @@ import { Logger } from '@graphprotocol/common-ts'
 import { parse } from 'graphql'
 import {
   NetworkMapped,
-  NetworkSubgraph,
+  SubgraphClient,
   resolveChainId,
 } from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {
   logger: Logger
-  networkSubgraphs: NetworkMapped<NetworkSubgraph>
+  networkSubgraphs: NetworkMapped<SubgraphClient>
   port: number
 }
 

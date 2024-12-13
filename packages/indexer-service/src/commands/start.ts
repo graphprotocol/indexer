@@ -25,7 +25,7 @@ import {
   GraphNode,
   monitorEligibleAllocations,
   Network,
-  NetworkSubgraph,
+  SubgraphClient,
   registerIndexerErrorMetrics,
   resolveChainId,
   validateProviderNetworkIdentifier,
@@ -338,7 +338,8 @@ export default {
     const networkIdentifier = await networkProvider.getNetwork()
     const protocolNetwork = resolveChainId(networkIdentifier.chainId)
 
-    const networkSubgraph = await NetworkSubgraph.create({
+    const networkSubgraph = await SubgraphClient.create({
+      name: 'NetworkSubgraph',
       logger,
       endpoint: argv.networkSubgraphEndpoint,
       deployment: argv.networkSubgraphDeployment

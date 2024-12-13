@@ -2,7 +2,7 @@ import { Address, Eventual, createLogger, createMetrics } from '@graphprotocol/c
 import {
   Allocation,
   AllocationsResponse,
-  NetworkSubgraph,
+  SubgraphClient,
   QueryFeeModels,
   QueryResult,
   TapCollector,
@@ -11,7 +11,6 @@ import {
   TransactionManager,
 } from '@graphprotocol/indexer-common'
 import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
-import { TAPSubgraph } from '../../tap-subgraph'
 import { NetworkSpecification } from 'indexer-common/src/network-specification'
 import { createMockAllocation } from '../../indexer-management/__tests__/helpers.test'
 import { getContractAddress } from 'ethers/lib/utils'
@@ -155,10 +154,10 @@ const setup = () => {
 
     const tapSubgraph = {
       query: mockQueryTapSubgraph,
-    } as unknown as TAPSubgraph
+    } as unknown as SubgraphClient
     const networkSubgraph = {
       query: mockQueryNetworkSubgraph,
-    } as unknown as NetworkSubgraph
+    } as unknown as SubgraphClient
 
     tapCollector = TapCollector.create({
       logger,
