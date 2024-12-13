@@ -140,7 +140,7 @@ export const start = {
         },
       })
       .option('network-subgraph-deployment', {
-        description: 'Network subgraph deployment',
+        description: 'Network subgraph deployment (for local hosting)',
         array: false,
         type: 'string',
         group: 'Network Subgraph',
@@ -150,6 +150,12 @@ export const start = {
         array: false,
         type: 'string',
         group: 'Network Subgraph',
+      })
+      .option('tap-subgraph-deployment', {
+        description: 'TAP subgraph deployment (for local hosting)',
+        array: false,
+        type: 'string',
+        group: 'TAP Subgraph',
       })
       .option('tap-subgraph-endpoint', {
         description: 'Endpoint to query the tap subgraph from',
@@ -161,6 +167,12 @@ export const start = {
         description: 'Whether to allocate to the network subgraph',
         type: 'boolean',
         default: false,
+        group: 'Network Subgraph',
+      })
+      .option('epoch-subgraph-deployment', {
+        description: 'Epoch subgraph deployment (for local hosting)',
+        array: false,
+        type: 'string',
         group: 'Network Subgraph',
       })
       .option('epoch-subgraph-endpoint', {
@@ -370,11 +382,11 @@ export async function createNetworkSpecification(
       url: argv.networkSubgraphEndpoint,
     },
     epochSubgraph: {
-      // TODO: We should consider indexing the Epoch Subgraph, similar
-      // to how we currently do it for the Network Subgraph.
+      deployment: argv.epochSubgraphDeployment,
       url: argv.epochSubgraphEndpoint,
     },
     tapSubgraph: {
+      deployment: argv.tapSubgraphDeployment,
       url: argv.tapSubgraphEndpoint,
     },
   }

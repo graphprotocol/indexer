@@ -232,7 +232,7 @@ export class Agent {
       async ({ network, operator }: NetworkAndOperator) => {
         try {
           await operator.ensureGlobalIndexingRule()
-          await this.ensureNetworkSubgraphIsIndexing(network)
+          await this.ensureAllSubgraphsIndexing(network)
           await network.register()
         } catch (err) {
           this.logger.critical(
@@ -1265,38 +1265,56 @@ export class Agent {
     )
   }
 
-  // TODO: This could be a initialization check inside Network.create() once/if the Indexer Service
-  // uses Network instances.
-  async ensureNetworkSubgraphIsIndexing(network: Network) {
+  // TODO: After indexer-service deprecation: Move to be an initialization check inside Network.create()
+  async ensureSubgraphIndexing(deployment: string, networkIdentifier: string) {
+    try {
+      // TODO: Check both the local deployment and the external subgraph endpoint
+      // Make sure the subgraph is being indexed
+      await this.graphNode.ensure(
+        `indexer-agent/${deployment.slice(-10)}`,
+        new SubgraphDeploymentID(deployment),
+      )
+
+      // Validate if the Network Subgraph belongs to the current provider's network.
+      // This check must be performed after we ensure the Network Subgraph is being indexed.
+      await validateProviderNetworkIdentifier(
+        networkIdentifier,
+        deployment,
+        this.graphNode,
+        this.logger,
+      )
+    } catch (e) {
+      this.logger.warn(
+        'Failed to deploy and validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
+        e,
+      )
+    }
+  }
+  async ensureAllSubgraphsIndexing(network: Network) {
+    // Network subgraph
     if (
       network.specification.subgraphs.networkSubgraph.deployment !== undefined
     ) {
-      try {
-        // TODO: Check both the local deployment and the external subgraph endpoint
-        // Make sure the network subgraph is being indexed
-        await this.graphNode.ensure(
-          `indexer-agent/${network.specification.subgraphs.networkSubgraph.deployment.slice(
-            -10,
-          )}`,
-          new SubgraphDeploymentID(
-            network.specification.subgraphs.networkSubgraph.deployment,
-          ),
-        )
-
-        // Validate if the Network Subgraph belongs to the current provider's network.
-        // This check must be performed after we ensure the Network Subgraph is being indexed.
-        await validateProviderNetworkIdentifier(
-          network.specification.networkIdentifier,
-          network.specification.subgraphs.networkSubgraph.deployment,
-          this.graphNode,
-          this.logger,
-        )
-      } catch (e) {
-        this.logger.warn(
-          'Failed to deploy and validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
-          e,
-        )
-      }
+      await this.ensureSubgraphIndexing(
+        network.specification.subgraphs.networkSubgraph.deployment,
+        network.specification.networkIdentifier,
+      )
+    }
+    // Epoch subgraph
+    if (
+      network.specification.subgraphs.epochSubgraph.deployment !== undefined
+    ) {
+      await this.ensureSubgraphIndexing(
+        network.specification.subgraphs.epochSubgraph.deployment,
+        network.specification.networkIdentifier,
+      )
+    }
+    // TAP subgraph
+    if (network.specification.subgraphs.tapSubgraph?.deployment !== undefined) {
+      await this.ensureSubgraphIndexing(
+        network.specification.subgraphs.tapSubgraph.deployment,
+        network.specification.networkIdentifier,
+      )
     }
   }
 }
