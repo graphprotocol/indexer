@@ -1,5 +1,5 @@
 import { BigNumber } from 'ethers'
-import { NetworkSubgraph, SubgraphDeployment } from '@graphprotocol/indexer-common'
+import { SubgraphClient, SubgraphDeployment } from '@graphprotocol/indexer-common'
 
 import { Logger, Address } from '@graphprotocol/common-ts'
 
@@ -31,7 +31,7 @@ export enum AllocationStatus {
 export interface MonitorEligibleAllocationsOptions {
   indexer: Address
   logger: Logger
-  networkSubgraph: NetworkSubgraph
+  networkSubgraph: SubgraphClient
   interval: number
   protocolNetwork: string
 }

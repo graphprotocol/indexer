@@ -1,5 +1,5 @@
 import { Address, toAddress } from '@graphprotocol/common-ts'
-import { TAPSubgraph } from '../tap-subgraph'
+import { SubgraphClient } from '../subgraph-client'
 import gql from 'graphql-tag'
 
 type U256 = bigint
@@ -44,7 +44,7 @@ export class EscrowAccounts {
 }
 
 export const getEscrowAccounts = async (
-  tapSubgraph: TAPSubgraph,
+  tapSubgraph: SubgraphClient,
   indexer: Address,
 ): Promise<EscrowAccounts> => {
   const result = await tapSubgraph.query<EscrowAccountResponse>(

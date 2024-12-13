@@ -9,7 +9,7 @@ import {
 } from './indexer-management'
 import { DocumentNode, print } from 'graphql'
 import gql from 'graphql-tag'
-import { QueryResult } from './network-subgraph'
+import { QueryResult } from './subgraph-client'
 import { mergeSelectionSets, sleep } from './utils'
 
 export enum SubgraphIdentifierType {
