@@ -145,11 +145,21 @@ export class Network {
     )
 
     let tapSubgraph: SubgraphClient | undefined = undefined
-    if (specification.subgraphs.tapSubgraph && specification.subgraphs.tapSubgraph.url) {
+    if (specification.subgraphs.tapSubgraph) {
+      const tapSubgraphDeploymentId = specification.subgraphs.tapSubgraph.deployment
+        ? new SubgraphDeploymentID(specification.subgraphs.tapSubgraph.deployment)
+        : undefined
       tapSubgraph = await SubgraphClient.create({
         name: 'TapSubgraph',
         logger,
-        endpoint: specification.subgraphs.tapSubgraph!.url!,
+        deployment:
+          tapSubgraphDeploymentId !== undefined
+            ? {
+                graphNode,
+                deployment: tapSubgraphDeploymentId,
+              }
+            : undefined,
+        endpoint: specification.subgraphs.tapSubgraph!.url,
         subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
       })
     }
@@ -191,9 +201,19 @@ export class Network {
       Infinity,
     )
 
+    const epochSubgraphDeploymentId = specification.subgraphs.epochSubgraph.deployment
+      ? new SubgraphDeploymentID(specification.subgraphs.epochSubgraph.deployment)
+      : undefined
     const epochSubgraph = await SubgraphClient.create({
       name: 'EpochSubgraph',
       logger,
+      deployment:
+        epochSubgraphDeploymentId !== undefined
+          ? {
+              graphNode,
+              deployment: epochSubgraphDeploymentId,
+            }
+          : undefined,
       endpoint: specification.subgraphs.epochSubgraph.url,
       subgraphFreshnessChecker: epochSubgraphFreshnessChecker,
     })
