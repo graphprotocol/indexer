@@ -338,31 +338,8 @@ export class TapCollector {
     // look for all transactions for that includes senderaddress[] and allocations[]
     const tapSubgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
-    // get a list of transacations for ravs marked as not redeemed in our database
-    const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions.filter((tx) => {
-      // check if exists in the list sent
-      !!ravsLastNotFinal.find(
-        (rav) =>
-          // rav has the same sender address as tx
-          toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
-          // rav has the same allocation id as tx
-          toAddress(rav.allocationId) === toAddress(tx.allocationID) &&
-          // rav was not redeemed
-          !rav.redeemedAt,
-      )
-    })
-
-    // for each transaction that is not redeemed on our database
-    // but was redeemed on the blockchain, update it to redeemed
-    if (redeemedRavsNotOnOurDatabase.length > 0) {
-      for (const rav of redeemedRavsNotOnOurDatabase) {
-        await this.markRavAsRedeemed(
-          toAddress(rav.allocationID),
-          toAddress(rav.sender.id),
-          rav.timestamp,
-        )
-      }
-    }
+    // check for redeemed ravs in tx list but not marked as redeemed in our database
+    this.markRavsInTransactionsAsRedeemed(tapSubgraphResponse, ravsLastNotFinal)
 
     // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
     const nonRedeemedRavs = ravsLastNotFinal
@@ -395,6 +372,40 @@ export class TapCollector {
     return await this.models.receiptAggregateVouchers.findAll({
       where: { redeemedAt: null, final: false, last: true },
     })
+  }
+
+  public async markRavsInTransactionsAsRedeemed(
+    tapSubgraphResponse: TapSubgraphResponse,
+    ravsLastNotFinal: ReceiptAggregateVoucher[],
+  ) {
+    // get a list of transactions for ravs marked as not redeemed in our database
+    const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions
+      // get only the transactions that exists, this prevents errors marking as redeemed
+      // transactions for different senders with the same allocation id
+      .filter((tx) => {
+        // check if exists in the ravsLastNotFinal list
+        !!ravsLastNotFinal.find(
+          (rav) =>
+            // rav has the same sender address as tx
+            toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
+            // rav has the same allocation id as tx
+            toAddress(rav.allocationId) === toAddress(tx.allocationID) &&
+            // rav was marked as not redeemed in the db
+            !rav.redeemedAt,
+        )
+      })
+
+    // for each transaction that is not redeemed on our database
+    // but was redeemed on the blockchain, update it to redeemed
+    if (redeemedRavsNotOnOurDatabase.length > 0) {
+      for (const rav of redeemedRavsNotOnOurDatabase) {
+        await this.markRavAsRedeemed(
+          toAddress(rav.allocationID),
+          toAddress(rav.sender.id),
+          rav.timestamp,
+        )
+      }
+    }
   }
 
   public async findTransactionsForRavs(
