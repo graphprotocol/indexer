@@ -31,6 +31,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:81457               | blast-mainnet | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:288                 | boba          | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:56288               | boba-bnb      | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:7777777             | zora          | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:34443               | mode          | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:1284                | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
