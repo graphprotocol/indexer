@@ -1,13 +1,11 @@
 import { Counter, Gauge, Histogram } from 'prom-client'
 import {
   Logger,
-  timer,
   toAddress,
   formatGRT,
   Address,
   Metrics,
   Eventual,
-  join as joinEventual,
 } from '@graphprotocol/common-ts'
 import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import {
@@ -23,6 +21,7 @@ import {
   allocationSigner,
   tapAllocationIdProof,
   parseGraphQLAllocation,
+  sequentialTimerMap,
 } from '..'
 import { BigNumber } from 'ethers'
 import pReduce from 'p-reduce'
@@ -184,9 +183,11 @@ export class TapCollector {
   }
 
   private getPendingRAVs(): Eventual<RavWithAllocation[]> {
-    return joinEventual({
-      timer: timer(RAV_CHECK_INTERVAL_MS),
-    }).tryMap(
+    return sequentialTimerMap(
+      {
+        logger: this.logger,
+        milliseconds: RAV_CHECK_INTERVAL_MS,
+      },
       async () => {
         let ravs = await this.pendingRAVs()
         if (ravs.length === 0) {

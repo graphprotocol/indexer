@@ -5,9 +5,10 @@ import {
   QueryFeeModels,
   AllocationReceiptAttributes,
   ensureAllocationSummary,
+  sequentialTimerMap,
 } from '@graphprotocol/indexer-common'
 import { NativeSignatureVerifier } from '@graphprotocol/indexer-native'
-import { Address, Logger, timer, toAddress } from '@graphprotocol/common-ts'
+import { Address, Logger, toAddress } from '@graphprotocol/common-ts'
 import { Sequelize, Transaction } from 'sequelize'
 import pRetry from 'p-retry'
 import { ReceiptManager } from '.'
@@ -61,7 +62,7 @@ export class AllocationReceiptManager implements ReceiptManager {
     this._allocationReceiptVerifier = new NativeSignatureVerifier(clientSignerAddress)
     this.protocolNetwork = protocolNetwork
 
-    timer(30_000).pipe(async () => {
+    sequentialTimerMap({ logger: this.logger, milliseconds: 30_000 }, async () => {
       try {
         await this._flushOutstanding()
       } catch (err) {
