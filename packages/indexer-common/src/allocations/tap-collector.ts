@@ -384,7 +384,7 @@ export class TapCollector {
       // transactions for different senders with the same allocation id
       .filter((tx) => {
         // check if exists in the ravsLastNotFinal list
-        !!ravsLastNotFinal.find(
+        return !!ravsLastNotFinal.find(
           (rav) =>
             // rav has the same sender address as tx
             toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
@@ -695,7 +695,7 @@ export class TapCollector {
     // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
     const query = `
             UPDATE scalar_tap_ravs
-            SET redeemed_at = ${timestamp ? timestamp : 'NOW()'}
+            SET redeemed_at = ${timestamp ? `to_timestamp(${timestamp})` : 'NOW()'}
             WHERE allocation_id = '${allocationId
               .toString()
               .toLowerCase()
