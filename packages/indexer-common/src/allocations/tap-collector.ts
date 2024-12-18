@@ -335,16 +335,22 @@ export class TapCollector {
   private async filterAndUpdateRavs(
     ravsLastNotFinal: ReceiptAggregateVoucher[],
   ): Promise<ReceiptAggregateVoucher[]> {
+    // look for all transactions for that includes senderaddress[] and allocations[]
     const tapSubgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
-    const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions.filter(
-      (tx) =>
-        !ravsLastNotFinal.find(
-          (rav) =>
-            toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
-            toAddress(rav.allocationId) === toAddress(tx.allocationID),
-        ),
-    )
+    // get a list of transacations for ravs marked as not redeemed in our database
+    const redeemedRavsNotOnOurDatabase = tapSubgraphResponse.transactions.filter((tx) => {
+      // check if exists in the list sent
+      !!ravsLastNotFinal.find(
+        (rav) =>
+          // rav has the same sender address as tx
+          toAddress(rav.senderAddress) === toAddress(tx.sender.id) &&
+          // rav has the same allocation id as tx
+          toAddress(rav.allocationId) === toAddress(tx.allocationID) &&
+          // rav was not redeemed
+          !rav.redeemedAt,
+      )
+    })
 
     // for each transaction that is not redeemed on our database
     // but was redeemed on the blockchain, update it to redeemed
@@ -360,7 +366,9 @@ export class TapCollector {
 
     // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
     const nonRedeemedRavs = ravsLastNotFinal
+      // get all ravs that were marked as redeemed in our database
       .filter((rav) => !!rav.redeemedAt)
+      // get all ravs that wasn't possible to find the transaction
       .filter(
         (rav) =>
           !tapSubgraphResponse.transactions.find(
@@ -395,6 +403,14 @@ export class TapCollector {
     let meta: TapMeta | undefined = undefined
     let lastId = ''
     const transactions: TapTransaction[] = []
+
+    const unfinalizedRavsAllocationIds = [
+      ...new Set(ravs.map((value) => toAddress(value.allocationId).toLowerCase())),
+    ]
+
+    const senderAddresses = [
+      ...new Set(ravs.map((value) => toAddress(value.senderAddress).toLowerCase())),
+    ]
 
     for (;;) {
       let block: { hash: string } | undefined = undefined
@@ -445,12 +461,8 @@ export class TapCollector {
             lastId,
             pageSize: PAGE_SIZE,
             block,
-            unfinalizedRavsAllocationIds: ravs.map((value) =>
-              toAddress(value.allocationId).toLowerCase(),
-            ),
-            senderAddresses: ravs.map((value) =>
-              toAddress(value.senderAddress).toLowerCase(),
-            ),
+            unfinalizedRavsAllocationIds,
+            senderAddresses,
           },
         )
 
