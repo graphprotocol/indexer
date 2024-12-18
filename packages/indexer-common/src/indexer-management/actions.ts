@@ -18,10 +18,11 @@ import {
   Network,
   OrderDirection,
   GraphNode,
+  sequentialTimerMap,
 } from '@graphprotocol/indexer-common'
 
 import { Order, Transaction } from 'sequelize'
-import { Eventual, join, Logger, timer } from '@graphprotocol/common-ts'
+import { Eventual, join, Logger } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
 
 export class ActionManager {
@@ -116,7 +117,11 @@ export class ActionManager {
 
   async monitorQueue(): Promise<void> {
     const logger = this.logger.child({ component: 'QueueMonitor' })
-    const approvedActions: Eventual<Action[]> = timer(30_000).tryMap(
+    const approvedActions: Eventual<Action[]> = sequentialTimerMap(
+      {
+        logger,
+        milliseconds: 30_000,
+      },
       async () => {
         logger.trace('Fetching approved actions')
         let actions: Action[] = []

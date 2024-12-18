@@ -1,10 +1,11 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios'
-import { Eventual, Logger, SubgraphDeploymentID, timer } from '@graphprotocol/common-ts'
+import { Eventual, Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { DocumentNode, print } from 'graphql'
 import { OperationResult, CombinedError } from '@urql/core'
 import { BlockPointer, IndexingError } from './types'
 import { GraphNode } from './graph-node'
 import { SubgraphFreshnessChecker } from './subgraphs'
+import { sequentialTimerReduce } from './sequential-timer'
 
 export interface NetworkSubgraphCreateOptions {
   logger: Logger
@@ -233,52 +234,59 @@ const monitorDeployment = async ({
     fatalError: undefined,
   }
 
-  return timer(60_000).reduce(async (lastStatus) => {
-    try {
-      logger.trace(`Checking the network subgraph deployment status`)
+  return sequentialTimerReduce(
+    {
+      logger,
+      milliseconds: 60_000,
+    },
+    async (lastStatus) => {
+      try {
+        logger.trace(`Checking the network subgraph deployment status`)
 
-      const indexingStatuses = await graphNode.indexingStatus([deployment])
-      const indexingStatus = indexingStatuses.pop()
-      if (!indexingStatus) {
-        throw `No indexing status found`
-      }
+        const indexingStatuses = await graphNode.indexingStatus([deployment])
+        const indexingStatus = indexingStatuses.pop()
+        if (!indexingStatus) {
+          throw `No indexing status found`
+        }
 
-      const status = {
-        health: indexingStatus.health,
-        synced: indexingStatus.synced,
-        latestBlock: indexingStatus.chains[0]?.latestBlock,
-        chainHeadBlock: indexingStatus.chains[0]?.chainHeadBlock,
-        fatalError: indexingStatus.fatalError,
-      }
+        const status = {
+          health: indexingStatus.health,
+          synced: indexingStatus.synced,
+          latestBlock: indexingStatus.chains[0]?.latestBlock,
+          chainHeadBlock: indexingStatus.chains[0]?.chainHeadBlock,
+          fatalError: indexingStatus.fatalError,
+        }
 
-      // If failed for the first time, log an error
-      if (!lastStatus || (!lastStatus.fatalError && status.fatalError)) {
-        logger.error(`Failed to index network subgraph deployment`, {
-          err: status.fatalError,
-          latestBlock: status.latestBlock,
-        })
-      }
+        // If failed for the first time, log an error
+        if (!lastStatus || (!lastStatus.fatalError && status.fatalError)) {
+          logger.error(`Failed to index network subgraph deployment`, {
+            err: status.fatalError,
+            latestBlock: status.latestBlock,
+          })
+        }
 
-      // Don't log anything else after the subgraph has failed
-      if (status.fatalError) {
+        // Don't log anything else after the subgraph has failed
+        if (status.fatalError) {
+          return status
+        }
+
+        // If not synced yet, log the progress so far
+        if (!status.synced) {
+          const latestBlock = status.latestBlock?.number || 0
+          const chainHeadBlock = status.chainHeadBlock?.number || 1
+
+          const syncedPercent = ((100 * latestBlock) / chainHeadBlock).toFixed(2)
+
+          logger.info(
+            `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
+          )
+        }
+
         return status
+      } catch (err) {
+        return lastStatus
       }
-
-      // If not synced yet, log the progress so far
-      if (!status.synced) {
-        const latestBlock = status.latestBlock?.number || 0
-        const chainHeadBlock = status.chainHeadBlock?.number || 1
-
-        const syncedPercent = ((100 * latestBlock) / chainHeadBlock).toFixed(2)
-
-        logger.info(
-          `Network subgraph is synced ${syncedPercent}% (block #${latestBlock} of #${chainHeadBlock})`,
-        )
-      }
-
-      return status
-    } catch (err) {
-      return lastStatus
-    }
-  }, initialStatus)
+    },
+    initialStatus,
+  )
 }

@@ -2,12 +2,13 @@ import {
   indexerError,
   IndexerErrorCode,
   parseGraphQLAllocation,
+  sequentialTimerReduce,
 } from '@graphprotocol/indexer-common'
 import { Allocation, MonitorEligibleAllocationsOptions } from './types'
 
 import gql from 'graphql-tag'
 
-import { Eventual, timer } from '@graphprotocol/common-ts'
+import { Eventual } from '@graphprotocol/common-ts'
 
 export const monitorEligibleAllocations = ({
   indexer,
@@ -168,7 +169,14 @@ export const monitorEligibleAllocations = ({
     }
   }
 
-  const allocations = timer(interval).reduce(refreshAllocations, [])
+  const allocations = sequentialTimerReduce(
+    {
+      logger,
+      milliseconds: interval,
+    },
+    refreshAllocations,
+    [],
+  )
 
   allocations.pipe((allocations) => {
     logger.info(`Eligible allocations`, {

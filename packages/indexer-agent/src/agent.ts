@@ -37,6 +37,7 @@ import {
   networkIsL1,
   DeploymentManagementMode,
   SubgraphStatus,
+  sequentialTimerMap,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -253,40 +254,41 @@ export class Agent {
     const requestIntervalSmall = this.pollingInterval
     const requestIntervalLarge = this.pollingInterval * 5
     const logger = this.logger.child({ component: 'ReconciliationLoop' })
-    const currentEpochNumber: Eventual<NetworkMapped<number>> = timer(
-      requestIntervalLarge,
-    ).tryMap(
-      async () =>
-        await this.multiNetworks.map(({ network }) => {
-          logger.trace('Fetching current epoch number', {
-            protocolNetwork: network.specification.networkIdentifier,
-          })
-          return network.networkMonitor.currentEpochNumber()
-        }),
-      {
-        onError: error =>
-          logger.warn(`Failed to fetch current epoch`, { error }),
-      },
-    )
+    const currentEpochNumber: Eventual<NetworkMapped<number>> =
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalLarge },
+        async () =>
+          await this.multiNetworks.map(({ network }) => {
+            logger.trace('Fetching current epoch number', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            return network.networkMonitor.currentEpochNumber()
+          }),
+        {
+          onError: error =>
+            logger.warn(`Failed to fetch current epoch`, { error }),
+        },
+      )
 
-    const maxAllocationEpochs: Eventual<NetworkMapped<number>> = timer(
-      requestIntervalLarge,
-    ).tryMap(
-      () =>
-        this.multiNetworks.map(({ network }) => {
-          logger.trace('Fetching max allocation epochs', {
-            protocolNetwork: network.specification.networkIdentifier,
-          })
-          return network.contracts.staking.maxAllocationEpochs()
-        }),
-      {
-        onError: error =>
-          logger.warn(`Failed to fetch max allocation epochs`, { error }),
-      },
-    )
+    const maxAllocationEpochs: Eventual<NetworkMapped<number>> =
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalLarge },
+        () =>
+          this.multiNetworks.map(({ network }) => {
+            logger.trace('Fetching max allocation epochs', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            return network.contracts.staking.maxAllocationEpochs()
+          }),
+        {
+          onError: error =>
+            logger.warn(`Failed to fetch max allocation epochs`, { error }),
+        },
+      )
 
     const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
-      timer(requestIntervalSmall).tryMap(
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalSmall },
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
             logger.trace('Fetching indexing rules', {
@@ -322,24 +324,25 @@ export class Agent {
         },
       )
 
-    const activeDeployments: Eventual<SubgraphDeploymentID[]> = timer(
-      requestIntervalSmall,
-    ).tryMap(
-      () => {
-        logger.trace('Fetching active deployments')
-        return this.graphNode.subgraphDeployments()
-      },
-      {
-        onError: error =>
-          logger.warn(
-            `Failed to obtain active deployments, trying again later`,
-            { error },
-          ),
-      },
-    )
+    const activeDeployments: Eventual<SubgraphDeploymentID[]> =
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalSmall },
+        () => {
+          logger.trace('Fetching active deployments')
+          return this.graphNode.subgraphDeployments()
+        },
+        {
+          onError: error =>
+            logger.warn(
+              `Failed to obtain active deployments, trying again later`,
+              { error },
+            ),
+        },
+      )
 
     const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
-      timer(requestIntervalSmall).tryMap(
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalSmall },
         async () =>
           await this.multiNetworks.map(({ network }) => {
             logger.trace('Fetching network deployments', {
@@ -358,7 +361,8 @@ export class Agent {
 
     const eligibleTransferDeployments: Eventual<
       NetworkMapped<TransferredSubgraphDeployment[]>
-    > = timer(requestIntervalLarge).tryMap(
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalLarge },
       async () => {
         // Return early if the auto migration feature is disabled.
         if (!this.autoMigrationSupport) {
@@ -558,23 +562,23 @@ export class Agent {
       },
     )
 
-    const activeAllocations: Eventual<NetworkMapped<Allocation[]>> = timer(
-      requestIntervalSmall,
-    ).tryMap(
-      () =>
-        this.multiNetworks.map(({ network }) => {
-          logger.trace('Fetching active allocations', {
-            protocolNetwork: network.specification.networkIdentifier,
-          })
-          return network.networkMonitor.allocations(AllocationStatus.ACTIVE)
-        }),
-      {
-        onError: () =>
-          logger.warn(
-            `Failed to obtain active allocations, trying again later`,
-          ),
-      },
-    )
+    const activeAllocations: Eventual<NetworkMapped<Allocation[]>> =
+      sequentialTimerMap(
+        { logger, milliseconds: requestIntervalSmall },
+        () =>
+          this.multiNetworks.map(({ network }) => {
+            logger.trace('Fetching active allocations', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            return network.networkMonitor.allocations(AllocationStatus.ACTIVE)
+          }),
+        {
+          onError: () =>
+            logger.warn(
+              `Failed to obtain active allocations, trying again later`,
+            ),
+        },
+      )
 
     // `activeAllocations` is used to trigger this Eventual, but not really needed
     // inside.

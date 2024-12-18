@@ -2,7 +2,6 @@ import { Counter, Gauge, Histogram } from 'prom-client'
 import axios from 'axios'
 import {
   Logger,
-  timer,
   BytesWriter,
   toAddress,
   formatGRT,
@@ -20,6 +19,7 @@ import {
   ensureAllocationSummary,
   TransactionManager,
   specification as spec,
+  sequentialTimerMap,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
 import { BigNumber, BigNumberish, Contract } from 'ethers'
@@ -264,7 +264,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     }
 
     // Check if there's another batch of receipts to collect every 10s
-    timer(10_000).pipe(async () => {
+    sequentialTimerMap({ logger: this.logger, milliseconds: 10_000 }, async () => {
       while (hasReceiptsReadyForCollecting()) {
         // Remove the batch from the processing queue
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -283,7 +283,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   }
 
   private startVoucherProcessing() {
-    timer(30_000).pipe(async () => {
+    sequentialTimerMap({ logger: this.logger, milliseconds: 30_000 }, async () => {
       let pendingVouchers: Voucher[] = []
       try {
         pendingVouchers = await this.pendingVouchers() // Ordered by value

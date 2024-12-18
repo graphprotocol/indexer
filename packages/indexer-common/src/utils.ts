@@ -4,10 +4,11 @@ import {
   JsonRpcProvider,
   getDefaultProvider,
 } from '@ethersproject/providers'
-import { Logger, Metrics, timer } from '@graphprotocol/common-ts'
+import { Logger, Metrics } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from './errors'
 import { DocumentNode, SelectionSetNode, Kind } from 'graphql'
 import cloneDeep from 'lodash.clonedeep'
+import { sequentialTimerMap } from './sequential-timer'
 
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
@@ -49,7 +50,7 @@ export async function monitorEthBalance(
 
   const balanceMetrics = registerMetrics(metrics, networkIdentifier)
 
-  timer(120_000).pipe(async () => {
+  sequentialTimerMap({ logger, milliseconds: 120_000 }, async () => {
     try {
       const balance = await wallet.getBalance()
       const eth = parseFloat(utils.formatEther(balance))
