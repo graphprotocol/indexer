@@ -19,6 +19,7 @@ import {
   resolveChainId,
   resolveChainAlias,
   TransferredSubgraphDeployment,
+  sequentialTimerReduce,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -27,7 +28,6 @@ import {
   mutable,
   NetworkContracts,
   SubgraphDeploymentID,
-  timer,
   toAddress,
   formatGRT,
 } from '@graphprotocol/common-ts'
@@ -991,8 +991,12 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     const initialPauseValue = await contracts.controller.paused().catch((_) => {
       return false
     })
-    return timer(60_000)
-      .reduce(async (currentlyPaused) => {
+    return sequentialTimerReduce(
+      {
+        logger,
+        milliseconds: 60_000,
+      },
+      async (currentlyPaused) => {
         try {
           logger.debug('Query network subgraph isPaused state')
           const result = await networkSubgraph.checkedQuery(gql`
@@ -1022,11 +1026,12 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           })
           return currentlyPaused
         }
-      }, initialPauseValue)
-      .map((paused) => {
-        logger.info(paused ? `Network paused` : `Network active`)
-        return paused
-      })
+      },
+      initialPauseValue,
+    ).map((paused) => {
+      logger.info(paused ? `Network paused` : `Network active`)
+      return paused
+    })
   }
 
   async monitorIsOperator(
@@ -1042,30 +1047,32 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return mutable(true)
     }
 
-    return timer(300_000)
-      .reduce(
-        async (isOperator) => {
-          try {
-            logger.debug('Check operator status')
-            return await contracts.staking.isOperator(wallet.address, indexerAddress)
-          } catch (err) {
-            logger.warn(
-              `Failed to check operator status for indexer, assuming it has not changed`,
-              { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-            )
-            return isOperator
-          }
-        },
-        await contracts.staking.isOperator(wallet.address, indexerAddress),
+    return sequentialTimerReduce(
+      {
+        logger,
+        milliseconds: 300_000,
+      },
+      async (isOperator) => {
+        try {
+          logger.debug('Check operator status')
+          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+        } catch (err) {
+          logger.warn(
+            `Failed to check operator status for indexer, assuming it has not changed`,
+            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
+          )
+          return isOperator
+        }
+      },
+      await contracts.staking.isOperator(wallet.address, indexerAddress),
+    ).map((isOperator) => {
+      logger.info(
+        isOperator
+          ? `Have operator status for indexer`
+          : `No operator status for indexer`,
       )
-      .map((isOperator) => {
-        logger.info(
-          isOperator
-            ? `Have operator status for indexer`
-            : `No operator status for indexer`,
-        )
-        return isOperator
-      })
+      return isOperator
+    })
   }
 
   async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
