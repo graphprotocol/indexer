@@ -328,6 +328,7 @@ export class TapCollector {
   private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
     return await this.models.receiptAggregateVouchers.findAll({
       where: { last: true, final: false },
+      limit: 100,
     })
   }
 
