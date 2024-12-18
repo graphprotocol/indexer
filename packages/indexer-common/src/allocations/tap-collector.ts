@@ -569,7 +569,7 @@ export class TapCollector {
         logger.error(`Failed to redeem RAV`, {
           err: indexerError(IndexerErrorCode.IE055, err),
         })
-        return
+        continue
       }
       stopTimer()
     }
