@@ -29,7 +29,7 @@ import {
   IndexerManagementClient,
   IndexerManagementModels,
   monitorEligibleAllocations,
-  NetworkSubgraph,
+  SubgraphClient,
   QueryFeeModels,
   getTestProvider,
   GraphNode,
@@ -48,7 +48,7 @@ let models: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let address: string
 let contracts: NetworkContracts
-let networkSubgraph: NetworkSubgraph
+let networkSubgraph: SubgraphClient
 let client: IndexerManagementClient
 let receiptManager: AllocationReceiptManager
 
@@ -67,7 +67,8 @@ const setup = async () => {
   const queryEndpoint = 'http://127.0.0.1:8000/'
 
   const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
-  networkSubgraph = await NetworkSubgraph.create({
+  networkSubgraph = await SubgraphClient.create({
+    name: 'NetworkSubgraph',
     logger,
     endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/name/graphprotocol/graph-network-arbitrum-sepolia`,
     deployment: undefined,

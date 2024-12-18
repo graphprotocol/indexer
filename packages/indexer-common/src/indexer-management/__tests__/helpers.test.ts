@@ -23,12 +23,11 @@ import { literal, Op, Sequelize } from 'sequelize'
 import {
   Allocation,
   AllocationStatus,
-  EpochSubgraph,
   indexerError,
   IndexerErrorCode,
   GraphNode,
   NetworkMonitor,
-  NetworkSubgraph,
+  SubgraphClient,
   resolveChainAlias,
   resolveChainId,
   SubgraphDeployment,
@@ -48,8 +47,8 @@ let models: IndexerManagementModels
 let ethereum: ethers.providers.BaseProvider
 let contracts: NetworkContracts
 let graphNode: GraphNode
-let networkSubgraph: NetworkSubgraph
-let epochSubgraph: EpochSubgraph
+let networkSubgraph: SubgraphClient
+let epochSubgraph: SubgraphClient
 let networkMonitor: NetworkMonitor
 let logger: Logger
 
@@ -84,18 +83,22 @@ const setupMonitor = async () => {
   )
 
   const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''
-  networkSubgraph = await NetworkSubgraph.create({
+
+  networkSubgraph = await SubgraphClient.create({
+    name: 'NetworkSubgraph',
     logger,
     endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV`,
     deployment: undefined,
     subgraphFreshnessChecker,
   })
 
-  epochSubgraph = new EpochSubgraph(
-    `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS`,
-    subgraphFreshnessChecker,
+  epochSubgraph = await SubgraphClient.create({
+    name: 'EpochSubgraph',
     logger,
-  )
+    endpoint: `https://gateway-arbitrum.network.thegraph.com/api/${INDEXER_TEST_API_KEY}/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS`,
+    subgraphFreshnessChecker,
+  })
+
   graphNode = new GraphNode(
     logger,
     'http://test-admin-endpoint.xyz',

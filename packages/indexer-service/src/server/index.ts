@@ -16,7 +16,7 @@ import {
   indexerError,
   IndexerErrorCode,
   IndexerManagementClient,
-  NetworkSubgraph,
+  SubgraphClient,
 } from '@graphprotocol/indexer-common'
 import { createCostServer } from './cost'
 import { createOperatorServer } from './operator'
@@ -36,7 +36,7 @@ export interface ServerOptions {
     dependencies: { [key: string]: string }
   }
   operatorPublicKey: string
-  networkSubgraph: NetworkSubgraph
+  networkSubgraph: SubgraphClient
   networkSubgraphAuthToken: string | undefined
   serveNetworkSubgraph: boolean
   infoRateLimit: number

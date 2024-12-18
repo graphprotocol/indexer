@@ -12,36 +12,33 @@ import {
   connectContracts as connectTapContracts,
   NetworkContracts as TapContracts,
 } from '@semiotic-labs/tap-contracts-bindings'
+import { providers, Wallet } from 'ethers'
+import { strict as assert } from 'assert'
+import geohash from 'ngeohash'
+import pRetry, { Options } from 'p-retry'
+
 import {
   INDEXER_ERROR_MESSAGES,
   indexerError,
   IndexerErrorCode,
-  NetworkSubgraph,
+  SubgraphClient,
   TransactionManager,
   specification as spec,
   GraphNode,
-  EpochSubgraph,
   NetworkMonitor,
   AllocationReceiptCollector,
   SubgraphFreshnessChecker,
   monitorEligibleAllocations,
 } from '.'
-import { providers, Wallet } from 'ethers'
-import { strict as assert } from 'assert'
-import geohash from 'ngeohash'
-
-import pRetry, { Options } from 'p-retry'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
 import { readFileSync } from 'fs'
-
-import { TAPSubgraph } from './tap-subgraph'
 import { TapCollector } from './allocations/tap-collector'
 
 export class Network {
   logger: Logger
-  networkSubgraph: NetworkSubgraph
+  networkSubgraph: SubgraphClient
   contracts: NetworkContracts
   wallet: Wallet
   networkProvider: providers.StaticJsonRpcProvider
@@ -57,7 +54,7 @@ export class Network {
     logger: Logger,
     contracts: NetworkContracts,
     wallet: Wallet,
-    networkSubgraph: NetworkSubgraph,
+    networkSubgraph: SubgraphClient,
     networkProvider: providers.StaticJsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
@@ -122,7 +119,8 @@ export class Network {
       ? new SubgraphDeploymentID(specification.subgraphs.networkSubgraph.deployment)
       : undefined
 
-    const networkSubgraph = await NetworkSubgraph.create({
+    const networkSubgraph = await SubgraphClient.create({
+      name: 'NetworkSubgraph',
       logger,
       endpoint: specification.subgraphs.networkSubgraph.url,
       deployment:
@@ -143,13 +141,24 @@ export class Network {
       Infinity,
     )
 
-    let tapSubgraph: TAPSubgraph | undefined = undefined
-    if (specification.subgraphs.tapSubgraph && specification.subgraphs.tapSubgraph.url) {
-      tapSubgraph = new TAPSubgraph(
-        specification.subgraphs.tapSubgraph!.url!,
-        tapSubgraphFreshnessChecker,
-        logger.child({ component: 'TAPSubgraph' }),
-      )
+    let tapSubgraph: SubgraphClient | undefined = undefined
+    if (specification.subgraphs.tapSubgraph) {
+      const tapSubgraphDeploymentId = specification.subgraphs.tapSubgraph.deployment
+        ? new SubgraphDeploymentID(specification.subgraphs.tapSubgraph.deployment)
+        : undefined
+      tapSubgraph = await SubgraphClient.create({
+        name: 'TapSubgraph',
+        logger,
+        deployment:
+          tapSubgraphDeploymentId !== undefined
+            ? {
+                graphNode,
+                deployment: tapSubgraphDeploymentId,
+              }
+            : undefined,
+        endpoint: specification.subgraphs.tapSubgraph!.url,
+        subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
+      })
     }
 
     // * -----------------------------------------------------------------------
@@ -189,16 +198,22 @@ export class Network {
       Infinity,
     )
 
-    const epochSubgraph = new EpochSubgraph(
-      /* eslint-disable-next-line @typescript-eslint/no-non-null-assertion --
-       * Accept the non-null `url` property of the Epoch Subgraph, as it has
-       * already been validated during parsing. Once indexing is supported,
-       * initialize it in the same way as the NetworkSubgraph
-       */
-      specification.subgraphs.epochSubgraph.url!,
-      epochSubgraphFreshnessChecker,
-      logger.child({ component: 'EpochSubgraph' }),
-    )
+    const epochSubgraphDeploymentId = specification.subgraphs.epochSubgraph.deployment
+      ? new SubgraphDeploymentID(specification.subgraphs.epochSubgraph.deployment)
+      : undefined
+    const epochSubgraph = await SubgraphClient.create({
+      name: 'EpochSubgraph',
+      logger,
+      deployment:
+        epochSubgraphDeploymentId !== undefined
+          ? {
+              graphNode,
+              deployment: epochSubgraphDeploymentId,
+            }
+          : undefined,
+      endpoint: specification.subgraphs.epochSubgraph.url,
+      subgraphFreshnessChecker: epochSubgraphFreshnessChecker,
+    })
 
     // * -----------------------------------------------------------------------
     // * Network Monitor
