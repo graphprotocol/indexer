@@ -313,7 +313,7 @@ describe('TAP', () => {
       redeemedAt: null,
     }
     await queryFeeModels.receiptAggregateVouchers.create(rav2)
-    let ravs = await tapCollector['pendingRAVs']()
+    const ravs = await tapCollector['pendingRAVs']()
     await tapCollector['markRavsInTransactionsAsRedeemed'](transactions, ravs)
     const redeemedRavs = await queryFeeModels.receiptAggregateVouchers.findAll({
       where: {
@@ -326,7 +326,7 @@ describe('TAP', () => {
     })
     // Expect redeemed rav to be returned here
     expect(redeemedRavs).toEqual([
-      expect.objectContaining({ ...rav2, redeemedAt: nowSecs }),
+      expect.objectContaining({ ...rav2, redeemedAt: new Date(nowSecs * 1000) }),
     ])
   })
 
