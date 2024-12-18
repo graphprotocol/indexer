@@ -63,9 +63,9 @@ export const parseGraphQLChain = (chain: any): ChainIndexingStatus => ({
 export const parseGraphQLBlockPointer = (block: any): BlockPointer | null =>
   block
     ? {
-      number: +block.number,
-      hash: block.hash,
-    }
+        number: +block.number,
+        hash: block.hash,
+      }
     : null
 
 export interface SubgraphDependencies {
@@ -74,60 +74,74 @@ export interface SubgraphDependencies {
 }
 
 export interface SubgraphDependency {
-  base: SubgraphDeploymentID,
-  block: number,
+  base: SubgraphDeploymentID
+  block: number
 }
 
 export class SubgraphManifestResolver {
   private ipfsBaseUrl: URL
   private ipfsClient: AxiosInstance
+  private logger: Logger
 
-  constructor(ipfsEndpoint: string) {
-    this.ipfsBaseUrl = new URL(`/ipfs/`, ipfsEndpoint)
+  constructor(ipfsEndpoint: string, logger: Logger) {
+    this.ipfsBaseUrl = new URL(`/api/v0/`, ipfsEndpoint)
     this.ipfsClient = axios.create({})
+    this.ipfsClient.interceptors.request.use((config) => {
+      logger.info(`Subgraph Manifest IPFS request: ${config.url}`)
+      return config
+    })
+    this.logger = logger
   }
 
   /**
-   * 
-   * @param subgraphDeploymentId 
-   * @returns Promise<Manifest>
-   * 
    * Resolves a subgraph's manifest.
+   *
+   * @param subgraphDeploymentId
+   * @returns Promise<SubgraphDependency>
    */
-  public async resolve(subgraphDeploymentId: SubgraphDeploymentID): Promise<SubgraphDependency> {
-    const response = await this.ipfsClient
-      .get(`${subgraphDeploymentId.ipfsHash}`, {
-        baseURL: this.ipfsBaseUrl.toString(),
-      })
+  public async resolve(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<SubgraphDependency> {
+    const response = await this.ipfsClient.post(
+      `${this.ipfsBaseUrl}cat?arg=${subgraphDeploymentId.ipfsHash}`,
+    )
     return yaml.parse(response.data)
   }
 
-  public async resolveWithDependencies(subgraphDeploymentId: SubgraphDeploymentID): Promise<SubgraphDependencies> {
-    let deps: SubgraphDependencies = {
+  /**
+   * Resolves a subgraph's manifest and its dependencies in the order that they need to be resolved.
+   *
+   * @param subgraphDeploymentId
+   * @returns Promise<SubgraphDependencies>
+   */
+  public async resolveWithDependencies(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<SubgraphDependencies> {
+    const deps: SubgraphDependencies = {
       root: subgraphDeploymentId,
-      dependencies: []
+      dependencies: [],
     }
     const root = await this.resolve(subgraphDeploymentId)
-    let currentManifest: any = root
-    let dependency: any
-    while (dependency = currentManifest['graft']) {
+    let currentManifest = root
+    let dependency = currentManifest['graft']
+    while (dependency) {
       const dep = {
         block: dependency.block,
-        base: new SubgraphDeploymentID(dependency.base)
+        base: new SubgraphDeploymentID(dependency.base),
       }
-      deps.dependencies.push(dep)
+      // push onto the front of the list so we always have the deepest deps first
+      deps.dependencies.unshift(dep)
       const nextManifest = await this.resolve(dep.base)
       currentManifest = nextManifest
+      dependency = currentManifest['graft']
     }
     return deps
   }
-
 }
 
 export class GraphNode {
   admin: RpcClient
   private queryBaseURL: URL
-  private ipfsBaseUrl: URL
   private manifestResolver: SubgraphManifestResolver
 
   status: Client
@@ -156,8 +170,10 @@ export class GraphNode {
     }
 
     this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
-    this.ipfsBaseUrl = new URL(`/ipfs/`, ipfsEndpoint)
-    this.manifestResolver = new SubgraphManifestResolver(ipfsEndpoint)
+    this.manifestResolver = new SubgraphManifestResolver(
+      ipfsEndpoint,
+      this.logger.child({ component: 'SubgraphManifestResolver' }),
+    )
   }
 
   async connect(): Promise<void> {
@@ -253,6 +269,16 @@ export class GraphNode {
 
       if (nodeOnlyResult.error) {
         throw nodeOnlyResult.error
+      }
+
+      if (
+        !nodeOnlyResult.data.indexingStatuses ||
+        nodeOnlyResult.data.indexingStatuses.length === 0
+      ) {
+        this.logger.debug(`No 'indexingStatuses' data returned from index nodes`, {
+          data: nodeOnlyResult.data,
+        })
+        return []
       }
 
       const withAssignments: string[] = nodeOnlyResult.data.indexingStatuses
@@ -474,9 +500,9 @@ export class GraphNode {
           node
             ? node.deployments.push(status.subgraphDeployment)
             : indexNodes.push({
-              id: status.node,
-              deployments: [status.subgraphDeployment],
-            })
+                id: status.node,
+                deployments: [status.subgraphDeployment],
+              })
         },
       )
 
@@ -666,6 +692,10 @@ export class GraphNode {
         })
         await this.resume(deployment)
       } else {
+        // Subgraph deployment not found
+        await this.autoGraftDeployDependencies(deployment, deploymentAssignments, name)
+
+        // Create and deploy the subgraph
         this.logger.debug(
           'Subgraph deployment not found, creating subgraph name and deploying...',
           {
@@ -689,31 +719,216 @@ export class GraphNode {
   }
 
   /**
+   * Automatically deploy any dependencies of the subgraph, returning only when they are sync'd to the specified block.
+   *
+   * Note: All dependencies must be present on the same network as the root deployment.
+   *
+   * @param deployment
+   * @param deploymentAssignments
+   * @param name
+   * @returns
+   */
+  private async autoGraftDeployDependencies(
+    deployment: SubgraphDeploymentID,
+    deploymentAssignments: SubgraphDeploymentAssignment[],
+    name: string,
+  ) {
+    this.logger.debug('Auto graft deploy subgraph dependencies')
+    const { network: subgraphChainName } = await this.subgraphFeatures(deployment)
+    const dependencies = await this.manifestResolver.resolveWithDependencies(deployment)
+    if (dependencies.dependencies.length == 0) {
+      this.logger.debug('No subgraph dependencies found', {
+        name,
+        deployment: deployment.display,
+      })
+    } else {
+      this.logger.debug(
+        'graft dep chain found',
+        dependencies.dependencies.map((d) => d.base.ipfsHash),
+      )
+
+      for (const dependency of dependencies.dependencies) {
+        const queriedAssignments = await this.subgraphDeploymentAssignmentsByDeploymentID(
+          SubgraphStatus.ACTIVE,
+          [dependency.base.ipfsHash],
+        )
+        this.logger.debug(
+          'queried graph-node for assignment',
+          queriedAssignments.map((a: SubgraphDeploymentAssignment) => {
+            return { ipfsHash: a.id.ipfsHash, ...a }
+          }),
+        )
+        const dependencyAssignment = queriedAssignments.find(
+          (assignment) => assignment.id.ipfsHash == dependency.base.ipfsHash,
+        )
+
+        if (dependencyAssignment) {
+          this.logger.info("Dependency subgraph found, checking if it's healthy", {
+            name,
+            deployment: dependency.base.display,
+            block_required: dependency.block,
+          })
+
+          const indexingStatus = await this.indexingStatus([dependency.base])
+          const deploymentStatus = indexingStatus.find(
+            (status) => status.subgraphDeployment.ipfsHash === dependency.base.ipfsHash,
+          )
+          if (!deploymentStatus) {
+            this.logger.error(`Subgraph not found in indexing status`, {
+              subgraph: dependency.base.ipfsHash,
+              indexingStatus,
+            })
+            throw new Error(`Subgraph not found in indexing status`)
+          } else {
+            this.logger.info(
+              'Dependency subgraph found, will try to sync it to the block required',
+              {
+                deploymentStatus,
+              },
+            )
+          }
+        } else if (!dependencyAssignment) {
+          this.logger.debug(
+            'Dependency subgraph not found, creating, deploying and pausing...',
+            {
+              name,
+              deployment: dependency.base.display,
+              block_required: dependency.block,
+            },
+          )
+          // are we paused at the block we wanted?
+
+          await this.create(name)
+          await this.deploy(name, dependency.base)
+        }
+        await this.syncToBlockAndPause(
+          dependency.block,
+          dependency.base,
+          subgraphChainName,
+        )
+      }
+    }
+  }
+
+  /**
    *  wait for the block to be synced, polling indexing status until it is
    */
-  public async syncToBlock(blockHeight: number, subgraphDeployment: SubgraphDeploymentID): Promise<void> {
-    for (; ;) {
-      const deployed = (await this.subgraphDeployments()).filter(
-        (assignment) => assignment.ipfsHash == subgraphDeployment.ipfsHash,
-      )
-      if (deployed.length == 0) {
+  public async syncToBlockAndPause(
+    blockHeight: number,
+    subgraphDeployment: SubgraphDeploymentID,
+    chainName: string | null,
+  ): Promise<void> {
+    async function waitForMs(ms: number) {
+      return new Promise((resolve) => setTimeout(resolve, ms))
+    }
+
+    this.logger.info(`Begin syncing subgraph deployment to block`, {
+      subgraph: subgraphDeployment.ipfsHash,
+      blockHeight,
+    })
+
+    // loop-wait for the block to be synced
+    for (;;) {
+      // first ensure it's been deployed and is active, or already paused
+      let deployed: SubgraphDeploymentAssignment[] = []
+      let attempt = 0
+      while (attempt < 5) {
+        await waitForMs(3000)
+        deployed = await this.subgraphDeploymentAssignmentsByDeploymentID(
+          SubgraphStatus.ALL,
+          [subgraphDeployment.ipfsHash],
+        )
+        if (deployed.length > 0) {
+          this.logger.info(`Subgraph deployment active or already paused`, {
+            subgraph: subgraphDeployment.ipfsHash,
+            status: deployed,
+          })
+          break
+        }
+        this.logger.info(`Subgraph deployment not yet active, waiting...`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          attempt,
+          deployed,
+        })
+        attempt += 1
+      }
+      if (attempt >= 5) {
         this.logger.error(`Subgraph not deployed and active`, {
           subgraph: subgraphDeployment.ipfsHash,
         })
         throw new Error(`Subgraph not deployed and active, cannot sync to block`)
       }
-      const status = await this.indexingStatus([subgraphDeployment])
-      const chain = status[0].chains[0]
-      if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
-        this.logger.info(`Subgraph synced to block`, {
-          subgraph: subgraphDeployment.ipfsHash,
-          blockHeight,
-        })
-        return
-      }
-    }
-  }
 
+      const indexingStatus = await this.indexingStatus([subgraphDeployment])
+      const deploymentStatus = indexingStatus.find(
+        (status) => status.subgraphDeployment.ipfsHash === subgraphDeployment.ipfsHash,
+      )
+
+      if (!deploymentStatus) {
+        this.logger.error(`Subgraph not found in indexing status`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          indexingStatus,
+        })
+        throw new Error(`Subgraph not found in indexing status`)
+      }
+
+      const chain = deploymentStatus.chains.find((chain) => chain.network === chainName)
+
+      if (!chain) {
+        this.logger.error(`Chain not found in indexing status for deployment`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          chainName,
+          status: deploymentStatus,
+        })
+        throw new Error(`Chain not found in indexing status for deployment`)
+      }
+
+      // NOTES:
+      // - latestBlock is the latest block that has been indexed
+      // - earliestBlock and chainHeadBlock are the earliest and latest blocks on the chain, respectively
+      // if the deployment is paused and latestBlock is null or lower than we need, unpause it,
+      // otherwise, if it's paused, we can't unpause it, so just wait
+      if (
+        deployed[0].paused &&
+        (!chain.latestBlock || chain.latestBlock.number < blockHeight)
+      ) {
+        this.logger.debug(`Subgraph paused and not yet synced to block, resuming`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          indexingStatus,
+        })
+        await this.resume(subgraphDeployment)
+      }
+
+      // Is the graftBaseBlock within the range of the earliest and head of the chain?
+      if (
+        !deployed[0].paused &&
+        chain.latestBlock &&
+        chain.latestBlock.number >= blockHeight
+      ) {
+        this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          indexingStatus,
+        })
+        // pause the subgraph to prevent further indexing
+        await this.pause(subgraphDeployment)
+        break
+      }
+
+      this.logger.debug(
+        `Subgraph not yet synced to block ${blockHeight}, waiting for 3s`,
+        {
+          subgraph: subgraphDeployment.ipfsHash,
+          indexingStatus,
+        },
+      )
+      await waitForMs(3000)
+    }
+
+    this.logger.debug(`End syncing subgraph deployment synced to block`, {
+      subgraph: subgraphDeployment.ipfsHash,
+      blockHeight,
+    })
+  }
 
   // --------------------------------------------------------------------------------
   // * Indexing Status
@@ -899,7 +1114,8 @@ export class GraphNode {
 
           if (!result.data || !result.data.blockHashFromNumber || result.error) {
             throw new Error(
-              `Failed to query graph node for blockHashFromNumber: ${result.error ?? 'no data returned'
+              `Failed to query graph node for blockHashFromNumber: ${
+                result.error ?? 'no data returned'
               }`,
             )
           }
