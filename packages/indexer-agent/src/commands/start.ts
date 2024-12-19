@@ -685,8 +685,8 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
     logger.warn(
       `Gas increase timeout is set to less than ${
-        advisedGasIncreaseTimeout
-      } milliseconds. This may lead to high gas usage`,
+        advisedGasIncreaseTimeout / 1000
+      } seconds. This may lead to high gas usage`,
       { gasIncreaseTimeout: gasIncreaseTimeout },
     )
   }
