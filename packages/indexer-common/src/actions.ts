@@ -46,36 +46,36 @@ export interface ActionInput {
   status: ActionStatus
   priority: number | undefined
   protocolNetwork: string
+  syncingNetwork: string
 }
 
 export const isValidActionInput = (
   /* eslint-disable @typescript-eslint/no-explicit-any */
-  variableToCheck: any,
-): variableToCheck is ActionInput => {
-  if (!('type' in variableToCheck)) {
+  actionToCheck: any,
+): actionToCheck is ActionInput => {
+  if (!('type' in actionToCheck)) {
     return false
   }
   let hasActionParams = false
-  switch (variableToCheck.type) {
+  switch (actionToCheck.type) {
     case ActionType.ALLOCATE:
-      hasActionParams = 'deploymentID' in variableToCheck && 'amount' in variableToCheck
+      hasActionParams = 'deploymentID' in actionToCheck && 'amount' in actionToCheck
       break
     case ActionType.UNALLOCATE:
-      hasActionParams =
-        'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
+      hasActionParams = 'deploymentID' in actionToCheck && 'allocationID' in actionToCheck
       break
     case ActionType.REALLOCATE:
       hasActionParams =
-        'deploymentID' in variableToCheck &&
-        'allocationID' in variableToCheck &&
-        'amount' in variableToCheck
+        'deploymentID' in actionToCheck &&
+        'allocationID' in actionToCheck &&
+        'amount' in actionToCheck
   }
   return (
     hasActionParams &&
-    'source' in variableToCheck &&
-    'reason' in variableToCheck &&
-    'status' in variableToCheck &&
-    'priority' in variableToCheck
+    'source' in actionToCheck &&
+    'reason' in actionToCheck &&
+    'status' in actionToCheck &&
+    'priority' in actionToCheck
   )
 }
 
@@ -92,22 +92,6 @@ export const validateActionInputs = async (
       throw Error("Cannot set an action without the field 'protocolNetwork'")
     }
 
-    try {
-      // Set the parsed network identifier back in the action input object
-      action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-    } catch (e) {
-      throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-    }
-
-    // Must have the required params for the action type
-    if (!isValidActionInput(action)) {
-      throw new Error(
-        `Failed to queue action: Invalid action input, actionInput: ${JSON.stringify(
-          action,
-        )}`,
-      )
-    }
-
     // Must have status QUEUED or APPROVED
     if (
       [
@@ -122,6 +106,15 @@ export const validateActionInputs = async (
       )
     }
 
+    // Must have the required params for the action type
+    if (!isValidActionInput(action)) {
+      throw new Error(
+        `Failed to queue action: Invalid action input, actionInput: ${JSON.stringify(
+          action,
+        )}`,
+      )
+    }
+
     // Action must target an existing subgraph deployment
     const subgraphDeployment = await networkMonitor.subgraphDeployment(
       action.deploymentID,
@@ -129,6 +122,25 @@ export const validateActionInputs = async (
     if (!subgraphDeployment) {
       logger.warn(
         `No subgraphDeployment with ipfsHash = '${action.deploymentID}' found on the network`,
+      )
+    }
+
+    try {
+      // Set the parsed protocol network identifier back in the action input object
+      action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
+    } catch (e) {
+      throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
+    }
+
+    try {
+      // Fetch syncing network, parse alias, and set the parsed value back in the action input object
+      const syncingNetwork = await networkMonitor.deploymentSyncingNetwork(
+        action.deploymentID,
+      )
+      action.syncingNetwork = validateNetworkIdentifier(syncingNetwork)
+    } catch (e) {
+      throw Error(
+        `Could not resolve 'syncingNetwork' for deployment '${action.deploymentID}'. ${e}`,
       )
     }
 
@@ -161,6 +173,7 @@ export interface ActionFilter {
   reason?: string
   updatedAt?: WhereOperators
   protocolNetwork?: string
+  syncingNetwork?: string
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -192,6 +205,7 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
+  syncingNetwork: string
 }
 
 export enum ActionType {
