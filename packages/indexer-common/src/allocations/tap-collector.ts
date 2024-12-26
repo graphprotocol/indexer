@@ -33,7 +33,8 @@ import { getEscrowAccounts } from './escrow-accounts'
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
 
-const PAGE_SIZE = 1000
+// 1000 here was leading to http 413 request entity too large
+const PAGE_SIZE = 200
 
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
