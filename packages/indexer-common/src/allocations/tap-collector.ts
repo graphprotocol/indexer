@@ -127,7 +127,7 @@ export class TapCollector {
     networkSubgraph,
   }: TapCollectorOptions): TapCollector {
     const collector = new TapCollector()
-    collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
+    collector.logger = logger.child({ component: 'TapCollector' })
     collector.metrics = registerReceiptMetrics(
       metrics,
       networkSpecification.networkIdentifier,
