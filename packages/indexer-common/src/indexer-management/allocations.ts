@@ -484,8 +484,9 @@ export class AllocationManager {
       epoch: createAllocationEventLogs.epoch.toString(),
     })
 
+    // TODO: deprecated
     // Remember allocation
-    await this.network.receiptCollector.rememberAllocations(actionID, [
+    await this.network.receiptCollector?.rememberAllocations(actionID, [
       createAllocationEventLogs.allocationID,
     ])
 
@@ -638,12 +639,16 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
+    let isCollectingQueryFees = false
     const allocation = await this.network.networkMonitor.allocation(allocationID)
-    // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-      actionID,
-      allocation,
-    )
+    if (this.network.receiptCollector) {
+      // TODO: deprecated
+      // Collect query fees for this allocation
+      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+        actionID,
+        allocation,
+      )
+    }
 
     // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
     logger.debug(
@@ -925,11 +930,15 @@ export class AllocationManager {
     try {
       allocation = await this.network.networkMonitor.allocation(allocationID)
       // Collect query fees for this allocation
-      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-        actionID,
-        allocation,
-      )
-      logger.debug('Finished receipt collection')
+
+      // TODO: deprecated
+      if (this.network.receiptCollector) {
+        isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+          actionID,
+          allocation,
+        )
+        logger.debug('Finished receipt collection')
+      }
     } catch (err) {
       logger.error('Failed to collect receipts', {
         err,
