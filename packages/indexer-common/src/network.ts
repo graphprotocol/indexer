@@ -47,7 +47,10 @@ export class Network {
   networkProvider: providers.StaticJsonRpcProvider
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
-  receiptCollector: AllocationReceiptCollector
+
+  // TODO: deprecated
+  receiptCollector: AllocationReceiptCollector | undefined
+
   tapCollector: TapCollector | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
@@ -61,7 +64,7 @@ export class Network {
     networkProvider: providers.StaticJsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
-    receiptCollector: AllocationReceiptCollector,
+    receiptCollector: AllocationReceiptCollector | undefined,
     tapCollector: TapCollector | undefined,
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
@@ -272,16 +275,22 @@ export class Network {
     // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
-    const scalarCollector = await AllocationReceiptCollector.create({
-      logger,
-      metrics,
-      transactionManager: transactionManager,
-      models: queryFeeModels,
-      allocationExchange: contracts.allocationExchange,
-      allocations,
-      networkSpecification: specification,
-      networkSubgraph,
-    })
+    let scalarCollector: AllocationReceiptCollector | undefined = undefined
+    if (!(tapContracts && tapSubgraph)) {
+      logger.warn(
+        "deprecated scalar voucher collector is enabled - you probably don't want this",
+      )
+      scalarCollector = await AllocationReceiptCollector.create({
+        logger,
+        metrics,
+        transactionManager: transactionManager,
+        models: queryFeeModels,
+        allocationExchange: contracts.allocationExchange,
+        allocations,
+        networkSpecification: specification,
+        networkSubgraph,
+      })
+    }
 
     // --------------------------------------------------------------------------------
     // * TAP Collector
