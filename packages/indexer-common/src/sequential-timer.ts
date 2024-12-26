@@ -24,15 +24,16 @@ function logWorkTime(
   caller: string | undefined,
   milliseconds: number,
 ) {
-  const workTimeWarningThreshold = 1000
+  const workTimeWarningThreshold = 5000
   const workTime = Date.now() - workStarted
-  logger.debug(`timer loop took ${loopTime}ms workTime ${workTime} caller(${caller})`)
-  if (loopTime > milliseconds + workTimeWarningThreshold) {
+  if (workTime > milliseconds + workTimeWarningThreshold) {
     logger.warn(
-      'timer work took longer than the sequential timer was configured for (+1s)',
+      'timer work took longer than the sequential timer was configured for (>5s)',
       {
         loopTime,
+        workTime,
         milliseconds,
+        caller,
       },
     )
   }
