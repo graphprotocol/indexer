@@ -17,6 +17,27 @@ export interface TimerTaskContext {
   milliseconds: number
 }
 
+function logWorkTime(
+  workStarted: number,
+  logger: Logger,
+  loopTime: number,
+  caller: string | undefined,
+  milliseconds: number,
+) {
+  const workTimeWarningThreshold = 1000
+  const workTime = Date.now() - workStarted
+  logger.debug(`timer loop took ${loopTime}ms workTime ${workTime} caller(${caller})`)
+  if (loopTime > milliseconds + workTimeWarningThreshold) {
+    logger.warn(
+      'timer work took longer than the sequential timer was configured for (+1s)',
+      {
+        loopTime,
+        milliseconds,
+      },
+    )
+  }
+}
+
 /**
  * Create an eventual that performs the work in the Reducer<number, U> function every `milliseconds` milliseconds.
  * The main difference between this and `timer(...).reduce(...)` is that this function will wait for the previous work to complete before starting the next one.
@@ -52,36 +73,25 @@ export function sequentialTimerReduce<T, U>(
   function work() {
     const workStarted = Date.now()
     const promiseOrT = reducer(acc, workStarted)
-    const workEnded = Date.now()
     const loopTime = workStarted - lastWorkStarted
-    const workTime = workEnded - workStarted
-    logger.debug(
-      `sequentialTimerReduce loop took ${loopTime}ms, work took ${workTime}ms caller(${caller})`,
-    )
 
-    if (workTime > milliseconds) {
-      logger.warn(
-        'sequentialTimerReduce work took longer than the sequential timer was configured for',
-        {
-          workTime,
-          milliseconds,
-        },
-      )
-    }
     lastWorkStarted = workStarted
     if (isPromiseLike(promiseOrT)) {
       promiseOrT.then(
         function onfulfilled(value) {
           outputReduce(value)
+          logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
           setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
         },
         function onrejected(err) {
           console.error(err)
+          logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
           setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
         },
       )
     } else {
       outputReduce(promiseOrT)
+      logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
       setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
     }
   }
@@ -123,40 +133,27 @@ export function sequentialTimerMap<U>(
 
   function work() {
     const workStarted = Date.now()
-    const promiseOrU = mapper(Date.now())
-    const workEnded = Date.now()
+    const promiseOrU = mapper(workStarted)
     const loopTime = workStarted - lastWorkStarted
-    const workTime = workEnded - workStarted
-    logger.debug(
-      `sequentialTimerMap loop took ${loopTime}ms, work took ${workTime}ms caller(${caller})`,
-    )
-
-    if (workTime > milliseconds) {
-      logger.warn(
-        'sequentialTimerMap work took longer than the sequential timer was configured for',
-        {
-          workTime,
-          milliseconds,
-        },
-      )
-    }
-
     lastWorkStarted = workStarted
 
     if (isPromiseLike(promiseOrU)) {
       promiseOrU.then(
         function onfulfilled(value) {
           checkMappedValue(value)
+          logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
           setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
         },
         function onrejected(err) {
           options?.onError(err)
+          logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
           setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
         },
       )
     } else {
       // resolved value
       checkMappedValue(promiseOrU)
+      logWorkTime(workStarted, logger, loopTime, caller, milliseconds)
       setTimeout(work, Math.max(0, milliseconds - (Date.now() - workStarted)))
     }
   }
