@@ -322,9 +322,11 @@ export class AllocationManager {
     logger.info('Ensure subgraph deployments are deployed before we allocate to them', {
       allocateActions,
     })
-    const currentAssignments = await this.graphNode.subgraphDeploymentsAssignments(
-      SubgraphStatus.ALL,
-    )
+    const currentAssignments =
+      await this.graphNode.subgraphDeploymentAssignmentsForAllocateActions(
+        SubgraphStatus.ALL,
+        actions,
+      )
     await pMap(
       allocateActions,
       async (action: Action) =>
