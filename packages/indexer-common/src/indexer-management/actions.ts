@@ -236,9 +236,14 @@ export class ActionManager {
       this.logger.warn('Previous batch action execution is still in progress')
       return this.executeBatchActionsPromise
     }
-    this.executeBatchActionsPromise = this.executeApprovedActionsInner(network)
-    const updatedActions = await this.executeBatchActionsPromise
-    this.executeBatchActionsPromise = undefined
+
+    let updatedActions: Action[] = []
+    try {
+      this.executeBatchActionsPromise = this.executeApprovedActionsInner(network)
+      updatedActions = await this.executeBatchActionsPromise
+    } finally {
+      this.executeBatchActionsPromise = undefined
+    }
     return updatedActions
   }
 
