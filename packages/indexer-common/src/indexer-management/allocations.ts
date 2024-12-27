@@ -323,9 +323,9 @@ export class AllocationManager {
       allocateActions,
     })
     const currentAssignments =
-      await this.graphNode.subgraphDeploymentAssignmentsForAllocateActions(
+      await this.graphNode.subgraphDeploymentAssignmentsByDeploymentID(
         SubgraphStatus.ALL,
-        actions,
+        actions.map((action) => action.deploymentID!),
       )
     await pMap(
       allocateActions,

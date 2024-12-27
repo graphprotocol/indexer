@@ -12,7 +12,6 @@ import { BlockPointer, ChainIndexingStatus, IndexingStatus } from './types'
 import pRetry, { Options } from 'p-retry'
 import axios, { AxiosInstance } from 'axios'
 import fetch from 'isomorphic-fetch'
-import { Action } from './indexer-management'
 
 interface indexNode {
   id: string
@@ -103,15 +102,11 @@ export class GraphNode {
       this.logger.info(`Check if indexing status API is available`)
       await pRetry(
         async () => {
-          const deployments = await this.subgraphDeployments()
-          if (deployments.length < 100) {
-            this.logger.info(`Successfully connected to indexing status API`, {
-              currentDeployments: deployments.map((deployment) => deployment.display),
-            })
+          if (await this.statusEndpointConnected()) {
+            this.logger.info(`Successfully connected to indexing status API`, {})
           } else {
-            this.logger.info(`Successfully connected to indexing status API`, {
-              currentDeploymentCount: deployments.length,
-            })
+            this.logger.error(`Failed to connect to indexing status API`)
+            throw new Error('Indexing status API not available')
           }
         },
         {
@@ -149,97 +144,120 @@ export class GraphNode {
     return new URL(deploymentIpfsHash, this.queryBaseURL).toString()
   }
 
-  public async subgraphDeployments(): Promise<SubgraphDeploymentID[]> {
-    return (await this.subgraphDeploymentsAssignments(SubgraphStatus.ACTIVE)).map(
-      (details) => details.id,
-    )
+  // Simple query to make sure the status endpoint is connected
+  public async statusEndpointConnected(): Promise<boolean> {
+    try {
+      const result = await this.status
+        .query(
+          gql`
+            query {
+              __typename
+            }
+          `,
+          undefined,
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      return !!result.data
+    } catch (error) {
+      this.logger.error(`Failed to query status endpoint`, { error })
+      return false
+    }
   }
 
-  public async subgraphDeploymentAssignmentsForAllocateActions(
+  public async subgraphDeploymentAssignmentsByDeploymentID(
     subgraphStatus: SubgraphStatus,
-    actions: Action[],
+    deploymentIDs: string[],
   ): Promise<SubgraphDeploymentAssignment[]> {
-    const deploymentIDs = actions.map((action) => action.deploymentID)
-
-    const nodeOnlyResult = await this.status
-      .query(
-        gql`
-          query indexingStatuses($subgraphs: [String!]!) {
-            indexingStatuses(subgraphs: $subgraphs) {
-              subgraphDeployment: subgraph
-              node
+    try {
+      const nodeOnlyResult = await this.status
+        .query(
+          gql`
+            query indexingStatuses($subgraphs: [String!]!) {
+              indexingStatuses(subgraphs: $subgraphs) {
+                subgraphDeployment: subgraph
+                node
+              }
             }
-          }
-        `,
-        { subgraphs: deploymentIDs },
-      )
-      .toPromise()
+          `,
+          { subgraphs: deploymentIDs },
+        )
+        .toPromise()
 
-    if (nodeOnlyResult.error) {
-      throw nodeOnlyResult.error
-    }
+      if (nodeOnlyResult.error) {
+        throw nodeOnlyResult.error
+      }
 
-    const withAssignments: string[] = nodeOnlyResult.data.indexingStatuses
-      .filter(
-        (result: { node: string | null }) =>
-          result.node !== null && result.node !== undefined,
-      )
-      .map((result: { subgraphDeployment: string }) => result.subgraphDeployment)
+      const withAssignments: string[] = nodeOnlyResult.data.indexingStatuses
+        .filter(
+          (result: { node: string | null }) =>
+            result.node !== null && result.node !== undefined,
+        )
+        .map((result: { subgraphDeployment: string }) => result.subgraphDeployment)
 
-    const result = await this.status
-      .query(
-        gql`
-          query indexingStatuses($subgraphs: [String!]!) {
-            indexingStatuses(subgraphs: $subgraphs) {
-              subgraphDeployment: subgraph
-              node
-              paused
+      const result = await this.status
+        .query(
+          gql`
+            query indexingStatuses($subgraphs: [String!]!) {
+              indexingStatuses(subgraphs: $subgraphs) {
+                subgraphDeployment: subgraph
+                node
+                paused
+              }
             }
+          `,
+          { subgraphs: withAssignments },
+        )
+        .toPromise()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      if (!result.data.indexingStatuses || result.data.length === 0) {
+        this.logger.warn(`No 'indexingStatuses' data returned from index nodes`, {
+          data: result.data,
+        })
+        return []
+      }
+
+      type QueryResult = {
+        subgraphDeployment: string
+        node: string | undefined
+        paused: boolean | undefined
+      }
+
+      const results = result.data.indexingStatuses
+        .filter((status: QueryResult) => {
+          if (subgraphStatus === SubgraphStatus.ACTIVE) {
+            return (
+              status.paused === false ||
+              (status.paused === undefined && status.node !== 'removed')
+            )
+          } else if (subgraphStatus === SubgraphStatus.PAUSED) {
+            return status.node === 'removed' || status.paused === true
+          } else if (subgraphStatus === SubgraphStatus.ALL) {
+            return true
           }
-        `,
-        { subgraphs: withAssignments },
-      )
-      .toPromise()
+        })
+        .map((status: QueryResult) => {
+          return {
+            id: new SubgraphDeploymentID(status.subgraphDeployment),
+            node: status.node,
+            paused: status.paused ?? status.node === 'removed',
+          }
+        })
 
-    if (result.error) {
-      throw result.error
+      return results
+    } catch (error) {
+      const err = indexerError(IndexerErrorCode.IE018, error)
+      this.logger.error(`Failed to query indexing status API`, { err })
+      throw err
     }
-
-    if (!result.data.indexingStatuses || result.data.length === 0) {
-      this.logger.warn(`No 'indexingStatuses' data returned from index nodes`, {
-        data: result.data,
-      })
-      return []
-    }
-
-    type QueryResult = {
-      subgraphDeployment: string
-      node: string | undefined
-      paused: boolean | undefined
-    }
-
-    const results = result.data.indexingStatuses
-      .filter((status: QueryResult) => {
-        if (subgraphStatus === SubgraphStatus.ACTIVE) {
-          return (
-            status.paused === false ||
-            (status.paused === undefined && status.node !== 'removed')
-          )
-        } else if (subgraphStatus === SubgraphStatus.PAUSED) {
-          return status.node === 'removed' || status.paused === true
-        } else if (subgraphStatus === SubgraphStatus.ALL) {
-          return true
-        }
-      })
-      .map((status: QueryResult) => {
-        return {
-          id: new SubgraphDeploymentID(status.subgraphDeployment),
-          node: status.node,
-          paused: status.paused ?? status.node === 'removed',
-        }
-      })
-
-    return results
   }
 
   public async subgraphDeploymentsAssignments(
@@ -265,8 +283,11 @@ export class GraphNode {
         )
         .toPromise()
 
+      const deploymentCount = nodeOnlyResult.data?.indexingStatuses?.length ?? 0
       this.logger.debug(
-        `Fetch subgraph deployment assignments took ${Date.now() - startTimeMs}ms`,
+        `Fetch subgraph deployment assignments (1/2, node only) took ${
+          Date.now() - startTimeMs
+        }ms for ${deploymentCount} deployments`,
       )
 
       if (nodeOnlyResult.error) {
@@ -313,6 +334,12 @@ export class GraphNode {
         paused: boolean | undefined
       }
 
+      const deploymentCount2 = result.data?.indexingStatuses?.length ?? 0
+      this.logger.debug(
+        `Fetch subgraph deployment assignments (2/2, with paused) took ${
+          Date.now() - startTimeMs
+        }ms and returned ${deploymentCount}/${deploymentCount2} deployments`,
+      )
       const results = result.data.indexingStatuses
         .filter((status: QueryResult) => {
           if (subgraphStatus === SubgraphStatus.ACTIVE) {
@@ -557,7 +584,9 @@ export class GraphNode {
     try {
       const deploymentAssignments =
         currentAssignments ??
-        (await this.subgraphDeploymentsAssignments(SubgraphStatus.ALL))
+        (await this.subgraphDeploymentAssignmentsByDeploymentID(SubgraphStatus.ALL, [
+          deployment.ipfsHash,
+        ]))
       const matchingAssignment = deploymentAssignments.find(
         (deploymentAssignment) => deploymentAssignment.id.ipfsHash == deployment.ipfsHash,
       )

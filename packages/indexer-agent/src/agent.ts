@@ -324,12 +324,32 @@ export class Agent {
         },
       )
 
+    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
-        { logger, milliseconds: requestIntervalSmall },
-        () => {
-          logger.trace('Fetching active deployments')
-          return this.graphNode.subgraphDeployments()
+        { logger, milliseconds: requestIntervalLarge },
+        async () => {
+          const deployments = await this.multiNetworks.map(
+            async ({ network }) => {
+              if (
+                this.deploymentManagement === DeploymentManagementMode.AUTO ||
+                network.networkMonitor.poiDisputeMonitoringEnabled()
+              ) {
+                logger.trace('Fetching active deployments')
+                const assignments =
+                  await this.graphNode.subgraphDeploymentsAssignments(
+                    SubgraphStatus.ACTIVE,
+                  )
+                return assignments.map(assignment => assignment.id)
+              } else {
+                logger.info(
+                  "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
+                )
+                return []
+              }
+            },
+          )
+          return deployments.values
         },
         {
           onError: error =>
