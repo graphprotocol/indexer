@@ -21,7 +21,6 @@ import {
   allocationSigner,
   tapAllocationIdProof,
   parseGraphQLAllocation,
-  sequentialTimerMap,
 } from '..'
 import { BigNumber } from 'ethers'
 import pReduce from 'p-reduce'
@@ -184,12 +183,8 @@ export class TapCollector {
   }
 
   private getPendingRAVs(): Eventual<RavWithAllocation[]> {
-    return sequentialTimerMap(
-      {
-        logger: this.logger,
-        milliseconds: RAV_CHECK_INTERVAL_MS,
-      },
-      async () => {
+    return this.allocations.throttle(RAV_CHECK_INTERVAL_MS).tryMap(
+      async (allocations) => {
         let ravs = await this.pendingRAVs()
         if (ravs.length === 0) {
           this.logger.info(`No pending RAVs to process`)
@@ -198,10 +193,10 @@ export class TapCollector {
         if (ravs.length > 0) {
           ravs = await this.filterAndUpdateRavs(ravs)
         }
-        const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
-        this.logger.info(
-          `Retrieved allocations for pending RAVs \n: ${JSON.stringify(allocations)}`,
-        )
+        this.logger.debug(`matching allocations for pending ravs`, {
+          allocationCount: allocations.length,
+          ravCount: ravs.length,
+        })
         return ravs
           .map((rav) => {
             const signedRav = rav.getSignedRAV()
