@@ -251,7 +251,9 @@ export class AllocationManager {
           2,
         ),
       currentEpoch,
-      indexingStatuses: await this.graphNode.indexingStatus([]),
+      indexingStatuses: await this.graphNode.indexingStatus(
+        actions.map((action) => new SubgraphDeploymentID(action.deploymentID!)),
+      ),
     }
     return await pMap(
       actions,
