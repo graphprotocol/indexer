@@ -132,6 +132,7 @@ export class NetworkMonitor {
   }
 
   async allocations(status: AllocationStatus): Promise<Allocation[]> {
+    const startTimeMs = Date.now()
     try {
       this.logger.debug(`Fetch ${status} allocations`)
       let dataRemaining = true
@@ -202,6 +203,9 @@ export class NetworkMonitor {
         )
       }
 
+      this.logger.debug(
+        `Finished fetching ${status} allocations in ${Date.now() - startTimeMs}ms`,
+      )
       return allocations
     } catch (error) {
       const err = indexerError(IndexerErrorCode.IE010, error)
