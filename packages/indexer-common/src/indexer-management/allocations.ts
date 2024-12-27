@@ -116,7 +116,7 @@ export class AllocationManager {
     return await this.confirmTransactions(result, actions)
   }
 
-  async executeTransactions(actions: Action[]): Promise<TransactionResult> {
+  private async executeTransactions(actions: Action[]): Promise<TransactionResult> {
     const logger = this.logger.child({ function: 'executeTransactions' })
     logger.trace('Begin executing transactions', { actions })
     if (actions.length < 1) {
@@ -251,7 +251,9 @@ export class AllocationManager {
           2,
         ),
       currentEpoch,
-      indexingStatuses: await this.graphNode.indexingStatus([]),
+      indexingStatuses: await this.graphNode.indexingStatus(
+        actions.map((action) => new SubgraphDeploymentID(action.deploymentID!)),
+      ),
     }
     return await pMap(
       actions,
@@ -322,9 +324,11 @@ export class AllocationManager {
     logger.info('Ensure subgraph deployments are deployed before we allocate to them', {
       allocateActions,
     })
-    const currentAssignments = await this.graphNode.subgraphDeploymentsAssignments(
-      SubgraphStatus.ALL,
-    )
+    const currentAssignments =
+      await this.graphNode.subgraphDeploymentAssignmentsByDeploymentID(
+        SubgraphStatus.ALL,
+        actions.map((action) => action.deploymentID!),
+      )
     await pMap(
       allocateActions,
       async (action: Action) =>
@@ -484,8 +488,9 @@ export class AllocationManager {
       epoch: createAllocationEventLogs.epoch.toString(),
     })
 
+    // TODO: deprecated
     // Remember allocation
-    await this.network.receiptCollector.rememberAllocations(actionID, [
+    await this.network.receiptCollector?.rememberAllocations(actionID, [
       createAllocationEventLogs.allocationID,
     ])
 
@@ -638,12 +643,16 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
+    let isCollectingQueryFees = false
     const allocation = await this.network.networkMonitor.allocation(allocationID)
-    // Collect query fees for this allocation
-    const isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-      actionID,
-      allocation,
-    )
+    if (this.network.receiptCollector) {
+      // TODO: deprecated
+      // Collect query fees for this allocation
+      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+        actionID,
+        allocation,
+      )
+    }
 
     // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
     logger.debug(
@@ -925,11 +934,15 @@ export class AllocationManager {
     try {
       allocation = await this.network.networkMonitor.allocation(allocationID)
       // Collect query fees for this allocation
-      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-        actionID,
-        allocation,
-      )
-      logger.debug('Finished receipt collection')
+
+      // TODO: deprecated
+      if (this.network.receiptCollector) {
+        isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
+          actionID,
+          allocation,
+        )
+        logger.debug('Finished receipt collection')
+      }
     } catch (err) {
       logger.error('Failed to collect receipts', {
         err,

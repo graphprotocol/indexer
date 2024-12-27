@@ -127,7 +127,7 @@ export class TapCollector {
     networkSubgraph,
   }: TapCollectorOptions): TapCollector {
     const collector = new TapCollector()
-    collector.logger = logger.child({ component: 'AllocationReceiptCollector' })
+    collector.logger = logger.child({ component: 'TapCollector' })
     collector.metrics = registerReceiptMetrics(
       metrics,
       networkSpecification.networkIdentifier,
@@ -199,9 +199,10 @@ export class TapCollector {
           ravs = await this.filterAndUpdateRavs(ravs)
         }
         const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
-        this.logger.info(
-          `Retrieved allocations for pending RAVs \n: ${JSON.stringify(allocations)}`,
-        )
+        this.logger.info(`Retrieved allocations for pending RAVs`, {
+          ravs: ravs.length,
+          allocations: allocations.length,
+        })
         return ravs
           .map((rav) => {
             const signedRav = rav.getSignedRAV()
