@@ -116,7 +116,7 @@ export class AllocationManager {
     return await this.confirmTransactions(result, actions)
   }
 
-  async executeTransactions(actions: Action[]): Promise<TransactionResult> {
+  private async executeTransactions(actions: Action[]): Promise<TransactionResult> {
     const logger = this.logger.child({ function: 'executeTransactions' })
     logger.trace('Begin executing transactions', { actions })
     if (actions.length < 1) {
