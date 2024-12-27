@@ -31,6 +31,8 @@ export class ActionManager {
   declare models: IndexerManagementModels
   declare allocationManagers: NetworkMapped<AllocationManager>
 
+  executeBatchActionsPromise: Promise<Action[]> | undefined
+
   static async create(
     multiNetworks: MultiNetworks<Network>,
     logger: Logger,
@@ -228,7 +230,19 @@ export class ActionManager {
     return updatedActions
   }
 
+  // a promise guard to ensure that only one batch of actions is executed at a time
   async executeApprovedActions(network: Network): Promise<Action[]> {
+    if (this.executeBatchActionsPromise) {
+      this.logger.warn('Previous batch action execution is still in progress')
+      return this.executeBatchActionsPromise
+    }
+    this.executeBatchActionsPromise = this.executeApprovedActionsInner(network)
+    const updatedActions = await this.executeBatchActionsPromise
+    this.executeBatchActionsPromise = undefined
+    return updatedActions
+  }
+
+  async executeApprovedActionsInner(network: Network): Promise<Action[]> {
     let updatedActions: Action[] = []
     const protocolNetwork = network.specification.networkIdentifier
     const logger = this.logger.child({
@@ -236,11 +250,12 @@ export class ActionManager {
       protocolNetwork,
     })
 
-    logger.trace('Begin database transaction for executing approved actions')
+    logger.debug('Begin database transaction for executing approved actions')
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await this.models.Action.sequelize!.transaction(
       { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
       async (transaction) => {
+        const transactionOpenTime = Date.now()
         let approvedActions
         try {
           // Execute already approved actions in the order of type and priority.
@@ -276,6 +291,11 @@ export class ActionManager {
           return []
         }
         try {
+          logger.debug('Executing batch action', {
+            approvedActions,
+            startTimeMs: Date.now() - transactionOpenTime,
+          })
+
           // This will return all results if successful, if failed it will return the failed actions
           const allocationManager =
             this.allocationManagers[network.specification.networkIdentifier]
@@ -283,15 +303,21 @@ export class ActionManager {
 
           logger.debug('Completed batch action execution', {
             results,
+            endTimeMs: Date.now() - transactionOpenTime,
           })
           updatedActions = await this.updateActionStatuses(results, transaction)
+
+          logger.debug('Updated action statuses', {
+            updatedActions,
+            updatedTimeMs: Date.now() - transactionOpenTime,
+          })
         } catch (error) {
           logger.error(`Failed to execute batch tx on staking contract: ${error}`)
           throw indexerError(IndexerErrorCode.IE072, error)
         }
       },
     )
-    logger.trace('End database transaction for executing approved actions')
+    logger.debug('End database transaction for executing approved actions')
     return updatedActions
   }
 
