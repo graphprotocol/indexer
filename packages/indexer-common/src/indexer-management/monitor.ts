@@ -51,6 +51,10 @@ export class NetworkMonitor {
     private epochSubgraph: EpochSubgraph,
   ) {}
 
+  poiDisputeMonitoringEnabled(): boolean {
+    return this.indexerOptions.poiDisputeMonitoring
+  }
+
   async currentEpochNumber(): Promise<number> {
     return (await this.contracts.epochManager.currentEpoch()).toNumber()
   }
