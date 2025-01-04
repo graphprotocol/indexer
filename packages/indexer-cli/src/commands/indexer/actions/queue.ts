@@ -28,7 +28,7 @@ ${chalk.bold(
 
 ${chalk.dim('Options:')}
 
-  -h, --help                    Show usage informatio
+  -h, --help                    Show usage information
   -n, --network <STRING>        [Required] The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision

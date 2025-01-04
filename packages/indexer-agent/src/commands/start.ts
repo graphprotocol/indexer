@@ -127,7 +127,7 @@ export const start = {
           coordinates: string | [string, string],
         ): [number, number] {
           if (typeof coordinates === 'string') {
-            // When this value is set in an enviromnent variable, yarns passes
+            // When this value is set in an environment variable, yarns passes
             // it as a single string.
 
             // Yargs should have passed 2 arguments to this functions, so we
