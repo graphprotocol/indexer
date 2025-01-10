@@ -43,7 +43,7 @@ The accepted `graph-node` version range must always be specified; it always comp
 The latest for the feature matrix above:
 
 ```
-graph-node: >=0.35.0 <0.36.0
+graph-node: >=0.35.0 <=0.36.0
 ```
 
 ### Latest Council snapshot
