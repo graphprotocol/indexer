@@ -275,6 +275,8 @@ export class ActionManager {
     try {
       this.executeBatchActionsPromise = this.executeApprovedActionsInner(network)
       updatedActions = await this.executeBatchActionsPromise
+    } catch (error) {
+      this.logger.error(`Failed to execute batch of approved actions -> ${error}`)
     } finally {
       this.executeBatchActionsPromise = undefined
     }
@@ -340,7 +342,7 @@ export class ActionManager {
         }
         // mark all approved actions as PENDING, this serves as a lock on other processing of them
         await this.markActions(approvedActions, transaction, ActionStatus.PENDING)
-        return prioritizedActions
+        return approvedActions
       },
     )
 
