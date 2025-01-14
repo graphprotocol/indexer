@@ -329,33 +329,24 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          const deployments = await this.multiNetworks.map(
-            async ({ network }) => {
-              if (
-                this.deploymentManagement === DeploymentManagementMode.AUTO ||
-                network.networkMonitor.poiDisputeMonitoringEnabled()
-              ) {
-                logger.trace('Fetching active deployments')
-                const assignments =
-                  await this.graphNode.subgraphDeploymentsAssignments(
-                    SubgraphStatus.ACTIVE,
-                  )
-                return assignments.map(assignment => assignment.id)
-              } else {
-                logger.info(
-                  "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
-                )
-                return []
-              }
-            },
-          )
-          return deployments.values
+          if (this.deploymentManagement === DeploymentManagementMode.AUTO) {
+            logger.debug('Fetching active deployments')
+            const assignments =
+              await this.graphNode.subgraphDeploymentsAssignments(
+                SubgraphStatus.ACTIVE,
+              )
+            return assignments.map(assignment => assignment.id)
+          } else {
+            logger.info(
+              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
+            )
+            return []
+          }
         },
         {
           onError: error =>
             logger.warn(
-              `Failed to obtain active deployments, trying again later`,
-              { error },
+              `Failed to obtain active deployments, trying again later ${error}`,
             ),
         },
       )
@@ -554,7 +545,6 @@ export class Agent {
       networkDeploymentAllocationDecisions,
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
-        logger.trace('Resolving target deployments')
         const targetDeploymentIDs: Set<SubgraphDeploymentID> =
           consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
 
@@ -576,8 +566,7 @@ export class Agent {
       {
         onError: error =>
           logger.warn(
-            `Failed to obtain target deployments, trying again later`,
-            { error },
+            `Failed to obtain target deployments, trying again later ${error}`,
           ),
       },
     )
