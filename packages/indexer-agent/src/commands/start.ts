@@ -38,7 +38,7 @@ import { AgentConfigs } from '../types'
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
 export type AgentOptions = { [key: string]: any } & Argv['argv']
 
-const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 0
+const DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE = 1000
 const SUGGESTED_SUBGRAPH_MAX_BLOCK_DISTANCE_ON_L2 =
   50 + DEFAULT_SUBGRAPH_MAX_BLOCK_DISTANCE
 const DEFAULT_SUBGRAPH_FRESHNESS_SLEEP_MILLISECONDS = 5_000
