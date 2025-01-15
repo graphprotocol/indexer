@@ -545,6 +545,7 @@ export class Agent {
       networkDeploymentAllocationDecisions,
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
+        logger.trace('Resolving target deployments')
         const targetDeploymentIDs: Set<SubgraphDeploymentID> =
           consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
 
