@@ -93,7 +93,7 @@ export function sequentialTimerReduce<T, U>(
     }
   }
   // initial call
-  setTimeout(work, milliseconds)
+  work()
   return output
 }
 
@@ -152,6 +152,6 @@ export function sequentialTimerMap<U>(
   }
 
   // initial call
-  setTimeout(work, milliseconds)
+  work()
   return output
 }
