@@ -145,7 +145,7 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
     })
     .check(argv => {
       // Unset arguments set to empty strings.
-      // This can happen when users set their options as enviroment variables and don't
+      // This can happen when users set their options as environment variables and don't
       // assign any value to them.
       //
       // For example:
@@ -154,7 +154,7 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       // export INDEXER_AGENT_OFFCHAIN_SUBGRAPHS=
       // ```
       //
-      // In NodeJs, those enviroment variables will be set as an empty string instead of
+      // In NodeJs, those environment variables will be set as an empty string instead of
       // being undefined, which can cause parse errors when the Agent is building a
       // NetworkSpecification.
       for (const [key, value] of Object.entries(argv)) {

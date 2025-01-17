@@ -503,7 +503,7 @@ export class SubgraphFreshnessChecker {
     return subgraphQueryResult
   }
 
-  // Checks if the query result has the expecte
+  // Checks if the query result has the expected
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   checkMalformedQueryResult(subgraphQueryResult: any): string | undefined {
     if (!subgraphQueryResult) {

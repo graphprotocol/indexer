@@ -62,7 +62,7 @@ module.exports = {
       } else {
         if (!protocolNetwork) {
           throw Error(
-            'The --network option must be used when quering for a single Indexing Rule',
+            'The --network option must be used when querying for a single Indexing Rule',
           )
         }
         const ruleIdentifier = { identifier, protocolNetwork }
