@@ -48,7 +48,7 @@ graph-node: >=0.35.0 <=0.36.1
 
 ### Latest Council snapshot
 
-[GGP-0043: Updated Feature Matrix Support (base, bsc, scroll, linea)](https://snapshot.org/#/council.graphprotocol.eth/proposal/0x4226f917346416b76f77369181881bebbc9b4e3f66e9681e5fc4e56d7460eba7)
+[GGP-0050 Updated Feature Matrix Support (zora, mode, moonbeam)](https://snapshot.org/#/s:council.graphprotocol.eth/proposal/0x7c1b0eaa299a24ba23f76d86d85b903ac8e8457db3656531e7bd5cee80c20146)
 
 ### Other notes
 
