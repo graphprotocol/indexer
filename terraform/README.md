@@ -129,7 +129,7 @@ network_subgraph_endpoint = "https://gateway.network.thegraph.com/network"
 vector_admin_token = "<secret token, keep to yourself>"
 vector_router = "<Vector router identifier, depends on the network>"
 
-database_password = "<database passowrd>"
+database_password = "<database password>"
 EOF
 ```
 
