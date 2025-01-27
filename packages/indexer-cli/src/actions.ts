@@ -10,7 +10,7 @@ import {
   nullPassThrough,
   OrderDirection,
   parseBoolean,
-  validateNetworkIdentifier,
+  validateSupportedNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
@@ -47,6 +47,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -64,6 +65,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     }
     case ActionType.REALLOCATE: {
@@ -83,6 +85,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        syncingNetwork: 'unknown',
       }
     }
   }
@@ -142,6 +145,8 @@ export function buildActionFilter(
   status: string | undefined,
   source: string | undefined,
   reason: string | undefined,
+  protocolNetwork: string | undefined,
+  syncingNetwork: string | undefined,
 ): ActionFilter {
   const filter: ActionFilter = {}
   if (id) {
@@ -158,6 +163,12 @@ export function buildActionFilter(
   }
   if (reason) {
     filter.reason = reason
+  }
+  if (protocolNetwork) {
+    filter.protocolNetwork = protocolNetwork
+  }
+  if (syncingNetwork) {
+    filter.syncingNetwork = syncingNetwork
   }
   if (Object.keys(filter).length === 0) {
     throw Error(
@@ -212,7 +223,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
-  protocolNetwork: x => validateNetworkIdentifier(x),
+  protocolNetwork: x => validateSupportedNetworkIdentifier(x),
 }
 
 /**
@@ -399,6 +410,7 @@ export async function fetchActions(
           ) {
             id
             protocolNetwork
+            syncingNetwork
             type
             allocationID
             deploymentID

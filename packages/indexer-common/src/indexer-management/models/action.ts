@@ -36,6 +36,7 @@ export class Action extends Model<
   declare updatedAt: CreationOptional<Date>
 
   declare protocolNetwork: string
+  declare syncingNetwork: string
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
@@ -147,6 +148,14 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
       protocolNetwork: {
         type: DataTypes.STRING(50),
         primaryKey: true,
+        validate: {
+          is: caip2IdRegex,
+        },
+      },
+      syncingNetwork: {
+        type: DataTypes.STRING(50),
+        primaryKey: false,
+        allowNull: false,
         validate: {
           is: caip2IdRegex,
         },

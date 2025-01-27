@@ -3,7 +3,7 @@
 
 import P from 'parsimmon'
 
-import { networkIdentifier, base58 } from './basic-types'
+import { base58, networkIdentifier, supportedNetworkIdentifier } from './basic-types'
 export { caip2IdRegex } from './basic-types'
 
 // Generic function that takes a parser of type T and attempts to parse it from a string. If it
@@ -21,8 +21,13 @@ function parse<T>(parser: P.Parser<T>, input: string): T {
     `Failed to parse "${input}". Expected: ${expected}. Parsed up to: "${parsed}". Remaining: "${remaining}"`,
   )
 }
+
 export function validateNetworkIdentifier(input: string): string {
   return parse(networkIdentifier, input)
+}
+
+export function validateSupportedNetworkIdentifier(input: string): string {
+  return parse(supportedNetworkIdentifier, input)
 }
 
 export function validateIpfsHash(input: string): string {
