@@ -162,7 +162,7 @@ defined in one of the following environment variables / command-line options:
 - `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 - `INDEXER_SERVICE_NETWORK_SUBGRAPH_ENDPOINT` / `--network-subgraph-endpoint`
 
-There can be a nuber of reasons for this:
+There can be a number of reasons for this:
 
 - The endpoint is unhealthy or unreliable.
 - The endpoint is out of date.
