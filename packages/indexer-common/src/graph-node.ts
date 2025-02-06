@@ -832,6 +832,8 @@ export class GraphNode {
       // first ensure it's been deployed and is active, or already paused
       let deployed: SubgraphDeploymentAssignment[] = []
       let attempt = 0
+
+      // wait and poll for the assignment to be created.
       while (attempt < 5) {
         await waitForMs(3000)
         deployed = await this.subgraphDeploymentAssignmentsByDeploymentID(
@@ -852,6 +854,7 @@ export class GraphNode {
         })
         attempt += 1
       }
+
       if (attempt >= 5) {
         this.logger.error(`Subgraph not deployed and active`, {
           subgraph: subgraphDeployment.ipfsHash,
@@ -900,17 +903,20 @@ export class GraphNode {
       }
 
       // Is the graftBaseBlock within the range of the earliest and head of the chain?
-      if (
-        !deployed[0].paused &&
-        chain.latestBlock &&
-        chain.latestBlock.number >= blockHeight
-      ) {
-        this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
-          subgraph: subgraphDeployment.ipfsHash,
-          indexingStatus,
-        })
-        // pause the subgraph to prevent further indexing
-        await this.pause(subgraphDeployment)
+      if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
+        if (!deployed[0].paused) {
+          this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
+            subgraph: subgraphDeployment.ipfsHash,
+            indexingStatus,
+          })
+          // pause the subgraph to prevent further indexing
+          await this.pause(subgraphDeployment)
+        } else {
+          this.logger.debug(`Subgraph already paused and synced to block.`, {
+            subgraph: subgraphDeployment.ipfsHash,
+            indexingStatus,
+          })
+        }
         break
       }
 
