@@ -81,6 +81,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
           ActionStatus.QUEUED,
           ActionStatus.APPROVED,
           ActionStatus.PENDING,
+          ActionStatus.DEPLOYING,
           ActionStatus.CANCELED,
         ),
         allowNull: false,
