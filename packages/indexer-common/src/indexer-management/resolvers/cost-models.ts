@@ -80,13 +80,10 @@ export default {
 
   setCostModel: async (
     { costModel }: { deployment: string; costModel: GraphQLCostModel },
-    { models, multiNetworks }: IndexerManagementResolverContext,
+    { models, network }: IndexerManagementResolverContext,
   ): Promise<object> => {
-    if (!multiNetworks) {
+    if (!network) {
       throw new Error('No network configuration available')
-    }
-    if (Object.keys(multiNetworks.inner).length !== 1) {
-      throw Error('Must be in single network mode to set cost models')
     }
     const update = parseGraphQLCostModel(costModel)
 

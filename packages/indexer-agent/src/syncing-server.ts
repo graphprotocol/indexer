@@ -5,21 +5,17 @@ import bodyParser from 'body-parser'
 import morgan from 'morgan'
 import { Logger } from '@graphprotocol/common-ts'
 import { parse } from 'graphql'
-import {
-  NetworkMapped,
-  SubgraphClient,
-  resolveChainId,
-} from '@graphprotocol/indexer-common'
+import { SubgraphClient, resolveChainId } from '@graphprotocol/indexer-common'
 
 export interface CreateSyncingServerOptions {
   logger: Logger
-  networkSubgraphs: NetworkMapped<SubgraphClient>
+  networkSubgraph: SubgraphClient
   port: number
 }
 
 export const createSyncingServer = async ({
   logger,
-  networkSubgraphs,
+  networkSubgraph,
   port,
 }: CreateSyncingServerOptions): Promise<express.Express> => {
   logger = logger.child({ component: 'SyncingServer' })
@@ -64,7 +60,6 @@ export const createSyncingServer = async ({
           .send(`Unknown network identifier: '${unvalidatedNetworkIdentifier}'`)
       }
 
-      const networkSubgraph = networkSubgraphs[networkIdentifier]
       if (!networkSubgraph) {
         return res
           .status(404)

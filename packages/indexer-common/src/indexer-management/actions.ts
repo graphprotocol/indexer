@@ -13,8 +13,6 @@ import {
   IndexerErrorCode,
   IndexerManagementModels,
   isActionFailure,
-  MultiNetworks,
-  NetworkMapped,
   Network,
   OrderDirection,
   GraphNode,
@@ -23,37 +21,34 @@ import {
 
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger } from '@graphprotocol/common-ts'
-import groupBy from 'lodash.groupby'
 
 export class ActionManager {
-  declare multiNetworks: MultiNetworks<Network>
+  declare network: Network
   declare logger: Logger
   declare models: IndexerManagementModels
-  declare allocationManagers: NetworkMapped<AllocationManager>
+  declare allocationManager: AllocationManager
 
   executeBatchActionsPromise: Promise<Action[]> | undefined
 
   static async create(
-    multiNetworks: MultiNetworks<Network>,
+    network: Network,
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
-    actionManager.multiNetworks = multiNetworks
+    actionManager.network = network
     actionManager.logger = logger.child({ component: 'ActionManager' })
     actionManager.models = models
-    actionManager.allocationManagers = await multiNetworks.map(async (network) => {
-      return new AllocationManager(
-        logger.child({
-          component: 'AllocationManager',
-          protocolNetwork: network.specification.networkIdentifier,
-        }),
-        models,
-        graphNode,
-        network,
-      )
-    })
+    actionManager.allocationManager = new AllocationManager(
+      logger.child({
+        component: 'AllocationManager',
+        protocolNetwork: network.specification.networkIdentifier,
+      }),
+      models,
+      graphNode,
+      network,
+    )
 
     logger.info('Begin monitoring the queue for approved actions to execute')
     await actionManager.monitorQueue()
@@ -147,62 +142,52 @@ export class ActionManager {
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
       logger.debug('Approved actions found, evaluating batch')
-      const approvedActionsByNetwork: NetworkMapped<Action[]> = groupBy(
-        approvedActions,
-        (action: Action) => action.protocolNetwork,
-      )
 
-      await this.multiNetworks.mapNetworkMapped(
-        approvedActionsByNetwork,
-        async (network: Network, approvedActions: Action[]) => {
-          const networkLogger = logger.child({
-            protocolNetwork: network.specification.networkIdentifier,
-            indexer: network.specification.indexerOptions.address,
-            operator: network.transactionManager.wallet.address,
+      const networkLogger = logger.child({
+        protocolNetwork: this.network.specification.networkIdentifier,
+        indexer: this.network.specification.indexerOptions.address,
+      })
+
+      if (await this.batchReady(approvedActions, this.network, networkLogger)) {
+        const paused = await this.network.paused.value()
+        const isOperator = await this.network.isOperator.value()
+        networkLogger.debug('Batch ready, preparing to execute', {
+          paused,
+          isOperator,
+          protocolNetwork: this.network.specification.networkIdentifier,
+        })
+        // Do nothing else if the network is paused
+        if (paused) {
+          networkLogger.info(
+            `The network is currently paused, not doing anything until it resumes`,
+          )
+          return
+        }
+
+        // Do nothing if we're not authorized as an operator for the indexer
+        if (!isOperator) {
+          networkLogger.error(`Not authorized as an operator for the indexer`, {
+            err: indexerError(IndexerErrorCode.IE034),
           })
+          return
+        }
 
-          if (await this.batchReady(approvedActions, network, networkLogger)) {
-            const paused = await network.paused.value()
-            const isOperator = await network.isOperator.value()
-            networkLogger.debug('Batch ready, preparing to execute', {
-              paused,
-              isOperator,
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            // Do nothing else if the network is paused
-            if (paused) {
-              networkLogger.info(
-                `The network is currently paused, not doing anything until it resumes`,
-              )
-              return
-            }
+        networkLogger.info('Executing batch of approved actions', {
+          actions: approvedActions,
+          note: 'If actions were approved very recently they may be missing from this batch',
+        })
 
-            // Do nothing if we're not authorized as an operator for the indexer
-            if (!isOperator) {
-              networkLogger.error(`Not authorized as an operator for the indexer`, {
-                err: indexerError(IndexerErrorCode.IE034),
-              })
-              return
-            }
-
-            networkLogger.info('Executing batch of approved actions', {
-              actions: approvedActions,
-              note: 'If actions were approved very recently they may be missing from this batch',
-            })
-
-            try {
-              const attemptedActions = await this.executeApprovedActions(network)
-              networkLogger.trace('Attempted to execute all approved actions', {
-                actions: attemptedActions,
-              })
-            } catch (error) {
-              networkLogger.error('Failed to execute batch of approved actions', {
-                error,
-              })
-            }
-          }
-        },
-      )
+        try {
+          const attemptedActions = await this.executeApprovedActions(this.network)
+          networkLogger.trace('Attempted to execute all approved actions', {
+            actions: attemptedActions,
+          })
+        } catch (error) {
+          networkLogger.error('Failed to execute batch of approved actions', {
+            error,
+          })
+        }
+      }
     })
   }
 
@@ -352,13 +337,10 @@ export class ActionManager {
         startTimeMs: Date.now() - batchStartTime,
       })
 
-      const allocationManager =
-        this.allocationManagers[network.specification.networkIdentifier]
-
       let results
       try {
         // This will return all results if successful, if failed it will return the failed actions
-        results = await allocationManager.executeBatch(prioritizedActions)
+        results = await this.allocationManager.executeBatch(prioritizedActions)
         logger.debug('Completed batch action execution', {
           results,
           endTimeMs: Date.now() - batchStartTime,

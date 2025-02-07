@@ -49,9 +49,6 @@ Indexer Infrastructure
   --graph-node-admin-endpoint       Graph Node endpoint for applying and
                                     updating subgraph deployments
                                                              [string] [required]
-  --enable-auto-migration-support   Auto migrate allocations from L1 to L2
-                                    (multi-network mode must be enabled)
-                                                      [boolean] [default: false]
   --public-indexer-url              Indexer endpoint for receiving requests from
                                     the network              [string] [required]
   --indexer-geo-coordinates         Coordinates describing the Indexer's
@@ -161,9 +158,6 @@ Indexer Infrastructure
                                    etc.                      [string] [required]
   --graph-node-admin-endpoint      Graph Node endpoint for applying and updating
                                    subgraph deployments      [string] [required]
-  --enable-auto-migration-support  Auto migrate allocations from L1 to L2
-                                   (multi-network mode must be enabled)
-                                                      [boolean] [default: false]
 
 Postgres
   --postgres-host       Postgres host                        [string] [required]

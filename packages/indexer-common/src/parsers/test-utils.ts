@@ -72,18 +72,22 @@ function parseYamlFile(filePath: string): NetworkSpecification {
   }
 }
 
-function parseYamlFiles(filePaths: string[]): NetworkSpecification[] {
-  return filePaths.map(parseYamlFile)
-}
-
-export function parseNetworkSpecifications(
+export function parseNetworkSpecification(
   // eslint-disable-next-line  @typescript-eslint/no-explicit-any
   argv: any,
   logger: Logger,
-): NetworkSpecification[] {
+): NetworkSpecification | undefined {
   const dir: string = argv.dir || argv['network-specifications-directory']
   const yamlFiles = scanDirectoryForYamlFiles(dir, logger)
-  return parseYamlFiles(yamlFiles)
+  if (yamlFiles.length === 0) {
+    logger.info('No network specification files found in the provided directory')
+    return undefined
+  } else if (yamlFiles.length === 1) {
+    logger.info(`Found yaml config at ${dir}/${yamlFiles[0]} (ignoring others})`)
+    return parseYamlFile(yamlFiles[0])
+  } else {
+    throw new Error(`Multiple network specification files found in ${dir}.`)
+  }
 }
 
 function scanDirectoryForYamlFiles(directoryPath: string, logger: Logger): string[] {
@@ -91,13 +95,13 @@ function scanDirectoryForYamlFiles(directoryPath: string, logger: Logger): strin
 
   // Check if the directory exists
   if (!fs.existsSync(directoryPath)) {
-    throw new Error(`Directory does not exist: ${directoryPath}`)
+    throw new Error(`Directory does not exist: ${directoryPath} `)
   }
 
   // Check if the provided path is a directory
   const isDirectory = fs.lstatSync(directoryPath).isDirectory()
   if (!isDirectory) {
-    throw new Error(`Provided path is not a directory: ${directoryPath}`)
+    throw new Error(`Provided path is not a directory: ${directoryPath} `)
   }
 
   // Read the directory
@@ -124,7 +128,7 @@ function scanDirectoryForYamlFiles(directoryPath: string, logger: Logger): strin
         fs.accessSync(filePath, fs.constants.R_OK)
         yamlFiles.push(filePath)
       } catch (error) {
-        throw new Error(`Cannot read file: ${filePath}`)
+        throw new Error(`Cannot read file: ${filePath} `)
       }
     }
   }
@@ -132,7 +136,7 @@ function scanDirectoryForYamlFiles(directoryPath: string, logger: Logger): strin
   // Check if at least one YAMl file was found
   if (yamlFiles.length === 0) {
     throw new Error(
-      `No YAML file was found in '${directoryPath}'. At least one file is required.`,
+      `No YAML file was found in '${directoryPath}'.At least one file is required.`,
     )
   }
 

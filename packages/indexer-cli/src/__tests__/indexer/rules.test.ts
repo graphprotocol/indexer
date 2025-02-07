@@ -4,7 +4,7 @@ import {
   teardown,
   deleteFromAllTables,
   seedIndexingRules,
-  setupMultiNetworks,
+  setupSingleNetwork,
 } from '../util'
 import path from 'path'
 
@@ -12,7 +12,7 @@ const baseDir = path.join(__dirname, '..')
 
 describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
-    beforeAll(setupMultiNetworks)
+    beforeAll(setupSingleNetwork)
     afterAll(teardown)
     beforeEach(seedIndexingRules)
     afterEach(deleteFromAllTables)
