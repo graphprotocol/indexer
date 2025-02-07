@@ -14,7 +14,6 @@ import {
   IndexingRuleAttributes,
 } from '../models'
 import { defineQueryFeeModels, specification as spec } from '../../index'
-import { networkIsL1, networkIsL2 } from '../types'
 import { fetchIndexingRules, upsertIndexingRule } from '../rules'
 import { SubgraphFreshnessChecker, SubgraphIdentifierType } from '../../subgraphs'
 import { ActionManager } from '../actions'
@@ -478,52 +477,4 @@ describe.skip('Monitor: CI', () => {
     const deployments = await networkMonitor.subgraphDeployments()
     await expect(deployments.length).toBeGreaterThan(500)
   }, 40000)
-})
-
-describe('Network layer detection', () => {
-  interface NetworkLayer {
-    name: string
-    l1: boolean
-    l2: boolean
-  }
-
-  // Should be true for L1 and false for L2
-  const l1Networks: NetworkLayer[] = ['mainnet', 'eip155:1', 'sepolia'].map(
-    (name: string) => ({ name, l1: true, l2: false }),
-  )
-
-  // Should be false for L1 and true for L2
-  const l2Networks: NetworkLayer[] = [
-    'arbitrum-one',
-    'eip155:42161',
-    'eip155:421614',
-  ].map((name: string) => ({ name, l1: false, l2: true }))
-
-  // Those will be false for L1 and L2
-  const nonProtocolNetworks: NetworkLayer[] = [
-    'fantom',
-    'eip155:250',
-    'hardhat',
-    'eip155:1337',
-    'matic',
-    'eip155:137',
-    'gnosis',
-    'eip155:100',
-  ].map((name: string) => ({ name, l1: false, l2: false }))
-
-  const testCases = [...l1Networks, ...l2Networks, ...nonProtocolNetworks]
-
-  test.each(testCases)('Can detect network layer [$name]', (network) => {
-    expect(networkIsL1(network.name)).toStrictEqual(network.l1)
-    expect(networkIsL2(network.name)).toStrictEqual(network.l2)
-  })
-
-  const invalidTProtocolNetworkNames = ['invalid-name', 'eip155:9999']
-
-  test.each(invalidTProtocolNetworkNames)(
-    'Throws error when protocol network is unknown [%s]',
-    (invalidProtocolNetworkName) => {
-      expect(() => networkIsL1(invalidProtocolNetworkName)).toThrow()
-    },
-  )
 })

@@ -7,24 +7,14 @@ import {
   AgentOptions,
   run,
 } from './commands/start'
-import { startMultiNetwork } from './commands/start-multi-network'
-import { parseNetworkSpecifications } from '@graphprotocol/indexer-common'
-
-const MULTINETWORK_MODE: boolean =
-  !!process.env.INDEXER_AGENT_MULTINETWORK_MODE &&
-  process.env.INDEXER_AGENT_MULTINETWORK_MODE.toLowerCase() !== 'false'
+import { parseNetworkSpecification } from '@graphprotocol/indexer-common'
 
 function parseArguments(): AgentOptions {
   let builder = yargs.scriptName('indexer-agent').env('INDEXER_AGENT')
 
   // Dynamic argument parser construction based on network mode
-  if (MULTINETWORK_MODE) {
-    console.log('Starting the Indexer Agent in multi-network mode')
-    builder = builder.command(startMultiNetwork)
-  } else {
-    console.log('Starting the Indexer Agent in single-network mode')
-    builder = builder.command(start)
-  }
+  console.log('Starting the Indexer Agent')
+  builder = builder.command(start)
 
   return (
     builder
@@ -53,14 +43,15 @@ async function processArgumentsAndRun(args: AgentOptions): Promise<void> {
     async: false,
     level: args.logLevel,
   })
-  if (MULTINETWORK_MODE) {
-    const specifications = parseNetworkSpecifications(args, logger)
-    await run(args, specifications, logger)
+
+  let specification
+  if (args.dir || args['network-specifications-directory']) {
+    specification = parseNetworkSpecification(args, logger)
   } else {
+    specification = await createNetworkSpecification(args, logger)
     reviewArgumentsForWarnings(args, logger)
-    const specification = await createNetworkSpecification(args, logger)
-    await run(args, [specification], logger)
   }
+  await run(args, specification!, logger)
 }
 
 async function main(): Promise<void> {

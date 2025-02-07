@@ -14,7 +14,7 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import { BigNumber } from 'ethers'
 import { GraphNode } from '../graph-node'
-import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
+import { ActionManager, Network } from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -22,7 +22,7 @@ export interface IndexerManagementResolverContext {
   logger: Logger
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
-  multiNetworks: MultiNetworks<Network> | undefined
+  network: Network | undefined
 }
 
 const SCHEMA_SDL = gql`
@@ -452,7 +452,7 @@ export interface IndexerManagementClientOptions {
   logger: Logger
   models: IndexerManagementModels
   graphNode: GraphNode
-  multiNetworks: MultiNetworks<Network> | undefined
+  network: Network | undefined
   defaults: IndexerManagementDefaults
 }
 
@@ -468,12 +468,10 @@ export class IndexerManagementClient extends Client {
   }
 }
 
-// TODO:L2: Put the IndexerManagementClient creation inside the Agent, and receive
-// MultiNetworks from it
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, graphNode, logger, defaults, multiNetworks } = options
+  const { models, graphNode, logger, defaults, network } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -484,8 +482,8 @@ export const createIndexerManagementClient = async (
     ...actionResolvers,
   }
 
-  const actionManager = multiNetworks
-    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+  const actionManager = network
+    ? await ActionManager.create(network, logger, models, graphNode)
     : undefined
 
   const context: IndexerManagementResolverContext = {
@@ -493,7 +491,7 @@ export const createIndexerManagementClient = async (
     graphNode,
     defaults,
     logger: logger.child({ component: 'IndexerManagementClient' }),
-    multiNetworks,
+    network,
     actionManager,
   }
 

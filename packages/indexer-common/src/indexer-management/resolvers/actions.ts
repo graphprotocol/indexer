@@ -11,15 +11,12 @@ import {
   ActionType,
   ActionUpdateInput,
   IndexerManagementModels,
-  Network,
-  NetworkMapped,
   OrderDirection,
   validateActionInputs,
   validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
-import groupBy from 'lodash.groupby'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -151,13 +148,13 @@ export default {
 
   queueActions: async (
     { actions }: { actions: ActionInput[] },
-    { actionManager, logger, multiNetworks, models }: IndexerManagementResolverContext,
+    { actionManager, logger, network, models }: IndexerManagementResolverContext,
   ): Promise<ActionResult[]> => {
     logger.debug(`Execute 'queueActions' mutation`, {
       actions,
     })
 
-    if (!actionManager || !multiNetworks) {
+    if (!actionManager || !network) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
 
@@ -171,11 +168,7 @@ export default {
     })
 
     // Let Network Monitors validate actions based on their protocol networks
-    await multiNetworks.mapNetworkMapped(
-      groupBy(actions, (action) => action.protocolNetwork),
-      (network: Network, actions: ActionInput[]) =>
-        validateActionInputs(actions, network.networkMonitor, logger),
-    )
+    await validateActionInputs(actions, network.networkMonitor, logger)
 
     let results: ActionResult[] = []
 
@@ -360,23 +353,20 @@ export default {
     if (!actionManager) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
-    const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
-      async (network: Network) => {
-        logger.debug(`Execute 'executeApprovedActions' mutation`, {
-          protocolNetwork: network.specification.networkIdentifier,
-        })
-        try {
-          return await actionManager.executeApprovedActions(network)
-        } catch (error) {
-          logger.error('Failed to execute approved actions for network', {
-            protocolNetwork: network.specification.networkIdentifier,
-            error,
-          })
-          return []
-        }
-      },
-    )
-    return Object.values(result).flat()
+    const { network } = actionManager
+    logger.debug(`Execute 'executeApprovedActions' mutation`, {
+      protocolNetwork: network.specification.networkIdentifier,
+    })
+    try {
+      const result = await actionManager.executeApprovedActions(network)
+      return result
+    } catch (error) {
+      logger.error('Failed to execute approved actions for network', {
+        protocolNetwork: network.specification.networkIdentifier,
+        error,
+      })
+      return []
+    }
   },
 }
 

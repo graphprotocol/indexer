@@ -66,25 +66,6 @@ export interface SubgraphDeployment {
   protocolNetwork: string
 }
 
-// L1 Network Subgraph will always return `null` for the
-// `transferredToL2*` set of fields
-export interface TransferredSubgraphDeployment {
-  id: string
-  idOnL1: string
-  idOnL2: string
-  startedTransferToL2L: boolean
-  startedTransferToL2At: BigNumber
-  startedTransferToL2AtBlockNumber: BigNumber
-  startedTransferToL2AtTx: string
-  transferredToL2: boolean | null
-  transferredToL2At: BigNumber | null
-  transferredToL2AtTx: string | null
-  transferredToL2AtBlockNumber: BigNumber | null
-  ipfsHash: string
-  protocolNetwork: string
-  ready: boolean | null
-}
-
 export enum TransactionType {
   ZERO,
   TWO,

@@ -5,7 +5,6 @@ import {
   deleteFromAllTables,
   seedCostModels,
   setupSingleNetwork,
-  setupMultiNetworks,
 } from '../util'
 import path from 'path'
 
@@ -217,7 +216,7 @@ describe('Indexer cost tests singleNetwork', () => {
 })
 
 describe('Indexer cost tests multiNetworks', () => {
-  beforeAll(setupMultiNetworks)
+  beforeAll(setupSingleNetwork)
   afterAll(teardown)
   beforeEach(seedCostModels)
   afterEach(deleteFromAllTables)

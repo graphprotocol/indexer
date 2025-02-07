@@ -9,7 +9,6 @@ import {
   IndexerManagementClient,
   IndexerManagementDefaults,
   loadTestYamlConfig,
-  MultiNetworks,
   Network,
   specification,
 } from '@graphprotocol/indexer-common'
@@ -66,17 +65,12 @@ export const createTestManagementClient = async (
     network.specification.networkIdentifier = networkIdentifierOverride
   }
 
-  const multiNetworks = new MultiNetworks(
-    [network],
-    (n: Network) => n.specification.networkIdentifier,
-  )
-
   return await createIndexerManagementClient({
     models: managementModels,
     graphNode,
     logger,
     defaults,
-    multiNetworks,
+    network,
   })
 }
 

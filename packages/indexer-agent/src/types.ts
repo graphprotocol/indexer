@@ -18,9 +18,9 @@ export interface AgentConfigs {
   logger: Logger
   metrics: Metrics
   graphNode: GraphNode
-  operators: Operator[]
+  network: Network
+  operator: Operator
   indexerManagement: IndexerManagementClient
-  networks: Network[]
   deploymentManagement: DeploymentManagementMode
   autoMigrationSupport: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
