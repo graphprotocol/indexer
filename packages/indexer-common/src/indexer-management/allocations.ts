@@ -106,7 +106,13 @@ export class AllocationManager {
     private graphNode: GraphNode,
     private network: Network,
   ) {
-    this.dipsManager = new DipsManager(this.logger, this.models, this.graphNode, this.network, this)
+    this.dipsManager = new DipsManager(
+      this.logger,
+      this.models,
+      this.graphNode,
+      this.network,
+      this,
+    )
   }
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
