@@ -14,7 +14,6 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
-  defineIndexingFeesModels,
   defineQueryFeeModels,
   GraphNode,
   indexerError,
@@ -595,7 +594,6 @@ export async function run(
   logger.info(`Sync database models`)
   const managementModels = defineIndexerManagementModels(sequelize)
   const queryFeeModels = defineQueryFeeModels(sequelize)
-  const indexingFeesModels = defineIndexingFeesModels(sequelize)
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 

@@ -1,4 +1,4 @@
-import { DataTypes, Sequelize, Model, Association, CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize'
+import { DataTypes, Sequelize, Model, CreationOptional, InferAttributes, InferCreationAttributes } from 'sequelize'
 
 // Indexing Fees AKA "DIPs"
 
