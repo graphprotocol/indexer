@@ -58,6 +58,9 @@ export const IndexerOptions = z
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
     finalityTime: positiveNumber().default(3600),
+    enableDips: z.boolean().default(false),
+    dipperEndpoint: z.string().url().optional(),
+    dipsAllocationAmount: GRT().default(1),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
