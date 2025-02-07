@@ -391,6 +391,7 @@ export async function createNetworkSpecification(
     enableDips: argv.enableDips,
     dipperEndpoint: argv.dipperEndpoint,
     dipsAllocationAmount: argv.dipsAllocationAmount,
+    dipsEpochsMargin: argv.dipsEpochsMargin,
   }
 
   const transactionMonitoring = {

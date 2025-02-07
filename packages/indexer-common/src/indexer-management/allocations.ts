@@ -15,6 +15,7 @@ import {
   AllocationStatus,
   CloseAllocationResult,
   CreateAllocationResult,
+  DipsManager,
   fetchIndexingRules,
   GraphNode,
   indexerError,
@@ -98,12 +99,15 @@ export type TransactionResult =
   | ActionFailure[]
 
 export class AllocationManager {
+  private dipsManager: DipsManager
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
-  ) {}
+  ) {
+    this.dipsManager = new DipsManager(this.logger, this.models, this.graphNode, this.network, this)
+  }
 
   async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
     const logger = this.logger.child({ function: 'executeBatch' })

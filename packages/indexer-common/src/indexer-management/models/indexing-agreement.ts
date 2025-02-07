@@ -11,18 +11,25 @@ export class IndexingAgreement extends Model<
   declare signed_payload: Buffer;
   declare protocol_network: string;
   declare chain_id: string;
-  declare price_per_block: string;
+  declare base_price_per_epoch: string;
   declare price_per_entity: string;
   declare subgraph_deployment_id: string;
   declare service: string;
   declare payee: string;
   declare payer: string;
+  declare deadline: Date;
+  declare duration_epochs: bigint;
+  declare max_initial_amount: string;
+  declare max_ongoing_amount_per_epoch: string;
+  declare min_epochs_per_collection: bigint;
+  declare max_epochs_per_collection: bigint;
   declare created_at: Date;
   declare updated_at: Date;
   declare cancelled_at: Date | null;
   declare signed_cancellation_payload: Buffer | null;
   declare current_allocation_id: string | null;
   declare last_allocation_id: string | null;
+  declare last_payment_collected_at: Date | null;
 }
 
 export interface IndexingFeesModels {
@@ -37,11 +44,12 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
         primaryKey: true,
       },
       signature: {
-        type: DataTypes.BLOB, // == BYTEA in postgres
+        type: DataTypes.BLOB,
         allowNull: false,
+        unique: true,
       },
       signed_payload: {
-        type: DataTypes.BLOB, // == BYTEA in postgres
+        type: DataTypes.BLOB,
         allowNull: false,
       },
       protocol_network: {
@@ -52,7 +60,7 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
         type: DataTypes.STRING(255),
         allowNull: false,
       },
-      price_per_block: {
+      base_price_per_epoch: {
         type: DataTypes.DECIMAL(39),
         allowNull: false,
       },
@@ -74,6 +82,30 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
       },
       payer: {
         type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      deadline: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      duration_epochs: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+      },
+      max_initial_amount: {
+        type: DataTypes.DECIMAL(39),
+        allowNull: false,
+      },
+      max_ongoing_amount_per_epoch: {
+        type: DataTypes.DECIMAL(39),
+        allowNull: false,
+      },
+      min_epochs_per_collection: {
+        type: DataTypes.BIGINT,
+        allowNull: false,
+      },
+      max_epochs_per_collection: {
+        type: DataTypes.BIGINT,
         allowNull: false,
       },
       created_at: {
@@ -98,6 +130,10 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
       },
       last_allocation_id: {
         type: DataTypes.CHAR(40),
+        allowNull: true,
+      },
+      last_payment_collected_at: {
+        type: DataTypes.DATE,
         allowNull: true,
       },
     },
