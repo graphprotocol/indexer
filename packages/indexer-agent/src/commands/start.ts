@@ -303,6 +303,26 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
+      .option('enable-dips', {
+        description: 'Whether to enable Indexing Fees (DIPs)',
+        type: 'boolean',
+        default: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dipper-endpoint', {
+        description: 'Gateway endpoint for DIPs receipts',
+        type: 'string',
+        array: false,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-allocation-amount', {
+        description: 'Amount of GRT to allocate for DIPs',
+        type: 'number',
+        default: 1,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -330,11 +350,14 @@ export const start = {
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
+        if (argv['enable-dips'] && !argv['dipper-endpoint']) {
+          return 'Invalid --dipper-endpoint provided. Must be provided when --enable-dips is true.'
+        }
         return true
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  handler: (_argv: any) => {},
+  handler: (_argv: any) => { },
 }
 
 export async function createNetworkSpecification(
@@ -365,6 +388,10 @@ export async function createNetworkSpecification(
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
     finalityTime: argv.chainFinalizeTime,
+    enableDips: argv.enableDips,
+    dipperEndpoint: argv.dipperEndpoint,
+    dipsAllocationAmount: argv.dipsAllocationAmount,
+    dipsEpochsMargin: argv.dipsEpochsMargin,
   }
 
   const transactionMonitoring = {
@@ -583,7 +610,7 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+      Network.create(logger, spec, managementModels, queryFeeModels, graphNode, metrics),
   )
 
   // --------------------------------------------------------------------------------
@@ -690,14 +717,13 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (collectReceiptsEndpoint) {
     logger.warn(
       "The option '--collect-receipts-endpoint' is deprecated. " +
-        "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
+      "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
     )
   }
 
   if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
     logger.warn(
-      `Gas increase timeout is set to less than ${
-        gasIncreaseTimeout / 1000
+      `Gas increase timeout is set to less than ${gasIncreaseTimeout / 1000
       } seconds. This may lead to high gas usage`,
       { gasIncreaseTimeout: gasIncreaseTimeout / 1000.0 },
     )
@@ -706,14 +732,14 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (gasIncreaseFactor > advisedGasIncreaseTimeout) {
     logger.warn(
       `Gas increase factor is set to > ${advisedGasIncreaseFactor}. ` +
-        'This may lead to high gas usage',
+      'This may lead to high gas usage',
       { gasIncreaseFactor: gasIncreaseFactor },
     )
   }
   if (rebateClaimThreshold < voucherRedemptionThreshold) {
     logger.warn(
       'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
-        'but claims depend on redemptions',
+      'but claims depend on redemptions',
       {
         voucherRedemptionThreshold: formatGRT(voucherRedemptionThreshold),
         rebateClaimThreshold: formatGRT(rebateClaimThreshold),
@@ -730,7 +756,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (rebateClaimMaxBatchSize > advisedRebateClaimMaxBatchSize) {
     logger.warn(
       `Setting the max batch size for rebate claims to more than ${advisedRebateClaimMaxBatchSize}` +
-        'may result in batches that are too large to fit into a block',
+      'may result in batches that are too large to fit into a block',
       { rebateClaimMaxBatchSize: rebateClaimMaxBatchSize },
     )
   }
@@ -744,7 +770,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (voucherRedemptionMaxBatchSize > advisedVoucherRedemptionMaxBatchSize) {
     logger.warn(
       `Setting the max batch size for voucher redemptions to more than ${advisedVoucherRedemptionMaxBatchSize} ` +
-        'may result in batches that are too large to fit into a block',
+      'may result in batches that are too large to fit into a block',
       { voucherRedemptionMaxBatchSize: voucherRedemptionMaxBatchSize },
     )
   }

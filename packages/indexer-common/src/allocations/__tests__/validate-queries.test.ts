@@ -1,4 +1,5 @@
 import {
+  defineIndexerManagementModels,
   defineQueryFeeModels,
   GraphNode,
   Network,
@@ -36,6 +37,7 @@ const setup = async () => {
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
   sequelize = await connectDatabase(__DATABASE__)
+  const models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
   sequelize = await sequelize.sync({ force: true })
 
@@ -50,6 +52,7 @@ const setup = async () => {
   const network = await Network.create(
     logger,
     testNetworkSpecification,
+    models,
     queryFeeModels,
     graphNode,
     metrics,

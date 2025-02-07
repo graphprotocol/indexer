@@ -63,7 +63,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-        deployment.toString(),
+      deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -291,6 +291,16 @@ export class Agent {
         { logger, milliseconds: requestIntervalSmall },
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              // There should be a DipsManager in the operator
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              logger.trace('Ensuring indexing rules for DIPS', {
+                protocolNetwork: network.specification.networkIdentifier,
+              })
+              await operator.dipsManager.ensureAgreementRules()
+            }
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
             })
@@ -321,16 +331,18 @@ export class Agent {
             logger.warn(`Failed to obtain indexing rules, trying again later`, {
               error,
             }),
-        },
-      )
+        })
 
-    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
+    // Skip fetching active deployments if the deployment management mode is manual, DIPs is disabled, and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          if (this.deploymentManagement === DeploymentManagementMode.AUTO) {
-            logger.debug('Fetching active deployments')
+          if (
+            this.deploymentManagement === DeploymentManagementMode.AUTO ||
+            network.networkMonitor.poiDisputeMonitoringEnabled()
+          ) {
+            logger.trace('Fetching active deployments')
             const assignments =
               await this.graphNode.subgraphDeploymentsAssignments(
                 SubgraphStatus.ACTIVE,
@@ -729,9 +741,40 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            this.logger.debug(
-              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
-            )
+            if (network.specification.indexerOptions.enableDips) {
+              // Reconcile DIPs deployments anyways
+              this.logger.warn(
+                `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
+              )
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              const dipsDeployments =
+                await operator.dipsManager.getActiveDipsDeployments()
+              const newTargetDeployments = new Set([
+                ...activeDeployments,
+                ...dipsDeployments,
+              ])
+              try {
+                await this.reconcileDeployments(
+                  activeDeployments,
+                  Array.from(newTargetDeployments),
+                  eligibleAllocations,
+                )
+              } catch (err) {
+                logger.warn(
+                  `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                  {
+                    err: indexerError(IndexerErrorCode.IE005, err),
+                  },
+                )
+                return
+              }
+            } else {
+              this.logger.debug(
+                `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+              )
+            }
             break
           default:
             throw new Error(
@@ -859,7 +902,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-          rewardsPool!.referencePreviousPOI == allocation.poi
+            rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1053,6 +1096,7 @@ export class Agent {
     maxAllocationEpochs: number,
     network: Network,
     operator: Operator,
+    forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -1074,6 +1118,7 @@ export class Agent {
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
+          forceAction,
         )
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
@@ -1110,6 +1155,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
+              forceAction,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -1118,6 +1164,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
+              forceAction,
             )
           } else {
             // Refresh any expiring allocations
@@ -1134,6 +1181,7 @@ export class Agent {
                 logger,
                 deploymentAllocationDecision,
                 expiringAllocations,
+                forceAction,
               )
             }
           }
@@ -1151,45 +1199,38 @@ export class Agent {
     // Filter out networks set to `manual` allocation management mode, and ensure the
     // Network Subgraph is NEVER allocated towards
     // --------------------------------------------------------------------------------
-    const validatedAllocationDecisions =
-      await this.multiNetworks.mapNetworkMapped(
-        networkDeploymentAllocationDecisions,
-        async (
-          { network }: NetworkAndOperator,
-          allocationDecisions: AllocationDecision[],
-        ) => {
-          if (
-            network.specification.indexerOptions.allocationManagementMode ===
-            AllocationManagementMode.MANUAL
-          ) {
-            this.logger.trace(
-              `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-              {
-                protocolNetwork: network.specification.networkIdentifier,
-                targetDeployments: allocationDecisions
-                  .filter(decision => decision.toAllocate)
-                  .map(decision => decision.deployment.ipfsHash),
-              },
-            )
-            return [] as AllocationDecision[]
-          }
-          const networkSubgraphDeployment = network.networkSubgraph.deployment
-          if (
-            networkSubgraphDeployment &&
-            !network.specification.indexerOptions.allocateOnNetworkSubgraph
-          ) {
-            const networkSubgraphIndex = allocationDecisions.findIndex(
-              decision =>
-                decision.deployment.bytes32 ==
-                networkSubgraphDeployment.id.bytes32,
-            )
-            if (networkSubgraphIndex >= 0) {
-              allocationDecisions[networkSubgraphIndex].toAllocate = false
-            }
-          }
-          return allocationDecisions
+    const { network, operator } = this.networkAndOperator
+    let validatedAllocationDecisions = [...allocationDecisions]
+
+    if (
+      network.specification.indexerOptions.allocationManagementMode ===
+      AllocationManagementMode.MANUAL
+    ) {
+      this.logger.debug(
+        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+        {
+          protocolNetwork: network.specification.networkIdentifier,
+          targetDeployments: allocationDecisions
+            .filter(decision => decision.toAllocate)
+            .map(decision => decision.deployment.ipfsHash),
         },
       )
+      validatedAllocationDecisions = [] as AllocationDecision[]
+    } else {
+      const networkSubgraphDeployment = network.networkSubgraph.deployment
+      if (
+        networkSubgraphDeployment &&
+        !network.specification.indexerOptions.allocateOnNetworkSubgraph
+      ) {
+        const networkSubgraphIndex = validatedAllocationDecisions.findIndex(
+          decision =>
+            decision.deployment.bytes32 == networkSubgraphDeployment.id.bytes32,
+        )
+        if (networkSubgraphIndex >= 0) {
+          validatedAllocationDecisions[networkSubgraphIndex].toAllocate = false
+        }
+      }
+    }
 
     //----------------------------------------------------------------------------------------
     // For every network, loop through all deployments and queue allocation actions if needed
@@ -1241,7 +1282,7 @@ export class Agent {
           })),
         })
 
-        return pMap(allocationDecisions, async decision =>
+        await pMap(validatedAllocationDecisions, async decision =>
           this.reconcileDeploymentAllocationAction(
             decision,
             activeAllocations,
@@ -1251,40 +1292,39 @@ export class Agent {
             operator,
           ),
         )
-      },
-    )
-  }
+        return
+      }
 
   // TODO: After indexer-service deprecation: Move to be an initialization check inside Network.create()
   async ensureSubgraphIndexing(deployment: string, networkIdentifier: string) {
-    try {
-      // TODO: Check both the local deployment and the external subgraph endpoint
-      // Make sure the subgraph is being indexed
-      await this.graphNode.ensure(
-        `indexer-agent/${deployment.slice(-10)}`,
-        new SubgraphDeploymentID(deployment),
-      )
+      try {
+        // TODO: Check both the local deployment and the external subgraph endpoint
+        // Make sure the subgraph is being indexed
+        await this.graphNode.ensure(
+          `indexer-agent/${deployment.slice(-10)}`,
+          new SubgraphDeploymentID(deployment),
+        )
 
       // Validate if the Network Subgraph belongs to the current provider's network.
       // This check must be performed after we ensure the Network Subgraph is being indexed.
       await validateProviderNetworkIdentifier(
-        networkIdentifier,
-        deployment,
-        this.graphNode,
-        this.logger,
-      )
-    } catch (e) {
-      this.logger.warn(
-        'Failed to deploy and validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
-        e,
-      )
+          networkIdentifier,
+          deployment,
+          this.graphNode,
+          this.logger,
+        )
+      } catch(e) {
+        this.logger.warn(
+          'Failed to deploy and validate Network Subgraph on index-nodes. Will use external subgraph endpoint instead',
+          e,
+        )
+      }
     }
-  }
   async ensureAllSubgraphsIndexing(network: Network) {
-    // Network subgraph
-    if (
-      network.specification.subgraphs.networkSubgraph.deployment !== undefined
-    ) {
+      // Network subgraph
+      if(
+        network.specification.subgraphs.networkSubgraph.deployment !== undefined
+  ) {
       await this.ensureSubgraphIndexing(
         network.specification.subgraphs.networkSubgraph.deployment,
         network.specification.networkIdentifier,

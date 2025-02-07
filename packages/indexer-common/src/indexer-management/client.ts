@@ -454,9 +454,11 @@ export interface IndexerManagementClientOptions {
   graphNode: GraphNode
   multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
+  actionManager?: ActionManager | undefined
 }
 
 export class IndexerManagementClient extends Client {
+  declare actionManager: ActionManager | undefined
   private logger?: Logger
   private models: IndexerManagementModels
 
@@ -465,6 +467,7 @@ export class IndexerManagementClient extends Client {
 
     this.logger = options.logger
     this.models = options.models
+    this.actionManager = options.actionManager
   }
 }
 
@@ -503,5 +506,8 @@ export const createIndexerManagementClient = async (
     context,
   })
 
-  return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options)
+  return new IndexerManagementClient(
+    { url: 'no-op', exchanges: [exchange] },
+    { ...options, actionManager },
+  )
 }

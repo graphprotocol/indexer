@@ -16,6 +16,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  DipsManager,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { BigNumber, utils } from 'ethers'
@@ -80,6 +81,10 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+  }
+
+  get dipsManager(): DipsManager | null {
+    return this.indexerManagement.actionManager?.allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
@@ -258,16 +263,26 @@ export class Operator {
     return result.data.actions
   }
 
-  async queueAction(action: ActionItem): Promise<Action[]> {
+  async queueAction(action: ActionItem, forceAction: boolean = false): Promise<Action[]> {
     let status = ActionStatus.QUEUED
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
-        throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        }
+        break
       case AllocationManagementMode.AUTO:
         status = ActionStatus.APPROVED
         break
       case AllocationManagementMode.OVERSIGHT:
-        status = ActionStatus.QUEUED
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          status = ActionStatus.QUEUED
+        }
+        break
     }
 
     const actionInput = {
@@ -336,6 +351,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
+    forceAction: boolean = false,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
@@ -381,6 +397,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations.map(
       (allocation) => allocation.id,
@@ -421,6 +438,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     expiredAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
       logger.info(`Reallocating expired allocations`, {

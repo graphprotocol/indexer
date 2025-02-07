@@ -93,6 +93,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   const network = await Network.create(
     logger,
     testNetworkSpecification,
+    models,
     queryFeeModels,
     graphNode,
     metrics,

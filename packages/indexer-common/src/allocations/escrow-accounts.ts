@@ -13,6 +13,14 @@ export type EscrowAccountResponse = {
   }[]
 }
 
+export type EscrowSenderResponse = {
+  signer: {
+    sender: {
+      id: string
+    }
+  }
+}
+
 export class EscrowAccounts {
   constructor(private sendersBalances: Map<Address, U256>) {}
 
@@ -64,4 +72,27 @@ export const getEscrowAccounts = async (
     throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
   }
   return EscrowAccounts.fromResponse(result.data)
+}
+
+export const getEscrowSenderForSigner = async (
+  tapSubgraph: SubgraphClient,
+  signer: Address,
+): Promise<Address> => {
+  const signerLower = signer.toLowerCase()
+  const result = await tapSubgraph.query<EscrowSenderResponse>(
+    gql`
+      query EscrowAccountQuery($signer: ID!) {
+        signer(id: $signer) {
+          sender {
+            id
+          }
+        }
+      }
+    `,
+    { signer: signerLower },
+  )
+  if (!result.data) {
+    throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
+  }
+  return toAddress(result.data.signer.sender.id)
 }
