@@ -220,6 +220,16 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
+          if (network.specification.indexerOptions.enableDips) {
+            // There should be a DipsManager in the operator
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
+            }
+            logger.trace('Ensuring indexing rules for DIPS', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            await operator.dipsManager.ensureAgreementRules()
+          }
           logger.trace('Fetching indexing rules', {
             protocolNetwork: network.specification.networkIdentifier,
           })

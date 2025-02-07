@@ -13,11 +13,20 @@ export interface ScalarTapReceiptsAttributes {
   value: bigint
   error_log?: string
 }
+export interface ScalarTapReceiptsCreationAttributes {
+  allocation_id: Address
+  signer_address: Address
+  signature: Uint8Array
+  timestamp_ns: bigint
+  nonce: bigint
+  value: bigint
+}
+
 export class ScalarTapReceipts
-  extends Model<ScalarTapReceiptsAttributes>
+  extends Model<ScalarTapReceiptsAttributes, ScalarTapReceiptsCreationAttributes>
   implements ScalarTapReceiptsAttributes
 {
-  public id!: number
+  public id!: CreationOptional<number>
   public allocation_id!: Address
   public signer_address!: Address
   public signature!: Uint8Array

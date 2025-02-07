@@ -16,6 +16,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  DipsManager,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { BigNumber, utils } from 'ethers'
@@ -80,6 +81,10 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+  }
+
+  get dipsManager(): DipsManager | null {
+    return this.indexerManagement.actionManager?.allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
