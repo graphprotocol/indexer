@@ -708,6 +708,22 @@ export class GraphNode {
     }
   }
 
+  public async entityCount(deployments: SubgraphDeploymentID[]): Promise<number[]> {
+    // Query the entity count for each deployment using the indexingStatuses query
+    const query = `
+      query entityCounts($deployments: [String!]!) {
+          indexingStatuses(subgraphs: $deployments) {
+            entityCount
+          }
+        }
+    `
+    const result = await this.status
+      .query(query, { deployments: deployments.map((id) => id.ipfsHash) })
+      .toPromise()
+
+    return result.data.indexingStatuses.map((status) => status.entityCount) as number[]
+  }
+
   public async proofOfIndexing(
     deployment: SubgraphDeploymentID,
     block: BlockPointer,

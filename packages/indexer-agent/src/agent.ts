@@ -220,6 +220,16 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
+          if (network.specification.indexerOptions.enableDips) {
+            // There should be a DipsManager in the operator
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
+            }
+            logger.trace('Ensuring indexing rules for DIPS', {
+              protocolNetwork: network.specification.networkIdentifier,
+            })
+            await operator.dipsManager.ensureAgreementRules()
+          }
           logger.trace('Fetching indexing rules', {
             protocolNetwork: network.specification.networkIdentifier,
           })
@@ -252,14 +262,15 @@ export class Agent {
         },
       )
 
-    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
+    // Skip fetching active deployments if the deployment management mode is manual, DIPs is disabled, and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
           if (
             this.deploymentManagement === DeploymentManagementMode.AUTO ||
-            network.networkMonitor.poiDisputeMonitoringEnabled()
+            network.networkMonitor.poiDisputeMonitoringEnabled() ||
+            network.specification.indexerOptions.enableDips
           ) {
             logger.trace('Fetching active deployments')
             const assignments =
@@ -487,9 +498,40 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            this.logger.debug(
-              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
-            )
+            if (network.specification.indexerOptions.enableDips) {
+              // Reconcile DIPs deployments anyways
+              this.logger.warn(
+                `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
+              )
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              const dipsDeployments =
+                await operator.dipsManager.getActiveDipsDeployments()
+              const newTargetDeployments = new Set([
+                ...activeDeployments,
+                ...dipsDeployments,
+              ])
+              try {
+                await this.reconcileDeployments(
+                  activeDeployments,
+                  Array.from(newTargetDeployments),
+                  eligibleAllocations,
+                )
+              } catch (err) {
+                logger.warn(
+                  `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                  {
+                    err: indexerError(IndexerErrorCode.IE005, err),
+                  },
+                )
+                return
+              }
+            } else {
+              this.logger.debug(
+                `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+              )
+            }
             break
           default:
             throw new Error(
@@ -810,6 +852,7 @@ export class Agent {
     maxAllocationEpochs: number,
     network: Network,
     operator: Operator,
+    forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -831,6 +874,7 @@ export class Agent {
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
+          forceAction,
         )
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
@@ -867,6 +911,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
+              forceAction,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -875,6 +920,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
+              forceAction,
             )
           } else {
             // Refresh any expiring allocations
@@ -891,6 +937,7 @@ export class Agent {
                 logger,
                 deploymentAllocationDecision,
                 expiringAllocations,
+                forceAction,
               )
             }
           }
@@ -910,21 +957,37 @@ export class Agent {
     // --------------------------------------------------------------------------------
     const { network, operator } = this.networkAndOperator
     let validatedAllocationDecisions = [...allocationDecisions]
+    let dipsDeployments: SubgraphDeploymentID[] = []
+    if (network.specification.indexerOptions.enableDips) {
+      if (!operator.dipsManager) {
+        throw new Error('DipsManager is not available')
+      }
+      dipsDeployments = await operator.dipsManager.getActiveDipsDeployments()
+    }
 
     if (
       network.specification.indexerOptions.allocationManagementMode ===
       AllocationManagementMode.MANUAL
     ) {
-      this.logger.debug(
-        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-        {
-          protocolNetwork: network.specification.networkIdentifier,
-          targetDeployments: allocationDecisions
-            .filter(decision => decision.toAllocate)
-            .map(decision => decision.deployment.ipfsHash),
-        },
-      )
-      validatedAllocationDecisions = [] as AllocationDecision[]
+      if (network.specification.indexerOptions.enableDips) {
+        this.logger.warn(
+          `Allocation management is manual, but DIPs is enabled. Reconciling DIPs allocations anyways.`,
+        )
+        validatedAllocationDecisions = validatedAllocationDecisions.filter(
+          decision => dipsDeployments.includes(decision.deployment),
+        )
+      } else {
+        this.logger.trace(
+          `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+          {
+            protocolNetwork: network.specification.networkIdentifier,
+            targetDeployments: allocationDecisions
+              .filter(decision => decision.toAllocate)
+              .map(decision => decision.deployment.ipfsHash),
+          },
+        )
+        validatedAllocationDecisions = [] as AllocationDecision[]
+      }
     } else {
       const networkSubgraphDeployment = network.networkSubgraph.deployment
       if (
@@ -985,6 +1048,7 @@ export class Agent {
         maxAllocationEpochs,
         network,
         operator,
+        dipsDeployments.includes(decision.deployment), // Force actions if this is a DIPs deployment
       ),
     )
     return
