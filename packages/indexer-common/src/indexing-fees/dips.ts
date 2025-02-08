@@ -69,13 +69,13 @@ export class DipsManager {
   }
   // Update the current and last allocation ids for an agreement if it exists
   async tryUpdateAgreementAllocation(
-    oldAllocationId: string,
+    deploymentId: string,
+    oldAllocationId: string | null,
     newAllocationId: string | null,
   ) {
     const agreement = await this.models.IndexingAgreement.findOne({
       where: {
-        current_allocation_id: oldAllocationId,
-        cancelled_at: null,
+        subgraph_deployment_id: deploymentId,
       },
     })
     if (agreement) {
