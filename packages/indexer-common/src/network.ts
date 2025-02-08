@@ -52,7 +52,7 @@ export class Network {
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
-
+  queryFeeModels: QueryFeeModels
   private constructor(
     logger: Logger,
     contracts: NetworkContracts,
@@ -66,6 +66,7 @@ export class Network {
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
+    queryFeeModels: QueryFeeModels,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -79,6 +80,7 @@ export class Network {
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
+    this.queryFeeModels = queryFeeModels
   }
 
   static async create(
@@ -345,6 +347,7 @@ export class Network {
       specification,
       paused,
       isOperator,
+      queryFeeModels,
     )
   }
 

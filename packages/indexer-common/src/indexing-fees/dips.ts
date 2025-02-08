@@ -11,14 +11,35 @@ import {
 } from '@graphprotocol/indexer-common'
 import { Op } from 'sequelize'
 
+import {
+  createDipperServiceClient,
+  createSignedCancellationRequest,
+  createSignedCollectionRequest,
+  decodeTapReceipt,
+} from './dipper-service-client'
+import {
+  CollectPaymentStatus,
+  DipperServiceClientImpl,
+} from '@graphprotocol/dips-proto/generated/gateway'
+import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
+
 export class DipsManager {
+  private dipperServiceClient: DipperServiceClientImpl
+
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
     private parent: AllocationManager | null,
-  ) {}
+  ) {
+    if (!this.network.specification.indexerOptions.dipperEndpoint) {
+      throw new Error('dipperEndpoint is not set')
+    }
+    this.dipperServiceClient = createDipperServiceClient(
+      this.network.specification.indexerOptions.dipperEndpoint,
+    )
+  }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
     const agreement = await this.models.IndexingAgreement.findOne({
@@ -28,8 +49,22 @@ export class DipsManager {
       },
     })
     if (agreement) {
-      // TODO use dips-proto to cancel agreement via grpc
-      // Mark the agreement as cancelled
+      try {
+        const cancellation = await createSignedCancellationRequest(
+          agreement.id,
+          this.network.wallet,
+        )
+        await this.dipperServiceClient.CancelAgreement({
+          version: 1,
+          signedCancellation: cancellation,
+        })
+
+        // Mark the agreement as cancelled
+        agreement.cancelled_at = new Date()
+        await agreement.save()
+      } catch (error) {
+        this.logger.error(`Error cancelling agreement ${agreement.id}`, { error })
+      }
     }
   }
   // Update the current and last allocation ids for an agreement if it exists
@@ -62,18 +97,50 @@ export class DipsManager {
     })
     for (const agreement of outstandingAgreements) {
       if (agreement.last_allocation_id) {
-        await this.tryCollectPayment(agreement.last_allocation_id)
+        await this.tryCollectPayment(agreement)
       } else {
         // This should never happen as we check for this in the query
         this.logger.error(`Agreement ${agreement.id} has no last allocation id`)
       }
     }
   }
-  async tryCollectPayment(lastAllocationId: string) {
-    // TODO: use dips-proto to collect payment via grpc
-
-    // TODO: store the receipt in the database
-    // (tap-agent will take care of aggregating it into a RAV)
+  async tryCollectPayment(agreement: IndexingAgreement) {
+    if (!agreement.last_allocation_id) {
+      this.logger.error(`Agreement ${agreement.id} has no last allocation id`)
+      return
+    }
+    const entityCount = 0 // TODO: get entity count from graph node
+    const collection = await createSignedCollectionRequest(
+      agreement.id,
+      agreement.last_allocation_id,
+      entityCount,
+      this.network.wallet,
+    )
+    try {
+      const response = await this.dipperServiceClient.CollectPayment({
+        version: 1,
+        signedCollection: collection,
+      })
+      if (response.status === CollectPaymentStatus.ACCEPT) {
+        if (!this.network.tapCollector) {
+          throw new Error('TapCollector not initialized')
+        }
+        // Store the tap receipt in the database
+        const tapReceipt = decodeTapReceipt(
+          response.tapReceipt,
+          this.network.tapCollector?.tapContracts.tapVerifier.address,
+        )
+        await this.network.queryFeeModels.scalarTapReceipts.create(tapReceipt)
+      } else {
+        this.logger.error(`Error collecting payment for agreement ${agreement.id}`, {
+          error: response.status,
+        })
+      }
+    } catch (error) {
+      this.logger.error(`Error collecting payment for agreement ${agreement.id}`, {
+        error,
+      })
+    }
 
     // Mark the agreement as having had a payment collected
     await this.models.IndexingAgreement.update(
@@ -82,7 +149,7 @@ export class DipsManager {
       },
       {
         where: {
-          last_allocation_id: lastAllocationId,
+          id: agreement.id,
         },
       },
     )
