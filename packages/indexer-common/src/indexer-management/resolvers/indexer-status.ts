@@ -60,9 +60,10 @@ const URL_VALIDATION_TEST: Test = {
 }
 
 export default {
-  indexerRegistration: async ({
-    network,
-  }: IndexerManagementResolverContext): Promise<object | null> => {
+  indexerRegistration: async (
+    _: { protocolNetwork: string | null },
+    { network }: IndexerManagementResolverContext,
+  ): Promise<object | null> => {
     if (!network) {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch indexer registration information',
@@ -97,7 +98,7 @@ export default {
   },
 
   indexerDeployments: async (
-    _: {},
+    _: { protocolNetwork: string | null },
     { graphNode }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const result = await graphNode.indexingStatus([])
@@ -107,10 +108,10 @@ export default {
     }))
   },
 
-  indexerAllocations: async ({
-    network,
-    logger,
-  }: IndexerManagementResolverContext): Promise<object | null> => {
+  indexerAllocations: async (
+    _: { protocolNetwork: string | null },
+    { network, logger }: IndexerManagementResolverContext,
+  ): Promise<object | null> => {
     if (!network) {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch indexer allocations',

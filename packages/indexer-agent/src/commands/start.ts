@@ -548,7 +548,7 @@ export async function run(
         queryInterface: sequelize.getQueryInterface(),
         logger,
         graphNodeAdminEndpoint: argv.graphNodeAdminEndpoint,
-        networkSpecifications: networkSpecification,
+        networkSpecifications: [networkSpecification],
         graphNode: graphNode,
       },
       storage: new SequelizeStorage({ sequelize }),
