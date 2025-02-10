@@ -100,7 +100,7 @@ export default {
   },
 
   indexerDeployments: async (
-    _: {},
+    _: { protocolNetwork: string | null },
     { graphNode }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const result = await graphNode.indexingStatus([])
@@ -127,7 +127,7 @@ export default {
       let lastId = ''
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allAllocations: any[] = []
-      for (;;) {
+      for (; ;) {
         const result = await network.networkSubgraph.checkedQuery(
           gql`
             query allocations($indexer: String!, $lastId: String!) {
@@ -275,8 +275,7 @@ async function endpointForNetwork(network: Network): Promise<Endpoints> {
             const response = await fetch(url)
             if (!response.ok) {
               throw new Error(
-                `Returned status ${response.status}: ${
-                  response.body ? response.body.toString() : 'No data returned'
+                `Returned status ${response.status}: ${response.body ? response.body.toString() : 'No data returned'
                 }`,
               )
             }
@@ -311,8 +310,7 @@ async function endpointForNetwork(network: Network): Promise<Endpoints> {
             })
             if (!response.ok) {
               throw new Error(
-                `Returned status ${response.status}: ${
-                  response.body ? response.body.toString() : 'No data returned'
+                `Returned status ${response.status}: ${response.body ? response.body.toString() : 'No data returned'
                 }`,
               )
             }

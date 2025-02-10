@@ -334,7 +334,7 @@ export const start = {
       })
   },
   // eslint-disable-next-line @typescript-eslint/no-empty-function, @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-  handler: (_argv: any) => {},
+  handler: (_argv: any) => { },
 }
 
 export async function createNetworkSpecification(
@@ -689,14 +689,13 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (collectReceiptsEndpoint) {
     logger.warn(
       "The option '--collect-receipts-endpoint' is deprecated. " +
-        "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
+      "Please use the option '--gateway-endpoint' to inform the Gateway base URL.",
     )
   }
 
   if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
     logger.warn(
-      `Gas increase timeout is set to less than ${
-        gasIncreaseTimeout / 1000
+      `Gas increase timeout is set to less than ${gasIncreaseTimeout / 1000
       } seconds. This may lead to high gas usage`,
       { gasIncreaseTimeout: gasIncreaseTimeout / 1000.0 },
     )
@@ -705,14 +704,14 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (gasIncreaseFactor > advisedGasIncreaseTimeout) {
     logger.warn(
       `Gas increase factor is set to > ${advisedGasIncreaseFactor}. ` +
-        'This may lead to high gas usage',
+      'This may lead to high gas usage',
       { gasIncreaseFactor: gasIncreaseFactor },
     )
   }
   if (rebateClaimThreshold < voucherRedemptionThreshold) {
     logger.warn(
       'Rebate single minimum claim value is less than voucher minimum redemption value, ' +
-        'but claims depend on redemptions',
+      'but claims depend on redemptions',
       {
         voucherRedemptionThreshold: formatGRT(voucherRedemptionThreshold),
         rebateClaimThreshold: formatGRT(rebateClaimThreshold),
@@ -729,7 +728,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (rebateClaimMaxBatchSize > advisedRebateClaimMaxBatchSize) {
     logger.warn(
       `Setting the max batch size for rebate claims to more than ${advisedRebateClaimMaxBatchSize}` +
-        'may result in batches that are too large to fit into a block',
+      'may result in batches that are too large to fit into a block',
       { rebateClaimMaxBatchSize: rebateClaimMaxBatchSize },
     )
   }
@@ -743,7 +742,7 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (voucherRedemptionMaxBatchSize > advisedVoucherRedemptionMaxBatchSize) {
     logger.warn(
       `Setting the max batch size for voucher redemptions to more than ${advisedVoucherRedemptionMaxBatchSize} ` +
-        'may result in batches that are too large to fit into a block',
+      'may result in batches that are too large to fit into a block',
       { voucherRedemptionMaxBatchSize: voucherRedemptionMaxBatchSize },
     )
   }
