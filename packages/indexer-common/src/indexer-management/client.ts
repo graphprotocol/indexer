@@ -22,7 +22,7 @@ export interface IndexerManagementResolverContext {
   logger: Logger
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
-  network: Network | undefined
+  network: Network
 }
 
 const SCHEMA_SDL = gql`
@@ -452,7 +452,7 @@ export interface IndexerManagementClientOptions {
   logger: Logger
   models: IndexerManagementModels
   graphNode: GraphNode
-  network: Network | undefined
+  network: Network
   defaults: IndexerManagementDefaults
 }
 
