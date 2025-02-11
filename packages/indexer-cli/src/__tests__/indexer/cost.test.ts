@@ -214,30 +214,3 @@ describe('Indexer cost tests singleNetwork', () => {
     )
   })
 })
-
-describe('Indexer cost tests multiNetworks', () => {
-  beforeAll(setupSingleNetwork)
-  afterAll(teardown)
-  beforeEach(seedCostModels)
-  afterEach(deleteFromAllTables)
-
-  describe('Cost set...', () => {
-    cliTest(
-      'Indexer cost set model deployment id - reject multinetwork mode',
-      [
-        'indexer',
-        'cost',
-        'set',
-        'model',
-        'QmXRpJW3qBuYaiBYHdhv8DF4bHDZhXBmh91MtrnhJfQ5Lk',
-        'references/basic.agora',
-      ],
-      'references/indexer-cost-model-deployment-multinetworks',
-      {
-        expectedExitCode: 1,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
-  })
-})

@@ -53,7 +53,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-      deployment.toString(),
+        deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -626,7 +626,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-            rewardsPool!.referencePreviousPOI == allocation.poi
+          rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
