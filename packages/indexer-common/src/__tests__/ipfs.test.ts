@@ -15,8 +15,9 @@ function mockManifestHash(input: string): string {
 }
 
 const DEP_ROOT_HASH = mockManifestHash('root')
-const DEP_1 = mockManifestHash('dep2')
-const DEP_2 = mockManifestHash('dep3')
+const DEP_1 = mockManifestHash('dep1')
+const DEP_2 = mockManifestHash('dep2')
+const DEP_3 = mockManifestHash('dep3')
 
 describe(SubgraphManifestResolver, () => {
   let ipfs: SubgraphManifestResolver
@@ -54,7 +55,7 @@ describe(SubgraphManifestResolver, () => {
         name: "root"
         graft:
             base: ${DEP_1}
-            block: 4
+            block: 1000
     `,
   )
   manifestMap.set(
@@ -64,7 +65,7 @@ describe(SubgraphManifestResolver, () => {
         name: "dep1"
         graft: 
             base: ${DEP_2}
-            block: 5
+            block: 550
     `,
   )
   manifestMap.set(
@@ -72,21 +73,47 @@ describe(SubgraphManifestResolver, () => {
     `
         specVersion: "0.0.2"
         name: "dep2"
+        graft: 
+            base: ${DEP_3}
+            block: 250
+    `,
+  )
+  manifestMap.set(
+    DEP_3,
+    `
+        specVersion: "0.0.2"
+        name: "dep3"
     `,
   )
 
   beforeAll(async () => {
     // Mock endpoint for IPFS CID requests
-    app.get('/ipfs/:cid', (req: Request, res: Response) => {
-      const { cid } = req.params
+    app.post('/api/v0/cat', (req: Request, res: Response) => {
+      const cid = req.query.arg as string
+      if (!cid) {
+        const err = new Error('CID parameter is required')
+        res.status(400)
+        return res.send(err.message)
+      }
+
+      console.log(`got cid ${cid}`)
+
       // Example: Respond with different data based on the CID
       if (manifestMap.has(cid)) {
         res.send(manifestMap.get(cid))
       } else {
         console.log(`CID not found: ${cid}`)
-        res.status(404).send()
+        res.status(404).send('Not Found')
       }
     })
+
+    // Handler for all other routes
+    app.use((req: Request, res: Response, next) => {
+      console.log(`404: ${req.url}, ${req.method}`)
+      res.status(404).send('Not Found')
+      next()
+    })
+
     // Start server and bind to a random port
     server = await new Promise((resolve, reject) => {
       const s = app.listen(0, () => {
@@ -146,8 +173,10 @@ describe(SubgraphManifestResolver, () => {
     expect(manifest).toEqual({
       root: new SubgraphDeploymentID(DEP_ROOT_HASH),
       dependencies: [
-        { base: new SubgraphDeploymentID(DEP_1), block: 4 },
-        { base: new SubgraphDeploymentID(DEP_2), block: 5 },
+        // dependencies are fetched in oldest to newest order
+        { base: new SubgraphDeploymentID(DEP_3), block: 250 },
+        { base: new SubgraphDeploymentID(DEP_2), block: 550 },
+        { base: new SubgraphDeploymentID(DEP_1), block: 1000 },
       ],
     })
   })
