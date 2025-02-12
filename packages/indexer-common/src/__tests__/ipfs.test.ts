@@ -83,17 +83,21 @@ describe(SubgraphManifestResolver, () => {
       if (manifestMap.has(cid)) {
         res.send(manifestMap.get(cid))
       } else {
+        console.log(`CID not found: ${cid}`)
         res.status(404).send()
       }
     })
     // Start server and bind to a random port
-    server = app.listen(0, () => {
-      console.log(`Mock server running on ${server.address()}`)
+    server = await new Promise((resolve, reject) => {
+      const s = app.listen(0, () => {
+        const address: AddressInfo = s.address() as AddressInfo
+        console.log(`Mock server running on ${address.address}:${address.port}`)
+        const serverAddress = `http://localhost:${address.port}`
+        ipfs = new SubgraphManifestResolver(serverAddress, createLogger({ name: 'test' }))
+        resolve(s)
+      })
+      s.on('error', reject)
     })
-
-    const address: AddressInfo = server.address() as AddressInfo
-    const serverAddress = `http://localhost:${address.port}`
-    ipfs = new SubgraphManifestResolver(serverAddress, createLogger({ name: 'test' }))
   })
 
   afterAll(async () => {
