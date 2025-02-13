@@ -9,6 +9,14 @@ import { Allocation } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let registry: any
+async function initializeNetworksRegistry() {
+  // Dynamically import NetworksRegistry
+  const { NetworksRegistry } = await import('@pinax/graph-networks-registry')
+  registry = await NetworksRegistry.fromLatestVersion()
+}
+
 export interface CreateAllocationResult {
   actionID: number
   type: 'allocate'
@@ -166,7 +174,34 @@ export function epochElapsedBlocks(networkEpoch: NetworkEpoch): number {
   return networkEpoch.startBlockNumber - networkEpoch.latestBlock
 }
 
-export const Caip2ByChainAlias: { [key: string]: string } = {
+// Construct Caip2ByChainId from the registry data, keeping the manual
+// overrides for backward compatibility
+const caip2ByChainId: { [key: number]: string } = {
+  1337: 'eip155:1337',
+  1: 'eip155:1',
+  5: 'eip155:5',
+  100: 'eip155:100',
+  42161: 'eip155:42161',
+  421613: 'eip155:421613',
+  43114: 'eip155:43114',
+  137: 'eip155:137',
+  42220: 'eip155:42220',
+  10: 'eip155:10',
+  250: 'eip155:250',
+  11155111: 'eip155:11155111',
+  421614: 'eip155:421614',
+  56: 'eip155:56',
+  59144: 'eip155:59144',
+  534352: 'eip155:534352',
+  8453: 'eip155:8453',
+  1284: 'eip155:1284',
+  122: 'eip155:122',
+  81457: 'eip155:81457',
+  288: 'eip155:288',
+  56288: 'eip155:56288',
+}
+
+const caip2ByChainAlias: { [key: string]: string } = {
   mainnet: 'eip155:1',
   goerli: 'eip155:5',
   gnosis: 'eip155:100',
@@ -191,29 +226,39 @@ export const Caip2ByChainAlias: { [key: string]: string } = {
   'boba-bnb': 'eip155:56288',
 }
 
-export const Caip2ByChainId: { [key: number]: string } = {
-  1: 'eip155:1',
-  5: 'eip155:5',
-  100: 'eip155:100',
-  1337: 'eip155:1337',
-  42161: 'eip155:42161',
-  421613: 'eip155:421613',
-  43114: 'eip155:43114',
-  137: 'eip155:137',
-  42220: 'eip155:42220',
-  10: 'eip155:10',
-  250: 'eip155:250',
-  11155111: 'eip155:11155111',
-  421614: 'eip155:421614',
-  56: 'eip155:56',
-  59144: 'eip155:59144',
-  534352: 'eip155:534352',
-  8453: 'eip155:8453',
-  1284: 'eip155:1284',
-  122: 'eip155:122',
-  81457: 'eip155:81457',
-  288: 'eip155:288',
-  56288: 'eip155:56288',
+async function buildCaip2MappingsFromRegistry() {
+  const networks = registry.networks
+
+  for (const network of networks) {
+    if (!network.aliases) {
+      continue
+    }
+    for (const alias of network.aliases) {
+      caip2ByChainAlias[alias] = network.caip2Id
+    }
+    const chainId = parseInt(network.caip2Id.split(':')[1])
+    if (
+      typeof chainId === 'number' &&
+      !isNaN(chainId) &&
+      !caip2ByChainId[chainId] // if we manually set an alias don't overwrite it
+    ) {
+      caip2ByChainId[+chainId] = network.caip2Id
+    }
+  }
+}
+
+/**
+ * Unified async initialization needed for the common module.
+ * This function should be called once when an application starts.
+ * Needed to fetch & construct lookups for the networks registry.
+ */
+export async function common_init(logger: Logger) {
+  await initializeNetworksRegistry()
+  await buildCaip2MappingsFromRegistry()
+  logger.debug('Networks Registry loaded', {
+    caip2ByChainAlias,
+    caip2ByChainId,
+  })
 }
 
 /// Unified entrypoint to resolve CAIP ID based either on chain aliases (strings)
@@ -221,7 +266,7 @@ export const Caip2ByChainId: { [key: number]: string } = {
 export function resolveChainId(key: number | string): string {
   if (typeof key === 'number' || !isNaN(+key)) {
     // If key is a number, then it must be a `chainId`
-    const chainId = Caip2ByChainId[+key]
+    const chainId = caip2ByChainId[+key]
     if (chainId !== undefined) {
       return chainId
     }
@@ -229,9 +274,9 @@ export function resolveChainId(key: number | string): string {
     const splitKey = key.split(':')
     let chainId
     if (splitKey.length === 2) {
-      chainId = Caip2ByChainId[+splitKey[1]]
+      chainId = caip2ByChainId[+splitKey[1]]
     } else {
-      chainId = Caip2ByChainAlias[key]
+      chainId = caip2ByChainAlias[key]
     }
     if (chainId !== undefined) {
       return chainId
@@ -241,8 +286,8 @@ export function resolveChainId(key: number | string): string {
 }
 
 export function resolveChainAlias(id: string): string {
-  const aliasMatches = Object.keys(Caip2ByChainAlias).filter(
-    (name) => Caip2ByChainAlias[name] == id,
+  const aliasMatches = Object.keys(caip2ByChainAlias).filter(
+    (name) => caip2ByChainAlias[name] == id,
   )
   if (aliasMatches.length === 1) {
     return aliasMatches[0]

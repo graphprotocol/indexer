@@ -11,6 +11,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
+  common_init,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -462,6 +463,7 @@ export async function run(
   networkSpecifications: spec.NetworkSpecification[],
   logger: Logger,
 ): Promise<void> {
+  await common_init(logger)
   // --------------------------------------------------------------------------------
   // * Configure event  listeners for unhandled promise  rejections and uncaught
   // exceptions.
