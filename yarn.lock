@@ -2221,6 +2221,11 @@
     node-addon-api "^3.2.1"
     node-gyp-build "^4.3.0"
 
+"@pinax/graph-networks-registry@0.6.7":
+  version "0.6.7"
+  resolved "https://registry.yarnpkg.com/@pinax/graph-networks-registry/-/graph-networks-registry-0.6.7.tgz#ceb994f3b31e2943b9c9d9b09dd86eb00d067c0e"
+  integrity sha512-xogeCEZ50XRMxpBwE3TZjJ8RCO8Guv39gDRrrKtlpDEDEMLm0MzD3A0SQObgj7aF7qTZNRTWzsuvQdxgzw25wQ==
+
 "@pkgjs/parseargs@^0.11.0":
   version "0.11.0"
   resolved "https://registry.npmjs.org/@pkgjs/parseargs/-/parseargs-0.11.0.tgz"
