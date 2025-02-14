@@ -1,6 +1,6 @@
 import { Client, credentials } from '@grpc/grpc-js'
 import { UnaryCallback } from '@grpc/grpc-js/build/src/client'
-import { DipperServiceClientImpl } from '@graphprotocol/dips-proto/generated/gateway'
+import { GatewayDipsServiceClientImpl } from '@graphprotocol/dips-proto/generated/gateway'
 import { Wallet } from 'ethers'
 import {
   _TypedDataEncoder,
@@ -156,7 +156,7 @@ export const createRpc = (url: string): Rpc => {
   return { request }
 }
 
-export const createDipperServiceClient = (url: string) => {
+export const createGatewayDipsServiceClient = (url: string) => {
   const rpc = createRpc(url)
-  return new DipperServiceClientImpl(rpc)
+  return new GatewayDipsServiceClientImpl(rpc)
 }

@@ -1,6 +1,7 @@
 import { formatGRT, Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   AllocationManager,
+  getEscrowSenderForSigner,
   GraphNode,
   IndexerManagementModels,
   IndexingDecisionBasis,
@@ -12,19 +13,19 @@ import {
 import { Op } from 'sequelize'
 
 import {
-  createDipperServiceClient,
+  createGatewayDipsServiceClient,
   createSignedCancellationRequest,
   createSignedCollectionRequest,
   decodeTapReceipt,
-} from './dipper-service-client'
+} from './gateway-dips-service-client'
 import {
   CollectPaymentStatus,
-  DipperServiceClientImpl,
+  GatewayDipsServiceClientImpl,
 } from '@graphprotocol/dips-proto/generated/gateway'
 import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
 
 export class DipsManager {
-  private dipperServiceClient: DipperServiceClientImpl
+  private gatewayDipsServiceClient: GatewayDipsServiceClientImpl
 
   constructor(
     private logger: Logger,
@@ -36,7 +37,7 @@ export class DipsManager {
     if (!this.network.specification.indexerOptions.dipperEndpoint) {
       throw new Error('dipperEndpoint is not set')
     }
-    this.dipperServiceClient = createDipperServiceClient(
+    this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
       this.network.specification.indexerOptions.dipperEndpoint,
     )
   }
@@ -54,7 +55,7 @@ export class DipsManager {
           agreement.id,
           this.network.wallet,
         )
-        await this.dipperServiceClient.CancelAgreement({
+        await this.gatewayDipsServiceClient.CancelAgreement({
           version: 1,
           signedCancellation: cancellation,
         })
@@ -117,7 +118,7 @@ export class DipsManager {
       this.network.wallet,
     )
     try {
-      const response = await this.dipperServiceClient.CollectPayment({
+      const response = await this.gatewayDipsServiceClient.CollectPayment({
         version: 1,
         signedCollection: collection,
       })
@@ -130,6 +131,19 @@ export class DipsManager {
           response.tapReceipt,
           this.network.tapCollector?.tapContracts.tapVerifier.address,
         )
+        // TODO: check that the signer of the TAP receipt is a signer
+        // on the corresponding escrow account for the payer (sender) of the
+        // indexing agreement
+        const escrowSender = await getEscrowSenderForSigner(
+          this.network.tapCollector?.tapSubgraph,
+          tapReceipt.signer_address,
+        )
+        if (escrowSender !== agreement.payer) {
+          // TODO: should we cancel the agreement here?
+          throw new Error(
+            'Signer of TAP receipt is not a signer on the indexing agreement',
+          )
+        }
         await this.network.queryFeeModels.scalarTapReceipts.create(tapReceipt)
       } else {
         this.logger.error(`Error collecting payment for agreement ${agreement.id}`, {

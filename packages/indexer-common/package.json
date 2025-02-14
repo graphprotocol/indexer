@@ -25,7 +25,7 @@
     "@bufbuild/protobuf": "2.2.3",
     "@graphprotocol/common-ts": "2.0.11",
     "@graphprotocol/cost-model": "0.1.18",
-    "@graphprotocol/dips-proto": "0.2.0",
+    "@graphprotocol/dips-proto": "0.2.1",
     "@grpc/grpc-js": "^1.12.6",
     "@semiotic-labs/tap-contracts-bindings": "^1.2.1",
     "@thi.ng/heaps": "1.2.38",

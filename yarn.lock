@@ -798,10 +798,10 @@
     "@mapbox/node-pre-gyp" "1.0.11"
     cargo-cp-artifact "0.1.8"
 
-"@graphprotocol/dips-proto@0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/dips-proto/-/dips-proto-0.2.0.tgz#e86ceff0dd30ea8ee3b89e84b5b6ad598301ac13"
-  integrity sha512-Ppt5XZNCrdTT0PwN1UTYIoDBFS11sC4E83yxK6O6rpOHwsjaCw/bM1vwR7JOl64WC+0Jy0fEhOwWEaRBLtAxaQ==
+"@graphprotocol/dips-proto@0.2.1":
+  version "0.2.1"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/dips-proto/-/dips-proto-0.2.1.tgz#e65b6a8dfdefb5604da96da4eaaeb0fe096a0627"
+  integrity sha512-1+6+M7P/xsmEHPRtPX5tO6yCdCDkEvg+Owc0/GJfKpmJmFdN+hxYDvAZ4GD1drLilsyxR/iLQxEvHHQsU3FoxA==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
