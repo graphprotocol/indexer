@@ -96,20 +96,20 @@ describe(SubgraphManifestResolver, () => {
         return res.send(err.message)
       }
 
-      console.log(`got cid ${cid}`)
+      // console.log(`got cid ${cid}`)
 
       // Example: Respond with different data based on the CID
       if (manifestMap.has(cid)) {
         res.send(manifestMap.get(cid))
       } else {
-        console.log(`CID not found: ${cid}`)
+        // console.log(`CID not found: ${cid}`)
         res.status(404).send('Not Found')
       }
     })
 
     // Handler for all other routes
     app.use((req: Request, res: Response, next) => {
-      console.log(`404: ${req.url}, ${req.method}`)
+      // console.log(`404: ${req.url}, ${req.method}`)
       res.status(404).send('Not Found')
       next()
     })
