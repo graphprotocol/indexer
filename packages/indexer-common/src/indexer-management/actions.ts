@@ -329,7 +329,7 @@ export class ActionManager {
           if (pendingActions.length > 0) {
             logger.warn(
               `${pendingActions} Actions found in PENDING state when execution began. Was there a crash?` +
-              `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
+                `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
             )
           }
 
@@ -384,7 +384,7 @@ export class ActionManager {
           )
         }
         // This will return all results if successful, if failed it will return the failed actions
-        results = await this.allocationManager.executeBatch(
+        results = await allocationManager.executeBatch(
           prioritizedActions,
           onFinishedDeploying,
         )
