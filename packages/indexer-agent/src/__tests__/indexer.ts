@@ -139,6 +139,7 @@ const setup = async () => {
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     'https://test-status-endpoint.xyz',
+    'https://test-ipfs-endpoint.xyz',
   )
 
   const yamlObj = loadTestYamlConfig()
