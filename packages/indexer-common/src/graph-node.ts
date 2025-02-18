@@ -811,7 +811,10 @@ export class GraphNode {
   }
 
   /**
-   *  wait for the block to be synced, polling indexing status until it is
+   * Wait for the block to be synced, polling indexing status until it is
+   * The Deployment should already be created and deployed to graph-node
+   * This will resume a paused subgraph if the block height target is higher than the
+   * current block height
    */
   public async syncToBlockAndPause(
     blockHeight: number,
@@ -833,9 +836,12 @@ export class GraphNode {
       let deployed: SubgraphDeploymentAssignment[] = []
       let attempt = 0
 
+      const maxAttempts = 5
+      const waitTimeMs = 3000
+
       // wait and poll for the assignment to be created.
-      while (attempt < 5) {
-        await waitForMs(3000)
+      while (attempt < maxAttempts) {
+        await waitForMs(waitTimeMs)
         deployed = await this.subgraphDeploymentAssignmentsByDeploymentID(
           SubgraphStatus.ALL,
           [subgraphDeployment.ipfsHash],
@@ -853,13 +859,14 @@ export class GraphNode {
           deployed,
         })
         attempt += 1
-      }
-
-      if (attempt >= 5) {
-        this.logger.error(`Subgraph not deployed and active`, {
-          subgraph: subgraphDeployment.ipfsHash,
-        })
-        throw new Error(`Subgraph not deployed and active, cannot sync to block`)
+        if (attempt >= maxAttempts) {
+          this.logger.error(`Subgraph not deployed and active`, {
+            subgraph: subgraphDeployment.ipfsHash,
+          })
+          throw new Error(
+            `Subgraph ${subgraphDeployment.ipfsHash} not deployed and active after ${maxAttempts} attempts, cannot sync to block ${blockHeight}`,
+          )
+        }
       }
 
       const indexingStatus = await this.indexingStatus([subgraphDeployment])
@@ -927,7 +934,7 @@ export class GraphNode {
           indexingStatus,
         },
       )
-      await waitForMs(3000)
+      await waitForMs(waitTimeMs)
     }
 
     this.logger.debug(`End syncing subgraph deployment synced to block`, {
