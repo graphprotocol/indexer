@@ -184,13 +184,13 @@ export class Agent {
   }
 
   reconciliationLoop() {
+    const { network, operator } = this.networkAndOperator
     const requestIntervalSmall = this.pollingInterval
     const requestIntervalLarge = this.pollingInterval * 5
     const logger = this.logger.child({ component: 'ReconciliationLoop' })
     const currentEpochNumber: Eventual<number> = sequentialTimerMap(
       { logger, milliseconds: requestIntervalLarge },
       async () => {
-        const { network } = this.networkAndOperator
         logger.trace('Fetching current epoch number', {
           protocolNetwork: network.specification.networkIdentifier,
         })
@@ -201,8 +201,6 @@ export class Agent {
           logger.warn(`Failed to fetch current epoch`, { error }),
       },
     )
-
-    const { network } = this.networkAndOperator
 
     const maxAllocationEpochs: Eventual<number> = sequentialTimerMap(
       { logger, milliseconds: requestIntervalLarge },
@@ -222,7 +220,6 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
-          const { network, operator } = this.networkAndOperator
           logger.trace('Fetching indexing rules', {
             protocolNetwork: network.specification.networkIdentifier,
           })
@@ -260,7 +257,6 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          const { network } = this.networkAndOperator
           if (
             this.deploymentManagement === DeploymentManagementMode.AUTO ||
             network.networkMonitor.poiDisputeMonitoringEnabled()
@@ -290,7 +286,6 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
-          const { network } = this.networkAndOperator
           logger.trace('Fetching network deployments', {
             protocolNetwork: network.specification.networkIdentifier,
           })
@@ -367,7 +362,6 @@ export class Agent {
     const activeAllocations: Eventual<Allocation[]> = sequentialTimerMap(
       { logger, milliseconds: requestIntervalSmall },
       async () => {
-        const { network } = this.networkAndOperator
         logger.trace('Fetching active allocations', {
           protocolNetwork: network.specification.networkIdentifier,
         })
@@ -389,13 +383,12 @@ export class Agent {
     }).tryMap(
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       async ({ activeAllocations: _, currentEpochNumber }) => {
-        const { network } = this.networkAndOperator
-        const allocationsByNetwork =
+        const recentlyClosedAllocations =
           await network.networkMonitor.recentlyClosedAllocations(
             currentEpochNumber,
             1,
           )
-        return Object.values(allocationsByNetwork).flat()
+        return Object.values(recentlyClosedAllocations).flat()
       },
       {
         onError: () =>
@@ -410,7 +403,6 @@ export class Agent {
       activeDeployments,
     }).tryMap(
       async ({ currentEpochNumber, activeDeployments }) => {
-        const { network } = this.networkAndOperator
         logger.trace('Fetching disputable allocations', {
           protocolNetwork: network.specification.networkIdentifier,
           currentEpochNumber,
@@ -455,7 +447,6 @@ export class Agent {
         })
 
         try {
-          const { network, operator } = this.networkAndOperator
           const disputableEpochs =
             currentEpochNumber -
             network.specification.indexerOptions.poiDisputableEpochs
@@ -918,7 +909,7 @@ export class Agent {
     // Network Subgraph is NEVER allocated towards
     // --------------------------------------------------------------------------------
     const { network, operator } = this.networkAndOperator
-    let validatedAllocationDecisions = allocationDecisions
+    let validatedAllocationDecisions = [...allocationDecisions]
 
     if (
       network.specification.indexerOptions.allocationManagementMode ===
@@ -940,12 +931,12 @@ export class Agent {
         networkSubgraphDeployment &&
         !network.specification.indexerOptions.allocateOnNetworkSubgraph
       ) {
-        const networkSubgraphIndex = allocationDecisions.findIndex(
+        const networkSubgraphIndex = validatedAllocationDecisions.findIndex(
           decision =>
             decision.deployment.bytes32 == networkSubgraphDeployment.id.bytes32,
         )
         if (networkSubgraphIndex >= 0) {
-          allocationDecisions[networkSubgraphIndex].toAllocate = false
+          validatedAllocationDecisions[networkSubgraphIndex].toAllocate = false
         }
       }
     }
