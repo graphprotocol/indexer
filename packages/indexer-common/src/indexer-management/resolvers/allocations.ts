@@ -354,14 +354,14 @@ export default {
       protocolNetwork: network.specification.networkIdentifier,
     }
 
-    const allocationsByNetwork = await queryAllocations(
+    const allocationsResult = await queryAllocations(
       logger,
       networkSubgraph,
       variables,
       context,
     )
 
-    return Object.values(allocationsByNetwork).flat()
+    return Object.values(allocationsResult).flat()
   },
 
   createAllocation: async (

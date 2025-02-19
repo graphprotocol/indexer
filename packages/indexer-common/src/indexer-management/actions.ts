@@ -146,6 +146,7 @@ export class ActionManager {
       const networkLogger = logger.child({
         protocolNetwork: this.network.specification.networkIdentifier,
         indexer: this.network.specification.indexerOptions.address,
+        operator: this.network.transactionManager.wallet.address,
       })
 
       if (await this.batchReady(approvedActions, this.network, networkLogger)) {
