@@ -32,7 +32,7 @@ import { Wallet } from 'ethers'
 const DIPS_COLLECTION_INTERVAL = 60_000
 
 export class DipsManager {
-  private gatewayDipsServiceClient: GatewayDipsServiceClientImpl
+  declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
 
   constructor(
     private logger: Logger,
@@ -68,6 +68,7 @@ export class DipsManager {
 
         // Mark the agreement as cancelled
         agreement.cancelled_at = new Date()
+        agreement.updated_at = new Date()
         await agreement.save()
       } catch (error) {
         this.logger.error(`Error cancelling agreement ${agreement.id}`, { error })
@@ -89,6 +90,7 @@ export class DipsManager {
       agreement.current_allocation_id = newAllocationId
       agreement.last_allocation_id = oldAllocationId
       agreement.last_payment_collected_at = null
+      agreement.updated_at = new Date()
       await agreement.save()
     }
   }
@@ -268,16 +270,9 @@ export class DipsCollector {
         }
         await this.queryFeeModels.scalarTapReceipts.create(tapReceipt)
         // Mark the agreement as having had a payment collected
-        await this.managementModels.IndexingAgreement.update(
-          {
-            last_payment_collected_at: new Date(),
-          },
-          {
-            where: {
-              id: agreement.id,
-            },
-          },
-        )
+        agreement.last_payment_collected_at = new Date()
+        agreement.updated_at = new Date()
+        await agreement.save()
       } else {
         throw new Error(`Payment request not accepted: ${response.status}`)
       }
