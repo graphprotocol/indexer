@@ -1,21 +1,25 @@
-import { connectDatabase } from '@graphprotocol/common-ts/dist/database'
-import { createLogger } from '@graphprotocol/common-ts/dist/logging'
-import { createMetrics } from '@graphprotocol/common-ts/dist/metrics'
-import { GraphNode } from 'indexer-common/src/graph-node'
-import { testNetworkSpecification } from 'indexer-common/src/indexer-management/__tests__/util'
-import { defineIndexerManagementModels } from 'indexer-common/src/indexer-management/models'
-import { Network } from 'indexer-common/src/network'
-import { defineQueryFeeModels } from 'indexer-common/src/query-fees/models'
-import { Sequelize } from 'sequelize'
-import { Logger, Metrics, parseGRT } from '@graphprotocol/common-ts'
 import {
-  IndexerManagementModels,
-  QueryFeeModels,
   DipsManager,
+  GraphNode,
+  IndexerManagementModels,
+  Network,
+  QueryFeeModels,
+  defineIndexerManagementModels,
+  defineQueryFeeModels,
   SubgraphIdentifierType,
   IndexingDecisionBasis,
 } from '@graphprotocol/indexer-common'
+import {
+  connectDatabase,
+  createLogger,
+  createMetrics,
+  Logger,
+  Metrics,
+  parseGRT,
+} from '@graphprotocol/common-ts'
+import { Sequelize } from 'sequelize'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
+import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
