@@ -37,7 +37,6 @@ export class DipsManager {
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
-    private graphNode: GraphNode,
     private network: Network,
     private parent: AllocationManager | null,
   ) {
@@ -157,6 +156,7 @@ export class DipsCollector {
     private specification: NetworkSpecification,
     private tapCollector: TapCollector,
     private wallet: Wallet,
+    private graphNode: GraphNode,
   ) {
     if (!this.specification.indexerOptions.dipperEndpoint) {
       throw new Error('dipperEndpoint is not set')
@@ -173,6 +173,7 @@ export class DipsCollector {
     specification: NetworkSpecification,
     tapCollector: TapCollector,
     wallet: Wallet,
+    graphNode: GraphNode,
   ) {
     const collector = new DipsCollector(
       logger,
@@ -181,6 +182,7 @@ export class DipsCollector {
       specification,
       tapCollector,
       wallet,
+      graphNode,
     )
     collector.startCollectionLoop()
     return collector
@@ -223,7 +225,14 @@ export class DipsCollector {
       this.logger.error(`Agreement ${agreement.id} has no last allocation id`)
       return
     }
-    const entityCount = 0 // TODO: get entity count from graph node
+    const entityCounts = await this.graphNode.entityCount([
+      new SubgraphDeploymentID(agreement.subgraph_deployment_id),
+    ])
+    if (entityCounts.length === 0) {
+      this.logger.error(`Agreement ${agreement.id} has no entity count`)
+      return
+    }
+    const entityCount = entityCounts[0]
     const collection = await createSignedCollectionRequest(
       agreement.id,
       agreement.last_allocation_id,

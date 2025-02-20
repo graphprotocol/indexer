@@ -107,13 +107,7 @@ export class AllocationManager {
     private network: Network,
   ) {
     if (this.network.specification.indexerOptions.dipperEndpoint) {
-      this.dipsManager = new DipsManager(
-        this.logger,
-        this.models,
-        this.graphNode,
-        this.network,
-        this,
-      )
+      this.dipsManager = new DipsManager(this.logger, this.models, this.network, this)
     }
   }
 

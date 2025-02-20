@@ -343,6 +343,7 @@ export class Network {
           specification,
           tapCollector,
           wallet,
+          graphNode,
         )
       }
     } else {
