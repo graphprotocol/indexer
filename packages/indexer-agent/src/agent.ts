@@ -852,6 +852,7 @@ export class Agent {
     maxAllocationEpochs: number,
     network: Network,
     operator: Operator,
+    forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -873,6 +874,7 @@ export class Agent {
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
+          forceAction,
         )
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
@@ -909,6 +911,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
+              forceAction,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -917,6 +920,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
+              forceAction,
             )
           } else {
             // Refresh any expiring allocations
@@ -933,6 +937,7 @@ export class Agent {
                 logger,
                 deploymentAllocationDecision,
                 expiringAllocations,
+                forceAction,
               )
             }
           }
@@ -952,21 +957,37 @@ export class Agent {
     // --------------------------------------------------------------------------------
     const { network, operator } = this.networkAndOperator
     let validatedAllocationDecisions = [...allocationDecisions]
+    let dipsDeployments: SubgraphDeploymentID[] = []
+    if (network.specification.indexerOptions.enableDips) {
+      if (!operator.dipsManager) {
+        throw new Error('DipsManager is not available')
+      }
+      dipsDeployments = await operator.dipsManager.getActiveDipsDeployments()
+    }
 
     if (
       network.specification.indexerOptions.allocationManagementMode ===
       AllocationManagementMode.MANUAL
     ) {
-      this.logger.trace(
-        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-        {
-          protocolNetwork: network.specification.networkIdentifier,
-          targetDeployments: allocationDecisions
-            .filter(decision => decision.toAllocate)
-            .map(decision => decision.deployment.ipfsHash),
-        },
-      )
-      validatedAllocationDecisions = [] as AllocationDecision[]
+      if (network.specification.indexerOptions.enableDips) {
+        this.logger.warn(
+          `Allocation management is manual, but DIPs is enabled. Reconciling DIPs allocations anyways.`,
+        )
+        validatedAllocationDecisions = validatedAllocationDecisions.filter(
+          decision => dipsDeployments.includes(decision.deployment),
+        )
+      } else {
+        this.logger.trace(
+          `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+          {
+            protocolNetwork: network.specification.networkIdentifier,
+            targetDeployments: allocationDecisions
+              .filter(decision => decision.toAllocate)
+              .map(decision => decision.deployment.ipfsHash),
+          },
+        )
+        validatedAllocationDecisions = [] as AllocationDecision[]
+      }
     } else {
       const networkSubgraphDeployment = network.networkSubgraph.deployment
       if (
@@ -1028,6 +1049,7 @@ export class Agent {
         maxAllocationEpochs,
         network,
         operator,
+        dipsDeployments.includes(decision.deployment), // Force actions if this is a DIPs deployment
       ),
     )
     return
