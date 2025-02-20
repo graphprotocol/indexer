@@ -35,17 +35,7 @@ let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let network: Network
 
-// Add mock implementation
-jest.mock('../gateway-dips-service-client', () => ({
-  ...jest.requireActual('../gateway-dips-service-client'),
-  createGatewayDipsServiceClient: jest.fn(() => ({
-    CancelAgreement: jest.fn().mockResolvedValue({}),
-    CollectPayment: jest.fn().mockResolvedValue({
-      status: CollectPaymentStatus.ACCEPT,
-      tapReceipt: new Uint8Array(), // Mock tap receipt
-    }),
-  })),
-}))
+
 
 const setup = async () => {
   logger = createLogger({
@@ -196,14 +186,16 @@ describe('DipsManager', () => {
     })
 
     test('cancels agreement when allocation is closed', async () => {
-      const mockClient = dipsManager.gatewayDipsServiceClient
+      const client = dipsManager.gatewayDipsServiceClient
+
+      client.CancelAgreement = jest.fn().mockResolvedValue({})
 
       await dipsManager.tryCancelAgreement(testAllocationId)
 
       // Verify the client was called with correct parameters
-      expect(mockClient.CancelAgreement).toHaveBeenCalledTimes(1)
+      expect((client.CancelAgreement as jest.Mock).mock.calls.length).toBe(1)
       // TODO: Check the signed cancellation payload
-      expect(mockClient.CancelAgreement).toHaveBeenCalledWith({
+      expect((client.CancelAgreement as jest.Mock).mock.calls[0][0]).toEqual({
         version: 1,
         signedCancellation: expect.any(Uint8Array),
       })
@@ -215,10 +207,8 @@ describe('DipsManager', () => {
     })
 
     test('handles errors when cancelling agreement', async () => {
-      const mockClient = dipsManager.gatewayDipsServiceClient
-      ;(mockClient.CancelAgreement as jest.Mock).mockRejectedValueOnce(
-        new Error('Failed to cancel'),
-      )
+      const client = dipsManager.gatewayDipsServiceClient
+      client.CancelAgreement = jest.fn().mockRejectedValueOnce(new Error('Failed to cancel'))
 
       await dipsManager.tryCancelAgreement(testAllocationId)
 
