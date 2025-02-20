@@ -18,7 +18,6 @@ import {
   parseGRT,
 } from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
-import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 
 // Make global Jest variables available
