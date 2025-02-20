@@ -138,6 +138,8 @@ describe('DipsManager', () => {
           dipperEndpoint: undefined,
         },
       }
+
+      metrics.registry.clear()
       const networkWithoutDipper = await Network.create(
         logger,
         specWithoutDipper,
@@ -156,7 +158,7 @@ describe('DipsManager', () => {
     let dipsManager: DipsManager
     const testDeploymentId = 'QmTest'
     const testAllocationId = '0x1234'
-    const testAgreementId = 'agreement-1'
+    const testAgreementId = '123e4567-e89b-12d3-a456-426614174000'
 
     beforeEach(async () => {
       // Clear mock calls between tests
@@ -177,8 +179,8 @@ describe('DipsManager', () => {
         payer: '0xabcd',
         signature: Buffer.from('1234', 'hex'),
         signed_payload: Buffer.from('5678', 'hex'),
-        protocol_network: 'test',
-        chain_id: '1',
+        protocol_network: 'arbitrum-one',
+        chain_id: 'eip155:1',
         base_price_per_epoch: '100',
         price_per_entity: '1',
         service: '0xdeadbeef',
