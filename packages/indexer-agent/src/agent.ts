@@ -262,14 +262,15 @@ export class Agent {
         },
       )
 
-    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
+    // Skip fetching active deployments if the deployment management mode is manual, DIPs is disabled, and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
           if (
             this.deploymentManagement === DeploymentManagementMode.AUTO ||
-            network.networkMonitor.poiDisputeMonitoringEnabled()
+            network.networkMonitor.poiDisputeMonitoringEnabled() ||
+            network.specification.indexerOptions.enableDips
           ) {
             logger.trace('Fetching active deployments')
             const assignments =
@@ -497,9 +498,40 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            this.logger.debug(
-              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
-            )
+            if (network.specification.indexerOptions.enableDips) {
+              // Reconcile DIPs deployments anyways
+              this.logger.warn(
+                `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
+              )
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              const dipsDeployments =
+                await operator.dipsManager.getActiveDipsDeployments()
+              const newTargetDeployments = new Set([
+                ...activeDeployments,
+                ...dipsDeployments,
+              ])
+              try {
+                await this.reconcileDeployments(
+                  activeDeployments,
+                  Array.from(newTargetDeployments),
+                  eligibleAllocations,
+                )
+              } catch (err) {
+                logger.warn(
+                  `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                  {
+                    err: indexerError(IndexerErrorCode.IE005, err),
+                  },
+                )
+                return
+              }
+            } else {
+              this.logger.debug(
+                `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+              )
+            }
             break
           default:
             throw new Error(

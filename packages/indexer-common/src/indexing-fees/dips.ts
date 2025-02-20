@@ -135,6 +135,17 @@ export class DipsManager {
       }
     }
   }
+  async getActiveDipsDeployments(): Promise<SubgraphDeploymentID[]> {
+    // Get all the indexing agreements that are not cancelled
+    const indexingAgreements = await this.models.IndexingAgreement.findAll({
+      where: {
+        cancelled_at: null,
+      },
+    })
+    return indexingAgreements.map(
+      (agreement) => new SubgraphDeploymentID(agreement.subgraph_deployment_id),
+    )
+  }
 }
 
 export class DipsCollector {
