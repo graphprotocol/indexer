@@ -167,7 +167,7 @@ describe(SubgraphManifestResolver, () => {
   })
 
   it('should resolve dependencies', async () => {
-    const manifest: SubgraphDependencies = await ipfs.resolveWithDependencies(
+    const manifest: SubgraphDependencies = await ipfs.resolveGraftDependencies(
       new SubgraphDeploymentID(DEP_ROOT_HASH),
     )
     expect(manifest).toEqual({
