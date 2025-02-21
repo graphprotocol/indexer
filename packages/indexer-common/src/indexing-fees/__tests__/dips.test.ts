@@ -43,6 +43,7 @@ let graphNode: GraphNode
 let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let network: Network
+let dipsCollector: DipsCollector
 const networkSpecWithDips = {
   ...testNetworkSpecification,
   indexerOptions: {
@@ -100,6 +101,7 @@ const setup = async () => {
     graphNode,
     metrics,
   )
+  dipsCollector = network.dipsCollector!
 }
 
 const setupEach = async () => {
@@ -386,7 +388,6 @@ describe('DipsCollector', () => {
   })
 
   describe('payment collection', () => {
-    const dipsCollector = network.dipsCollector!
     const testDeploymentId = 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7'
     const testAllocationId = 'abcd47df40c29949a75a6693c77834c00b8ad626'
     const testAgreementId = '123e4567-e89b-12d3-a456-426614174000'
