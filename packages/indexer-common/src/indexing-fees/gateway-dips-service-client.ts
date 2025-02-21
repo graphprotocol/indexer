@@ -66,12 +66,16 @@ export const createSignedCollectionRequest = async (
   const signature = await wallet._signTypedData(
     collectPaymentsDomain,
     collectPaymentsTypes,
-    { agreement_id: agreementId, allocation_id: allocationId, entity_count: entityCount },
+    {
+      agreement_id: agreementId,
+      allocation_id: toAddress(allocationId),
+      entity_count: entityCount,
+    },
   )
   return arrayify(
     defaultAbiCoder.encode(
       ['tuple(bytes16, address, uint64)', 'bytes'],
-      [[agreementId, allocationId, entityCount], signature],
+      [[agreementId, toAddress(allocationId), entityCount], signature],
     ),
   )
 }
@@ -110,7 +114,7 @@ export const decodeTapReceipt = (receipt: Uint8Array, verifyingContract: string)
   })
   const signerAddress = recoverAddress(digest, signature)
   return {
-    allocation_id: allocationId,
+    allocation_id: toAddress(allocationId),
     signer_address: toAddress(signerAddress),
     signature: signature,
     timestamp_ns: timestampNs,

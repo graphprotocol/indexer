@@ -1,4 +1,10 @@
-import { formatGRT, Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import {
+  Address,
+  formatGRT,
+  Logger,
+  SubgraphDeploymentID,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import {
   AllocationManager,
   getEscrowSenderForSigner,
@@ -35,6 +41,10 @@ const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
 }
 
+const normalizeAddressForDB = (address: string) => {
+  return toAddress(address).toLowerCase().replace('0x', '')
+}
+
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
 
@@ -53,9 +63,10 @@ export class DipsManager {
   }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
+    const normalizedAllocationId = normalizeAddressForDB(allocationId)
     const agreement = await this.models.IndexingAgreement.findOne({
       where: {
-        current_allocation_id: allocationId,
+        current_allocation_id: normalizedAllocationId,
         cancelled_at: null,
       },
     })
@@ -82,8 +93,8 @@ export class DipsManager {
   // Update the current and last allocation ids for an agreement if it exists
   async tryUpdateAgreementAllocation(
     deploymentId: string,
-    oldAllocationId: string | null,
-    newAllocationId: string | null,
+    oldAllocationId: Address | null,
+    newAllocationId: Address | null,
   ) {
     const agreement = await this.models.IndexingAgreement.findOne({
       where: {
@@ -154,7 +165,7 @@ export class DipsManager {
 }
 
 export class DipsCollector {
-  private gatewayDipsServiceClient: GatewayDipsServiceClientImpl
+  declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
   constructor(
     private logger: Logger,
     private managementModels: IndexerManagementModels,
@@ -201,12 +212,12 @@ export class DipsCollector {
         milliseconds: DIPS_COLLECTION_INTERVAL,
       },
       async () => {
-        this.logger.debug('Running DIPS payment collection loop')
+        this.logger.debug('Running DIPs payment collection loop')
         await this.collectAllPayments()
       },
       {
         onError: (err) => {
-          this.logger.error('Failed to collect DIPS payments', { err })
+          this.logger.error('Failed to collect DIPs payments', { err })
         },
       },
     )
@@ -266,11 +277,14 @@ export class DipsCollector {
           this.tapCollector?.tapSubgraph,
           tapReceipt.signer_address,
         )
-        if (escrowSender !== agreement.payer) {
+        if (escrowSender !== toAddress(agreement.payer)) {
           // TODO: should we cancel the agreement here?
           throw new Error(
             'Signer of TAP receipt is not a signer on the indexing agreement',
           )
+        }
+        if (tapReceipt.allocation_id !== toAddress(agreement.last_allocation_id)) {
+          throw new Error('Allocation ID mismatch')
         }
         await this.queryFeeModels.scalarTapReceipts.create(tapReceipt)
         // Mark the agreement as having had a payment collected

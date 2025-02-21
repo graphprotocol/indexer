@@ -5,8 +5,8 @@ import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
 
 export interface ScalarTapReceiptsAttributes {
   id: number
-  allocation_id: Address
-  signer_address: Address
+  allocation_id: string
+  signer_address: string
   signature: Uint8Array
   timestamp_ns: bigint
   nonce: bigint
@@ -14,8 +14,8 @@ export interface ScalarTapReceiptsAttributes {
   error_log?: string
 }
 export interface ScalarTapReceiptsCreationAttributes {
-  allocation_id: Address
-  signer_address: Address
+  allocation_id: string
+  signer_address: string
   signature: Uint8Array
   timestamp_ns: bigint
   nonce: bigint
@@ -607,10 +607,26 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       allocation_id: {
         type: DataTypes.CHAR(40),
         allowNull: false,
+        get() {
+          const rawValue = this.getDataValue('allocation_id')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('allocation_id', addressWithoutPrefix)
+        },
       },
       signer_address: {
         type: DataTypes.CHAR(40),
         allowNull: false,
+        get() {
+          const rawValue = this.getDataValue('signer_address')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('signer_address', addressWithoutPrefix)
+        },
       },
       signature: {
         type: DataTypes.BLOB,

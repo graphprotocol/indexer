@@ -581,7 +581,7 @@ export default {
         await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
           deployment,
           null,
-          createAllocationEventLogs.allocationID,
+          toAddress(createAllocationEventLogs.allocationID),
         )
       }
 
@@ -744,7 +744,7 @@ export default {
         await actionManager.allocationManager.dipsManager.tryCancelAgreement(allocation)
         await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
           allocationData.subgraphDeployment.id.toString(),
-          allocation,
+          toAddress(allocation),
           null,
         )
       }
@@ -1058,8 +1058,8 @@ export default {
       if (actionManager?.allocationManager?.dipsManager) {
         await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
           allocationData.subgraphDeployment.id.toString(),
-          allocation,
-          createAllocationEventLogs.allocationID,
+          toAddress(allocation),
+          toAddress(createAllocationEventLogs.allocationID),
         )
       }
 

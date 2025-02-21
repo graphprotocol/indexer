@@ -521,7 +521,7 @@ export class AllocationManager {
       await this.dipsManager.tryUpdateAgreementAllocation(
         deployment,
         null,
-        createAllocationEventLogs.allocationID,
+        toAddress(createAllocationEventLogs.allocationID),
       )
     }
 
@@ -685,7 +685,7 @@ export class AllocationManager {
       await this.dipsManager.tryCancelAgreement(allocationID)
       await this.dipsManager.tryUpdateAgreementAllocation(
         allocation.subgraphDeployment.id.toString(),
-        allocationID,
+        toAddress(allocationID),
         null,
       )
     }
@@ -992,8 +992,8 @@ export class AllocationManager {
     if (this.dipsManager) {
       await this.dipsManager.tryUpdateAgreementAllocation(
         subgraphDeploymentID.toString(),
-        allocationID,
-        createAllocationEventLogs.allocationID,
+        toAddress(allocationID),
+        toAddress(createAllocationEventLogs.allocationID),
       )
     }
 
