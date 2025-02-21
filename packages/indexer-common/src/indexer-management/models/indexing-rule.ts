@@ -2,7 +2,6 @@
 
 import { DataTypes, Model, Optional, Sequelize } from 'sequelize'
 import { processIdentifier, SubgraphIdentifierType } from '../../subgraphs'
-import { caip2IdRegex } from '../../parsers'
 
 export enum IndexingDecisionBasis {
   RULES = 'rules',
@@ -30,7 +29,6 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
-  protocolNetwork: string
 }
 
 export interface IndexingRuleCreationAttributes
@@ -52,7 +50,6 @@ export interface IndexingRuleCreationAttributes
     | 'decisionBasis'
     | 'requireSupported'
     | 'safety'
-    | 'protocolNetwork'
   > {}
 
 export class IndexingRule
@@ -251,14 +248,6 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
-      },
-      protocolNetwork: {
-        type: DataTypes.STRING,
-        primaryKey: true,
-        allowNull: false,
-        validate: {
-          is: caip2IdRegex,
-        },
       },
     },
     {

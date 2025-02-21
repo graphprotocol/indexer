@@ -49,7 +49,6 @@ export const createTestManagementClient = async (
       parallelAllocations: 1,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'arbitrum-sepolia',
     },
   }
 

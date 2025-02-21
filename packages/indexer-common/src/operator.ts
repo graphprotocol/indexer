@@ -108,7 +108,6 @@ export class Operator {
                 custom
                 decisionBasis
                 requireSupported
-                protocolNetwork
               }
             }
           `,
@@ -126,7 +125,6 @@ export class Operator {
             identifier: rule.identifier,
             identifierType: rule.identifierType,
             decisionBasis: rule.decisionBasis,
-            protocolNetwork: rule.protocolNetwork,
           }
         }),
       })
