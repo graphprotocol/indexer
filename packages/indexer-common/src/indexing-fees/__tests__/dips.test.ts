@@ -306,6 +306,7 @@ describe('DipsManager', () => {
         requireSupported: true,
         safety: true,
         protocolNetwork: 'eip155:42161',
+        allocationAmount: '1030',
       })
       // Mock fetch the subgraph deployment from the network subgraph
       network.networkMonitor.subgraphDeployment = jest
@@ -323,6 +324,10 @@ describe('DipsManager', () => {
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
         allocationLifetime: 16,
+        requireSupported: true,
+        safety: true,
+        protocolNetwork: 'eip155:42161',
+        allocationAmount: '1030',
       })
     })
 
@@ -444,14 +449,15 @@ describe('DipsCollector', () => {
         tapReceipt: Buffer.from('1234', 'hex'),
       })
       ;(decodeTapReceipt as jest.Mock)
-        .mockResolvedValue({
+        .mockReturnValue({
           allocation_id: toAddress(testAllocationId),
           signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
           signature: Buffer.from('1234', 'hex'),
           timestamp_ns: 1234567890,
           nonce: 1,
           value: '1000',
-        })(getEscrowSenderForSigner as jest.Mock)
+        })
+      ;(getEscrowSenderForSigner as jest.Mock)
         .mockResolvedValue(toAddress('0x123456df40c29949a75a6693c77834c00b8a5678'))
 
       await dipsCollector.tryCollectPayment(agreement)
