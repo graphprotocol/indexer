@@ -13,6 +13,8 @@ import {
   AllocationManager,
   DipsCollector,
   TapCollector,
+  createIndexerManagementClient,
+  Operator,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -102,6 +104,21 @@ const setup = async () => {
     metrics,
   )
   dipsCollector = network.dipsCollector!
+  const indexerManagementClient = await createIndexerManagementClient({
+    models: managementModels,
+    graphNode,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        allocationAmount: parseGRT('1000'),
+        parallelAllocations: 1,
+      },
+    },
+    network,
+  })
+
+  const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+  await operator.ensureGlobalIndexingRule()
 }
 
 const setupEach = async () => {
