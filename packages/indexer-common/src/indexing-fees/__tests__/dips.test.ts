@@ -63,7 +63,7 @@ const mockSubgraphDeployment = (id: string) => {
     stakedTokens: BigNumber.from('1000'),
     signalledTokens: BigNumber.from('1000'),
     queryFeesAmount: BigNumber.from('0'),
-    protocolNetwork: 'arbitrum-one',
+    protocolNetwork: 'eip155:42161',
   }
 }
 
@@ -303,6 +303,9 @@ describe('DipsManager', () => {
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.ALWAYS,
         allocationLifetime: 16,
+        requireSupported: true,
+        safety: true,
+        protocolNetwork: 'eip155:42161',
       })
       // Mock fetch the subgraph deployment from the network subgraph
       network.networkMonitor.subgraphDeployment = jest
@@ -435,14 +438,13 @@ describe('DipsCollector', () => {
 
       const client = dipsCollector.gatewayDipsServiceClient
 
-      client.CollectPayment = jest
-        .fn()
+      client.CollectPayment = jest.fn().mockResolvedValue({
+        version: 1,
+        status: CollectPaymentStatus.ACCEPT,
+        tapReceipt: Buffer.from('1234', 'hex'),
+      })
+      ;(decodeTapReceipt as jest.Mock)
         .mockResolvedValue({
-          version: 1,
-          status: CollectPaymentStatus.ACCEPT,
-          tapReceipt: Buffer.from('1234', 'hex'),
-        })(decodeTapReceipt as jest.Mock)
-        .mockReturnValue({
           allocation_id: toAddress(testAllocationId),
           signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
           signature: Buffer.from('1234', 'hex'),
