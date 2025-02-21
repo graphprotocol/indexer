@@ -119,6 +119,8 @@ const setup = async () => {
 
   const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
   await operator.ensureGlobalIndexingRule()
+  logger.debug('Ensured global indexing rule')
+  logger.debug(JSON.stringify(network.specification, null, 2))
 }
 
 const setupEach = async () => {
@@ -468,17 +470,19 @@ describe('DipsCollector', () => {
         status: CollectPaymentStatus.ACCEPT,
         tapReceipt: Buffer.from('1234', 'hex'),
       })
-      ;(decodeTapReceipt as jest.Mock).mockReturnValue({
-        allocation_id: toAddress(testAllocationId),
-        signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
-        signature: Buffer.from('1234', 'hex'),
-        timestamp_ns: 1234567890,
-        nonce: 1,
-        value: '1000',
+      ;(decodeTapReceipt as jest.Mock).mockImplementation(() => {
+        return {
+          allocation_id: toAddress(testAllocationId),
+          signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
+          signature: Buffer.from('1234', 'hex'),
+          timestamp_ns: 1234567890,
+          nonce: 1,
+          value: '1000',
+        }
       })
-      ;(getEscrowSenderForSigner as jest.Mock).mockResolvedValue(
-        toAddress('0x123456df40c29949a75a6693c77834c00b8a5678'),
-      )
+      ;(getEscrowSenderForSigner as jest.Mock).mockImplementation(() => {
+        return toAddress('0x123456df40c29949a75a6693c77834c00b8a5678')
+      })
 
       await dipsCollector.tryCollectPayment(agreement)
 
