@@ -107,6 +107,25 @@ const setup = async () => {
   dipsCollector = network.dipsCollector!
 }
 
+const ensureGlobalIndexingRule = async () => {
+  const indexerManagementClient = await createIndexerManagementClient({
+    models: managementModels,
+    graphNode,
+    logger,
+    defaults: {
+      globalIndexingRule: {
+        allocationAmount: parseGRT('1000'),
+        parallelAllocations: 1,
+      },
+    },
+    network,
+  })
+
+  const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+  await operator.ensureGlobalIndexingRule()
+  logger.debug('Ensured global indexing rule')
+}
+
 const setupEach = async () => {
   sequelize = await sequelize.sync({ force: true })
 }
@@ -275,6 +294,7 @@ describe('DipsManager', () => {
     })
 
     test('creates indexing rules for active agreements', async () => {
+      await ensureGlobalIndexingRule()
       // Mock fetch the subgraph deployment from the network subgraph
       network.networkMonitor.subgraphDeployment = jest
         .fn()
@@ -301,6 +321,7 @@ describe('DipsManager', () => {
     })
 
     test('does not create or modify an indexing rule if it already exists', async () => {
+      await ensureGlobalIndexingRule()
       // Create an indexing rule with the same identifier
       await managementModels.IndexingRule.create({
         identifier: testDeploymentId,
@@ -441,23 +462,6 @@ describe('DipsCollector', () => {
       graphNode.entityCount = jest.fn().mockResolvedValue([250000])
     })
     test('collects payment for a specific agreement', async () => {
-      const indexerManagementClient = await createIndexerManagementClient({
-        models: managementModels,
-        graphNode,
-        logger,
-        defaults: {
-          globalIndexingRule: {
-            allocationAmount: parseGRT('1000'),
-            parallelAllocations: 1,
-          },
-        },
-        network,
-      })
-
-      const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
-      await operator.ensureGlobalIndexingRule()
-      logger.debug('Ensured global indexing rule')
-
       const agreement = await managementModels.IndexingAgreement.findOne({
         where: { id: testAgreementId },
       })
