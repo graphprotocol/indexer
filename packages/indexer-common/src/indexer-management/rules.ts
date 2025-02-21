@@ -24,13 +24,17 @@ export const fetchIndexingRules = async (
   })
   if (merged) {
     // Merge rules by protocol network
-    return Object.entries(groupBy(rules, (rule) => rule.protocolNetwork))
-      .map(([protocolNetwork, rules]) => {
-        const global = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
+    return Object.entries(groupBy(rules, (rule: IndexingRule) => rule.protocolNetwork))
+      .map(([entryProtocolNetwork, entryRules]: [string, IndexingRule[]]) => {
+        const global: IndexingRule | undefined = entryRules.find(
+          (rule: IndexingRule) => rule.identifier === INDEXING_RULE_GLOBAL,
+        )
         if (!global) {
-          throw Error(`Could not find global rule for network '${protocolNetwork}'`)
+          throw Error(
+            `Could not find global rule for network '${protocolNetwork}' : ? '${entryProtocolNetwork}'`,
+          )
         }
-        return rules.map((rule) => rule.mergeGlobal(global))
+        return entryRules.map((rule: IndexingRule) => rule.mergeGlobal(global))
       })
       .flat()
   } else {
