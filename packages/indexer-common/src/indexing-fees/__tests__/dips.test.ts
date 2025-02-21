@@ -8,6 +8,7 @@ import {
   defineQueryFeeModels,
   SubgraphIdentifierType,
   IndexingDecisionBasis,
+  AllocationManager,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -153,7 +154,14 @@ describe('DipsManager', () => {
       // Clear mock calls between tests
       jest.clearAllMocks()
 
-      dipsManager = new DipsManager(logger, managementModels, network, null)
+      const allocationManager = new AllocationManager(
+        logger,
+        managementModels,
+        graphNode,
+        network,
+      )
+
+      dipsManager = new DipsManager(logger, managementModels, network, allocationManager)
 
       // Create a test agreement
       await managementModels.IndexingAgreement.create({
