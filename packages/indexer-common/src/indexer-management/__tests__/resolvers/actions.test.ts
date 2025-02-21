@@ -165,12 +165,6 @@ async function actionInputToExpected(
     }
   }
 
-  // We expect the protocol network to be transformed to it's CAIP2-ID
-  // form for all inputs
-  if (input.protocolNetwork === 'arbitrum-sepolia') {
-    expected.protocolNetwork = 'eip155:421614'
-  }
-
   return expected
 }
 
@@ -709,8 +703,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const proposedAction = {
@@ -721,7 +713,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
     await managementModels.Action.create(failedAction, {
@@ -764,8 +755,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const proposedAction = {
@@ -776,7 +765,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
     await managementModels.Action.create(successfulAction, {
@@ -817,8 +805,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const queuedAllocateAction = {
@@ -830,7 +816,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
     await managementModels.Action.create(queuedUnallocateAction, {

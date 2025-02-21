@@ -295,7 +295,7 @@ export class ActionManager {
           const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
           approvedActions = (
             await this.models.Action.findAll({
-              where: { status: ActionStatus.APPROVED, protocolNetwork },
+              where: { status: ActionStatus.APPROVED },
               order: [['priority', 'ASC']],
               transaction,
               lock: transaction.LOCK.UPDATE,
@@ -305,7 +305,7 @@ export class ActionManager {
           })
 
           const pendingActions = await this.models.Action.findAll({
-            where: { status: ActionStatus.PENDING, protocolNetwork },
+            where: { status: ActionStatus.PENDING },
             order: [['priority', 'ASC']],
             transaction,
           })

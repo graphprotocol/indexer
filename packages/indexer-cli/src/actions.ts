@@ -33,7 +33,6 @@ export async function buildActionInput(
   reason: string,
   status: ActionStatus,
   priority: number,
-  protocolNetwork: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
   switch (type) {
@@ -46,7 +45,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -63,7 +61,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     }
     case ActionType.REALLOCATE: {
@@ -82,7 +79,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     }
   }
@@ -187,7 +183,6 @@ export async function queueActions(
             reason
             priority
             status
-            protocolNetwork
           }
         }
       `,

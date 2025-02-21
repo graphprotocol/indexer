@@ -4,7 +4,6 @@ import { Logger } from '@graphprotocol/common-ts'
 import { WhereOperators, WhereOptions } from 'sequelize'
 import { Op } from 'sequelize'
 import { WhereAttributeHashValue } from 'sequelize/types/model'
-import { validateNetworkIdentifier } from './parsers'
 
 export interface ActionParamsInput {
   deploymentID?: string
@@ -45,7 +44,6 @@ export interface ActionInput {
   reason: string
   status: ActionStatus
   priority: number | undefined
-  protocolNetwork: string
 }
 
 export const isValidActionInput = (
@@ -87,18 +85,6 @@ export const validateActionInputs = async (
   // Validate actions before adding to queue
   // TODO: Perform all checks simultaneously and throw combined error if 1 or more fail
   for (const action of actions) {
-    // Must have a valid protocol network identifier
-    if (!action.protocolNetwork) {
-      throw Error("Cannot set an action without the field 'protocolNetwork'")
-    }
-
-    try {
-      // Set the parsed network identifier back in the action input object
-      action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-    } catch (e) {
-      throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-    }
-
     // Must have the required params for the action type
     if (!isValidActionInput(action)) {
       throw new Error(
@@ -191,7 +177,6 @@ export interface ActionResult {
   priority: number | undefined
   failureReason: string | null
   transaction: string | null
-  protocolNetwork: string
 }
 
 export enum ActionType {

@@ -191,7 +191,7 @@ export class AllocationManager {
               error instanceof IndexerError
                 ? error.code
                 : `Failed to confirm transactions: ${error.message}`,
-            protocolNetwork: action.protocolNetwork,
+            protocolNetwork: this.network.specification.networkIdentifier,
           }
         }
       },
@@ -203,15 +203,6 @@ export class AllocationManager {
     receipt: ContractReceipt | 'paused' | 'unauthorized',
     action: Action,
   ): Promise<AllocationResult> {
-    // Ensure we are handling an action for the same configured network
-    if (action.protocolNetwork !== this.network.specification.networkIdentifier) {
-      const errorMessage = `AllocationManager is configured for '${this.network.specification.networkIdentifier}' but got an Action targeting '${action.protocolNetwork}' `
-      this.logger.crit(errorMessage, {
-        action,
-      })
-      throw new Error(errorMessage)
-    }
-
     switch (action.type) {
       case ActionType.ALLOCATE:
         return await this.confirmAllocate(
@@ -314,7 +305,7 @@ export class AllocationManager {
           error instanceof IndexerError
             ? error.code
             : `Failed to prepare tx call data: ${error.message}`,
-        protocolNetwork: action.protocolNetwork,
+        protocolNetwork: this.network.specification.networkIdentifier,
       }
     }
   }
@@ -1016,11 +1007,7 @@ export class AllocationManager {
     logger: Logger,
     subgraphDeploymentID: SubgraphDeploymentID,
   ): Promise<boolean> {
-    const indexingRules = await fetchIndexingRules(
-      this.models,
-      true,
-      this.network.specification.networkIdentifier,
-    )
+    const indexingRules = await fetchIndexingRules(this.models)
     const subgraphDeployment = await this.network.networkMonitor.subgraphDeployment(
       subgraphDeploymentID.ipfsHash,
     )

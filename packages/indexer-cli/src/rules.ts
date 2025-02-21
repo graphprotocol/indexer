@@ -6,7 +6,6 @@ import {
   IndexerManagementClient,
   IndexingRuleAttributes,
   IndexingDecisionBasis,
-  IndexingRuleIdentifier,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
@@ -243,14 +242,12 @@ export const displayRules = (
 
 export const indexingRules = async (
   client: IndexerManagementClient,
-  merged: boolean,
-  protocolNetwork?: string,
 ): Promise<Partial<IndexingRuleAttributes>[]> => {
   const result = await client
     .query(
       gql`
-        query indexingRules($merged: Boolean!, $protocolNetwork: String) {
-          indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
+        query indexingRules {
+          indexingRules {
             identifier
             protocolNetwork
             identifierType
@@ -270,7 +267,7 @@ export const indexingRules = async (
           }
         }
       `,
-      { merged: !!merged, protocolNetwork },
+      {},
     )
     .toPromise()
 
@@ -283,14 +280,13 @@ export const indexingRules = async (
 
 export const indexingRule = async (
   client: IndexerManagementClient,
-  identifier: IndexingRuleIdentifier,
-  merged: boolean,
+  identifier: string,
 ): Promise<Partial<IndexingRuleAttributes> | null> => {
   const result = await client
     .query(
       gql`
-        query indexingRule($identifier: IndexingRuleIdentifier!, $merged: Boolean!) {
-          indexingRule(identifier: $identifier, merged: $merged) {
+        query indexingRule($identifier: String!) {
+          indexingRule(identifier: $identifier) {
             identifier
             identifierType
             allocationAmount
@@ -310,7 +306,7 @@ export const indexingRule = async (
           }
         }
       `,
-      { identifier, merged },
+      { identifier },
     )
     .toPromise()
 
@@ -366,16 +362,16 @@ export const setIndexingRule = async (
 
 export const deleteIndexingRules = async (
   client: IndexerManagementClient,
-  deployments: IndexingRuleIdentifier[],
+  identifiers: string[],
 ): Promise<void> => {
   const result = await client
     .mutation(
       gql`
-        mutation deleteIndexingRules($deployments: [IndexingRuleIdentifier!]!) {
+        mutation deleteIndexingRules($deployments: [String!]!) {
           deleteIndexingRules(identifiers: $deployments)
         }
       `,
-      { deployments },
+      { deployments: identifiers.map(identifier => identifier.toString()) },
     )
     .toPromise()
 

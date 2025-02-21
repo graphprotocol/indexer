@@ -50,19 +50,19 @@ const SET_INDEXING_RULE_MUTATION = gql`
 `
 
 const DELETE_INDEXING_RULE_MUTATION = gql`
-  mutation deleteIndexingRule($identifier: IndexingRuleIdentifier!) {
+  mutation deleteIndexingRule($identifier: String!) {
     deleteIndexingRule(identifier: $identifier)
   }
 `
 
 const DELETE_INDEXING_RULES_MUTATION = gql`
-  mutation deleteIndexingRules($identifiers: [IndexingRuleIdentifier!]!) {
+  mutation deleteIndexingRules($identifiers: [String!]!) {
     deleteIndexingRules(identifiers: $identifiers)
   }
 `
 
 const INDEXING_RULE_QUERY = gql`
-  query indexingRule($identifier: IndexingRuleIdentifier!, $merged: Boolean!) {
+  query indexingRule($identifier: String!, $merged: Boolean!) {
     indexingRule(identifier: $identifier, merged: $merged) {
       identifier
       identifierType

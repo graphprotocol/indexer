@@ -110,7 +110,6 @@ export const invalidUnallocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
-  protocolNetwork: 'arbitrum-sepolia',
 } as ActionInput
 
 export const invalidReallocateAction = {
@@ -124,5 +123,4 @@ export const invalidReallocateAction = {
   source: 'indexerAgent',
   reason: 'indexingRule',
   priority: 0,
-  protocolNetwork: 'arbitrum-sepolia',
 } as ActionInput

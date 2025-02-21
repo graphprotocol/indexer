@@ -3,7 +3,6 @@
 import {
   IndexerManagementModels,
   INDEXING_RULE_GLOBAL,
-  IndexingRuleIdentifier,
   IndexingRuleCreationAttributes,
 } from '../models'
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
@@ -11,10 +10,9 @@ import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules } from '../rules'
 import { processIdentifier } from '../../'
 import { validateNetworkIdentifier } from '../../parsers'
-import groupBy from 'lodash.groupby'
 
 const resetGlobalRule = async (
-  ruleIdentifier: IndexingRuleIdentifier,
+  ruleIdentifier: string,
   defaults: IndexerManagementDefaults['globalIndexingRule'],
   models: IndexerManagementModels,
   transaction: Transaction,
@@ -22,7 +20,7 @@ const resetGlobalRule = async (
   await models.IndexingRule.upsert(
     {
       ...defaults,
-      ...ruleIdentifier,
+      identifier: ruleIdentifier,
       allocationAmount: defaults.allocationAmount.toString(),
     },
     { transaction },
@@ -34,21 +32,16 @@ export default {
     {
       identifier: indexingRuleIdentifier,
       merged,
-    }: { identifier: IndexingRuleIdentifier; merged: boolean },
+    }: { identifier: string; merged: boolean },
     { models }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
+    const [identifier] = await processIdentifier(indexingRuleIdentifier, {
       all: false,
       global: true,
     })
 
-    // Sanitize protocol network identifier
-    const protocolNetwork = validateNetworkIdentifier(
-      indexingRuleIdentifier.protocolNetwork,
-    )
-
     const rule = await models.IndexingRule.findOne({
-      where: { identifier, protocolNetwork },
+      where: { identifier },
     })
     if (rule && merged) {
       return rule.mergeToGraphQL(
@@ -62,17 +55,10 @@ export default {
   },
 
   indexingRules: async (
-    {
-      merged,
-      protocolNetwork: uncheckedProtocolNetwork,
-    }: { merged: boolean; protocolNetwork: string | undefined },
+    _: {},
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    // Convert the input `protocolNetwork` value to a CAIP2-ID
-    const protocolNetwork = uncheckedProtocolNetwork
-      ? validateNetworkIdentifier(uncheckedProtocolNetwork)
-      : undefined
-    return await fetchIndexingRules(models, merged, protocolNetwork)
+    return await fetchIndexingRules(models)
   },
 
   setIndexingRule: async (
@@ -99,41 +85,30 @@ export default {
     })
     rule.identifier = identifier
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const [updatedRule, _created] = await models.IndexingRule.upsert(rule)
+    const [updatedRule] = await models.IndexingRule.upsert(rule)
     return updatedRule.toGraphQL()
   },
 
   deleteIndexingRule: async (
-    { identifier: indexingRuleIdentifier }: { identifier: IndexingRuleIdentifier },
+    { identifier: indexingRuleIdentifier }: { identifier: string },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
-    const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
+    const [identifier] = await processIdentifier(indexingRuleIdentifier, {
       all: false,
       global: true,
     })
 
-    // Sanitize protocol network identifier
-    const protocolNetwork = validateNetworkIdentifier(
-      indexingRuleIdentifier.protocolNetwork,
-    )
+    const whereClause = { identifier }
 
-    const validatedRuleIdentifier = {
-      protocolNetwork,
-      identifier,
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
       const numDeleted = await models.IndexingRule.destroy({
-        where: validatedRuleIdentifier,
+        where: whereClause,
         transaction,
       })
 
-      // Reset the global rule
-      if (validatedRuleIdentifier.identifier === 'global') {
+      if (whereClause.identifier === 'global') {
         await resetGlobalRule(
-          validatedRuleIdentifier,
+          whereClause.identifier,
           defaults.globalIndexingRule,
           models,
           transaction,
@@ -145,53 +120,29 @@ export default {
   },
 
   deleteIndexingRules: async (
-    { identifiers: indexingRuleIdentifiers }: { identifiers: IndexingRuleIdentifier[] },
+    { identifiers: indexingRuleIdentifiers }: { identifiers: string[] },
     { models, defaults }: IndexerManagementResolverContext,
   ): Promise<boolean> => {
-    let totalNumDeleted = 0
-
-    // Sanitize protocol network identifiers
-    for (const identifier of indexingRuleIdentifiers) {
-      identifier.protocolNetwork = validateNetworkIdentifier(identifier.protocolNetwork)
-    }
-
-    // Batch deletions by the `IndexingRuleIdentifier.protocolNetwork` attribute .
-    const batches = groupBy(
-      indexingRuleIdentifiers,
-      (x: IndexingRuleIdentifier) => x.protocolNetwork,
+    const identifiers = await Promise.all(
+      indexingRuleIdentifiers.map(
+        async (identifier: string) =>
+          (await processIdentifier(identifier, { all: false, global: true }))[0],
+      ),
     )
 
-    for (const protocolNetwork in batches) {
-      const batch = batches[protocolNetwork]
-      const identifiers = await Promise.all(
-        batch.map(
-          async ({ identifier }: IndexingRuleIdentifier) =>
-            (await processIdentifier(identifier, { all: false, global: true }))[0],
-        ),
-      )
-      // Execute deletion batch
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await models.IndexingRule.sequelize!.transaction(async (transaction) => {
-        const numDeleted = await models.IndexingRule.destroy({
-          where: {
-            identifier: identifiers,
-            protocolNetwork: protocolNetwork,
-          },
-          transaction,
-        })
-
-        if (identifiers.includes('global')) {
-          const globalIdentifier = { identifier: 'global', protocolNetwork }
-          await resetGlobalRule(
-            globalIdentifier,
-            defaults.globalIndexingRule,
-            models,
-            transaction,
-          )
-        }
-        totalNumDeleted += numDeleted
+    return await models.IndexingRule.sequelize!.transaction(async (transaction) => {
+      const numDeleted = await models.IndexingRule.destroy({
+        where: {
+          identifier: identifiers,
+        },
+        transaction,
       })
-    }
-    return totalNumDeleted > 0
+
+      if (identifiers.includes('global')) {
+        await resetGlobalRule('global', defaults.globalIndexingRule, models, transaction)
+      }
+
+      return numDeleted > 0
+    })
   },
 }

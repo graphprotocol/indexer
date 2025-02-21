@@ -13,7 +13,6 @@ import {
   IndexerManagementModels,
   OrderDirection,
   validateActionInputs,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
@@ -48,9 +47,7 @@ async function executeQueueOperation(
 
   // Check for duplicated actions
   const duplicateActions = actionsAwaitingExecution.filter(
-    (a) =>
-      a.deploymentID === action.deploymentID &&
-      a.protocolNetwork === action.protocolNetwork,
+    (a) => a.deploymentID === action.deploymentID,
   )
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
@@ -157,15 +154,6 @@ export default {
     if (!actionManager || !network) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
-
-    // Sanitize protocol network identifier
-    actions.forEach((action) => {
-      try {
-        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
-    })
 
     // Let Network Monitors validate actions based on their protocol networks
     await validateActionInputs(actions, network.networkMonitor, logger)
@@ -372,11 +360,6 @@ export default {
 
 // Helper function to assess equality among a enqueued and a proposed actions
 function compareActions(enqueued: Action, proposed: ActionInput): boolean {
-  // actions are not the same if they target different protocol networks
-  if (enqueued.protocolNetwork !== proposed.protocolNetwork) {
-    return false
-  }
-
   // actions are not the same if they target different deployments
   if (enqueued.deploymentID !== proposed.deploymentID) {
     return false

@@ -147,7 +147,7 @@ export class Operator {
       const globalRule = await this.indexerManagement
         .query(
           gql`
-            query indexingRule($identifier: IndexingRuleIdentifier!) {
+            query indexingRule($identifier: String!) {
               indexingRule(identifier: $identifier, merged: false) {
                 identifier
                 identifierType

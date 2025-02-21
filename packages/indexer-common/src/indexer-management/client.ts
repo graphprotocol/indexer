@@ -282,11 +282,6 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
-  input IndexingRuleIdentifier {
-    identifier: String!
-    protocolNetwork: String!
-  }
-
   type GeoLocation {
     latitude: String!
     longitude: String!
@@ -367,10 +362,7 @@ const SCHEMA_SDL = gql`
   }
 
   type Query {
-    indexingRule(
-      identifier: IndexingRuleIdentifier!
-      merged: Boolean! = false
-    ): IndexingRule
+    indexingRule(identifier: String!, merged: Boolean! = false): IndexingRule
     indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
     indexerRegistration(protocolNetwork: String!): IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
@@ -401,8 +393,8 @@ const SCHEMA_SDL = gql`
 
   type Mutation {
     setIndexingRule(rule: IndexingRuleInput!): IndexingRule!
-    deleteIndexingRule(identifier: IndexingRuleIdentifier!): Boolean!
-    deleteIndexingRules(identifiers: [IndexingRuleIdentifier!]!): Boolean!
+    deleteIndexingRule(identifier: String!): Boolean!
+    deleteIndexingRules(identifiers: [String!]!): Boolean!
 
     setCostModel(costModel: CostModelInput!): CostModel!
     deleteCostModels(deployments: [String!]!): Int!
