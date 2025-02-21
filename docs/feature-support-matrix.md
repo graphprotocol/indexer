@@ -15,7 +15,6 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:1                   | mainnet       | Yes         | No           | Yes               | Yes                  | Yes              |
 | eip155:100                 | gnosis        | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | near:\*                    | \*            | Yes         | Yes          | No                | No                   | No               |
-| cosmos:\*                  | \*            | Yes         | Yes          | No                | No                   | No               |
 | arweave:\*                 | \*            | Yes         | Yes          | No                | No                   | No               |
 | eip155:42161               | artbitrum-one | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:42220               | celo          | Yes         | Yes          | Yes               | Yes                  | Yes              |
@@ -34,6 +33,7 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:7777777             | zora          | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:34443               | mode          | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:1284                | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:30                  | rootstock     | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |               |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |               | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |
