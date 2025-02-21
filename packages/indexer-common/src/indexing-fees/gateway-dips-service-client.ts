@@ -43,83 +43,85 @@ export const collectPaymentsTypes = {
   ],
 }
 
-export const createSignedCancellationRequest = async (
-  agreementId: string,
-  wallet: Wallet,
-): Promise<Uint8Array> => {
-  const signature = await wallet._signTypedData(
-    cancelAgreementDomain,
-    cancelAgreementTypes,
-    { agreement_id: agreementId },
-  )
-  return arrayify(
-    defaultAbiCoder.encode(['tuple(bytes16)', 'bytes'], [[agreementId], signature]),
-  )
-}
+export class GatewayDipsServiceMessages {
+  static createSignedCancellationRequest = async (
+    agreementId: string,
+    wallet: Wallet,
+  ): Promise<Uint8Array> => {
+    const signature = await wallet._signTypedData(
+      cancelAgreementDomain,
+      cancelAgreementTypes,
+      { agreement_id: agreementId },
+    )
+    return arrayify(
+      defaultAbiCoder.encode(['tuple(bytes16)', 'bytes'], [[agreementId], signature]),
+    )
+  }
 
-export const createSignedCollectionRequest = async (
-  agreementId: string,
-  allocationId: string,
-  entityCount: number,
-  wallet: Wallet,
-): Promise<Uint8Array> => {
-  const signature = await wallet._signTypedData(
-    collectPaymentsDomain,
-    collectPaymentsTypes,
-    {
-      agreement_id: agreementId,
+  static createSignedCollectionRequest = async (
+    agreementId: string,
+    allocationId: string,
+    entityCount: number,
+    wallet: Wallet,
+  ): Promise<Uint8Array> => {
+    const signature = await wallet._signTypedData(
+      collectPaymentsDomain,
+      collectPaymentsTypes,
+      {
+        agreement_id: agreementId,
+        allocation_id: toAddress(allocationId),
+        entity_count: entityCount,
+      },
+    )
+    return arrayify(
+      defaultAbiCoder.encode(
+        ['tuple(bytes16, address, uint64)', 'bytes'],
+        [[agreementId, toAddress(allocationId), entityCount], signature],
+      ),
+    )
+  }
+
+  static decodeTapReceipt = (receipt: Uint8Array, verifyingContract: string) => {
+    const [message, signature] = defaultAbiCoder.decode(
+      ['tuple(address,uint64,uint64,uint128)', 'bytes'],
+      receipt,
+    )
+
+    const [allocationId, timestampNs, nonce, value] = message
+
+    // Recover the signer address from the signature
+    // compute the EIP-712 digest of the message
+    const domain = {
+      name: 'TAP',
+      version: '1',
+      chainId: chainId,
+      verifyingContract,
+    }
+
+    const types = {
+      Receipt: [
+        { name: 'allocation_id', type: 'address' },
+        { name: 'timestamp_ns', type: 'uint64' },
+        { name: 'nonce', type: 'uint64' },
+        { name: 'value', type: 'uint128' },
+      ],
+    }
+
+    const digest = _TypedDataEncoder.hash(domain, types, {
+      allocation_id: allocationId,
+      timestamp_ns: timestampNs,
+      nonce: nonce,
+      value: value,
+    })
+    const signerAddress = recoverAddress(digest, signature)
+    return {
       allocation_id: toAddress(allocationId),
-      entity_count: entityCount,
-    },
-  )
-  return arrayify(
-    defaultAbiCoder.encode(
-      ['tuple(bytes16, address, uint64)', 'bytes'],
-      [[agreementId, toAddress(allocationId), entityCount], signature],
-    ),
-  )
-}
-
-export const decodeTapReceipt = (receipt: Uint8Array, verifyingContract: string) => {
-  const [message, signature] = defaultAbiCoder.decode(
-    ['tuple(address,uint64,uint64,uint128)', 'bytes'],
-    receipt,
-  )
-
-  const [allocationId, timestampNs, nonce, value] = message
-
-  // Recover the signer address from the signature
-  // compute the EIP-712 digest of the message
-  const domain = {
-    name: 'TAP',
-    version: '1',
-    chainId: chainId,
-    verifyingContract,
-  }
-
-  const types = {
-    Receipt: [
-      { name: 'allocation_id', type: 'address' },
-      { name: 'timestamp_ns', type: 'uint64' },
-      { name: 'nonce', type: 'uint64' },
-      { name: 'value', type: 'uint128' },
-    ],
-  }
-
-  const digest = _TypedDataEncoder.hash(domain, types, {
-    allocation_id: allocationId,
-    timestamp_ns: timestampNs,
-    nonce: nonce,
-    value: value,
-  })
-  const signerAddress = recoverAddress(digest, signature)
-  return {
-    allocation_id: toAddress(allocationId),
-    signer_address: toAddress(signerAddress),
-    signature: signature,
-    timestamp_ns: timestampNs,
-    nonce: nonce,
-    value: value,
+      signer_address: toAddress(signerAddress),
+      signature: signature,
+      timestamp_ns: timestampNs,
+      nonce: nonce,
+      value: value,
+    }
   }
 }
 

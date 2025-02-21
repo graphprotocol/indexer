@@ -1,4 +1,3 @@
-jest.mock('../gateway-dips-service-client')
 jest.mock('../../allocations/escrow-accounts')
 import {
   DipsManager,
@@ -30,8 +29,8 @@ import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { BigNumber } from 'ethers'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
-import { decodeTapReceipt } from '../gateway-dips-service-client'
 import { getEscrowSenderForSigner } from '../../allocations/escrow-accounts'
+import { GatewayDipsServiceMessages } from '../gateway-dips-service-client'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -110,23 +109,6 @@ const setup = async () => {
 
 const setupEach = async () => {
   sequelize = await sequelize.sync({ force: true })
-  const indexerManagementClient = await createIndexerManagementClient({
-    models: managementModels,
-    graphNode,
-    logger,
-    defaults: {
-      globalIndexingRule: {
-        allocationAmount: parseGRT('1000'),
-        parallelAllocations: 1,
-      },
-    },
-    network,
-  })
-
-  const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
-  await operator.ensureGlobalIndexingRule()
-  logger.debug('Ensured global indexing rule')
-  logger.debug(JSON.stringify(network.specification, null, 2))
 }
 
 const teardownEach = async () => {
@@ -459,6 +441,23 @@ describe('DipsCollector', () => {
       graphNode.entityCount = jest.fn().mockResolvedValue([250000])
     })
     test('collects payment for a specific agreement', async () => {
+      const indexerManagementClient = await createIndexerManagementClient({
+        models: managementModels,
+        graphNode,
+        logger,
+        defaults: {
+          globalIndexingRule: {
+            allocationAmount: parseGRT('1000'),
+            parallelAllocations: 1,
+          },
+        },
+        network,
+      })
+
+      const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+      await operator.ensureGlobalIndexingRule()
+      logger.debug('Ensured global indexing rule')
+
       const agreement = await managementModels.IndexingAgreement.findOne({
         where: { id: testAgreementId },
       })
@@ -473,7 +472,7 @@ describe('DipsCollector', () => {
         status: CollectPaymentStatus.ACCEPT,
         tapReceipt: Buffer.from('1234', 'hex'),
       })
-      ;(decodeTapReceipt as jest.Mock).mockImplementation(() => {
+      GatewayDipsServiceMessages.decodeTapReceipt = jest.fn().mockImplementation(() => {
         logger.info('MOCK Decoding TAP receipt')
         return {
           allocation_id: toAddress(testAllocationId),

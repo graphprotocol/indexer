@@ -23,9 +23,7 @@ import { Op } from 'sequelize'
 
 import {
   createGatewayDipsServiceClient,
-  createSignedCancellationRequest,
-  createSignedCollectionRequest,
-  decodeTapReceipt,
+  GatewayDipsServiceMessages,
 } from './gateway-dips-service-client'
 import {
   CollectPaymentStatus,
@@ -72,10 +70,11 @@ export class DipsManager {
     })
     if (agreement) {
       try {
-        const cancellation = await createSignedCancellationRequest(
-          uuidToHex(agreement.id),
-          this.network.wallet,
-        )
+        const cancellation =
+          await GatewayDipsServiceMessages.createSignedCancellationRequest(
+            uuidToHex(agreement.id),
+            this.network.wallet,
+          )
         await this.gatewayDipsServiceClient.CancelAgreement({
           version: 1,
           signedCancellation: cancellation,
@@ -250,7 +249,7 @@ export class DipsCollector {
       return
     }
     const entityCount = entityCounts[0]
-    const collection = await createSignedCollectionRequest(
+    const collection = await GatewayDipsServiceMessages.createSignedCollectionRequest(
       uuidToHex(agreement.id),
       agreement.last_allocation_id,
       entityCount,
@@ -268,7 +267,7 @@ export class DipsCollector {
         }
         // Store the tap receipt in the database
         this.logger.info(`Decoding TAP receipt for agreement`)
-        const tapReceipt = decodeTapReceipt(
+        const tapReceipt = GatewayDipsServiceMessages.decodeTapReceipt(
           response.tapReceipt,
           this.tapCollector?.tapContracts.tapVerifier.address,
         )
