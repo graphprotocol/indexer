@@ -239,6 +239,10 @@ async function buildCaip2MappingsFromRegistry() {
     }
     for (const alias of network.aliases) {
       caip2ByChainAlias[alias] = network.caip2Id
+      if (alias.endsWith('-mainnet')) {
+        const aliasWithoutSuffix = alias.replace('-mainnet', '')
+        caip2ByChainAlias[aliasWithoutSuffix] = network.caip2Id
+      }
     }
     const chainId = parseInt(network.caip2Id.split(':')[1])
     if (
