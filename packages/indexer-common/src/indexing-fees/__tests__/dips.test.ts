@@ -145,8 +145,8 @@ describe('DipsManager', () => {
 
   describe('agreement management', () => {
     let dipsManager: DipsManager
-    const testDeploymentId = 'QmTest'
-    const testAllocationId = '0x1234'
+    const testDeploymentId = 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7'
+    const testAllocationId = 'abcd47df40c29949a75a6693c77834c00b8ad626'
     const testAgreementId = '123e4567-e89b-12d3-a456-426614174000'
 
     beforeEach(async () => {
@@ -165,15 +165,15 @@ describe('DipsManager', () => {
         cancelled_at: null,
         min_epochs_per_collection: BigInt(1),
         max_epochs_per_collection: BigInt(5),
-        payer: '0xabcd',
+        payer: '123456df40c29949a75a6693c77834c00b8a5678',
         signature: Buffer.from('1234', 'hex'),
         signed_payload: Buffer.from('5678', 'hex'),
         protocol_network: 'arbitrum-one',
         chain_id: 'eip155:1',
         base_price_per_epoch: '100',
         price_per_entity: '1',
-        service: '0xdeadbeef',
-        payee: '0xdef0',
+        service: 'deadbedf40c29949a75a2293c11834c00b8a1234',
+        payee: '1212564f40c29949a75a3423c11834c00b8aaaaa',
         deadline: new Date(Date.now() + 86400000), // 1 day from now
         duration_epochs: BigInt(10),
         max_initial_amount: '1000',
@@ -218,7 +218,7 @@ describe('DipsManager', () => {
     })
 
     test('updates agreement allocation IDs during reallocation', async () => {
-      const newAllocationId = '0x5678'
+      const newAllocationId = '5678bedf40c29945678a2293c15678c00b8a5678'
 
       await dipsManager.tryUpdateAgreementAllocation(
         testDeploymentId,
