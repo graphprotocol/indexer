@@ -35,8 +35,6 @@ let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let network: Network
 
-
-
 const setup = async () => {
   logger = createLogger({
     name: 'Indexer API Client',
@@ -215,7 +213,9 @@ describe('DipsManager', () => {
 
     test('handles errors when cancelling agreement', async () => {
       const client = dipsManager.gatewayDipsServiceClient
-      client.CancelAgreement = jest.fn().mockRejectedValueOnce(new Error('Failed to cancel'))
+      client.CancelAgreement = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Failed to cancel'))
 
       await dipsManager.tryCancelAgreement(testAllocationId)
 
