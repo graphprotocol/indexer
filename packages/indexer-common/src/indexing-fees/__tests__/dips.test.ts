@@ -20,6 +20,7 @@ import {
 } from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
+import { BigNumber } from 'ethers'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -243,6 +244,18 @@ describe('DipsManager', () => {
     })
 
     test('creates indexing rules for active agreements', async () => {
+
+      // Mock fetch the subgraph deployment from the network subgraph
+      network.networkMonitor.subgraphDeployment = jest.fn().mockResolvedValue({
+        id: testDeploymentId,
+        ipfsHash: testDeploymentId,
+        deniedAt: null,
+        stakedTokens: BigNumber.from('1000'),
+        signalledTokens: BigNumber.from('1000'),
+        queryFeesAmount: BigNumber.from('0'),
+        protocolNetwork: 'arbitrum-one',
+      })
+
       await dipsManager.ensureAgreementRules()
 
       const rules = await managementModels.IndexingRule.findAll({
