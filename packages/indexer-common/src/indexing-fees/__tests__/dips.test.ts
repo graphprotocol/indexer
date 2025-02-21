@@ -104,6 +104,10 @@ const setup = async () => {
     metrics,
   )
   dipsCollector = network.dipsCollector!
+}
+
+const setupEach = async () => {
+  sequelize = await sequelize.sync({ force: true })
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     graphNode,
@@ -121,10 +125,6 @@ const setup = async () => {
   await operator.ensureGlobalIndexingRule()
   logger.debug('Ensured global indexing rule')
   logger.debug(JSON.stringify(network.specification, null, 2))
-}
-
-const setupEach = async () => {
-  sequelize = await sequelize.sync({ force: true })
 }
 
 const teardownEach = async () => {
@@ -471,6 +471,7 @@ describe('DipsCollector', () => {
         tapReceipt: Buffer.from('1234', 'hex'),
       })
       ;(decodeTapReceipt as jest.Mock).mockImplementation(() => {
+        logger.info('MOCK Decoding TAP receipt')
         return {
           allocation_id: toAddress(testAllocationId),
           signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),

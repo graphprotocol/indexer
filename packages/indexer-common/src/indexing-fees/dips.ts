@@ -257,7 +257,7 @@ export class DipsCollector {
       this.wallet,
     )
     try {
-      this.logger.debug(`Collecting payment for agreement ${agreement.id}`)
+      this.logger.info(`Collecting payment for agreement ${agreement.id}`)
       const response = await this.gatewayDipsServiceClient.CollectPayment({
         version: 1,
         signedCollection: collection,
@@ -267,7 +267,7 @@ export class DipsCollector {
           throw new Error('TapCollector not initialized')
         }
         // Store the tap receipt in the database
-        this.logger.debug(`Decoding TAP receipt for agreement`)
+        this.logger.info(`Decoding TAP receipt for agreement`)
         const tapReceipt = decodeTapReceipt(
           response.tapReceipt,
           this.tapCollector?.tapContracts.tapVerifier.address,
