@@ -205,11 +205,6 @@ const SCHEMA_SDL = gql`
     reason: String
   }
 
-  input POIDisputeIdentifier {
-    allocationID: String!
-    protocolNetwork: String!
-  }
-
   type POIDispute {
     allocationID: String!
     subgraphDeploymentID: String!
@@ -224,7 +219,6 @@ const SCHEMA_SDL = gql`
     previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String
     status: String!
-    protocolNetwork: String!
   }
 
   input POIDisputeInput {
@@ -241,7 +235,6 @@ const SCHEMA_SDL = gql`
     previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String
     status: String!
-    protocolNetwork: String!
   }
 
   type IndexingRule {
@@ -260,7 +253,6 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis!
     requireSupported: Boolean!
     safety: Boolean!
-    protocolNetwork: String!
   }
 
   input IndexingRuleInput {
@@ -279,7 +271,6 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis
     requireSupported: Boolean
     safety: Boolean
-    protocolNetwork: String!
   }
 
   type GeoLocation {
@@ -372,7 +363,7 @@ const SCHEMA_SDL = gql`
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
 
-    dispute(identifier: POIDisputeIdentifier!): POIDispute
+    dispute(identifier: String!): POIDispute
     disputes(
       status: String!
       minClosedEpoch: Int!
@@ -400,7 +391,7 @@ const SCHEMA_SDL = gql`
     deleteCostModels(deployments: [String!]!): Int!
 
     storeDisputes(disputes: [POIDisputeInput!]!): [POIDispute!]
-    deleteDisputes(identifiers: [POIDisputeIdentifier!]!): Int!
+    deleteDisputes(identifiers: [String!]!): Int!
 
     createAllocation(
       deployment: String!

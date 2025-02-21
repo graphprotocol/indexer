@@ -2,7 +2,6 @@
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
 import { utils } from 'ethers'
-import { caip2IdRegex } from '../../parsers'
 
 export interface POIDisputeAttributes {
   allocationID: string
@@ -18,14 +17,6 @@ export interface POIDisputeAttributes {
   previousEpochStartBlockHash: string
   previousEpochStartBlockNumber: number
   status: string
-  protocolNetwork: string
-}
-
-// Unambiguously identify a POI Dispute in the Database.
-// This type should match the POIDispute primary key columns.
-export interface POIDisputeIdentifier {
-  allocationID: string
-  protocolNetwork: string
 }
 
 export interface POIDisputeCreationAttributes
@@ -44,7 +35,6 @@ export interface POIDisputeCreationAttributes
     | 'previousEpochStartBlockHash'
     | 'previousEpochStartBlockNumber'
     | 'status'
-    | 'protocolNetwork'
   > {}
 
 export class POIDispute
@@ -254,14 +244,6 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
       status: {
         type: DataTypes.STRING,
         allowNull: false,
-      },
-      protocolNetwork: {
-        type: DataTypes.STRING,
-        primaryKey: true,
-        allowNull: false,
-        validate: {
-          is: caip2IdRegex,
-        },
       },
     },
     {

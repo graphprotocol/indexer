@@ -40,7 +40,6 @@ const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockNumber: (x) => +x,
   previousEpochReferenceProof: (x) => x,
   status: (x) => x,
-  protocolNetwork: (x) => x,
 }
 
 /**

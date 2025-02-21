@@ -3,7 +3,6 @@ import {
   POIDisputeAttributes,
   indexerError,
   IndexerErrorCode,
-  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import yaml from 'yaml'
@@ -25,7 +24,6 @@ const DISPUTE_FORMATTERS: Record<keyof POIDisputeAttributes, (x: never) => strin
   previousEpochStartBlockHash: x => x,
   previousEpochStartBlockNumber: x => x,
   status: x => x,
-  protocolNetwork: resolveChainAlias,
 }
 
 const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
@@ -45,7 +43,6 @@ const DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   previousEpochStartBlockHash: x => x,
   previousEpochStartBlockNumber: x => +x,
   status: x => x,
-  protocolNetwork: x => x,
 }
 
 /**
