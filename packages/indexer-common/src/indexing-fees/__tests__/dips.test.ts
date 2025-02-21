@@ -476,7 +476,7 @@ describe('DipsCollector', () => {
         status: CollectPaymentStatus.ACCEPT,
         tapReceipt: Buffer.from('1234', 'hex'),
       })
-      GatewayDipsServiceMessages.decodeTapReceipt = jest.fn().mockImplementation(() => {
+      jest.spyOn(GatewayDipsServiceMessages, 'decodeTapReceipt').mockImplementation(() => {
         logger.info('MOCK Decoding TAP receipt')
         return {
           allocation_id: toAddress(testAllocationId),
