@@ -15,6 +15,7 @@ import {
   TapCollector,
   createIndexerManagementClient,
   Operator,
+  ActionManager,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -73,6 +74,7 @@ jest.spyOn(TapCollector.prototype, 'startRAVProcessing').mockImplementation(() =
 const startCollectionLoop = jest
   .spyOn(DipsCollector.prototype, 'startCollectionLoop')
   .mockImplementation(() => {})
+jest.spyOn(ActionManager.prototype, 'monitorQueue').mockImplementation(async () => {})
 const setup = async () => {
   logger = createLogger({
     name: 'DIPs Test Logger',
@@ -134,6 +136,7 @@ const teardownEach = async () => {
   await queryFeeModels.transferReceipts.truncate({ cascade: true })
   await queryFeeModels.transfers.truncate({ cascade: true })
   await queryFeeModels.allocationSummaries.truncate({ cascade: true })
+  await queryFeeModels.scalarTapReceipts.truncate({ cascade: true })
 
   // Clear out indexer management models
   await managementModels.Action.truncate({ cascade: true })
