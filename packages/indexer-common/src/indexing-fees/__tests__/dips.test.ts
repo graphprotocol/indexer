@@ -73,7 +73,7 @@ const startCollectionLoop = jest
   .mockImplementation(() => {})
 const setup = async () => {
   logger = createLogger({
-    name: 'DIPs Manager Test Logger',
+    name: 'DIPs Test Logger',
     async: false,
     level: __LOG_LEVEL__ ?? 'error',
   })
@@ -305,7 +305,7 @@ describe('DipsManager', () => {
         allocationLifetime: 16,
         requireSupported: true,
         safety: true,
-        protocolNetwork: 'eip155:42161',
+        protocolNetwork: 'eip155:421614',
         allocationAmount: '1030',
       })
       // Mock fetch the subgraph deployment from the network subgraph
@@ -326,7 +326,7 @@ describe('DipsManager', () => {
         allocationLifetime: 16,
         requireSupported: true,
         safety: true,
-        protocolNetwork: 'eip155:42161',
+        protocolNetwork: 'eip155:421614',
         allocationAmount: '1030',
       })
     })
@@ -405,11 +405,14 @@ describe('DipsCollector', () => {
       jest.clearAllMocks()
 
       // Create a test agreement
+      // Note last_allocation_id is set to the testAllocationId
+      // current_allocation_id is set to null so that we can collect payment
+      // (also last_payment_collected_at is set to null)
       await managementModels.IndexingAgreement.create({
         id: testAgreementId,
         subgraph_deployment_id: testDeploymentId,
-        current_allocation_id: testAllocationId,
-        last_allocation_id: null,
+        current_allocation_id: null,
+        last_allocation_id: testAllocationId,
         last_payment_collected_at: null,
         cancelled_at: null,
         min_epochs_per_collection: BigInt(1),
