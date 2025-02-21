@@ -31,6 +31,10 @@ import { Wallet } from 'ethers'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
+const uuidToHex = (uuid: string) => {
+  return `0x${uuid.replace(/-/g, '')}`
+}
+
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
 
@@ -58,7 +62,7 @@ export class DipsManager {
     if (agreement) {
       try {
         const cancellation = await createSignedCancellationRequest(
-          agreement.id,
+          uuidToHex(agreement.id),
           this.network.wallet,
         )
         await this.gatewayDipsServiceClient.CancelAgreement({
@@ -236,7 +240,7 @@ export class DipsCollector {
     }
     const entityCount = entityCounts[0]
     const collection = await createSignedCollectionRequest(
-      agreement.id,
+      uuidToHex(agreement.id),
       agreement.last_allocation_id,
       entityCount,
       this.wallet,
