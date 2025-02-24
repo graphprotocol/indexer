@@ -15,6 +15,7 @@ import {
   createIndexerManagementClient,
   Operator,
   ActionManager,
+  IndexerManagementClient,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -23,6 +24,7 @@ import {
   Logger,
   Metrics,
   parseGRT,
+  SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
@@ -46,6 +48,8 @@ let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let network: Network
 let dipsCollector: DipsCollector
+let indexerManagementClient: IndexerManagementClient
+let operator: Operator
 const networkSpecWithDips = {
   ...testNetworkSpecification,
   indexerOptions: {
@@ -59,13 +63,13 @@ const networkSpecWithDips = {
 
 const mockSubgraphDeployment = (id: string) => {
   return {
-    id: id,
+    id: new SubgraphDeploymentID(id),
     ipfsHash: id,
     deniedAt: null,
     stakedTokens: BigNumber.from('1000'),
     signalledTokens: BigNumber.from('1000'),
     queryFeesAmount: BigNumber.from('0'),
-    protocolNetwork: 'eip155:42161',
+    protocolNetwork: 'eip155:421614',
   }
 }
 
@@ -105,10 +109,7 @@ const setup = async () => {
     metrics,
   )
   dipsCollector = network.dipsCollector!
-}
-
-const ensureGlobalIndexingRule = async () => {
-  const indexerManagementClient = await createIndexerManagementClient({
+  indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     graphNode,
     logger,
@@ -121,7 +122,10 @@ const ensureGlobalIndexingRule = async () => {
     network,
   })
 
-  const operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+  operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)
+}
+
+const ensureGlobalIndexingRule = async () => {
   await operator.ensureGlobalIndexingRule()
   logger.debug('Ensured global indexing rule')
 }
@@ -225,7 +229,7 @@ describe('DipsManager', () => {
         payer: '123456df40c29949a75a6693c77834c00b8a5678',
         signature: Buffer.from('1234', 'hex'),
         signed_payload: Buffer.from('5678', 'hex'),
-        protocol_network: 'arbitrum-one',
+        protocol_network: 'arbitrum-sepolia',
         chain_id: 'eip155:1',
         base_price_per_epoch: '100',
         price_per_entity: '1',
@@ -333,6 +337,7 @@ describe('DipsManager', () => {
         protocolNetwork: 'eip155:421614',
         allocationAmount: '1030',
       })
+
       // Mock fetch the subgraph deployment from the network subgraph
       network.networkMonitor.subgraphDeployment = jest
         .fn()
@@ -445,7 +450,7 @@ describe('DipsCollector', () => {
         payer: '123456df40c29949a75a6693c77834c00b8a5678',
         signature: Buffer.from('1234', 'hex'),
         signed_payload: Buffer.from('5678', 'hex'),
-        protocol_network: 'arbitrum-one',
+        protocol_network: 'arbitrum-sepolia',
         chain_id: 'eip155:1',
         base_price_per_epoch: '100',
         price_per_entity: '1',
@@ -476,17 +481,19 @@ describe('DipsCollector', () => {
         status: CollectPaymentStatus.ACCEPT,
         tapReceipt: Buffer.from('1234', 'hex'),
       })
-      jest.spyOn(GatewayDipsServiceMessages, 'decodeTapReceipt').mockImplementation(() => {
-        logger.info('MOCK Decoding TAP receipt')
-        return {
-          allocation_id: toAddress(testAllocationId),
-          signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
-          signature: Buffer.from('1234', 'hex'),
-          timestamp_ns: 1234567890,
-          nonce: 1,
-          value: '1000',
-        }
-      })
+      jest
+        .spyOn(GatewayDipsServiceMessages, 'decodeTapReceipt')
+        .mockImplementation(() => {
+          logger.info('MOCK Decoding TAP receipt')
+          return {
+            allocation_id: toAddress(testAllocationId),
+            signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
+            signature: Buffer.from('1234', 'hex'),
+            timestamp_ns: 1234567890,
+            nonce: 1,
+            value: '1000',
+          }
+        })
       ;(getEscrowSenderForSigner as jest.Mock).mockImplementation(() => {
         return toAddress('0x123456df40c29949a75a6693c77834c00b8a5678')
       })

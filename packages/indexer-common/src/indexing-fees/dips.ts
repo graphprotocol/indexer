@@ -133,7 +133,11 @@ export class DipsManager {
         }, deployment ${subgraphDeploymentID.toString()}`,
       )
       // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
-      if (!(await this.parent.matchingRuleExists(this.logger, subgraphDeploymentID))) {
+      const ruleExists = await this.parent.matchingRuleExists(
+        this.logger,
+        subgraphDeploymentID,
+      )
+      if (!ruleExists) {
         this.logger.info(
           `Creating indexing rule for agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
         )
