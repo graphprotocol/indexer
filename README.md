@@ -309,6 +309,41 @@ Creating a new release involves the following steps:
    yarn release <version>
    ```
 
+## Running tests locally
+
+To run the tests locally, you'll need:
+1. Docker installed and running
+2. Node.js and Yarn
+3. An Arbitrum Sepolia testnet RPC provider (e.g., Infura, Alchemy)
+4. An API key from The Graph Studio for querying subgraphs
+
+### Setup
+
+1. Create a `.env` file in the root directory with your credentials. You can copy the example file as a template:
+```sh
+cp .env.example .env
+```
+
+Then edit `.env` with your credentials:
+```plaintext
+# Your Arbitrum Sepolia testnet RPC endpoint
+INDEXER_TEST_JRPC_PROVIDER_URL=https://sepolia.infura.io/v3/your-project-id
+
+# Your API key from The Graph Studio (https://thegraph.com/studio/)
+INDEXER_TEST_API_KEY=your-graph-api-key-here
+```
+
+2. Run the tests:
+```sh
+bash scripts/run-tests.sh
+```
+
+The script will:
+- Start a PostgreSQL container with the required test configuration
+- Load your credentials from the `.env` file
+- Run the test suite
+- Clean up the PostgreSQL container when done
+
 # Copyright
 
 Copyright &copy; 2020-2021 The Graph Foundation
