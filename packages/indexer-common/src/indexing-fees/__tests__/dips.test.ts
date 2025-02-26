@@ -1,4 +1,3 @@
-jest.mock('../../allocations/escrow-accounts')
 import {
   DipsManager,
   GraphNode,
@@ -31,8 +30,6 @@ import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { BigNumber } from 'ethers'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
-import { getEscrowSenderForSigner } from '../../allocations/escrow-accounts'
-import { GatewayDipsServiceMessages } from '../gateway-dips-service-client'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -386,6 +383,7 @@ describe('DipsCollector', () => {
         network.tapCollector!,
         network.wallet,
         graphNode,
+        jest.fn(),
       )
       expect(dipsCollector).toBeDefined()
     })
@@ -398,6 +396,7 @@ describe('DipsCollector', () => {
         network.tapCollector!,
         network.wallet,
         graphNode,
+        jest.fn(),
       )
       expect(dipsCollector).toBeDefined()
       expect(startCollectionLoop).toHaveBeenCalled()
@@ -420,6 +419,7 @@ describe('DipsCollector', () => {
             network.tapCollector!,
             network.wallet,
             graphNode,
+            jest.fn(),
           ),
       ).toThrow('dipperEndpoint is not set')
     })
@@ -481,8 +481,8 @@ describe('DipsCollector', () => {
         status: CollectPaymentStatus.ACCEPT,
         tapReceipt: Buffer.from('1234', 'hex'),
       })
-      jest
-        .spyOn(GatewayDipsServiceMessages, 'decodeTapReceipt')
+      dipsCollector.gatewayDipsServiceMessagesCodec.decodeTapReceipt = jest
+        .fn()
         .mockImplementation(() => {
           logger.info('MOCK Decoding TAP receipt')
           return {
@@ -494,7 +494,8 @@ describe('DipsCollector', () => {
             value: '1000',
           }
         })
-      ;(getEscrowSenderForSigner as jest.Mock).mockImplementation(() => {
+      dipsCollector.escrowSenderGetter = jest.fn().mockImplementation(() => {
+        logger.info('MOCK Getting escrow sender for signer')
         return toAddress('0x123456df40c29949a75a6693c77834c00b8a5678')
       })
 
@@ -513,7 +514,7 @@ describe('DipsCollector', () => {
       })
       expect(receipt).not.toBeNull()
       expect(receipt?.signer_address).toBe(
-        toAddress('0x123456df40c29949a75a6693c77834c00b8a5678'),
+        toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
       )
       expect(receipt?.value).toBe('1000')
     })

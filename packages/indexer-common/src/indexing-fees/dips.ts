@@ -15,6 +15,7 @@ import {
   Network,
   QueryFeeModels,
   sequentialTimerMap,
+  SubgraphClient,
   SubgraphIdentifierType,
   TapCollector,
   upsertIndexingRule,
@@ -23,7 +24,7 @@ import { Op } from 'sequelize'
 
 import {
   createGatewayDipsServiceClient,
-  GatewayDipsServiceMessages,
+  GatewayDipsServiceMessagesCodec,
 } from './gateway-dips-service-client'
 import {
   CollectPaymentStatus,
@@ -43,9 +44,13 @@ const normalizeAddressForDB = (address: string) => {
   return toAddress(address).toLowerCase().replace('0x', '')
 }
 
+type GetEscrowSenderForSigner = (
+  tapSubgraph: SubgraphClient,
+  signer: Address,
+) => Promise<Address>
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
-
+  declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
@@ -58,6 +63,7 @@ export class DipsManager {
     this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
       this.network.specification.indexerOptions.dipperEndpoint,
     )
+    this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
   }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
@@ -71,7 +77,7 @@ export class DipsManager {
     if (agreement) {
       try {
         const cancellation =
-          await GatewayDipsServiceMessages.createSignedCancellationRequest(
+          await this.gatewayDipsServiceMessagesCodec.createSignedCancellationRequest(
             uuidToHex(agreement.id),
             this.network.wallet,
           )
@@ -176,6 +182,7 @@ export class DipsManager {
 
 export class DipsCollector {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
+  declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
   constructor(
     private logger: Logger,
     private managementModels: IndexerManagementModels,
@@ -184,6 +191,7 @@ export class DipsCollector {
     private tapCollector: TapCollector,
     private wallet: Wallet,
     private graphNode: GraphNode,
+    public escrowSenderGetter: GetEscrowSenderForSigner,
   ) {
     if (!this.specification.indexerOptions.dipperEndpoint) {
       throw new Error('dipperEndpoint is not set')
@@ -191,6 +199,7 @@ export class DipsCollector {
     this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
       this.specification.indexerOptions.dipperEndpoint,
     )
+    this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
   }
 
   static create(
@@ -201,6 +210,7 @@ export class DipsCollector {
     tapCollector: TapCollector,
     wallet: Wallet,
     graphNode: GraphNode,
+    escrowSenderGetter?: GetEscrowSenderForSigner,
   ) {
     const collector = new DipsCollector(
       logger,
@@ -210,6 +220,7 @@ export class DipsCollector {
       tapCollector,
       wallet,
       graphNode,
+      escrowSenderGetter ?? getEscrowSenderForSigner,
     )
     collector.startCollectionLoop()
     return collector
@@ -260,12 +271,13 @@ export class DipsCollector {
       return
     }
     const entityCount = entityCounts[0]
-    const collection = await GatewayDipsServiceMessages.createSignedCollectionRequest(
-      uuidToHex(agreement.id),
-      agreement.last_allocation_id,
-      entityCount,
-      this.wallet,
-    )
+    const collection =
+      await this.gatewayDipsServiceMessagesCodec.createSignedCollectionRequest(
+        uuidToHex(agreement.id),
+        agreement.last_allocation_id,
+        entityCount,
+        this.wallet,
+      )
     try {
       this.logger.info(`Collecting payment for agreement ${agreement.id}`)
       const response = await this.gatewayDipsServiceClient.CollectPayment({
@@ -277,15 +289,15 @@ export class DipsCollector {
           throw new Error('TapCollector not initialized')
         }
         // Store the tap receipt in the database
-        this.logger.info(`Decoding TAP receipt for agreement`)
-        const tapReceipt = GatewayDipsServiceMessages.decodeTapReceipt(
+        this.logger.info('Decoding TAP receipt for agreement')
+        const tapReceipt = this.gatewayDipsServiceMessagesCodec.decodeTapReceipt(
           response.tapReceipt,
           this.tapCollector?.tapContracts.tapVerifier.address,
         )
-        // TODO: check that the signer of the TAP receipt is a signer
+        // Check that the signer of the TAP receipt is a signer
         // on the corresponding escrow account for the payer (sender) of the
         // indexing agreement
-        const escrowSender = await getEscrowSenderForSigner(
+        const escrowSender = await this.escrowSenderGetter(
           this.tapCollector?.tapSubgraph,
           tapReceipt.signer_address,
         )

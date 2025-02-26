@@ -43,11 +43,11 @@ export const collectPaymentsTypes = {
   ],
 }
 
-export class GatewayDipsServiceMessages {
-  static createSignedCancellationRequest = async (
+export class GatewayDipsServiceMessagesCodec {
+  async createSignedCancellationRequest(
     agreementId: string,
     wallet: Wallet,
-  ): Promise<Uint8Array> => {
+  ): Promise<Uint8Array> {
     const signature = await wallet._signTypedData(
       cancelAgreementDomain,
       cancelAgreementTypes,
@@ -58,12 +58,12 @@ export class GatewayDipsServiceMessages {
     )
   }
 
-  static createSignedCollectionRequest = async (
+  async createSignedCollectionRequest(
     agreementId: string,
     allocationId: string,
     entityCount: number,
     wallet: Wallet,
-  ): Promise<Uint8Array> => {
+  ): Promise<Uint8Array> {
     const signature = await wallet._signTypedData(
       collectPaymentsDomain,
       collectPaymentsTypes,
@@ -81,7 +81,7 @@ export class GatewayDipsServiceMessages {
     )
   }
 
-  static decodeTapReceipt = (receipt: Uint8Array, verifyingContract: string) => {
+  decodeTapReceipt(receipt: Uint8Array, verifyingContract: string) {
     const [message, signature] = defaultAbiCoder.decode(
       ['tuple(address,uint64,uint64,uint128)', 'bytes'],
       receipt,
