@@ -13,7 +13,6 @@ import {
   IndexerManagementModels,
   OrderDirection,
   validateActionInputs,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
@@ -48,9 +47,7 @@ async function executeQueueOperation(
 
   // Check for duplicated actions
   const duplicateActions = actionsAwaitingExecution.filter(
-    (a) =>
-      a.deploymentID === action.deploymentID &&
-      a.protocolNetwork === action.protocolNetwork,
+    (a) => a.deploymentID === action.deploymentID,
   )
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
@@ -158,13 +155,8 @@ export default {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
 
-    // Sanitize protocol network identifier
     actions.forEach((action) => {
-      try {
-        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
+      action.protocolNetwork = network.networkMonitor.networkCAIPID
     })
 
     // Let Network Monitors validate actions based on their protocol networks
