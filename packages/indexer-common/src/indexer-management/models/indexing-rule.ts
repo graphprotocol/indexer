@@ -66,26 +66,26 @@ export class IndexingRule
   extends Model<IndexingRuleAttributes, IndexingRuleCreationAttributes>
   implements IndexingRuleAttributes
 {
-  public id!: number
-  public identifier!: string
-  public identifierType!: SubgraphIdentifierType
-  public allocationAmount!: string | null
-  public allocationLifetime!: number | null
-  public autoRenewal!: boolean
-  public parallelAllocations!: number | null
-  public maxAllocationPercentage!: number | null
-  public minSignal!: string | null
-  public maxSignal!: string | null
-  public minStake!: string | null
-  public minAverageQueryFees!: string | null
-  public custom!: string | null
-  public decisionBasis!: IndexingDecisionBasis
-  public requireSupported!: boolean
-  public safety!: boolean
-  public protocolNetwork!: string
+  public declare id: number
+  public declare identifier: string
+  public declare identifierType: SubgraphIdentifierType
+  public declare allocationAmount: string | null
+  public declare allocationLifetime: number | null
+  public declare autoRenewal: boolean
+  public declare parallelAllocations: number | null
+  public declare maxAllocationPercentage: number | null
+  public declare minSignal: string | null
+  public declare maxSignal: string | null
+  public declare minStake: string | null
+  public declare minAverageQueryFees: string | null
+  public declare custom: string | null
+  public declare decisionBasis: IndexingDecisionBasis
+  public declare requireSupported: boolean
+  public declare safety: boolean
+  public declare protocolNetwork: string
 
-  public createdAt!: Date
-  public updatedAt!: Date
+  public declare createdAt: Date
+  public declare updatedAt: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
