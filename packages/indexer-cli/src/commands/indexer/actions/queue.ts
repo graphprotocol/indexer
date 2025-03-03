@@ -3,10 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import {
-  requireProtocolNetworkOption,
-  printObjectOrArray,
-} from '../../../command-helpers'
+import { printObjectOrArray } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
 import {
   ActionInput,
@@ -29,7 +26,6 @@ ${chalk.bold(
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network <STRING>        [Required] The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision
   -r, --reason <STRING>         Specify the reason for the action to be taken
@@ -73,8 +69,6 @@ module.exports = {
         )
       }
 
-      const networkIdentifier = requireProtocolNetworkOption(parameters.options)
-
       actionInputParams = await buildActionInput(
         validateActionType(type),
         { targetDeployment, param1, param2, param3, param4 },
@@ -82,7 +76,6 @@ module.exports = {
         decisionReason,
         ActionStatus.QUEUED,
         executionPriority,
-        networkIdentifier,
       )
 
       inputSpinner.succeed(`Processed input parameters`)
@@ -111,7 +104,6 @@ module.exports = {
 
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
-        'protocolNetwork',
         'type',
         'deploymentID',
         'allocationID',
