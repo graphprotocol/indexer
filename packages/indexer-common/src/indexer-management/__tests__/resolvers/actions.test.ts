@@ -165,12 +165,6 @@ async function actionInputToExpected(
     }
   }
 
-  // We expect the protocol network to be transformed to it's CAIP2-ID
-  // form for all inputs
-  if (input.protocolNetwork === 'arbitrum-sepolia') {
-    expected.protocolNetwork = 'eip155:421614'
-  }
-
   return expected
 }
 
@@ -709,8 +703,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const proposedAction = {
@@ -721,16 +713,20 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
-    await managementModels.Action.create(failedAction, {
-      validate: true,
-      returning: true,
-    })
+    await managementModels.Action.create(
+      { ...failedAction, protocolNetwork: 'whatever' },
+      {
+        validate: true,
+        returning: true,
+      },
+    )
 
     const result = await client
-      .mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] })
+      .mutation(QUEUE_ACTIONS_MUTATION, {
+        actions: [{ ...proposedAction, protocolNetwork: 'whatever' }],
+      })
       .toPromise()
 
     expect(result).toHaveProperty(
@@ -779,10 +775,13 @@ describe.skip('Actions', () => {
       protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
-    await managementModels.Action.create(successfulAction, {
-      validate: true,
-      returning: true,
-    })
+    await managementModels.Action.create(
+      { ...successfulAction, protocolNetwork: 'whatever' },
+      {
+        validate: true,
+        returning: true,
+      },
+    )
 
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [proposedAction] }).toPromise(),
@@ -833,10 +832,13 @@ describe.skip('Actions', () => {
       protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
-    await managementModels.Action.create(queuedUnallocateAction, {
-      validate: true,
-      returning: true,
-    })
+    await managementModels.Action.create(
+      { ...queuedUnallocateAction, protocolNetwork: 'whatever' },
+      {
+        validate: true,
+        returning: true,
+      },
+    )
 
     const queuedAllocateAction1 = { ...queuedAllocateAction }
     const queuedAllocateAction2 = { ...queuedAllocateAction }
