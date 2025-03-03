@@ -39,6 +39,7 @@ export const createTestManagementClient = async (
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
+    'https://test-ipfs-endpoint.xyz',
   )
 
   const networkSpecification = { ...testNetworkSpecification }

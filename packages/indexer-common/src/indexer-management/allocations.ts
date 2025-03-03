@@ -105,10 +105,13 @@ export class AllocationManager {
     private network: Network,
   ) {}
 
-  async executeBatch(actions: Action[]): Promise<AllocationResult[]> {
+  async executeBatch(
+    actions: Action[],
+    onFinishedDeploying: (actions: Action[]) => Promise<void>,
+  ): Promise<AllocationResult[]> {
     const logger = this.logger.child({ function: 'executeBatch' })
     logger.trace('Executing action batch', { actions })
-    const result = await this.executeTransactions(actions)
+    const result = await this.executeTransactions(actions, onFinishedDeploying)
     if (Array.isArray(result)) {
       logger.trace('Execute batch transaction failed', { actionBatchResult: result })
       return result as ActionFailure[]
@@ -116,7 +119,10 @@ export class AllocationManager {
     return await this.confirmTransactions(result, actions)
   }
 
-  private async executeTransactions(actions: Action[]): Promise<TransactionResult> {
+  private async executeTransactions(
+    actions: Action[],
+    onFinishedDeploying: (actions: Action[]) => Promise<void>,
+  ): Promise<TransactionResult> {
     const logger = this.logger.child({ function: 'executeTransactions' })
     logger.trace('Begin executing transactions', { actions })
     if (actions.length < 1) {
@@ -127,6 +133,7 @@ export class AllocationManager {
     logger.trace('Validated actions', { validatedActions })
 
     await this.deployBeforeAllocating(logger, validatedActions)
+    await onFinishedDeploying(validatedActions)
 
     const populateTransactionsResults = await this.prepareTransactions(validatedActions)
 
@@ -462,6 +469,7 @@ export class AllocationManager {
     if (receipt === 'paused' || receipt === 'unauthorized') {
       throw indexerError(
         IndexerErrorCode.IE062,
+
         `Allocation not created. ${
           receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
         }`,

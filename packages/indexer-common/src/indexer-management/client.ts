@@ -104,6 +104,7 @@ const SCHEMA_SDL = gql`
   enum ActionStatus {
     queued
     approved
+    deploying
     pending
     success
     failed

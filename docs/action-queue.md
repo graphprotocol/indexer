@@ -191,6 +191,7 @@ enum ActionStatus {
     queued
     approved
     pending
+    deploying
     success
     failed
     canceled
