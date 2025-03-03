@@ -8,8 +8,8 @@ The action execution worker will only grab items from the action queue to execut
 
 ## Allocation management modes:
 - `auto`: The indexer-agent will act similarly to the legacy paradigm. When it identifies allocation actions it will add them to the queue with ActionStatus = `approved`; the execution worker process will pick up the approved actions within 30 seconds and execute them.
-- `manual`: The indexer-agent will not add any items to the action queue in this mode. It will spin up an indexer-management server which can be interacted with manually or integrated with 3rd party tools to add actions to the action queue and execute them.
-- `oversight`: The indexer-agent will add run its reconciliation loop to make allocation decisions and when actions are identified it will queue them. These actions will then require approval before they can be executed.
+- `manual`: The indexer-agent will not add any items to the action queue in this mode. It will spin up an indexer-management server which can be interacted with manually or integrated with 3rd party tools to add actions to the action queue and execute them. An exception to this is indexing agreements (DIPs), for which actions will be queued and executed even in this mode.
+- `oversight`: The indexer-agent will add run its reconciliation loop to make allocation decisions and when actions are identified it will queue them. These actions will then require approval before they can be executed. An exception to this is indexing agreements (DIPs), for which actions will be queued as approved and executed even in this mode.
 
 ## Actions CLI
 The indexer-cli provides an `actions` module for manually working with the action queue. It uses the #Graphql API hosted by the indexer management server to interact with the actions queue.
