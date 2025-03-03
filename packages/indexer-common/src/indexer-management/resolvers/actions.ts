@@ -30,6 +30,7 @@ async function executeQueueOperation(
   recentlyAttemptedActions: Action[],
   models: IndexerManagementModels,
   transaction: Transaction,
+  protocolNetwork: string,
 ): Promise<ActionResult[]> {
   // Check for previously failed conflicting actions
   const conflictingActions = recentlyAttemptedActions.filter(function (recentAction) {
@@ -48,18 +49,20 @@ async function executeQueueOperation(
 
   // Check for duplicated actions
   const duplicateActions = actionsAwaitingExecution.filter(
-    (a) =>
-      a.deploymentID === action.deploymentID &&
-      a.protocolNetwork === action.protocolNetwork,
+    (a) => a.deploymentID === action.deploymentID,
   )
+
   if (duplicateActions.length === 0) {
     logger.trace('Inserting Action in database', { action })
     return [
-      await models.Action.create(action, {
-        validate: true,
-        returning: true,
-        transaction,
-      }),
+      await models.Action.create(
+        { ...action, protocolNetwork },
+        {
+          validate: true,
+          returning: true,
+          transaction,
+        },
+      ),
     ]
   } else if (duplicateActions.length === 1) {
     if (
@@ -158,14 +161,9 @@ export default {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
 
-    // Sanitize protocol network identifier
-    actions.forEach((action) => {
-      try {
-        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
-    })
+    const protocolNetwork = validateNetworkIdentifier(
+      network.specification.networkIdentifier,
+    )
 
     // Let Network Monitors validate actions based on their protocol networks
     await validateActionInputs(actions, network.networkMonitor, logger)
@@ -226,6 +224,7 @@ export default {
           recentlyAttemptedActions,
           models,
           transaction,
+          protocolNetwork,
         )
         results = results.concat(result)
       }
@@ -372,11 +371,6 @@ export default {
 
 // Helper function to assess equality among a enqueued and a proposed actions
 function compareActions(enqueued: Action, proposed: ActionInput): boolean {
-  // actions are not the same if they target different protocol networks
-  if (enqueued.protocolNetwork !== proposed.protocolNetwork) {
-    return false
-  }
-
   // actions are not the same if they target different deployments
   if (enqueued.deploymentID !== proposed.deploymentID) {
     return false

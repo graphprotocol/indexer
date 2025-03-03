@@ -33,7 +33,6 @@ export async function buildActionInput(
   reason: string,
   status: ActionStatus,
   priority: number,
-  protocolNetwork: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
   switch (type) {
@@ -46,7 +45,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -63,7 +61,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     }
     case ActionType.REALLOCATE: {
@@ -82,7 +79,6 @@ export async function buildActionInput(
         reason,
         status,
         priority,
-        protocolNetwork,
       }
     }
   }
@@ -187,7 +183,6 @@ export async function queueActions(
             reason
             priority
             status
-            protocolNetwork
           }
         }
       `,
@@ -241,7 +236,6 @@ export async function executeApprovedActions(
         mutation executeApprovedActions {
           executeApprovedActions {
             id
-            protocolNetwork
             status
             type
             deploymentID
@@ -288,7 +282,6 @@ export async function approveActions(
             priority
             transaction
             status
-            protocolNetwork
           }
         }
       `,
@@ -313,7 +306,6 @@ export async function cancelActions(
         mutation cancelActions($actionIDs: [Int!]!) {
           cancelActions(actionIDs: $actionIDs) {
             id
-            protocolNetwork
             type
             allocationID
             deploymentID
@@ -349,7 +341,6 @@ export async function fetchAction(
         query action($actionID: Int!) {
           action(actionID: $actionID) {
             id
-            protocolNetwork
             type
             allocationID
             deploymentID
@@ -398,7 +389,6 @@ export async function fetchActions(
             first: $first
           ) {
             id
-            protocolNetwork
             type
             allocationID
             deploymentID
@@ -435,7 +425,6 @@ export async function deleteActions(
         mutation deleteActions($actionIDs: [Int!]!) {
           deleteActions(actionIDs: $actionIDs) {
             id
-            protocolNetwork
             type
             allocationID
             deploymentID
@@ -485,7 +474,6 @@ export async function updateActions(
             transaction
             status
             failureReason
-            protocolNetwork
           }
         }
       `,
