@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
-import { parseOutputFormat, extractProtocolNetworkOption } from '../../../command-helpers'
+import { parseOutputFormat } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -13,7 +13,6 @@ ${chalk.bold(
 
 ${chalk.dim('Options:')}
 
-  -n, --network                 Filter by protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia) 
   -h, --help                    Show usage information
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -55,13 +54,7 @@ module.exports = {
     // Create indexer API client
     const client = await createIndexerManagementClient({ url: config.api })
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
-      const storedDisputes = await disputes(
-        client,
-        status,
-        +minAllocationClosedEpoch,
-        protocolNetwork,
-      )
+      const storedDisputes = await disputes(client, status, +minAllocationClosedEpoch)
       printDisputes(print, outputFormat, storedDisputes)
     } catch (error) {
       print.error(error.toString())

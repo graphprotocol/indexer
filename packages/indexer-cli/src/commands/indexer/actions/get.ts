@@ -6,15 +6,10 @@ import {
   ActionParams,
   ActionResult,
   OrderDirection,
-  resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import {
-  fixParameters,
-  printObjectOrArray,
-  extractProtocolNetworkOption,
-} from '../../../command-helpers'
+import { fixParameters, printObjectOrArray } from '../../../command-helpers'
 import { fetchAction, fetchActions } from '../../../actions'
 
 const HELP = `
@@ -22,7 +17,6 @@ ${chalk.bold('graph indexer actions get')} [options]
 ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
-  -n, --network                                                     Filter by protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
       --type    allocate|unallocate|reallocate|collect              Filter by type
       --status  queued|approved|pending|success|failed|canceled     Filter by status
       --source <source>                                             Fetch only actions queued by a specific source
@@ -36,7 +30,6 @@ ${chalk.dim('Options:')}
 
 const actionFields: (keyof Action)[] = [
   'id',
-  'protocolNetwork',
   'type',
   'deploymentID',
   'allocationID',
@@ -95,10 +88,6 @@ module.exports = {
     let orderByParam = ActionParams.ID
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
-
-    const protocolNetwork: string | undefined = extractProtocolNetworkOption(
-      parameters.options,
-    )
 
     if (help || h) {
       inputSpinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -194,7 +183,6 @@ module.exports = {
             status,
             source,
             reason,
-            protocolNetwork,
           },
           first,
           orderByParam,
@@ -210,11 +198,6 @@ module.exports = {
       }
       const displayProperties = actionFields.filter(field =>
         selectedFields.includes(field),
-      )
-
-      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      actions.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
       )
 
       printObjectOrArray(print, outputFormat, actions, displayProperties)

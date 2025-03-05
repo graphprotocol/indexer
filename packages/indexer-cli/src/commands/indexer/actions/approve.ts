@@ -7,19 +7,17 @@ import {
   fixParameters,
   printObjectOrArray,
   parseOutputFormat,
-  extractProtocolNetworkOption,
 } from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
 import { ActionStatus, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
-${chalk.bold('graph indexer actions approve')} [options] queued --network <networkName>
+${chalk.bold('graph indexer actions approve')} [options] queued
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network <STRING>        Filter action selection by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
@@ -47,7 +45,6 @@ module.exports = {
       return
     }
 
-    const protocolNetwork = extractProtocolNetworkOption(parameters.options)
     let numericActionIDs: number[]
 
     const config = loadValidatedConfig()
@@ -59,19 +56,14 @@ module.exports = {
 
       // If actionIDs is 'queued', then populate actionIDs with actions that are queued
       if (actionIDs.join() == 'queued') {
-        if (!protocolNetwork) {
-          throw new Error(
-            `Missing required option for approving queued actions: --network`,
-          )
-        }
         const queuedActions = await fetchActions(client, {
           status: ActionStatus.QUEUED,
-          protocolNetwork,
+          protocolNetwork: 'deprecated',
         })
 
         numericActionIDs = queuedActions.map(action => action.id)
         if (numericActionIDs.length === 0) {
-          throw Error(`No 'queued' actions found for network '${protocolNetwork}'`)
+          throw Error(`No 'queued' actions found for network 'deprecated'`)
         }
       } else {
         numericActionIDs = actionIDs.map(action => +action)

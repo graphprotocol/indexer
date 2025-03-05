@@ -185,9 +185,7 @@ describe('Indexing Rules', () => {
     )
 
     //  When reading directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-    await expect(
-      fetchIndexingRules(models, false, 'eip155:421614'),
-    ).resolves.toHaveLength(1)
+    await expect(fetchIndexingRules(models, false)).resolves.toHaveLength(1)
   })
 })
 

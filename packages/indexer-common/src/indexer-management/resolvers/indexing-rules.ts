@@ -9,7 +9,7 @@ import {
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
 import { Transaction } from 'sequelize/types'
 import { fetchIndexingRules } from '../rules'
-import { processIdentifier, validateNetworkIdentifier } from '../../'
+import { processIdentifier } from '../../'
 import groupBy from 'lodash.groupby'
 
 const resetGlobalRule = async (
@@ -59,10 +59,9 @@ export default {
 
   indexingRules: async (
     { merged }: { merged: boolean; protocolNetwork: string | undefined },
-    { models, network }: IndexerManagementResolverContext,
+    { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    const protocolNetwork = network.networkMonitor.networkCAIPID
-    return await fetchIndexingRules(models, merged, protocolNetwork)
+    return await fetchIndexingRules(models, merged)
   },
 
   setIndexingRule: async (
@@ -73,17 +72,7 @@ export default {
       throw Error('Cannot set indexingRule without identifier')
     }
 
-    if (
-      rule.protocolNetwork &&
-      validateNetworkIdentifier(rule.protocolNetwork) !==
-        network.specification.networkIdentifier
-    ) {
-      throw Error(
-        `Cannot set indexingRule for a different network (${rule.protocolNetwork}) than configured ${network.specification.networkIdentifier}`,
-      )
-    }
-
-    rule.protocolNetwork = network.specification.networkIdentifier
+    rule.protocolNetwork = network.networkMonitor.networkCAIPID
 
     const [identifier] = await processIdentifier(rule.identifier, {
       all: false,
