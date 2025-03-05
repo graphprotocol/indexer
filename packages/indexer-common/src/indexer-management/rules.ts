@@ -10,12 +10,11 @@ import { parseIndexingRule } from '../rules'
 export const fetchIndexingRules = async (
   models: IndexerManagementModels,
   merged: boolean,
-  protocolNetwork?: string,
 ): Promise<IndexingRuleAttributes[]> => {
   // If unspecified, select indexing rules from all protocol networks
   const logger = new Logger({ name: 'indexer-common' })
 
-  logger.info(`Fetching indexing rules for network '${protocolNetwork}'`)
+  logger.info(`Fetching indexing rules for current network `)
   const whereClause = {} // protocolNetwork ?{ protocolNetwork }: {}
   const rules = await models.IndexingRule.findAll({
     where: whereClause,
@@ -28,7 +27,7 @@ export const fetchIndexingRules = async (
     // Merge global rule into all rules
     const global = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
     if (!global) {
-      throw Error(`Could not find global rule for network '${protocolNetwork}'`)
+      throw Error(`Could not find global rule for current network`)
     }
     return rules.map((rule) => rule.mergeGlobal(global))
   } else {

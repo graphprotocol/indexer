@@ -1016,11 +1016,7 @@ export class AllocationManager {
     logger: Logger,
     subgraphDeploymentID: SubgraphDeploymentID,
   ): Promise<boolean> {
-    const indexingRules = await fetchIndexingRules(
-      this.models,
-      true,
-      this.network.specification.networkIdentifier,
-    )
+    const indexingRules = await fetchIndexingRules(this.models, true)
     const subgraphDeployment = await this.network.networkMonitor.subgraphDeployment(
       subgraphDeploymentID.ipfsHash,
     )

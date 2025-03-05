@@ -36,7 +36,6 @@ export enum OutputFormat {
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
 import { utils } from 'ethers'
-import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -206,48 +205,4 @@ export function suggestCommands(
     cmd => letters.filter(l => cmd.indexOf(l) == -1).length < command.length / 5,
   )
   return suggestions.length > 0 ? suggestions : supported_commands
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function extractProtocolNetworkOption(
-  options: {
-    [key: string]: any
-  },
-  required = false,
-): string | undefined {
-  const { n, network } = options
-
-  // Tries to extract the --network option from Gluegun options.
-  // Throws if required is set to true and the option is not found.
-  if (!n && !network) {
-    if (required) {
-      throw new Error("The option '--network' is required")
-    } else {
-      return undefined
-    }
-  }
-
-  // Check for invalid usage
-  const allowedUsages =
-    (n === undefined && typeof network === 'string') ||
-    (network === undefined && typeof n === 'string')
-  if (!allowedUsages) {
-    throw new Error("Invalid usage of the option '--network'")
-  }
-  const input = (network ?? n) as string
-
-  try {
-    return validateNetworkIdentifier(input)
-  } catch (parseError) {
-    throw new Error(`Invalid value for the option '--network'. ${parseError}`)
-  }
-}
-
-// Same as `extractProtocolNetworkOption`, but always require the --network option to be set
-export function requireProtocolNetworkOption(options: { [key: string]: any }): string {
-  const protocolNetwork = extractProtocolNetworkOption(options, true)
-  if (!protocolNetwork) {
-    throw new Error("The option '--network' is required")
-  }
-  return protocolNetwork
 }

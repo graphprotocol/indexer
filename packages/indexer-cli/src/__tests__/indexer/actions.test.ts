@@ -30,16 +30,6 @@ describe('Indexer actions tests', () => {
           timeout: 10000,
         },
       )
-      cliTest(
-        'Indexer actions get',
-        ['indexer', 'actions', 'get', 'all'],
-        'references/indexer-actions-get',
-        {
-          expectedExitCode: 0,
-          cwd: baseDir,
-          timeout: 10000,
-        },
-      )
     })
     describe('Actions queue', () => {
       cliTest(

@@ -5,11 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { printObjectOrArray } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
-import {
-  ActionInput,
-  ActionStatus,
-  resolveChainAlias,
-} from '@graphprotocol/indexer-common'
+import { ActionInput, ActionStatus } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -97,13 +93,9 @@ module.exports = {
 
       actionSpinner.succeed(`${type} action added to queue`)
 
-      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      queuedAction.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
-      )
-
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
+        'protocolNetwork',
         'type',
         'deploymentID',
         'allocationID',

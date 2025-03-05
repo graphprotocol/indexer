@@ -132,22 +132,13 @@ export const disputes = async (
   client: IndexerManagementClient,
   status: string,
   minClosedEpoch: number,
-  protocolNetwork: string | undefined,
 ): Promise<Partial<POIDisputeAttributes>[]> => {
   try {
     const result = await client
       .query(
         gql`
-          query disputes(
-            $status: String!
-            $minClosedEpoch: Int!
-            $protocolNetwork: String
-          ) {
-            disputes(
-              status: $status
-              minClosedEpoch: $minClosedEpoch
-              protocolNetwork: $protocolNetwork
-            ) {
+          query disputes($status: String!, $minClosedEpoch: Int!) {
+            disputes(status: $status, minClosedEpoch: $minClosedEpoch) {
               allocationID
               allocationIndexer
               allocationAmount
@@ -167,7 +158,6 @@ export const disputes = async (
         {
           status,
           minClosedEpoch,
-          protocolNetwork,
         },
       )
       .toPromise()

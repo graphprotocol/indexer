@@ -7,12 +7,7 @@ import { createIndexerManagementClient } from '../../client'
 import gql from 'graphql-tag'
 import { displayRules, indexingRuleFromGraphQL } from '../../rules'
 import { printIndexerAllocations, indexerAllocationFromGraphQL } from '../../allocations'
-import {
-  requireProtocolNetworkOption,
-  formatData,
-  parseOutputFormat,
-  pickFields,
-} from '../../command-helpers'
+import { formatData, parseOutputFormat, pickFields } from '../../command-helpers'
 import { resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
@@ -21,7 +16,6 @@ ${chalk.bold('graph indexer status')}
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 [Required] the rule's protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
 `
 
 interface Endpoint {
@@ -63,15 +57,11 @@ module.exports = {
     // Query status information
     let result: any | undefined
     try {
-      // TODO:L2: Consider making Protocol Network optional, showing status for all
-      // networks, combined.
-      const protocolNetwork = requireProtocolNetworkOption(toolbox.parameters.options)
-
       result = await client
         .query(
           gql`
-            query ($protocolNetwork: String!) {
-              indexerRegistration(protocolNetwork: $protocolNetwork) {
+            query {
+              indexerRegistration {
                 url
                 address
                 protocolNetwork
@@ -105,7 +95,7 @@ module.exports = {
                 }
               }
 
-              indexerAllocations(protocolNetwork: $protocolNetwork) {
+              indexerAllocations {
                 id
                 protocolNetwork
                 allocatedTokens
@@ -116,7 +106,7 @@ module.exports = {
                 stakedTokens
               }
 
-              indexerEndpoints(protocolNetwork: $protocolNetwork) {
+              indexerEndpoints {
                 service {
                   url
                   healthy
@@ -139,7 +129,7 @@ module.exports = {
                 }
               }
 
-              indexingRules(merged: true, protocolNetwork: $protocolNetwork) {
+              indexingRules(merged: true) {
                 identifier
                 protocolNetwork
                 identifierType
@@ -159,7 +149,7 @@ module.exports = {
               }
             }
           `,
-          { protocolNetwork },
+          {},
         )
         .toPromise()
     } catch (error) {

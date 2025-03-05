@@ -3,11 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import {
-  requireProtocolNetworkOption,
-  fixParameters,
-  parseOutputFormat,
-} from '../../../command-helpers'
+import { fixParameters, parseOutputFormat } from '../../../command-helpers'
 import { IndexingDecisionBasis, processIdentifier } from '@graphprotocol/indexer-common'
 import { setIndexingRule, displayRules, parseIndexingRule } from '../../../rules'
 
@@ -46,7 +42,6 @@ module.exports = {
     const config = loadValidatedConfig()
 
     try {
-      const protocolNetwork = requireProtocolNetworkOption(parameters.options)
       const [identifier, identifierType] = await processIdentifier(id, {
         all: false,
         global: true,
@@ -55,7 +50,7 @@ module.exports = {
       const inputRule = parseIndexingRule({
         identifier,
         identifierType,
-        protocolNetwork,
+        protocolNetwork: 'deprecated',
         decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       })
 

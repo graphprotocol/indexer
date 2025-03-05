@@ -92,8 +92,8 @@ export class Operator {
       const result = await this.indexerManagement
         .query(
           gql`
-            query indexingRules($merged: Boolean!, $protocolNetwork: String) {
-              indexingRules(merged: $merged, protocolNetwork: $protocolNetwork) {
+            query indexingRules($merged: Boolean!) {
+              indexingRules(merged: $merged) {
                 identifier
                 identifierType
                 allocationAmount
@@ -112,7 +112,7 @@ export class Operator {
               }
             }
           `,
-          { merged, protocolNetwork: this.specification.networkIdentifier },
+          { merged },
         )
         .toPromise()
 

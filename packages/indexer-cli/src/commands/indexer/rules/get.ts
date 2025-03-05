@@ -3,11 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import {
-  extractProtocolNetworkOption,
-  fixParameters,
-  parseOutputFormat,
-} from '../../../command-helpers'
+import { fixParameters, parseOutputFormat } from '../../../command-helpers'
 import { indexingRule, indexingRules, displayRules } from '../../../rules'
 import { IndexingRuleAttributes, processIdentifier } from '@graphprotocol/indexer-common'
 
@@ -19,7 +15,6 @@ ${chalk.bold('graph indexer rules get')} [options] <deployment-id> [<key1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network                 Filter by the rule's protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
       --merged                  Shows the deployment rules and global rules merged
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
@@ -45,7 +40,6 @@ module.exports = {
     }
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
       const [identifier] = await processIdentifier(id ?? 'all', {
         all: true,
         global: true,
@@ -58,14 +52,9 @@ module.exports = {
 
       let ruleOrRules
       if (identifier === 'all') {
-        ruleOrRules = await indexingRules(client, !!merged, protocolNetwork)
+        ruleOrRules = await indexingRules(client, !!merged)
       } else {
-        if (!protocolNetwork) {
-          throw Error(
-            'The --network option must be used when quering for a single Indexing Rule',
-          )
-        }
-        const ruleIdentifier = { identifier, protocolNetwork }
+        const ruleIdentifier = { identifier, protocolNetwork: 'deprecated' }
         ruleOrRules = await indexingRule(client, ruleIdentifier, !!merged)
       }
 
