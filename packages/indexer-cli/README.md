@@ -34,9 +34,8 @@ Manage indexer configuration
   indexer disputes get               Cross-check POIs submitted in the network
   indexer cost                       Manage costing for subgraphs
   indexer cost set model             Update a cost model
-  indexer cost set variables         Update cost model variables
   indexer cost delete                Remove one or many cost models
-  indexer cost get                   Get cost models and/or variables for one or all subgraphs
+  indexer cost get                   Get cost models for one or all subgraphs
   indexer connect                    Connect to indexer management API
   indexer allocations                Manage indexer allocations
   indexer allocations close          Close an allocation

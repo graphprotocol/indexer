@@ -6,21 +6,15 @@ import { utils } from 'ethers'
 export interface GraphQLCostModel {
   deployment: string
   model: string | null | undefined
-  variables: string | null | undefined
 }
 
 export const parseGraphQLCostModel = (
   costModel: GraphQLCostModel,
 ): CostModelCreationAttributes => {
   try {
-    const variables = !costModel.variables
-      ? costModel.variables
-      : JSON.parse(costModel.variables)
-
     return {
       deployment: costModel.deployment,
       model: costModel.model || null,
-      variables: variables,
     }
   } catch (error) {
     throw new Error(`Failed to parse GraphQL cost model: ${error}`)
@@ -36,7 +30,6 @@ export interface CostModelAttributes {
   id: number
   deployment: string
   model: string | null
-  variables: CostModelVariables | null
 }
 
 export interface CostModelCreationAttributes
@@ -58,8 +51,6 @@ export class CostModel
   public toGraphQL(): object {
     return {
       ...this.toJSON(),
-      variables:
-        this.variables === null ? this.variables : JSON.stringify(this.variables),
       __typename: 'CostModel',
     }
   }
@@ -102,23 +93,6 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
       model: {
         type: DataTypes.TEXT,
         allowNull: true,
-      },
-      variables: {
-        type: DataTypes.JSONB,
-        allowNull: true,
-        validate: {
-          isObject: (value: unknown | null) => {
-            if (value === null || value === undefined) {
-              return
-            }
-
-            if (value instanceof Object && !(value instanceof Array)) {
-              return
-            }
-
-            throw new Error(`Variables must be a valid object or null`)
-          },
-        },
       },
     },
     {

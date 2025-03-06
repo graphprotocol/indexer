@@ -363,7 +363,6 @@ const SCHEMA_SDL = gql`
   input CostModelInput {
     deployment: String!
     model: String
-    variables: String
   }
 
   type Query {

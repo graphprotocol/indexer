@@ -192,9 +192,8 @@ Manage indexer configuration
   indexer rules                      Configure indexing rules                                         
   indexer disputes get               Cross-check POIs submitted in the network                        
   indexer disputes                   Configure allocation POI monitoring                              
-  indexer cost set variables         Update cost model variables                                      
   indexer cost set model             Update a cost model                                              
-  indexer cost get                   Get cost models and/or variables for one or all subgraphs        
+  indexer cost get                   Get cost models for one or all subgraphs        
   indexer cost                       Manage costing for subgraphs                                     
   indexer connect                    Connect to indexer management API                                
   indexer allocations reallocate     Reallocate to subgraph deployment                                
