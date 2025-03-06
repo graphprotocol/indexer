@@ -14,9 +14,6 @@ ${chalk.bold('graph indexer cost get')} [options] <deployment-id>
 ${chalk.bold('graph indexer cost get')} [options] model all
 ${chalk.bold('graph indexer cost get')} [options] model <deployment-id>
 
-${chalk.bold('graph indexer cost get')} [options] variables all
-${chalk.bold('graph indexer cost get')} [options] variables <deployment-id>
-
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
@@ -26,7 +23,7 @@ ${chalk.dim('Options:')}
 module.exports = {
   name: 'get',
   alias: [],
-  description: 'Get cost models and/or variables for one or all subgraphs',
+  description: 'Get cost models for one or all subgraphs',
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -45,10 +42,10 @@ module.exports = {
       return
     }
 
-    const fields = ['model', 'variables'].includes(first)
+    const fields = ['model'].includes(first)
       ? ['deployment', first]
-      : ['deployment', 'model', 'variables']
-    const rawDeployment = ['model', 'variables'].includes(first) ? second : first
+      : ['deployment', 'model']
+    const rawDeployment = ['model'].includes(first) ? second : first
 
     try {
       if (rawDeployment !== 'all' && rawDeployment !== 'global') {
