@@ -20,16 +20,11 @@ export const parseDeploymentID = (s: string): SubgraphDeploymentIDIsh => {
   }
 }
 
-function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
-  return (x: T | null) => (x === null ? null : fn(x))
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const COST_MODEL_PARSERS: Record<keyof CostModelAttributes, (x: never) => any> = {
   id: x => x,
   deployment: parseDeploymentID,
   model: x => x,
-  variables: nullPassThrough(JSON.parse),
 }
 
 const COST_MODEL_FORMATTERS: Record<
@@ -39,7 +34,6 @@ const COST_MODEL_FORMATTERS: Record<
   id: x => x,
   deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
   model: x => x,
-  variables: nullPassThrough(s => JSON.stringify(s, null, 2)),
 }
 
 const COST_MODEL_CONVERTERS_FROM_GRAPHQL: Record<
@@ -50,7 +44,6 @@ const COST_MODEL_CONVERTERS_FROM_GRAPHQL: Record<
   id: x => x,
   deployment: parseDeploymentID,
   model: x => x,
-  variables: nullPassThrough(JSON.parse),
 }
 
 const COST_MODEL_CONVERTERS_TO_GRAPHQL: Record<
@@ -61,7 +54,6 @@ const COST_MODEL_CONVERTERS_TO_GRAPHQL: Record<
   id: x => x,
   deployment: (x: SubgraphDeploymentIDIsh) => x.toString(),
   model: x => x,
-  variables: nullPassThrough(JSON.stringify),
 }
 
 /**
@@ -84,17 +76,12 @@ export const parseCostModel = (
  */
 export const formatCostModel = (
   cost: Partial<CostModelAttributes>,
-  { variablesAsString }: { variablesAsString: boolean },
 ): Partial<CostModelAttributes> => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const obj = {} as any
   for (const [key, value] of Object.entries(cost)) {
-    if (key === 'variables' && !variablesAsString) {
-      obj[key] = value
-    } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      obj[key] = (COST_MODEL_FORMATTERS as any)[key](value)
-    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    obj[key] = (COST_MODEL_FORMATTERS as any)[key](value)
   }
   return obj as Partial<CostModelAttributes>
 }
@@ -172,20 +159,16 @@ export const printCostModels = (
 ): void => {
   if (Array.isArray(costModelOrModels)) {
     const costModels = costModelOrModels.map(cost =>
-      formatCostModel(pickFields(cost, fields), {
-        variablesAsString: outputFormat === 'table',
-      }),
+      formatCostModel(pickFields(cost, fields)),
     )
     print.info(displayCostModels(outputFormat, costModels))
   } else if (costModelOrModels) {
-    const cost = formatCostModel(pickFields(costModelOrModels, fields), {
-      variablesAsString: outputFormat === 'table',
-    })
+    const cost = formatCostModel(pickFields(costModelOrModels, fields))
     print.info(displayCostModel(outputFormat, cost))
   } else if (deployment) {
-    print.error(`No cost model/variables found for "${deployment}"`)
+    print.error(`No cost model found for "${deployment}"`)
   } else {
-    print.error(`No cost models/variables found`)
+    print.error(`No cost models found`)
   }
 }
 
@@ -199,7 +182,6 @@ export const costModels = async (
           costModels {
             deployment
             model
-            variables
           }
         }
       `,
@@ -225,7 +207,6 @@ export const costModel = async (
           costModel(deployment: $deployment) {
             deployment
             model
-            variables
           }
         }
       `,
@@ -255,7 +236,6 @@ export const setCostModel = async (
           setCostModel(costModel: $costModel) {
             deployment
             model
-            variables
           }
         }
       `,
@@ -281,7 +261,6 @@ export const deleteCostModels = async (
           deleteCostModels(deployments: $deployments) {
             deployment
             model
-            variables
           }
         }
       `,

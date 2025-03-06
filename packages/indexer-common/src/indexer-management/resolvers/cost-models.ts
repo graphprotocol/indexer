@@ -3,7 +3,6 @@
 
 import { COST_MODEL_GLOBAL, GraphQLCostModel, parseGraphQLCostModel } from '../models'
 import { IndexerManagementResolverContext } from '../client'
-import { compileAsync } from '@graphprotocol/cost-model'
 
 export default {
   costModel: async (
@@ -43,7 +42,6 @@ export default {
       SELECT id,
        deployment,
        model,
-       variables,
        "createdAt",
        "updatedAt"
       FROM "CostModelsHistory" t1
@@ -87,22 +85,22 @@ export default {
     }
     const update = parseGraphQLCostModel(costModel)
 
-    // Validate cost model
-    try {
-      const modelForValidation = update.model || 'default => 1;'
-      const variablesForValidation = JSON.stringify(update.variables || {})
-      await compileAsync(modelForValidation, variablesForValidation)
-    } catch (err) {
-      throw new Error(`Invalid cost model or variables: ${err.message}`)
+    // Validate cost model matches 'default => x;' where x is an integer or float
+    const modelForValidation = update.model || 'default => 1;'
+    if (!/^default\s*=>\s*\d+(\.\d+)?;$/.test(modelForValidation)) {
+      throw new Error(
+        'Invalid cost model: Cost model must be of the form "default => x;", where x is a literal value.',
+      )
     }
+
     const oldModel = await models.CostModel.findOne({
       where: { deployment: update.deployment },
       order: [['id', 'DESC']],
     })
+
     const model = models.CostModel.build({
       deployment: update.deployment,
       model: update.model || oldModel?.model,
-      variables: update.variables || oldModel?.variables,
     })
 
     return (await model.save()).toGraphQL()
