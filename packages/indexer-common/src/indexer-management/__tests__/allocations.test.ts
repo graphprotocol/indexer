@@ -61,6 +61,7 @@ const setup = async () => {
   const network = await Network.create(
     logger,
     testNetworkSpecification,
+    managementModels,
     queryFeeModels,
     graphNode,
     metrics,
