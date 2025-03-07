@@ -94,7 +94,7 @@ export const validateActionInputs = async (
       )
     }
 
-    // Must have status QUEUED or APPROVED
+    // Must have status QUEUED or APPROVED, or DEPLOYING
     if (
       [
         ActionStatus.FAILED,
@@ -142,7 +142,7 @@ export const validateActionInputs = async (
 export interface ActionFilter {
   id?: number | undefined
   type?: ActionType
-  status?: ActionStatus
+  status?: ActionStatus | ActionStatus[]
   source?: string
   reason?: string
   updatedAt?: WhereOperators
@@ -190,6 +190,7 @@ export enum ActionStatus {
   QUEUED = 'queued',
   APPROVED = 'approved',
   PENDING = 'pending',
+  DEPLOYING = 'deploying',
   SUCCESS = 'success',
   FAILED = 'failed',
   CANCELED = 'canceled',

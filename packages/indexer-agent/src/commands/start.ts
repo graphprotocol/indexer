@@ -507,6 +507,7 @@ export async function run(
     argv.graphNodeAdminEndpoint,
     argv.graphNodeQueryEndpoint,
     argv.graphNodeStatusEndpoint,
+    argv.ipfsEndpoint,
   )
 
   // --------------------------------------------------------------------------------
