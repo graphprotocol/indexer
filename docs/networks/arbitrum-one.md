@@ -9,8 +9,8 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | contracts          | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/contracts)](https://github.com/graphprotocol/contracts/releases)          |
 | indexer-agent      | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)           |
 | indexer-cli        | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)            |
-| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
-| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-*)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
+| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-v1.4.0)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
+| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-v1.8.0)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
 | graph-node         | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/graph-node)](https://github.com/graphprotocol/graph-node/releases)         |
 
 ## Network Parameters
@@ -45,11 +45,11 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                                                                    |
 | `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.network.thegraph.com/`                                                                          |
 | `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                                                                                      |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2FDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3DDZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp)   |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmdKXcBUHR3UyURqVRQHu1oV6VUkBrhi2vNvMx3bNDnUCc`  |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/DZz4kDTdmzWLWsV373w2bSmoar3umKKH9y82SUKr5qmp`   |
-| `INDEXER_AGENT_EPOCH_SUBGRAPH_DEPLOYMENT`   | `--epoch-subgraph-deployment`   | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2F4KFYqUWRTZQ9gn7GPHC6YQ2q15chJfVrX43ezYcwkgxB.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3D4KFYqUWRTZQ9gn7GPHC6YQ2q15chJfVrX43ezYcwkgxB&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/4KFYqUWRTZQ9gn7GPHC6YQ2q15chJfVrX43ezYcwkgxB)   |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_DEPLOYMENT`   | `--epoch-subgraph-deployment`   | `QmW26TG5s9myd1gzio9fkgVHEEjZ7u5ktWDpkNePzbusNo`  |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4KFYqUWRTZQ9gn7GPHC6YQ2q15chJfVrX43ezYcwkgxB`   |
-| `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | [![Dynamic JSON Badge](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fthegraph.com%2Fexplorer%2F_next%2Fdata%2F5PBypsdmUEy39BcWLsyp0%2Fsubgraphs%2F4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1.json%3Fview%3DAbout%26chain%3Darbitrum-one%26id%3D4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1&query=%24.pageProps.subgraph.currentVersion.subgraphDeployment.ipfsHash&label=deployment-id)](https://thegraph.com/explorer/subgraphs/4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1)   |
+| `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | `QmUhiH6Z5xo6o3GNzsSvqpGKLmCt6w5WzKQ1yHk6C8AA8S`   |
 | `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1` |
 
 
