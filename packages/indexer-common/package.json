@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.22.0",
+  "version": "0.23.0",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,8 +22,8 @@
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "dependencies": {
-    "@pinax/graph-networks-registry": "0.6.7",
     "@graphprotocol/common-ts": "2.0.11",
+    "@pinax/graph-networks-registry": "0.6.7",
     "@semiotic-labs/tap-contracts-bindings": "^1.2.1",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
