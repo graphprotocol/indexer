@@ -669,7 +669,7 @@ export class Agent {
     eligibleAllocations: Allocation[],
   ): Promise<void> {
     const logger = this.logger.child({ function: 'reconcileDeployments' })
-    logger.debug('Reconcile deployments')
+    logger.debug('Reconcile deployments', { targetDeployments })
     // ----------------------------------------------------------------------------------------
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
@@ -915,7 +915,7 @@ export class Agent {
       network.specification.indexerOptions.allocationManagementMode ===
       AllocationManagementMode.MANUAL
     ) {
-      this.logger.trace(
+      this.logger.debug(
         `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
         {
           protocolNetwork: network.specification.networkIdentifier,
@@ -948,7 +948,6 @@ export class Agent {
     // Do nothing if there are already approved actions in the queue awaiting execution
     const approvedActions = await operator.fetchActions({
       status: ActionStatus.APPROVED,
-      protocolNetwork: network.specification.networkIdentifier,
     })
     if (approvedActions.length > 0) {
       this.logger.info(
@@ -964,7 +963,7 @@ export class Agent {
     const activeAllocations: Allocation[] =
       await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
 
-    this.logger.trace(`Reconcile allocation actions`, {
+    this.logger.debug(`Reconcile allocation actions`, {
       protocolNetwork: network.specification.networkIdentifier,
       epoch,
       maxAllocationEpochs,

@@ -18,7 +18,6 @@ export interface ActionItem {
   type: ActionType
   reason: string
   status?: ActionStatus
-  protocolNetwork: string
 }
 
 export interface ActionUpdateInput {
@@ -30,7 +29,6 @@ export interface ActionUpdateInput {
   type?: ActionType
   status?: ActionStatus
   reason?: string
-  protocolNetwork?: string
 }
 
 export interface ActionInput {
@@ -146,7 +144,6 @@ export interface ActionFilter {
   source?: string
   reason?: string
   updatedAt?: WhereOperators
-  protocolNetwork?: string
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {

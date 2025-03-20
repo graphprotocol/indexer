@@ -146,7 +146,6 @@ const SCHEMA_SDL = gql`
     source: String!
     reason: String!
     priority: Int!
-    protocolNetwork: String!
   }
 
   input ActionUpdateInput {
@@ -370,11 +369,11 @@ const SCHEMA_SDL = gql`
       identifier: IndexingRuleIdentifier!
       merged: Boolean! = false
     ): IndexingRule
-    indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
-    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
+    indexingRules(merged: Boolean! = false): [IndexingRule!]!
+    indexerRegistration: IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
-    indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
-    indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
+    indexerAllocations: [IndexerAllocation]!
+    indexerEndpoints: [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
@@ -413,21 +412,21 @@ const SCHEMA_SDL = gql`
       deployment: String!
       amount: String!
       indexNode: String
-      protocolNetwork: String!
     ): CreateAllocationResult!
+
     closeAllocation(
       allocation: String!
       poi: String
       force: Boolean
-      protocolNetwork: String!
     ): CloseAllocationResult!
+
     reallocateAllocation(
       allocation: String!
       poi: String
       amount: String!
       force: Boolean
-      protocolNetwork: String!
     ): ReallocateAllocationResult!
+
     submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
 
     updateAction(action: ActionInput!): Action!

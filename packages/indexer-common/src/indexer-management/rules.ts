@@ -15,7 +15,7 @@ export const fetchIndexingRules = async (
   const logger = new Logger({ name: 'indexer-common' })
 
   logger.info(`Fetching indexing rules for current network `)
-  const whereClause = {} // protocolNetwork ?{ protocolNetwork }: {}
+  const whereClause = {}
   const rules = await models.IndexingRule.findAll({
     where: whereClause,
     order: [

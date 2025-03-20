@@ -4,12 +4,7 @@ import geohash from 'ngeohash'
 import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  indexerError,
-  IndexerErrorCode,
-  Network,
-  validateNetworkIdentifier,
-} from '@graphprotocol/indexer-common'
+import { indexerError, IndexerErrorCode, Network } from '@graphprotocol/indexer-common'
 interface Test {
   test: (url: string) => string
   run: (url: string) => Promise<void>
@@ -61,7 +56,7 @@ const URL_VALIDATION_TEST: Test = {
 
 export default {
   indexerRegistration: async (
-    _: { protocolNetwork: string | null },
+    _: {},
     { network }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!network) {
@@ -98,7 +93,7 @@ export default {
   },
 
   indexerDeployments: async (
-    _: { protocolNetwork: string | null },
+    _: {},
     { graphNode }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const result = await graphNode.indexingStatus([])
@@ -109,7 +104,7 @@ export default {
   },
 
   indexerAllocations: async (
-    _: { protocolNetwork: string | null },
+    _: {},
     { network, logger }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!network) {
@@ -184,7 +179,7 @@ export default {
   },
 
   indexerEndpoints: async (
-    { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string | null },
+    _: {},
     { network, logger }: IndexerManagementResolverContext,
   ): Promise<Endpoints[] | null> => {
     if (!network) {
@@ -193,25 +188,6 @@ export default {
       )
     }
     const endpoints: Endpoints[] = []
-    let networkIdentifier: string | null = null
-
-    // Validate protocol network
-    try {
-      if (unvalidatedProtocolNetwork) {
-        networkIdentifier = validateNetworkIdentifier(unvalidatedProtocolNetwork)
-      }
-    } catch (parseError) {
-      throw new Error(
-        `Invalid protocol network identifier: '${unvalidatedProtocolNetwork}'. Error: ${parseError}`,
-      )
-    }
-
-    if (
-      networkIdentifier &&
-      networkIdentifier !== network.specification.networkIdentifier
-    ) {
-      return endpoints
-    }
     try {
       const networkEndpoints = await endpointForNetwork(network)
       endpoints.push(networkEndpoints)

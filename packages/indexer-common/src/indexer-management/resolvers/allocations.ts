@@ -34,7 +34,6 @@ interface AllocationFilter {
   status: 'active' | 'closed'
   allocation: string | null
   subgraphDeployment: string | null
-  protocolNetwork: string | null
 }
 
 enum AllocationQuery {
@@ -60,7 +59,6 @@ interface AllocationInfo {
   indexingRewards: string
   queryFeesCollected: string
   status: string
-  protocolNetwork: string
 }
 
 const ALLOCATION_QUERIES = {
@@ -185,7 +183,6 @@ async function queryAllocations(
     maxAllocationEpochs: number
     blocksPerEpoch: number
     avgBlockTime: number
-    protocolNetwork: string
   },
 ): Promise<AllocationInfo[]> {
   logger.trace('Query Allocations', {
@@ -288,7 +285,6 @@ async function queryAllocations(
         indexingRewards: allocation.indexingRewards,
         queryFeesCollected: allocation.queryFeesCollected,
         status: allocation.status,
-        protocolNetwork: context.protocolNetwork,
       }
     },
   )
@@ -306,14 +302,6 @@ export default {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch allocations',
       )
-    }
-
-    // Return early if a different protocol network is specifically requested
-    if (
-      filter.protocolNetwork &&
-      filter.protocolNetwork !== network.specification.networkIdentifier
-    ) {
-      return []
     }
 
     const {
@@ -351,7 +339,6 @@ export default {
       maxAllocationEpochs,
       blocksPerEpoch: epochLength.toNumber(),
       avgBlockTime: 13000,
-      protocolNetwork: network.specification.networkIdentifier,
     }
 
     const allocationsResult = await queryAllocations(
@@ -368,14 +355,13 @@ export default {
     {
       deployment,
       amount,
-      protocolNetwork,
     }: {
       deployment: string
       amount: string
-      protocolNetwork: string
     },
     { network, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
+    const protocolNetwork = network.specification.networkIdentifier
     logger.debug('Execute createAllocation() mutation', {
       deployment,
       amount,

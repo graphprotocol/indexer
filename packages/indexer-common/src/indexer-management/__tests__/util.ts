@@ -80,6 +80,7 @@ export const defaults: IndexerManagementDefaults = {
     parallelAllocations: 1,
     requireSupported: true,
     safety: true,
+    protocolNetwork: 'deprecated',
   },
 }
 

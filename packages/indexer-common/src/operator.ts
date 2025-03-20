@@ -108,7 +108,6 @@ export class Operator {
                 custom
                 decisionBasis
                 requireSupported
-                protocolNetwork
               }
             }
           `,
@@ -119,7 +118,7 @@ export class Operator {
       if (result.error) {
         throw result.error
       }
-      this.logger.trace('Fetched indexing rules', {
+      this.logger.debug('Fetched indexing rules', {
         count: result.data.indexingRules.length,
         rules: result.data.indexingRules.map((rule: IndexingRuleAttributes) => {
           return {
@@ -154,7 +153,6 @@ export class Operator {
                 allocationAmount
                 decisionBasis
                 requireSupported
-                protocolNetwork
               }
             }
           `,
@@ -166,7 +164,7 @@ export class Operator {
         this.logger.info(`Creating default "global" indexing rule`)
 
         const defaults = {
-          ...identifier,
+          identifier: INDEXING_RULE_GLOBAL,
           identifierType: SubgraphIdentifierType.GROUP,
           allocationAmount:
             this.specification.indexerOptions.defaultAllocationAmount.toString(),
@@ -196,7 +194,6 @@ export class Operator {
                   decisionBasis
                   requireSupported
                   safety
-                  protocolNetwork
                 }
               }
             `,
@@ -277,7 +274,6 @@ export class Operator {
       source: 'indexerAgent',
       reason: action.reason,
       priority: 0,
-      protocolNetwork: action.protocolNetwork,
     }
     this.logger.trace(`Queueing action input`, {
       actionInput,
@@ -303,6 +299,10 @@ export class Operator {
       .toPromise()
 
     if (actionResult.error) {
+      this.logger.error(`Failed to queue action`, {
+        action,
+        error: actionResult.error,
+      })
       if (actionResult.error instanceof CombinedError) {
         if (actionResult.error.message.includes('Duplicate')) {
           this.logger.warn(
@@ -323,6 +323,10 @@ export class Operator {
     if (actionResult.data.queueActions.length > 0) {
       this.logger.info(`Queued ${action.type} action for execution`, {
         queuedAction: actionResult.data.queueActions,
+      })
+    } else {
+      this.logger.warn(`Failed to queue action`, {
+        action,
       })
     }
 
@@ -371,7 +375,6 @@ export class Operator {
       },
       type: ActionType.ALLOCATE,
       reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
     })
 
     return
@@ -409,7 +412,6 @@ export class Operator {
             },
             type: ActionType.UNALLOCATE,
             reason: deploymentAllocationDecision.reasonString(),
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
           } as ActionItem)
         },
         { concurrency: 1 },
@@ -445,7 +447,6 @@ export class Operator {
             },
             type: ActionType.REALLOCATE,
             reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
           })
         },
         {

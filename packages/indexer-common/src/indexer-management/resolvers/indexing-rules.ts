@@ -58,7 +58,7 @@ export default {
   },
 
   indexingRules: async (
-    { merged }: { merged: boolean; protocolNetwork: string | undefined },
+    { merged }: { merged: boolean },
     { models }: IndexerManagementResolverContext,
   ): Promise<object[]> => {
     return await fetchIndexingRules(models, merged)
@@ -72,7 +72,7 @@ export default {
       throw Error('Cannot set indexingRule without identifier')
     }
 
-    rule.protocolNetwork = network.networkMonitor.networkCAIPID
+    rule.protocolNetwork = network.specification.networkIdentifier
 
     const [identifier] = await processIdentifier(rule.identifier, {
       all: false,
@@ -94,7 +94,7 @@ export default {
       global: true,
     })
 
-    const protocolNetwork = network.networkMonitor.networkCAIPID
+    const protocolNetwork = network.specification.networkIdentifier
 
     const validatedRuleIdentifier = {
       protocolNetwork,

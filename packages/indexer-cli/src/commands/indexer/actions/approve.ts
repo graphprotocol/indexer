@@ -58,7 +58,6 @@ module.exports = {
       if (actionIDs.join() == 'queued') {
         const queuedActions = await fetchActions(client, {
           status: ActionStatus.QUEUED,
-          protocolNetwork: 'deprecated',
         })
 
         numericActionIDs = queuedActions.map(action => action.id)

@@ -197,9 +197,11 @@ export function evaluateDeployments(
   networkDeployments: SubgraphDeployment[],
   rules: IndexingRuleAttributes[],
 ): AllocationDecision[] {
-  return networkDeployments.map((deployment) =>
-    isDeploymentWorthAllocatingTowards(logger, deployment, rules),
-  )
+  return networkDeployments.map((deployment) => {
+    const worth = isDeploymentWorthAllocatingTowards(logger, deployment, rules)
+    logger.debug('Deployment worth', { deployment: deployment.id.display, worth })
+    return worth
+  })
 }
 
 export function isDeploymentWorthAllocatingTowards(

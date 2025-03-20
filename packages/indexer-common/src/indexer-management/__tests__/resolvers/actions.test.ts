@@ -53,7 +53,6 @@ const QUEUE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
-      protocolNetwork
     }
   }
 `
@@ -74,7 +73,6 @@ const APPROVE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
-      protocolNetwork
     }
   }
 `
@@ -95,7 +93,6 @@ const CANCEL_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
-      protocolNetwork
     }
   }
 `
@@ -116,7 +113,6 @@ const UPDATE_ACTIONS_MUTATION = gql`
       transaction
       failureReason
       status
-      protocolNetwork
     }
   }
 `
@@ -141,7 +137,6 @@ const ACTIONS_QUERY = gql`
       transaction
       failureReason
       status
-      protocolNetwork
     }
   }
 `
@@ -487,7 +482,6 @@ describe.skip('Actions', () => {
       ['source', 'String'],
       ['reason', 'String'],
       ['priority', 'Int'],
-      ['protocolNetwork', 'String'],
     ]
     const graphQLErrors = expectedFieldNamesAndTypes.map(
       ([fieldName, fieldType]) =>
@@ -504,7 +498,7 @@ describe.skip('Actions', () => {
 
   test('Reject action with invalid params for action type', async () => {
     const inputAction = invalidReallocateAction
-    const expected = { ...inputAction, protocolNetwork: 'eip155:421614' }
+    const expected = inputAction
     const fields = JSON.stringify(expected)
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
@@ -715,6 +709,7 @@ describe.skip('Actions', () => {
       priority: 0,
     } as ActionInput
 
+    // models still store a protocolNetwork
     await managementModels.Action.create(
       { ...failedAction, protocolNetwork: 'whatever' },
       {
@@ -725,7 +720,7 @@ describe.skip('Actions', () => {
 
     const result = await client
       .mutation(QUEUE_ACTIONS_MUTATION, {
-        actions: [{ ...proposedAction, protocolNetwork: 'whatever' }],
+        actions: [proposedAction],
       })
       .toPromise()
 
@@ -760,8 +755,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const proposedAction = {
@@ -772,9 +765,9 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
+    // models still store a protocolNetwork
     await managementModels.Action.create(
       { ...successfulAction, protocolNetwork: 'whatever' },
       {
@@ -816,8 +809,6 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
-      protocolNetwork: 'eip155:421614',
     } as ActionInput
 
     const queuedAllocateAction = {
@@ -829,9 +820,9 @@ describe.skip('Actions', () => {
       source: 'indexerAgent',
       reason: 'indexingRule',
       priority: 0,
-      protocolNetwork: 'arbitrum-sepolia',
     } as ActionInput
 
+    // models still store a protocolNetwork
     await managementModels.Action.create(
       { ...queuedUnallocateAction, protocolNetwork: 'whatever' },
       {

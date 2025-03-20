@@ -30,8 +30,6 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
-
-  // TODO: deprecate
   protocolNetwork: string
 }
 

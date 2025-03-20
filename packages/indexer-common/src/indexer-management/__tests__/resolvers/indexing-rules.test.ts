@@ -44,7 +44,6 @@ const SET_INDEXING_RULE_MUTATION = gql`
       decisionBasis
       requireSupported
       safety
-      protocolNetwork
     }
   }
 `
