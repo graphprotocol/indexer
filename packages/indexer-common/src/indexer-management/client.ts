@@ -370,11 +370,11 @@ const SCHEMA_SDL = gql`
       identifier: IndexingRuleIdentifier!
       merged: Boolean! = false
     ): IndexingRule
-    indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
-    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
+    indexingRules(merged: Boolean! = false): [IndexingRule!]!
+    indexerRegistration: IndexerRegistration!
     indexerDeployments: [IndexerDeployment]!
-    indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
-    indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
+    indexerAllocations: [IndexerAllocation]!
+    indexerEndpoints: [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
     costModel(deployment: String!): CostModel
