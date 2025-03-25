@@ -172,6 +172,7 @@ export class Operator {
           decisionBasis: 'rules',
           requireSupported: true,
           safety: true,
+          protocolNetwork: this.specification.networkIdentifier,
         }
 
         const defaultGlobalRule = await this.indexerManagement
