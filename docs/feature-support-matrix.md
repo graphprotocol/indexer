@@ -37,6 +37,9 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:1101                | polygon-zkevm    | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:421614              | arbitrum-sepolia | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | eip155:324                 | zksync-era       | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:146                 | sonic            | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:84532               | base-sepolia     | Yes         | Yes          | Yes               | Yes                  | Yes              |
+| eip155:11155420            | optimism-sepolia | Yes         | Yes          | Yes               | Yes                  | Yes              |
 | **Data Source Features**   |                  |             |              |                   |                      |                  |
 | ipfs.cat in mappings       |                  | Yes         | Yes          | No                | No                   | No               |
 | ENS                        |                  | Yes         | Yes          | Yes               | Yes                  | Yes              |
