@@ -203,6 +203,9 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
       modelName: 'IndexingAgreement',
       sequelize,
       tableName: 'indexing_agreements',
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
     },
   )
 
