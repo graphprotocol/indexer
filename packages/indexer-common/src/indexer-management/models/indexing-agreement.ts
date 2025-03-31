@@ -202,6 +202,7 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
     {
       modelName: 'IndexingAgreement',
       sequelize,
+      tableName: 'indexing_agreements',
     },
   )
 
