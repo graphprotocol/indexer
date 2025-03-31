@@ -8,17 +8,12 @@ import { reallocateAllocation } from '../../../allocations'
 import { printObjectOrArray, validatePOI } from '../../../command-helpers'
 
 const HELP = `
-${chalk.bold(
-  'graph indexer allocations reallocate',
-)} [options] <network> <id> <amount> <poi>
+${chalk.bold('graph indexer allocations reallocate')} [options] <id> <amount> <poi>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
-
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
 `
 
 module.exports = {
@@ -48,14 +43,7 @@ module.exports = {
     }
 
     // eslint-disable-next-line prefer-const
-    let [network, id, amount, poi] = parameters.array || []
-
-    if (network === undefined) {
-      spinner.fail(`Missing required argument: 'network'`)
-      print.info(HELP)
-      process.exitCode = 1
-      return
-    }
+    let [id, amount, poi] = parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
@@ -84,7 +72,6 @@ module.exports = {
         poi,
         allocationAmount,
         toForce,
-        network,
       )
 
       spinner.succeed('Reallocated')
