@@ -4,7 +4,9 @@
     "rootDir": "src",
     "outDir": "dist",
     "target": "es2020",
-    "module": "commonjs",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowSyntheticDefaultImports": true,
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
@@ -20,7 +22,9 @@
     ],
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"],
+  "include": [
+    "src/**/*.ts"
+  ],
   "exclude": [],
   "references": []
 }
