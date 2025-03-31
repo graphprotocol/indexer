@@ -45,13 +45,13 @@ module.exports = {
       return
     }
 
-    const [deploymentID, protocolNetwork, amount, indexNode] = parameters.array || []
+    const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
-      if (!deploymentID || !amount || !protocolNetwork) {
+      if (!deploymentID || !amount) {
         throw new Error(
           'Must provide a deployment ID, a network identifier and allocation amount' +
-            `(deploymentID: '${deploymentID}', network: '${protocolNetwork}' allocationAmount: '${amount}')`,
+            `(deploymentID: '${deploymentID}', allocationAmount: '${amount}')`,
         )
       }
 
@@ -82,7 +82,6 @@ module.exports = {
         'allocation',
         'deployment',
         'allocatedTokens',
-        'protocolNetwork',
       ])
     } catch (error) {
       spinner.fail(error.toString())

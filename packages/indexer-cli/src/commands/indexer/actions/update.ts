@@ -98,7 +98,6 @@ module.exports = {
       const displayProperties: (keyof Action)[] = [
         'id',
         'type',
-        'protocolNetwork',
         'deploymentID',
         'allocationID',
         'amount',

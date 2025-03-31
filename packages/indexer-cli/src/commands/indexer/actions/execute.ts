@@ -1,6 +1,5 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
-import { resolveChainAlias } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { fixParameters, printObjectOrArray } from '../../../command-helpers'
@@ -60,14 +59,8 @@ module.exports = {
 
       spinner.succeed(`Executed approved actions`)
 
-      // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      executedActions.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
-      )
-
       printObjectOrArray(print, outputFormat, executedActions, [
         'id',
-        'protocolNetwork',
         'status',
         'type',
         'deploymentID',

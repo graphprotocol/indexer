@@ -78,7 +78,6 @@ const INDEXING_RULE_QUERY = gql`
       decisionBasis
       requireSupported
       safety
-      protocolNetwork
     }
   }
 `
@@ -101,7 +100,6 @@ const INDEXING_RULES_QUERY = gql`
       decisionBasis
       requireSupported
       safety
-      protocolNetwork
     }
   }
 `
@@ -170,7 +168,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule and ensure the right data is returned
@@ -207,12 +204,10 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
       ...input,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Update the rule
@@ -254,7 +249,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Write the original
@@ -320,7 +314,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Write the original
@@ -438,7 +431,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentExpected = {
@@ -454,7 +446,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
     deploymentExpected.identifier = 'QmZSJPm74tvhgr8uzhqvyQm2J6YSbUEj4nF6j8WxxUQLsC'
 
@@ -529,7 +520,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.RULES,
       requireSupported: true,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Write the rule
@@ -593,7 +583,6 @@ describe('Indexing rules', () => {
       minAverageQueryFees: null,
       custom: null,
       decisionBasis: IndexingDecisionBasis.RULES,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Write the rule
@@ -676,7 +665,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.NEVER,
       requireSupported: true,
       safety: false,
-      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentExpected = {
@@ -692,7 +680,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     const deploymentMergedExpected = {
@@ -708,7 +695,6 @@ describe('Indexing rules', () => {
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
       requireSupported: false,
       safety: true,
-      protocolNetwork: 'eip155:421614',
     }
 
     // Write the orginals

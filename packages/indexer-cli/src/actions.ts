@@ -387,7 +387,6 @@ export async function fetchActions(
             first: $first
           ) {
             id
-            protocolNetwork
             type
             allocationID
             deploymentID
