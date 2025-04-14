@@ -239,6 +239,7 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
+      syncingNetwork: 'eip155:1',
     }
 
     await models.Action.upsert(action)

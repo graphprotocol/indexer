@@ -5,7 +5,7 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { closeAllocation } from '../../../allocations'
 import { validatePOI, printObjectOrArray } from '../../../command-helpers'
-import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import { validateSupportedNetworkIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations close')} [options] <network> <id> <poi>
@@ -63,7 +63,7 @@ module.exports = {
       return
     } else {
       try {
-        protocolNetwork = validateNetworkIdentifier(network)
+        protocolNetwork = validateSupportedNetworkIdentifier(network)
       } catch (error) {
         spinner.fail(`Invalid value for argument 'network': '${network}' `)
         process.exitCode = 1

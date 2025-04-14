@@ -15,7 +15,6 @@ import {
   NetworkMapped,
   OrderDirection,
   validateActionInputs,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
@@ -160,15 +159,6 @@ export default {
     if (!actionManager || !multiNetworks) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
-
-    // Sanitize protocol network identifier
-    actions.forEach((action) => {
-      try {
-        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
-    })
 
     // Let Network Monitors validate actions based on their protocol networks
     await multiNetworks.mapNetworkMapped(

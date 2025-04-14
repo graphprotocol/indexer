@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { submitCollectReceiptsJob } from '../../../allocations'
-import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import { validateSupportedNetworkIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations collect')} [options] <network> <id>
@@ -60,7 +60,7 @@ module.exports = {
       return
     } else {
       try {
-        protocolNetwork = validateNetworkIdentifier(network)
+        protocolNetwork = validateSupportedNetworkIdentifier(network)
       } catch (error) {
         spinner.fail(`Invalid value for argument 'network': '${network}' `)
         process.exitCode = 1

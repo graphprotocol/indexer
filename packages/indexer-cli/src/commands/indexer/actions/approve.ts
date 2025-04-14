@@ -8,18 +8,22 @@ import {
   printObjectOrArray,
   parseOutputFormat,
   extractProtocolNetworkOption,
+  extractSyncingNetworkOption,
 } from '../../../command-helpers'
 import { approveActions, fetchActions } from '../../../actions'
 import { ActionStatus, resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold('graph indexer actions approve')} [options] [<actionID1> ...]
-${chalk.bold('graph indexer actions approve')} [options] queued --network <networkName>
+${chalk.bold(
+  'graph indexer actions approve',
+)} [options] queued --network <networkName> --syncing <networkName>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network <STRING>        Filter action selection by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -n, --network <STRING>        Filter actions by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -s, --syncing <STRING>        Filter (optional) by the syncing network (see https://thegraph.com/networks/ for supported networks)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 `
 
@@ -47,12 +51,17 @@ module.exports = {
       return
     }
 
-    const protocolNetwork = extractProtocolNetworkOption(parameters.options)
     let numericActionIDs: number[]
+    let protocolNetwork: string | undefined = undefined
+    let syncingNetwork: string | undefined = undefined
 
     const config = loadValidatedConfig()
     const client = await createIndexerManagementClient({ url: config.api })
     try {
+      protocolNetwork = extractProtocolNetworkOption(parameters.options)
+
+      syncingNetwork = extractSyncingNetworkOption(parameters.options)
+
       if (!actionIDs || actionIDs.length === 0) {
         throw Error(`Missing required argument: 'actionID'`)
       }
@@ -67,6 +76,7 @@ module.exports = {
         const queuedActions = await fetchActions(client, {
           status: ActionStatus.QUEUED,
           protocolNetwork,
+          syncingNetwork,
         })
 
         numericActionIDs = queuedActions.map(action => action.id)
@@ -101,15 +111,17 @@ module.exports = {
       const queuedAction = await approveActions(client, numericActionIDs)
 
       // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      queuedAction.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
-      )
+      queuedAction.forEach(action => {
+        action.protocolNetwork = resolveChainAlias(action.protocolNetwork)
+        action.syncingNetwork = resolveChainAlias(action.syncingNetwork)
+      })
 
       actionSpinner.succeed(`Actions approved`)
       printObjectOrArray(print, outputFormat, queuedAction, [
         'id',
         'type',
         'protocolNetwork',
+        'syncingNetwork',
         'deploymentID',
         'allocationID',
         'amount',

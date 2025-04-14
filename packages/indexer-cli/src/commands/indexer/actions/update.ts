@@ -9,7 +9,12 @@ import {
 } from '@graphprotocol/indexer-common'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { fixParameters, printObjectOrArray } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  extractSyncingNetworkOption,
+  fixParameters,
+  printObjectOrArray,
+} from '../../../command-helpers'
 import {
   buildActionFilter,
   parseActionUpdateInput,
@@ -22,7 +27,9 @@ ${chalk.bold('graph indexer actions update')} [options] [<key1> <value1> ...]
 
 ${chalk.dim('Options:')}
 
-  -h, --help                                                        Show usage information
+  -h, --help                                                            Show usage information
+  -n, --network     <networkName>                                       Filter by protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -s, --syncing     <networkName>                                       Filter by the syncing network (see https://thegraph.com/networks/ for supported networks)
       --id          <actionID>                                          Filter by actionID
       --type        allocate|unallocate|reallocate                      Filter by type
       --status      queued|approved|pending|success|failed|canceled     Filter by status
@@ -47,6 +54,8 @@ module.exports = {
     let actionFilter: ActionFilter = {}
 
     const outputFormat = o || output || 'table'
+    let protocolNetwork: string | undefined = undefined
+    let syncingNetwork: string | undefined = undefined
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (help || h) {
@@ -54,6 +63,9 @@ module.exports = {
       return
     }
     try {
+      protocolNetwork = extractProtocolNetworkOption(parameters.options)
+
+      syncingNetwork = extractSyncingNetworkOption(parameters.options)
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
           `Invalid output format "${outputFormat}" must be one of ['json', 'yaml' or 'table']`,
@@ -74,7 +86,15 @@ module.exports = {
         ...Object.fromEntries([...partition(2, 2, kvs)]),
       })
 
-      actionFilter = buildActionFilter(id, type, status, source, reason)
+      actionFilter = buildActionFilter(
+        id,
+        type,
+        status,
+        source,
+        reason,
+        protocolNetwork,
+        syncingNetwork,
+      )
 
       inputSpinner.succeed('Processed input parameters')
     } catch (error) {
@@ -104,6 +124,7 @@ module.exports = {
         'id',
         'type',
         'protocolNetwork',
+        'syncingNetwork',
         'deploymentID',
         'allocationID',
         'amount',
@@ -118,9 +139,10 @@ module.exports = {
       ]
 
       // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs
-      actionsUpdated.forEach(
-        action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
-      )
+      actionsUpdated.forEach(action => {
+        action.protocolNetwork = resolveChainAlias(action.protocolNetwork)
+        action.syncingNetwork = resolveChainAlias(action.syncingNetwork)
+      })
 
       printObjectOrArray(print, outputFormat, actionsUpdated, displayProperties)
     } catch (error) {
