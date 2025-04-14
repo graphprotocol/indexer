@@ -13,7 +13,7 @@ ${chalk.bold('graph indexer actions delete')} [options] [<actionID1> ...]
 ${chalk.dim('Options:')}
 
   -h, --help                                                        Show usage information
-      --status  queued|approved|pending|success|failed|canceled     Filter by status
+      --status  queued|approved|deploying|pending|success|failed|canceled     Filter by status
   -o, --output table|json|yaml                                      Choose the output format: table (default), JSON, or YAML 
 `
 

@@ -165,11 +165,11 @@ export class SubgraphClient {
       const healthy = status.synced && status.health === 'healthy'
 
       if (healthy) {
-        this.logger.trace(`Use own deployment for ${this.name} query`)
+        this.logger.trace(`Use own deployment for ${this.name} query`, { status })
         this.endpoint = this.subgraphDeploymentEndpoint
         return this.deployment.endpointClient
       } else if (this.endpointClient) {
-        this.logger.trace(`Use provided endpoint for ${this.name} query`)
+        this.logger.trace(`Use provided endpoint for ${this.name} query`, { status })
         this.endpoint = this.subgraphConfigEndpoint
         return this.endpointClient
       } else {

@@ -114,12 +114,18 @@ module.exports = {
 
       if (
         status &&
-        !['queued', 'approved', 'pending', 'success', 'failed', 'canceled'].includes(
-          status,
-        )
+        ![
+          'queued',
+          'approved',
+          'deploying',
+          'pending',
+          'success',
+          'failed',
+          'canceled',
+        ].includes(status)
       ) {
         throw Error(
-          `Invalid '--status' provided, must be one of ['queued', 'approved', 'pending', 'success', 'failed', 'canceled]`,
+          `Invalid '--status' provided, must be one of ['queued', 'approved', 'deploying', 'pending', 'success', 'failed', 'canceled]`,
         )
       }
 

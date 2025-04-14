@@ -22,13 +22,13 @@ ${chalk.bold('graph indexer actions update')} [options] [<key1> <value1> ...]
 
 ${chalk.dim('Options:')}
 
-  -h, --help                                                        Show usage information
-      --id          <actionID>                                          Filter by actionID
-      --type        allocate|unallocate|reallocate                      Filter by type
-      --status      queued|approved|pending|success|failed|canceled     Filter by status
-      --source      <source>                                            Filter by source
-      --reason      <reason>                                            Filter by reason string
-  -o, --output      table|json|yaml                                     Choose the output format: table (default), JSON, or YAML
+  -h, --help                                                                Show usage information
+      --id          <actionID>                                                    Filter by actionID
+      --type        allocate|unallocate|reallocate                                Filter by type
+      --status      queued|approved|deploying|pending|success|failed|canceled     Filter by status
+      --source      <source>                                                      Filter by source
+      --reason      <reason>                                                      Filter by reason string
+  -o, --output      table|json|yaml                                               Choose the output format: table (default), JSON, or YAML
 `
 
 module.exports = {

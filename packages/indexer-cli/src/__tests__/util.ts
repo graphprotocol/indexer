@@ -87,6 +87,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     'http://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     statusEndpoint,
+    'https://test-ipfs-endpoint.xyz',
   )
 
   const network = await Network.create(

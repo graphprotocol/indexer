@@ -100,7 +100,7 @@ export default {
   },
 
   indexerDeployments: async (
-    _: {},
+    _: { protocolNetwork: string | null },
     { graphNode }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     const result = await graphNode.indexingStatus([])

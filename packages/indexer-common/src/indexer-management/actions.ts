@@ -129,7 +129,7 @@ export class ActionManager {
         let actions: Action[] = []
         try {
           actions = await ActionManager.fetchActions(this.models, null, {
-            status: ActionStatus.APPROVED,
+            status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
           })
           logger.trace(`Fetched ${actions.length} approved actions`)
         } catch (err) {
@@ -299,7 +299,7 @@ export class ActionManager {
       { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
       async (transaction) => {
         batchStartTime = Date.now()
-        let approvedActions
+        let approvedAndDeployingActions
         try {
           // Execute already approved actions in the order of type and priority.
           // Unallocate actions are prioritized to free up stake that can be used
@@ -307,9 +307,12 @@ export class ActionManager {
           // Reallocate actions are prioritized before allocate as they are for
           // existing syncing deployments with relatively smaller changes made.
           const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
-          approvedActions = (
+          approvedAndDeployingActions = (
             await this.models.Action.findAll({
-              where: { status: ActionStatus.APPROVED, protocolNetwork },
+              where: {
+                status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
+                protocolNetwork,
+              },
               order: [['priority', 'ASC']],
               transaction,
               lock: transaction.LOCK.UPDATE,
@@ -324,25 +327,31 @@ export class ActionManager {
             transaction,
           })
           if (pendingActions.length > 0) {
-            logger.warn(`${pendingActions} Actions found in PENDING state when execution began. Was there a crash? \
-                 These indicate that execution was interrupted and will need to be cleared manually.`)
+            logger.warn(
+              `${pendingActions} Actions found in PENDING state when execution began. Was there a crash?` +
+                `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
+            )
           }
 
-          if (approvedActions.length === 0) {
+          if (approvedAndDeployingActions.length === 0) {
             logger.debug('No approved actions were found for this network')
             return []
           }
           logger.debug(
-            `Found ${approvedActions.length} approved actions for this network `,
-            { approvedActions },
+            `Found ${approvedAndDeployingActions.length} approved actions for this network `,
+            { approvedActions: approvedAndDeployingActions },
           )
         } catch (error) {
           logger.error('Failed to query approved actions for network', { error })
           return []
         }
-        // mark all approved actions as PENDING, this serves as a lock on other processing of them
-        await this.markActions(approvedActions, transaction, ActionStatus.PENDING)
-        return approvedActions
+        // mark all approved actions as DEPLOYING, this serves as a lock on other processing of them
+        await this.markActions(
+          approvedAndDeployingActions,
+          transaction,
+          ActionStatus.DEPLOYING,
+        )
+        return approvedAndDeployingActions
       },
     )
 
@@ -357,8 +366,28 @@ export class ActionManager {
 
       let results
       try {
+        // TODO: we should lift the batch execution (graph-node, then contracts) up to here so we can
+        // mark the actions appropriately
+        const onFinishedDeploying = async (validatedActions) => {
+          // After we ensure that we have finished deploying new subgraphs (and possibly their dependencies) to graph-node,
+          // we can mark the actions as PENDING.
+          logger.debug('Finished deploying actions, marking as PENDING')
+          this.models.Action.sequelize!.transaction(
+            { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
+            async (transaction) => {
+              return await this.markActions(
+                validatedActions,
+                transaction,
+                ActionStatus.PENDING,
+              )
+            },
+          )
+        }
         // This will return all results if successful, if failed it will return the failed actions
-        results = await allocationManager.executeBatch(prioritizedActions)
+        results = await allocationManager.executeBatch(
+          prioritizedActions,
+          onFinishedDeploying,
+        )
         logger.debug('Completed batch action execution', {
           results,
           endTimeMs: Date.now() - batchStartTime,
