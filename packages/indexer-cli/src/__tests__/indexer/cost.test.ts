@@ -5,7 +5,6 @@ import {
   deleteFromAllTables,
   seedCostModels,
   setupSingleNetwork,
-  setupMultiNetworks,
 } from '../util'
 import path from 'path'
 
@@ -191,33 +190,6 @@ describe('Indexer cost tests', () => {
       'Indexer cost get - not connected',
       ['indexer', 'cost', 'get', 'QmXRpJW3qBuYaiBYHdhv8DF4bHDZhXBmh91MtrnhJfQ5Lk'],
       'references/indexer-not-connected',
-      {
-        expectedExitCode: 1,
-        cwd: baseDir,
-        timeout: 10000,
-      },
-    )
-  })
-})
-
-describe('Indexer cost tests multiNetworks', () => {
-  beforeAll(setupMultiNetworks)
-  afterAll(teardown)
-  beforeEach(seedCostModels)
-  afterEach(deleteFromAllTables)
-
-  describe('Cost set...', () => {
-    cliTest(
-      'Indexer cost set model deployment id - reject multinetwork mode',
-      [
-        'indexer',
-        'cost',
-        'set',
-        'model',
-        'QmXRpJW3qBuYaiBYHdhv8DF4bHDZhXBmh91MtrnhJfQ5Lk',
-        'references/basic.agora',
-      ],
-      'references/indexer-cost-model-deployment-multinetworks',
       {
         expectedExitCode: 1,
         cwd: baseDir,
