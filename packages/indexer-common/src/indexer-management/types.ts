@@ -304,9 +304,14 @@ export function resolveChainAlias(id: string): string {
       `Failed to match chain id, '${id}', to a network alias in Caip2ByChainAlias`,
     )
   } else {
-    throw new Error(
-      `Something has gone wrong, chain id, '${id}', matched more than one network alias in Caip2ByChainAlias`,
-    )
+    // Theres' more than one chain alias, now that we use the registry there could be multiple
+    // prefer the alias that does not have -mainnet suffix
+    const aliasWithoutSuffix = aliasMatches.find((name) => !name.endsWith('-mainnet'))
+    if (aliasWithoutSuffix) {
+      return aliasWithoutSuffix
+    }
+    // if we don't have an alias without suffix, then we have to return the first one
+    return aliasMatches[0]
   }
 }
 
