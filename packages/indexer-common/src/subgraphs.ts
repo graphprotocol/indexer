@@ -201,7 +201,7 @@ export function preprocessRules(rules: IndexingRuleAttributes[]): PreprocessedRu
   const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
   const deploymentRulesMap = new Map<string, IndexingRuleAttributes>()
   
-  rules.forEach(rule => {
+  rules.forEach((rule) => {
     if (rule.identifierType === SubgraphIdentifierType.DEPLOYMENT) {
       deploymentRulesMap.set(rule.identifier, rule)
     }
@@ -218,7 +218,13 @@ export function evaluateDeployments(
   const { deploymentRulesMap, globalRule } = preprocessRules(rules)
 
   return networkDeployments.map((deployment) =>
-    isDeploymentWorthAllocatingTowards(logger, deployment, rules, deploymentRulesMap, globalRule),
+    isDeploymentWorthAllocatingTowards(
+      logger,
+      deployment,
+      rules,
+      deploymentRulesMap,
+      globalRule,
+    ),
   )
 }
 

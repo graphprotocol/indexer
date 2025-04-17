@@ -1042,11 +1042,11 @@ export class AllocationManager {
     const { deploymentRulesMap, globalRule } = preprocessRules(indexingRules)
 
     return isDeploymentWorthAllocatingTowards(
-      logger, 
-      subgraphDeployment, 
+      logger,
+      subgraphDeployment,
       indexingRules,
       deploymentRulesMap,
-      globalRule
+      globalRule,
     ).toAllocate
   }
 
