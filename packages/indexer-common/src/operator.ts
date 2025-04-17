@@ -84,7 +84,10 @@ export class Operator {
   }
 
   get dipsManager(): DipsManager | null {
-    return this.indexerManagement.actionManager?.allocationManager?.dipsManager ?? null
+    const network = this.specification.networkIdentifier
+    const allocationManager =
+      this.indexerManagement.actionManager?.allocationManagers[network]
+    return allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
@@ -380,15 +383,18 @@ export class Operator {
     }
 
     // Send AllocateAction to the queue
-    await this.queueAction({
-      params: {
-        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-        amount: formatGRT(desiredAllocationAmount),
+    await this.queueAction(
+      {
+        params: {
+          deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+          amount: formatGRT(desiredAllocationAmount),
+        },
+        type: ActionType.ALLOCATE,
+        reason: deploymentAllocationDecision.reasonString(),
+        protocolNetwork: deploymentAllocationDecision.protocolNetwork,
       },
-      type: ActionType.ALLOCATE,
-      reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-    })
+      forceAction,
+    )
 
     return
   }
@@ -417,17 +423,20 @@ export class Operator {
         activeDeploymentAllocationsEligibleForClose,
         async (allocation) => {
           // Send unallocate action to the queue
-          await this.queueAction({
-            params: {
-              allocationID: allocation,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              poi: undefined,
-              force: false,
-            },
-            type: ActionType.UNALLOCATE,
-            reason: deploymentAllocationDecision.reasonString(),
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-          } as ActionItem)
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                poi: undefined,
+                force: false,
+              },
+              type: ActionType.UNALLOCATE,
+              reason: deploymentAllocationDecision.reasonString(),
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+            } as ActionItem,
+            forceAction,
+          )
         },
         { concurrency: 1 },
       )
@@ -455,16 +464,19 @@ export class Operator {
       await pMap(
         expiredAllocations,
         async (allocation) => {
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              amount: formatGRT(desiredAllocationAmount),
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                amount: formatGRT(desiredAllocationAmount),
+              },
+              type: ActionType.REALLOCATE,
+              reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
             },
-            type: ActionType.REALLOCATE,
-            reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-          })
+            forceAction,
+          )
         },
         {
           stopOnError: false,

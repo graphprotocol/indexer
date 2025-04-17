@@ -15,6 +15,7 @@ import {
   Operator,
   ActionManager,
   IndexerManagementClient,
+  MultiNetworks,
 } from '@graphprotocol/indexer-common'
 import {
   connectDatabase,
@@ -44,6 +45,7 @@ let graphNode: GraphNode
 let managementModels: IndexerManagementModels
 let queryFeeModels: QueryFeeModels
 let network: Network
+let multiNetworks: MultiNetworks<Network>
 let dipsCollector: DipsCollector
 let indexerManagementClient: IndexerManagementClient
 let operator: Operator
@@ -90,6 +92,7 @@ const setup = async () => {
     'https://test-admin-endpoint.xyz',
     'https://test-query-endpoint.xyz',
     'https://test-status-endpoint.xyz',
+    'https://test-ipfs-endpoint.xyz',
   )
 
   sequelize = await connectDatabase(__DATABASE__)
@@ -105,6 +108,12 @@ const setup = async () => {
     graphNode,
     metrics,
   )
+
+  multiNetworks = new MultiNetworks(
+    [network],
+    (n: Network) => n.specification.networkIdentifier,
+  )
+
   dipsCollector = network.dipsCollector!
   indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
@@ -116,7 +125,7 @@ const setup = async () => {
         parallelAllocations: 1,
       },
     },
-    network,
+    multiNetworks,
   })
 
   operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)

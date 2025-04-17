@@ -226,7 +226,7 @@ async function queryAllocations(
   let lastId = ''
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const resultAllocations: any[] = []
-  for (; ;) {
+  for (;;) {
     const pageVars = {
       ...filterVars,
       lastId,
@@ -536,7 +536,8 @@ export default {
       if (receipt === 'paused' || receipt === 'unauthorized') {
         throw indexerError(
           IndexerErrorCode.IE062,
-          `Allocation not created. ${receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
+          `Allocation not created. ${
+            receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
           }`,
         )
       }
@@ -577,8 +578,10 @@ export default {
 
       await models.IndexingRule.upsert(indexingRule)
 
-      if (actionManager?.allocationManager?.dipsManager) {
-        await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
           deployment,
           null,
           toAddress(createAllocationEventLogs.allocationID),
@@ -743,9 +746,11 @@ export default {
 
       await models.IndexingRule.upsert(offchainIndexingRule)
 
-      if (actionManager?.allocationManager?.dipsManager) {
-        await actionManager.allocationManager.dipsManager.tryCancelAgreement(allocation)
-        await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryCancelAgreement(allocation)
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
           allocationData.subgraphDeployment.id.toString(),
           toAddress(allocation),
           null,
@@ -1059,8 +1064,10 @@ export default {
 
       await models.IndexingRule.upsert(indexingRule)
 
-      if (actionManager?.allocationManager?.dipsManager) {
-        await actionManager.allocationManager.dipsManager.tryUpdateAgreementAllocation(
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
           allocationData.subgraphDeployment.id.toString(),
           toAddress(allocation),
           toAddress(createAllocationEventLogs.allocationID),
