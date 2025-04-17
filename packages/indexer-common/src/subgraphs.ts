@@ -200,7 +200,7 @@ export interface PreprocessedRules {
 export function preprocessRules(rules: IndexingRuleAttributes[]): PreprocessedRules {
   const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
   const deploymentRulesMap = new Map<string, IndexingRuleAttributes>()
-  
+
   rules.forEach((rule) => {
     if (rule.identifierType === SubgraphIdentifierType.DEPLOYMENT) {
       deploymentRulesMap.set(rule.identifier, rule)
