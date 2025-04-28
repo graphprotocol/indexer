@@ -234,16 +234,7 @@ async function buildCaip2MappingsFromRegistry() {
   const networks = registry.networks
 
   for (const network of networks) {
-    if (!network.aliases) {
-      continue
-    }
-    for (const alias of network.aliases) {
-      caip2ByChainAlias[alias] = network.caip2Id
-      if (alias.endsWith('-mainnet')) {
-        const aliasWithoutSuffix = alias.replace('-mainnet', '')
-        caip2ByChainAlias[aliasWithoutSuffix] = network.caip2Id
-      }
-    }
+    caip2ByChainAlias[network.id] = network.caip2Id
     const chainId = parseInt(network.caip2Id.split(':')[1])
     if (
       typeof chainId === 'number' &&

@@ -82,8 +82,6 @@ export class NetworkMonitor {
         return null
       }
 
-      // TODO: check if the network is present in the epoch subgraph instead of
-      // our hardcoded list
       resolveChainId(allocationNetworkAlias)
 
       return allocationNetworkAlias
