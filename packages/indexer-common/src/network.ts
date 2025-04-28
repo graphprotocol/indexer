@@ -283,7 +283,7 @@ export class Network {
       indexer: toAddress(specification.indexerOptions.address),
       logger,
       networkSubgraph,
-      protocolNetwork: resolveChainId(networkIdentifier.chainId),
+      protocolNetwork: resolveChainId(`eip155:${networkIdentifier.chainId}`),
       interval: specification.allocationSyncInterval,
     })
 
@@ -550,7 +550,7 @@ async function connectToProtocolContracts(
   const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
 
   // Confidence check: Should be unreachable since NetworkSpecification was validated before
-  if (resolveChainId(numericNetworkId) !== networkIdentifier) {
+  if (resolveChainId(networkIdentifier)) {
     throw new Error(`Invalid network identifier: ${networkIdentifier}`)
   }
 

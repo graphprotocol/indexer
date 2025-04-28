@@ -1,5 +1,5 @@
 # this file is missing the whole `transactionMonitoring` entry, and is still valid
-networkIdentifier: mainnet
+networkIdentifier: hardhat
 gateway:
   url: http://gateway
 indexerOptions:

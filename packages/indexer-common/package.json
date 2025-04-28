@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.23.5",
+  "version": "0.23.6",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,10 +15,10 @@
     "lint": "eslint . --ext .ts,.tsx --fix",
     "compile": "tsc",
     "prepare": "yarn format && yarn lint && yarn compile",
-    "test": "LOG_LEVEL=info jest --colors --verbose --runInBand --detectOpenHandles",
-    "test:ci": "LOG_LEVEL=info jest --verbose --maxWorkers=1 --ci",
-    "test:debug": "LOG_LEVEL=debug jest --runInBand --detectOpenHandles --verbose",
-    "test:watch": "jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose",
+    "test": "NODE_OPTIONS='--experimental-vm-modules' LOG_LEVEL=info jest --colors --verbose --runInBand --detectOpenHandles",
+    "test:ci": "NODE_OPTIONS='--experimental-vm-modules' LOG_LEVEL=info jest --verbose --maxWorkers=1 --ci",
+    "test:debug": "NODE_OPTIONS='--experimental-vm-modules 'LOG_LEVEL=debug node jest --runInBand --detectOpenHandles --verbose",
+    "test:watch": "NODE_OPTIONS='--experimental-vm-modules' jest --runInBand --detectOpenHandles --watch --passWithNoTests --verbose",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
   },
   "dependencies": {

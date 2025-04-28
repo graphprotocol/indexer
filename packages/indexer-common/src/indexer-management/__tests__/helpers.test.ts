@@ -289,10 +289,6 @@ describe('Types', () => {
     expect(resolveChainId('mainnet')).toBe('eip155:1')
   })
 
-  test('Resolve chain id: `11155111`', () => {
-    expect(resolveChainId('11155111')).toBe('eip155:11155111')
-  })
-
   test('Resolve chain alias: `eip155:1`', () => {
     expect(resolveChainAlias('eip155:1')).toBe('mainnet')
   })

@@ -11,7 +11,7 @@ import {
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
 import {
-  common_init,
+  initNetworkRegistryESM,
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
@@ -400,7 +400,7 @@ export async function createNetworkSpecification(
   // Since we can't infer the network identifier, we must ask the configured
   // JSON RPC provider for its `chainID`.
   const chainId = await fetchChainId(networkProvider.url)
-  const networkIdentifier = resolveChainId(chainId)
+  const networkIdentifier = resolveChainId(`eip155:${chainId}`)
 
   // Warn about inappropriate max block distance for subgraph threshold checks for given networks.
   if (networkIdentifier.startsWith('eip155:42161')) {
@@ -463,7 +463,7 @@ export async function run(
   networkSpecifications: spec.NetworkSpecification[],
   logger: Logger,
 ): Promise<void> {
-  await common_init(logger)
+  await initNetworkRegistryESM(logger)
   // --------------------------------------------------------------------------------
   // * Configure event  listeners for unhandled promise  rejections and uncaught
   // exceptions.

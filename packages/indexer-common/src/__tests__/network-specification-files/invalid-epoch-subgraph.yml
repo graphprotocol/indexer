@@ -1,4 +1,4 @@
-networkIdentifier: mainnet
+networkIdentifier: hardhat 
 gateway:
   url: http://gateway
 indexerOptions:
