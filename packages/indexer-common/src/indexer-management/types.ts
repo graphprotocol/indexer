@@ -227,7 +227,7 @@ const caip2ByChainAlias: { [key: string]: string } = {
   boba: 'eip155:288',
   'boba-bnb': 'eip155:56288',
   zora: 'eip155:7777777',
-  mode: 'eip155:34443',
+  'mode-mainnet': 'eip155:34443',
 }
 
 async function buildCaip2MappingsFromRegistry() {
