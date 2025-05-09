@@ -296,10 +296,12 @@ export class Agent {
               if (!operator.dipsManager) {
                 throw new Error('DipsManager is not available')
               }
-              logger.trace('Ensuring indexing rules for DIPS', {
+              logger.debug('Ensuring indexing rules for DIPs', {
                 protocolNetwork: network.specification.networkIdentifier,
               })
               await operator.dipsManager.ensureAgreementRules()
+            } else {
+              logger.debug('DIPs is disabled, skipping indexing rule enforcement')
             }
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
@@ -357,7 +359,7 @@ export class Agent {
             return assignments.map(assignment => assignment.id)
           } else {
             logger.info(
-              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
+              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and DIPs is disabled",
             )
             return []
           }

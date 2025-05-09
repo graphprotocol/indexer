@@ -127,6 +127,7 @@ export class DipsManager {
         cancelled_at: null,
       },
     })
+    this.logger.debug(`Ensuring indexing rules for ${indexingAgreements.length} agreement${indexingAgreements.length === 1 ? '' : 's'}`)
     // For each agreement, check that there is an indexing rule to always
     // allocate to the agreement's subgraphDeploymentId, and if not, create one
     for (const agreement of indexingAgreements) {
