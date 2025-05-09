@@ -301,7 +301,9 @@ export class Agent {
               })
               await operator.dipsManager.ensureAgreementRules()
             } else {
-              logger.debug('DIPs is disabled, skipping indexing rule enforcement')
+              logger.debug(
+                'DIPs is disabled, skipping indexing rule enforcement',
+              )
             }
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
