@@ -345,7 +345,10 @@ export class Agent {
               dipsEnabled = true
             }
           })
-          if (this.deploymentManagement === DeploymentManagementMode.AUTO || dipsEnabled) {
+          if (
+            this.deploymentManagement === DeploymentManagementMode.AUTO ||
+            dipsEnabled
+          ) {
             logger.debug('Fetching active deployments')
             const assignments =
               await this.graphNode.subgraphDeploymentsAssignments(
