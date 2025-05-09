@@ -339,7 +339,13 @@ export class Agent {
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          if (this.deploymentManagement === DeploymentManagementMode.AUTO) {
+          let dipsEnabled = false
+          await this.multiNetworks.map(async ({ network }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              dipsEnabled = true
+            }
+          })
+          if (this.deploymentManagement === DeploymentManagementMode.AUTO || dipsEnabled) {
             logger.debug('Fetching active deployments')
             const assignments =
               await this.graphNode.subgraphDeploymentsAssignments(
