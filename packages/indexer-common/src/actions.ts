@@ -1,6 +1,6 @@
 import { NetworkMonitor } from './indexer-management'
 import { AllocationStatus } from './allocations'
-import { Logger } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { WhereOperators, WhereOptions } from 'sequelize'
 import { Op } from 'sequelize'
 import { WhereAttributeHashValue } from 'sequelize/types/model'
@@ -119,6 +119,14 @@ export const validateActionInputs = async (
     ) {
       throw Error(
         `Cannot queue action with status ${action.status}, must be one of ['APPROVED', 'QUEUED']`,
+      )
+    }
+
+    try {
+      new SubgraphDeploymentID(action.deploymentID)
+    } catch (e) {
+      throw new Error(
+        `Invalid 'deploymentID' value: ${action.deploymentID}, error: ${e}`,
       )
     }
 
