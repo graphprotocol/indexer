@@ -1063,11 +1063,7 @@ export class AllocationManager {
     const subgraphDeployment = await this.network.networkMonitor.subgraphDeployment(
       subgraphDeploymentID.ipfsHash,
     )
-    if (!subgraphDeployment) {
-      throw Error(
-        `SHOULD BE UNREACHABLE: No matching subgraphDeployment (${subgraphDeploymentID.ipfsHash}) found on the network`,
-      )
-    }
+
     return isDeploymentWorthAllocatingTowards(logger, subgraphDeployment, indexingRules)
       .toAllocate
   }

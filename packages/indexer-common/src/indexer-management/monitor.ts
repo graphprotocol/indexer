@@ -505,7 +505,7 @@ export class NetworkMonitor {
     return subgraphs
   }
 
-  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment | undefined> {
+  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment> {
     try {
       const result = await this.networkSubgraph.checkedQuery(
         gql`
@@ -542,7 +542,14 @@ export class NetworkMonitor {
         this.logger.warn(
           `SubgraphDeployment with ipfsHash = ${ipfsHash} not found on chain`,
         )
-        return undefined
+        return {
+          id: new SubgraphDeploymentID(ipfsHash),
+          deniedAt: 1,
+          stakedTokens: BigNumber.from(0),
+          signalledTokens: BigNumber.from(0),
+          queryFeesAmount: BigNumber.from(0),
+          protocolNetwork: this.networkCAIPID,
+        }
       }
 
       return parseGraphQLSubgraphDeployment(

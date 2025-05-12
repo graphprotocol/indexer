@@ -122,16 +122,6 @@ export const validateActionInputs = async (
       )
     }
 
-    // Action must target an existing subgraph deployment
-    const subgraphDeployment = await networkMonitor.subgraphDeployment(
-      action.deploymentID,
-    )
-    if (!subgraphDeployment) {
-      logger.warn(
-        `No subgraphDeployment with ipfsHash = '${action.deploymentID}' found on the network`,
-      )
-    }
-
     // Unallocate & reallocate actions must target an active allocationID
     if ([ActionType.UNALLOCATE, ActionType.REALLOCATE].includes(action.type)) {
       // allocationID must belong to active allocation
