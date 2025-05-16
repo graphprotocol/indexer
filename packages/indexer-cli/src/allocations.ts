@@ -1,8 +1,7 @@
-import { SubgraphDeploymentID, formatGRT } from '@graphprotocol/common-ts'
+import { SubgraphDeploymentID, formatGRT, commify } from '@graphprotocol/common-ts'
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { BigNumber, utils } from 'ethers'
 import { OutputFormat, parseOutputFormat, pickFields } from './command-helpers'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
@@ -17,17 +16,17 @@ export interface IndexerAllocation {
   id: number
   indexer: string
   subgraphDeployment: string
-  allocatedTokens: BigNumber
-  signalledTokens: BigNumber
-  stakedTokens: BigNumber
+  allocatedTokens: bigint
+  signalledTokens: bigint
+  stakedTokens: bigint
   createdAtEpoch: number
   closedAtEpoch: number | null
   ageInEpochs: number
   closeDeadlineEpoch: number
   closeDeadlineBlocksRemaining: number
   closeDeadlineTimeRemaining: number
-  indexingRewards: BigNumber
-  queryFeesCollected: BigNumber
+  indexingRewards: bigint
+  queryFeesCollected: bigint
   status: string
   protocolNetwork: string
 }
@@ -41,17 +40,17 @@ const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
   indexer: x => x,
   subgraphDeployment: (d: SubgraphDeploymentID) =>
     typeof d === 'string' ? d : d.ipfsHash,
-  allocatedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
-  signalledTokens: nullPassThrough((x: string) => BigNumber.from(x)),
-  stakedTokens: nullPassThrough((x: string) => BigNumber.from(x)),
+  allocatedTokens: nullPassThrough((x: string) => BigInt(x)),
+  signalledTokens: nullPassThrough((x: string) => BigInt(x)),
+  stakedTokens: nullPassThrough((x: string) => BigInt(x)),
   createdAtEpoch: nullPassThrough((x: string) => parseInt(x)),
   closedAtEpoch: nullPassThrough((x: string) => parseInt(x)),
   ageInEpochs: nullPassThrough((x: string) => parseInt(x)),
   closeDeadlineEpoch: nullPassThrough((x: string) => parseInt(x)),
   closeDeadlineBlocksRemaining: nullPassThrough((x: string) => parseInt(x)),
   closeDeadlineTimeRemaining: nullPassThrough((x: string) => parseInt(x)),
-  indexingRewards: nullPassThrough((x: string) => BigNumber.from(x)),
-  queryFeesCollected: nullPassThrough((x: string) => BigNumber.from(x)),
+  indexingRewards: nullPassThrough((x: string) => BigInt(x)),
+  queryFeesCollected: nullPassThrough((x: string) => BigInt(x)),
   status: x => x,
   protocolNetwork: x => x,
 }
@@ -64,17 +63,17 @@ const ALLOCATION_FORMATTERS: Record<
   indexer: nullPassThrough(x => x),
   subgraphDeployment: (d: SubgraphDeploymentID) =>
     typeof d === 'string' ? d : d.ipfsHash,
-  allocatedTokens: x => utils.commify(formatGRT(x)),
-  signalledTokens: x => utils.commify(formatGRT(x)),
-  stakedTokens: x => utils.commify(formatGRT(x)),
+  allocatedTokens: x => commify(formatGRT(x)),
+  signalledTokens: x => commify(formatGRT(x)),
+  stakedTokens: x => commify(formatGRT(x)),
   createdAtEpoch: x => x,
   closedAtEpoch: x => x,
   ageInEpochs: x => x,
   closeDeadlineEpoch: x => x,
   closeDeadlineBlocksRemaining: x => x,
   closeDeadlineTimeRemaining: x => x,
-  indexingRewards: x => utils.commify(formatGRT(x)),
-  queryFeesCollected: x => utils.commify(formatGRT(x)),
+  indexingRewards: x => commify(formatGRT(x)),
+  queryFeesCollected: x => commify(formatGRT(x)),
   status: x => x,
   protocolNetwork: resolveChainAlias,
 }
@@ -173,7 +172,7 @@ function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
 export const createAllocation = async (
   client: IndexerManagementClient,
   deployment: string,
-  amount: BigNumber,
+  amount: bigint,
   indexNode: string | undefined,
   protocolNetwork: string,
 ): Promise<CreateAllocationResult> => {
@@ -265,7 +264,7 @@ export const reallocateAllocation = async (
   client: IndexerManagementClient,
   allocationID: string,
   poi: string | undefined,
-  amount: BigNumber,
+  amount: bigint,
   force: boolean,
   protocolNetwork: string,
 ): Promise<ReallocateAllocationResult> => {

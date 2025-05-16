@@ -1,20 +1,18 @@
 import {
-  BigNumber,
   BigNumberish,
-  ContractReceipt,
-  ContractTransaction,
-  providers,
-  utils,
-  Wallet,
+  HDNodeWallet,
+  parseUnits,
+  Provider,
+  TransactionReceipt,
+  TransactionRequest,
+  ContractTransactionResponse,
+  TransactionResponse,
+  toUtf8String,
+  FeeData,
+  Interface,
+  Result,
 } from 'ethers'
-import {
-  Address,
-  Eventual,
-  Logger,
-  mutable,
-  NetworkContracts,
-  toAddress,
-} from '@graphprotocol/common-ts'
+import { Address, Eventual, Logger, mutable, toAddress } from '@graphprotocol/common-ts'
 import delay from 'delay'
 import { TransactionMonitoring } from './network-specification'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
@@ -22,19 +20,23 @@ import { TransactionConfig, TransactionType } from './types'
 import { SubgraphClient } from './subgraph-client'
 import gql from 'graphql-tag'
 import { sequentialTimerReduce } from './sequential-timer'
+import {
+  GraphHorizonContracts,
+  SubgraphServiceContracts,
+} from '@graphprotocol/toolshed/deployments'
 
 export class TransactionManager {
-  ethereum: providers.BaseProvider
-  wallet: Wallet
+  ethereum: Provider
+  wallet: HDNodeWallet
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   specification: TransactionMonitoring
-  adjustedGasIncreaseFactor: BigNumber
+  adjustedGasIncreaseFactor: bigint
   adjustedBaseFeePerGasMax: number
 
   constructor(
-    ethereum: providers.BaseProvider,
-    wallet: Wallet,
+    ethereum: Provider,
+    wallet: HDNodeWallet,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     specification: TransactionMonitoring,
@@ -44,7 +46,7 @@ export class TransactionManager {
     this.paused = paused
     this.isOperator = isOperator
     this.specification = specification
-    this.adjustedGasIncreaseFactor = utils.parseUnits(
+    this.adjustedGasIncreaseFactor = parseUnits(
       specification.gasIncreaseFactor.toString(),
       3,
     )
@@ -53,10 +55,10 @@ export class TransactionManager {
   }
 
   async executeTransaction(
-    gasEstimation: () => Promise<BigNumber>,
-    transaction: (gasLimit: BigNumberish) => Promise<ContractTransaction>,
+    gasEstimation: () => Promise<bigint>,
+    transaction: (gasLimit: BigNumberish) => Promise<ContractTransactionResponse>,
     logger: Logger,
-  ): Promise<ContractReceipt | 'paused' | 'unauthorized'> {
+  ): Promise<TransactionReceipt | 'paused' | 'unauthorized'> {
     if (await this.paused.value()) {
       logger.info(`Network is paused, skipping this action`)
       return 'paused'
@@ -68,14 +70,14 @@ export class TransactionManager {
     }
 
     let pending = true
-    let output: providers.TransactionReceipt | undefined = undefined
+    let output: TransactionReceipt | undefined = undefined
 
     const feeData = await this.waitForGasPricesBelowThreshold(logger)
-    const paddedGasLimit = Math.ceil((await gasEstimation()).toNumber() * 1.5)
+    const paddedGasLimit = Math.ceil(Number(await gasEstimation()) * 1.5)
 
     const txPromise = transaction(paddedGasLimit)
-    let tx = await txPromise
-    let txRequest: providers.TransactionRequest | undefined = undefined
+    let tx: TransactionResponse = await txPromise
+    let txRequest: TransactionRequest | undefined = undefined
 
     let txConfig: TransactionConfig = {
       attempt: 1,
@@ -130,10 +132,14 @@ export class TransactionManager {
           this.specification.gasIncreaseTimeout,
         )
 
+        if (receipt === null) {
+          throw indexerError(IndexerErrorCode.IE057)
+        }
+
         if (receipt.status == 0) {
           const revertReason = await this.getRevertReason(
             logger,
-            txRequest as providers.TransactionRequest,
+            txRequest as TransactionRequest,
           )
           if (revertReason === 'out of gas') {
             throw indexerError(IndexerErrorCode.IE050)
@@ -159,14 +165,11 @@ export class TransactionManager {
     return output!
   }
 
-  async getRevertReason(
-    logger: Logger,
-    txRequest: providers.TransactionRequest,
-  ): Promise<string> {
+  async getRevertReason(logger: Logger, txRequest: TransactionRequest): Promise<string> {
     let revertReason = 'unknown'
     try {
       const code = await this.ethereum.call(txRequest)
-      revertReason = utils.toUtf8String(`0x${code.substr(138)}`)
+      revertReason = toUtf8String(`0x${code.substr(138)}`)
     } catch (e) {
       if (e.body.includes('out of gas')) {
         revertReason = 'out of gas'
@@ -188,10 +191,12 @@ export class TransactionManager {
     })
     if (error instanceof IndexerError) {
       if (error.code == IndexerErrorCode.IE050) {
-        txConfig.gasLimit = BigNumber.from(txConfig.gasLimit)
-          .mul(txConfig.gasBump)
-          .div(1000)
-        txConfig.nonce = BigNumber.from(txConfig.nonce).add(1)
+        if (txConfig.gasLimit) {
+          txConfig.gasLimit = (BigInt(txConfig.gasLimit) * txConfig.gasBump) / 1000n
+        }
+        if (txConfig.nonce) {
+          txConfig.nonce = txConfig.nonce + 1
+        }
       } else if (error.code == IndexerErrorCode.IE051) {
         throw error
       }
@@ -213,7 +218,9 @@ export class TransactionManager {
           'Transaction nonce is too low. Try incrementing the nonce.',
         )
       ) {
-        txConfig.nonce = BigNumber.from(txConfig.nonce).add(1)
+        if (txConfig.nonce) {
+          txConfig.nonce = txConfig.nonce + 1
+        }
       } else if (
         error.message.includes('Try increasing the fee') ||
         error.message.includes('gas price supplied is too low') ||
@@ -221,24 +228,26 @@ export class TransactionManager {
       ) {
         // Transaction timed out or failed due to a low gas price estimation, bump gas price and retry
         if (txConfig.type === TransactionType.ZERO) {
-          txConfig.gasPrice = BigNumber.from(txConfig.gasPrice)
-            .mul(txConfig.gasBump)
-            .div(1000)
+          if (txConfig.gasPrice) {
+            txConfig.gasPrice = (BigInt(txConfig.gasPrice) * txConfig.gasBump) / 1000n
+          }
         } else if (txConfig.type == TransactionType.TWO) {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          txConfig.maxFeePerGas = BigNumber.from(txConfig.maxFeePerGas)
-            .mul(txConfig.gasBump)
-            .div(1000)
-          txConfig.maxPriorityFeePerGas = BigNumber.from(txConfig.maxPriorityFeePerGas)
-            .mul(txConfig.gasBump)
-            .div(1000)
+          if (txConfig.maxFeePerGas) {
+            txConfig.maxFeePerGas =
+              (BigInt(txConfig.maxFeePerGas) * txConfig.gasBump) / 1000n
+          }
+          if (txConfig.maxPriorityFeePerGas) {
+            txConfig.maxPriorityFeePerGas =
+              (BigInt(txConfig.maxPriorityFeePerGas) * txConfig.gasBump) / 1000n
+          }
         }
       }
     }
     txConfig.attempt += 1
     return txConfig
   }
-  async transactionType(data: providers.FeeData): Promise<TransactionType> {
+  async transactionType(data: FeeData): Promise<TransactionType> {
     if (data.maxPriorityFeePerGas && data.maxFeePerGas) {
       return TransactionType.TWO
     } else if (data.gasPrice) {
@@ -249,28 +258,37 @@ export class TransactionManager {
       )
     }
   }
-  async waitForGasPricesBelowThreshold(logger: Logger): Promise<providers.FeeData> {
+  async waitForGasPricesBelowThreshold(logger: Logger): Promise<FeeData> {
     let attempt = 1
     let aboveThreshold = true
     let feeData = {
       gasPrice: null,
       maxFeePerGas: null,
       maxPriorityFeePerGas: null,
-    } as providers.FeeData
+    } as {
+      gasPrice: bigint | null
+      maxFeePerGas: bigint | null
+      maxPriorityFeePerGas: bigint | null
+    }
 
     while (aboveThreshold) {
-      feeData = await this.ethereum.getFeeData()
-      const type = await this.transactionType(feeData)
+      const providerFeeData = await this.ethereum.getFeeData()
+      feeData = {
+        gasPrice: providerFeeData.gasPrice,
+        maxFeePerGas: providerFeeData.maxFeePerGas,
+        maxPriorityFeePerGas: providerFeeData.maxPriorityFeePerGas,
+      }
+      const type = await this.transactionType(providerFeeData)
       if (type === TransactionType.TWO) {
         // Type 0x02 transaction
         // This baseFeePerGas calculation is based off how maxFeePerGas is calculated in getFeeData()
         // https://github.com/ethers-io/ethers.js/blob/68229ac0aff790b083717dc73cd84f38d32a3926/packages/abstract-provider/src.ts/index.ts#L247
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        const baseFeePerGas = feeData
-          .maxFeePerGas! // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          .sub(feeData.maxPriorityFeePerGas!)
-          .div(2)
-        if (baseFeePerGas.toNumber() >= this.adjustedBaseFeePerGasMax) {
+        const baseFeePerGas =
+          (feeData.maxFeePerGas! - // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            feeData.maxPriorityFeePerGas!) /
+          2n
+        if (Number(baseFeePerGas) >= this.adjustedBaseFeePerGasMax) {
           if (attempt === 1) {
             logger.warning(
               `Max base fee per gas has been reached, waiting until the base fee falls below to resume transaction execution.`,
@@ -279,7 +297,7 @@ export class TransactionManager {
           } else {
             logger.info(`Base gas fee per gas estimation still above max threshold`, {
               maxBaseFeePerGas: this.specification.baseFeePerGasMax,
-              baseFeePerGas: baseFeePerGas.toNumber(),
+              baseFeePerGas: Number(baseFeePerGas),
               priceEstimateAttempt: attempt,
             })
           }
@@ -292,19 +310,19 @@ export class TransactionManager {
       } else if (type === TransactionType.ZERO) {
         // Legacy transaction type
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        if (feeData.gasPrice!.toNumber() >= this.adjustedBaseFeePerGasMax) {
+        if (Number(feeData.gasPrice!) >= this.adjustedBaseFeePerGasMax) {
           if (attempt === 1) {
             logger.warning(
               `Max gas price has been reached, waiting until gas price estimates fall below to resume transaction execution.`,
               {
                 baseFeePerGasMax: this.specification.baseFeePerGasMax,
-                currentGasPriceEstimate: feeData.gasPrice!.toNumber(),
+                currentGasPriceEstimate: Number(feeData.gasPrice!),
               },
             )
           } else {
             logger.info(`Gas price estimation still above max threshold`, {
               baseFeePerGasMax: this.specification.baseFeePerGasMax,
-              currentGasPriceEstimate: feeData.gasPrice!.toNumber(),
+              currentGasPriceEstimate: Number(feeData.gasPrice!),
               priceEstimateAttempt: attempt,
             })
           }
@@ -315,12 +333,12 @@ export class TransactionManager {
         }
       }
     }
-    return feeData
+    return feeData as FeeData
   }
 
   async monitorNetworkPauses(
     logger: Logger,
-    contracts: NetworkContracts,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     networkSubgraph: SubgraphClient,
   ): Promise<Eventual<boolean>> {
     return sequentialTimerReduce(
@@ -355,7 +373,7 @@ export class TransactionManager {
           return currentlyPaused
         }
       },
-      await contracts.controller.paused(),
+      await contracts.Controller.paused(),
     ).map((paused) => {
       logger.info(paused ? `Network paused` : `Network active`)
       return paused
@@ -364,9 +382,9 @@ export class TransactionManager {
 
   async monitorIsOperator(
     logger: Logger,
-    contracts: NetworkContracts,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     indexerAddress: Address,
-    wallet: Wallet,
+    wallet: HDNodeWallet,
   ): Promise<Eventual<boolean>> {
     // If indexer and operator address are identical, operator status is
     // implicitly granted => we'll never have to check again
@@ -382,7 +400,7 @@ export class TransactionManager {
       },
       async (isOperator) => {
         try {
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          return await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -391,7 +409,7 @@ export class TransactionManager {
           return isOperator
         }
       },
-      await contracts.staking.isOperator(wallet.address, indexerAddress),
+      await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress),
     ).map((isOperator) => {
       logger.info(
         isOperator
@@ -404,15 +422,20 @@ export class TransactionManager {
 
   findEvent(
     eventType: string,
-    contractInterface: utils.Interface,
+    contractInterface: Interface,
     logKey: string,
     logValue: string,
-    receipt: ContractReceipt,
+    receipt: TransactionReceipt,
     logger: Logger,
-  ): utils.Result | undefined {
-    const events: Event[] | providers.Log[] = receipt.events || receipt.logs
-    const decodedEvents: utils.Result[] = []
-    const expectedTopic = contractInterface.getEventTopic(eventType)
+  ): Result | undefined {
+    const events = receipt.logs
+    const decodedEvents: Result[] = []
+    const expectedTopic = contractInterface.getEvent(eventType)?.topicHash
+
+    // TODO HORIZON - throw indexer error here
+    if (!expectedTopic) {
+      throw new Error(`Event type ${eventType} not found in contract interface`)
+    }
 
     const result = events
       .filter((event) => event.topics.includes(expectedTopic))

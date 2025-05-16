@@ -1,9 +1,8 @@
 import { toAddress, parseGRT } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
 import { validateNetworkIdentifier, validateIpfsHash } from './parsers'
 import { AllocationManagementMode } from './types'
 import { z } from 'zod'
-import { utils } from 'ethers'
+import { isAddress } from 'ethers'
 
 // TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
 const ALLOCATION_MANAGEMENT_MODE = ['auto', 'manual', 'oversight'] as const
@@ -12,7 +11,7 @@ function positiveNumber(): z.ZodNumber {
   return z.number().positive().finite()
 }
 
-function GRT(): z.ZodEffects<z.ZodNumber, BigNumber, number> {
+function GRT(): z.ZodEffects<z.ZodNumber, bigint, number> {
   return z
     .number()
     .nonnegative()
@@ -33,7 +32,7 @@ export const IndexerOptions = z
   .object({
     address: z
       .string()
-      .refine((val) => utils.isAddress(val), {
+      .refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       })
       .transform(toAddress),
@@ -145,13 +144,13 @@ export const TapContracts = z
   .record(
     z.string(),
     z.object({
-      TAPVerifier: z.string().refine((val) => utils.isAddress(val), {
+      TAPVerifier: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
-      AllocationIDTracker: z.string().refine((val) => utils.isAddress(val), {
+      AllocationIDTracker: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
-      Escrow: z.string().refine((val) => utils.isAddress(val), {
+      Escrow: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
     }),

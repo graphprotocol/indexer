@@ -23,7 +23,7 @@ import {
   SubgraphClient,
 } from '..'
 import { DHeap } from '@thi.ng/heaps'
-import { BigNumber, BigNumberish, Contract } from 'ethers'
+import { BigNumberish, Contract } from 'ethers'
 import { Op } from 'sequelize'
 import pReduce from 'p-reduce'
 
@@ -90,8 +90,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
   declare partialVoucherEndpoint: URL
   declare voucherEndpoint: URL
   declare receiptsToCollect: DHeap<AllocationReceiptsBatch>
-  declare voucherRedemptionThreshold: BigNumber
-  declare voucherRedemptionBatchThreshold: BigNumber
+  declare voucherRedemptionThreshold: bigint
+  declare voucherRedemptionBatchThreshold: bigint
   declare voucherRedemptionMaxBatchSize: number
   declare protocolNetwork: string
   declare networkSubgraph: SubgraphClient
@@ -317,7 +317,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
             }
             return results
           }
-          if (BigNumber.from(voucher.amount).lt(this.voucherRedemptionThreshold)) {
+          if (BigInt(voucher.amount) < this.voucherRedemptionThreshold) {
             results.belowThreshold.push(voucher)
           } else {
             results.eligible.push(voucher)
@@ -330,8 +330,8 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       if (vouchers.belowThreshold.length > 0) {
         const totalValueGRT = formatGRT(
           vouchers.belowThreshold.reduce(
-            (total, voucher) => total.add(BigNumber.from(voucher.amount)),
-            BigNumber.from(0),
+            (total, voucher) => total + BigInt(voucher.amount),
+            0n,
           ),
         )
         logger.info(`Query vouchers below the redemption threshold`, {
@@ -349,11 +349,11 @@ export class AllocationReceiptCollector implements ReceiptCollector {
       // Already ordered by value
       const voucherBatch = vouchers.eligible.slice(0, this.voucherRedemptionMaxBatchSize),
         batchValueGRT = voucherBatch.reduce(
-          (total, voucher) => total.add(BigNumber.from(voucher.amount)),
-          BigNumber.from(0),
+          (total, voucher) => total + BigInt(voucher.amount),
+          0n,
         )
 
-      if (batchValueGRT.gt(this.voucherRedemptionBatchThreshold)) {
+      if (batchValueGRT > this.voucherRedemptionBatchThreshold) {
         this.metrics.vouchersBatchRedeemSize.set(voucherBatch.length)
         logger.info(`Query voucher batch is ready for redemption`, {
           batchSize: voucherBatch.length,
@@ -392,7 +392,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     encodedReceipts.writeHex(receipts[0].allocation)
     for (const receipt of receipts) {
       // [fee, id, signature]
-      const fee = BigNumber.from(receipt.fees).toHexString()
+      const fee = '0x' + BigInt(receipt.fees).toString(16)
       const feePadding = 33 - fee.length / 2
       encodedReceipts.writeZeroes(feePadding)
       encodedReceipts.writeHex(fee)
@@ -521,9 +521,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
           transaction,
           this.protocolNetwork,
         )
-        summary.collectedFees = BigNumber.from(summary.collectedFees)
-          .add(voucher.fees)
-          .toString()
+        summary.collectedFees = (
+          BigInt(summary.collectedFees) + BigInt(voucher.fees)
+        ).toString()
         await summary.save({ transaction })
 
         // Add the voucher to the database
@@ -577,7 +577,7 @@ export class AllocationReceiptCollector implements ReceiptCollector {
     try {
       // Submit the voucher on chain
       const txReceipt = await this.transactionManager.executeTransaction(
-        () => this.allocationExchange.estimateGas.redeemMany(onchainVouchers),
+        () => this.allocationExchange.redeemMany.estimateGas(onchainVouchers),
         async (gasLimit: BigNumberish) =>
           this.allocationExchange.redeemMany(onchainVouchers, {
             gasLimit,
@@ -600,9 +600,9 @@ export class AllocationReceiptCollector implements ReceiptCollector {
               transaction,
               this.protocolNetwork,
             )
-            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
-              .add(voucher.amount)
-              .toString()
+            summary.withdrawnFees = (
+              BigInt(summary.withdrawnFees) + BigInt(voucher.amount)
+            ).toString()
             await summary.save({ transaction })
           }
         },

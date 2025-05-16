@@ -4,7 +4,6 @@ import {
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
 import { Allocation } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
@@ -74,9 +73,9 @@ export const parseGraphQLSubgraphDeployment = (
 ): SubgraphDeployment => ({
   id: new SubgraphDeploymentID(subgraphDeployment.id),
   deniedAt: subgraphDeployment.deniedAt,
-  stakedTokens: BigNumber.from(subgraphDeployment.stakedTokens),
-  signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
-  queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
+  stakedTokens: BigInt(subgraphDeployment.stakedTokens),
+  signalledTokens: BigInt(subgraphDeployment.signalledTokens),
+  queryFeesAmount: BigInt(subgraphDeployment.queryFeesAmount),
   protocolNetwork,
 })
 
@@ -91,13 +90,13 @@ export const parseGraphQLAllocation = (
   subgraphDeployment: {
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     deniedAt: allocation.subgraphDeployment.deniedAt,
-    stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
-    signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
-    queryFeesAmount: BigNumber.from(allocation.subgraphDeployment.queryFeesAmount),
+    stakedTokens: BigInt(allocation.subgraphDeployment.stakedTokens),
+    signalledTokens: BigInt(allocation.subgraphDeployment.signalledTokens),
+    queryFeesAmount: BigInt(allocation.subgraphDeployment.queryFeesAmount),
     protocolNetwork,
   },
   indexer: toAddress(allocation.indexer.id),
-  allocatedTokens: BigNumber.from(allocation.allocatedTokens),
+  allocatedTokens: BigInt(allocation.allocatedTokens),
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
   closedAtEpoch: allocation.closedAtEpoch,

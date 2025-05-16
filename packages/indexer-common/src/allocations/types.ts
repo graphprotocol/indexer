@@ -1,4 +1,3 @@
-import { BigNumber } from 'ethers'
 import { SubgraphClient, SubgraphDeployment } from '@graphprotocol/indexer-common'
 
 import { Logger, Address } from '@graphprotocol/common-ts'
@@ -8,7 +7,7 @@ export interface Allocation {
   status: AllocationStatus
   subgraphDeployment: SubgraphDeployment
   indexer: Address
-  allocatedTokens: BigNumber
+  allocatedTokens: bigint
   createdAtEpoch: number
   createdAtBlockHash: string
   closedAtEpoch: number
@@ -16,8 +15,8 @@ export interface Allocation {
   previousEpochStartBlockHash: string | undefined
   closedAtBlockHash: string
   poi: string | undefined
-  queryFeeRebates: BigNumber | undefined
-  queryFeesCollected: BigNumber | undefined
+  queryFeeRebates: bigint | undefined
+  queryFeesCollected: bigint | undefined
 }
 
 export enum AllocationStatus {

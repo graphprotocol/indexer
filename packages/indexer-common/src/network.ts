@@ -1,18 +1,21 @@
 import {
   Logger,
   Metrics,
-  NetworkContracts,
   SubgraphDeploymentID,
-  connectContracts,
   Eventual,
-  AddressBook,
   toAddress,
 } from '@graphprotocol/common-ts'
+import {
+  connectGraphHorizon,
+  connectSubgraphService,
+  GraphHorizonContracts,
+  SubgraphServiceContracts,
+} from '@graphprotocol/toolshed/deployments'
 import {
   connectContracts as connectTapContracts,
   NetworkContracts as TapContracts,
 } from '@semiotic-labs/tap-contracts-bindings'
-import { providers, Wallet } from 'ethers'
+import { FetchRequest, HDNodeWallet, JsonRpcProvider, Provider, Wallet } from 'ethers'
 import { strict as assert } from 'assert'
 import geohash from 'ngeohash'
 import pRetry, { Options } from 'p-retry'
@@ -33,15 +36,14 @@ import {
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
-import { readFileSync } from 'fs'
 import { TapCollector } from './allocations/tap-collector'
 
 export class Network {
   logger: Logger
   networkSubgraph: SubgraphClient
-  contracts: NetworkContracts
-  wallet: Wallet
-  networkProvider: providers.StaticJsonRpcProvider
+  contracts: GraphHorizonContracts & SubgraphServiceContracts
+  wallet: HDNodeWallet
+  networkProvider: JsonRpcProvider
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
 
@@ -55,10 +57,10 @@ export class Network {
 
   private constructor(
     logger: Logger,
-    contracts: NetworkContracts,
-    wallet: Wallet,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
+    wallet: HDNodeWallet,
     networkSubgraph: SubgraphClient,
-    networkProvider: providers.StaticJsonRpcProvider,
+    networkProvider: JsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
     receiptCollector: AllocationReceiptCollector | undefined,
@@ -268,7 +270,7 @@ export class Network {
       try {
         tapContracts = await connectTapContracts(
           wallet,
-          networkIdentifier.chainId,
+          Number(networkIdentifier.chainId),
           specification.tapAddressBook,
         )
       } catch (err) {
@@ -283,29 +285,29 @@ export class Network {
       indexer: toAddress(specification.indexerOptions.address),
       logger,
       networkSubgraph,
-      protocolNetwork: resolveChainId(networkIdentifier.chainId),
+      protocolNetwork: resolveChainId(Number(networkIdentifier.chainId)),
       interval: specification.allocationSyncInterval,
     })
 
     // --------------------------------------------------------------------------------
     // * Allocation Receipt Collector
     // --------------------------------------------------------------------------------
-    let scalarCollector: AllocationReceiptCollector | undefined = undefined
-    if (!(tapContracts && tapSubgraph)) {
-      logger.warn(
-        "deprecated scalar voucher collector is enabled - you probably don't want this",
-      )
-      scalarCollector = await AllocationReceiptCollector.create({
-        logger,
-        metrics,
-        transactionManager: transactionManager,
-        models: queryFeeModels,
-        allocationExchange: contracts.allocationExchange,
-        allocations,
-        networkSpecification: specification,
-        networkSubgraph,
-      })
-    }
+    const scalarCollector: AllocationReceiptCollector | undefined = undefined
+    // if (!(tapContracts && tapSubgraph)) {
+    //   logger.warn(
+    //     "deprecated scalar voucher collector is enabled - you probably don't want this",
+    //   )
+    //   scalarCollector = await AllocationReceiptCollector.create({
+    //     logger,
+    //     metrics,
+    //     transactionManager: transactionManager,
+    //     models: queryFeeModels,
+    //     allocationExchange: contracts.allocationExchange,
+    //     allocations,
+    //     networkSpecification: specification,
+    //     networkSubgraph,
+    //   })
+    // }
 
     // --------------------------------------------------------------------------------
     // * TAP Collector
@@ -354,7 +356,7 @@ export class Network {
     networkIdentifier: string,
     networkURL: string,
     pollingInterval: number,
-  ): Promise<providers.StaticJsonRpcProvider> {
+  ): Promise<JsonRpcProvider> {
     logger.info(`Connect to Network chain`, {
       provider: networkURL,
       pollingInterval,
@@ -398,12 +400,13 @@ export class Network {
       password = providerUrl.password
     }
 
-    const networkProvider = new providers.StaticJsonRpcProvider({
-      url: providerUrl.toString(),
-      user: username,
-      password: password,
-      allowInsecureAuthentication: true,
-    })
+    const providerFetchRequest = new FetchRequest(providerUrl.toString())
+    if (username !== undefined && password !== undefined) {
+      providerFetchRequest.setCredentials(username, password)
+      providerFetchRequest.allowInsecureAuthentication = true
+    }
+
+    const networkProvider = new JsonRpcProvider(providerFetchRequest)
     networkProvider.pollingInterval = pollingInterval
 
     networkProvider.on('debug', (info) => {
@@ -428,9 +431,9 @@ export class Network {
     })
 
     logger.info(`Connected to network`, {
-      provider: networkProvider.connection.url,
+      provider: providerFetchRequest.url,
       pollingInterval: networkProvider.pollingInterval,
-      network: await networkProvider.detectNetwork(),
+      network: await networkProvider.getNetwork(),
     })
 
     return networkProvider
@@ -464,11 +467,11 @@ export class Network {
 
           // Register the indexer (only if it hasn't been registered yet or
           // if its URL is different from what is registered on chain)
-          const isRegistered = await this.contracts.serviceRegistry.isRegistered(
+          const isRegistered = await this.contracts.LegacyServiceRegistry.isRegistered(
             this.specification.indexerOptions.address,
           )
           if (isRegistered) {
-            const service = await this.contracts.serviceRegistry.services(
+            const service = await this.contracts.LegacyServiceRegistry.services(
               this.specification.indexerOptions.address,
             )
             if (
@@ -485,13 +488,13 @@ export class Network {
           }
           const receipt = await this.transactionManager.executeTransaction(
             () =>
-              this.contracts.serviceRegistry.estimateGas.registerFor(
+              this.contracts.LegacyServiceRegistry.registerFor.estimateGas(
                 this.specification.indexerOptions.address,
                 this.specification.indexerOptions.url,
                 geoHash,
               ),
             (gasLimit) =>
-              this.contracts.serviceRegistry.registerFor(
+              this.contracts.LegacyServiceRegistry.registerFor(
                 this.specification.indexerOptions.address,
                 this.specification.indexerOptions.url,
                 geoHash,
@@ -504,10 +507,12 @@ export class Network {
           if (receipt === 'paused' || receipt === 'unauthorized') {
             return
           }
-          const events = receipt.events || receipt.logs
+          const events = receipt.logs
           const event = events.find((event) =>
             event.topics.includes(
-              this.contracts.serviceRegistry.interface.getEventTopic('ServiceRegistered'),
+              // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+              this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
+                ?.topicHash!,
             ),
           )
           assert.ok(event)
@@ -527,26 +532,26 @@ export class Network {
 }
 
 async function connectWallet(
-  networkProvider: providers.Provider,
+  networkProvider: Provider,
   networkIdentifier: string,
   mnemonic: string,
   logger: Logger,
-): Promise<Wallet> {
+): Promise<HDNodeWallet> {
   logger.info(`Connect wallet`, {
     networkIdentifier: networkIdentifier,
   })
-  let wallet = Wallet.fromMnemonic(mnemonic)
+  let wallet = Wallet.fromPhrase(mnemonic)
   wallet = wallet.connect(networkProvider)
   logger.info(`Connected wallet`)
   return wallet
 }
 
 async function connectToProtocolContracts(
-  wallet: Wallet,
+  wallet: HDNodeWallet,
   networkIdentifier: string,
   logger: Logger,
   addressBook?: string,
-): Promise<NetworkContracts> {
+): Promise<GraphHorizonContracts & SubgraphServiceContracts> {
   const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
 
   // Confidence check: Should be unreachable since NetworkSpecification was validated before
@@ -558,12 +563,18 @@ async function connectToProtocolContracts(
     network: networkIdentifier,
   })
 
-  let contracts
+  let contracts: GraphHorizonContracts & SubgraphServiceContracts
   try {
-    const contractAddresses = addressBook
-      ? (JSON.parse(readFileSync(addressBook).toString()) as AddressBook)
-      : undefined
-    contracts = await connectContracts(wallet, numericNetworkId, contractAddresses)
+    const horizonContracts = connectGraphHorizon(numericNetworkId, wallet, addressBook)
+    const subgraphServiceContracts = connectSubgraphService(
+      numericNetworkId,
+      wallet,
+      addressBook,
+    )
+    contracts = {
+      ...horizonContracts,
+      ...subgraphServiceContracts,
+    }
   } catch (error) {
     const errorMessage =
       'Failed to connect to contracts, please ensure you are using the intended protocol network.'
@@ -571,14 +582,14 @@ async function connectToProtocolContracts(
     throw new Error(`${errorMessage} Error: ${error}`)
   }
   logger.info(`Successfully connected to contracts`, {
-    curation: contracts.curation.address,
-    disputeManager: contracts.disputeManager.address,
-    epochManager: contracts.epochManager.address,
-    gns: contracts.gns.address,
-    rewardsManager: contracts.rewardsManager.address,
-    serviceRegistry: contracts.serviceRegistry.address,
-    staking: contracts.staking.address,
-    token: contracts.token.address,
+    curation: contracts.L2Curation.target,
+    disputeManager: contracts.DisputeManager.target,
+    epochManager: contracts.EpochManager.target,
+    gns: contracts.L2GNS.target,
+    rewardsManager: contracts.RewardsManager.target,
+    serviceRegistry: contracts.LegacyServiceRegistry.target,
+    staking: contracts.HorizonStaking.target,
+    token: contracts.GraphToken.target,
   })
   return contracts
 }

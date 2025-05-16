@@ -20,18 +20,20 @@ import {
   sequentialTimerReduce,
 } from '@graphprotocol/indexer-common'
 import {
+  GraphHorizonContracts,
+  SubgraphServiceContracts,
+} from '@graphprotocol/toolshed/deployments'
+import {
   Address,
   Eventual,
   Logger,
   mutable,
-  NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
   formatGRT,
 } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
+import { HDNodeWallet, hexlify, Provider } from 'ethers'
 import gql from 'graphql-tag'
-import { providers, utils, Wallet } from 'ethers'
 import pRetry, { Options } from 'p-retry'
 import { IndexerOptions } from '../network-specification'
 import pMap from 'p-map'
@@ -41,12 +43,12 @@ import { SubgraphClient } from '../subgraph-client'
 export class NetworkMonitor {
   constructor(
     public networkCAIPID: string,
-    private contracts: NetworkContracts,
+    private contracts: GraphHorizonContracts & SubgraphServiceContracts,
     private indexerOptions: IndexerOptions,
     private logger: Logger,
     private graphNode: GraphNode,
     private networkSubgraph: SubgraphClient,
-    private ethereum: providers.BaseProvider,
+    private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
   ) {}
 
@@ -55,11 +57,12 @@ export class NetworkMonitor {
   }
 
   async currentEpochNumber(): Promise<number> {
-    return (await this.contracts.epochManager.currentEpoch()).toNumber()
+    return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
   async maxAllocationEpoch(): Promise<number> {
-    return await this.contracts.staking.maxAllocationEpochs()
+    // TODO HORIZON: this call will fail in Horizon, return 0 or something else?
+    return Number(await this.contracts.LegacyStaking.maxAllocationEpochs())
   }
 
   /**
@@ -620,18 +623,18 @@ export class NetworkMonitor {
             idOnL1: deployment.idOnL1,
             idOnL2: deployment.idOnL2,
             startedTransferToL2: deployment.startedTransferToL2,
-            startedTransferToL2At: BigNumber.from(deployment.startedTransferToL2At),
-            startedTransferToL2AtBlockNumber: BigNumber.from(
+            startedTransferToL2At: BigInt(deployment.startedTransferToL2At),
+            startedTransferToL2AtBlockNumber: BigInt(
               deployment.startedTransferToL2AtBlockNumber,
             ),
             startedTransferToL2AtTx: deployment.startedTransferToL2AtTx,
             transferredToL2: deployment.transferredToL2,
             transferredToL2At: deployment.transferredToL2At
-              ? BigNumber.from(deployment.transferredToL2At)
+              ? BigInt(deployment.transferredToL2At)
               : null,
             transferredToL2AtTx: deployment.transferredToL2AtTx,
             transferredToL2AtBlockNumber: deployment.transferredToL2AtBlockNumber
-              ? BigNumber.from(deployment.transferredToL2AtBlockNumber)
+              ? BigInt(deployment.transferredToL2AtBlockNumber)
               : null,
             ipfsHash: version.subgraphDeployment.ipfsHash,
             protocolNetwork: this.networkCAIPID,
@@ -832,7 +835,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       // Calls the configured provider for blocks from protocol chain, or Graph Node otherwise.
       let startBlockHash: string
       if (networkID == this.networkCAIPID) {
-        startBlockHash = (await this.ethereum.getBlock(+validBlock.blockNumber)).hash
+        const block = await this.ethereum.getBlock(+validBlock.blockNumber)
+        startBlockHash = block!.hash!
       } else {
         startBlockHash = await this.graphNode.blockHashFromNumber(
           networkAlias,
@@ -919,7 +923,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
     if (null === supportedNetworkAlias) {
       this.logger.info("Network is not supported, can't resolve POI")
-      return utils.hexlify(Array(32).fill(0))
+      return hexlify(new Uint8Array(32).fill(0))
     }
 
     // poi = undefined, force=true  -- submit even if poi is 0x0
@@ -938,7 +942,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 allocation.subgraphDeployment.id,
                 await this.fetchPOIBlockPointer(supportedNetworkAlias, allocation),
                 allocation.indexer,
-              )) || utils.hexlify(Array(32).fill(0))
+              )) || hexlify(new Uint8Array(32).fill(0))
             )
         }
         break
@@ -991,11 +995,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async monitorNetworkPauses(
     logger: Logger,
-    contracts: NetworkContracts,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     networkSubgraph: SubgraphClient,
   ): Promise<Eventual<boolean>> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const initialPauseValue = await contracts.controller.paused().catch((_) => {
+    const initialPauseValue = await contracts.Controller.paused().catch((_) => {
       return false
     })
     return sequentialTimerReduce(
@@ -1043,9 +1047,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async monitorIsOperator(
     logger: Logger,
-    contracts: NetworkContracts,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     indexerAddress: Address,
-    wallet: Wallet,
+    wallet: HDNodeWallet,
   ): Promise<Eventual<boolean>> {
     // If indexer and operator address are identical, operator status is
     // implicitly granted => we'll never have to check again
@@ -1062,7 +1066,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       async (isOperator) => {
         try {
           logger.debug('Check operator status')
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          return await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -1071,7 +1075,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           return isOperator
         }
       },
-      await contracts.staking.isOperator(wallet.address, indexerAddress),
+      await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress),
     ).map((isOperator) => {
       logger.info(
         isOperator
@@ -1134,11 +1138,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         throw result.error
       }
 
-      const totalFees: BigNumber = result.data.allocations.reduce(
-        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
-          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+      const totalFees: bigint = result.data.allocations.reduce(
+        (total: bigint, rawAlloc: { queryFeesCollected: string }) => {
+          return total + BigInt(rawAlloc.queryFeesCollected)
         },
-        BigNumber.from(0),
+        0n,
       )
 
       const parsedAllocs: Allocation[] =
@@ -1147,7 +1151,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
       if (
         parsedAllocs.length > 0 &&
-        totalFees.lt(this.indexerOptions.rebateClaimBatchThreshold)
+        totalFees < this.indexerOptions.rebateClaimBatchThreshold
       ) {
         this.logger.info(
           `Allocation rebate batch value does not meet minimum for claiming`,
@@ -1198,7 +1202,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     let allocations: Allocation[] = []
 
     try {
-      const zeroPOI = utils.hexlify(Array(32).fill(0))
+      const zeroPOI = hexlify(new Uint8Array(32).fill(0))
       const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
       let lastId = ''
       while (dataRemaining) {
@@ -1278,7 +1282,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         async (epoch) => {
           try {
             const startBlock = await this.ethereum.getBlock(epoch.startBlock)
-            epoch.startBlockHash = startBlock?.hash
+            epoch.startBlockHash = startBlock!.hash!
           } catch {
             logger.debug('Failed to fetch block hash for startBlock of epoch', {
               epoch: epoch.id,

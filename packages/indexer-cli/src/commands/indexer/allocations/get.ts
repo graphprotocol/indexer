@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
@@ -59,7 +59,7 @@ module.exports = {
       }
 
       if (allocation) {
-        if (allocation !== 'all' && !utils.isHexString(allocation, 20)) {
+        if (allocation !== 'all' && !isHexString(allocation, 20)) {
           throw Error(
             `Invalid 'allocation-id' provided ('${allocation}'), must be a bytes20 string or 'all'`,
           )

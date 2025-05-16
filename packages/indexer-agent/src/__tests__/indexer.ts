@@ -21,7 +21,6 @@ import {
   MultiNetworks,
   loadTestYamlConfig,
 } from '@graphprotocol/indexer-common'
-import { BigNumber } from 'ethers'
 import { Sequelize } from 'sequelize'
 
 const TEST_DISPUTE_1: POIDisputeAttributes = {
@@ -69,7 +68,7 @@ const TEST_DISPUTE_2: POIDisputeAttributes = {
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
-  (x: never) => string | BigNumber | number | undefined
+  (x: never) => string | bigint | number | undefined
 > = {
   allocationID: x => x,
   subgraphDeploymentID: x => x,

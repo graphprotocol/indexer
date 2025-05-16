@@ -13,6 +13,7 @@ module.exports = {
   // The glob patterns Jest uses to detect test files
   testMatch: ['**/?(*.)+(spec|test).ts?(x)'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
+  transformIgnorePatterns: ['!node_modules/'],
   testTimeout: 60000,
   globals: {
     __DATABASE__: {

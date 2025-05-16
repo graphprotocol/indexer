@@ -35,8 +35,8 @@ export enum OutputFormat {
 }
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
-import { utils } from 'ethers'
 import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import { hexlify, isHexString } from 'ethers'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -159,13 +159,13 @@ export async function validateRequiredParams(
 export function validatePOI(poi: string | undefined): string | undefined {
   if (poi !== undefined) {
     if (typeof poi == 'number' && poi == 0) {
-      poi = utils.hexlify(Array(32).fill(0))
+      poi = hexlify(new Uint8Array(32).fill(0))
     }
     if (typeof poi == 'string' && poi == '0') {
-      poi = utils.hexlify(Array(32).fill(0))
+      poi = hexlify(new Uint8Array(32).fill(0))
     }
     // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
-    const isHex = utils.isHexString(poi, 32)
+    const isHex = isHexString(poi, 32)
     if (!isHex) {
       throw new Error(
         `Invalid POI provided ('${poi}'): Must be a 32 byte length hex string`,

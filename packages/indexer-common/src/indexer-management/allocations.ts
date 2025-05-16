@@ -35,20 +35,19 @@ import {
 } from '@graphprotocol/indexer-common'
 
 import {
-  BigNumber,
   BigNumberish,
-  ContractReceipt,
-  PopulatedTransaction,
-  utils,
+  BytesLike,
+  hexlify,
+  TransactionReceipt,
+  TransactionRequest,
 } from 'ethers'
 
-import { BytesLike } from '@ethersproject/bytes'
 import pMap from 'p-map'
 
 export interface TransactionPreparationContext {
   activeAllocations: Allocation[]
   recentlyClosedAllocations: Allocation[]
-  currentEpoch: BigNumber
+  currentEpoch: bigint
   indexingStatuses: IndexingStatus[]
 }
 
@@ -80,19 +79,19 @@ export interface ReallocateTransactionParams {
 // An Action with resolved Allocation and Unallocation values
 export interface ActionStakeUsageSummary {
   action: Action
-  allocates: BigNumber
-  unallocates: BigNumber
-  rewards: BigNumber
-  balance: BigNumber
+  allocates: bigint
+  unallocates: bigint
+  rewards: bigint
+  balance: bigint
 }
 
 export type PopulateTransactionResult =
-  | PopulatedTransaction
-  | PopulatedTransaction[]
+  | TransactionRequest
+  | TransactionRequest[]
   | ActionFailure
 
 export type TransactionResult =
-  | ContractReceipt
+  | TransactionReceipt
   | 'paused'
   | 'unauthorized'
   | ActionFailure[]
@@ -152,15 +151,15 @@ export class AllocationManager {
 
     const callData = populateTransactionsResults
       .flat()
-      .map((tx) => tx as PopulatedTransaction)
-      .filter((tx: PopulatedTransaction) => !!tx.data)
+      .map((tx) => tx as TransactionRequest)
+      .filter((tx: TransactionRequest) => !!tx.data)
       .map((tx) => tx.data as string)
     logger.trace('Prepared transaction calldata', { callData })
 
     return await this.network.transactionManager.executeTransaction(
-      async () => this.network.contracts.staking.estimateGas.multicall(callData),
+      async () => this.network.contracts.HorizonStaking.multicall.estimateGas(callData),
       async (gasLimit) =>
-        this.network.contracts.staking.multicall(callData, { gasLimit }),
+        this.network.contracts.HorizonStaking.multicall(callData, { gasLimit }),
       this.logger.child({
         actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
         function: 'staking.multicall',
@@ -169,7 +168,7 @@ export class AllocationManager {
   }
 
   async confirmTransactions(
-    receipt: ContractReceipt | 'paused' | 'unauthorized',
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
     actions: Action[],
   ): Promise<AllocationResult[]> {
     const logger = this.logger.child({
@@ -186,7 +185,7 @@ export class AllocationManager {
         } catch (error) {
           let transaction: string | undefined = undefined
           if (typeof receipt == 'object') {
-            transaction = receipt.transactionHash ?? undefined
+            transaction = receipt.hash ?? undefined
           }
           this.logger.error('Failed to confirm batch transaction', {
             error,
@@ -207,7 +206,7 @@ export class AllocationManager {
   }
 
   async confirmActionExecution(
-    receipt: ContractReceipt | 'paused' | 'unauthorized',
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
     action: Action,
   ): Promise<AllocationResult> {
     // Ensure we are handling an action for the same configured network
@@ -247,14 +246,14 @@ export class AllocationManager {
   }
 
   async prepareTransactions(actions: Action[]): Promise<PopulateTransactionResult[]> {
-    const currentEpoch = await this.network.contracts.epochManager.currentEpoch()
+    const currentEpoch = await this.network.contracts.EpochManager.currentEpoch()
     const context: TransactionPreparationContext = {
       activeAllocations: await this.network.networkMonitor.allocations(
         AllocationStatus.ACTIVE,
       ),
       recentlyClosedAllocations:
         await this.network.networkMonitor.recentlyClosedAllocations(
-          currentEpoch.toNumber(),
+          Number(currentEpoch),
           2,
         ),
       currentEpoch,
@@ -354,7 +353,7 @@ export class AllocationManager {
     logger: Logger,
     context: TransactionPreparationContext,
     deployment: SubgraphDeploymentID,
-    amount: BigNumber,
+    amount: bigint,
   ): Promise<AllocateTransactionParams> {
     logger.info('Preparing to allocate', {
       deployment: deployment.ipfsHash,
@@ -376,7 +375,7 @@ export class AllocationManager {
       )
     }
 
-    if (amount.lt('0')) {
+    if (amount < 0n) {
       logger.warn('Cannot allocate a negative amount of GRT', {
         amount: amount.toString(),
       })
@@ -405,8 +404,8 @@ export class AllocationManager {
       ...context.activeAllocations,
     ]
     const { allocationSigner, allocationId } = uniqueAllocationID(
-      this.network.transactionManager.wallet.mnemonic.phrase,
-      context.currentEpoch.toNumber(),
+      this.network.transactionManager.wallet.mnemonic!.phrase,
+      Number(context.currentEpoch),
       deployment,
       activeAndRecentlyClosedAllocations.map((allocation) => allocation.id),
     )
@@ -418,8 +417,9 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocationId)
-    if (state !== 0) {
+    const state =
+      await this.network.contracts.HorizonStaking.getAllocationState(allocationId)
+    if (state !== 0n) {
       logger.debug(`Skipping allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,
         allocation: allocationId,
@@ -452,7 +452,7 @@ export class AllocationManager {
       subgraphDeploymentID: deployment.bytes32,
       tokens: amount,
       allocationID: allocationId,
-      metadata: utils.hexlify(Array(32).fill(0)),
+      metadata: hexlify(new Uint8Array(32).fill(0)),
       proof,
     }
   }
@@ -461,7 +461,7 @@ export class AllocationManager {
     actionID: number,
     deployment: string,
     amount: string,
-    receipt: ContractReceipt | 'paused' | 'unauthorized',
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
   ): Promise<CreateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -478,7 +478,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationCreated',
-      this.network.contracts.staking.interface,
+      this.network.contracts.LegacyStaking.interface,
       'subgraphDeploymentID',
       subgraphDeployment.bytes32,
       receipt,
@@ -522,7 +522,7 @@ export class AllocationManager {
     return {
       actionID,
       type: 'allocate',
-      transactionID: receipt.transactionHash,
+      transactionID: receipt.hash,
       deployment: deployment,
       allocation: createAllocationEventLogs.allocationID,
       allocatedTokens: amount,
@@ -534,8 +534,8 @@ export class AllocationManager {
     logger: Logger,
     context: TransactionPreparationContext,
     deployment: SubgraphDeploymentID,
-    amount: BigNumber,
-  ): Promise<PopulatedTransaction> {
+    amount: bigint,
+  ): Promise<TransactionRequest> {
     const params = await this.prepareAllocateParams(logger, context, deployment, amount)
     logger.debug(`Populating allocateFrom transaction`, {
       indexer: params.indexer,
@@ -544,7 +544,8 @@ export class AllocationManager {
       allocation: params.allocationID,
       proof: params.proof,
     })
-    return await this.network.contracts.staking.populateTransaction.allocateFrom(
+    // TODO HORIZON: split into pre-post horizon
+    return await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
       params.indexer,
       params.subgraphDeploymentID,
       params.tokens,
@@ -576,8 +577,10 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
-    if (state !== 1) {
+    const state = await this.network.contracts.HorizonStaking.getAllocationState(
+      allocation.id,
+    )
+    if (state !== 1n) {
       throw indexerError(IndexerErrorCode.IE065)
     }
 
@@ -591,7 +594,7 @@ export class AllocationManager {
   async confirmUnallocate(
     actionID: number,
     allocationID: string,
-    receipt: ContractReceipt | 'paused' | 'unauthorized',
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
   ): Promise<CloseAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming 'closeAllocation' transaction`)
@@ -605,7 +608,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationClosed',
-      this.network.contracts.staking.interface,
+      this.network.contracts.LegacyStaking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -621,7 +624,7 @@ export class AllocationManager {
 
     const rewardsEventLogs = this.network.transactionManager.findEvent(
       'RewardsAssigned',
-      this.network.contracts.rewardsManager.interface,
+      this.network.contracts.RewardsManager.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -644,7 +647,7 @@ export class AllocationManager {
       indexer: closeAllocationEventLogs.indexer,
       amountGRT: formatGRT(closeAllocationEventLogs.tokens),
       poi: closeAllocationEventLogs.poi,
-      transaction: receipt.transactionHash,
+      transaction: receipt.hash,
       indexingRewards: rewardsAssigned,
     })
 
@@ -678,7 +681,7 @@ export class AllocationManager {
     return {
       actionID,
       type: 'unallocate',
-      transactionID: receipt.transactionHash,
+      transactionID: receipt.hash,
       allocation: closeAllocationEventLogs.allocationID,
       allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
       indexingRewards: formatGRT(rewardsAssigned),
@@ -690,12 +693,13 @@ export class AllocationManager {
   async populateUnallocateTransaction(
     logger: Logger,
     params: UnallocateTransactionParams,
-  ): Promise<PopulatedTransaction> {
+  ): Promise<TransactionRequest> {
     logger.debug(`Populating closeAllocation transaction`, {
       allocationID: params.allocationID,
       POI: params.poi,
     })
-    return await this.network.contracts.staking.populateTransaction.closeAllocation(
+    // TODO HORIZON: split into pre-post horizon
+    return await this.network.contracts.HorizonStaking.closeAllocation.populateTransaction(
       params.allocationID,
       params.poi,
     )
@@ -707,7 +711,7 @@ export class AllocationManager {
     allocationID: string,
     poi: string | undefined,
     force: boolean,
-  ): Promise<PopulatedTransaction> {
+  ): Promise<TransactionRequest> {
     const params = await this.prepareUnallocateParams(
       logger,
       context,
@@ -723,7 +727,7 @@ export class AllocationManager {
     context: TransactionPreparationContext,
     allocationID: string,
     poi: string | undefined,
-    amount: BigNumber,
+    amount: bigint,
     force: boolean,
   ): Promise<ReallocateTransactionParams> {
     logger.info('Preparing to reallocate', {
@@ -768,13 +772,15 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the this.contracts.
-    const state = await this.network.contracts.staking.getAllocationState(allocation.id)
-    if (state !== 1) {
+    const state = await this.network.contracts.HorizonStaking.getAllocationState(
+      allocation.id,
+    )
+    if (state !== 1n) {
       logger.warn(`Allocation has already been closed`)
       throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
     }
 
-    if (amount.lt('0')) {
+    if (amount < 0n) {
       logger.warn('Cannot reallocate a negative amount of GRT', {
         amount: amount.toString(),
       })
@@ -786,8 +792,8 @@ export class AllocationManager {
 
     logger.debug('Generating a new unique Allocation ID')
     const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
-      this.network.transactionManager.wallet.mnemonic.phrase,
-      context.currentEpoch.toNumber(),
+      this.network.transactionManager.wallet.mnemonic!.phrase,
+      Number(context.currentEpoch),
       allocation.subgraphDeployment.id,
       context.activeAllocations.map((allocation) => allocation.id),
     )
@@ -805,8 +811,8 @@ export class AllocationManager {
     //
     // in the this.contracts.
     const newAllocationState =
-      await this.network.contracts.staking.getAllocationState(newAllocationId)
-    if (newAllocationState !== 0) {
+      await this.network.contracts.HorizonStaking.getAllocationState(newAllocationId)
+    if (newAllocationState !== 0n) {
       logger.warn(`Skipping Allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,
         allocation: newAllocationId,
@@ -848,7 +854,7 @@ export class AllocationManager {
       subgraphDeploymentID: allocation.subgraphDeployment.id.bytes32,
       tokens: amount,
       newAllocationID: newAllocationId,
-      metadata: utils.hexlify(Array(32).fill(0)),
+      metadata: hexlify(new Uint8Array(32).fill(0)),
       proof,
     }
   }
@@ -856,7 +862,7 @@ export class AllocationManager {
   async confirmReallocate(
     actionID: number,
     allocationID: string,
-    receipt: ContractReceipt | 'paused' | 'unauthorized',
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
   ): Promise<ReallocateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming close and allocate 'multicall' transaction`, {
@@ -871,7 +877,7 @@ export class AllocationManager {
 
     const closeAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationClosed',
-      this.network.contracts.staking.interface,
+      this.network.contracts.LegacyStaking.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -887,7 +893,7 @@ export class AllocationManager {
 
     const createAllocationEventLogs = this.network.transactionManager.findEvent(
       'AllocationCreated',
-      this.network.contracts.staking.interface,
+      this.network.contracts.LegacyStaking.interface,
       'subgraphDeploymentID',
       closeAllocationEventLogs.subgraphDeploymentID,
       receipt,
@@ -903,7 +909,7 @@ export class AllocationManager {
 
     const rewardsEventLogs = this.network.transactionManager.findEvent(
       'RewardsAssigned',
-      this.network.contracts.rewardsManager.interface,
+      this.network.contracts.RewardsManager.interface,
       'allocationID',
       allocationID,
       receipt,
@@ -931,7 +937,7 @@ export class AllocationManager {
       createdAllocationStakeGRT: formatGRT(createAllocationEventLogs.tokens),
       indexer: createAllocationEventLogs.indexer,
       epoch: createAllocationEventLogs.epoch.toString(),
-      transaction: receipt.transactionHash,
+      transaction: receipt.hash,
     })
 
     logger.info('Identifying receipts worth collecting', {
@@ -977,7 +983,7 @@ export class AllocationManager {
     return {
       actionID,
       type: 'reallocate',
-      transactionID: receipt.transactionHash,
+      transactionID: receipt.hash,
       closedAllocation: closeAllocationEventLogs.allocationID,
       indexingRewardsCollected: formatGRT(rewardsAssigned),
       receiptsWorthCollecting: isCollectingQueryFees,
@@ -992,9 +998,9 @@ export class AllocationManager {
     context: TransactionPreparationContext,
     allocationID: string,
     poi: string | undefined,
-    amount: BigNumber,
+    amount: bigint,
     force: boolean,
-  ): Promise<PopulatedTransaction[]> {
+  ): Promise<TransactionRequest[]> {
     const params = await this.prepareReallocateParams(
       logger,
       context,
@@ -1004,12 +1010,13 @@ export class AllocationManager {
       force,
     )
 
+    // TODO HORIZON: split into pre-post horizon
     return [
-      await this.network.contracts.staking.populateTransaction.closeAllocation(
+      await this.network.contracts.HorizonStaking.closeAllocation.populateTransaction(
         params.closingAllocationID,
         params.poi,
       ),
-      await this.network.contracts.staking.populateTransaction.allocateFrom(
+      await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
         params.indexer,
         params.subgraphDeploymentID,
         params.tokens,
@@ -1043,15 +1050,15 @@ export class AllocationManager {
 
   // Calculates the balance (GRT delta) of a single Action.
   async stakeUsageSummary(action: Action): Promise<ActionStakeUsageSummary> {
-    let unallocates = BigNumber.from(0)
-    let rewards = BigNumber.from(0)
+    let unallocates = 0n
+    let rewards = 0n
 
     // Handle allocations
     let allocates
     if (action.amount) {
       allocates = parseGRT(action.amount)
     } else {
-      allocates = BigNumber.from(0)
+      allocates = 0n
     }
 
     // Handle unallocations.
@@ -1070,16 +1077,19 @@ export class AllocationManager {
       const allocation = await this.network.networkMonitor.allocation(action.allocationID)
 
       // Accrue rewards, except for zeroed POI
-      const zeroHexString = utils.hexlify(Array(32).fill(0))
+      const zeroHexString = hexlify(new Uint8Array(32).fill(0))
       rewards =
         action.poi === zeroHexString
-          ? BigNumber.from(0)
-          : await this.network.contracts.rewardsManager.getRewards(action.allocationID)
+          ? 0n
+          : await this.network.contracts.RewardsManager.getRewards(
+              this.network.contracts.HorizonStaking.target,
+              action.allocationID,
+            )
 
-      unallocates = unallocates.add(allocation.allocatedTokens)
+      unallocates = unallocates + allocation.allocatedTokens
     }
 
-    const balance = allocates.sub(unallocates).sub(rewards)
+    const balance = allocates - unallocates - rewards
     return {
       action,
       allocates,
@@ -1094,16 +1104,18 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    const indexerFreeStake = await this.network.contracts.staking.getIndexerCapacity(
-      this.network.specification.indexerOptions.address,
-    )
+    // TODO HORIZON: this call will be deprecated after horizon
+    const indexerFreeStake =
+      await this.network.contracts.LegacyStaking.getIndexerCapacity(
+        this.network.specification.indexerOptions.address,
+      )
     const actionsBatchStakeUsageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )
-    const batchDelta: BigNumber = actionsBatchStakeUsageSummaries
+    const batchDelta = actionsBatchStakeUsageSummaries
       .map((summary: ActionStakeUsageSummary) => summary.balance)
-      .reduce((a: BigNumber, b: BigNumber) => a.add(b))
-    const indexerNewBalance = indexerFreeStake.sub(batchDelta)
+      .reduce((a: bigint, b: bigint) => a + b)
+    const indexerNewBalance = indexerFreeStake - batchDelta
 
     logger.trace('Action batch stake usage summary', {
       indexerFreeStake: indexerFreeStake.toString(),
@@ -1120,7 +1132,7 @@ export class AllocationManager {
       indexerNewBalance: indexerNewBalance.toString(),
     })
 
-    if (indexerNewBalance.isNegative()) {
+    if (indexerNewBalance < 0n) {
       {
         throw indexerError(
           IndexerErrorCode.IE013,
@@ -1136,7 +1148,7 @@ export class AllocationManager {
      * first and larger allocations are processed last */
     return actionsBatchStakeUsageSummaries
       .sort((a: ActionStakeUsageSummary, b: ActionStakeUsageSummary) =>
-        a.balance.gt(b.balance) ? 1 : -1,
+        a.balance > b.balance ? 1 : -1,
       )
       .map((a: ActionStakeUsageSummary) => a.action)
   }

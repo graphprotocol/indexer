@@ -47,7 +47,7 @@ import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
 
-type ActionReconciliationContext = [AllocationDecision[], number, number]
+type ActionReconciliationContext = [AllocationDecision[], number, bigint]
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -270,7 +270,7 @@ export class Agent {
         },
       )
 
-    const maxAllocationEpochs: Eventual<NetworkMapped<number>> =
+    const maxAllocationEpochs: Eventual<NetworkMapped<bigint>> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         () =>
@@ -278,7 +278,7 @@ export class Agent {
             logger.trace('Fetching max allocation epochs', {
               protocolNetwork: network.specification.networkIdentifier,
             })
-            return network.contracts.staking.maxAllocationEpochs()
+            return network.contracts.LegacyStaking.maxAllocationEpochs()
           }),
         {
           onError: error =>
@@ -304,9 +304,9 @@ export class Agent {
               await network.networkMonitor.subgraphs(subgraphRuleIds)
             if (subgraphsMatchingRules.length >= 1) {
               const epochLength =
-                await network.contracts.epochManager.epochLength()
+                await network.contracts.EpochManager.epochLength()
               const blockPeriod = 15
-              const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+              const bufferPeriod = Number(epochLength) * blockPeriod * 100 // 100 epochs
               rules = convertSubgraphBasedRulesToDeploymentBased(
                 rules,
                 subgraphsMatchingRules,
@@ -486,7 +486,7 @@ export class Agent {
               const matchingTransfer = eligibleTransferDeployments.find(
                 deployment =>
                   deployment.ipfsHash == decision.deployment.ipfsHash &&
-                  deployment.startedTransferToL2At.toNumber() > oneWeekAgo,
+                  Number(deployment.startedTransferToL2At) > oneWeekAgo,
               )
               if (matchingTransfer) {
                 logger.debug('Found a matching subgraph transfer', {
@@ -682,7 +682,8 @@ export class Agent {
               currentEpochNumber: number,
             ) =>
               currentEpochNumber -
-              network.specification.indexerOptions.poiDisputableEpochs,
+              (network.specification.indexerOptions
+                .poiDisputableEpochs as number),
           )
 
           // Find disputable allocations
@@ -821,22 +822,22 @@ export class Agent {
             await network.networkProvider.getBlock(
               pool.previousEpochStartBlockHash!,
             )
-          pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
+          pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock!.number
           pool.referencePOI = await this.graphNode.proofOfIndexing(
             pool.subgraphDeployment,
             {
-              number: closedAtEpochStartBlock.number,
-              hash: closedAtEpochStartBlock.hash,
+              number: closedAtEpochStartBlock!.number,
+              hash: closedAtEpochStartBlock!.hash!,
             },
             pool.allocationIndexer,
           )
-          pool.previousEpochStartBlockHash = previousEpochStartBlock.hash
-          pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
+          pool.previousEpochStartBlockHash = previousEpochStartBlock!.hash!
+          pool.previousEpochStartBlockNumber = previousEpochStartBlock!.number
           pool.referencePreviousPOI = await this.graphNode.proofOfIndexing(
             pool.subgraphDeployment,
             {
-              number: previousEpochStartBlock.number,
-              hash: previousEpochStartBlock.hash,
+              number: previousEpochStartBlock!.number,
+              hash: previousEpochStartBlock!.hash!,
             },
             pool.allocationIndexer,
           )
@@ -1006,13 +1007,13 @@ export class Agent {
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
-    maxAllocationEpochs: number,
+    maxAllocationEpochs: bigint,
     network: Network,
   ): Promise<Allocation[]> {
     const desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
       .rule?.allocationLifetime
       ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
-      : Math.max(1, maxAllocationEpochs - 1)
+      : Math.max(1, Number(maxAllocationEpochs) - 1)
 
     // Identify expiring allocations
     let expiredAllocations = activeAllocations.filter(
@@ -1028,8 +1029,8 @@ export class Agent {
       async (allocation: Allocation) => {
         try {
           const onChainAllocation =
-            await network.contracts.staking.getAllocation(allocation.id)
-          return onChainAllocation.closedAtEpoch.eq('0')
+            await network.contracts.LegacyStaking.getAllocation(allocation.id)
+          return onChainAllocation.closedAtEpoch == 0n
         } catch (err) {
           this.logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
@@ -1050,7 +1051,7 @@ export class Agent {
     deploymentAllocationDecision: AllocationDecision,
     activeAllocations: Allocation[],
     epoch: number,
-    maxAllocationEpochs: number,
+    maxAllocationEpochs: bigint,
     network: Network,
     operator: Operator,
   ): Promise<void> {
@@ -1145,7 +1146,7 @@ export class Agent {
   async reconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
     epoch: NetworkMapped<number>,
-    maxAllocationEpochs: NetworkMapped<number>,
+    maxAllocationEpochs: NetworkMapped<bigint>,
   ): Promise<void> {
     // --------------------------------------------------------------------------------
     // Filter out networks set to `manual` allocation management mode, and ensure the

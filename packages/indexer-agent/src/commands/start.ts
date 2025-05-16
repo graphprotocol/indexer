@@ -31,7 +31,6 @@ import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
-import { BigNumber } from 'ethers'
 import { displayZodParsingError } from '@graphprotocol/indexer-common'
 import { readFileSync } from 'fs'
 import { AgentConfigs } from '../types'
@@ -601,7 +600,7 @@ export async function run(
     defaults: {
       globalIndexingRule: {
         // TODO: Update this, there will be defaults per network
-        allocationAmount: BigNumber.from(100),
+        allocationAmount: BigInt(100),
         parallelAllocations: 1,
       },
     },

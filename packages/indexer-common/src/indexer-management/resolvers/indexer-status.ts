@@ -75,10 +75,10 @@ export default {
     const protocolNetwork = network.specification.networkIdentifier
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
-    const registered = await contracts.serviceRegistry.isRegistered(address)
+    const registered = await contracts.LegacyServiceRegistry.isRegistered(address)
 
     if (registered) {
-      const service = await contracts.serviceRegistry.services(address)
+      const service = await contracts.LegacyServiceRegistry.services(address)
       return {
         address,
         protocolNetwork,
@@ -264,7 +264,7 @@ async function endpointForNetwork(network: Network): Promise<Endpoints> {
   const contracts = network.contracts
   const address = network.specification.indexerOptions.address
   const endpoints = defaultEndpoints(network.specification.networkIdentifier)
-  const service = await contracts.serviceRegistry.services(address)
+  const service = await contracts.LegacyServiceRegistry.services(address)
   if (service) {
     {
       const { url, tests, ok } = await testURL(service.url, [

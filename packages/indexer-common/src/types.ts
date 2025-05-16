@@ -1,5 +1,5 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { BigNumber, providers } from 'ethers'
+import { TransactionRequest } from 'ethers'
 
 export enum AllocationManagementMode {
   AUTO = 'auto',
@@ -60,9 +60,9 @@ export interface Subgraph {
 export interface SubgraphDeployment {
   id: SubgraphDeploymentID
   deniedAt: number
-  stakedTokens: BigNumber
-  signalledTokens: BigNumber
-  queryFeesAmount: BigNumber
+  stakedTokens: bigint
+  signalledTokens: bigint
+  queryFeesAmount: bigint
   protocolNetwork: string
 }
 
@@ -73,13 +73,13 @@ export interface TransferredSubgraphDeployment {
   idOnL1: string
   idOnL2: string
   startedTransferToL2L: boolean
-  startedTransferToL2At: BigNumber
-  startedTransferToL2AtBlockNumber: BigNumber
+  startedTransferToL2At: bigint
+  startedTransferToL2AtBlockNumber: bigint
   startedTransferToL2AtTx: string
   transferredToL2: boolean | null
-  transferredToL2At: BigNumber | null
+  transferredToL2At: bigint | null
   transferredToL2AtTx: string | null
-  transferredToL2AtBlockNumber: BigNumber | null
+  transferredToL2AtBlockNumber: bigint | null
   ipfsHash: string
   protocolNetwork: string
   ready: boolean | null
@@ -90,9 +90,9 @@ export enum TransactionType {
   TWO,
 }
 
-export interface TransactionConfig extends providers.TransactionRequest {
+export interface TransactionConfig extends TransactionRequest {
   attempt: number
-  gasBump: BigNumber
+  gasBump: bigint
   type: TransactionType
 }
 
