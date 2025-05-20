@@ -30,6 +30,7 @@ export class TransactionManager {
   wallet: HDNodeWallet
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
+  isHorizon: Eventual<boolean>
   specification: TransactionMonitoring
   adjustedGasIncreaseFactor: bigint
   adjustedBaseFeePerGasMax: number
@@ -39,12 +40,14 @@ export class TransactionManager {
     wallet: HDNodeWallet,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
+    isHorizon: Eventual<boolean>,
     specification: TransactionMonitoring,
   ) {
     this.ethereum = ethereum
     this.wallet = wallet
     this.paused = paused
     this.isOperator = isOperator
+    this.isHorizon = isHorizon
     this.specification = specification
     this.adjustedGasIncreaseFactor = parseUnits(
       specification.gasIncreaseFactor.toString(),
@@ -417,6 +420,42 @@ export class TransactionManager {
           : `No operator status for indexer`,
       )
       return isOperator
+    })
+  }
+
+  async monitorIsHorizon(
+    logger: Logger,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
+    interval: number = 300_000,
+  ): Promise<Eventual<boolean>> {
+    // Get initial value
+    const initialValue = await contracts.HorizonStaking.getMaxThawingPeriod()
+      .then((maxThawingPeriod) => maxThawingPeriod > 0)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .catch((_) => false)
+
+    return sequentialTimerReduce(
+      {
+        logger,
+        milliseconds: interval,
+      },
+      async (isHorizon) => {
+        try {
+          logger.debug('Check if network is Horizon ready')
+          const maxThawingPeriod = await contracts.HorizonStaking.getMaxThawingPeriod()
+          return maxThawingPeriod > 0
+        } catch (err) {
+          logger.warn(
+            `Failed to check if network is Horizon ready, assuming it has not changed`,
+            { err: indexerError(IndexerErrorCode.IE008, err), isHorizon },
+          )
+          return isHorizon
+        }
+      },
+      initialValue,
+    ).map((isHorizon) => {
+      logger.info(isHorizon ? `Network is Horizon ready` : `Network is not Horizon ready`)
+      return isHorizon
     })
   }
 
