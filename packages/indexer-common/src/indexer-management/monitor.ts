@@ -1086,6 +1086,43 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     })
   }
 
+  async monitorIsHorizon(
+    logger: Logger,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
+    interval: number = 300_000,
+  ): Promise<Eventual<boolean>> {
+    // Get initial value
+
+    const initialValue = await contracts.HorizonStaking.getMaxThawingPeriod()
+      .then((maxThawingPeriod) => maxThawingPeriod > 0)
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      .catch((_) => false)
+
+    return sequentialTimerReduce(
+      {
+        logger,
+        milliseconds: interval,
+      },
+      async (isHorizon) => {
+        try {
+          logger.debug('Check if network is Horizon ready')
+          const maxThawingPeriod = await contracts.HorizonStaking.getMaxThawingPeriod()
+          return maxThawingPeriod > 0
+        } catch (err) {
+          logger.warn(
+            `Failed to check if network is Horizon ready, assuming it has not changed`,
+            { err: indexerError(IndexerErrorCode.IE008, err), isHorizon },
+          )
+          return isHorizon
+        }
+      },
+      initialValue,
+    ).map((isHorizon) => {
+      logger.info(isHorizon ? `Network is Horizon ready` : `Network is not Horizon ready`)
+      return isHorizon
+    })
+  }
+
   async claimableAllocations(disputableEpoch: number): Promise<Allocation[]> {
     try {
       this.logger.debug('Fetch claimable allocations', {

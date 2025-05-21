@@ -54,6 +54,7 @@ export class Network {
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
+  isHorizon: Eventual<boolean>
 
   private constructor(
     logger: Logger,
@@ -68,6 +69,7 @@ export class Network {
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
+    isHorizon: Eventual<boolean>,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -81,6 +83,7 @@ export class Network {
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
+    this.isHorizon = isHorizon
   }
 
   static async create(
@@ -253,6 +256,8 @@ export class Network {
       wallet,
     )
 
+    const isHorizon = await networkMonitor.monitorIsHorizon(logger, contracts)
+
     const transactionManager = new TransactionManager(
       networkProvider,
       wallet,
@@ -347,6 +352,7 @@ export class Network {
       specification,
       paused,
       isOperator,
+      isHorizon,
     )
   }
 
