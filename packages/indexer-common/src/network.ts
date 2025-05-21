@@ -263,7 +263,6 @@ export class Network {
       wallet,
       paused,
       isOperator,
-      isHorizon,
       specification.transactionMonitoring,
     )
 
