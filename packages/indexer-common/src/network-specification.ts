@@ -175,7 +175,8 @@ export const NetworkSpecification = z
     transactionMonitoring: TransactionMonitoring,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
-    addressBook: z.string().optional(),
+    horizonAddressBook: z.string().optional(),
+    subgraphServiceAddressBook: z.string().optional(),
     tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
   })

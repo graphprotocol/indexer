@@ -246,8 +246,13 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
-      .option('address-book', {
-        description: 'Graph contracts address book file path',
+      .option('horizon-address-book', {
+        description: 'Graph Horizon contracts address book file path',
+        type: 'string',
+        required: false,
+      })
+      .option('subgraph-service-address-book', {
+        description: 'Subgraph Service contracts address book file path',
         type: 'string',
         required: false,
       })
@@ -443,8 +448,9 @@ export async function createNetworkSpecification(
       transactionMonitoring,
       subgraphs,
       networkProvider,
-      addressBook: argv.addressBook,
-      tapAddressBook,
+      horizonAddressBook: argv.horizonAddressBook,
+      subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
+      tapAddressBook: tapAddressBook,
     })
   } catch (parsingError) {
     displayZodParsingError(parsingError)

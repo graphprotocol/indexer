@@ -134,9 +134,9 @@ export class Network {
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
-              graphNode,
-              deployment: networkSubgraphDeploymentId,
-            }
+            graphNode,
+            deployment: networkSubgraphDeploymentId,
+          }
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
@@ -160,9 +160,9 @@ export class Network {
         deployment:
           tapSubgraphDeploymentId !== undefined
             ? {
-                graphNode,
-                deployment: tapSubgraphDeploymentId,
-              }
+              graphNode,
+              deployment: tapSubgraphDeploymentId,
+            }
             : undefined,
         endpoint: specification.subgraphs.tapSubgraph!.url,
         subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
@@ -191,7 +191,8 @@ export class Network {
       wallet,
       specification.networkIdentifier,
       logger,
-      specification.addressBook,
+      specification.horizonAddressBook,
+      specification.subgraphServiceAddressBook,
     )
 
     // * -----------------------------------------------------------------------
@@ -215,9 +216,9 @@ export class Network {
       deployment:
         epochSubgraphDeploymentId !== undefined
           ? {
-              graphNode,
-              deployment: epochSubgraphDeploymentId,
-            }
+            graphNode,
+            deployment: epochSubgraphDeploymentId,
+          }
           : undefined,
       endpoint: specification.subgraphs.epochSubgraph.url,
       subgraphFreshnessChecker: epochSubgraphFreshnessChecker,
@@ -556,7 +557,8 @@ async function connectToProtocolContracts(
   wallet: HDNodeWallet,
   networkIdentifier: string,
   logger: Logger,
-  addressBook?: string,
+  horizonAddressBook?: string,
+  subgraphServiceAddressBook?: string
 ): Promise<GraphHorizonContracts & SubgraphServiceContracts> {
   const numericNetworkId = parseInt(networkIdentifier.split(':')[1])
 
@@ -567,15 +569,17 @@ async function connectToProtocolContracts(
 
   logger.info(`Connect to contracts`, {
     network: networkIdentifier,
+    horizonAddressBook,
+    subgraphServiceAddressBook,
   })
 
   let contracts: GraphHorizonContracts & SubgraphServiceContracts
   try {
-    const horizonContracts = connectGraphHorizon(numericNetworkId, wallet, addressBook)
+    const horizonContracts = connectGraphHorizon(numericNetworkId, wallet, horizonAddressBook)
     const subgraphServiceContracts = connectSubgraphService(
       numericNetworkId,
       wallet,
-      addressBook,
+      subgraphServiceAddressBook,
     )
     contracts = {
       ...horizonContracts,
@@ -587,15 +591,50 @@ async function connectToProtocolContracts(
     logger.error(errorMessage, { error, networkIdentifier, numericNetworkId })
     throw new Error(`${errorMessage} Error: ${error}`)
   }
-  logger.info(`Successfully connected to contracts`, {
-    curation: contracts.L2Curation.target,
-    disputeManager: contracts.DisputeManager.target,
+
+
+  // Ensure we are connected to all required contracts
+  const requiredContracts = [
+    'EpochManager',
+    'RewardsManager',
+    'HorizonStaking',
+    'GraphTallyCollector',
+    'PaymentsEscrow',
+    'SubgraphService',
+  ]
+
+  // Before horizon we need the LegacyServiceRegistry contract as well
+  const isHorizon = await contracts.HorizonStaking.getMaxThawingPeriod()
+    .then((maxThawingPeriod) => maxThawingPeriod > 0)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    .catch((_) => false)
+  if (!isHorizon) {
+    requiredContracts.push('LegacyServiceRegistry')
+  }
+
+  const missingContracts = requiredContracts.filter(
+    (contract) => !(contract in contracts),
+  )
+  if (missingContracts.length > 0) {
+    logger.fatal(`Missing required contracts`, {
+      err: indexerError(IndexerErrorCode.IE075),
+      missingContracts: missingContracts,
+    })
+    process.exit(1)
+  }
+
+
+  // Only list contracts that are used by the indexer
+  logger.info(`Successfully connected to Horizon contracts`, {
     epochManager: contracts.EpochManager.target,
-    gns: contracts.L2GNS.target,
     rewardsManager: contracts.RewardsManager.target,
-    serviceRegistry: contracts.LegacyServiceRegistry.target,
     staking: contracts.HorizonStaking.target,
-    token: contracts.GraphToken.target,
+    graphTallyCollector: contracts.GraphTallyCollector.target,
+    graphPaymentsEscrow: contracts.PaymentsEscrow.target,
+  })
+  logger.info(`Successfully connected to Subgraph Service contracts`, {
+    ...(isHorizon ? {} : { legacyServiceRegistry: contracts.LegacyServiceRegistry.target }),
+    subgraphService: contracts.SubgraphService.target,
   })
   return contracts
 }
