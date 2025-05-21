@@ -453,9 +453,11 @@ export class Network {
       +this.specification.indexerOptions.geoCoordinates[1],
     )
 
+    const url = this.specification.indexerOptions.url
+
     const logger = this.logger.child({
       address: this.specification.indexerOptions.address,
-      url: this.specification.indexerOptions.url,
+      url,
       geoCoordinates: this.specification.indexerOptions.geoCoordinates,
       geoHash,
     })
@@ -470,61 +472,11 @@ export class Network {
     await pRetry(
       async () => {
         try {
-          logger.info(`Register indexer`)
-
-          // Register the indexer (only if it hasn't been registered yet or
-          // if its URL is different from what is registered on chain)
-          const isRegistered = await this.contracts.LegacyServiceRegistry.isRegistered(
-            this.specification.indexerOptions.address,
-          )
-          if (isRegistered) {
-            const service = await this.contracts.LegacyServiceRegistry.services(
-              this.specification.indexerOptions.address,
-            )
-            if (
-              service.url === this.specification.indexerOptions.url &&
-              service.geohash === geoHash
-            ) {
-              if (await this.transactionManager.isOperator.value()) {
-                logger.info(`Indexer already registered, operator status already granted`)
-              } else {
-                logger.info(`Indexer already registered, operator status not yet granted`)
-              }
-              return
-            }
+          if (await this.isHorizon.value()) {
+            logger.warn('HORIZON: NOT IMPLEMENTED')
+          } else {
+            await this._registerLegacy(logger, geoHash, url)
           }
-          const receipt = await this.transactionManager.executeTransaction(
-            () =>
-              this.contracts.LegacyServiceRegistry.registerFor.estimateGas(
-                this.specification.indexerOptions.address,
-                this.specification.indexerOptions.url,
-                geoHash,
-              ),
-            (gasLimit) =>
-              this.contracts.LegacyServiceRegistry.registerFor(
-                this.specification.indexerOptions.address,
-                this.specification.indexerOptions.url,
-                geoHash,
-                {
-                  gasLimit,
-                },
-              ),
-            logger.child({ function: 'serviceRegistry.registerFor' }),
-          )
-          if (receipt === 'paused' || receipt === 'unauthorized') {
-            return
-          }
-          const events = receipt.logs
-          const event = events.find((event) =>
-            event.topics.includes(
-              // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
-              this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-                ?.topicHash!,
-            ),
-          )
-          assert.ok(event)
-
-          logger.info(`Successfully registered indexer`)
         } catch (error) {
           const err = indexerError(IndexerErrorCode.IE012, error)
           logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE012], {
@@ -535,6 +487,64 @@ export class Network {
       },
       { retries: 5 } as Options,
     )
+  }
+
+  private async _registerLegacy(logger: Logger, geoHash: string, url: string): Promise<void> {
+    logger.info(`Register indexer`)
+
+    // Register the indexer (only if it hasn't been registered yet or
+    // if its URL is different from what is registered on chain)
+    const isRegistered = await this.contracts.LegacyServiceRegistry.isRegistered(
+      this.specification.indexerOptions.address,
+    )
+    if (isRegistered) {
+      const service = await this.contracts.LegacyServiceRegistry.services(
+        this.specification.indexerOptions.address,
+      )
+      if (
+        service.url === url &&
+        service.geohash === geoHash
+      ) {
+        if (await this.transactionManager.isOperator.value()) {
+          logger.info(`Indexer already registered, operator status already granted`)
+        } else {
+          logger.info(`Indexer already registered, operator status not yet granted`)
+        }
+        return
+      }
+    }
+    const receipt = await this.transactionManager.executeTransaction(
+      () =>
+        this.contracts.LegacyServiceRegistry.registerFor.estimateGas(
+          this.specification.indexerOptions.address,
+          this.specification.indexerOptions.url,
+          geoHash,
+        ),
+      (gasLimit) =>
+        this.contracts.LegacyServiceRegistry.registerFor(
+          this.specification.indexerOptions.address,
+          this.specification.indexerOptions.url,
+          geoHash,
+          {
+            gasLimit,
+          },
+        ),
+      logger.child({ function: 'serviceRegistry.registerFor' }),
+    )
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      return
+    }
+    const events = receipt.logs
+    const event = events.find((event) =>
+      event.topics.includes(
+        // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
+        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
+          ?.topicHash!,
+      ),
+    )
+    assert.ok(event)
+
+    logger.info(`Successfully registered indexer`)
   }
 }
 
