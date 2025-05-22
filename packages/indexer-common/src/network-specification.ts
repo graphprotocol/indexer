@@ -64,7 +64,7 @@ export const IndexerOptions = z
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
     maxProvisionInitialSize: GRT()
-      .refine((x) => x >= 100_000 || x === 0n, {
+      .refine((x) => x >= parseGRT('100000') || x === 0n, {
         message: 'Must be greater or equal than 100000 GRT',
       })
       .default(0),
