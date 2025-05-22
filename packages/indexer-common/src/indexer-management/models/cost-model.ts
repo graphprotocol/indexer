@@ -39,13 +39,13 @@ export class CostModel
   extends Model<CostModelAttributes, CostModelCreationAttributes>
   implements CostModelAttributes
 {
-  public id!: number
-  public deployment!: string
-  public model!: string | null
+  declare id: number
+  declare deployment: string
+  declare model: string | null
   public variables!: CostModelVariables | null
 
-  public createdAt!: Date
-  public updatedAt!: Date
+  declare createdAt: Date
+  declare updatedAt: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
