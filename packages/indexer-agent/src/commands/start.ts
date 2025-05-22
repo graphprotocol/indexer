@@ -112,7 +112,8 @@ export const start = {
         group: 'Ethereum',
       })
       .option('payments-destination', {
-        description: 'Address where payments are sent to. If not provided payments will be restaked.',
+        description:
+          'Address where payments are sent to. If not provided payments will be restaked.',
         type: 'string',
         group: 'Ethereum',
       })
@@ -278,7 +279,8 @@ export const start = {
         group: 'Protocol',
       })
       .option('max-provision-initial-size', {
-        description: 'The maximum number of tokens for the initial Subgraph Service provision',
+        description:
+          'The maximum number of tokens for the initial Subgraph Service provision',
         type: 'number',
         default: 0,
         group: 'Protocol',

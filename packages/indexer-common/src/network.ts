@@ -481,7 +481,7 @@ export class Network {
             this.specification.indexerOptions.address,
             this.contracts.SubgraphService.target,
           )
-      
+
           if (provision.createdAt > 0n) {
             logger.info('Indexer already provisioned, skipping provisioning.')
             return
