@@ -136,9 +136,9 @@ export class Network {
       deployment:
         networkSubgraphDeploymentId !== undefined
           ? {
-              graphNode,
-              deployment: networkSubgraphDeploymentId,
-            }
+            graphNode,
+            deployment: networkSubgraphDeploymentId,
+          }
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
@@ -162,9 +162,9 @@ export class Network {
         deployment:
           tapSubgraphDeploymentId !== undefined
             ? {
-                graphNode,
-                deployment: tapSubgraphDeploymentId,
-              }
+              graphNode,
+              deployment: tapSubgraphDeploymentId,
+            }
             : undefined,
         endpoint: specification.subgraphs.tapSubgraph!.url,
         subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
@@ -218,9 +218,9 @@ export class Network {
       deployment:
         epochSubgraphDeploymentId !== undefined
           ? {
-              graphNode,
-              deployment: epochSubgraphDeploymentId,
-            }
+            graphNode,
+            deployment: epochSubgraphDeploymentId,
+          }
           : undefined,
       endpoint: specification.subgraphs.epochSubgraph.url,
       subgraphFreshnessChecker: epochSubgraphFreshnessChecker,
