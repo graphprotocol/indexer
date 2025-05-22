@@ -39,6 +39,13 @@ export const IndexerOptions = z
     mnemonic: z.string(),
     url: z.string().url(),
     geoCoordinates: z.number().array().length(2).default([31.780715, -41.179504]),
+    paymentsDestination: z
+      .string()
+      .refine((val) => isAddress(val), {
+        message: 'Invalid contract address',
+      })
+      .transform(toAddress)
+      .optional(),
     restakeRewards: z.boolean().default(true),
     rebateClaimThreshold: GRT().default(1),
     rebateClaimBatchThreshold: GRT().default(5),
@@ -56,6 +63,11 @@ export const IndexerOptions = z
     autoAllocationMinBatchSize: positiveNumber().default(1),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
+    maxProvisionInitialSize: GRT()
+      .refine((x) => x >= parseGRT('100000') || x === 0n, {
+        message: 'Must be greater or equal than 100000 GRT',
+      })
+      .default(0),
     finalityTime: positiveNumber().default(3600),
   })
   .strict()

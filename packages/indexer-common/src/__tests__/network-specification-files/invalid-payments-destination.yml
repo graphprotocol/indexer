@@ -1,9 +1,9 @@
-# this file is missing the whole `transactionMonitoring` entry, and is still valid
 networkIdentifier: mainnet
 gateway:
   url: http://gateway
 indexerOptions:
   address: "0x4e8a4C63Df58bf59Fef513aB67a76319a9faf448"
+  paymentsDestination: "0xclearlynotanaddress"
   mnemonic: word ivory whale diesel slab pelican voyage oxygen chat find tobacco sport
   url: http://indexer
   geoCoordinates: [25.1, -71.2]
@@ -19,7 +19,12 @@ indexerOptions:
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
-  maxProvisionInitialSize: 0
+  maxProvisionInitialSize: 100000
+transactionMonitoring:
+  gasIncreaseTimeout: 10
+  gasIncreaseFactor: 10
+  baseFeePerGasMax: 10
+  maxTransactionAttempts: 10
 subgraphs:
   networkSubgraph:
     deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB

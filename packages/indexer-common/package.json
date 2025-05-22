@@ -24,7 +24,7 @@
   "dependencies": {
     "@pinax/graph-networks-registry": "0.6.7",
     "@graphprotocol/common-ts": "3.0.1",
-    "@graphprotocol/toolshed": "0.3.2",
+    "@graphprotocol/toolshed": "0.4.2",
     "@semiotic-labs/tap-contracts-bindings": "2.0.0",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
