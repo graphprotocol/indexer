@@ -111,6 +111,11 @@ export const start = {
         required: true,
         group: 'Ethereum',
       })
+      .option('payments-destination', {
+        description: 'Address where payments are sent to. If not provided payments will be restaked.',
+        type: 'string',
+        group: 'Ethereum',
+      })
       .option('public-indexer-url', {
         description: 'Indexer endpoint for receiving requests from the network',
         type: 'string',
@@ -272,6 +277,12 @@ export const start = {
         default: true,
         group: 'Protocol',
       })
+      .option('max-provision-initial-size', {
+        description: 'The maximum number of tokens for the initial Subgraph Service provision',
+        type: 'number',
+        default: 0,
+        group: 'Protocol',
+      })
       .option('poi-disputable-epochs', {
         description:
           'The number of epochs in the past to look for potential POI disputes',
@@ -351,6 +362,7 @@ export async function createNetworkSpecification(
 
   const indexerOptions = {
     address: argv.indexerAddress,
+    paymentsDestination: argv.paymentsDestination,
     mnemonic: argv.mnemonic,
     url: argv.publicIndexerUrl,
     geoCoordinates: argv.indexerGeoCoordinates,
@@ -368,6 +380,7 @@ export async function createNetworkSpecification(
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
+    maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
   }
 

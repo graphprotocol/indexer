@@ -233,6 +233,7 @@ export class Agent {
         try {
           await operator.ensureGlobalIndexingRule()
           await this.ensureAllSubgraphsIndexing(network)
+          await network.provision()
           await network.register()
         } catch (err) {
           this.logger.critical(

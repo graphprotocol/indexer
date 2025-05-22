@@ -593,10 +593,10 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.3.4.tgz#38929c04d03ad06823f9a867c8a4aef4c7f581e7"
   integrity sha512-POepREau0ExCz4ZJrlhzIS3RigEuzlbp/xlurpHkgaOn97cFAv3x9ZaE5a9uwh1azRm3Djz8RUBmXpqmwoK9NA==
 
-"@graphprotocol/toolshed@0.3.2":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.3.2.tgz#3808687e4bf16373a1ec363fc5cb43ec7977023c"
-  integrity sha512-bp7RWbcUZQcZW6Wn4EcN5DLYFO0hLDGXTLWeahq1HdkLEhcyHiTBqKmZKV98OG4TPJPJ7piCvsoJLuGj/btyRw==
+"@graphprotocol/toolshed@0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.4.2.tgz#511b2c7e1b6fbe229c01de0e5de484877534982b"
+  integrity sha512-qdIalumrmrh7+X0nVr+v/1ZFD0G0dgtE0W47tKZugiw7YKmwnBFkp9MnpYrNzm9NDbs2lk0hn8WBg3W980+hEw==
   dependencies:
     "@graphprotocol/contracts" "^7.1.2"
     "@graphprotocol/horizon" "^0.3.2"
