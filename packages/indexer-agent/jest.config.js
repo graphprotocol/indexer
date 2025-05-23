@@ -11,6 +11,7 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '.yalc'],
+  transformIgnorePatterns: ['!node_modules/'],
   globals: {
     __DATABASE__: {
       host:

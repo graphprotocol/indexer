@@ -3,7 +3,6 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { BigNumber } from 'ethers'
 import { reallocateAllocation } from '../../../allocations'
 import { printObjectOrArray, validatePOI } from '../../../command-helpers'
 
@@ -73,7 +72,7 @@ module.exports = {
 
     try {
       validatePOI(poi)
-      const allocationAmount = BigNumber.from(amount)
+      const allocationAmount = BigInt(amount)
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 

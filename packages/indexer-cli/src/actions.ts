@@ -14,7 +14,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
-import { utils } from 'ethers'
+import { hexlify } from 'ethers'
 import { parseGRT } from '@graphprotocol/common-ts'
 
 export interface GenericActionInputParams {
@@ -51,7 +51,7 @@ export async function buildActionInput(
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
       if (poi == '0' || poi == '0x0') {
-        poi = utils.hexlify(Array(32).fill(0))
+        poi = hexlify(new Uint8Array(32).fill(0))
       }
       return {
         deploymentID: actionParams.targetDeployment,
@@ -69,7 +69,7 @@ export async function buildActionInput(
     case ActionType.REALLOCATE: {
       let poi = actionParams.param3
       if (poi == '0' || poi == '0x0') {
-        poi = utils.hexlify(Array(32).fill(0))
+        poi = hexlify(new Uint8Array(32).fill(0))
       }
       return {
         deploymentID: actionParams.targetDeployment,

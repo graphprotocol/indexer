@@ -1,9 +1,9 @@
-import { Wallet, utils, Signer } from 'ethers'
+import { Wallet, Signer, HDNodeWallet, solidityPackedKeccak256, getBytes } from 'ethers'
 import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
 import { Allocation } from './types'
 
 const deriveKeyPair = (
-  hdNode: utils.HDNode,
+  hdNode: HDNodeWallet,
   epoch: number,
   deployment: SubgraphDeploymentID,
   index: number,
@@ -19,10 +19,10 @@ const deriveKeyPair = (
 
 // Returns the private key of allocation signer
 export const allocationSignerPrivateKey = (
-  wallet: Wallet,
+  wallet: HDNodeWallet,
   allocation: Allocation,
 ): string => {
-  const hdNode = utils.HDNode.fromMnemonic(wallet.mnemonic.phrase)
+  const hdNode = HDNodeWallet.fromPhrase(wallet.mnemonic!.phrase)
 
   // The allocation was either created at the epoch it intended to or one
   // epoch later. So try both both.
@@ -43,7 +43,10 @@ export const allocationSignerPrivateKey = (
 }
 
 // Returns allocation signer wallet
-export const allocationSigner = (wallet: Wallet, allocation: Allocation): Signer => {
+export const allocationSigner = (
+  wallet: HDNodeWallet,
+  allocation: Allocation,
+): Signer => {
   return new Wallet(allocationSignerPrivateKey(wallet, allocation))
 }
 
@@ -66,7 +69,7 @@ export const uniqueAllocationID = (
   existingIDs: Address[],
 ): { allocationSigner: Signer; allocationId: Address } => {
   for (let i = 0; i < 100; i++) {
-    const hdNode = utils.HDNode.fromMnemonic(indexerMnemonic)
+    const hdNode = HDNodeWallet.fromPhrase(indexerMnemonic)
     const keyPair = deriveKeyPair(hdNode, epoch, deployment, i)
     if (!existingIDs.includes(keyPair.address)) {
       return {
@@ -84,11 +87,11 @@ export const allocationIdProof = (
   indexerAddress: string,
   allocationId: string,
 ): Promise<string> => {
-  const messageHash = utils.solidityKeccak256(
+  const messageHash = solidityPackedKeccak256(
     ['address', 'address'],
     [indexerAddress, allocationId],
   )
-  const messageHashBytes = utils.arrayify(messageHash)
+  const messageHashBytes = getBytes(messageHash)
   return signer.signMessage(messageHashBytes)
 }
 
@@ -99,10 +102,10 @@ export const tapAllocationIdProof = (
   allocationId: Address,
   escrowContract: Address,
 ): Promise<string> => {
-  const messageHash = utils.solidityKeccak256(
+  const messageHash = solidityPackedKeccak256(
     ['uint256', 'address', 'address', 'address'],
     [chainId, sender, allocationId, escrowContract],
   )
-  const messageHashBytes = utils.arrayify(messageHash)
+  const messageHashBytes = getBytes(messageHash)
   return signer.signMessage(messageHashBytes)
 }

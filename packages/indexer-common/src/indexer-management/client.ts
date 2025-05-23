@@ -12,7 +12,6 @@ import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
-import { BigNumber } from 'ethers'
 import { GraphNode } from '../graph-node'
 import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
 
@@ -445,7 +444,7 @@ export interface IndexerManagementDefaults {
   globalIndexingRule: Omit<
     IndexingRuleCreationAttributes,
     'identifier' | 'allocationAmount'
-  > & { allocationAmount: BigNumber }
+  > & { allocationAmount: bigint }
 }
 
 export interface IndexerManagementClientOptions {

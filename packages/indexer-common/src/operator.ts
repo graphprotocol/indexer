@@ -18,14 +18,14 @@ import {
   POIDisputeAttributes,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
-import { BigNumber, utils } from 'ethers'
+import { hexlify } from 'ethers'
 import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { CombinedError } from '@urql/core'
 
 const POI_DISPUTES_CONVERTERS_FROM_GRAPHQL: Record<
   keyof POIDisputeAttributes,
-  (x: never) => string | BigNumber | number | null
+  (x: never) => string | bigint | number | null
 > = {
   allocationID: (x) => x,
   subgraphDeploymentID: (x) => x,
@@ -339,7 +339,7 @@ export class Operator {
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
-      ? BigNumber.from(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
+      ? BigInt(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
       : this.specification.indexerOptions.defaultAllocationAmount
 
     logger.info(`No active allocation for deployment, creating one now`, {
@@ -350,7 +350,7 @@ export class Operator {
     if (
       deploymentAllocationDecision.ruleMatch.rule?.safety &&
       mostRecentlyClosedAllocation &&
-      mostRecentlyClosedAllocation.poi === utils.hexlify(Array(32).fill(0))
+      mostRecentlyClosedAllocation.poi === hexlify(new Uint8Array(32).fill(0))
     ) {
       logger.warn(
         `Skipping allocation to this deployment as the last allocation to it was closed with a zero POI`,
@@ -430,7 +430,7 @@ export class Operator {
 
       const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
         ?.allocationAmount
-        ? BigNumber.from(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
+        ? BigInt(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
         : this.specification.indexerOptions.defaultAllocationAmount
 
       // Queue reallocate actions to be picked up by the worker

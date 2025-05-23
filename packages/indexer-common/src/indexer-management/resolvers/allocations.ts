@@ -4,7 +4,7 @@ import { epochElapsedBlocks, Network } from '@graphprotocol/indexer-common'
 
 import pMap from 'p-map'
 import gql from 'graphql-tag'
-import { BigNumber, utils } from 'ethers'
+import { hexlify } from 'ethers'
 
 import {
   Address,
@@ -277,7 +277,7 @@ async function queryAllocations(
           .ipfsHash,
         signalledTokens: allocation.subgraphDeployment.signalledTokens,
         stakedTokens: allocation.subgraphDeployment.stakedTokens,
-        allocatedTokens: BigNumber.from(allocation.allocatedTokens).toString(),
+        allocatedTokens: allocation.allocatedTokens.toString(),
         createdAtEpoch: allocation.createdAtEpoch,
         closedAtEpoch: allocation.closedAtEpoch,
         ageInEpochs: allocation.closedAtEpoch
@@ -330,8 +330,8 @@ export default {
 
         const [currentEpoch, maxAllocationEpochs, epochLength] = await Promise.all([
           networkMonitor.networkCurrentEpoch(),
-          contracts.staking.maxAllocationEpochs(),
-          contracts.epochManager.epochLength(),
+          contracts.LegacyStaking.maxAllocationEpochs(),
+          contracts.EpochManager.epochLength(),
         ])
 
         const allocation = filter.allocation
@@ -351,8 +351,8 @@ export default {
           currentEpochStartBlock: currentEpoch.startBlockNumber,
           currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
           latestBlock: currentEpoch.latestBlock,
-          maxAllocationEpochs,
-          blocksPerEpoch: epochLength.toNumber(),
+          maxAllocationEpochs: Number(maxAllocationEpochs),
+          blocksPerEpoch: Number(epochLength),
           avgBlockTime: 13000,
           protocolNetwork: network.specification.networkIdentifier,
         }
@@ -412,7 +412,7 @@ export default {
       )
     }
 
-    if (allocationAmount.lt('0')) {
+    if (allocationAmount < 0n) {
       logger.warn('Cannot allocate a negative amount of GRT', {
         amount: formatGRT(allocationAmount),
       })
@@ -423,13 +423,13 @@ export default {
     }
 
     try {
-      const currentEpoch = await contracts.epochManager.currentEpoch()
+      const currentEpoch = await contracts.EpochManager.currentEpoch()
 
       // Identify how many GRT the indexer has staked
-      const freeStake = await contracts.staking.getIndexerCapacity(address)
+      const freeStake = await contracts.LegacyStaking.getIndexerCapacity(address)
 
       // If there isn't enough left for allocating, abort
-      if (freeStake.lt(allocationAmount)) {
+      if (freeStake < allocationAmount) {
         logger.error(
           `Allocation of ${formatGRT(
             allocationAmount,
@@ -457,8 +457,8 @@ export default {
 
       // Obtain a unique allocation ID
       const { allocationSigner, allocationId } = uniqueAllocationID(
-        transactionManager.wallet.mnemonic.phrase,
-        currentEpoch.toNumber(),
+        transactionManager.wallet.mnemonic!.phrase,
+        Number(currentEpoch),
         subgraphDeployment,
         activeAllocations.map((allocation) => allocation.id),
       )
@@ -470,8 +470,8 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationId)
-      if (state !== 0) {
+      const state = await contracts.HorizonStaking.getAllocationState(allocationId)
+      if (state !== 0n) {
         logger.debug(`Skipping allocation as it already exists onchain`, {
           indexer: address,
           allocation: allocationId,
@@ -506,21 +506,21 @@ export default {
 
       const receipt = await transactionManager.executeTransaction(
         async () =>
-          contracts.staking.estimateGas.allocateFrom(
+          contracts.LegacyStaking.allocateFrom.estimateGas(
             address,
             subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
-            utils.hexlify(Array(32).fill(0)),
+            hexlify(new Uint8Array(32).fill(0)),
             proof,
           ),
         async (gasLimit) =>
-          contracts.staking.allocateFrom(
+          contracts.LegacyStaking.allocateFrom(
             address,
             subgraphDeployment.bytes32,
             allocationAmount,
             allocationId,
-            utils.hexlify(Array(32).fill(0)),
+            hexlify(new Uint8Array(32).fill(0)),
             proof,
             { gasLimit },
           ),
@@ -538,7 +538,7 @@ export default {
 
       const createAllocationEventLogs = network.transactionManager.findEvent(
         'AllocationCreated',
-        network.contracts.staking.interface,
+        network.contracts.LegacyStaking.interface,
         'subgraphDeploymentID',
         subgraphDeployment.toString(),
         receipt,
@@ -556,7 +556,7 @@ export default {
         amountGRT: formatGRT(createAllocationEventLogs.tokens),
         allocation: createAllocationEventLogs.allocationID,
         epoch: createAllocationEventLogs.epoch.toString(),
-        transaction: receipt.transactionHash,
+        transaction: receipt.hash,
       })
 
       logger.debug(
@@ -584,7 +584,7 @@ export default {
       return {
         actionID: 0,
         type: 'allocate',
-        transactionID: receipt.transactionHash,
+        transactionID: receipt.hash,
         deployment,
         allocation: createAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(allocationAmount.toString()),
@@ -640,18 +640,19 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationData.id)
-      if (state !== 1) {
+      const state = await contracts.HorizonStaking.getAllocationState(allocationData.id)
+      if (state !== 1n) {
         throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
       }
 
       logger.debug('Sending closeAllocation transaction')
       const receipt = await transactionManager.executeTransaction(
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        () => contracts.staking.estimateGas.closeAllocation(allocationData.id, poi!),
+        () =>
+          contracts.LegacyStaking.closeAllocation.estimateGas(allocationData.id, poi!),
         (gasLimit) =>
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          contracts.staking.closeAllocation(allocationData.id, poi!, {
+          contracts.LegacyStaking.closeAllocation(allocationData.id, poi!, {
             gasLimit,
           }),
         logger,
@@ -666,7 +667,7 @@ export default {
 
       const closeAllocationEventLogs = transactionManager.findEvent(
         'AllocationClosed',
-        contracts.staking.interface,
+        contracts.LegacyStaking.interface,
         'allocationID',
         allocation,
         receipt,
@@ -682,7 +683,7 @@ export default {
 
       const rewardsEventLogs = transactionManager.findEvent(
         'RewardsAssigned',
-        contracts.rewardsManager.interface,
+        contracts.RewardsManager.interface,
         'allocationID',
         allocation,
         receipt,
@@ -703,7 +704,7 @@ export default {
         effectiveAllocation: closeAllocationEventLogs.effectiveAllocation.toString(),
         poi: closeAllocationEventLogs.poi,
         epoch: closeAllocationEventLogs.epoch.toString(),
-        transaction: receipt.transactionHash,
+        transaction: receipt.hash,
         indexingRewards: rewardsAssigned,
       })
 
@@ -742,7 +743,7 @@ export default {
       return {
         actionID: 0,
         type: 'unallocate',
-        transactionID: receipt.transactionHash,
+        transactionID: receipt.hash,
         allocation: closeAllocationEventLogs.allocationID,
         allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
         indexingRewards: formatGRT(rewardsAssigned),
@@ -813,7 +814,7 @@ export default {
     }
 
     try {
-      const currentEpoch = await contracts.epochManager.currentEpoch()
+      const currentEpoch = await contracts.EpochManager.currentEpoch()
 
       logger.debug('Resolving POI')
       const allocationPOI = await networkMonitor.resolvePOI(allocationData, poi, force)
@@ -829,13 +830,13 @@ export default {
       //     enum AllocationState { Null, Active, Closed, Finalized }
       //
       // in the contracts.
-      const state = await contracts.staking.getAllocationState(allocationData.id)
-      if (state !== 1) {
+      const state = await contracts.HorizonStaking.getAllocationState(allocationData.id)
+      if (state !== 1n) {
         logger.warn(`Allocation has already been closed`)
         throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
       }
 
-      if (allocationAmount.lt('0')) {
+      if (allocationAmount < 0n) {
         logger.warn('Cannot reallocate a negative amount of GRT', {
           amount: allocationAmount.toString(),
         })
@@ -852,14 +853,14 @@ export default {
       })
 
       // Identify how many GRT the indexer has staked
-      const freeStake = await contracts.staking.getIndexerCapacity(address)
+      const freeStake = await contracts.LegacyStaking.getIndexerCapacity(address)
 
       // When reallocating, we will first close the old allocation and free up the GRT in that allocation
       // This GRT will be available in addition to freeStake for the new allocation
-      const postCloseFreeStake = freeStake.add(allocationData.allocatedTokens)
+      const postCloseFreeStake = freeStake + allocationData.allocatedTokens
 
       // If there isn't enough left for allocating, abort
-      if (postCloseFreeStake.lt(allocationAmount)) {
+      if (postCloseFreeStake < allocationAmount) {
         throw indexerError(
           IndexerErrorCode.IE013,
           `Unable to allocate ${formatGRT(
@@ -874,8 +875,8 @@ export default {
 
       logger.debug('Generating a new unique Allocation ID')
       const { allocationSigner, allocationId: newAllocationId } = uniqueAllocationID(
-        transactionManager.wallet.mnemonic.phrase,
-        currentEpoch.toNumber(),
+        transactionManager.wallet.mnemonic!.phrase,
+        Number(currentEpoch),
         allocationData.subgraphDeployment.id,
         activeAllocations.map((allocation) => allocation.id),
       )
@@ -893,8 +894,8 @@ export default {
       //
       // in the contracts.
       const newAllocationState =
-        await contracts.staking.getAllocationState(newAllocationId)
-      if (newAllocationState !== 0) {
+        await contracts.HorizonStaking.getAllocationState(newAllocationId)
+      if (newAllocationState !== 0n) {
         logger.warn(`Skipping Allocation as it already exists onchain`, {
           indexer: address,
           allocation: newAllocationId,
@@ -926,23 +927,23 @@ export default {
       })
 
       const callData = [
-        await contracts.staking.populateTransaction.closeAllocation(
+        await contracts.LegacyStaking.closeAllocation.populateTransaction(
           allocationData.id,
           allocationPOI,
         ),
-        await contracts.staking.populateTransaction.allocateFrom(
+        await contracts.LegacyStaking.allocateFrom.populateTransaction(
           address,
           allocationData.subgraphDeployment.id.bytes32,
           allocationAmount,
           newAllocationId,
-          utils.hexlify(Array(32).fill(0)), // metadata
+          hexlify(new Uint8Array(32).fill(0)), // metadata
           proof,
         ),
       ].map((tx) => tx.data as string)
 
       const receipt = await transactionManager.executeTransaction(
-        async () => contracts.staking.estimateGas.multicall(callData),
-        async (gasLimit) => contracts.staking.multicall(callData, { gasLimit }),
+        async () => contracts.LegacyStaking.multicall.estimateGas(callData),
+        async (gasLimit) => contracts.LegacyStaking.multicall(callData, { gasLimit }),
         logger.child({
           function: 'closeAndAllocate',
         }),
@@ -957,7 +958,7 @@ export default {
 
       const createAllocationEventLogs = transactionManager.findEvent(
         'AllocationCreated',
-        contracts.staking.interface,
+        contracts.LegacyStaking.interface,
         'subgraphDeploymentID',
         allocationData.subgraphDeployment.id.toString(),
         receipt,
@@ -970,7 +971,7 @@ export default {
 
       const closeAllocationEventLogs = transactionManager.findEvent(
         'AllocationClosed',
-        contracts.staking.interface,
+        contracts.LegacyStaking.interface,
         'allocationID',
         allocation,
         receipt,
@@ -986,7 +987,7 @@ export default {
 
       const rewardsEventLogs = transactionManager.findEvent(
         'RewardsAssigned',
-        contracts.rewardsManager.interface,
+        contracts.RewardsManager.interface,
         'allocationID',
         allocation,
         receipt,
@@ -1010,7 +1011,7 @@ export default {
         createdAllocationStakeGRT: formatGRT(createAllocationEventLogs.tokens),
         indexer: createAllocationEventLogs.indexer,
         epoch: createAllocationEventLogs.epoch.toString(),
-        transaction: receipt.transactionHash,
+        transaction: receipt.hash,
       })
 
       logger.info('Identifying receipts worth collecting', {
@@ -1049,7 +1050,7 @@ export default {
       return {
         actionID: 0,
         type: 'reallocate',
-        transactionID: receipt.transactionHash,
+        transactionID: receipt.hash,
         closedAllocation: closeAllocationEventLogs.allocationID,
         indexingRewardsCollected: formatGRT(rewardsAssigned),
         receiptsWorthCollecting: isCollectingQueryFees,

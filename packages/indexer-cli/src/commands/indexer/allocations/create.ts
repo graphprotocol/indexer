@@ -3,7 +3,6 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
 import {
   processIdentifier,
@@ -78,7 +77,7 @@ module.exports = {
           `Invalid 'deploymentID' provided (${deploymentID}), must be bytes32 or base58 formatted)`,
         )
       }
-      const allocationAmount = BigNumber.from(amount)
+      const allocationAmount = BigInt(amount)
 
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })

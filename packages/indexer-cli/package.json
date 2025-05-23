@@ -26,14 +26,14 @@
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.11",
+    "@graphprotocol/common-ts": "3.0.1",
     "@graphprotocol/indexer-common": "^0.23.5",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
     "@urql/core": "3.1.0",
     "chalk": "4.1.2",
     "env-paths": "2.2.1",
-    "ethers": "5.7.0",
+    "ethers": "6.13.7",
     "gluegun": "4.7.0",
     "graphql-tag": "2.12.6",
     "isomorphic-fetch": "3.0.0",
@@ -53,7 +53,7 @@
     "typescript": "5.2.2"
   },
   "resolutions": {
-    "ethers": "5.7.0",
+    "ethers": "6.13.7",
     "sequelize": "6.33.0"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"

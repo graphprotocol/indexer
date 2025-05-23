@@ -1,4 +1,3 @@
-# this file is missing the whole `transactionMonitoring` entry, and is still valid
 networkIdentifier: mainnet
 gateway:
   url: http://gateway
@@ -19,7 +18,12 @@ indexerOptions:
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
-  maxProvisionInitialSize: 0
+  maxProvisionInitialSize: 99999
+transactionMonitoring:
+  gasIncreaseTimeout: 10
+  gasIncreaseFactor: 10
+  baseFeePerGasMax: 10
+  maxTransactionAttempts: 10
 subgraphs:
   networkSubgraph:
     deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB
