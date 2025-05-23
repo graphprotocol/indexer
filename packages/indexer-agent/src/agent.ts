@@ -808,6 +808,16 @@ export class Agent {
           })
           return
         }
+
+        await this.multiNetworks.mapNetworkMapped(activeAllocations, async ({ network, operator }, activeAllocations: Allocation[]) => {
+          if (network.specification.indexerOptions.enableDips) {
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
+            }
+            this.logger.debug(`Matching agreement allocations for network ${network.specification.networkIdentifier}`)
+            await operator.dipsManager.matchAgreementAllocations(activeAllocations)
+          }
+        })
       },
     )
   }
