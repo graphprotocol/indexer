@@ -99,6 +99,12 @@ export const start = {
         default: 0,
         group: 'Ethereum',
       })
+      .option('confirmation-blocks', {
+        description: 'The number of blocks to wait for a transaction to be confirmed',
+        type: 'number',
+        default: 3,
+        group: 'Ethereum',
+      })
       .option('mnemonic', {
         description: 'Mnemonic for the operator wallet',
         type: 'string',
@@ -392,6 +398,7 @@ export async function createNetworkSpecification(
     gasPriceMax: argv.gasPriceMax,
     baseFeePerGasMax: argv.baseFeeGasMax,
     maxTransactionAttempts: argv.maxTransactionAttempts,
+    confirmationBlocks: argv.confirmationBlocks,
   }
 
   const subgraphs = {

@@ -88,6 +88,7 @@ export const TransactionMonitoring = z
       .transform((x) => x * 10 ** 9)
       .optional(),
     maxTransactionAttempts: z.number().nonnegative().finite().default(0),
+    confirmationBlocks: positiveNumber().default(3),
   })
   .strict()
   .default({}) // defaults will be used for instantiation when the TransactionMonitoring group is absent.
