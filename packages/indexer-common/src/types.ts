@@ -106,3 +106,8 @@ export function parseDeploymentManagementMode(input: string): DeploymentManageme
       throw new Error(`Invalid value for deployment management mode: ${input}`)
   }
 }
+
+export type HorizonTransitionValue<U = bigint,V = bigint> = {
+  legacy: U
+  horizon: V
+}

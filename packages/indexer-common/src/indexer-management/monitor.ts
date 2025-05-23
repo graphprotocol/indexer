@@ -18,6 +18,7 @@ import {
   resolveChainAlias,
   TransferredSubgraphDeployment,
   sequentialTimerReduce,
+  HorizonTransitionValue,
 } from '@graphprotocol/indexer-common'
 import {
   GraphHorizonContracts,
@@ -60,9 +61,23 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
-  async maxAllocationEpoch(): Promise<number> {
-    // TODO HORIZON: this call will fail in Horizon, return 0 or something else?
-    return Number(await this.contracts.LegacyStaking.maxAllocationEpochs())
+  // Allocation expiration will be given by when it was created:
+  // - Legacy allocations - expiration measured in epochs, determined by maxAllocationEpochs
+  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness
+  async maxAllocationDuration(): Promise<HorizonTransitionValue> {
+    const isHorizon = await this.monitorIsHorizon(this.logger, this.contracts)
+
+    if (await isHorizon.value()) {
+      return {
+        legacy: 28n, // Hardcode to the latest known value. This is required for legacy allos in the transition period.
+        horizon: await this.contracts.SubgraphService.maxPOIStaleness(),
+      }
+    } else {
+      return {
+        legacy: await this.contracts.LegacyStaking.maxAllocationEpochs(),
+        horizon: 0n,
+      }
+    }
   }
 
   /**
@@ -102,12 +117,15 @@ export class NetworkMonitor {
           allocation(id: $allocation) {
             id
             status
+            isLegacy
             indexer {
               id
             }
             allocatedTokens
+            createdAt
             createdAtEpoch
             createdAtBlockHash
+            closedAt
             closedAtEpoch
             subgraphDeployment {
               id
@@ -156,11 +174,14 @@ export class NetworkMonitor {
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -284,11 +305,14 @@ export class NetworkMonitor {
                 orderDirection: desc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -359,12 +383,15 @@ export class NetworkMonitor {
               orderDirection: desc
             ) {
               id
+              isLegacy
               poi
               indexer {
                 id
               }
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               subgraphDeployment {
@@ -1146,12 +1173,15 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
               first: 1000
             ) {
               id
+              isLegacy
               indexer {
                 id
               }
               queryFeesCollected
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               closedAtBlockHash
@@ -1266,6 +1296,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 createdAt
                 indexer {
                   id
@@ -1274,6 +1305,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
+                closedAt
                 closedAtBlockHash
                 subgraphDeployment {
                   id

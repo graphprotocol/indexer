@@ -87,6 +87,7 @@ export const parseGraphQLAllocation = (
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
   status: allocation.status,
+  isLegacy: allocation.isLegacy,
   subgraphDeployment: {
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     deniedAt: allocation.subgraphDeployment.deniedAt,
@@ -97,8 +98,10 @@ export const parseGraphQLAllocation = (
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigInt(allocation.allocatedTokens),
+  createdAt: allocation.createdAt,
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
+  closedAt: allocation.closedAt,
   closedAtEpoch: allocation.closedAtEpoch,
   closedAtEpochStartBlockHash: undefined,
   previousEpochStartBlockHash: undefined,

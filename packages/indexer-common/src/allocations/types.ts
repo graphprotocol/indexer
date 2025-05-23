@@ -5,11 +5,14 @@ import { Logger, Address } from '@graphprotocol/common-ts'
 export interface Allocation {
   id: Address
   status: AllocationStatus
+  isLegacy: boolean
   subgraphDeployment: SubgraphDeployment
   indexer: Address
   allocatedTokens: bigint
+  createdAt: number
   createdAtEpoch: number
   createdAtBlockHash: string
+  closedAt: number // TODO HORIZON: remove this if it ends up not being used
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined
   previousEpochStartBlockHash: string | undefined

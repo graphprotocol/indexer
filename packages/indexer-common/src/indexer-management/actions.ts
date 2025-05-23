@@ -93,10 +93,16 @@ export class ActionManager {
       let affectedAllocationExpiring = false
       if (affectedAllocations.length) {
         const currentEpoch = await network.networkMonitor.currentEpochNumber()
-        const maxAllocationEpoch = await network.networkMonitor.maxAllocationEpoch()
+        const maxAllocationDuration = await network.networkMonitor.maxAllocationDuration()
+
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
-        affectedAllocationExpiring =
-          currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationEpoch
+        if (affectedAllocations[0].isLegacy) {
+          affectedAllocationExpiring =
+            currentEpoch >= affectedAllocations[0].createdAtEpoch + Number(maxAllocationDuration.legacy)
+        } else {
+          affectedAllocationExpiring =
+            currentEpoch >= affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon)
+        }
       }
 
       logger.debug(
@@ -329,7 +335,7 @@ export class ActionManager {
           if (pendingActions.length > 0) {
             logger.warn(
               `${pendingActions} Actions found in PENDING state when execution began. Was there a crash?` +
-                `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
+              `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
             )
           }
 
