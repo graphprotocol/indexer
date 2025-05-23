@@ -332,8 +332,11 @@ describe.skip('Monitor: local', () => {
     await expect(networkMonitor.currentEpochNumber()).resolves.toBeGreaterThan(1500)
   })
 
-  test('Fetch maxAllocationEpoch', async () => {
-    await expect(networkMonitor.maxAllocationEpoch()).resolves.toBeGreaterThan(1)
+  test('Fetch maxAllocationDuration', async () => {
+    await expect(networkMonitor.maxAllocationDuration()).resolves.toMatchObject({
+      legacy: expect.any(BigInt),
+      horizon: expect.any(BigInt),
+    })
   })
 
   test('Fetch network chain current epoch', async () => {

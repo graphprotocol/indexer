@@ -48,7 +48,11 @@ import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
 
-type ActionReconciliationContext = [AllocationDecision[], number, HorizonTransitionValue]
+type ActionReconciliationContext = [
+  AllocationDecision[],
+  number,
+  HorizonTransitionValue,
+]
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -64,7 +68,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-      deployment.toString(),
+        deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -272,21 +276,22 @@ export class Agent {
         },
       )
 
-    const maxAllocationDuration: Eventual<NetworkMapped<HorizonTransitionValue>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalLarge },
-        () =>
-          this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching max allocation duration', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.maxAllocationDuration()
-          }),
-        {
-          onError: error =>
-            logger.warn(`Failed to fetch max allocation duration`, { error }),
-        },
-      )
+    const maxAllocationDuration: Eventual<
+      NetworkMapped<HorizonTransitionValue>
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalLarge },
+      () =>
+        this.multiNetworks.map(({ network }) => {
+          logger.trace('Fetching max allocation duration', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          return network.networkMonitor.maxAllocationDuration()
+        }),
+      {
+        onError: error =>
+          logger.warn(`Failed to fetch max allocation duration`, { error }),
+      },
+    )
 
     const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
       sequentialTimerMap(
@@ -862,7 +867,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-            rewardsPool!.referencePreviousPOI == allocation.poi
+          rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1012,8 +1017,9 @@ export class Agent {
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
-    const epochLengthInBlocks = await network.contracts.EpochManager.epochLength()
-    const BLOCK_IN_SECONDS = 12n  // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not all chain
+    const epochLengthInBlocks =
+      await network.contracts.EpochManager.epochLength()
+    const BLOCK_IN_SECONDS = 12n // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not all chain
     const EPOCH_IN_SECONDS = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
 
     // Identify expiring allocations
@@ -1021,18 +1027,27 @@ export class Agent {
       async (allocation: Allocation) => {
         if (allocation.isLegacy) {
           // Legacy allocations - expiration measured in epochs
-          const desiredAllocationLifetimeInEpochs = deploymentAllocationDecision.ruleMatch
-            .rule?.allocationLifetime
+          const desiredAllocationLifetimeInEpochs = deploymentAllocationDecision
+            .ruleMatch.rule?.allocationLifetime
             ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
             : Math.max(1, Number(maxAllocationDuration.legacy) - 1)
-          return epoch >= allocation.createdAtEpoch + desiredAllocationLifetimeInEpochs
+          return (
+            epoch >=
+            allocation.createdAtEpoch + desiredAllocationLifetimeInEpochs
+          )
         } else {
           // Horizon allocations - expiration measured in seconds, we need to scale ruleAllocationLifetime to seconds
-          const desiredAllocationLifetimeInSeconds = deploymentAllocationDecision.ruleMatch
-            .rule?.allocationLifetime
-            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime * EPOCH_IN_SECONDS
-            : Math.max(EPOCH_IN_SECONDS, Number(maxAllocationDuration.horizon) - EPOCH_IN_SECONDS)
-          return epoch >= allocation.createdAt + desiredAllocationLifetimeInSeconds
+          const desiredAllocationLifetimeInSeconds =
+            deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
+              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime *
+                EPOCH_IN_SECONDS
+              : Math.max(
+                  EPOCH_IN_SECONDS,
+                  Number(maxAllocationDuration.horizon) - EPOCH_IN_SECONDS,
+                )
+          return (
+            epoch >= allocation.createdAt + desiredAllocationLifetimeInSeconds
+          )
         }
       },
     )
@@ -1050,7 +1065,9 @@ export class Agent {
             return onChainAllocation.closedAtEpoch == 0n
           } else {
             const onChainAllocation =
-              await network.contracts.SubgraphService.getAllocation(allocation.id)
+              await network.contracts.SubgraphService.getAllocation(
+                allocation.id,
+              )
             return onChainAllocation.closedAt == 0n
           }
         } catch (err) {

@@ -98,10 +98,12 @@ export class ActionManager {
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
         if (affectedAllocations[0].isLegacy) {
           affectedAllocationExpiring =
-            currentEpoch >= affectedAllocations[0].createdAtEpoch + Number(maxAllocationDuration.legacy)
+            currentEpoch >=
+            affectedAllocations[0].createdAtEpoch + Number(maxAllocationDuration.legacy)
         } else {
           affectedAllocationExpiring =
-            currentEpoch >= affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon)
+            currentEpoch >=
+            affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon)
         }
       }
 
@@ -335,7 +337,7 @@ export class ActionManager {
           if (pendingActions.length > 0) {
             logger.warn(
               `${pendingActions} Actions found in PENDING state when execution began. Was there a crash?` +
-              `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
+                `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
             )
           }
 

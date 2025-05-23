@@ -107,7 +107,7 @@ export function parseDeploymentManagementMode(input: string): DeploymentManageme
   }
 }
 
-export type HorizonTransitionValue<U = bigint,V = bigint> = {
+export type HorizonTransitionValue<U = bigint, V = bigint> = {
   legacy: U
   horizon: V
 }

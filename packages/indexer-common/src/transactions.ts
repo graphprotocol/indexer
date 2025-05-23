@@ -124,7 +124,10 @@ export class TransactionManager {
           tx = await this.wallet.sendTransaction(txRequest)
         }
 
-        logger.info(`Transaction pending`, { tx: tx, confirmationBlocks: this.specification.confirmationBlocks })
+        logger.info(`Transaction pending`, {
+          tx: tx,
+          confirmationBlocks: this.specification.confirmationBlocks,
+        })
 
         const receipt = await this.ethereum.waitForTransaction(
           tx.hash,
