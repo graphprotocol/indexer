@@ -25,7 +25,7 @@ ${chalk.dim('Options:')}
 `
 
 interface Endpoint {
-  name: string,
+  name: string
   url: string | null
   healthy: boolean
   protocolNetwork: string
@@ -262,9 +262,21 @@ module.exports = {
 
     if (outputFormat === 'table') {
       print.info(chalk.cyan('Registration'))
-      print.info(formatData(data.registration.map((registration: any) =>
-        pickFields(registration, ['url', 'address', 'protocolNetwork', 'registered', 'isLegacy', 'location']),
-      ), outputFormat))
+      print.info(
+        formatData(
+          data.registration.map((registration: any) =>
+            pickFields(registration, [
+              'url',
+              'address',
+              'protocolNetwork',
+              'registered',
+              'isLegacy',
+              'location',
+            ]),
+          ),
+          outputFormat,
+        ),
+      )
       print.info(chalk.cyan('\nEndpoints'))
       if (data.endpoints.error) {
         print.error(formatData([data.endpoints], outputFormat))
@@ -272,7 +284,13 @@ module.exports = {
         print.info(
           formatData(
             data.endpoints.map((endpoint: any) =>
-              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status', 'isLegacy']),
+              pickFields(endpoint, [
+                'name',
+                'protocolNetwork',
+                'url',
+                'status',
+                'isLegacy',
+              ]),
             ),
             outputFormat,
           ),
@@ -353,6 +371,6 @@ function formatStatus(outputFormat: string, status: boolean) {
       ? chalk.green('up')
       : chalk.red('down')
     : status
-      ? 'up'
-      : 'down'
+    ? 'up'
+    : 'down'
 }
