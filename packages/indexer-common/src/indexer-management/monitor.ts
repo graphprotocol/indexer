@@ -19,6 +19,8 @@ import {
   TransferredSubgraphDeployment,
   sequentialTimerReduce,
   HorizonTransitionValue,
+  Provision,
+  parseGraphQLProvision,
 } from '@graphprotocol/indexer-common'
 import {
   GraphHorizonContracts,
@@ -51,7 +53,7 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
-  ) {}
+  ) { }
 
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
@@ -220,8 +222,7 @@ export class NetworkMonitor {
 
       if (allocations.length === 0) {
         this.logger.warn(
-          `No ${
-            AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
+          `No ${AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
           } allocations found for indexer '${this.indexerOptions.address}'`,
         )
       }
@@ -237,6 +238,51 @@ export class NetworkMonitor {
       })
       throw err
     }
+  }
+
+  async provision(indexer: string, dataService: string): Promise<Provision> {
+    const result = await this.networkSubgraph.checkedQuery(
+      gql`
+        query provisions($indexer: String!, $dataService: String!) {
+          provisions(
+            where: { 
+              indexer: $indexer,
+              dataService: $dataService
+            }
+          ) {
+            id
+            indexer {
+              id
+            }
+            dataService {
+              id
+            }
+            tokensProvisioned
+            tokensAllocated
+            tokensThawing
+            thawingPeriod
+            maxVerifierCut
+          }
+        }
+      `,
+      { indexer, dataService },
+    )
+    if (result.error) {
+      throw result.error
+    }
+
+    if (!result.data.provisions || result.data.length == 0 || result.data.provisions.length == 0) {
+      const errorMessage = `No provision found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE078, errorMessage)
+    }
+
+    if (result.data.provisions.length > 1) {
+      const errorMessage = `Multiple provisions found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE081, errorMessage)
+    }
+    return parseGraphQLProvision(result.data.provisions[0])
   }
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
@@ -994,11 +1040,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 IndexerErrorCode.IE067,
                 `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
+              deploymentStatus: ${deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
                   : 'not deployed'
-              }`,
+                }`,
               )
             } else {
               return poi

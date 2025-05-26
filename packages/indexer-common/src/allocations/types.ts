@@ -22,6 +22,17 @@ export interface Allocation {
   queryFeesCollected: bigint | undefined
 }
 
+export interface Provision {
+  id: Address
+  dataService: Address
+  indexer: Address
+  tokensProvisioned: bigint
+  tokensAllocated: bigint
+  tokensThawing: bigint
+  maxVerifierCut: bigint
+  thawingPeriod: bigint
+}
+
 export enum AllocationStatus {
   NULL = 'Null',
   ACTIVE = 'Active',

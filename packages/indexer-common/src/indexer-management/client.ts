@@ -381,6 +381,18 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
+  type AddToProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    tokensAllocated: String!
+    tokensThawing: String!
+    maxVerifierCut: String!
+    thawingPeriod: String!
+    protocolNetwork: String!
+  }
+
   type Query {
     indexingRule(
       identifier: IndexingRuleIdentifier!
@@ -455,6 +467,8 @@ const SCHEMA_SDL = gql`
     deleteActions(actionIDs: [String!]!): Int!
     approveActions(actionIDs: [String!]!): [Action]!
     executeApprovedActions: [ActionResult!]!
+
+    addToProvision(protocolNetwork: String!, amount: String!): AddToProvisionResult!
   }
 `
 

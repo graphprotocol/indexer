@@ -433,18 +433,19 @@ export class TransactionManager {
   ): Result | undefined {
     const events = receipt.logs
     const decodedEvents: Result[] = []
-    const expectedTopic = contractInterface.getEvent(eventType)?.topicHash
+    const expectedEvent = contractInterface.getEvent(eventType)
+    const expectedTopicHash = expectedEvent?.topicHash
 
     // TODO HORIZON - throw indexer error here
-    if (!expectedTopic) {
+    if (!expectedTopicHash) {
       throw new Error(`Event type ${eventType} not found in contract interface`)
     }
 
     const result = events
-      .filter((event) => event.topics.includes(expectedTopic))
+      .filter((event) => event.topics.includes(expectedTopicHash))
       .map((event) => {
         const decoded = contractInterface.decodeEventLog(
-          eventType,
+          expectedEvent,
           event.data,
           event.topics,
         )
@@ -452,13 +453,14 @@ export class TransactionManager {
         return decoded
       })
       .find(
-        (eventLogs) =>
-          eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
+        (eventLogs) => {
+          return eventLogs[logKey] && eventLogs[logKey].toString().toLocaleLowerCase() === logValue.toLocaleLowerCase()
+        }
       )
 
     logger.trace('Searched for event logs', {
       function: 'findEvent',
-      expectedTopic,
+      expectedTopicHash,
       events,
       decodedEvents,
       eventType,
