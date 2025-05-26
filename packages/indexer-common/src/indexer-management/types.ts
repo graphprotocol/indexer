@@ -111,9 +111,7 @@ export const parseGraphQLAllocation = (
   queryFeesCollected: allocation.queryFeesCollected,
 })
 
-export const parseGraphQLProvision = (
-  provision: any,
-): Provision => ({
+export const parseGraphQLProvision = (provision: any): Provision => ({
   id: provision.id.toString(),
   dataService: toAddress(provision.dataService),
   indexer: toAddress(provision.indexer),

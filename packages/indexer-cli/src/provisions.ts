@@ -3,9 +3,7 @@ import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
 import { OutputFormat, parseOutputFormat, pickFields } from './command-helpers'
-import {
-  resolveChainAlias,
-} from '@graphprotocol/indexer-common'
+import { resolveChainAlias } from '@graphprotocol/indexer-common'
 import { BigNumberish } from 'ethers'
 
 function formatPPM(x: BigNumberish): string {
@@ -41,20 +39,18 @@ const PROVISION_CONVERTERS_FROM_GRAPHQL: Record<
   protocolNetwork: x => x,
 }
 
-const PROVISION_FORMATTERS: Record<
-  keyof IndexerProvision,
-  (x: never) => string | null
-> = {
-  id: nullPassThrough(x => x),
-  dataService: nullPassThrough(x => x),
-  indexer: nullPassThrough(x => x),
-  tokensProvisioned: x => commify(formatGRT(x)),
-  tokensAllocated: x => commify(formatGRT(x)),
-  tokensThawing: x => commify(formatGRT(x)),
-  maxVerifierCut: x => commify(formatPPM(x)),
-  thawingPeriod: x => x,
-  protocolNetwork: resolveChainAlias,
-}
+const PROVISION_FORMATTERS: Record<keyof IndexerProvision, (x: never) => string | null> =
+  {
+    id: nullPassThrough(x => x),
+    dataService: nullPassThrough(x => x),
+    indexer: nullPassThrough(x => x),
+    tokensProvisioned: x => commify(formatGRT(x)),
+    tokensAllocated: x => commify(formatGRT(x)),
+    tokensThawing: x => commify(formatGRT(x)),
+    maxVerifierCut: x => commify(formatPPM(x)),
+    thawingPeriod: x => x,
+    protocolNetwork: resolveChainAlias,
+  }
 
 /**
  * Formats an indexer provision for display in the console.
@@ -91,10 +87,7 @@ export const indexerProvisionFromGraphQL = (
 export const printIndexerProvisions = (
   print: GluegunPrint,
   outputFormat: OutputFormat,
-  provisionOrProvisions:
-    | Partial<IndexerProvision>
-    | Partial<IndexerProvision>[]
-    | null,
+  provisionOrProvisions: Partial<IndexerProvision> | Partial<IndexerProvision>[] | null,
   keys: (keyof IndexerProvision)[],
 ): void => {
   parseOutputFormat(print, outputFormat)
@@ -118,18 +111,18 @@ export const displayIndexerProvisions = (
   outputFormat === OutputFormat.Json
     ? JSON.stringify(provisions, null, 2)
     : outputFormat === OutputFormat.Yaml
-      ? yaml.stringify(provisions).trim()
-      : provisions.length === 0
-        ? 'No provisions found'
-        : table(
-          [
-            Object.keys(provisions[0]),
-            ...provisions.map(provision => Object.values(provision)),
-          ],
-          {
-            border: getBorderCharacters('norc'),
-          },
-        ).trim()
+    ? yaml.stringify(provisions).trim()
+    : provisions.length === 0
+    ? 'No provisions found'
+    : table(
+        [
+          Object.keys(provisions[0]),
+          ...provisions.map(provision => Object.values(provision)),
+        ],
+        {
+          border: getBorderCharacters('norc'),
+        },
+      ).trim()
 
 export const displayIndexerProvision = (
   outputFormat: OutputFormat,
@@ -138,8 +131,8 @@ export const displayIndexerProvision = (
   outputFormat === OutputFormat.Json
     ? JSON.stringify(provision, null, 2)
     : outputFormat === OutputFormat.Yaml
-      ? yaml.stringify(provision).trim()
-      : table([Object.keys(provision), Object.values(provision)], {
+    ? yaml.stringify(provision).trim()
+    : table([Object.keys(provision), Object.values(provision)], {
         border: getBorderCharacters('norc'),
       }).trim()
 

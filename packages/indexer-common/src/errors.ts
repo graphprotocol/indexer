@@ -92,6 +92,7 @@ export enum IndexerErrorCode {
   IE079 = 'IE079',
   IE080 = 'IE080',
   IE081 = 'IE081',
+  IE082 = 'IE082',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -177,6 +178,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE079: 'Failed to add stake to provision: Invalid stake amount provided',
   IE080: 'Failed to add stake to provision: stake not added on chain',
   IE081: 'Multiple provisions found',
+  IE082: 'Graph Horizon protocol not detected',
 }
 
 export type IndexerErrorCause = unknown

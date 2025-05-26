@@ -74,7 +74,7 @@ module.exports = {
           `,
           {
             protocolNetwork,
-            amount: amount.toString()
+            amount: amount.toString(),
           },
         )
         .toPromise()
@@ -97,7 +97,12 @@ module.exports = {
 
       if (result.data.addToProvision) {
         spinner.succeed('Stake added to the provision')
-        printIndexerProvisions(print, outputFormat, result.data.addToProvision, displayProperties)
+        printIndexerProvisions(
+          print,
+          outputFormat,
+          result.data.addToProvision,
+          displayProperties,
+        )
       } else {
         spinner.fail('Failed to add stake to the provision')
       }

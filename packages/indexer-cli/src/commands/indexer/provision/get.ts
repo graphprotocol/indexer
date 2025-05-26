@@ -89,7 +89,12 @@ module.exports = {
       ]
 
       spinner.succeed('Provisions')
-      printIndexerProvisions(print, outputFormat, result.data.provisions, displayProperties)
+      printIndexerProvisions(
+        print,
+        outputFormat,
+        result.data.provisions,
+        displayProperties,
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

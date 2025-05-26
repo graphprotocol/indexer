@@ -452,11 +452,13 @@ export class TransactionManager {
         decodedEvents.push(decoded)
         return decoded
       })
-      .find(
-        (eventLogs) => {
-          return eventLogs[logKey] && eventLogs[logKey].toString().toLocaleLowerCase() === logValue.toLocaleLowerCase()
-        }
-      )
+      .find((eventLogs) => {
+        return (
+          eventLogs[logKey] &&
+          eventLogs[logKey].toString().toLocaleLowerCase() ===
+            logValue.toLocaleLowerCase()
+        )
+      })
 
     logger.trace('Searched for event logs', {
       function: 'findEvent',

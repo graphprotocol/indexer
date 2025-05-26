@@ -4,9 +4,7 @@ import { indexerError, IndexerErrorCode, Network } from '@graphprotocol/indexer-
 
 import gql from 'graphql-tag'
 
-import {
-  IndexerManagementResolverContext,
-} from '@graphprotocol/indexer-common'
+import { IndexerManagementResolverContext } from '@graphprotocol/indexer-common'
 import { extractNetwork } from './utils'
 import { formatGRT, parseGRT } from '@graphprotocol/common-ts'
 
@@ -38,16 +36,12 @@ interface AddToProvisionResult {
   protocolNetwork: string
 }
 
-
 const PROVISION_QUERIES = {
   // No need to paginate, there can only be one provision per (indexer, dataService) pair
   [ProvisionQuery.all]: gql`
     query provisions($indexer: String!, $dataService: String!) {
       provisions(
-        where: { 
-          indexer: $indexer,
-          dataService: $dataService
-        }
+        where: { indexer: $indexer, dataService: $dataService }
         orderBy: id
         orderDirection: asc
         first: 1000
@@ -79,9 +73,7 @@ export default {
     { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<ProvisionInfo[]> => {
     if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch provisions',
-      )
+      throw Error('IndexerManagementClient must be in `network` mode to fetch provisions')
     }
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const indexer = network.specification.indexerOptions.address.toLowerCase()
@@ -109,13 +101,10 @@ export default {
           dataService,
         })
 
-        const result = await networkSubgraph.checkedQuery(
-          PROVISION_QUERIES.all,
-          {
-            indexer,
-            dataService,
-          },
-        )
+        const result = await networkSubgraph.checkedQuery(PROVISION_QUERIES.all, {
+          indexer,
+          dataService,
+        })
 
         if (result.error) {
           logger.error('Querying provisions failed', {
@@ -123,7 +112,7 @@ export default {
           })
         }
 
-        return result.data.provisions.map(provision => ({
+        return result.data.provisions.map((provision) => ({
           id: provision.id,
           dataService,
           indexer,
@@ -147,10 +136,7 @@ export default {
       protocolNetwork: string
       amount: string
     },
-    {
-      multiNetworks,
-      logger,
-    }: IndexerManagementResolverContext,
+    { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<AddToProvisionResult> => {
     logger.debug('Execute addToProvision() mutation', {
       amount,
@@ -171,6 +157,9 @@ export default {
     const dataService = contracts.SubgraphService.target.toString().toLowerCase()
     const provisionAmount = parseGRT(amount)
 
+    if (!(await network.isHorizon.value())) {
+      throw indexerError(IndexerErrorCode.IE082)
+    }
 
     if (provisionAmount < 0n) {
       logger.warn('Cannot add a negative amount of GRT', {
@@ -186,7 +175,7 @@ export default {
       // Check if the provision exists - this will throw if it doesn't
       const provision = await networkMonitor.provision(indexer, dataService)
 
-      logger.debug('Provision found', { 
+      logger.debug('Provision found', {
         provision,
       })
 
@@ -205,12 +194,9 @@ export default {
             provisionAmount,
           ),
         async (gasLimit) =>
-          contracts.HorizonStaking.addToProvision(
-            indexer,
-            dataService,
-            provisionAmount,
-            { gasLimit },
-          ),
+          contracts.HorizonStaking.addToProvision(indexer, dataService, provisionAmount, {
+            gasLimit,
+          }),
         logger.child({ action: 'addToProvision' }),
       )
 
@@ -266,5 +252,5 @@ export default {
       })
       throw error
     }
-  }
+  },
 }
