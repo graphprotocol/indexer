@@ -12,6 +12,7 @@ import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
+import provisionResolvers from './resolvers/provisions'
 import { GraphNode } from '../graph-node'
 import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
 
@@ -368,6 +369,18 @@ const SCHEMA_SDL = gql`
     model: String
   }
 
+  type Provision {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    tokensAllocated: String!
+    tokensThawing: String!
+    maxVerifierCut: String!
+    thawingPeriod: String!
+    protocolNetwork: String!
+  }
+
   type Query {
     indexingRule(
       identifier: IndexingRuleIdentifier!
@@ -399,6 +412,8 @@ const SCHEMA_SDL = gql`
       orderDirection: OrderDirection
       first: Int
     ): [Action]!
+
+    provisions(protocolNetwork: String!): [Provision!]!
   }
 
   type Mutation {
@@ -484,6 +499,7 @@ export const createIndexerManagementClient = async (
     ...poiDisputeResolvers,
     ...allocationResolvers,
     ...actionResolvers,
+    ...provisionResolvers,
   }
 
   const actionManager = multiNetworks
