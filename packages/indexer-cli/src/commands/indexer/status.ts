@@ -25,10 +25,12 @@ ${chalk.dim('Options:')}
 `
 
 interface Endpoint {
+  name: string,
   url: string | null
   healthy: boolean
   protocolNetwork: string
   tests: any[]
+  isLegacy: boolean
 }
 
 interface Endpoints {
@@ -80,6 +82,7 @@ module.exports = {
                   latitude
                   longitude
                 }
+                isLegacy
               }
 
               indexerDeployments {
@@ -118,6 +121,7 @@ module.exports = {
 
               indexerEndpoints(protocolNetwork: $protocolNetwork) {
                 service {
+                  name
                   url
                   healthy
                   protocolNetwork
@@ -126,8 +130,10 @@ module.exports = {
                     error
                     possibleActions
                   }
+                  isLegacy
                 }
                 status {
+                  name
                   url
                   healthy
                   protocolNetwork
@@ -136,6 +142,7 @@ module.exports = {
                     error
                     possibleActions
                   }
+                  isLegacy
                 }
               }
 
@@ -181,12 +188,16 @@ module.exports = {
     }
 
     if (result.data.indexerRegistration) {
-      data.registration = pickFields(result.data.indexerRegistration, [])
-      if (data.registration.location) {
-        data.registration.location = `${data.registration.location.latitude},${data.registration.location.longitude}`
-      } else {
-        data.registration.location = 'No location specified'
-      }
+      data.registration = result.data.indexerRegistration.map((registration: any) => {
+        return pickFields(registration, [])
+      })
+      data.registration.forEach((registration: any) => {
+        if (registration.location) {
+          registration.location = `${registration.location.latitude},${registration.location.longitude}`
+        } else {
+          registration.location = 'No location specified'
+        }
+      })
     } else {
       data.registration = {
         error:
@@ -199,18 +210,20 @@ module.exports = {
         const { service, status } = endpoints
         return [
           {
-            name: 'service',
+            name: service.name,
             url: service.url,
             tests: service.tests,
             protocolNetwork: resolveChainAlias(service.protocolNetwork),
             status: formatStatus(outputFormat, service.healthy),
+            isLegacy: service.isLegacy,
           },
           {
-            name: 'status',
+            name: status.name,
             url: status.url,
             tests: status.tests,
             protocolNetwork: resolveChainAlias(status.protocolNetwork),
             status: formatStatus(outputFormat, status.healthy),
+            isLegacy: status.isLegacy,
           },
         ]
       })
@@ -249,7 +262,9 @@ module.exports = {
 
     if (outputFormat === 'table') {
       print.info(chalk.cyan('Registration'))
-      print.info(formatData(data.registration, outputFormat))
+      print.info(formatData(data.registration.map((registration: any) =>
+        pickFields(registration, ['url', 'address', 'protocolNetwork', 'registered', 'isLegacy', 'location']),
+      ), outputFormat))
       print.info(chalk.cyan('\nEndpoints'))
       if (data.endpoints.error) {
         print.error(formatData([data.endpoints], outputFormat))
@@ -257,7 +272,7 @@ module.exports = {
         print.info(
           formatData(
             data.endpoints.map((endpoint: any) =>
-              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status']),
+              pickFields(endpoint, ['name', 'protocolNetwork', 'url', 'status', 'isLegacy']),
             ),
             outputFormat,
           ),
@@ -338,6 +353,6 @@ function formatStatus(outputFormat: string, status: boolean) {
       ? chalk.green('up')
       : chalk.red('down')
     : status
-    ? 'up'
-    : 'down'
+      ? 'up'
+      : 'down'
 }

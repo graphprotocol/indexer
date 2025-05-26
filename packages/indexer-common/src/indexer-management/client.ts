@@ -298,6 +298,7 @@ const SCHEMA_SDL = gql`
     address: String
     registered: Boolean!
     location: GeoLocation
+    isLegacy: Boolean!
   }
 
   type IndexingError {
@@ -343,10 +344,12 @@ const SCHEMA_SDL = gql`
   }
 
   type IndexerEndpoint {
+    name: String!
     url: String
     healthy: Boolean!
     protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
+    isLegacy: Boolean!
   }
 
   type IndexerEndpoints {
@@ -371,7 +374,7 @@ const SCHEMA_SDL = gql`
       merged: Boolean! = false
     ): IndexingRule
     indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
-    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
+    indexerRegistration(protocolNetwork: String!): [IndexerRegistration]!
     indexerDeployments: [IndexerDeployment]!
     indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
     indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!

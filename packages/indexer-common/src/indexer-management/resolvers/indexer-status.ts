@@ -63,7 +63,7 @@ const URL_VALIDATION_TEST: Test = {
 export default {
   indexerRegistration: async (
     { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string },
-    { multiNetworks }: IndexerManagementResolverContext,
+    { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!multiNetworks) {
       throw Error(
@@ -75,28 +75,56 @@ export default {
     const protocolNetwork = network.specification.networkIdentifier
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
-    const registered = await contracts.LegacyServiceRegistry.isRegistered(address)
 
-    if (registered) {
-      const service = await contracts.LegacyServiceRegistry.services(address)
-      return {
-        address,
-        protocolNetwork,
-        url: service.url,
-        location: geohash.decode(service.geohash),
-        registered,
-        __typename: 'IndexerRegistration',
+    const registrationInfo: RegistrationInfo[] = []
+
+    // Check if the indexer is registered in the legacy service registry
+    try {
+      const registered = await contracts.LegacyServiceRegistry.isRegistered(address)
+      if (registered) {
+        const service = await contracts.LegacyServiceRegistry.services(address)
+        registrationInfo.push({
+          address,
+          protocolNetwork,
+          url: service.url,
+          location: geohash.decode(service.geohash),
+          registered,
+          isLegacy: true,
+          __typename: 'IndexerRegistration',
+        })
       }
-    } else {
-      return {
+    } catch (e) {
+      logger?.debug(`Could not get legacy service registration for indexer. It's likely that the legacy protocol is not reachable.`)
+    }
+
+    if (await network.isHorizon.value()) {
+      const service = await contracts.SubgraphService.indexers(address)
+      if (service.registeredAt !== 0n) {
+        registrationInfo.push({
+          address,
+          protocolNetwork,
+          url: service.url,
+          location: geohash.decode(service.geoHash),
+          registered: true,
+          isLegacy: false,
+          __typename: 'IndexerRegistration',
+        })
+      }
+    }
+
+    if (registrationInfo.length === 0) {
+      registrationInfo.push({
         address,
         url: null,
-        registered,
+        registered: false,
+        isLegacy: false,
         protocolNetwork,
         location: null,
         __typename: 'IndexerRegistration',
-      }
+      })
     }
+
+    return registrationInfo
   },
 
   indexerDeployments: async (
@@ -127,7 +155,7 @@ export default {
       let lastId = ''
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const allAllocations: any[] = []
-      for (;;) {
+      for (; ;) {
         const result = await network.networkSubgraph.checkedQuery(
           gql`
             query allocations($indexer: String!, $lastId: String!) {
@@ -218,8 +246,20 @@ export default {
         return
       }
       try {
-        const networkEndpoints = await endpointForNetwork(network)
-        endpoints.push(networkEndpoints)
+        // Always try to get legacy endpoints, but fail gracefully if they don't exist
+        try {
+          const networkEndpoints = await endpointForNetwork(network, false)
+          endpoints.push(networkEndpoints)
+        }
+        catch (e) {
+          logger?.debug(`Could not get legacy service endpoints for network. It's likely that the legacy protocol is not reachable.`)
+        }
+
+        // Only get horizon endpoints when horizon is enabled
+        if (await network.isHorizon.value()) {
+          const networkEndpoints = await endpointForNetwork(network, true)
+          endpoints.push(networkEndpoints)
+        }
       } catch (err) {
         // Ignore endpoints for this network
         logger?.warn(`Failed to detect service endpoints for network`, {
@@ -232,12 +272,24 @@ export default {
   },
 }
 
+interface RegistrationInfo {
+  address: string,
+  protocolNetwork: string,
+  url: string | null,
+  location: { latitude: number, longitude: number } | null,
+  registered: boolean,
+  __typename: 'IndexerRegistration',
+  isLegacy: boolean,
+}
+
 interface Endpoint {
+  name: string | null,
   url: string | null
   healthy: boolean
   protocolNetwork: string
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  tests: any[]
+  tests: any[],
+  isLegacy: boolean,
 }
 
 interface Endpoints {
@@ -245,26 +297,30 @@ interface Endpoints {
   status: Endpoint
 }
 
-function defaultEndpoint(protocolNetwork: string): Endpoint {
+function defaultEndpoint(protocolNetwork: string, name: string, isLegacy: boolean): Endpoint {
   return {
+    name,
     url: null as string | null,
     healthy: false,
     protocolNetwork,
     tests: [] as TestResult[],
+    isLegacy,
   }
 }
-function defaultEndpoints(protocolNetwork: string): Endpoints {
+function defaultEndpoints(protocolNetwork: string, isHorizon: boolean): Endpoints {
   return {
-    service: defaultEndpoint(protocolNetwork),
-    status: defaultEndpoint(protocolNetwork),
+    service: defaultEndpoint(protocolNetwork, isHorizon ? 'service' : 'legacy-service', !isHorizon),
+    status: defaultEndpoint(protocolNetwork, isHorizon ? 'status' : 'legacy-status', !isHorizon),
   }
 }
 
-async function endpointForNetwork(network: Network): Promise<Endpoints> {
+async function endpointForNetwork(network: Network, isHorizon: boolean): Promise<Endpoints> {
   const contracts = network.contracts
   const address = network.specification.indexerOptions.address
-  const endpoints = defaultEndpoints(network.specification.networkIdentifier)
-  const service = await contracts.LegacyServiceRegistry.services(address)
+  const endpoints = defaultEndpoints(network.specification.networkIdentifier, isHorizon)
+  const service = isHorizon ?
+    await contracts.SubgraphService.indexers(address) :
+    await contracts.LegacyServiceRegistry.services(address)
   if (service) {
     {
       const { url, tests, ok } = await testURL(service.url, [
@@ -275,8 +331,7 @@ async function endpointForNetwork(network: Network): Promise<Endpoints> {
             const response = await fetch(url)
             if (!response.ok) {
               throw new Error(
-                `Returned status ${response.status}: ${
-                  response.body ? response.body.toString() : 'No data returned'
+                `Returned status ${response.status}: ${response.body ? response.body.toString() : 'No data returned'
                 }`,
               )
             }
@@ -311,8 +366,7 @@ async function endpointForNetwork(network: Network): Promise<Endpoints> {
             })
             if (!response.ok) {
               throw new Error(
-                `Returned status ${response.status}: ${
-                  response.body ? response.body.toString() : 'No data returned'
+                `Returned status ${response.status}: ${response.body ? response.body.toString() : 'No data returned'
                 }`,
               )
             }
