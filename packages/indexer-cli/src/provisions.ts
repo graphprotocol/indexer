@@ -21,22 +21,9 @@ export interface IndexerProvision {
   thawingPeriod: bigint
 
   protocolNetwork: string
-}
 
-const PROVISION_CONVERTERS_FROM_GRAPHQL: Record<
-  keyof IndexerProvision,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (x: never) => any
-> = {
-  id: x => x,
-  dataService: x => x,
-  indexer: x => x,
-  tokensProvisioned: nullPassThrough((x: string) => BigInt(x)),
-  tokensAllocated: nullPassThrough((x: string) => BigInt(x)),
-  tokensThawing: nullPassThrough((x: string) => BigInt(x)),
-  maxVerifierCut: nullPassThrough((x: string) => BigInt(x)),
-  thawingPeriod: nullPassThrough((x: string) => BigInt(x)),
-  protocolNetwork: x => x,
+  // TODO: This is not really a provision property, but useful to avoid creating new types
+  thawingUntil: string
 }
 
 const PROVISION_FORMATTERS: Record<keyof IndexerProvision, (x: never) => string | null> =
@@ -49,6 +36,7 @@ const PROVISION_FORMATTERS: Record<keyof IndexerProvision, (x: never) => string 
     tokensThawing: x => commify(formatGRT(x)),
     maxVerifierCut: x => commify(formatPPM(x)),
     thawingPeriod: x => x,
+    thawingUntil: x => new Date(Number(x) * 1000).toLocaleString(),
     protocolNetwork: resolveChainAlias,
   }
 
@@ -65,22 +53,6 @@ export const formatIndexerProvision = (
     obj[key] = (PROVISION_FORMATTERS as any)[key](value)
   }
 
-  return obj as Partial<IndexerProvision>
-}
-
-/**
- * Parses an indexer provision returned from the indexer management GraphQL
- * API into normalized form.
- */
-export const indexerProvisionFromGraphQL = (
-  provision: Partial<IndexerProvision>,
-): Partial<IndexerProvision> => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const obj = {} as any
-  for (const [key, value] of Object.entries(pickFields(provision, []))) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    obj[key] = (PROVISION_CONVERTERS_FROM_GRAPHQL as any)[key](value)
-  }
   return obj as Partial<IndexerProvision>
 }
 

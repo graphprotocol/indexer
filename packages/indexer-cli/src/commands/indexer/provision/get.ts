@@ -3,7 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
+import { extractProtocolNetworkOption } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
 import { commify, formatGRT } from '@graphprotocol/common-ts'
@@ -29,7 +29,6 @@ module.exports = {
 
     const { h, help, o, output } = parameters.options
 
-    fixParameters(parameters, { h, help })
     const outputFormat = o || output || 'table'
 
     if (help || h) {
@@ -82,7 +81,6 @@ module.exports = {
       const displayProperties: (keyof IndexerProvision)[] = [
         'dataService',
         'protocolNetwork',
-        'indexer',
         'tokensProvisioned',
         'tokensAllocated',
         'tokensThawing',
@@ -99,9 +97,14 @@ module.exports = {
       )
 
       print.info('')
-      print.info(`Indexer's idle stake: ${commify(formatGRT(result.data.provisions[0].idleStake))} GRT`)
-      print.info("To add this stake to the Subgraph Service provision, run 'graph indexer provision add <amount>'")
-
+      print.info(
+        `Indexer's idle stake: ${commify(
+          formatGRT(result.data.provisions[0].idleStake),
+        )} GRT`,
+      )
+      print.info(
+        "To add this stake to the Subgraph Service provision, run 'graph indexer provision add <amount>'",
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

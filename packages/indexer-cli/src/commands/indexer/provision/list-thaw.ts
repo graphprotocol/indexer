@@ -5,10 +5,10 @@ import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { extractProtocolNetworkOption } from '../../../command-helpers'
 import gql from 'graphql-tag'
-import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
+import { IndexerThawRequest, printIndexerThawRequests } from '../../../thaw-requests'
 
 const HELP = `
-${chalk.bold('graph indexer provision add')} [options] <amount>
+${chalk.bold('graph indexer provision list-thaw')} [options]
 
 ${chalk.dim('Options:')}
 
@@ -18,9 +18,9 @@ ${chalk.dim('Options:')}
 `
 
 module.exports = {
-  name: 'add',
+  name: 'list-thaw',
   alias: [],
-  description: "Add stake to the indexer's provision",
+  description: "List thaw requests for the indexer's provision",
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -35,13 +35,7 @@ module.exports = {
       return
     }
 
-    const [amount] = parameters.array || []
-
     try {
-      if (!amount) {
-        throw new Error('Must provide an amount to add to the provision')
-      }
-
       const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
@@ -50,26 +44,28 @@ module.exports = {
         )
       }
 
-      spinner.text = 'Adding stake to the provision'
+      spinner.text = 'Getting thaw requests for the provision'
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
       const result = await client
-        .mutation(
+        .query(
           gql`
-            mutation addToProvision($protocolNetwork: String!, $amount: String!) {
-              addToProvision(protocolNetwork: $protocolNetwork, amount: $amount) {
+            query thawRequests($protocolNetwork: String!) {
+              thawRequests(protocolNetwork: $protocolNetwork) {
                 id
+                fulfilled
                 dataService
                 indexer
-                tokensProvisioned
+                shares
+                thawingUntil
                 protocolNetwork
+                currentBlockTimestamp
               }
             }
           `,
           {
             protocolNetwork,
-            amount: amount.toString(),
           },
         )
         .toPromise()
@@ -79,22 +75,31 @@ module.exports = {
         throw result.error
       }
 
-      const displayProperties: (keyof IndexerProvision)[] = [
-        'dataService',
+      const displayProperties: (keyof IndexerThawRequest)[] = [
+        'id',
+        'fulfilled',
         'protocolNetwork',
-        'tokensProvisioned',
+        'shares',
+        'thawingUntil',
       ]
 
-      if (result.data.addToProvision) {
-        spinner.succeed('Stake added to the provision')
-        printIndexerProvisions(
+      if (result.data.thawRequests) {
+        spinner.succeed('Got thaw requests')
+        printIndexerThawRequests(
           print,
           outputFormat,
-          result.data.addToProvision,
+          result.data.thawRequests,
           displayProperties,
         )
+
+        print.info('')
+        print.info(
+          `Latest block timestamp: ${new Date(
+            Number(result.data.thawRequests[0].currentBlockTimestamp) * 1000,
+          ).toLocaleString()}`,
+        )
       } else {
-        spinner.fail('Failed to add stake to the provision')
+        spinner.fail('Failed to get thaw requests')
       }
     } catch (error) {
       spinner.fail(error.toString())

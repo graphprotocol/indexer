@@ -6,9 +6,11 @@ import { createIndexerManagementClient } from '../../../client'
 import { extractProtocolNetworkOption } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
+import { commify } from '@graphprotocol/common-ts'
+import { formatGRT } from '@graphprotocol/common-ts'
 
 const HELP = `
-${chalk.bold('graph indexer provision add')} [options] <amount>
+${chalk.bold('graph indexer provision remove')} [options]
 
 ${chalk.dim('Options:')}
 
@@ -18,9 +20,9 @@ ${chalk.dim('Options:')}
 `
 
 module.exports = {
-  name: 'add',
+  name: 'remove',
   alias: [],
-  description: "Add stake to the indexer's provision",
+  description: "Remove thawed stake from the indexer's provision",
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -35,13 +37,7 @@ module.exports = {
       return
     }
 
-    const [amount] = parameters.array || []
-
     try {
-      if (!amount) {
-        throw new Error('Must provide an amount to add to the provision')
-      }
-
       const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
@@ -50,26 +46,27 @@ module.exports = {
         )
       }
 
-      spinner.text = 'Adding stake to the provision'
+      spinner.text = 'Removing thawed stake from the provision'
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
       const result = await client
         .mutation(
           gql`
-            mutation addToProvision($protocolNetwork: String!, $amount: String!) {
-              addToProvision(protocolNetwork: $protocolNetwork, amount: $amount) {
+            mutation removeFromProvision($protocolNetwork: String!) {
+              removeFromProvision(protocolNetwork: $protocolNetwork) {
                 id
                 dataService
                 indexer
                 tokensProvisioned
+                tokensThawing
+                tokensRemoved
                 protocolNetwork
               }
             }
           `,
           {
             protocolNetwork,
-            amount: amount.toString(),
           },
         )
         .toPromise()
@@ -83,18 +80,26 @@ module.exports = {
         'dataService',
         'protocolNetwork',
         'tokensProvisioned',
+        'tokensThawing',
       ]
 
-      if (result.data.addToProvision) {
-        spinner.succeed('Stake added to the provision')
+      if (result.data.removeFromProvision) {
+        spinner.succeed('Thawed stake removed from the provision')
         printIndexerProvisions(
           print,
           outputFormat,
-          result.data.addToProvision,
+          result.data.removeFromProvision,
           displayProperties,
         )
+
+        print.info('')
+        print.info(
+          `Removed ${commify(
+            formatGRT(result.data.removeFromProvision.tokensRemoved),
+          )} GRT from the provision`,
+        )
       } else {
-        spinner.fail('Failed to add stake to the provision')
+        spinner.fail('Failed to remove thawed stake from the provision')
       }
     } catch (error) {
       spinner.fail(error.toString())

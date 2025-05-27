@@ -387,10 +387,37 @@ const SCHEMA_SDL = gql`
     dataService: String!
     indexer: String!
     tokensProvisioned: String!
-    tokensAllocated: String!
+    protocolNetwork: String!
+  }
+
+  type ThawFromProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
     tokensThawing: String!
-    maxVerifierCut: String!
     thawingPeriod: String!
+    thawingUntil: String!
+    protocolNetwork: String!
+  }
+
+  type ThawRequest {
+    id: String!
+    fulfilled: String!
+    dataService: String!
+    indexer: String!
+    shares: String!
+    thawingUntil: String!
+    protocolNetwork: String!
+    currentBlockTimestamp: String!
+  }
+
+  type RemoveFromProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    tokensThawing: String!
+    tokensRemoved: String!
     protocolNetwork: String!
   }
 
@@ -427,6 +454,7 @@ const SCHEMA_SDL = gql`
     ): [Action]!
 
     provisions(protocolNetwork: String!): [Provision!]!
+    thawRequests(protocolNetwork: String!): [ThawRequest!]!
   }
 
   type Mutation {
@@ -470,6 +498,8 @@ const SCHEMA_SDL = gql`
     executeApprovedActions: [ActionResult!]!
 
     addToProvision(protocolNetwork: String!, amount: String!): AddToProvisionResult!
+    thawFromProvision(protocolNetwork: String!, amount: String!): ThawFromProvisionResult!
+    removeFromProvision(protocolNetwork: String!): RemoveFromProvisionResult!
   }
 `
 

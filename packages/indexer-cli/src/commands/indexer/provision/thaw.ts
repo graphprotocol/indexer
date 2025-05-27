@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
 
 const HELP = `
-${chalk.bold('graph indexer provision add')} [options] <amount>
+${chalk.bold('graph indexer provision thaw')} [options] <amount>
 
 ${chalk.dim('Options:')}
 
@@ -18,9 +18,9 @@ ${chalk.dim('Options:')}
 `
 
 module.exports = {
-  name: 'add',
+  name: 'thaw',
   alias: [],
-  description: "Add stake to the indexer's provision",
+  description: "Thaw stake from the indexer's provision",
   run: async (toolbox: GluegunToolbox) => {
     const { print, parameters } = toolbox
 
@@ -39,7 +39,7 @@ module.exports = {
 
     try {
       if (!amount) {
-        throw new Error('Must provide an amount to add to the provision')
+        throw new Error('Must provide an amount to thaw from the provision')
       }
 
       const protocolNetwork = extractProtocolNetworkOption(parameters.options)
@@ -50,19 +50,21 @@ module.exports = {
         )
       }
 
-      spinner.text = 'Adding stake to the provision'
+      spinner.text = 'Thawing stake from the provision'
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
       const result = await client
         .mutation(
           gql`
-            mutation addToProvision($protocolNetwork: String!, $amount: String!) {
-              addToProvision(protocolNetwork: $protocolNetwork, amount: $amount) {
+            mutation thawFromProvision($protocolNetwork: String!, $amount: String!) {
+              thawFromProvision(protocolNetwork: $protocolNetwork, amount: $amount) {
                 id
                 dataService
                 indexer
-                tokensProvisioned
+                tokensThawing
+                thawingPeriod
+                thawingUntil
                 protocolNetwork
               }
             }
@@ -82,19 +84,21 @@ module.exports = {
       const displayProperties: (keyof IndexerProvision)[] = [
         'dataService',
         'protocolNetwork',
-        'tokensProvisioned',
+        'tokensThawing',
+        'thawingPeriod',
+        'thawingUntil',
       ]
 
-      if (result.data.addToProvision) {
-        spinner.succeed('Stake added to the provision')
+      if (result.data.thawFromProvision) {
+        spinner.succeed('Stake thawed from the provision')
         printIndexerProvisions(
           print,
           outputFormat,
-          result.data.addToProvision,
+          result.data.thawFromProvision,
           displayProperties,
         )
       } else {
-        spinner.fail('Failed to add stake to the provision')
+        spinner.fail('Failed to thaw stake from the provision')
       }
     } catch (error) {
       spinner.fail(error.toString())
