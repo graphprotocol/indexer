@@ -374,43 +374,50 @@ export class Agent {
         },
       )
 
-    const networkAndDipsDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalSmall },
-        async () =>
-          await this.multiNetworks.map(async ({ network, operator }) => {
-            logger.trace('Fetching network deployments', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            const deployments = network.networkMonitor.subgraphDeployments()
-            if (network.specification.indexerOptions.enableDips) {
-              if (!operator.dipsManager) {
-                throw new Error('DipsManager is not available')
-              }
-              const resolvedDeployments = await deployments
-              const dipsDeployments = await Promise.all(
-                (await operator.dipsManager.getActiveDipsDeployments()).map(
-                  deployment =>
-                    network.networkMonitor.subgraphDeployment(deployment.ipfsHash),
-                )
-              )
-              for (const deployment of dipsDeployments) {
-                if (resolvedDeployments.find(d => d.id.bytes32 === deployment.id.bytes32) == null) {
-                  resolvedDeployments.push(deployment)
-                }
-              }
-              return resolvedDeployments
+    const networkAndDipsDeployments: Eventual<
+      NetworkMapped<SubgraphDeployment[]>
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalSmall },
+      async () =>
+        await this.multiNetworks.map(async ({ network, operator }) => {
+          logger.trace('Fetching network deployments', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          const deployments = network.networkMonitor.subgraphDeployments()
+          if (network.specification.indexerOptions.enableDips) {
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
             }
-            return deployments
-          }),
-        {
-          onError: error =>
-            logger.warn(
-              `Failed to obtain network deployments, trying again later`,
-              { error },
-            ),
-        },
-      )
+            const resolvedDeployments = await deployments
+            const dipsDeployments = await Promise.all(
+              (await operator.dipsManager.getActiveDipsDeployments()).map(
+                deployment =>
+                  network.networkMonitor.subgraphDeployment(
+                    deployment.ipfsHash,
+                  ),
+              ),
+            )
+            for (const deployment of dipsDeployments) {
+              if (
+                resolvedDeployments.find(
+                  d => d.id.bytes32 === deployment.id.bytes32,
+                ) == null
+              ) {
+                resolvedDeployments.push(deployment)
+              }
+            }
+            return resolvedDeployments
+          }
+          return deployments
+        }),
+      {
+        onError: error =>
+          logger.warn(
+            `Failed to obtain network deployments, trying again later`,
+            { error },
+          ),
+      },
+    )
 
     const eligibleTransferDeployments: Eventual<
       NetworkMapped<TransferredSubgraphDeployment[]>
@@ -480,7 +487,11 @@ export class Agent {
             logger.trace('Evaluating which deployments are worth allocating to')
             return indexingRules.length === 0
               ? []
-              : evaluateDeployments(logger, networkAndDipsDeployments, indexingRules)
+              : evaluateDeployments(
+                  logger,
+                  networkAndDipsDeployments,
+                  indexingRules,
+                )
           },
         )
       },

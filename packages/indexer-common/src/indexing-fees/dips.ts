@@ -213,10 +213,14 @@ export class DipsManager {
       },
     })
     for (const agreement of indexingAgreements) {
+      this.logger.trace(`Matching agreement ${agreement.id}`, {
+        agreement,
+        allocations,
+      })
       const allocation = allocations.find(
         (allocation) =>
-          allocation.subgraphDeployment.id.toString() ===
-          new SubgraphDeploymentID(agreement.subgraph_deployment_id).toString(),
+          allocation.subgraphDeployment.id.bytes32 ===
+          new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
       )
       const actions = await this.models.Action.findAll({
         where: {
@@ -231,11 +235,21 @@ export class DipsManager {
           },
         },
       })
+      this.logger.trace(`Found ${actions.length} actions for agreement ${agreement.id}`, {
+        actions,
+      })
       if (allocation && actions.length === 0) {
         const currentAllocationId =
           agreement.current_allocation_id != null
             ? toAddress(agreement.current_allocation_id)
             : null
+        this.logger.trace(
+          `Current allocation id for agreement ${agreement.id} is ${currentAllocationId}`,
+          {
+            currentAllocationId,
+            allocation,
+          },
+        )
         if (currentAllocationId !== allocation.id) {
           this.logger.warn(
             `Found mismatched allocation for agreement ${agreement.id}, updating from ${currentAllocationId} to ${allocation.id}`,
