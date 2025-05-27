@@ -138,6 +138,7 @@ const ensureGlobalIndexingRule = async () => {
 
 const setupEach = async () => {
   sequelize = await sequelize.sync({ force: true })
+  await ensureGlobalIndexingRule()
 }
 
 const teardownEach = async () => {
@@ -304,7 +305,6 @@ describe('DipsManager', () => {
     })
 
     test('creates indexing rules for active agreements', async () => {
-      await ensureGlobalIndexingRule()
       // Mock fetch the subgraph deployment from the network subgraph
       network.networkMonitor.subgraphDeployment = jest
         .fn()
@@ -331,7 +331,6 @@ describe('DipsManager', () => {
     })
 
     test('does not create or modify an indexing rule if it already exists', async () => {
-      await ensureGlobalIndexingRule()
       // Create an indexing rule with the same identifier
       await managementModels.IndexingRule.create({
         identifier: testDeploymentId,
