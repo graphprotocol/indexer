@@ -544,7 +544,7 @@ export class NetworkMonitor {
         )
         return {
           id: new SubgraphDeploymentID(ipfsHash),
-          deniedAt: 1,
+          deniedAt: 1, // We assume the deployment won't be eligible for rewards if it's not found
           stakedTokens: BigNumber.from(0),
           signalledTokens: BigNumber.from(0),
           queryFeesAmount: BigNumber.from(0),

@@ -150,6 +150,26 @@ export class DipsManager {
         this.logger,
         subgraphDeploymentID,
       )
+      // Check if there is an indexing rule saying we should NEVER allocate to this one, consider it blocklisted
+      const allDeploymentRules = await this.models.IndexingRule.findAll({
+        where: {
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        },
+      })
+      const blocklistedRule = allDeploymentRules.find(
+        (rule) =>
+          new SubgraphDeploymentID(rule.identifier).bytes32 ===
+            subgraphDeploymentID.bytes32 &&
+          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      )
+      if (blocklistedRule) {
+        this.logger.info(
+          `Blocklisted deployment ${subgraphDeploymentID.toString()}, skipping indexing rule creation`,
+        )
+        // TODO: cancel the agreement
+        return
+      }
+
       if (!ruleExists) {
         this.logger.info(
           `Creating indexing rule for agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
@@ -168,6 +188,7 @@ export class DipsManager {
             Number(agreement.max_epochs_per_collection) -
               this.network.specification.indexerOptions.dipsEpochsMargin,
           ),
+          requireSupported: false,
         } as Partial<IndexingRuleAttributes>
 
         await upsertIndexingRule(this.logger, this.models, indexingRule)
