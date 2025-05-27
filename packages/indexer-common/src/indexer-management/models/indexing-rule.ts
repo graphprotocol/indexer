@@ -246,7 +246,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: true,
       },
       decisionBasis: {
-        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain'),
+        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain', 'dips'),
         allowNull: false,
         defaultValue: 'rules',
       },
