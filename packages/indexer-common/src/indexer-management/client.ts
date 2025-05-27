@@ -379,6 +379,7 @@ const SCHEMA_SDL = gql`
     maxVerifierCut: String!
     thawingPeriod: String!
     protocolNetwork: String!
+    idleStake: String!
   }
 
   type AddToProvisionResult {

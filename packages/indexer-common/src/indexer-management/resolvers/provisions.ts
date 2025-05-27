@@ -22,6 +22,7 @@ interface ProvisionInfo {
   maxVerifierCut: string
   thawingPeriod: string
   protocolNetwork: string
+  idleStake: string
 }
 
 interface AddToProvisionResult {
@@ -72,17 +73,23 @@ export default {
     },
     { multiNetworks, logger }: IndexerManagementResolverContext,
   ): Promise<ProvisionInfo[]> => {
+    logger.debug('Execute provisions() query', {
+      protocolNetwork,
+    })
+
     if (!multiNetworks) {
       throw Error('IndexerManagementClient must be in `network` mode to fetch provisions')
     }
+
     const network = extractNetwork(protocolNetwork, multiNetworks)
+
+    if (!(await network.isHorizon.value())) {
+      throw indexerError(IndexerErrorCode.IE082)
+    }
+
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = network.contracts.SubgraphService.target.toString().toLowerCase()
-
-    logger.debug('Execute provisions() query', {
-      indexer,
-      dataService,
-    })
+    const idleStake = await network.contracts.HorizonStaking.getIdleStake(indexer)
 
     const provisionsByNetwork = await multiNetworks.map(
       async (network: Network): Promise<ProvisionInfo[]> => {
@@ -122,6 +129,7 @@ export default {
           maxVerifierCut: provision.maxVerifierCut,
           thawingPeriod: provision.thawingPeriod,
           protocolNetwork: network.specification.networkIdentifier,
+          idleStake: idleStake.toString(),
         }))
       },
     )
@@ -153,13 +161,13 @@ export default {
     const contracts = network.contracts
     const transactionManager = network.transactionManager
 
-    const indexer = network.specification.indexerOptions.address.toLowerCase()
-    const dataService = contracts.SubgraphService.target.toString().toLowerCase()
-    const provisionAmount = parseGRT(amount)
-
     if (!(await network.isHorizon.value())) {
       throw indexerError(IndexerErrorCode.IE082)
     }
+
+    const indexer = network.specification.indexerOptions.address.toLowerCase()
+    const dataService = contracts.SubgraphService.target.toString().toLowerCase()
+    const provisionAmount = parseGRT(amount)
 
     if (provisionAmount < 0n) {
       logger.warn('Cannot add a negative amount of GRT', {

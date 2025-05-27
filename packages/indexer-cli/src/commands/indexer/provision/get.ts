@@ -6,6 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import { extractProtocolNetworkOption, fixParameters } from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
+import { commify, formatGRT } from '@graphprotocol/common-ts'
 
 const HELP = `
 ${chalk.bold('graph indexer provision get')} [options]
@@ -63,6 +64,7 @@ module.exports = {
                 thawingPeriod
                 maxVerifierCut
                 protocolNetwork
+                idleStake
               }
             }
           `,
@@ -95,6 +97,11 @@ module.exports = {
         result.data.provisions,
         displayProperties,
       )
+
+      print.info('')
+      print.info(`Indexer's idle stake: ${commify(formatGRT(result.data.provisions[0].idleStake))} GRT`)
+      print.info("To add this stake to the Subgraph Service provision, run 'graph indexer provision add <amount>'")
+
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1
