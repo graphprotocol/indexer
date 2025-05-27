@@ -13,7 +13,6 @@ interface Context {
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
 
-  const tables = await queryInterface.showAllTables()
   logger.debug('Adding dips to decision basis')
 
   await queryInterface.sequelize.query(
