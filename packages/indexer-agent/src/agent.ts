@@ -374,15 +374,34 @@ export class Agent {
         },
       )
 
-    const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
+    const networkAndDipsDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () =>
-          await this.multiNetworks.map(({ network }) => {
+          await this.multiNetworks.map(async ({ network, operator }) => {
             logger.trace('Fetching network deployments', {
               protocolNetwork: network.specification.networkIdentifier,
             })
-            return network.networkMonitor.subgraphDeployments()
+            const deployments = network.networkMonitor.subgraphDeployments()
+            if (network.specification.indexerOptions.enableDips) {
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              const resolvedDeployments = await deployments
+              const dipsDeployments = await Promise.all(
+                (await operator.dipsManager.getActiveDipsDeployments()).map(
+                  deployment =>
+                    network.networkMonitor.subgraphDeployment(deployment.ipfsHash),
+                )
+              )
+              for (const deployment of dipsDeployments) {
+                if (resolvedDeployments.find(d => d.id.bytes32 === deployment.id.bytes32) == null) {
+                  resolvedDeployments.push(deployment)
+                }
+              }
+              return resolvedDeployments
+            }
+            return deployments
           }),
         {
           onError: error =>
@@ -446,13 +465,13 @@ export class Agent {
     const intermediateNetworkDeploymentAllocationDecisions: Eventual<
       NetworkMapped<AllocationDecision[]>
     > = join({
-      networkDeployments,
+      networkAndDipsDeployments,
       indexingRules,
     }).tryMap(
-      ({ indexingRules, networkDeployments }) => {
+      ({ indexingRules, networkAndDipsDeployments }) => {
         return mapValues(
-          this.multiNetworks.zip(indexingRules, networkDeployments),
-          ([indexingRules, networkDeployments]: [
+          this.multiNetworks.zip(indexingRules, networkAndDipsDeployments),
+          ([indexingRules, networkAndDipsDeployments]: [
             IndexingRuleAttributes[],
             SubgraphDeployment[],
           ]) => {
@@ -461,7 +480,7 @@ export class Agent {
             logger.trace('Evaluating which deployments are worth allocating to')
             return indexingRules.length === 0
               ? []
-              : evaluateDeployments(logger, networkDeployments, indexingRules)
+              : evaluateDeployments(logger, networkAndDipsDeployments, indexingRules)
           },
         )
       },
