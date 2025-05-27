@@ -322,7 +322,7 @@ describe('DipsManager', () => {
       expect(rules[0]).toMatchObject({
         identifier: testDeploymentId,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        decisionBasis: IndexingDecisionBasis.DIPS,
         allocationAmount:
           network.specification.indexerOptions.dipsAllocationAmount.toString(),
         autoRenewal: true,
@@ -365,6 +365,75 @@ describe('DipsManager', () => {
         protocolNetwork: 'eip155:421614',
         allocationAmount: '1030',
       })
+    })
+
+    test('removes DIPs indexing rule for cancelled agreement', async () => {
+      await dipsManager.ensureAgreementRules()
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).toBeDefined()
+      await managementModels.IndexingAgreement.update(
+        {
+          cancelled_at: new Date(),
+        },
+        {
+          where: { id: testAgreementId },
+        },
+      )
+      await dipsManager.ensureAgreementRules()
+      const ruleAfter = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(ruleAfter).toBeNull()
+    })
+
+    test('does not remove pre-existing non-DIPS indexing rule', async () => {
+      // Create an indexing rule with the same identifier
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        allocationLifetime: 16,
+        requireSupported: true,
+        safety: true,
+        protocolNetwork: 'eip155:421614',
+        allocationAmount: '1030',
+      })
+      await dipsManager.ensureAgreementRules()
+      const ruleBefore = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        },
+      })
+      expect(ruleBefore).toBeDefined()
+      await managementModels.IndexingAgreement.update(
+        {
+          cancelled_at: new Date(),
+        },
+        {
+          where: { id: testAgreementId },
+        },
+      )
+      await dipsManager.ensureAgreementRules()
+      const ruleAfter = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        },
+      })
+      expect(ruleAfter).toBeDefined()
     })
 
     test('returns active DIPs deployments', async () => {

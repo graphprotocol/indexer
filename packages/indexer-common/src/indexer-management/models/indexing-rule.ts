@@ -9,6 +9,7 @@ export enum IndexingDecisionBasis {
   NEVER = 'never',
   ALWAYS = 'always',
   OFFCHAIN = 'offchain',
+  DIPS = 'dips',
 }
 
 export const INDEXING_RULE_GLOBAL = 'global'

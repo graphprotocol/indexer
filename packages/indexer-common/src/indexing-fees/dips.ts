@@ -78,23 +78,28 @@ export class DipsManager {
     })
     if (agreement) {
       try {
-        const cancellation =
-          await this.gatewayDipsServiceMessagesCodec.createSignedCancellationRequest(
-            uuidToHex(agreement.id),
-            this.network.wallet,
-          )
-        await this.gatewayDipsServiceClient.CancelAgreement({
-          version: 1,
-          signedCancellation: cancellation,
-        })
-
-        // Mark the agreement as cancelled
-        agreement.cancelled_at = new Date()
-        agreement.updated_at = new Date()
-        await agreement.save()
+        await this._tryCancelAgreement(agreement)
       } catch (error) {
         this.logger.error(`Error cancelling agreement ${agreement.id}`, { error })
       }
+    }
+  }
+  async _tryCancelAgreement(agreement: IndexingAgreement) {
+    try {
+      const cancellation =
+        await this.gatewayDipsServiceMessagesCodec.createSignedCancellationRequest(
+          uuidToHex(agreement.id),
+          this.network.wallet,
+        )
+      await this.gatewayDipsServiceClient.CancelAgreement({
+        version: 1,
+        signedCancellation: cancellation,
+      })
+      agreement.cancelled_at = new Date()
+      agreement.updated_at = new Date()
+      await agreement.save()
+    } catch (error) {
+      this.logger.error(`Error cancelling agreement ${agreement.id}`, { error })
     }
   }
   // Update the current and last allocation ids for an agreement if it exists
@@ -130,7 +135,7 @@ export class DipsManager {
       },
     })
     this.logger.debug(
-      `Ensuring indexing rules for ${indexingAgreements.length} agreement${
+      `Ensuring indexing rules for ${indexingAgreements.length} active agreement${
         indexingAgreements.length === 1 ? '' : 's'
       }`,
     )
@@ -166,11 +171,8 @@ export class DipsManager {
         this.logger.info(
           `Blocklisted deployment ${subgraphDeploymentID.toString()}, skipping indexing rule creation`,
         )
-        // TODO: cancel the agreement
-        return
-      }
-
-      if (!ruleExists) {
+        await this._tryCancelAgreement(agreement)
+      } else if (!ruleExists) {
         this.logger.info(
           `Creating indexing rule for agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
         )
@@ -180,7 +182,7 @@ export class DipsManager {
             this.network.specification.indexerOptions.dipsAllocationAmount,
           ),
           identifierType: SubgraphIdentifierType.DEPLOYMENT,
-          decisionBasis: IndexingDecisionBasis.ALWAYS,
+          decisionBasis: IndexingDecisionBasis.DIPS,
           protocolNetwork: this.network.specification.networkIdentifier,
           autoRenewal: true,
           allocationLifetime: Math.max(
@@ -192,6 +194,51 @@ export class DipsManager {
         } as Partial<IndexingRuleAttributes>
 
         await upsertIndexingRule(this.logger, this.models, indexingRule)
+      }
+    }
+
+    const cancelledAgreements = await this.models.IndexingAgreement.findAll({
+      where: {
+        cancelled_at: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    this.logger.debug(
+      `Ensuring no DIPs indexing rules for ${
+        cancelledAgreements.length
+      } cancelled agreement${cancelledAgreements.length === 1 ? '' : 's'}`,
+    )
+    for (const agreement of cancelledAgreements) {
+      this.logger.info(
+        `Checking if indexing rule exists for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
+      )
+      // First check if there is another agreement that is not cancelled that has the same deployment id
+      const otherAgreement = indexingAgreements.find(
+        (a) =>
+          a.subgraph_deployment_id === agreement.subgraph_deployment_id &&
+          a.id !== agreement.id,
+      )
+      if (otherAgreement) {
+        this.logger.info(
+          `Another agreement ${otherAgreement.id} exists for deployment ${agreement.subgraph_deployment_id}, skipping removal of DIPs indexing rule`,
+        )
+        continue
+      }
+      const rule = await this.models.IndexingRule.findOne({
+        where: {
+          identifier: agreement.subgraph_deployment_id,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      if (rule) {
+        this.logger.info(
+          `Removing DIPs indexing rule for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
+        )
+        await this.models.IndexingRule.destroy({
+          where: { id: rule.id },
+        })
       }
     }
   }
