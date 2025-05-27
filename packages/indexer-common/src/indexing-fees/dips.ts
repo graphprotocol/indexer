@@ -193,20 +193,32 @@ export class DipsManager {
     })
     for (const agreement of indexingAgreements) {
       const allocation = allocations.find(
-        (allocation) => allocation.subgraphDeployment.id.toString() === new SubgraphDeploymentID(agreement.subgraph_deployment_id).toString(),
+        (allocation) =>
+          allocation.subgraphDeployment.id.toString() ===
+          new SubgraphDeploymentID(agreement.subgraph_deployment_id).toString(),
       )
       const actions = await this.models.Action.findAll({
         where: {
           deploymentID: agreement.subgraph_deployment_id,
           status: {
-            [Op.or]: [ActionStatus.PENDING, ActionStatus.QUEUED, ActionStatus.APPROVED, ActionStatus.DEPLOYING],
-          }
+            [Op.or]: [
+              ActionStatus.PENDING,
+              ActionStatus.QUEUED,
+              ActionStatus.APPROVED,
+              ActionStatus.DEPLOYING,
+            ],
+          },
         },
       })
       if (allocation && actions.length === 0) {
-        const currentAllocationId = agreement.current_allocation_id != null ? toAddress(agreement.current_allocation_id) : null
+        const currentAllocationId =
+          agreement.current_allocation_id != null
+            ? toAddress(agreement.current_allocation_id)
+            : null
         if (currentAllocationId !== allocation.id) {
-          this.logger.warn(`Found mismatched allocation for agreement ${agreement.id}, updating from ${currentAllocationId} to ${allocation.id}`)
+          this.logger.warn(
+            `Found mismatched allocation for agreement ${agreement.id}, updating from ${currentAllocationId} to ${allocation.id}`,
+          )
           await this.tryUpdateAgreementAllocation(
             agreement.subgraph_deployment_id,
             currentAllocationId,
