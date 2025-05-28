@@ -13,11 +13,15 @@ interface Context {
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
 
-  logger.debug('Adding dips to decision basis')
+  if (await queryInterface.tableExists('IndexingRules')) {
+    logger.debug('Adding dips to decision basis')
 
-  await queryInterface.sequelize.query(
-    `ALTER TYPE "enum_IndexingRules_decisionBasis" ADD VALUE 'dips'`,
-  )
+    await queryInterface.sequelize.query(
+      `ALTER TYPE "enum_IndexingRules_decisionBasis" ADD VALUE 'dips'`,
+    )
+  } else {
+    logger.debug('IndexingRules table does not exist, skipping migration')
+  }
 
   logger.info('Migration completed')
 }
