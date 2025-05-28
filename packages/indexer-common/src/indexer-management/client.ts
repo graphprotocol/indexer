@@ -38,6 +38,7 @@ const SCHEMA_SDL = gql`
     never
     always
     offchain
+    dips
   }
 
   enum IdentifierType {
