@@ -254,12 +254,11 @@ export class Network {
 
     const isOperator = await networkMonitor.monitorIsOperator(
       logger,
-      contracts,
       specification.indexerOptions.address,
       wallet,
     )
 
-    const isHorizon = await networkMonitor.monitorIsHorizon(logger, contracts)
+    const isHorizon = await networkMonitor.monitorIsHorizon(logger)
 
     const transactionManager = new TransactionManager(
       networkProvider,
