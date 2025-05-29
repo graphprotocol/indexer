@@ -29,6 +29,7 @@ export interface IndexerAllocation {
   queryFeesCollected: bigint
   status: string
   protocolNetwork: string
+  isLegacy: boolean
 }
 
 const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
@@ -53,6 +54,7 @@ const ALLOCATION_CONVERTERS_FROM_GRAPHQL: Record<
   queryFeesCollected: nullPassThrough((x: string) => BigInt(x)),
   status: x => x,
   protocolNetwork: x => x,
+  isLegacy: x => x,
 }
 
 const ALLOCATION_FORMATTERS: Record<
@@ -76,6 +78,7 @@ const ALLOCATION_FORMATTERS: Record<
   queryFeesCollected: x => commify(formatGRT(x)),
   status: x => x,
   protocolNetwork: resolveChainAlias,
+  isLegacy: x => (x ? 'Yes' : 'No'),
 }
 
 /**
@@ -239,7 +242,6 @@ export const closeAllocation = async (
             allocation
             allocatedTokens
             indexingRewards
-            receiptsWorthCollecting
             protocolNetwork
           }
         }
@@ -287,7 +289,6 @@ export const reallocateAllocation = async (
           ) {
             closedAllocation
             indexingRewardsCollected
-            receiptsWorthCollecting
             createdAllocation
             createdAllocationStake
             protocolNetwork

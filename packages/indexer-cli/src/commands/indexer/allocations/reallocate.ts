@@ -94,7 +94,6 @@ module.exports = {
         [
           'closedAllocation',
           'indexingRewardsCollected',
-          'receiptsWorthCollecting',
           'createdAllocation',
           'createdAllocationStake',
         ],

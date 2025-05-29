@@ -30,7 +30,6 @@ import {
   specification as spec,
   GraphNode,
   NetworkMonitor,
-  AllocationReceiptCollector,
   SubgraphFreshnessChecker,
   monitorEligibleAllocations,
 } from '.'
@@ -49,9 +48,6 @@ export class Network {
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
 
-  // TODO: deprecated
-  receiptCollector: AllocationReceiptCollector | undefined
-
   tapCollector: TapCollector | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
@@ -66,7 +62,6 @@ export class Network {
     networkProvider: JsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
-    receiptCollector: AllocationReceiptCollector | undefined,
     tapCollector: TapCollector | undefined,
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
@@ -80,7 +75,6 @@ export class Network {
     this.networkProvider = networkProvider
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
-    this.receiptCollector = receiptCollector
     this.tapCollector = tapCollector
     this.specification = specification
     this.paused = paused
@@ -297,26 +291,6 @@ export class Network {
     })
 
     // --------------------------------------------------------------------------------
-    // * Allocation Receipt Collector
-    // --------------------------------------------------------------------------------
-    const scalarCollector: AllocationReceiptCollector | undefined = undefined
-    // if (!(tapContracts && tapSubgraph)) {
-    //   logger.warn(
-    //     "deprecated scalar voucher collector is enabled - you probably don't want this",
-    //   )
-    //   scalarCollector = await AllocationReceiptCollector.create({
-    //     logger,
-    //     metrics,
-    //     transactionManager: transactionManager,
-    //     models: queryFeeModels,
-    //     allocationExchange: contracts.allocationExchange,
-    //     allocations,
-    //     networkSpecification: specification,
-    //     networkSubgraph,
-    //   })
-    // }
-
-    // --------------------------------------------------------------------------------
     // * TAP Collector
     // --------------------------------------------------------------------------------
     let tapCollector: TapCollector | undefined = undefined
@@ -349,7 +323,6 @@ export class Network {
       networkProvider,
       transactionManager,
       networkMonitor,
-      scalarCollector,
       tapCollector,
       specification,
       paused,

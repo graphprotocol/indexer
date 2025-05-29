@@ -81,6 +81,7 @@ const SCHEMA_SDL = gql`
     stakedTokens: BigInt!
     status: AllocationStatus!
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   type CreateAllocationResult {
@@ -94,14 +95,12 @@ const SCHEMA_SDL = gql`
     allocation: String!
     allocatedTokens: String!
     indexingRewards: String!
-    receiptsWorthCollecting: Boolean!
     protocolNetwork: String!
   }
 
   type ReallocateAllocationResult {
     closedAllocation: String!
     indexingRewardsCollected: String!
-    receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
     protocolNetwork: String!

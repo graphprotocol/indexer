@@ -33,7 +33,6 @@ export interface CloseAllocationResult {
   allocation: string
   allocatedTokens: string
   indexingRewards: string
-  receiptsWorthCollecting: boolean
   protocolNetwork: string
 }
 
@@ -43,7 +42,6 @@ export interface ReallocateAllocationResult {
   transactionID: string | undefined
   closedAllocation: string
   indexingRewardsCollected: string
-  receiptsWorthCollecting: boolean
   createdAllocation: string
   createdAllocationStake: string
   protocolNetwork: string
