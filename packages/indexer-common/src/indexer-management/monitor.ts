@@ -18,6 +18,7 @@ import {
   resolveChainAlias,
   TransferredSubgraphDeployment,
   sequentialTimerReduce,
+  IndexingStatus,
 } from '@graphprotocol/indexer-common'
 import {
   Address,
@@ -956,16 +957,42 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         switch (poi == generatedPOI) {
           case true:
             if (poi == undefined) {
-              const deploymentStatus = await this.graphNode.indexingStatus([
-                allocation.subgraphDeployment.id,
-              ])
+              const deploymentStatuses: IndexingStatus[] =
+                await this.graphNode.indexingStatus([allocation.subgraphDeployment.id])
+
+              const thisDeploymentStatus = deploymentStatuses.find(
+                (status) =>
+                  status.subgraphDeployment.ipfsHash ==
+                  allocation.subgraphDeployment.id.ipfsHash,
+              )
+              if (thisDeploymentStatus) {
+                const chain = thisDeploymentStatus.chains.find(
+                  (chain) => chain.network == supportedNetworkAlias,
+                )
+                if (
+                  chain &&
+                  chain.latestBlock &&
+                  chain.chainHeadBlock &&
+                  chain.latestBlock.number <= chain.chainHeadBlock.number
+                ) {
+                  const generatedPOI = await this.graphNode.proofOfIndexing(
+                    allocation.subgraphDeployment.id,
+                    chain.latestBlock,
+                    allocation.indexer,
+                  )
+                  if (generatedPOI !== undefined) {
+                    return generatedPOI
+                  }
+                }
+              }
+
               throw indexerError(
                 IndexerErrorCode.IE067,
                 `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlock.number}
               deploymentStatus: ${
-                deploymentStatus.length > 0
-                  ? JSON.stringify(deploymentStatus)
+                deploymentStatuses.length > 0
+                  ? JSON.stringify(deploymentStatuses)
                   : 'not deployed'
               }`,
               )
