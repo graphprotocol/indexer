@@ -42,7 +42,7 @@ module.exports = {
         throw new Error('Must provide an amount to add to the provision')
       }
 
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(

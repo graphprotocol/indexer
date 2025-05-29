@@ -38,7 +38,7 @@ module.exports = {
     }
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -84,20 +84,26 @@ module.exports = {
       ]
 
       if (result.data.removeFromProvision) {
-        spinner.succeed('Thawed stake removed from the provision')
-        printIndexerProvisions(
-          print,
-          outputFormat,
-          result.data.removeFromProvision,
-          displayProperties,
-        )
+        if (result.data.removeFromProvision.tokensRemoved > 0) {
+          spinner.succeed('Thawed stake removed from the provision')
+          printIndexerProvisions(
+            print,
+            outputFormat,
+            result.data.removeFromProvision,
+            displayProperties,
+          )
 
-        print.info('')
-        print.info(
-          `Removed ${commify(
-            formatGRT(result.data.removeFromProvision.tokensRemoved),
-          )} GRT from the provision`,
-        )
+          print.info('')
+          print.info(
+            `Removed ${commify(
+              formatGRT(result.data.removeFromProvision.tokensRemoved),
+            )} GRT from the provision`,
+          )
+        } else {
+          spinner.fail(
+            'No thawed stake to remove from the provision. Run `graph indexer provision list-thaw` to see thawing details.',
+          )
+        }
       } else {
         spinner.fail('Failed to remove thawed stake from the provision')
       }

@@ -37,7 +37,7 @@ module.exports = {
     }
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
