@@ -4,7 +4,7 @@ import {
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { Allocation } from '../allocations'
+import { Allocation, Provision } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
 
@@ -87,6 +87,7 @@ export const parseGraphQLAllocation = (
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
   status: allocation.status,
+  isLegacy: allocation.isLegacy,
   subgraphDeployment: {
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     deniedAt: allocation.subgraphDeployment.deniedAt,
@@ -97,8 +98,10 @@ export const parseGraphQLAllocation = (
   },
   indexer: toAddress(allocation.indexer.id),
   allocatedTokens: BigInt(allocation.allocatedTokens),
+  createdAt: allocation.createdAt,
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
+  closedAt: allocation.closedAt,
   closedAtEpoch: allocation.closedAtEpoch,
   closedAtEpochStartBlockHash: undefined,
   previousEpochStartBlockHash: undefined,
@@ -106,6 +109,17 @@ export const parseGraphQLAllocation = (
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
   queryFeesCollected: allocation.queryFeesCollected,
+})
+
+export const parseGraphQLProvision = (provision: any): Provision => ({
+  id: provision.id.toString(),
+  dataService: toAddress(provision.dataService),
+  indexer: toAddress(provision.indexer),
+  tokensProvisioned: BigInt(provision.tokensProvisioned),
+  tokensAllocated: BigInt(provision.tokensAllocated),
+  tokensThawing: BigInt(provision.tokensThawing),
+  maxVerifierCut: BigInt(provision.maxVerifierCut),
+  thawingPeriod: BigInt(provision.thawingPeriod),
 })
 
 export interface RewardsPool {

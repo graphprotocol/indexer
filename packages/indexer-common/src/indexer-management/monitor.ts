@@ -18,6 +18,9 @@ import {
   resolveChainAlias,
   TransferredSubgraphDeployment,
   sequentialTimerReduce,
+  HorizonTransitionValue,
+  Provision,
+  parseGraphQLProvision,
 } from '@graphprotocol/indexer-common'
 import {
   GraphHorizonContracts,
@@ -60,9 +63,40 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
-  async maxAllocationEpoch(): Promise<number> {
-    // TODO HORIZON: this call will fail in Horizon, return 0 or something else?
-    return Number(await this.contracts.LegacyStaking.maxAllocationEpochs())
+  // Maximum allocation duration is different for legacy and horizon allocations
+  // - Legacy allocations - expiration measured in epochs, determined by maxAllocationEpochs
+  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness.
+  // To simplify the agent logic, this function converts horizon allocation values, returning epoch values
+  // regardless of the allocation type.
+  async maxAllocationDuration(): Promise<HorizonTransitionValue> {
+    const isHorizon = await this.isHorizon()
+
+    if (isHorizon) {
+      // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not always
+      const BLOCK_IN_SECONDS = 12n
+      const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+      const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+
+      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
+      // incurs in a severe penalty (missing out on indexing rewards)
+      const horizonDurationInSeconds = Number(
+        await this.contracts.SubgraphService.maxPOIStaleness(),
+      )
+      const horizonDurationInEpochs = Math.max(
+        1,
+        Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
+      )
+
+      return {
+        legacy: 28, // Hardcode to the latest known value. This is required for legacy allos in the transition period.
+        horizon: horizonDurationInEpochs,
+      }
+    } else {
+      return {
+        legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
+        horizon: 0,
+      }
+    }
   }
 
   /**
@@ -102,12 +136,15 @@ export class NetworkMonitor {
           allocation(id: $allocation) {
             id
             status
+            isLegacy
             indexer {
               id
             }
             allocatedTokens
+            createdAt
             createdAtEpoch
             createdAtBlockHash
+            closedAt
             closedAtEpoch
             subgraphDeployment {
               id
@@ -156,11 +193,14 @@ export class NetworkMonitor {
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -216,6 +256,50 @@ export class NetworkMonitor {
       })
       throw err
     }
+  }
+
+  async provision(indexer: string, dataService: string): Promise<Provision> {
+    const result = await this.networkSubgraph.checkedQuery(
+      gql`
+        query provisions($indexer: String!, $dataService: String!) {
+          provisions(where: { indexer: $indexer, dataService: $dataService }) {
+            id
+            indexer {
+              id
+            }
+            dataService {
+              id
+            }
+            tokensProvisioned
+            tokensAllocated
+            tokensThawing
+            thawingPeriod
+            maxVerifierCut
+          }
+        }
+      `,
+      { indexer, dataService },
+    )
+    if (result.error) {
+      throw result.error
+    }
+
+    if (
+      !result.data.provisions ||
+      result.data.length == 0 ||
+      result.data.provisions.length == 0
+    ) {
+      const errorMessage = `No provision found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE078, errorMessage)
+    }
+
+    if (result.data.provisions.length > 1) {
+      const errorMessage = `Multiple provisions found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE081, errorMessage)
+    }
+    return parseGraphQLProvision(result.data.provisions[0])
   }
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
@@ -284,11 +368,14 @@ export class NetworkMonitor {
                 orderDirection: desc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -359,12 +446,15 @@ export class NetworkMonitor {
               orderDirection: desc
             ) {
               id
+              isLegacy
               poi
               indexer {
                 id
               }
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               subgraphDeployment {
@@ -1047,7 +1137,6 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async monitorIsOperator(
     logger: Logger,
-    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     indexerAddress: Address,
     wallet: HDNodeWallet,
   ): Promise<Eventual<boolean>> {
@@ -1066,7 +1155,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       async (isOperator) => {
         try {
           logger.debug('Check operator status')
-          return await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress)
+          return await this.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -1075,7 +1164,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           return isOperator
         }
       },
-      await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress),
+      await this.isOperator(wallet.address, indexerAddress),
     ).map((isOperator) => {
       logger.info(
         isOperator
@@ -1088,16 +1177,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async monitorIsHorizon(
     logger: Logger,
-    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     interval: number = 300_000,
   ): Promise<Eventual<boolean>> {
-    // Get initial value
-
-    const initialValue = await contracts.HorizonStaking.getMaxThawingPeriod()
-      .then((maxThawingPeriod) => maxThawingPeriod > 0)
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      .catch((_) => false)
-
     return sequentialTimerReduce(
       {
         logger,
@@ -1106,8 +1187,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       async (isHorizon) => {
         try {
           logger.debug('Check if network is Horizon ready')
-          const maxThawingPeriod = await contracts.HorizonStaking.getMaxThawingPeriod()
-          return maxThawingPeriod > 0
+          return await this.isHorizon()
         } catch (err) {
           logger.warn(
             `Failed to check if network is Horizon ready, assuming it has not changed`,
@@ -1116,7 +1196,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           return isHorizon
         }
       },
-      initialValue,
+      await this.isHorizon(),
     ).map((isHorizon) => {
       logger.info(isHorizon ? `Network is Horizon ready` : `Network is not Horizon ready`)
       return isHorizon
@@ -1146,12 +1226,15 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
               first: 1000
             ) {
               id
+              isLegacy
               indexer {
                 id
               }
               queryFeesCollected
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               closedAtBlockHash
@@ -1266,6 +1349,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 createdAt
                 indexer {
                   id
@@ -1274,6 +1358,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
+                closedAt
                 closedAtBlockHash
                 subgraphDeployment {
                   id
@@ -1360,6 +1445,30 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         err,
       })
       throw err
+    }
+  }
+
+  private async isHorizon() {
+    try {
+      const maxThawingPeriod = await this.contracts.HorizonStaking.getMaxThawingPeriod()
+      return maxThawingPeriod > 0
+    } catch (err) {
+      return false
+    }
+  }
+
+  private async isOperator(operatorAddress: string, indexerAddress: string) {
+    if (await this.isHorizon()) {
+      return await this.contracts.HorizonStaking.isAuthorized(
+        indexerAddress,
+        this.contracts.SubgraphService.target,
+        operatorAddress,
+      )
+    } else {
+      return await this.contracts.LegacyStaking.isOperator(
+        operatorAddress,
+        indexerAddress,
+      )
     }
   }
 }

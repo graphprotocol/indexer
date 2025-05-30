@@ -100,7 +100,8 @@ export const start = {
         group: 'Ethereum',
       })
       .option('confirmation-blocks', {
-        description: 'The number of blocks to wait for a transaction to be confirmed',
+        description:
+          'The number of blocks to wait for a transaction to be confirmed',
         type: 'number',
         default: 3,
         group: 'Ethereum',
