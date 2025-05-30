@@ -142,19 +142,14 @@ export const ensureAllocationLifetime = async (
     const isHorizon = await network.isHorizon.value()
 
     if (isHorizon) {
-      const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
-      const maxSuggestedLifetime =
-        (Number(maxAllocationDuration.horizon) - epochLengthInSeconds) /
-        epochLengthInSeconds
-
       // Don't enforce for altruistic allocations
       if (
-        rule.allocationLifetime > maxSuggestedLifetime &&
+        rule.allocationLifetime > maxAllocationDuration.horizon &&
         (rule.allocationAmount === undefined ||
           rule.allocationAmount === null ||
           Number(rule.allocationAmount) > 0)
       ) {
-        return [false, maxSuggestedLifetime]
+        return [false, maxAllocationDuration.horizon]
       }
     }
   }

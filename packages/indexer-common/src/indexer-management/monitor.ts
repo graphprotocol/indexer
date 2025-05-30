@@ -63,28 +63,33 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
-  // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not all chains
-  async epochLengthInSeconds(): Promise<number> {
-    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
-    const BLOCK_IN_SECONDS = 12n
-    return Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
-  }
-
-  // Allocation expiration will be given by when it was created:
+  // Maximum allocation duration is different for legacy and horizon allocations
   // - Legacy allocations - expiration measured in epochs, determined by maxAllocationEpochs
-  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness
+  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness.
+  // To simplify the agent logic, this function converts horizon allocation values, returning epoch values
+  // regardless of the allocation type.
   async maxAllocationDuration(): Promise<HorizonTransitionValue> {
     const isHorizon = await this.isHorizon()
 
     if (isHorizon) {
+      // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not always
+      const BLOCK_IN_SECONDS = 12n
+      const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+      const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+
+      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon 
+      // incurs in a severe penalty (missing out on indexing rewards)
+      const horizonDurationInSeconds = Number(await this.contracts.SubgraphService.maxPOIStaleness())
+      const horizonDurationInEpochs = Math.max(1, Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1)
+
       return {
-        legacy: 28n, // Hardcode to the latest known value. This is required for legacy allos in the transition period.
-        horizon: await this.contracts.SubgraphService.maxPOIStaleness(),
+        legacy: 28, // Hardcode to the latest known value. This is required for legacy allos in the transition period.
+        horizon: horizonDurationInEpochs,
       }
     } else {
       return {
-        legacy: await this.contracts.LegacyStaking.maxAllocationEpochs(),
-        horizon: 0n,
+        legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
+        horizon: 0,
       }
     }
   }

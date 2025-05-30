@@ -68,7 +68,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-        deployment.toString(),
+      deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -867,7 +867,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-          rewardsPool!.referencePreviousPOI == allocation.poi
+            rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1017,36 +1017,20 @@ export class Agent {
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
-    const epochLengthInSeconds =
-      await network.networkMonitor.epochLengthInSeconds()
-
-    // Identify expiring allocations
     let expiredAllocations = activeAllocations.filter(
       async (allocation: Allocation) => {
+        let desiredAllocationLifetime: number = 0
         if (allocation.isLegacy) {
-          // Legacy allocations - expiration measured in epochs
-          const desiredAllocationLifetimeInEpochs = deploymentAllocationDecision
+          desiredAllocationLifetime = deploymentAllocationDecision
             .ruleMatch.rule?.allocationLifetime
             ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
-            : Math.max(1, Number(maxAllocationDuration.legacy) - 1)
-          return (
-            epoch >=
-            allocation.createdAtEpoch + desiredAllocationLifetimeInEpochs
-          )
+            : Math.max(1, maxAllocationDuration.legacy - 1)
         } else {
-          // Horizon allocations - expiration measured in seconds, we need to scale ruleAllocationLifetime to seconds
-          const desiredAllocationLifetimeInSeconds =
-            deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
-              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime *
-                epochLengthInSeconds
-              : Math.max(
-                  epochLengthInSeconds,
-                  Number(maxAllocationDuration.horizon) - epochLengthInSeconds,
-                )
-          return (
-            epoch >= allocation.createdAt + desiredAllocationLifetimeInSeconds
-          )
+          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
+            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
+            : maxAllocationDuration.horizon
         }
+        return epoch >= allocation.createdAtEpoch + desiredAllocationLifetime
       },
     )
     // The allocations come from the network subgraph; due to short indexing

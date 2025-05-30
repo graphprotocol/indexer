@@ -95,22 +95,10 @@ export class ActionManager {
         const maxAllocationDuration = await network.networkMonitor.maxAllocationDuration()
 
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
-        if (affectedAllocations[0].isLegacy) {
-          const currentEpoch = await network.networkMonitor.currentEpochNumber()
-          affectedAllocationExpiring =
-            currentEpoch >=
-            affectedAllocations[0].createdAtEpoch + Number(maxAllocationDuration.legacy)
-        } else {
-          // This is not what is described in condition #2 above but it's the closest we can get in Horizon
-          // given granularity for allocation expiration is now in seconds and not epochs
-          const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
-          const currentTimestamp = Math.floor(Date.now() / 1000)
-          affectedAllocationExpiring =
-            currentTimestamp >=
-            affectedAllocations[0].createdAt +
-              Number(maxAllocationDuration.horizon) -
-              epochLengthInSeconds
-        }
+        const currentEpoch = await network.networkMonitor.currentEpochNumber()
+        affectedAllocationExpiring =
+          currentEpoch >=
+          affectedAllocations[0].createdAtEpoch + (affectedAllocations[0].isLegacy ? maxAllocationDuration.legacy : maxAllocationDuration.horizon)
       }
 
       logger.debug(
@@ -343,7 +331,7 @@ export class ActionManager {
           if (pendingActions.length > 0) {
             logger.warn(
               `${pendingActions} Actions found in PENDING state when execution began. Was there a crash?` +
-                `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
+              `These indicate that execution was interrupted while calling contracts, and will need to be cleared manually.`,
             )
           }
 

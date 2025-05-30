@@ -334,8 +334,8 @@ describe.skip('Monitor: local', () => {
 
   test('Fetch maxAllocationDuration', async () => {
     await expect(networkMonitor.maxAllocationDuration()).resolves.toMatchObject({
-      legacy: expect.any(BigInt),
-      horizon: expect.any(BigInt),
+      legacy: expect.any(Number),
+      horizon: expect.any(Number),
     })
   })
 
