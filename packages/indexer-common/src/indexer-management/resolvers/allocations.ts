@@ -70,6 +70,7 @@ interface AllocationInfo {
   closeDeadlineBlocksRemaining: number
   closeDeadlineTimeRemaining: number
   indexingRewards: string
+  queryFeesCollected: string
   status: string
   protocolNetwork: string
   isLegacy: boolean
@@ -303,6 +304,7 @@ async function queryAllocations(
         closeDeadlineBlocksRemaining: remainingBlocks,
         closeDeadlineTimeRemaining: remainingBlocks * context.avgBlockTime,
         indexingRewards: allocation.indexingRewards,
+        queryFeesCollected: allocation.queryFeesCollected,
         status: allocation.status,
         protocolNetwork: context.protocolNetwork,
         isLegacy: allocation.isLegacy,
@@ -563,7 +565,7 @@ async function createHorizonAllocation(
     allocationIDProof: proof,
   })
 
-  logger.debug(`Sending allocateFrom transaction`, {
+  logger.debug(`Sending startService (allocate) transaction`, {
     indexer: address,
     subgraphDeployment: subgraphDeployment.ipfsHash,
     amount: formatGRT(allocationAmount),
@@ -582,7 +584,7 @@ async function createHorizonAllocation(
     async () => contracts.SubgraphService.startService.estimateGas(address, data),
     async (gasLimit) =>
       contracts.SubgraphService.startService(address, data, { gasLimit }),
-    logger.child({ action: 'allocate' }),
+    logger.child({ action: 'startService' }),
   )
 
   if (receipt === 'paused' || receipt === 'unauthorized') {
@@ -736,21 +738,19 @@ async function closeHorizonAllocation(
     [allocation.id],
   )
 
-  const callData = [
-    await contracts.SubgraphService.collect.populateTransaction(
-      address,
-      PaymentTypes.IndexingRewards,
-      collectIndexingRewardsData,
-    ),
-    await contracts.SubgraphService.stopService.populateTransaction(
-      address,
-      closeAllocationData,
-    ),
-  ].map((tx) => tx.data as string)
+  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData('collect', [
+    address,
+    PaymentTypes.IndexingRewards,
+    collectIndexingRewardsData,
+  ])
+  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('stopService', [
+    address,
+    closeAllocationData,
+  ])
 
   const receipt = await transactionManager.executeTransaction(
-    async () => contracts.SubgraphService.multicall.estimateGas(callData),
-    async (gasLimit) => contracts.SubgraphService.multicall(callData, { gasLimit }),
+    async () => contracts.SubgraphService.multicall.estimateGas([collectCallData, stopServiceCallData]),
+    async (gasLimit) => contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], { gasLimit }),
     logger,
   )
 
@@ -1176,25 +1176,23 @@ async function reallocateHorizonAllocation(
     proof,
   )
 
-  const callData = [
-    await contracts.SubgraphService.collect.populateTransaction(
-      address,
-      PaymentTypes.IndexingRewards,
-      collectIndexingRewardsData,
-    ),
-    await contracts.SubgraphService.stopService.populateTransaction(
-      address,
-      closeAllocationData,
-    ),
-    await contracts.SubgraphService.startService.populateTransaction(
-      address,
-      createAllocationData,
-    ),
-  ].map((tx) => tx.data as string)
+  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData('collect', [
+    address,
+    PaymentTypes.IndexingRewards,
+    collectIndexingRewardsData,
+  ])
+  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('stopService', [
+    address,
+    closeAllocationData,
+  ])
+  const startServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('startService', [
+    address,
+    createAllocationData,
+  ])
 
   const receipt = await transactionManager.executeTransaction(
-    async () => contracts.SubgraphService.multicall.estimateGas(callData),
-    async (gasLimit) => contracts.SubgraphService.multicall(callData, { gasLimit }),
+    async () => contracts.SubgraphService.multicall.estimateGas([collectCallData, stopServiceCallData, startServiceCallData]),
+    async (gasLimit) => contracts.SubgraphService.multicall([collectCallData, stopServiceCallData, startServiceCallData], { gasLimit }),
     logger.child({
       function: 'closeAndAllocate',
     }),
