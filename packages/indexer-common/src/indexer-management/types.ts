@@ -4,7 +4,7 @@ import {
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { Allocation } from '../allocations'
+import { Allocation, Provision } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
 
@@ -109,6 +109,17 @@ export const parseGraphQLAllocation = (
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
   queryFeesCollected: allocation.queryFeesCollected,
+})
+
+export const parseGraphQLProvision = (provision: any): Provision => ({
+  id: provision.id.toString(),
+  dataService: toAddress(provision.dataService),
+  indexer: toAddress(provision.indexer),
+  tokensProvisioned: BigInt(provision.tokensProvisioned),
+  tokensAllocated: BigInt(provision.tokensAllocated),
+  tokensThawing: BigInt(provision.tokensThawing),
+  maxVerifierCut: BigInt(provision.maxVerifierCut),
+  thawingPeriod: BigInt(provision.thawingPeriod),
 })
 
 export interface RewardsPool {
