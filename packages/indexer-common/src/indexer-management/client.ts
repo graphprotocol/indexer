@@ -14,7 +14,12 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import provisionResolvers from './resolvers/provisions'
 import { GraphNode } from '../graph-node'
-import { ActionManager, MultiNetworks, Network, RulesManager } from '@graphprotocol/indexer-common'
+import {
+  ActionManager,
+  MultiNetworks,
+  Network,
+  RulesManager,
+} from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels

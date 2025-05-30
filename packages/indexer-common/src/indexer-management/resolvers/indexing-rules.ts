@@ -95,13 +95,17 @@ export default {
     }
 
     if (!multiNetworks) {
-      throw Error('IndexerManagementClient must be in `network` mode to set indexing rules')
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to set indexing rules',
+      )
     }
     const network = extractNetwork(rule.protocolNetwork, multiNetworks)
 
     const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(rule, network)
     if (!isValid) {
-      throw Error(`Allocation lifetime must be at most ${maxSuggestedLifetime} epochs, otherwise indexing rewards will be forefited.`)
+      throw Error(
+        `Allocation lifetime must be at most ${maxSuggestedLifetime} epochs, otherwise indexing rewards will be forefited.`,
+      )
     }
 
     const [identifier] = await processIdentifier(rule.identifier, {

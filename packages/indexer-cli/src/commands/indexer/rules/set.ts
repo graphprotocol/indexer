@@ -105,7 +105,10 @@ module.exports = {
         if (valid_commands.includes(error.message)) {
           throw new Error(
             `Indexing rule attribute '${error.message}' not supported, did you mean?\n` +
-            stringify(suggestCommands(error.message, valid_commands)).replace(/\n$/, ''),
+              stringify(suggestCommands(error.message, valid_commands)).replace(
+                /\n$/,
+                '',
+              ),
           )
         } else {
           throw error

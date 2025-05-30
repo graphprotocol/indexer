@@ -18,7 +18,11 @@ export class RulesManager {
   declare models: IndexerManagementModels
   declare logger: Logger
 
-  static async create(multiNetworks: MultiNetworks<Network>, logger: Logger, models: IndexerManagementModels) {
+  static async create(
+    multiNetworks: MultiNetworks<Network>,
+    logger: Logger,
+    models: IndexerManagementModels,
+  ) {
     const rulesManager = new RulesManager()
     rulesManager.multiNetworks = multiNetworks
     rulesManager.logger = logger
@@ -31,7 +35,6 @@ export class RulesManager {
   }
 
   async monitorRules(): Promise<void> {
-
     const logger = this.logger.child({ component: 'RulesMonitor' })
     const rules: Eventual<IndexingRuleAttributes[]> = sequentialTimerMap(
       {
@@ -52,8 +55,7 @@ export class RulesManager {
       },
       {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        onError: (err: any) =>
-          logger.warn('Failed to fetch indexing rules', { err }),
+        onError: (err: any) => logger.warn('Failed to fetch indexing rules', { err }),
       },
     )
 
@@ -61,15 +63,18 @@ export class RulesManager {
       logger.info(`Indexing rules found, evaluating allocation lifetime`)
       for (const rule of rules) {
         const network = extractNetwork(rule.protocolNetwork, this.multiNetworks)
-        const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(rule, network)
+        const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(
+          rule,
+          network,
+        )
         if (!isValid) {
-          logger.warn(`Invalid rule allocation lifetime. Indexing rewards at risk!`, { 
+          logger.warn(`Invalid rule allocation lifetime. Indexing rewards at risk!`, {
             maxLifetime: maxSuggestedLifetime,
             ruleId: rule.id,
             ruleIdentifier: rule.identifier,
             ruleAllocationAmount: rule.allocationAmount,
             ruleAllocationLifetime: rule.allocationLifetime,
-           })
+          })
         }
       }
     })
@@ -128,19 +133,26 @@ export const upsertIndexingRule = async (
 // Enforce max allocation lifetime for Horizon
 // This is to prevent indexing rewards from being automatically forefited due to a too long allocation lifetime
 // Previously this was not enforced onchain, but anyone could force close expired allocations
-export const ensureAllocationLifetime = async (rule: IndexingRuleAttributes | IndexingRuleCreationAttributes, network: Network): Promise<[boolean, number]> => {
+export const ensureAllocationLifetime = async (
+  rule: IndexingRuleAttributes | IndexingRuleCreationAttributes,
+  network: Network,
+): Promise<[boolean, number]> => {
   if (rule.allocationLifetime) {
     const maxAllocationDuration = await network.networkMonitor.maxAllocationDuration()
     const isHorizon = await network.isHorizon.value()
 
     if (isHorizon) {
       const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
-      const maxSuggestedLifetime = (Number(maxAllocationDuration.horizon) - epochLengthInSeconds) / epochLengthInSeconds
+      const maxSuggestedLifetime =
+        (Number(maxAllocationDuration.horizon) - epochLengthInSeconds) /
+        epochLengthInSeconds
 
       // Don't enforce for altruistic allocations
       if (
         rule.allocationLifetime > maxSuggestedLifetime &&
-        (rule.allocationAmount === undefined || rule.allocationAmount === null || Number(rule.allocationAmount) > 0)
+        (rule.allocationAmount === undefined ||
+          rule.allocationAmount === null ||
+          Number(rule.allocationAmount) > 0)
       ) {
         return [false, maxSuggestedLifetime]
       }

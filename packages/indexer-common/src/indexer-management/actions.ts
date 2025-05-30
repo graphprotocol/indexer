@@ -107,7 +107,9 @@ export class ActionManager {
           const currentTimestamp = Math.floor(Date.now() / 1000)
           affectedAllocationExpiring =
             currentTimestamp >=
-            affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon) - epochLengthInSeconds
+            affectedAllocations[0].createdAt +
+              Number(maxAllocationDuration.horizon) -
+              epochLengthInSeconds
         }
       }
 

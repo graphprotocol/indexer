@@ -68,7 +68,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-      deployment.toString(),
+        deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -867,7 +867,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-            rewardsPool!.referencePreviousPOI == allocation.poi
+          rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1017,7 +1017,8 @@ export class Agent {
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
-    const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
+    const epochLengthInSeconds =
+      await network.networkMonitor.epochLengthInSeconds()
 
     // Identify expiring allocations
     let expiredAllocations = activeAllocations.filter(
@@ -1036,11 +1037,12 @@ export class Agent {
           // Horizon allocations - expiration measured in seconds, we need to scale ruleAllocationLifetime to seconds
           const desiredAllocationLifetimeInSeconds =
             deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
-              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime * epochLengthInSeconds
+              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime *
+                epochLengthInSeconds
               : Math.max(
-                epochLengthInSeconds,
-                Number(maxAllocationDuration.horizon) - epochLengthInSeconds,
-              )
+                  epochLengthInSeconds,
+                  Number(maxAllocationDuration.horizon) - epochLengthInSeconds,
+                )
           return (
             epoch >= allocation.createdAt + desiredAllocationLifetimeInSeconds
           )

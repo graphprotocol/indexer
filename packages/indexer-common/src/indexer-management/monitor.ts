@@ -53,7 +53,7 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
-  ) { }
+  ) {}
 
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
@@ -229,7 +229,8 @@ export class NetworkMonitor {
 
       if (allocations.length === 0) {
         this.logger.warn(
-          `No ${AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
+          `No ${
+            AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
           } allocations found for indexer '${this.indexerOptions.address}'`,
         )
       }
@@ -1046,10 +1047,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 IndexerErrorCode.IE067,
                 `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${deploymentStatus.length > 0
+              deploymentStatus: ${
+                deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
                   : 'not deployed'
-                }`,
+              }`,
               )
             } else {
               return poi
@@ -1436,7 +1438,6 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
-
   private async isHorizon() {
     try {
       const maxThawingPeriod = await this.contracts.HorizonStaking.getMaxThawingPeriod()
@@ -1446,12 +1447,18 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
-
   private async isOperator(operatorAddress: string, indexerAddress: string) {
     if (await this.isHorizon()) {
-      return await this.contracts.HorizonStaking.isAuthorized(indexerAddress, this.contracts.SubgraphService.target, operatorAddress)
+      return await this.contracts.HorizonStaking.isAuthorized(
+        indexerAddress,
+        this.contracts.SubgraphService.target,
+        operatorAddress,
+      )
     } else {
-      return await this.contracts.LegacyStaking.isOperator(operatorAddress, indexerAddress)
+      return await this.contracts.LegacyStaking.isOperator(
+        operatorAddress,
+        indexerAddress,
+      )
     }
   }
 }
