@@ -77,10 +77,15 @@ export class NetworkMonitor {
       const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
       const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
 
-      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon 
+      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
       // incurs in a severe penalty (missing out on indexing rewards)
-      const horizonDurationInSeconds = Number(await this.contracts.SubgraphService.maxPOIStaleness())
-      const horizonDurationInEpochs = Math.max(1, Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1)
+      const horizonDurationInSeconds = Number(
+        await this.contracts.SubgraphService.maxPOIStaleness(),
+      )
+      const horizonDurationInEpochs = Math.max(
+        1,
+        Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
+      )
 
       return {
         legacy: 28, // Hardcode to the latest known value. This is required for legacy allos in the transition period.

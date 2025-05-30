@@ -68,7 +68,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-      deployment.toString(),
+        deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -867,7 +867,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-            rewardsPool!.referencePreviousPOI == allocation.poi
+          rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1021,12 +1021,13 @@ export class Agent {
       async (allocation: Allocation) => {
         let desiredAllocationLifetime: number = 0
         if (allocation.isLegacy) {
-          desiredAllocationLifetime = deploymentAllocationDecision
-            .ruleMatch.rule?.allocationLifetime
+          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
+            .rule?.allocationLifetime
             ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
             : Math.max(1, maxAllocationDuration.legacy - 1)
         } else {
-          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
+          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
+            .rule?.allocationLifetime
             ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
             : maxAllocationDuration.horizon
         }
