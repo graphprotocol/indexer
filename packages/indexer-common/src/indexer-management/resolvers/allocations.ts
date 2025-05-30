@@ -279,7 +279,9 @@ async function queryAllocations(
     resultAllocations,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (allocation: any): Promise<AllocationInfo> => {
-      const maxAllocationDuration = allocation.isLegacy ? context.maxAllocationDuration.legacy : context.maxAllocationDuration.horizon
+      const maxAllocationDuration = allocation.isLegacy
+        ? context.maxAllocationDuration.legacy
+        : context.maxAllocationDuration.horizon
       const deadlineEpoch = allocation.createdAtEpoch + maxAllocationDuration
       const remainingBlocks =
         // blocks remaining in current epoch
@@ -358,10 +360,8 @@ async function createLegacyAllocation(
   logger.debug('Obtain a unique legacy Allocation ID')
 
   // Obtain a unique allocation ID
-  const recentlyClosedAllocations = await network.networkMonitor.recentlyClosedAllocations(
-    Number(currentEpoch),
-    2,
-  )
+  const recentlyClosedAllocations =
+    await network.networkMonitor.recentlyClosedAllocations(Number(currentEpoch), 2)
   const activeAndRecentlyClosedAllocations: Allocation[] = [
     ...recentlyClosedAllocations,
     ...activeAllocations,
@@ -517,10 +517,8 @@ async function createHorizonAllocation(
   logger.debug('Obtain a unique Allocation ID')
 
   // Obtain a unique allocation ID
-  const recentlyClosedAllocations = await network.networkMonitor.recentlyClosedAllocations(
-    Number(currentEpoch),
-    2,
-  )
+  const recentlyClosedAllocations =
+    await network.networkMonitor.recentlyClosedAllocations(Number(currentEpoch), 2)
   const activeAndRecentlyClosedAllocations: Allocation[] = [
     ...recentlyClosedAllocations,
     ...activeAllocations,
@@ -640,7 +638,10 @@ async function closeLegacyAllocation(
   // in the contracts.
   const state = await contracts.LegacyStaking.getAllocationState(allocation.id)
   if (state !== 1n) {
-    throw indexerError(IndexerErrorCode.IE065, 'Legacy allocation has already been closed')
+    throw indexerError(
+      IndexerErrorCode.IE065,
+      'Legacy allocation has already been closed',
+    )
   }
 
   logger.debug('Sending legacy closeAllocation transaction')
@@ -738,19 +739,25 @@ async function closeHorizonAllocation(
     [allocation.id],
   )
 
-  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData('collect', [
-    address,
-    PaymentTypes.IndexingRewards,
-    collectIndexingRewardsData,
-  ])
-  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('stopService', [
-    address,
-    closeAllocationData,
-  ])
+  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'collect',
+    [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
+  )
+  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'stopService',
+    [address, closeAllocationData],
+  )
 
   const receipt = await transactionManager.executeTransaction(
-    async () => contracts.SubgraphService.multicall.estimateGas([collectCallData, stopServiceCallData]),
-    async (gasLimit) => contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], { gasLimit }),
+    async () =>
+      contracts.SubgraphService.multicall.estimateGas([
+        collectCallData,
+        stopServiceCallData,
+      ]),
+    async (gasLimit) =>
+      contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], {
+        gasLimit,
+      }),
     logger,
   )
 
@@ -845,7 +852,10 @@ async function reallocateLegacyAllocation(
   const state = await contracts.LegacyStaking.getAllocationState(allocation.id)
   if (state !== 1n) {
     logger.warn(`Legacy allocation has already been closed`)
-    throw indexerError(IndexerErrorCode.IE065, `Legacy allocation has already been closed`)
+    throw indexerError(
+      IndexerErrorCode.IE065,
+      `Legacy allocation has already been closed`,
+    )
   }
 
   if (allocationAmount < 0n) {
@@ -886,10 +896,8 @@ async function reallocateLegacyAllocation(
   }
 
   logger.debug('Generating a new unique legacy Allocation ID')
-  const recentlyClosedAllocations = await network.networkMonitor.recentlyClosedAllocations(
-    Number(currentEpoch),
-    2,
-  )
+  const recentlyClosedAllocations =
+    await network.networkMonitor.recentlyClosedAllocations(Number(currentEpoch), 2)
   const activeAndRecentlyClosedAllocations: Allocation[] = [
     ...recentlyClosedAllocations,
     ...activeAllocations,
@@ -1097,10 +1105,8 @@ async function reallocateHorizonAllocation(
   }
 
   logger.debug('Generating a new unique Allocation ID')
-  const recentlyClosedAllocations = await network.networkMonitor.recentlyClosedAllocations(
-    Number(currentEpoch),
-    2,
-  )
+  const recentlyClosedAllocations =
+    await network.networkMonitor.recentlyClosedAllocations(Number(currentEpoch), 2)
   const activeAndRecentlyClosedAllocations: Allocation[] = [
     ...recentlyClosedAllocations,
     ...activeAllocations,
@@ -1176,23 +1182,31 @@ async function reallocateHorizonAllocation(
     proof,
   )
 
-  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData('collect', [
-    address,
-    PaymentTypes.IndexingRewards,
-    collectIndexingRewardsData,
-  ])
-  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('stopService', [
-    address,
-    closeAllocationData,
-  ])
-  const startServiceCallData = contracts.SubgraphService.interface.encodeFunctionData('startService', [
-    address,
-    createAllocationData,
-  ])
+  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'collect',
+    [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
+  )
+  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'stopService',
+    [address, closeAllocationData],
+  )
+  const startServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
+    'startService',
+    [address, createAllocationData],
+  )
 
   const receipt = await transactionManager.executeTransaction(
-    async () => contracts.SubgraphService.multicall.estimateGas([collectCallData, stopServiceCallData, startServiceCallData]),
-    async (gasLimit) => contracts.SubgraphService.multicall([collectCallData, stopServiceCallData, startServiceCallData], { gasLimit }),
+    async () =>
+      contracts.SubgraphService.multicall.estimateGas([
+        collectCallData,
+        stopServiceCallData,
+        startServiceCallData,
+      ]),
+    async (gasLimit) =>
+      contracts.SubgraphService.multicall(
+        [collectCallData, stopServiceCallData, startServiceCallData],
+        { gasLimit },
+      ),
     logger.child({
       function: 'closeAndAllocate',
     }),
@@ -1291,7 +1305,12 @@ async function migrateLegacyAllocationToHorizon(
 
   // We want to make sure that we close the legacy allocation even if reallocating to horizon would fail
   // so we don't use a multicall but send separate transactions for closing
-  const closeAllocationResult = await closeLegacyAllocation(allocation, poi, network, logger)
+  const closeAllocationResult = await closeLegacyAllocation(
+    allocation,
+    poi,
+    network,
+    logger,
+  )
 
   // After closing the legacy allocation, we attempt to create a new horizon allocation
   const createAllocationResult = await createHorizonAllocation(
@@ -1548,7 +1567,7 @@ export default {
       } else {
         const result = await closeHorizonAllocation(allocationData, poi, network, logger)
         txHash = result.txHash
-        rewardsAssigned = result.rewardsAssigned        
+        rewardsAssigned = result.rewardsAssigned
       }
 
       logger.debug(

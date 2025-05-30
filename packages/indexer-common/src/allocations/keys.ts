@@ -8,7 +8,7 @@ const deriveKeyPair = (
   deployment: SubgraphDeploymentID,
   index: number,
 ): { publicKey: string; privateKey: string; address: Address } => {
-  const path = 'm/' + [epoch, ...Buffer.from(deployment.ipfsHash), index].join('/')
+  const path = [epoch, ...Buffer.from(deployment.ipfsHash), index].join('/')
   const derivedKey = hdNode.derivePath(path)
   return {
     publicKey: derivedKey.publicKey,

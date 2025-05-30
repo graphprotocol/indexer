@@ -1481,7 +1481,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       dataService,
       delegationRatio,
     )
-    const lockedStake = await this.contracts.SubgraphService.allocationProvisionTracker(address)
+    const lockedStake =
+      await this.contracts.SubgraphService.allocationProvisionTracker(address)
     return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
   }
 }
