@@ -332,8 +332,8 @@ export default {
     const dataService = contracts.SubgraphService.target.toString().toLowerCase()
     const thawAmount = parseGRT(amount)
 
-    if (thawAmount < 0n) {
-      logger.warn('Cannot thaw a negative amount of GRT', {
+    if (thawAmount <= 0n) {
+      logger.warn('Cannot thaw zero or a negative amount of GRT', {
         amount: formatGRT(thawAmount),
       })
       throw indexerError(
@@ -350,11 +350,9 @@ export default {
         provision,
       })
 
-      const delegationRatio = await contracts.SubgraphService.getDelegationRatio()
-      const tokensAvailable = await contracts.HorizonStaking.getTokensAvailable(
+      const tokensAvailable = await contracts.HorizonStaking.getProviderTokensAvailable(
         indexer,
         dataService,
-        delegationRatio,
       )
 
       if (thawAmount > tokensAvailable) {
