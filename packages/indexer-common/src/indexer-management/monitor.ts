@@ -1471,4 +1471,17 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       )
     }
   }
+
+  async freeStake(): Promise<bigint> {
+    const address = this.indexerOptions.address
+    const dataService = this.contracts.SubgraphService.target.toString()
+    const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
+    const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
+      address,
+      dataService,
+      delegationRatio,
+    )
+    const lockedStake = await this.contracts.SubgraphService.allocationProvisionTracker(address)
+    return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+  }
 }

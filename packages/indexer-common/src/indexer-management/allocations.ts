@@ -1068,7 +1068,6 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    // TODO HORIZON: this call will be deprecated after horizon
     let indexerFreeStake = 0n
     if (await this.network.isHorizon.value()) {
       const verifier = this.network.contracts.SubgraphService.target.toString()
