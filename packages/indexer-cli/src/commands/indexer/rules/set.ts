@@ -102,10 +102,14 @@ module.exports = {
         const valid_commands = Object.keys(tmpRules).filter(
           c => c != 'parallelAllocations',
         )
-        throw new Error(
-          `Indexing rule attribute '${error.message}' not supported, did you mean?\n` +
+        if (valid_commands.includes(error.message)) {
+          throw new Error(
+            `Indexing rule attribute '${error.message}' not supported, did you mean?\n` +
             stringify(suggestCommands(error.message, valid_commands)).replace(/\n$/, ''),
-        )
+          )
+        } else {
+          throw error
+        }
       }
     } catch (error) {
       print.error(error.toString())

@@ -9,9 +9,10 @@ import {
 import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../client'
 import { Transaction } from 'sequelize'
 import { fetchIndexingRules } from '../rules'
-import { processIdentifier } from '../../'
+import { ensureAllocationLifetime, processIdentifier } from '../../'
 import { validateNetworkIdentifier } from '../../parsers'
 import groupBy from 'lodash.groupby'
+import { extractNetwork } from './utils'
 
 const resetGlobalRule = async (
   ruleIdentifier: IndexingRuleIdentifier,
@@ -77,7 +78,7 @@ export default {
 
   setIndexingRule: async (
     { rule }: { rule: IndexingRuleCreationAttributes },
-    { models }: IndexerManagementResolverContext,
+    { multiNetworks, models }: IndexerManagementResolverContext,
   ): Promise<object> => {
     if (!rule.identifier) {
       throw Error('Cannot set indexingRule without identifier')
@@ -91,6 +92,16 @@ export default {
       } catch (e) {
         throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
       }
+    }
+
+    if (!multiNetworks) {
+      throw Error('IndexerManagementClient must be in `network` mode to set indexing rules')
+    }
+    const network = extractNetwork(rule.protocolNetwork, multiNetworks)
+
+    const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(rule, network)
+    if (!isValid) {
+      throw Error(`Allocation lifetime must be at most ${maxSuggestedLifetime} epochs, otherwise indexing rewards will be forefited.`)
     }
 
     const [identifier] = await processIdentifier(rule.identifier, {

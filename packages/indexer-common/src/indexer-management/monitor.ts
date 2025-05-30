@@ -53,7 +53,7 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
-  ) {}
+  ) { }
 
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
@@ -61,6 +61,13 @@ export class NetworkMonitor {
 
   async currentEpochNumber(): Promise<number> {
     return Number(await this.contracts.EpochManager.currentEpoch())
+  }
+
+  // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not all chains
+  async epochLengthInSeconds(): Promise<number> {
+    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+    const BLOCK_IN_SECONDS = 12n
+    return Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
   }
 
   // Allocation expiration will be given by when it was created:
@@ -222,8 +229,7 @@ export class NetworkMonitor {
 
       if (allocations.length === 0) {
         this.logger.warn(
-          `No ${
-            AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
+          `No ${AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
           } allocations found for indexer '${this.indexerOptions.address}'`,
         )
       }
@@ -1040,11 +1046,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 IndexerErrorCode.IE067,
                 `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
+              deploymentStatus: ${deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
                   : 'not deployed'
-              }`,
+                }`,
               )
             } else {
               return poi

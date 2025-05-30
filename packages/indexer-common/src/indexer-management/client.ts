@@ -14,7 +14,7 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import provisionResolvers from './resolvers/provisions'
 import { GraphNode } from '../graph-node'
-import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
+import { ActionManager, MultiNetworks, Network, RulesManager } from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -22,6 +22,7 @@ export interface IndexerManagementResolverContext {
   logger: Logger
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
+  rulesManager: RulesManager | undefined
   multiNetworks: MultiNetworks<Network> | undefined
 }
 
@@ -551,6 +552,10 @@ export const createIndexerManagementClient = async (
     ? await ActionManager.create(multiNetworks, logger, models, graphNode)
     : undefined
 
+  const rulesManager = multiNetworks
+    ? await RulesManager.create(multiNetworks, logger, models)
+    : undefined
+
   const context: IndexerManagementResolverContext = {
     models,
     graphNode,
@@ -558,6 +563,7 @@ export const createIndexerManagementClient = async (
     logger: logger.child({ component: 'IndexerManagementClient' }),
     multiNetworks,
     actionManager,
+    rulesManager,
   }
 
   const exchange = executeExchange({

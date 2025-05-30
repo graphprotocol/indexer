@@ -68,7 +68,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-        deployment.toString(),
+      deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -867,7 +867,7 @@ export class Agent {
 
         let status =
           rewardsPool!.referencePOI == allocation.poi ||
-          rewardsPool!.referencePreviousPOI == allocation.poi
+            rewardsPool!.referencePreviousPOI == allocation.poi
             ? 'valid'
             : 'potential'
 
@@ -1017,10 +1017,7 @@ export class Agent {
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
-    const epochLengthInBlocks =
-      await network.contracts.EpochManager.epochLength()
-    const BLOCK_IN_SECONDS = 12n // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not all chain
-    const EPOCH_IN_SECONDS = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+    const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
 
     // Identify expiring allocations
     let expiredAllocations = activeAllocations.filter(
@@ -1039,12 +1036,11 @@ export class Agent {
           // Horizon allocations - expiration measured in seconds, we need to scale ruleAllocationLifetime to seconds
           const desiredAllocationLifetimeInSeconds =
             deploymentAllocationDecision.ruleMatch.rule?.allocationLifetime
-              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime *
-                EPOCH_IN_SECONDS
+              ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime * epochLengthInSeconds
               : Math.max(
-                  EPOCH_IN_SECONDS,
-                  Number(maxAllocationDuration.horizon) - EPOCH_IN_SECONDS,
-                )
+                epochLengthInSeconds,
+                Number(maxAllocationDuration.horizon) - epochLengthInSeconds,
+              )
           return (
             epoch >= allocation.createdAt + desiredAllocationLifetimeInSeconds
           )

@@ -101,11 +101,13 @@ export class ActionManager {
             currentEpoch >=
             affectedAllocations[0].createdAtEpoch + Number(maxAllocationDuration.legacy)
         } else {
-          // TODO: fix this. it's not what is described in condition #2 above
+          // This is not what is described in condition #2 above but it's the closest we can get in Horizon
+          // given granularity for allocation expiration is now in seconds and not epochs
+          const epochLengthInSeconds = await network.networkMonitor.epochLengthInSeconds()
           const currentTimestamp = Math.floor(Date.now() / 1000)
           affectedAllocationExpiring =
             currentTimestamp >=
-            affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon)
+            affectedAllocations[0].createdAt + Number(maxAllocationDuration.horizon) - epochLengthInSeconds
         }
       }
 
