@@ -12,7 +12,7 @@ import {
   Interface,
   Result,
 } from 'ethers'
-import { Address, Eventual, Logger, mutable, toAddress } from '@graphprotocol/common-ts'
+import { Eventual, Logger } from '@graphprotocol/common-ts'
 import delay from 'delay'
 import { TransactionMonitoring } from './network-specification'
 import { IndexerError, indexerError, IndexerErrorCode } from './errors'
@@ -383,46 +383,6 @@ export class TransactionManager {
     })
   }
 
-  async monitorIsOperator(
-    logger: Logger,
-    contracts: GraphHorizonContracts & SubgraphServiceContracts,
-    indexerAddress: Address,
-    wallet: HDNodeWallet,
-  ): Promise<Eventual<boolean>> {
-    // If indexer and operator address are identical, operator status is
-    // implicitly granted => we'll never have to check again
-    if (indexerAddress === toAddress(wallet.address)) {
-      logger.info(`Indexer and operator are identical, operator status granted`)
-      return mutable(true)
-    }
-
-    return sequentialTimerReduce(
-      {
-        logger,
-        milliseconds: 60_000,
-      },
-      async (isOperator) => {
-        try {
-          return await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress)
-        } catch (err) {
-          logger.warn(
-            `Failed to check operator status for indexer, assuming it has not changed`,
-            { err: indexerError(IndexerErrorCode.IE008, err), isOperator },
-          )
-          return isOperator
-        }
-      },
-      await contracts.HorizonStaking.isOperator(wallet.address, indexerAddress),
-    ).map((isOperator) => {
-      logger.info(
-        isOperator
-          ? `Have operator status for indexer`
-          : `No operator status for indexer`,
-      )
-      return isOperator
-    })
-  }
-
   findEvent(
     eventType: string,
     contractInterface: Interface,
@@ -433,32 +393,36 @@ export class TransactionManager {
   ): Result | undefined {
     const events = receipt.logs
     const decodedEvents: Result[] = []
-    const expectedTopic = contractInterface.getEvent(eventType)?.topicHash
+    const expectedEvent = contractInterface.getEvent(eventType)
+    const expectedTopicHash = expectedEvent?.topicHash
 
     // TODO HORIZON - throw indexer error here
-    if (!expectedTopic) {
+    if (!expectedTopicHash) {
       throw new Error(`Event type ${eventType} not found in contract interface`)
     }
 
     const result = events
-      .filter((event) => event.topics.includes(expectedTopic))
+      .filter((event) => event.topics.includes(expectedTopicHash))
       .map((event) => {
         const decoded = contractInterface.decodeEventLog(
-          eventType,
+          expectedEvent,
           event.data,
           event.topics,
         )
         decodedEvents.push(decoded)
         return decoded
       })
-      .find(
-        (eventLogs) =>
-          eventLogs[logKey].toLocaleLowerCase() === logValue.toLocaleLowerCase(),
-      )
+      .find((eventLogs) => {
+        return (
+          eventLogs[logKey] &&
+          eventLogs[logKey].toString().toLocaleLowerCase() ===
+            logValue.toLocaleLowerCase()
+        )
+      })
 
     logger.trace('Searched for event logs', {
       function: 'findEvent',
-      expectedTopic,
+      expectedTopicHash,
       events,
       decodedEvents,
       eventType,
