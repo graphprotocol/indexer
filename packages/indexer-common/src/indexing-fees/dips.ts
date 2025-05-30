@@ -260,10 +260,7 @@ export class DipsManager {
       },
     })
     for (const agreement of indexingAgreements) {
-      this.logger.trace(`Matching agreement ${agreement.id}`, {
-        agreement,
-        allocations,
-      })
+      this.logger.trace(`Matching active agreement ${agreement.id}`)
       const allocation = allocations.find(
         (allocation) =>
           allocation.subgraphDeployment.id.bytes32 ===
@@ -282,9 +279,7 @@ export class DipsManager {
           },
         },
       })
-      this.logger.trace(`Found ${actions.length} actions for agreement ${agreement.id}`, {
-        actions,
-      })
+      this.logger.trace(`Found ${actions.length} actions for agreement ${agreement.id}`)
       if (allocation && actions.length === 0) {
         const currentAllocationId =
           agreement.current_allocation_id != null
@@ -307,6 +302,54 @@ export class DipsManager {
             allocation.id,
           )
         }
+      }
+    }
+    // Now we find the cancelled agreements and check if their allocation is still active
+    const cancelledAgreements = await this.models.IndexingAgreement.findAll({
+      where: {
+        cancelled_at: {
+          [Op.ne]: null,
+        },
+        current_allocation_id: {
+          [Op.ne]: null,
+        },
+      },
+    })
+    for (const agreement of cancelledAgreements) {
+      this.logger.trace(`Matching cancelled agreement ${agreement.id}`)
+      const allocation = allocations.find(
+        (allocation) =>
+          allocation.subgraphDeployment.id.bytes32 ===
+          new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
+      )
+      if (allocation == null && agreement.current_allocation_id != null) {
+        const actions = await this.models.Action.findAll({
+          where: {
+            deploymentID: agreement.subgraph_deployment_id,
+            status: {
+              [Op.or]: [
+                ActionStatus.PENDING,
+                ActionStatus.QUEUED,
+                ActionStatus.APPROVED,
+                ActionStatus.DEPLOYING,
+              ],
+            },
+          },
+        })
+        if (actions.length > 0) {
+          this.logger.warn(
+            `Found active actions for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}, skipping matching allocation`,
+          )
+          continue
+        }
+        this.logger.info(
+          `Updating last allocation id for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
+        )
+        await this.tryUpdateAgreementAllocation(
+          agreement.subgraph_deployment_id,
+          toAddress(agreement.current_allocation_id),
+          null,
+        )
       }
     }
   }
