@@ -37,6 +37,8 @@ export class Action extends Model<
 
   declare protocolNetwork: string
 
+  declare isLegacy: boolean
+
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
     return { ...this.toJSON(), __typename: 'Action' }
@@ -151,6 +153,11 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         validate: {
           is: caip2IdRegex,
         },
+      },
+      isLegacy: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: true,
       },
     },
     {

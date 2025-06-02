@@ -112,6 +112,7 @@ export class ActionManager {
           oldestAffectedAllocationCreatedAtEpoch:
             affectedAllocations[0]?.createdAtEpoch ??
             'no action in the batch affects existing allocations',
+          oldestAffectedAllocationIsLegacy: affectedAllocations[0]?.isLegacy,
           affectedAllocationExpiring,
         },
       )

@@ -46,6 +46,7 @@ export interface ActionInput {
   status: ActionStatus
   priority: number | undefined
   protocolNetwork: string
+  isLegacy: boolean
 }
 
 export const isValidActionInput = (
@@ -161,6 +162,7 @@ export interface ActionFilter {
   reason?: string
   updatedAt?: WhereOperators
   protocolNetwork?: string
+  isLegacy?: boolean
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -192,6 +194,7 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
+  isLegacy: boolean
 }
 
 export enum ActionType {

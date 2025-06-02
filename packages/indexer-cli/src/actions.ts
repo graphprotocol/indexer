@@ -36,6 +36,11 @@ export async function buildActionInput(
   protocolNetwork: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
+
+  // TODO: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
+  // The IndexerManagementServer will set the correct value anyways
+  const isLegacy = false
+
   switch (type) {
     case ActionType.ALLOCATE:
       return {
@@ -47,6 +52,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
@@ -64,6 +70,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     }
     case ActionType.REALLOCATE: {
@@ -83,6 +90,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     }
   }
