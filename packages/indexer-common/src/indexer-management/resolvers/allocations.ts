@@ -729,7 +729,6 @@ async function closeHorizonAllocation(
     throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
   }
 
-  // TODO Horizon: build correct POI metadata
   const encodedPOIMetadata = encodePOIMetadata(
     poiMetadata.blockNumber,
     poiMetadata.publicPOI,
@@ -1170,7 +1169,6 @@ async function reallocateHorizonAllocation(
     epoch: currentEpoch.toString(),
   })
 
-  // TODO Horizon: build correct POI metadata
   const encodedPOIMetadata = encodePOIMetadata(
     poiMetadata.blockNumber,
     poiMetadata.publicPOI,
