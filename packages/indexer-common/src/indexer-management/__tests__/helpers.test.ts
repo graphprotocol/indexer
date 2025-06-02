@@ -351,6 +351,7 @@ describe.skip('Monitor: local', () => {
       networkMonitor.resolvePOI(
         mockAllocation,
         hexlify(new Uint8Array(32).fill(0)),
+        0,
         true,
       ),
     ).resolves.toEqual(
@@ -360,7 +361,7 @@ describe.skip('Monitor: local', () => {
 
   test('Fail to resolve POI', async () => {
     await expect(
-      networkMonitor.resolvePOI(mockAllocation, undefined, false),
+      networkMonitor.resolvePOI(mockAllocation, undefined, 0, false),
     ).rejects.toEqual(indexerError(IndexerErrorCode.IE018, `Could not resolve POI`))
   })
 })

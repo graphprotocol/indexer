@@ -12,7 +12,7 @@ export interface Allocation {
   createdAt: number
   createdAtEpoch: number
   createdAtBlockHash: string
-  closedAt: number // TODO HORIZON: remove this if it ends up not being used
+  closedAt: number
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined
   previousEpochStartBlockHash: string | undefined

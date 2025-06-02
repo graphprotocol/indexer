@@ -396,7 +396,6 @@ export class TransactionManager {
     const expectedEvent = contractInterface.getEvent(eventType)
     const expectedTopicHash = expectedEvent?.topicHash
 
-    // TODO HORIZON - throw indexer error here
     if (!expectedTopicHash) {
       throw new Error(`Event type ${eventType} not found in contract interface`)
     }

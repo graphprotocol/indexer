@@ -573,10 +573,10 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/contracts/-/contracts-7.1.2.tgz#919cf6747d25cb52855d01be6582c06695ae3b83"
   integrity sha512-t8o0nA+cs5HEKLxjaV0zELBtDLAPm6hoXi0o5tnpw7vigyMPoP92QQkVfbjAt9eMnkC7/AyGRWOMBfAZV9l8Og==
 
-"@graphprotocol/horizon@^0.3.2":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.3.2.tgz#a236fe9f114d62346a3068edbb7631f9f30d67c8"
-  integrity sha512-0XHbLPk4su0h0i0Oc4SkoiH2+7fx7eF3DsM7GvExOtNRDe258lXs2KrHsp2Oiv19HOFy4mryb6E2mdB/ijRhbQ==
+"@graphprotocol/horizon@^0.3.3":
+  version "0.3.3"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.3.3.tgz#2fe0a9ebf27532b5deea94443d47342e159d43c8"
+  integrity sha512-aAQ7zOaqGE/nMuu+h2CGwO8Tkho/m1CcezfOz54voBpFSqfxk2WggYe1lUWd+nvHpuynfgaqM4gW+kYTLliWYw==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -588,19 +588,19 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/subgraph-service@^0.3.4":
-  version "0.3.4"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.3.4.tgz#38929c04d03ad06823f9a867c8a4aef4c7f581e7"
-  integrity sha512-POepREau0ExCz4ZJrlhzIS3RigEuzlbp/xlurpHkgaOn97cFAv3x9ZaE5a9uwh1azRm3Djz8RUBmXpqmwoK9NA==
+"@graphprotocol/subgraph-service@^0.3.5":
+  version "0.3.5"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.3.5.tgz#38af1602b73602c57617e915ccf77c89a386a356"
+  integrity sha512-QmcQ4eOoUkmA+yStnRwIPAjCDyqIyQ0hLTL9IRZPDXs5a0ye7Kd9XIZDikuPlm1Bdqwu+tr2/yYdc3x3t0Sx2Q==
 
-"@graphprotocol/toolshed@0.5.0":
-  version "0.5.0"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.5.0.tgz#e1937d59a3d34bc5bacbc825827d6345ba662711"
-  integrity sha512-8KlLbee8TAhibUGpdSI04iOnI9gkfErchSqrp/SHU1V5RDuATNCuVe3MVmOt+Jdjc747bTU+OLU+7YxLcAa5Aw==
+"@graphprotocol/toolshed@0.5.5":
+  version "0.5.5"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.5.5.tgz#7fccd11499a5938fb51a1eb822ea8faaed05fdc1"
+  integrity sha512-fS/FmGAukWq2MjW4uOOJ/y+fXY6vB5kiZORLmKTN36hJnBXJsCOs6u8JNWER2E5MN4iTMSOLd6fj9JgncDNhsg==
   dependencies:
     "@graphprotocol/contracts" "^7.1.2"
-    "@graphprotocol/horizon" "^0.3.2"
-    "@graphprotocol/subgraph-service" "^0.3.4"
+    "@graphprotocol/horizon" "^0.3.3"
+    "@graphprotocol/subgraph-service" "^0.3.5"
     "@nomicfoundation/hardhat-ethers" "3.0.8"
     debug "^4.4.0"
     ethers "6.13.7"

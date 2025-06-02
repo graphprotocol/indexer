@@ -99,6 +99,7 @@ module.exports = {
             query allocations($filter: AllocationFilter!) {
               allocations(filter: $filter) {
                 id
+                isLegacy
                 protocolNetwork
                 indexer
                 subgraphDeployment
@@ -145,6 +146,7 @@ module.exports = {
 
       let displayProperties: (keyof IndexerAllocation)[] = [
         'id',
+        'isLegacy',
         'protocolNetwork',
         'indexer',
         'subgraphDeployment',
