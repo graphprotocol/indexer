@@ -10,7 +10,7 @@ import {
   ActionFailure,
   ActionType,
   Allocation,
-  allocationIdProof,
+  legacyAllocationIdProof,
   AllocationResult,
   AllocationStatus,
   CloseAllocationResult,
@@ -437,7 +437,7 @@ export class AllocationManager {
       indexerAddress: this.network.specification.indexerOptions.address,
     })
 
-    const proof = await allocationIdProof(
+    const proof = await legacyAllocationIdProof(
       allocationSigner,
       this.network.specification.indexerOptions.address,
       allocationId,
@@ -495,12 +495,6 @@ export class AllocationManager {
       deployment: createAllocationEventLogs.subgraphDeploymentID,
       epoch: createAllocationEventLogs.epoch.toString(),
     })
-
-    // TODO: deprecated
-    // Remember allocation
-    await this.network.receiptCollector?.rememberAllocations(actionID, [
-      createAllocationEventLogs.allocationID,
-    ])
 
     const subgraphDeploymentID = new SubgraphDeploymentID(deployment)
     // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
@@ -568,7 +562,12 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    poi = await this.network.networkMonitor.resolvePOI(allocation, poi, force)
+    ;[poi] = await this.network.networkMonitor.resolvePOI(
+      allocation,
+      poi,
+      undefined,
+      force,
+    )
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
@@ -654,16 +653,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    let isCollectingQueryFees = false
     const allocation = await this.network.networkMonitor.allocation(allocationID)
-    if (this.network.receiptCollector) {
-      // TODO: deprecated
-      // Collect query fees for this allocation
-      isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-        actionID,
-        allocation,
-      )
-    }
 
     // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
     logger.debug(
@@ -685,7 +675,6 @@ export class AllocationManager {
       allocation: closeAllocationEventLogs.allocationID,
       allocatedTokens: formatGRT(closeAllocationEventLogs.tokens),
       indexingRewards: formatGRT(rewardsAssigned),
-      receiptsWorthCollecting: isCollectingQueryFees,
       protocolNetwork: this.network.specification.networkIdentifier,
     }
   }
@@ -754,9 +743,10 @@ export class AllocationManager {
       allocation: allocationID,
       deployment: allocation.subgraphDeployment.id.ipfsHash,
     })
-    const allocationPOI = await this.network.networkMonitor.resolvePOI(
+    const [allocationPOI] = await this.network.networkMonitor.resolvePOI(
       allocation,
       poi,
+      undefined,
       force,
     )
     logger.debug('POI resolved', {
@@ -826,7 +816,7 @@ export class AllocationManager {
       newAllocationID: newAllocationId,
       indexerAddress: this.network.specification.indexerOptions.address,
     })
-    const proof = await allocationIdProof(
+    const proof = await legacyAllocationIdProof(
       allocationSigner,
       this.network.specification.indexerOptions.address,
       newAllocationId,
@@ -943,26 +933,7 @@ export class AllocationManager {
     logger.info('Identifying receipts worth collecting', {
       allocation: closeAllocationEventLogs.allocationID,
     })
-    let allocation
-    let isCollectingQueryFees = false
-    try {
-      allocation = await this.network.networkMonitor.allocation(allocationID)
-      // Collect query fees for this allocation
-
-      // TODO: deprecated
-      if (this.network.receiptCollector) {
-        isCollectingQueryFees = await this.network.receiptCollector.collectReceipts(
-          actionID,
-          allocation,
-        )
-        logger.debug('Finished receipt collection')
-      }
-    } catch (err) {
-      logger.error('Failed to collect receipts', {
-        err,
-      })
-      throw err
-    }
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
 
     // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
     if (!(await this.matchingRuleExists(logger, subgraphDeploymentID))) {
@@ -986,7 +957,6 @@ export class AllocationManager {
       transactionID: receipt.hash,
       closedAllocation: closeAllocationEventLogs.allocationID,
       indexingRewardsCollected: formatGRT(rewardsAssigned),
-      receiptsWorthCollecting: isCollectingQueryFees,
       createdAllocation: createAllocationEventLogs.allocationID,
       createdAllocationStake: formatGRT(createAllocationEventLogs.tokens),
       protocolNetwork: this.network.specification.networkIdentifier,
@@ -1104,11 +1074,28 @@ export class AllocationManager {
     logger.debug(`Validating action batch`, { size: batch.length })
 
     // Validate stake feasibility
-    // TODO HORIZON: this call will be deprecated after horizon
-    const indexerFreeStake =
-      await this.network.contracts.LegacyStaking.getIndexerCapacity(
+    let indexerFreeStake = 0n
+    if (await this.network.isHorizon.value()) {
+      const verifier = this.network.contracts.SubgraphService.target.toString()
+      const delegationRatio =
+        await this.network.contracts.SubgraphService.getDelegationRatio()
+      const tokensAvailable =
+        await this.network.contracts.HorizonStaking.getTokensAvailable(
+          this.network.specification.indexerOptions.address,
+          verifier,
+          delegationRatio,
+        )
+      const lockedStake =
+        await this.network.contracts.SubgraphService.allocationProvisionTracker(
+          this.network.specification.indexerOptions.address,
+        )
+      indexerFreeStake =
+        tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+    } else {
+      indexerFreeStake = await this.network.contracts.LegacyStaking.getIndexerCapacity(
         this.network.specification.indexerOptions.address,
       )
+    }
     const actionsBatchStakeUsageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )

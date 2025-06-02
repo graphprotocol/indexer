@@ -5,11 +5,14 @@ import { Logger, Address } from '@graphprotocol/common-ts'
 export interface Allocation {
   id: Address
   status: AllocationStatus
+  isLegacy: boolean
   subgraphDeployment: SubgraphDeployment
   indexer: Address
   allocatedTokens: bigint
+  createdAt: number
   createdAtEpoch: number
   createdAtBlockHash: string
+  closedAt: number
   closedAtEpoch: number
   closedAtEpochStartBlockHash: string | undefined
   previousEpochStartBlockHash: string | undefined
@@ -17,6 +20,17 @@ export interface Allocation {
   poi: string | undefined
   queryFeeRebates: bigint | undefined
   queryFeesCollected: bigint | undefined
+}
+
+export interface Provision {
+  id: Address
+  dataService: Address
+  indexer: Address
+  tokensProvisioned: bigint
+  tokensAllocated: bigint
+  tokensThawing: bigint
+  maxVerifierCut: bigint
+  thawingPeriod: bigint
 }
 
 export enum AllocationStatus {
