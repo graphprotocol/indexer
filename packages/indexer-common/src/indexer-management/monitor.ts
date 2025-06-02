@@ -21,6 +21,8 @@ import {
   HorizonTransitionValue,
   Provision,
   parseGraphQLProvision,
+  POIMetadata,
+  IndexingStatusCode,
 } from '@graphprotocol/indexer-common'
 import {
   GraphHorizonContracts,
@@ -35,7 +37,7 @@ import {
   toAddress,
   formatGRT,
 } from '@graphprotocol/common-ts'
-import { HDNodeWallet, hexlify, Provider } from 'ethers'
+import { ethers, HDNodeWallet, hexlify, Provider } from 'ethers'
 import gql from 'graphql-tag'
 import pRetry, { Options } from 'p-retry'
 import { IndexerOptions } from '../network-specification'
@@ -96,6 +98,35 @@ export class NetworkMonitor {
         legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
         horizon: 0,
       }
+    }
+  }
+
+  /**
+   * Returns the amount of free stake for the indexer.
+   *
+   * The free stake is the amount of tokens that the indexer can use to stake in
+   * new allocations. It's calculated as the difference between the tokens
+   * available in the provision and the tokens already locked allocations.
+   *
+   * @returns The amount of free stake for the indexer.
+   */
+  async freeStake(): Promise<bigint> {
+    const isHorizon = await this.isHorizon()
+
+    if (isHorizon) {
+      const address = this.indexerOptions.address
+      const dataService = this.contracts.SubgraphService.target.toString()
+      const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
+      const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
+        address,
+        dataService,
+        delegationRatio,
+      )
+      const lockedStake =
+        await this.contracts.SubgraphService.allocationProvisionTracker(address)
+      return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+    } else {
+      return 0n
     }
   }
 
@@ -1007,79 +1038,57 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
   async resolvePOI(
     allocation: Allocation,
     poi: string | undefined,
+    blockNumber: number | undefined,
     force: boolean,
-  ): Promise<string> {
-    // If the network is not supported, we can't resolve POI, as there will be no active epoch
-    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
-    if (null === supportedNetworkAlias) {
-      this.logger.info("Network is not supported, can't resolve POI")
-      return hexlify(new Uint8Array(32).fill(0))
+  ): Promise<[string, number]> {
+    return this._resolvePOI(
+      allocation,
+      poi,
+      blockNumber,
+      force,
+      allocation.indexer.toString(),
+    )
+  }
+
+  async resolvePOIMetadata(
+    allocation: Allocation,
+    publicPOI: string | undefined,
+    blockNumber: number | undefined,
+    force: boolean,
+  ): Promise<POIMetadata> {
+    ;[publicPOI, blockNumber] = await this._resolvePOI(
+      allocation,
+      publicPOI,
+      blockNumber,
+      force,
+      ethers.ZeroAddress,
+    )
+    const indexingStatus = await this.graphNode.indexingStatus([
+      allocation.subgraphDeployment.id,
+    ])
+
+    let indexingStatusCode = IndexingStatusCode.Unknown
+    if (indexingStatus.length === 1) {
+      switch (indexingStatus[0].health) {
+        case 'healthy':
+          indexingStatusCode = IndexingStatusCode.Healthy
+          break
+        case 'unhealthy':
+          indexingStatusCode = IndexingStatusCode.Unhealthy
+          break
+        case 'failed':
+          indexingStatusCode = IndexingStatusCode.Failed
+          break
+        default:
+          indexingStatusCode = IndexingStatusCode.Unknown
+          break
+      }
     }
 
-    // poi = undefined, force=true  -- submit even if poi is 0x0
-    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-    // poi = undefined, force=false -- submit with generated POI if one available
-    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
-    switch (force) {
-      case true:
-        switch (!!poi) {
-          case true:
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return poi!
-          case false:
-            return (
-              (await this.graphNode.proofOfIndexing(
-                allocation.subgraphDeployment.id,
-                await this.fetchPOIBlockPointer(supportedNetworkAlias, allocation),
-                allocation.indexer,
-              )) || hexlify(new Uint8Array(32).fill(0))
-            )
-        }
-        break
-      case false: {
-        const epochStartBlock = await this.fetchPOIBlockPointer(
-          supportedNetworkAlias,
-          allocation,
-        )
-        // Obtain the start block of the current epoch
-        const generatedPOI = await this.graphNode.proofOfIndexing(
-          allocation.subgraphDeployment.id,
-          epochStartBlock,
-          allocation.indexer,
-        )
-        switch (poi == generatedPOI) {
-          case true:
-            if (poi == undefined) {
-              const deploymentStatus = await this.graphNode.indexingStatus([
-                allocation.subgraphDeployment.id,
-              ])
-              throw indexerError(
-                IndexerErrorCode.IE067,
-                `POI not available for deployment at current epoch start block.
-              currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
-                  ? JSON.stringify(deploymentStatus)
-                  : 'not deployed'
-              }`,
-              )
-            } else {
-              return poi
-            }
-          case false:
-            if (poi == undefined && generatedPOI !== undefined) {
-              return generatedPOI
-            } else if (poi !== undefined && generatedPOI == undefined) {
-              return poi
-            }
-            throw indexerError(
-              IndexerErrorCode.IE068,
-              `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
-              POI: ${poi},
-              referencePOI: ${generatedPOI}`,
-            )
-        }
-      }
+    return {
+      publicPOI,
+      blockNumber,
+      indexingStatus: indexingStatusCode,
     }
   }
 
@@ -1472,17 +1481,94 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
-  async freeStake(): Promise<bigint> {
-    const address = this.indexerOptions.address
-    const dataService = this.contracts.SubgraphService.target.toString()
-    const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
-    const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
-      address,
-      dataService,
-      delegationRatio,
-    )
-    const lockedStake =
-      await this.contracts.SubgraphService.allocationProvisionTracker(address)
-    return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+  private async _resolvePOI(
+    allocation: Allocation,
+    poi: string | undefined,
+    blockNumber: number | undefined,
+    force: boolean,
+    address: string,
+  ): Promise<[string, number]> {
+    // If the network is not supported, we can't resolve POI, as there will be no active epoch
+    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
+    if (null === supportedNetworkAlias) {
+      this.logger.info("Network is not supported, can't resolve POI")
+      return [hexlify(new Uint8Array(32).fill(0)), 0]
+    }
+
+    // poi = undefined, force=true  -- submit even if poi is 0x0
+    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
+    // poi = undefined, force=false -- submit with generated POI if one available
+    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
+    switch (force) {
+      case true:
+        switch (!!poi) {
+          case true:
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return [poi!, blockNumber!]
+          case false:
+            // eslint-disable-next-line no-case-declarations
+            const poiBlockNumber = await this.fetchPOIBlockPointer(
+              supportedNetworkAlias,
+              allocation,
+            )
+            return [
+              (await this.graphNode.proofOfIndexing(
+                allocation.subgraphDeployment.id,
+                poiBlockNumber,
+                address,
+              )) || hexlify(new Uint8Array(32).fill(0)),
+              poiBlockNumber.number,
+            ]
+        }
+        break
+      case false: {
+        const epochStartBlock = await this.fetchPOIBlockPointer(
+          supportedNetworkAlias,
+          allocation,
+        )
+        // Obtain the start block of the current epoch
+        const generatedPOI = await this.graphNode.proofOfIndexing(
+          allocation.subgraphDeployment.id,
+          epochStartBlock,
+          address,
+        )
+        switch (poi == generatedPOI && blockNumber == epochStartBlock.number) {
+          case true:
+            if (poi == undefined || blockNumber == undefined) {
+              const deploymentStatus = await this.graphNode.indexingStatus([
+                allocation.subgraphDeployment.id,
+              ])
+              throw indexerError(
+                IndexerErrorCode.IE067,
+                `POI not available for deployment at current epoch start block.
+              currentEpochStartBlock: ${epochStartBlock.number}
+              deploymentStatus: ${
+                deploymentStatus.length > 0
+                  ? JSON.stringify(deploymentStatus)
+                  : 'not deployed'
+              }`,
+              )
+            } else {
+              return [poi, blockNumber]
+            }
+          case false:
+            if (poi == undefined && generatedPOI !== undefined) {
+              return [generatedPOI, epochStartBlock.number]
+            } else if (
+              poi !== undefined &&
+              blockNumber !== undefined &&
+              generatedPOI == undefined
+            ) {
+              return [poi, blockNumber]
+            }
+            throw indexerError(
+              IndexerErrorCode.IE068,
+              `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
+              POI: ${poi},
+              referencePOI: ${generatedPOI}`,
+            )
+        }
+      }
+    }
   }
 }

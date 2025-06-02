@@ -28,6 +28,7 @@ import {
   IndexingRuleAttributes,
   legacyAllocationIdProof,
   Network,
+  POIMetadata,
   ReallocateAllocationResult,
   SubgraphClient,
   SubgraphIdentifierType,
@@ -37,6 +38,7 @@ import {
   encodeCollectIndexingRewardsData,
   encodePOIMetadata,
   encodeStartServiceData,
+  encodeStopServiceData,
   PaymentTypes,
 } from '@graphprotocol/toolshed'
 import { extractNetwork } from './utils'
@@ -711,6 +713,7 @@ async function closeLegacyAllocation(
 async function closeHorizonAllocation(
   allocation: Allocation,
   poi: string,
+  poiMetadata: POIMetadata,
   network: Network,
   logger: Logger,
 ): Promise<{ txHash: string; rewardsAssigned: bigint }> {
@@ -727,22 +730,24 @@ async function closeHorizonAllocation(
   }
 
   // TODO Horizon: build correct POI metadata
-  const poiMetadata = encodePOIMetadata(0, poi, 0, 0, 0)
+  const encodedPOIMetadata = encodePOIMetadata(
+    poiMetadata.blockNumber,
+    poiMetadata.publicPOI,
+    poiMetadata.indexingStatus,
+    0,
+    0,
+  )
   const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
     allocation.id,
     poi,
-    poiMetadata,
-  )
-  // TODO HORIZON: add encodeStopServiceData() to toolshed and use it here
-  const closeAllocationData = ethers.AbiCoder.defaultAbiCoder().encode(
-    ['address'],
-    [allocation.id],
+    encodedPOIMetadata,
   )
 
   const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
     'collect',
     [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
   )
+  const closeAllocationData = encodeStopServiceData(allocation.id)
   const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
     'stopService',
     [address, closeAllocationData],
@@ -1050,6 +1055,7 @@ async function reallocateHorizonAllocation(
   allocationAmount: bigint,
   activeAllocations: Allocation[],
   poi: string,
+  poiMetadata: POIMetadata,
   network: Network,
   logger: Logger,
 ): Promise<{ txHash: string; rewardsAssigned: bigint; newAllocationId: Address }> {
@@ -1165,11 +1171,17 @@ async function reallocateHorizonAllocation(
   })
 
   // TODO Horizon: build correct POI metadata
-  const poiMetadata = encodePOIMetadata(0, poi, 0, 0, 0)
+  const encodedPOIMetadata = encodePOIMetadata(
+    poiMetadata.blockNumber,
+    poiMetadata.publicPOI,
+    poiMetadata.indexingStatus,
+    0,
+    0,
+  )
   const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
     allocation.id,
     poi,
-    poiMetadata,
+    encodedPOIMetadata,
   )
   const closeAllocationData = ethers.AbiCoder.defaultAbiCoder().encode(
     ['address'],
@@ -1532,11 +1544,15 @@ export default {
     {
       allocation,
       poi,
+      blockNumber,
+      publicPOI,
       force,
       protocolNetwork,
     }: {
       allocation: string
       poi: string | undefined
+      blockNumber: number | string | undefined
+      publicPOI: string | undefined
       force: boolean
       protocolNetwork: string
     },
@@ -1545,6 +1561,8 @@ export default {
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
+      blockNumber: blockNumber || 'none provided',
+      publicPOI: publicPOI || 'none provided',
     })
     if (!multiNetworks) {
       throw Error(
@@ -1556,7 +1574,16 @@ export default {
     const allocationData = await networkMonitor.allocation(allocation)
 
     try {
-      poi = await networkMonitor.resolvePOI(allocationData, poi, force)
+      ;[poi, blockNumber] = await networkMonitor.resolvePOI(
+        allocationData,
+        poi,
+        Number(blockNumber),
+        force,
+      )
+      logger.debug('POI resolved', {
+        poi: poi,
+        blockNumber: blockNumber,
+      })
 
       let txHash: string
       let rewardsAssigned: bigint
@@ -1565,7 +1592,19 @@ export default {
         txHash = result.txHash
         rewardsAssigned = result.rewardsAssigned
       } else {
-        const result = await closeHorizonAllocation(allocationData, poi, network, logger)
+        const poiMetadata = await networkMonitor.resolvePOIMetadata(
+          allocationData,
+          publicPOI,
+          blockNumber,
+          force,
+        )
+        const result = await closeHorizonAllocation(
+          allocationData,
+          poi,
+          poiMetadata,
+          network,
+          logger,
+        )
         txHash = result.txHash
         rewardsAssigned = result.rewardsAssigned
       }
@@ -1610,12 +1649,16 @@ export default {
     {
       allocation,
       poi,
+      blockNumber,
+      publicPOI,
       amount,
       force,
       protocolNetwork,
     }: {
       allocation: string
       poi: string | undefined
+      blockNumber: number | string | undefined
+      publicPOI: string | undefined
       amount: string
       force: boolean
       protocolNetwork: string
@@ -1661,7 +1704,12 @@ export default {
 
     try {
       logger.debug('Resolving POI')
-      const allocationPOI = await networkMonitor.resolvePOI(allocationData, poi, force)
+      const [allocationPOI] = await networkMonitor.resolvePOI(
+        allocationData,
+        poi,
+        Number(blockNumber),
+        force,
+      )
       logger.debug('POI resolved', {
         userProvidedPOI: poi,
         poi: allocationPOI,
@@ -1698,11 +1746,18 @@ export default {
         rewardsAssigned = result.rewardsAssigned
         newAllocationId = result.newAllocationId
       } else {
+        const poiMetadata = await networkMonitor.resolvePOIMetadata(
+          allocationData,
+          publicPOI,
+          Number(blockNumber),
+          force,
+        )
         const result = await reallocateHorizonAllocation(
           allocationData,
           allocationAmount,
           activeAllocations,
           allocationPOI,
+          poiMetadata,
           network,
           logger,
         )

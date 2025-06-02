@@ -221,6 +221,8 @@ export const closeAllocation = async (
   client: IndexerManagementClient,
   allocationID: string,
   poi: string | undefined,
+  blockNumber: number | undefined,
+  publicPOI: string | undefined,
   force: boolean,
   protocolNetwork: string,
 ): Promise<CloseAllocationResult> => {
@@ -230,12 +232,16 @@ export const closeAllocation = async (
         mutation closeAllocation(
           $allocation: String!
           $poi: String
+          $blockNumber: Int
+          $publicPOI: String
           $force: Boolean
           $protocolNetwork: String!
         ) {
           closeAllocation(
             allocation: $allocation
             poi: $poi
+            blockNumber: $blockNumber
+            publicPOI: $publicPOI
             force: $force
             protocolNetwork: $protocolNetwork
           ) {
@@ -249,6 +255,8 @@ export const closeAllocation = async (
       {
         allocation: allocationID,
         poi,
+        blockNumber,
+        publicPOI,
         force,
         protocolNetwork,
       },
@@ -266,6 +274,8 @@ export const reallocateAllocation = async (
   client: IndexerManagementClient,
   allocationID: string,
   poi: string | undefined,
+  blockNumber: number | undefined,
+  publicPOI: string | undefined,
   amount: bigint,
   force: boolean,
   protocolNetwork: string,
@@ -276,6 +286,8 @@ export const reallocateAllocation = async (
         mutation reallocateAllocation(
           $allocation: String!
           $poi: String
+          $blockNumber: Int
+          $publicPOI: String
           $amount: String!
           $force: Boolean
           $protocolNetwork: String!
@@ -283,6 +295,8 @@ export const reallocateAllocation = async (
           reallocateAllocation(
             allocation: $allocation
             poi: $poi
+            blockNumber: $blockNumber
+            publicPOI: $publicPOI
             amount: $amount
             force: $force
             protocolNetwork: $protocolNetwork
@@ -298,6 +312,8 @@ export const reallocateAllocation = async (
       {
         allocation: allocationID,
         poi,
+        blockNumber,
+        publicPOI,
         amount: amount.toString(),
         force,
         protocolNetwork,

@@ -482,12 +482,16 @@ const SCHEMA_SDL = gql`
     closeAllocation(
       allocation: String!
       poi: String
+      blockNumber: String
+      publicPOI: String
       force: Boolean
       protocolNetwork: String!
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
       poi: String
+      blockNumber: String
+      publicPOI: String
       amount: String!
       force: Boolean
       protocolNetwork: String!

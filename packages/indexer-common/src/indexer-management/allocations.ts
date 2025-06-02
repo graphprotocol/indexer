@@ -562,7 +562,12 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    poi = await this.network.networkMonitor.resolvePOI(allocation, poi, force)
+    ;[poi] = await this.network.networkMonitor.resolvePOI(
+      allocation,
+      poi,
+      undefined,
+      force,
+    )
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
@@ -738,9 +743,10 @@ export class AllocationManager {
       allocation: allocationID,
       deployment: allocation.subgraphDeployment.id.ipfsHash,
     })
-    const allocationPOI = await this.network.networkMonitor.resolvePOI(
+    const [allocationPOI] = await this.network.networkMonitor.resolvePOI(
       allocation,
       poi,
+      undefined,
       force,
     )
     logger.debug('POI resolved', {

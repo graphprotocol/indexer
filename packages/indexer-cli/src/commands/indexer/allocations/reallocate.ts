@@ -16,8 +16,12 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
 
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
+  ${chalk.dim('Arguments:')}
+    <network>                       The network to close the allocation on: mainnet, arbitrum-one, sepolia or arbitrum sepolia
+    <id>                            The allocation id to close
+    <poi>                           The POI to close the allocation with
+    <blockNumber>                   The block number the POI was computed at
+    <publicPOI>                     [Horizon] The public POI to close the allocation with. Must be same block height as POI.
 `
 
 module.exports = {
@@ -47,7 +51,8 @@ module.exports = {
     }
 
     // eslint-disable-next-line prefer-const
-    let [network, id, amount, poi] = parameters.array || []
+    let [network, id, amount, poi, unformattedBlockNumber, publicPOI] =
+      parameters.array || []
 
     if (network === undefined) {
       spinner.fail(`Missing required argument: 'network'`)
@@ -72,6 +77,7 @@ module.exports = {
 
     try {
       validatePOI(poi)
+      validatePOI(publicPOI)
       const allocationAmount = BigInt(amount)
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
@@ -81,6 +87,8 @@ module.exports = {
         client,
         id,
         poi,
+        Number(unformattedBlockNumber),
+        publicPOI,
         allocationAmount,
         toForce,
         network,

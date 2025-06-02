@@ -373,3 +373,16 @@ export function networkIsL2(networkIdentifier: string): boolean {
   networkIdentifier = resolveChainId(networkIdentifier)
   return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421614'
 }
+
+export enum IndexingStatusCode {
+  Unknown = 0,
+  Healthy = 1,
+  Unhealthy = 2,
+  Failed = 3,
+}
+
+export interface POIMetadata {
+  publicPOI: string
+  blockNumber: number
+  indexingStatus: IndexingStatusCode
+}

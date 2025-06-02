@@ -8,16 +8,22 @@ import { validatePOI, printObjectOrArray } from '../../../command-helpers'
 import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
 
 const HELP = `
-${chalk.bold('graph indexer allocations close')} [options] <network> <id> <poi>
+${chalk.bold(
+  'graph indexer allocations close',
+)} [options] <network> <id> <poi> <blockNumber> <publicPOI>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass POIaccuracy checks and submit transaction with provided data
+  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
 
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
+${chalk.dim('Arguments:')}
+  <network>                       The network to close the allocation on: mainnet, arbitrum-one, sepolia or arbitrum sepolia
+  <id>                            The allocation id to close
+  <poi>                           The POI to close the allocation with
+  <blockNumber>                   The block number the POI was computed at
+  <publicPOI>                     [Horizon] The public POI to close the allocation with. Must be same block height as POI.
 `
 
 module.exports = {
@@ -46,7 +52,8 @@ module.exports = {
       return
     }
 
-    const [network, id, unformattedPoi] = parameters.array || []
+    const [network, id, unformattedPoi, unformattedBlockNumber, unformattedPublicPOI] =
+      parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
@@ -72,8 +79,12 @@ module.exports = {
     }
 
     let poi: string | undefined
+    let blockNumber: number | undefined
+    let publicPOI: string | undefined
     try {
       poi = validatePOI(unformattedPoi)
+      publicPOI = validatePOI(unformattedPublicPOI)
+      blockNumber = Number(unformattedBlockNumber)
     } catch (error) {
       spinner.fail(`Invalid POI provided, '${unformattedPoi}'. ` + error.message)
       process.exitCode = 1
@@ -84,7 +95,15 @@ module.exports = {
     try {
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
-      const closeResult = await closeAllocation(client, id, poi, toForce, protocolNetwork)
+      const closeResult = await closeAllocation(
+        client,
+        id,
+        poi,
+        blockNumber,
+        publicPOI,
+        toForce,
+        protocolNetwork,
+      )
 
       spinner.succeed('Allocation closed')
       printObjectOrArray(print, outputFormat, closeResult, [
