@@ -49,6 +49,7 @@ const actionFields: (keyof Action)[] = [
   'failureReason',
   'transaction',
   'reason',
+  'isLegacy',
 ]
 
 /// Validates input for the `--fieds` option.

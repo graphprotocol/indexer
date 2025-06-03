@@ -139,6 +139,7 @@ const SCHEMA_SDL = gql`
     createdAt: BigInt!
     updatedAt: BigInt
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionInput {
@@ -153,6 +154,7 @@ const SCHEMA_SDL = gql`
     reason: String!
     priority: Int!
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionUpdateInput {
@@ -200,6 +202,7 @@ const SCHEMA_SDL = gql`
     failureReason: String
     priority: Int
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionFilter {

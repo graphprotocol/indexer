@@ -261,6 +261,7 @@ export async function executeApprovedActions(
             reason
             transaction
             failureReason
+            isLegacy
           }
         }
       `,
@@ -297,6 +298,7 @@ export async function approveActions(
             transaction
             status
             protocolNetwork
+            isLegacy
           }
         }
       `,
@@ -333,6 +335,7 @@ export async function cancelActions(
             priority
             transaction
             status
+            isLegacy
           }
         }
       `,
@@ -369,6 +372,7 @@ export async function fetchAction(
             priority
             transaction
             status
+            isLegacy
           }
         }
       `,
@@ -419,6 +423,7 @@ export async function fetchActions(
             transaction
             status
             failureReason
+            isLegacy
           }
         }
       `,
@@ -456,6 +461,7 @@ export async function deleteActions(
             transaction
             status
             failureReason
+            isLegacy
           }
         }
       `,
@@ -494,6 +500,7 @@ export async function updateActions(
             status
             failureReason
             protocolNetwork
+            isLegacy
           }
         }
       `,
