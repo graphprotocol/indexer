@@ -16,7 +16,7 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:100                  | gnosis        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | near:\*                     | \*            | Yes         | Yes          | No                | No                   | No               |              |
 | ~~arweave:\*~~ (deprecated) | \*            | Yes         | Yes          | No                | No                   | No               | v0.39.0      |
-| eip155:42161                | artbitrum-one | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
+| eip155:42161                | arbitrum-one  | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:42220                | celo          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:43114                | avalanche     | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:250                  | fantom        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
