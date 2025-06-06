@@ -3,22 +3,29 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { BigNumber } from 'ethers'
 import { reallocateAllocation } from '../../../allocations'
-import { printObjectOrArray, validatePOI } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  printObjectOrArray,
+  validatePOI,
+} from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
   'graph indexer allocations reallocate',
-)} [options] <network> <id> <amount> <poi>
+)} [options] <id> <amount> <poi> <blockNumber> <publicPOI>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network <network>       The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
 
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
+  ${chalk.dim('Arguments:')}
+  <id>                            The allocation id to close
+  <poi>                           (optional) The POI to close the allocation with
+  <blockNumber>                   (optional, horizon only) The block number the POI was computed at. Must be set if POI is provided.
+  <publicPOI>                     (optional, horizon only) The public POI to close the allocation with. Must be same block height as POI.
 `
 
 module.exports = {
@@ -48,14 +55,7 @@ module.exports = {
     }
 
     // eslint-disable-next-line prefer-const
-    let [network, id, amount, poi] = parameters.array || []
-
-    if (network === undefined) {
-      spinner.fail(`Missing required argument: 'network'`)
-      print.info(HELP)
-      process.exitCode = 1
-      return
-    }
+    let [id, amount, poi, unformattedBlockNumber, publicPOI] = parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
@@ -72,8 +72,17 @@ module.exports = {
     }
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+
+      if (!protocolNetwork) {
+        throw new Error(
+          'Must provide a network identifier' + `(network: '${protocolNetwork}')`,
+        )
+      }
+
       validatePOI(poi)
-      const allocationAmount = BigNumber.from(amount)
+      validatePOI(publicPOI)
+      const allocationAmount = BigInt(amount)
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
@@ -82,9 +91,11 @@ module.exports = {
         client,
         id,
         poi,
+        Number(unformattedBlockNumber),
+        publicPOI,
         allocationAmount,
         toForce,
-        network,
+        protocolNetwork,
       )
 
       spinner.succeed('Reallocated')
@@ -95,7 +106,6 @@ module.exports = {
         [
           'closedAllocation',
           'indexingRewardsCollected',
-          'receiptsWorthCollecting',
           'createdAllocation',
           'createdAllocationStake',
         ],

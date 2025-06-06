@@ -14,7 +14,7 @@ import {
 } from '@graphprotocol/indexer-common'
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
-import { utils } from 'ethers'
+import { hexlify } from 'ethers'
 import { parseGRT } from '@graphprotocol/common-ts'
 
 export interface GenericActionInputParams {
@@ -23,6 +23,8 @@ export interface GenericActionInputParams {
   param2: string | undefined
   param3: string | undefined
   param4: string | undefined
+  param5: string | undefined
+  param6: string | undefined
 }
 
 // Make separate functions for each action type parsing from generic?
@@ -35,7 +37,13 @@ export async function buildActionInput(
   priority: number,
   protocolNetwork: string,
 ): Promise<ActionInput> {
+  // TODO HORIZON: validate publicPOI and blockNumber for unallocate and reallocate only for horizon allocations
   await validateActionInput(type, actionParams)
+
+  // TODO HORIZON: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
+  // The IndexerManagementServer will set the correct value anyways
+  const isLegacy = false
+
   switch (type) {
     case ActionType.ALLOCATE:
       return {
@@ -47,16 +55,19 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     case ActionType.UNALLOCATE: {
       let poi = actionParams.param2
       if (poi == '0' || poi == '0x0') {
-        poi = utils.hexlify(Array(32).fill(0))
+        poi = hexlify(new Uint8Array(32).fill(0))
       }
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         poi: poi,
+        publicPOI: actionParams.param5,
+        blockNumber: actionParams.param6,
         force: actionParams.param3 === 'true',
         type,
         source,
@@ -64,18 +75,21 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     }
     case ActionType.REALLOCATE: {
       let poi = actionParams.param3
       if (poi == '0' || poi == '0x0') {
-        poi = utils.hexlify(Array(32).fill(0))
+        poi = hexlify(new Uint8Array(32).fill(0))
       }
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         amount: actionParams.param2?.toString(),
         poi: poi,
+        publicPOI: actionParams.param5,
+        blockNumber: actionParams.param6,
         force: actionParams.param4 === 'true',
         type,
         source,
@@ -83,6 +97,7 @@ export async function buildActionInput(
         status,
         priority,
         protocolNetwork,
+        isLegacy,
       }
     }
   }
@@ -182,12 +197,15 @@ export async function queueActions(
             allocationID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
             priority
             status
             protocolNetwork
+            isLegacy
           }
         }
       `,
@@ -208,11 +226,14 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   allocationID: x => x,
   amount: nullPassThrough(parseGRT),
   poi: nullPassThrough((x: string) => validatePOI(x)),
+  publicPOI: nullPassThrough((x: string) => validatePOI(x)),
+  blockNumber: nullPassThrough((x: string) => Number(x)),
   force: x => parseBoolean(x),
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
   protocolNetwork: x => validateNetworkIdentifier(x),
+  isLegacy: x => parseBoolean(x),
 }
 
 /**
@@ -248,11 +269,14 @@ export async function executeApprovedActions(
             allocationID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
             transaction
             failureReason
+            isLegacy
           }
         }
       `,
@@ -282,6 +306,8 @@ export async function approveActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -289,6 +315,7 @@ export async function approveActions(
             transaction
             status
             protocolNetwork
+            isLegacy
           }
         }
       `,
@@ -319,12 +346,15 @@ export async function cancelActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
             priority
             transaction
             status
+            isLegacy
           }
         }
       `,
@@ -355,12 +385,15 @@ export async function fetchAction(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
             priority
             transaction
             status
+            isLegacy
           }
         }
       `,
@@ -404,6 +437,8 @@ export async function fetchActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -411,6 +446,7 @@ export async function fetchActions(
             transaction
             status
             failureReason
+            isLegacy
           }
         }
       `,
@@ -441,6 +477,8 @@ export async function deleteActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -448,6 +486,7 @@ export async function deleteActions(
             transaction
             status
             failureReason
+            isLegacy
           }
         }
       `,
@@ -478,6 +517,8 @@ export async function updateActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -486,6 +527,7 @@ export async function updateActions(
             status
             failureReason
             protocolNetwork
+            isLegacy
           }
         }
       `,

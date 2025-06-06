@@ -120,3 +120,7 @@ yalc.lock
 .idea/
 .envrc
 .vscode
+
+# local-network override mode files
+tap-contracts.json
+config/config.yaml

@@ -20,6 +20,7 @@ export interface ActionItem {
   reason: string
   status?: ActionStatus
   protocolNetwork: string
+  isLegacy?: boolean
 }
 
 export interface ActionUpdateInput {
@@ -27,11 +28,14 @@ export interface ActionUpdateInput {
   allocationID?: string
   amount?: string
   poi?: string
+  publicPOI?: string
+  blockNumber?: string
   force?: boolean
   type?: ActionType
   status?: ActionStatus
   reason?: string
   protocolNetwork?: string
+  isLegacy?: boolean
 }
 
 export interface ActionInput {
@@ -40,12 +44,15 @@ export interface ActionInput {
   allocationID?: string
   amount?: string
   poi?: string
+  publicPOI?: string
+  blockNumber?: string
   force?: boolean
   source: string
   reason: string
   status: ActionStatus
   priority: number | undefined
   protocolNetwork: string
+  isLegacy: boolean
 }
 
 export const isValidActionInput = (
@@ -161,6 +168,7 @@ export interface ActionFilter {
   reason?: string
   updatedAt?: WhereOperators
   protocolNetwork?: string
+  isLegacy?: boolean
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -192,6 +200,7 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
+  isLegacy: boolean
 }
 
 export enum ActionType {

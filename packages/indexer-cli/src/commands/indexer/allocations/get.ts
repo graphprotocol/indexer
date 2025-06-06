@@ -8,7 +8,7 @@ import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 import { IndexerAllocation, printIndexerAllocations } from '../../../allocations'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations get')} [options]
@@ -18,7 +18,7 @@ ${chalk.bold('graph indexer allocations get')} [options] all
 ${chalk.dim('Options:')}
 
   -h, --help                                Show usage information
-  -n, --network                             Filter allocations by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -n, --network <network>                   Filter allocations by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
       --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML
@@ -44,7 +44,7 @@ module.exports = {
     }
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
@@ -59,7 +59,7 @@ module.exports = {
       }
 
       if (allocation) {
-        if (allocation !== 'all' && !utils.isHexString(allocation, 20)) {
+        if (allocation !== 'all' && !isHexString(allocation, 20)) {
           throw Error(
             `Invalid 'allocation-id' provided ('${allocation}'), must be a bytes20 string or 'all'`,
           )
@@ -99,6 +99,7 @@ module.exports = {
             query allocations($filter: AllocationFilter!) {
               allocations(filter: $filter) {
                 id
+                isLegacy
                 protocolNetwork
                 indexer
                 subgraphDeployment
@@ -145,6 +146,7 @@ module.exports = {
 
       let displayProperties: (keyof IndexerAllocation)[] = [
         'id',
+        'isLegacy',
         'protocolNetwork',
         'indexer',
         'subgraphDeployment',
