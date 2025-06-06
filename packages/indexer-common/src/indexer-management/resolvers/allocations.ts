@@ -3,7 +3,7 @@
 
 import pMap from 'p-map'
 import gql from 'graphql-tag'
-import { ethers, hexlify } from 'ethers'
+import { ethers, hexlify, ZeroAddress } from 'ethers'
 
 import {
   Address,
@@ -28,7 +28,7 @@ import {
   IndexingRuleAttributes,
   legacyAllocationIdProof,
   Network,
-  POIMetadata,
+  POIData,
   ReallocateAllocationResult,
   SubgraphClient,
   SubgraphIdentifierType,
@@ -489,7 +489,7 @@ async function createHorizonAllocation(
   const dataService = contracts.SubgraphService.target.toString()
 
   // Identify how many GRT the indexer has staked
-  const freeStake = await network.networkMonitor.freeStake()
+  const freeStake = (await network.networkMonitor.freeStake()).horizon
 
   // If there isn't enough left for allocating, abort
   if (freeStake < allocationAmount) {
@@ -535,10 +535,16 @@ async function createHorizonAllocation(
   // Double-check whether the allocationID already exists on chain, to
   // avoid unnecessary transactions.
   const allocation = await contracts.SubgraphService.getAllocation(allocationId)
-  if (allocation.createdAt !== 0n) {
+  const legacyAllocation =
+    await contracts.SubgraphService.getLegacyAllocation(allocationId)
+  const existsSubgraphService = allocation.createdAt !== 0n
+  const existsLegacyAllocation = legacyAllocation.indexer !== ZeroAddress
+  if (existsSubgraphService || existsLegacyAllocation) {
     logger.debug(`Skipping allocation as it already exists onchain`, {
       indexer: address,
       allocation: allocationId,
+      existsSubgraphService,
+      existsLegacyAllocation,
     })
     throw indexerError(
       IndexerErrorCode.IE066,
@@ -712,8 +718,7 @@ async function closeLegacyAllocation(
 
 async function closeHorizonAllocation(
   allocation: Allocation,
-  poi: string,
-  poiMetadata: POIMetadata,
+  poiData: POIData,
   network: Network,
   logger: Logger,
 ): Promise<{ txHash: string; rewardsAssigned: bigint }> {
@@ -730,15 +735,15 @@ async function closeHorizonAllocation(
   }
 
   const encodedPOIMetadata = encodePOIMetadata(
-    poiMetadata.blockNumber,
-    poiMetadata.publicPOI,
-    poiMetadata.indexingStatus,
+    poiData.blockNumber,
+    poiData.publicPOI,
+    poiData.indexingStatus,
     0,
     0,
   )
   const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
     allocation.id,
-    poi,
+    poiData.poi,
     encodedPOIMetadata,
   )
 
@@ -820,7 +825,9 @@ async function closeHorizonAllocation(
     allocation: allocation.id,
     indexer: allocationStateAfter.indexer,
     amountGRT: formatGRT(allocationStateAfter.tokens),
-    poi: poi,
+    poi: poiData.poi,
+    blockNumber: poiData.blockNumber,
+    publicPOI: poiData.publicPOI,
     epoch: currentEpoch.toString(),
     transaction: receipt.hash,
     indexingRewards: rewardsAssigned,
@@ -879,7 +886,7 @@ async function reallocateLegacyAllocation(
   })
 
   // Identify how many GRT the indexer has staked
-  const freeStake = await contracts.LegacyStaking.getIndexerCapacity(address)
+  const freeStake = (await network.networkMonitor.freeStake()).legacy
 
   // When reallocating, we will first close the old allocation and free up the GRT in that allocation
   // This GRT will be available in addition to freeStake for the new allocation
@@ -1053,8 +1060,7 @@ async function reallocateHorizonAllocation(
   allocation: Allocation,
   allocationAmount: bigint,
   activeAllocations: Allocation[],
-  poi: string,
-  poiMetadata: POIMetadata,
+  poiData: POIData,
   network: Network,
   logger: Logger,
 ): Promise<{ txHash: string; rewardsAssigned: bigint; newAllocationId: Address }> {
@@ -1067,6 +1073,21 @@ async function reallocateHorizonAllocation(
   // Double-check whether the allocation is still active on chain, to
   // avoid unnecessary transactions.
   const allocationData = await contracts.SubgraphService.getAllocation(allocation.id)
+  const legacyAllocation = await contracts.SubgraphService.getLegacyAllocation(
+    allocation.id,
+  )
+  const existsSubgraphService = allocationData.createdAt !== 0n
+  const existsLegacyAllocation = legacyAllocation.indexer !== ZeroAddress
+  if (existsSubgraphService || existsLegacyAllocation) {
+    logger.warn(`Skipping allocation as it already exists onchain`, {
+      indexer: address,
+      allocation: allocation.id,
+      existsSubgraphService,
+      existsLegacyAllocation,
+    })
+    throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
+  }
+
   if (allocationData.closedAt !== 0n) {
     logger.warn(`Allocation has already been closed`)
     throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
@@ -1089,7 +1110,7 @@ async function reallocateHorizonAllocation(
   })
 
   // Identify how many GRT the indexer has staked
-  const freeStake = await network.networkMonitor.freeStake()
+  const freeStake = (await network.networkMonitor.freeStake()).horizon
 
   // When reallocating, we will first close the old allocation and free up the GRT in that allocation
   // This GRT will be available in addition to freeStake for the new allocation
@@ -1164,21 +1185,21 @@ async function reallocateHorizonAllocation(
     newAllocation: newAllocationId,
     newAllocationAmount: formatGRT(allocationAmount),
     deployment: allocation.subgraphDeployment.id.toString(),
-    poi: poi,
+    poi: poiData.poi,
     proof,
     epoch: currentEpoch.toString(),
   })
 
   const encodedPOIMetadata = encodePOIMetadata(
-    poiMetadata.blockNumber,
-    poiMetadata.publicPOI,
-    poiMetadata.indexingStatus,
+    poiData.blockNumber,
+    poiData.publicPOI,
+    poiData.indexingStatus,
     0,
     0,
   )
   const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
     allocation.id,
-    poi,
+    poiData.poi,
     encodedPOIMetadata,
   )
   const closeAllocationData = ethers.AbiCoder.defaultAbiCoder().encode(
@@ -1288,7 +1309,7 @@ async function reallocateHorizonAllocation(
     deployment: createAllocationEventLogs.subgraphDeploymentID,
     closedAllocation: allocation.id,
     closedAllocationStakeGRT: formatGRT(allocation.allocatedTokens),
-    closedAllocationPOI: poi,
+    closedAllocationPOI: poiData.poi,
     closedAllocationEpoch: currentEpoch.toString(),
     indexingRewardsCollected: rewardsAssigned,
     createdAllocation: newAllocationId,
@@ -1549,7 +1570,7 @@ export default {
     }: {
       allocation: string
       poi: string | undefined
-      blockNumber: number | string | undefined
+      blockNumber: string | undefined
       publicPOI: string | undefined
       force: boolean
       protocolNetwork: string
@@ -1572,34 +1593,38 @@ export default {
     const allocationData = await networkMonitor.allocation(allocation)
 
     try {
-      ;[poi, blockNumber] = await networkMonitor.resolvePOI(
+      logger.debug('Resolving POI')
+      const poiData = await networkMonitor.resolvePOI(
         allocationData,
         poi,
-        Number(blockNumber),
+        allocationData.isLegacy ? undefined : publicPOI,
+        allocationData.isLegacy || blockNumber === null ? undefined : Number(blockNumber),
         force,
       )
       logger.debug('POI resolved', {
-        poi: poi,
-        blockNumber: blockNumber,
+        userProvidedPOI: poi,
+        userProvidedBlockNumber: blockNumber,
+        poi: poiData.poi,
+        publicPOI: poiData.publicPOI,
+        blockNumber: poiData.blockNumber,
+        force,
       })
 
       let txHash: string
       let rewardsAssigned: bigint
       if (allocationData.isLegacy) {
-        const result = await closeLegacyAllocation(allocationData, poi, network, logger)
+        const result = await closeLegacyAllocation(
+          allocationData,
+          poiData.poi,
+          network,
+          logger,
+        )
         txHash = result.txHash
         rewardsAssigned = result.rewardsAssigned
       } else {
-        const poiMetadata = await networkMonitor.resolvePOIMetadata(
-          allocationData,
-          publicPOI,
-          blockNumber,
-          force,
-        )
         const result = await closeHorizonAllocation(
           allocationData,
-          poi,
-          poiMetadata,
+          poiData,
           network,
           logger,
         )
@@ -1655,7 +1680,7 @@ export default {
     }: {
       allocation: string
       poi: string | undefined
-      blockNumber: number | string | undefined
+      blockNumber: string | undefined
       publicPOI: string | undefined
       amount: string
       force: boolean
@@ -1702,15 +1727,20 @@ export default {
 
     try {
       logger.debug('Resolving POI')
-      const [allocationPOI] = await networkMonitor.resolvePOI(
+      const poiData = await networkMonitor.resolvePOI(
         allocationData,
         poi,
-        Number(blockNumber),
+        allocationData.isLegacy ? undefined : publicPOI,
+        allocationData.isLegacy || blockNumber === null ? undefined : Number(blockNumber),
         force,
       )
       logger.debug('POI resolved', {
         userProvidedPOI: poi,
-        poi: allocationPOI,
+        userProvidedBlockNumber: blockNumber,
+        poi: poiData.poi,
+        publicPOI: poiData.publicPOI,
+        blockNumber: poiData.blockNumber,
+        force,
       })
 
       const isHorizon = await network.isHorizon.value()
@@ -1723,7 +1753,7 @@ export default {
           allocationData,
           allocationAmount,
           activeAllocations,
-          allocationPOI,
+          poiData.poi,
           network,
           logger,
         )
@@ -1735,7 +1765,7 @@ export default {
           allocationData,
           allocationAmount,
           activeAllocations,
-          allocationPOI,
+          poiData.poi,
           network,
           graphNode,
           logger,
@@ -1744,18 +1774,11 @@ export default {
         rewardsAssigned = result.rewardsAssigned
         newAllocationId = result.newAllocationId
       } else {
-        const poiMetadata = await networkMonitor.resolvePOIMetadata(
-          allocationData,
-          publicPOI,
-          Number(blockNumber),
-          force,
-        )
         const result = await reallocateHorizonAllocation(
           allocationData,
           allocationAmount,
           activeAllocations,
-          allocationPOI,
-          poiMetadata,
+          poiData,
           network,
           logger,
         )

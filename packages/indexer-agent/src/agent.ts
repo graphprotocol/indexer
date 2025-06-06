@@ -252,7 +252,7 @@ export class Agent {
       },
     )
 
-    this.reconciliationLoop()
+    // this.reconciliationLoop()
     return this
   }
 
@@ -1083,6 +1083,8 @@ export class Agent {
       epoch,
     })
 
+    const isHorizon = await network.isHorizon.value()
+
     // TODO: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
     const activeDeploymentAllocations = activeAllocations.filter(
@@ -1133,6 +1135,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
+              isHorizon,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {

@@ -58,6 +58,11 @@ export interface ActionFailure {
 export const isActionFailure = (variableToCheck: any): variableToCheck is ActionFailure =>
   'failureReason' in variableToCheck
 
+export const isActionFailureArray = (
+  variableToCheck: any,
+): variableToCheck is ActionFailure[] =>
+  Array.isArray(variableToCheck) && variableToCheck.every(isActionFailure)
+
 export type AllocationResult =
   | CreateAllocationResult
   | CloseAllocationResult
@@ -374,7 +379,8 @@ export enum IndexingStatusCode {
   Failed = 3,
 }
 
-export interface POIMetadata {
+export interface POIData {
+  poi: string
   publicPOI: string
   blockNumber: number
   indexingStatus: IndexingStatusCode

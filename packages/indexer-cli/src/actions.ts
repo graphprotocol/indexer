@@ -23,6 +23,8 @@ export interface GenericActionInputParams {
   param2: string | undefined
   param3: string | undefined
   param4: string | undefined
+  param5: string | undefined
+  param6: string | undefined
 }
 
 // Make separate functions for each action type parsing from generic?
@@ -35,9 +37,10 @@ export async function buildActionInput(
   priority: number,
   protocolNetwork: string,
 ): Promise<ActionInput> {
+  // TODO HORIZON: validate publicPOI and blockNumber for unallocate and reallocate only for horizon allocations
   await validateActionInput(type, actionParams)
 
-  // TODO: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
+  // TODO HORIZON: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
   // The IndexerManagementServer will set the correct value anyways
   const isLegacy = false
 
@@ -63,6 +66,8 @@ export async function buildActionInput(
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         poi: poi,
+        publicPOI: actionParams.param5,
+        blockNumber: actionParams.param6,
         force: actionParams.param3 === 'true',
         type,
         source,
@@ -83,6 +88,8 @@ export async function buildActionInput(
         allocationID: actionParams.param1,
         amount: actionParams.param2?.toString(),
         poi: poi,
+        publicPOI: actionParams.param5,
+        blockNumber: actionParams.param6,
         force: actionParams.param4 === 'true',
         type,
         source,
@@ -190,12 +197,15 @@ export async function queueActions(
             allocationID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
             priority
             status
             protocolNetwork
+            isLegacy
           }
         }
       `,
@@ -216,11 +226,14 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   allocationID: x => x,
   amount: nullPassThrough(parseGRT),
   poi: nullPassThrough((x: string) => validatePOI(x)),
+  publicPOI: nullPassThrough((x: string) => validatePOI(x)),
+  blockNumber: nullPassThrough((x: string) => Number(x)),
   force: x => parseBoolean(x),
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
   reason: nullPassThrough,
   protocolNetwork: x => validateNetworkIdentifier(x),
+  isLegacy: x => parseBoolean(x),
 }
 
 /**
@@ -256,6 +269,8 @@ export async function executeApprovedActions(
             allocationID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -291,6 +306,8 @@ export async function approveActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -329,6 +346,8 @@ export async function cancelActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -366,6 +385,8 @@ export async function fetchAction(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -416,6 +437,8 @@ export async function fetchActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -454,6 +477,8 @@ export async function deleteActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason
@@ -492,6 +517,8 @@ export async function updateActions(
             deploymentID
             amount
             poi
+            publicPOI
+            blockNumber
             force
             source
             reason

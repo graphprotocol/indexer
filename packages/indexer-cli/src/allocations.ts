@@ -255,7 +255,7 @@ export const closeAllocation = async (
       {
         allocation: allocationID,
         poi,
-        blockNumber,
+        blockNumber: blockNumber,
         publicPOI,
         force,
         protocolNetwork,
@@ -312,7 +312,7 @@ export const reallocateAllocation = async (
       {
         allocation: allocationID,
         poi,
-        blockNumber,
+        blockNumber: blockNumber,
         publicPOI,
         amount: amount.toString(),
         force,

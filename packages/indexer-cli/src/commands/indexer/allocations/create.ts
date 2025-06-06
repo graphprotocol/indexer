@@ -4,26 +4,22 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { createAllocation } from '../../../allocations'
+import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 import {
-  processIdentifier,
-  SubgraphIdentifierType,
-  validateNetworkIdentifier,
-} from '@graphprotocol/indexer-common'
-import { printObjectOrArray } from '../../../command-helpers'
+  extractProtocolNetworkOption,
+  printObjectOrArray,
+} from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
   'graph indexer allocations create',
-)} [options] <deployment-id> <network> <amount> <index-node>
+)} [options] <deployment-id> <amount> <index-node>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
+  -n, --network <network>       The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
-
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
 `
 
 module.exports = {
@@ -51,21 +47,16 @@ module.exports = {
       return
     }
 
-    const [deploymentID, protocolNetwork, amount, indexNode] = parameters.array || []
+    const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+
       if (!deploymentID || !amount || !protocolNetwork) {
         throw new Error(
           'Must provide a deployment ID, a network identifier and allocation amount' +
             `(deploymentID: '${deploymentID}', network: '${protocolNetwork}' allocationAmount: '${amount}')`,
         )
-      }
-
-      // This nested try block is necessary to complement the parsing error with the 'network' field.
-      try {
-        validateNetworkIdentifier(protocolNetwork)
-      } catch (parsingError) {
-        throw new Error(`Invalid 'network' provided. ${parsingError}`)
       }
 
       const [deploymentString, type] = await processIdentifier(deploymentID, {

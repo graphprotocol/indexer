@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import {
   Allocation,
   AllocationStatus,
@@ -21,7 +22,7 @@ import {
   HorizonTransitionValue,
   Provision,
   parseGraphQLProvision,
-  POIMetadata,
+  POIData,
   IndexingStatusCode,
 } from '@graphprotocol/indexer-common'
 import {
@@ -37,7 +38,7 @@ import {
   toAddress,
   formatGRT,
 } from '@graphprotocol/common-ts'
-import { ethers, HDNodeWallet, hexlify, Provider } from 'ethers'
+import { HDNodeWallet, hexlify, Provider, ZeroAddress } from 'ethers'
 import gql from 'graphql-tag'
 import pRetry, { Options } from 'p-retry'
 import { IndexerOptions } from '../network-specification'
@@ -105,12 +106,16 @@ export class NetworkMonitor {
    * Returns the amount of free stake for the indexer.
    *
    * The free stake is the amount of tokens that the indexer can use to stake in
-   * new allocations. It's calculated as the difference between the tokens
+   * new allocations.
+   *
+   * Horizon: It's calculated as the difference between the tokens
    * available in the provision and the tokens already locked allocations.
+   *
+   * Legacy: It's given by the indexer's stake capacity.
    *
    * @returns The amount of free stake for the indexer.
    */
-  async freeStake(): Promise<bigint> {
+  async freeStake(): Promise<HorizonTransitionValue<bigint, bigint>> {
     const isHorizon = await this.isHorizon()
 
     if (isHorizon) {
@@ -124,9 +129,19 @@ export class NetworkMonitor {
       )
       const lockedStake =
         await this.contracts.SubgraphService.allocationProvisionTracker(address)
-      return tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+      const freeStake = tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+
+      return {
+        legacy: 0n, // In horizon new legacy allocations cannot be created so we return 0
+        horizon: freeStake,
+      }
     } else {
-      return 0n
+      return {
+        legacy: await this.contracts.LegacyStaking.getIndexerCapacity(
+          this.indexerOptions.address,
+        ),
+        horizon: 0n,
+      }
     }
   }
 
@@ -1038,57 +1053,45 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
   async resolvePOI(
     allocation: Allocation,
     poi: string | undefined,
-    blockNumber: number | undefined,
-    force: boolean,
-  ): Promise<[string, number]> {
-    return this._resolvePOI(
-      allocation,
-      poi,
-      blockNumber,
-      force,
-      allocation.indexer.toString(),
-    )
-  }
-
-  async resolvePOIMetadata(
-    allocation: Allocation,
     publicPOI: string | undefined,
     blockNumber: number | undefined,
     force: boolean,
-  ): Promise<POIMetadata> {
-    ;[publicPOI, blockNumber] = await this._resolvePOI(
+  ): Promise<POIData> {
+    const [resolvedPOI, resolvedPOIBlockNumber] = await this._resolvePOI(
       allocation,
-      publicPOI,
-      blockNumber,
+      poi,
       force,
-      ethers.ZeroAddress,
     )
-    const indexingStatus = await this.graphNode.indexingStatus([
-      allocation.subgraphDeployment.id,
-    ])
 
-    let indexingStatusCode = IndexingStatusCode.Unknown
-    if (indexingStatus.length === 1) {
-      switch (indexingStatus[0].health) {
-        case 'healthy':
-          indexingStatusCode = IndexingStatusCode.Healthy
-          break
-        case 'unhealthy':
-          indexingStatusCode = IndexingStatusCode.Unhealthy
-          break
-        case 'failed':
-          indexingStatusCode = IndexingStatusCode.Failed
-          break
-        default:
-          indexingStatusCode = IndexingStatusCode.Unknown
-          break
+    if (allocation.isLegacy) {
+      return {
+        poi: resolvedPOI,
+        publicPOI: hexlify(new Uint8Array(32).fill(0)),
+        blockNumber: 0,
+        indexingStatus: IndexingStatusCode.Unknown,
       }
-    }
+    } else {
+      const resolvedBlockNumber = await this._resolvePOIBlockNumber(
+        blockNumber,
+        resolvedPOIBlockNumber,
+        force,
+      )
+      const resolvedPublicPOI = await this._resolvePublicPOI(
+        allocation,
+        publicPOI,
+        resolvedBlockNumber,
+        force,
+      )
+      const resolvedIndexingStatus = await this._resolveIndexingStatus(
+        allocation.subgraphDeployment.id,
+      )
 
-    return {
-      publicPOI,
-      blockNumber,
-      indexingStatus: indexingStatusCode,
+      return {
+        poi: resolvedPOI,
+        publicPOI: resolvedPublicPOI,
+        blockNumber: resolvedBlockNumber,
+        indexingStatus: resolvedIndexingStatus,
+      }
     }
   }
 
@@ -1481,12 +1484,13 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     }
   }
 
+  // Returns a tuple of [POI, blockNumber]
+  // - POI is the POI to submit, which could be user provider or generated
+  // - blockNumber is the block number of the POI. If it's 0 then the block number is not known at this point.
   private async _resolvePOI(
     allocation: Allocation,
     poi: string | undefined,
-    blockNumber: number | undefined,
     force: boolean,
-    address: string,
   ): Promise<[string, number]> {
     // If the network is not supported, we can't resolve POI, as there will be no active epoch
     const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
@@ -1503,22 +1507,32 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       case true:
         switch (!!poi) {
           case true:
+            this.logger.trace('Resolve POI: Force true, poi defined', {
+              poi,
+              blockNumber: 0,
+            })
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return [poi!, blockNumber!]
+            return [poi!, 0]
           case false:
-            // eslint-disable-next-line no-case-declarations
             const poiBlockNumber = await this.fetchPOIBlockPointer(
               supportedNetworkAlias,
               allocation,
             )
-            return [
-              (await this.graphNode.proofOfIndexing(
-                allocation.subgraphDeployment.id,
-                poiBlockNumber,
-                address,
-              )) || hexlify(new Uint8Array(32).fill(0)),
-              poiBlockNumber.number,
-            ]
+            const generatedPOI = await this.graphNode.proofOfIndexing(
+              allocation.subgraphDeployment.id,
+              poiBlockNumber,
+              allocation.indexer,
+            )
+            const returnValue: [string, number] =
+              generatedPOI !== undefined
+                ? [generatedPOI, poiBlockNumber.number]
+                : [hexlify(new Uint8Array(32).fill(0)), 0]
+
+            this.logger.trace('Resolve POI: Force true, poi undefined', {
+              poi: returnValue[0],
+              blockNumber: returnValue[1],
+            })
+            return returnValue
         }
         break
       case false: {
@@ -1530,11 +1544,15 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         const generatedPOI = await this.graphNode.proofOfIndexing(
           allocation.subgraphDeployment.id,
           epochStartBlock,
-          address,
+          allocation.indexer,
         )
-        switch (poi == generatedPOI && blockNumber == epochStartBlock.number) {
+        switch (poi == generatedPOI) {
           case true:
-            if (poi == undefined || blockNumber == undefined) {
+            this.logger.trace('Resolve POI: Force false, poi matches generated', {
+              poi,
+              blockNumber: epochStartBlock.number,
+            })
+            if (poi == undefined) {
               const deploymentStatus = await this.graphNode.indexingStatus([
                 allocation.subgraphDeployment.id,
               ])
@@ -1549,17 +1567,18 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
               }`,
               )
             } else {
-              return [poi, blockNumber]
+              return [poi, epochStartBlock.number]
             }
           case false:
+            this.logger.trace('Resolve POI: Force false, poi does not match generated', {
+              poi,
+              generatedPOI,
+              blockNumber: epochStartBlock.number,
+            })
             if (poi == undefined && generatedPOI !== undefined) {
               return [generatedPOI, epochStartBlock.number]
-            } else if (
-              poi !== undefined &&
-              blockNumber !== undefined &&
-              generatedPOI == undefined
-            ) {
-              return [poi, blockNumber]
+            } else if (poi !== undefined && generatedPOI == undefined) {
+              return [poi, 0]
             }
             throw indexerError(
               IndexerErrorCode.IE068,
@@ -1570,5 +1589,99 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         }
       }
     }
+  }
+
+  private async _resolvePOIBlockNumber(
+    blockNumber: number | undefined,
+    generatedPOIBlockNumber: number,
+    force: boolean,
+  ): Promise<number> {
+    let returnBlockNumber = 0
+    if (generatedPOIBlockNumber === 0) {
+      if (blockNumber === undefined) {
+        throw indexerError(IndexerErrorCode.IE067, 'Could not resolve POI block number')
+      }
+      returnBlockNumber = blockNumber
+    } else if (blockNumber === undefined || generatedPOIBlockNumber === blockNumber) {
+      returnBlockNumber = generatedPOIBlockNumber
+    } else {
+      returnBlockNumber = force ? blockNumber : generatedPOIBlockNumber
+    }
+
+    this.logger.trace('Resolve POI block number:', {
+      blockNumber,
+      generatedPOIBlockNumber,
+      returnBlockNumber,
+      force,
+    })
+
+    return returnBlockNumber
+  }
+
+  private async _resolvePublicPOI(
+    allocation: Allocation,
+    publicPOI: string | undefined,
+    blockNumber: number,
+    force: boolean,
+  ): Promise<string> {
+    const blockHash = await this.graphNode.blockHashFromNumber(
+      resolveChainAlias(this.networkCAIPID),
+      blockNumber,
+    )
+    const generatedPublicPOI = await this.graphNode.proofOfIndexing(
+      allocation.subgraphDeployment.id,
+      {
+        number: blockNumber,
+        hash: blockHash,
+      },
+      ZeroAddress,
+    )
+
+    let returnPublicPOI: string
+    if (generatedPublicPOI === undefined) {
+      if (publicPOI === undefined) {
+        throw indexerError(IndexerErrorCode.IE067, 'Could not resolve public POI')
+      }
+      returnPublicPOI = publicPOI
+    } else if (publicPOI === undefined || generatedPublicPOI === publicPOI) {
+      returnPublicPOI = generatedPublicPOI
+    } else {
+      returnPublicPOI = force ? publicPOI : generatedPublicPOI
+    }
+
+    this.logger.trace('Resolve public POI:', {
+      blockNumber,
+      publicPOI,
+      generatedPublicPOI,
+      returnPublicPOI,
+      force,
+    })
+
+    return returnPublicPOI
+  }
+
+  private async _resolveIndexingStatus(
+    deployment: SubgraphDeploymentID,
+  ): Promise<IndexingStatusCode> {
+    const indexingStatus = await this.graphNode.indexingStatus([deployment])
+
+    let indexingStatusCode = IndexingStatusCode.Unknown
+    if (indexingStatus.length === 1) {
+      switch (indexingStatus[0].health) {
+        case 'healthy':
+          indexingStatusCode = IndexingStatusCode.Healthy
+          break
+        case 'unhealthy':
+          indexingStatusCode = IndexingStatusCode.Unhealthy
+          break
+        case 'failed':
+          indexingStatusCode = IndexingStatusCode.Failed
+          break
+        default:
+          indexingStatusCode = IndexingStatusCode.Unknown
+          break
+      }
+    }
+    return indexingStatusCode
   }
 }

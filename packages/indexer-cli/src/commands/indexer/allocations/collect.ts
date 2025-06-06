@@ -4,7 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { submitCollectReceiptsJob } from '../../../allocations'
-import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import { extractProtocolNetworkOption } from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations collect')} [options] <network> <id>
@@ -12,10 +12,8 @@ ${chalk.bold('graph indexer allocations collect')} [options] <network> <id>
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
+  -n, --network <network>       The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
-
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
 `
 
 module.exports = {
@@ -43,7 +41,7 @@ module.exports = {
       return
     }
 
-    const [network, id] = parameters.array || []
+    const [id] = parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
@@ -52,24 +50,16 @@ module.exports = {
       return
     }
 
-    let protocolNetwork: string
-    if (!network) {
-      spinner.fail(`Missing required argument: 'network'`)
-      print.info(HELP)
-      process.exitCode = 1
-      return
-    } else {
-      try {
-        protocolNetwork = validateNetworkIdentifier(network)
-      } catch (error) {
-        spinner.fail(`Invalid value for argument 'network': '${network}' `)
-        process.exitCode = 1
-        return
-      }
-    }
-
     spinner.text = `Collecting receipts for allocation '${id}`
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+
+      if (!protocolNetwork) {
+        throw new Error(
+          'Must provide a network identifier' + `(network: '${protocolNetwork}')`,
+        )
+      }
+
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
       await submitCollectReceiptsJob(client, id, protocolNetwork)

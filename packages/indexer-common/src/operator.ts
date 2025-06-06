@@ -244,6 +244,8 @@ export class Operator {
               transaction
               status
               failureReason
+              protocolNetwork
+              isLegacy
             }
           }
         `,
@@ -278,6 +280,7 @@ export class Operator {
       reason: action.reason,
       priority: 0,
       protocolNetwork: action.protocolNetwork,
+      isLegacy: action.isLegacy,
     }
     this.logger.trace(`Queueing action input`, {
       actionInput,
@@ -295,6 +298,7 @@ export class Operator {
               priority
               status
               protocolNetwork
+              isLegacy
             }
           }
         `,
@@ -314,6 +318,11 @@ export class Operator {
             `Action not queued: A recently executed action was found targeting ${actionInput.deploymentID}`,
             { action },
           )
+        } else {
+          this.logger.warn('Action not queued', {
+            action,
+            error: actionResult.error,
+          })
         }
         return []
       }
@@ -336,6 +345,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
+    isHorizon: boolean,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
@@ -344,6 +354,7 @@ export class Operator {
 
     logger.info(`No active allocation for deployment, creating one now`, {
       allocationAmount: formatGRT(desiredAllocationAmount),
+      isHorizon,
     })
 
     // Skip allocating if the previous allocation for this deployment was closed with 0x00 POI but rules set to un-safe
@@ -363,7 +374,7 @@ export class Operator {
       return
     }
 
-    // Send AllocateAction to the queue
+    // Send AllocateAction to the queue - isLegacy value depends on the horizon upgrade
     await this.queueAction({
       params: {
         deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
@@ -372,6 +383,7 @@ export class Operator {
       type: ActionType.ALLOCATE,
       reason: deploymentAllocationDecision.reasonString(),
       protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+      isLegacy: !isHorizon,
     })
 
     return
@@ -382,27 +394,24 @@ export class Operator {
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
   ): Promise<void> {
-    const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations.map(
-      (allocation) => allocation.id,
-    )
     // Make sure to close all active allocations on the way out
-    if (activeDeploymentAllocationsEligibleForClose.length > 0) {
+    if (activeDeploymentAllocations.length > 0) {
       logger.info(
         `Deployment is not (or no longer) worth allocating towards, close allocations`,
         {
-          eligibleForClose: activeDeploymentAllocationsEligibleForClose,
+          eligibleForClose: activeDeploymentAllocations,
           reason: deploymentAllocationDecision.reasonString(),
         },
       )
       await pMap(
         // We can only close allocations from a previous epoch;
         // try the others again later
-        activeDeploymentAllocationsEligibleForClose,
+        activeDeploymentAllocations,
         async (allocation) => {
-          // Send unallocate action to the queue
+          // Send unallocate action to the queue - isLegacy value depends on the allocation being closed
           await this.queueAction({
             params: {
-              allocationID: allocation,
+              allocationID: allocation.id,
               deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
               poi: undefined,
               force: false,
@@ -410,6 +419,7 @@ export class Operator {
             type: ActionType.UNALLOCATE,
             reason: deploymentAllocationDecision.reasonString(),
             protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+            isLegacy: allocation.isLegacy,
           } as ActionItem)
         },
         { concurrency: 1 },
@@ -434,6 +444,7 @@ export class Operator {
         : this.specification.indexerOptions.defaultAllocationAmount
 
       // Queue reallocate actions to be picked up by the worker
+      // isLegacy value depends on the allocation being reallocated, the switch to horizon is done by changing the allocation type elsewhere
       await pMap(
         expiredAllocations,
         async (allocation) => {
@@ -446,6 +457,7 @@ export class Operator {
             type: ActionType.REALLOCATE,
             reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
             protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+            isLegacy: allocation.isLegacy,
           })
         },
         {

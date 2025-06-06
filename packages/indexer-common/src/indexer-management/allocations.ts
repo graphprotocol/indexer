@@ -32,14 +32,19 @@ import {
   SubgraphStatus,
   uniqueAllocationID,
   upsertIndexingRule,
+  horizonAllocationIdProof,
+  isActionFailureArray,
 } from '@graphprotocol/indexer-common'
+import { encodeStartServiceData } from '@graphprotocol/toolshed'
 
 import {
   BigNumberish,
   BytesLike,
+  ContractTransaction,
   hexlify,
   TransactionReceipt,
   TransactionRequest,
+  ZeroAddress,
 } from 'ethers'
 
 import pMap from 'p-map'
@@ -91,9 +96,7 @@ export type PopulateTransactionResult =
   | ActionFailure
 
 export type TransactionResult =
-  | TransactionReceipt
-  | 'paused'
-  | 'unauthorized'
+  | (TransactionReceipt | 'paused' | 'unauthorized')[]
   | ActionFailure[]
 
 export class AllocationManager {
@@ -111,10 +114,12 @@ export class AllocationManager {
     const logger = this.logger.child({ function: 'executeBatch' })
     logger.trace('Executing action batch', { actions })
     const result = await this.executeTransactions(actions, onFinishedDeploying)
-    if (Array.isArray(result)) {
+
+    if (isActionFailureArray(result)) {
       logger.trace('Execute batch transaction failed', { actionBatchResult: result })
       return result as ActionFailure[]
     }
+
     return await this.confirmTransactions(result, actions)
   }
 
@@ -149,38 +154,110 @@ export class AllocationManager {
       preparedTransactions: populateTransactionsResults,
     })
 
-    const callData = populateTransactionsResults
+    const callDataStakingContract = populateTransactionsResults
       .flat()
       .map((tx) => tx as TransactionRequest)
+      .filter(
+        (tx: TransactionRequest) =>
+          tx.to === this.network.contracts.HorizonStaking.target,
+      )
       .filter((tx: TransactionRequest) => !!tx.data)
       .map((tx) => tx.data as string)
-    logger.trace('Prepared transaction calldata', { callData })
+    logger.debug('Found staking contract transactions', {
+      count: callDataStakingContract.length,
+    })
+    logger.trace('Prepared staking contract transaction calldata', {
+      callDataStakingContract,
+    })
 
-    return await this.network.transactionManager.executeTransaction(
-      async () => this.network.contracts.HorizonStaking.multicall.estimateGas(callData),
-      async (gasLimit) =>
-        this.network.contracts.HorizonStaking.multicall(callData, { gasLimit }),
-      this.logger.child({
-        actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
-        function: 'staking.multicall',
-      }),
-    )
+    const callDataSubgraphService = populateTransactionsResults
+      .flat()
+      .map((tx) => tx as TransactionRequest)
+      .filter(
+        (tx: TransactionRequest) =>
+          tx.to === this.network.contracts.SubgraphService.target,
+      )
+      .filter((tx: TransactionRequest) => !!tx.data)
+      .map((tx) => tx.data as string)
+    logger.debug('Found subgraph service transactions', {
+      count: callDataSubgraphService.length,
+    })
+    logger.trace('Prepared subgraph service transaction calldata', {
+      callDataSubgraphService,
+    })
+
+    const transactionResults: Promise<TransactionReceipt | 'paused' | 'unauthorized'>[] =
+      []
+    if (callDataStakingContract.length > 0) {
+      const stakingTransaction = this.network.transactionManager.executeTransaction(
+        async () =>
+          this.network.contracts.HorizonStaking.multicall.estimateGas(
+            callDataStakingContract,
+          ),
+        async (gasLimit) =>
+          this.network.contracts.HorizonStaking.multicall(callDataStakingContract, {
+            gasLimit,
+          }),
+        this.logger.child({
+          actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
+          function: 'staking.multicall',
+        }),
+      )
+      transactionResults.push(stakingTransaction)
+    }
+
+    if (callDataSubgraphService.length > 0) {
+      const subgraphServiceTransaction =
+        this.network.transactionManager.executeTransaction(
+          async () =>
+            this.network.contracts.SubgraphService.multicall.estimateGas(
+              callDataSubgraphService,
+            ),
+          async (gasLimit) =>
+            this.network.contracts.SubgraphService.multicall(callDataSubgraphService, {
+              gasLimit,
+            }),
+          this.logger.child({
+            actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
+            function: 'subgraphService.multicall',
+          }),
+        )
+      transactionResults.push(subgraphServiceTransaction)
+    }
+
+    return await Promise.all(transactionResults)
   }
 
   async confirmTransactions(
-    receipt: TransactionReceipt | 'paused' | 'unauthorized',
+    receipts: (TransactionReceipt | 'paused' | 'unauthorized')[],
     actions: Action[],
   ): Promise<AllocationResult[]> {
     const logger = this.logger.child({
       function: 'confirmTransactions',
-      receipt,
+      receipts,
       actions,
     })
     logger.trace('Confirming transaction')
+
     return pMap(
       actions,
       async (action: Action) => {
+        const receipt = receipts.find(
+          (receipt) =>
+            (receipt as TransactionReceipt).to ===
+            (action.isLegacy
+              ? this.network.contracts.HorizonStaking.target
+              : this.network.contracts.SubgraphService.target),
+        )
+
         try {
+          if (receipt === undefined) {
+            this.logger.error('No receipt found for action', {
+              action,
+              receipts,
+            })
+            throw new Error('No receipt found for action')
+          }
           return await this.confirmActionExecution(receipt, action)
         } catch (error) {
           let transaction: string | undefined = undefined
@@ -417,13 +494,29 @@ export class AllocationManager {
     //     enum AllocationState { Null, Active, Closed, Finalized, Claimed }
     //
     // in the contracts.
-    const state =
-      await this.network.contracts.HorizonStaking.getAllocationState(allocationId)
-    if (state !== 0n) {
+    let allocationExistsSubgraphService = false
+    let allocationExistsStaking = false
+    const isHorizon = await this.network.isHorizon.value()
+    if (isHorizon) {
+      const allocation =
+        await this.network.contracts.SubgraphService.getAllocation(allocationId)
+      const legacyAllocation =
+        await this.network.contracts.SubgraphService.getLegacyAllocation(allocationId)
+      allocationExistsSubgraphService = allocation.createdAt !== 0n
+      allocationExistsStaking = legacyAllocation.indexer !== ZeroAddress
+    } else {
+      const state =
+        await this.network.contracts.LegacyStaking.getAllocationState(allocationId)
+      allocationExistsStaking = state !== 0n
+    }
+
+    if (allocationExistsSubgraphService || allocationExistsStaking) {
       logger.debug(`Skipping allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,
         allocation: allocationId,
-        state,
+        isHorizon,
+        allocationExistsSubgraphService,
+        allocationExistsStaking,
       })
       throw indexerError(
         IndexerErrorCode.IE066,
@@ -437,14 +530,23 @@ export class AllocationManager {
       indexerAddress: this.network.specification.indexerOptions.address,
     })
 
-    const proof = await legacyAllocationIdProof(
-      allocationSigner,
-      this.network.specification.indexerOptions.address,
-      allocationId,
-    )
+    const proof = isHorizon
+      ? await horizonAllocationIdProof(
+          allocationSigner,
+          Number(this.network.specification.networkIdentifier.split(':')[1]),
+          this.network.specification.indexerOptions.address,
+          allocationId,
+          this.network.contracts.SubgraphService.target.toString(),
+        )
+      : await legacyAllocationIdProof(
+          allocationSigner,
+          this.network.specification.indexerOptions.address,
+          allocationId,
+        )
 
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
+      isLegacy: isHorizon,
     })
 
     return {
@@ -465,7 +567,11 @@ export class AllocationManager {
   ): Promise<CreateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
-    logger.info(`Confirming 'allocateFrom' transaction`)
+    const isLegacy =
+      (receipt as TransactionReceipt).to === this.network.contracts.HorizonStaking.target
+    logger.info(`Confirming allocation creation transaction`, {
+      isLegacy,
+    })
     if (receipt === 'paused' || receipt === 'unauthorized') {
       throw indexerError(
         IndexerErrorCode.IE062,
@@ -476,14 +582,23 @@ export class AllocationManager {
       )
     }
 
-    const createAllocationEventLogs = this.network.transactionManager.findEvent(
-      'AllocationCreated',
-      this.network.contracts.LegacyStaking.interface,
-      'subgraphDeploymentID',
-      subgraphDeployment.bytes32,
-      receipt,
-      this.logger,
-    )
+    const createAllocationEventLogs = isLegacy
+      ? this.network.transactionManager.findEvent(
+          'AllocationCreated',
+          this.network.contracts.LegacyStaking.interface,
+          'subgraphDeploymentID',
+          subgraphDeployment.bytes32,
+          receipt,
+          this.logger,
+        )
+      : this.network.transactionManager.findEvent(
+          'ServiceStarted',
+          this.network.contracts.SubgraphService.interface,
+          'serviceProvider',
+          this.network.specification.indexerOptions.address,
+          receipt,
+          logger,
+        )
 
     if (!createAllocationEventLogs) {
       throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
@@ -494,6 +609,7 @@ export class AllocationManager {
       allocation: createAllocationEventLogs.allocationID,
       deployment: createAllocationEventLogs.subgraphDeploymentID,
       epoch: createAllocationEventLogs.epoch.toString(),
+      isLegacy,
     })
 
     const subgraphDeploymentID = new SubgraphDeploymentID(deployment)
@@ -530,23 +646,42 @@ export class AllocationManager {
     deployment: SubgraphDeploymentID,
     amount: bigint,
   ): Promise<TransactionRequest> {
+    const isHorizon = await this.network.isHorizon.value()
     const params = await this.prepareAllocateParams(logger, context, deployment, amount)
-    logger.debug(`Populating allocateFrom transaction`, {
+    logger.debug(`Populating allocation creation transaction`, {
       indexer: params.indexer,
       subgraphDeployment: params.subgraphDeploymentID,
       amount: formatGRT(params.tokens),
       allocation: params.allocationID,
       proof: params.proof,
+      isLegacy: isHorizon,
     })
-    // TODO HORIZON: split into pre-post horizon
-    return await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
-      params.indexer,
-      params.subgraphDeploymentID,
-      params.tokens,
-      params.allocationID,
-      params.metadata,
-      params.proof,
-    )
+
+    let populatedTransaction: ContractTransaction
+    if (isHorizon) {
+      const encodedData = encodeStartServiceData(
+        params.subgraphDeploymentID.toString(),
+        BigInt(params.tokens),
+        params.allocationID,
+        params.proof.toString(),
+      )
+      populatedTransaction =
+        await this.network.contracts.SubgraphService.startService.populateTransaction(
+          params.indexer,
+          encodedData,
+        )
+    } else {
+      populatedTransaction =
+        await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
+          params.indexer,
+          params.subgraphDeploymentID,
+          params.tokens,
+          params.allocationID,
+          params.metadata,
+          params.proof,
+        )
+    }
+    return populatedTransaction
   }
 
   async prepareUnallocateParams(
@@ -562,12 +697,14 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    ;[poi] = await this.network.networkMonitor.resolvePOI(
+    const poiData = await this.network.networkMonitor.resolvePOI(
       allocation,
       poi,
       undefined,
+      undefined,
       force,
     )
+    poi = poiData.poi
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
@@ -743,9 +880,10 @@ export class AllocationManager {
       allocation: allocationID,
       deployment: allocation.subgraphDeployment.id.ipfsHash,
     })
-    const [allocationPOI] = await this.network.networkMonitor.resolvePOI(
+    const { poi: allocationPOI } = await this.network.networkMonitor.resolvePOI(
       allocation,
       poi,
+      undefined,
       undefined,
       force,
     )
@@ -1073,39 +1211,27 @@ export class AllocationManager {
     const logger = this.logger.child({ function: 'validateActionBatch' })
     logger.debug(`Validating action batch`, { size: batch.length })
 
-    // Validate stake feasibility
-    let indexerFreeStake = 0n
-    if (await this.network.isHorizon.value()) {
-      const verifier = this.network.contracts.SubgraphService.target.toString()
-      const delegationRatio =
-        await this.network.contracts.SubgraphService.getDelegationRatio()
-      const tokensAvailable =
-        await this.network.contracts.HorizonStaking.getTokensAvailable(
-          this.network.specification.indexerOptions.address,
-          verifier,
-          delegationRatio,
-        )
-      const lockedStake =
-        await this.network.contracts.SubgraphService.allocationProvisionTracker(
-          this.network.specification.indexerOptions.address,
-        )
-      indexerFreeStake =
-        tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
-    } else {
-      indexerFreeStake = await this.network.contracts.LegacyStaking.getIndexerCapacity(
-        this.network.specification.indexerOptions.address,
-      )
-    }
+    // Validate stake feasibility - we need to analyse stake depending on the action type
+    const indexerFreeStake = await this.network.networkMonitor.freeStake()
+
     const actionsBatchStakeUsageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )
-    const batchDelta = actionsBatchStakeUsageSummaries
+    const batchDeltaLegacy = actionsBatchStakeUsageSummaries
+      .filter((summary: ActionStakeUsageSummary) => summary.action.isLegacy)
       .map((summary: ActionStakeUsageSummary) => summary.balance)
-      .reduce((a: bigint, b: bigint) => a + b)
-    const indexerNewBalance = indexerFreeStake - batchDelta
+      .reduce((a: bigint, b: bigint) => a + b, 0n)
+    const batchDelta = actionsBatchStakeUsageSummaries
+      .filter((summary: ActionStakeUsageSummary) => !summary.action.isLegacy)
+      .map((summary: ActionStakeUsageSummary) => summary.balance)
+      .reduce((a: bigint, b: bigint) => a + b, 0n)
+
+    const indexerNewBalance = indexerFreeStake.horizon - batchDelta
+    const indexerNewBalanceLegacy = indexerFreeStake.legacy - batchDeltaLegacy
 
     logger.trace('Action batch stake usage summary', {
       indexerFreeStake: indexerFreeStake.toString(),
+      indexerFreeStakeLegacy: indexerFreeStake.legacy.toString(),
       actionsBatchStakeUsageSummaries: actionsBatchStakeUsageSummaries.map((summary) => {
         return {
           action: summary.action,
@@ -1116,16 +1242,20 @@ export class AllocationManager {
         }
       }),
       batchDelta: batchDelta.toString(),
+      batchDeltaLegacy: batchDeltaLegacy.toString(),
       indexerNewBalance: indexerNewBalance.toString(),
+      indexerNewBalanceLegacy: indexerNewBalanceLegacy.toString(),
     })
 
-    if (indexerNewBalance < 0n) {
+    if (indexerNewBalance < 0n || indexerNewBalanceLegacy < 0n) {
       {
         throw indexerError(
           IndexerErrorCode.IE013,
           `Unfeasible action batch: Approved action batch GRT balance is ` +
-            `${formatGRT(batchDelta)} ` +
-            `but available stake equals ${formatGRT(indexerFreeStake)}.`,
+            `${formatGRT(batchDelta)} for horizon actions and ` +
+            `${formatGRT(batchDeltaLegacy)} for legacy actions ` +
+            `but available horizon stake equals ${formatGRT(indexerFreeStake.horizon)} ` +
+            `and legacy stake equals ${formatGRT(indexerFreeStake.legacy)}.`,
         )
       }
     }
