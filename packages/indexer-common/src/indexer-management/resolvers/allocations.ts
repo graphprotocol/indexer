@@ -803,8 +803,8 @@ async function closeHorizonAllocation(
   const closeAllocationEventLogs = transactionManager.findEvent(
     'ServiceStopped',
     contracts.SubgraphService.interface,
-    'data',
-    closeAllocationData,
+    'serviceProvider',
+    address,
     receipt,
     logger,
   )
@@ -840,6 +840,7 @@ async function closeHorizonAllocation(
   return { txHash: receipt.hash, rewardsAssigned }
 }
 
+// isHorizon: false
 async function reallocateLegacyAllocation(
   allocation: Allocation,
   allocationAmount: bigint,
@@ -1056,6 +1057,7 @@ async function reallocateLegacyAllocation(
   return { txHash: receipt.hash, rewardsAssigned, newAllocationId }
 }
 
+// isHorizon: true and allocation: not legacy
 async function reallocateHorizonAllocation(
   allocation: Allocation,
   allocationAmount: bigint,
@@ -1073,20 +1075,6 @@ async function reallocateHorizonAllocation(
   // Double-check whether the allocation is still active on chain, to
   // avoid unnecessary transactions.
   const allocationData = await contracts.SubgraphService.getAllocation(allocation.id)
-  const legacyAllocation = await contracts.SubgraphService.getLegacyAllocation(
-    allocation.id,
-  )
-  const existsSubgraphService = allocationData.createdAt !== 0n
-  const existsLegacyAllocation = legacyAllocation.indexer !== ZeroAddress
-  if (existsSubgraphService || existsLegacyAllocation) {
-    logger.warn(`Skipping allocation as it already exists onchain`, {
-      indexer: address,
-      allocation: allocation.id,
-      existsSubgraphService,
-      existsLegacyAllocation,
-    })
-    throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
-  }
 
   if (allocationData.closedAt !== 0n) {
     logger.warn(`Allocation has already been closed`)
@@ -1254,8 +1242,8 @@ async function reallocateHorizonAllocation(
   const createAllocationEventLogs = network.transactionManager.findEvent(
     'ServiceStarted',
     network.contracts.SubgraphService.interface,
-    'data',
-    createAllocationData,
+    'serviceProvider',
+    address,
     receipt,
     logger,
   )
@@ -1292,8 +1280,8 @@ async function reallocateHorizonAllocation(
   const closeAllocationEventLogs = transactionManager.findEvent(
     'ServiceStopped',
     contracts.SubgraphService.interface,
-    'data',
-    closeAllocationData,
+    'serviceProvider',
+    address,
     receipt,
     logger,
   )
@@ -1322,6 +1310,7 @@ async function reallocateHorizonAllocation(
   return { txHash: receipt.hash, rewardsAssigned, newAllocationId }
 }
 
+// isHorizon: true and allocation: legacy
 async function migrateLegacyAllocationToHorizon(
   allocation: Allocation,
   allocationAmount: bigint,
@@ -1487,11 +1476,16 @@ export default {
 
     try {
       const currentEpoch = await network.contracts.EpochManager.currentEpoch()
+      const isHorizon = await network.isHorizon.value()
+
+      logger.debug('createAllocation: Checking allocation resolution path', {
+        isHorizon,
+      })
 
       let txHash: string
       let allocationId: Address
-      if (await network.isHorizon.value()) {
-        logger.info('Creating horizon allocation')
+      if (isHorizon) {
+        logger.debug('Creating horizon allocation')
         const result = await createHorizonAllocation(
           network,
           graphNode,
@@ -1505,6 +1499,7 @@ export default {
         txHash = result.txHash
         allocationId = result.allocationId
       } else {
+        logger.debug('Creating legacy allocation')
         const result = await createLegacyAllocation(
           network,
           graphNode,
@@ -1603,6 +1598,7 @@ export default {
       )
       logger.debug('POI resolved', {
         userProvidedPOI: poi,
+        userProvidedPublicPOI: publicPOI,
         userProvidedBlockNumber: blockNumber,
         poi: poiData.poi,
         publicPOI: poiData.publicPOI,
@@ -1610,9 +1606,14 @@ export default {
         force,
       })
 
+      logger.debug('closeAllocation: Checking allocation resolution path', {
+        allocationIsLegacy: allocationData.isLegacy,
+      })
+
       let txHash: string
       let rewardsAssigned: bigint
       if (allocationData.isLegacy) {
+        logger.debug('Closing legacy allocation')
         const result = await closeLegacyAllocation(
           allocationData,
           poiData.poi,
@@ -1622,6 +1623,7 @@ export default {
         txHash = result.txHash
         rewardsAssigned = result.rewardsAssigned
       } else {
+        logger.debug('Closing horizon allocation')
         const result = await closeHorizonAllocation(
           allocationData,
           poiData,
@@ -1736,6 +1738,7 @@ export default {
       )
       logger.debug('POI resolved', {
         userProvidedPOI: poi,
+        userProvidedPublicPOI: publicPOI,
         userProvidedBlockNumber: blockNumber,
         poi: poiData.poi,
         publicPOI: poiData.publicPOI,
@@ -1745,10 +1748,16 @@ export default {
 
       const isHorizon = await network.isHorizon.value()
 
+      logger.debug('reallocateAllocation: Checking allocation resolution path', {
+        isHorizon,
+        allocationIsLegacy: allocationData.isLegacy,
+      })
+
       let txHash: string
       let rewardsAssigned: bigint
       let newAllocationId: Address
       if (!isHorizon) {
+        logger.debug('Reallocating legacy allocation')
         const result = await reallocateLegacyAllocation(
           allocationData,
           allocationAmount,
@@ -1761,6 +1770,7 @@ export default {
         rewardsAssigned = result.rewardsAssigned
         newAllocationId = result.newAllocationId
       } else if (allocationData.isLegacy) {
+        logger.debug('Migrating legacy allocation to horizon')
         const result = await migrateLegacyAllocationToHorizon(
           allocationData,
           allocationAmount,
@@ -1774,6 +1784,7 @@ export default {
         rewardsAssigned = result.rewardsAssigned
         newAllocationId = result.newAllocationId
       } else {
+        logger.debug('Reallocating horizon allocation')
         const result = await reallocateHorizonAllocation(
           allocationData,
           allocationAmount,

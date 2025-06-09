@@ -23,6 +23,7 @@ ${chalk.dim('Options:')}
 
   ${chalk.dim('Arguments:')}
   <id>                            The allocation id to close
+  <amount>                        The amount of GRT to reallocate
   <poi>                           (optional) The POI to close the allocation with
   <blockNumber>                   (optional, horizon only) The block number the POI was computed at. Must be set if POI is provided.
   <publicPOI>                     (optional, horizon only) The public POI to close the allocation with. Must be same block height as POI.

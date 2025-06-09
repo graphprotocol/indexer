@@ -94,6 +94,8 @@ export enum IndexerErrorCode {
   IE081 = 'IE081',
   IE082 = 'IE082',
   IE083 = 'IE083',
+  IE084 = 'IE084',
+  IE085 = 'IE085',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -181,6 +183,8 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE081: 'Multiple provisions found',
   IE082: 'Graph Horizon protocol not detected',
   IE083: 'Failed to thaw stake from provision',
+  IE084: 'Could not resolve POI block number',
+  IE085: 'Could not resolve public POI',
 }
 
 export type IndexerErrorCause = unknown
