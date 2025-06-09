@@ -22,6 +22,7 @@ ${chalk.dim('Options:')}
       --status active|closed|claimable      Filter by status
       --deployment <id>                     Fetch only allocations for a specific subgraph deployment
   -o, --output table|json|yaml              Choose the output format: table (default), JSON, or YAML
+  -w, --wrap [N]                            Wrap the output to a specific width (default: 0, no wrapping)
 `
 
 module.exports = {
@@ -33,10 +34,11 @@ module.exports = {
 
     const spinner = toolbox.print.spin('Processing inputs')
 
-    const { status, deployment, h, help, o, output } = parameters.options
+    const { status, deployment, h, help, o, output, w, wrap } = parameters.options
 
     const [allocation] = fixParameters(parameters, { h, help }) || []
     const outputFormat = o || output || 'table'
+    const wrapWidth = w || wrap || 0
 
     if (help || h) {
       spinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -169,7 +171,7 @@ module.exports = {
         )
       }
       spinner.succeed('Allocations')
-      printIndexerAllocations(print, outputFormat, allocations, displayProperties)
+      printIndexerAllocations(print, outputFormat, allocations, displayProperties, wrapWidth)
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

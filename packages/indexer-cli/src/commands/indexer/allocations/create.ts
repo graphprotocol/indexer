@@ -20,6 +20,7 @@ ${chalk.dim('Options:')}
   -h, --help                    Show usage information
   -n, --network <network>       The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
+  -w, --wrap [N]                Wrap the output to a specific width (default: 0, no wrapping)
 `
 
 module.exports = {
@@ -31,10 +32,11 @@ module.exports = {
 
     const spinner = toolbox.print.spin('Processing inputs')
 
-    const { h, help, o, output } = parameters.options
+    const { h, help, o, output, w, wrap } = parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
+    const wrapWidth = w || wrap || 0
 
     if (toHelp) {
       spinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -88,7 +90,7 @@ module.exports = {
         'deployment',
         'allocatedTokens',
         'protocolNetwork',
-      ])
+      ], wrapWidth)
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

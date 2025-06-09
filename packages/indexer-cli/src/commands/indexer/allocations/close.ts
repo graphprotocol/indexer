@@ -21,6 +21,7 @@ ${chalk.dim('Options:')}
   -n, --network <network>       The network to close the allocation on: mainnet, arbitrum-one, sepolia or arbitrum sepolia
   -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
+  -w, --wrap [N]                Wrap the output to a specific width (default: 0, no wrapping)
 
 ${chalk.dim('Arguments:')}
   <id>                            The allocation id to close
@@ -38,11 +39,12 @@ module.exports = {
 
     const spinner = toolbox.print.spin('Processing inputs')
 
-    const { h, help, f, force, o, output } = parameters.options
+    const { h, help, f, force, o, output, w, wrap } = parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
     const toForce = force || f || false
+    const wrapWidth = w || wrap || 0
 
     if (toHelp) {
       spinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -106,7 +108,7 @@ module.exports = {
         'allocation',
         'allocatedTokens',
         'indexingRewards',
-      ])
+      ], wrapWidth)
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1
