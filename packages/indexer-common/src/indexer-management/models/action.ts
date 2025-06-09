@@ -39,6 +39,9 @@ export class Action extends Model<
 
   declare isLegacy: boolean
 
+  declare publicPOI: string | null
+  declare poiBlockNumber: number | null
+
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
     return { ...this.toJSON(), __typename: 'Action' }
@@ -158,6 +161,14 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: true,
+      },
+      publicPOI: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
+      poiBlockNumber: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
       },
     },
     {

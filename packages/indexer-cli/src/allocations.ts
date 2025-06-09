@@ -2,7 +2,7 @@ import { SubgraphDeploymentID, formatGRT, commify } from '@graphprotocol/common-
 import yaml from 'yaml'
 import { GluegunPrint } from 'gluegun'
 import { table, getBorderCharacters } from 'table'
-import { OutputFormat, parseOutputFormat, pickFields } from './command-helpers'
+import { OutputFormat, parseOutputFormat, pickFields, wrapCell } from './command-helpers'
 import { IndexerManagementClient } from '@graphprotocol/indexer-common'
 import gql from 'graphql-tag'
 import {
@@ -121,16 +121,17 @@ export const printIndexerAllocations = (
     | Partial<IndexerAllocation>[]
     | null,
   keys: (keyof IndexerAllocation)[],
+  wrapWidth: number = 0,
 ): void => {
   parseOutputFormat(print, outputFormat)
   if (Array.isArray(allocationOrAllocations)) {
     const allocations = allocationOrAllocations.map(allocation =>
       formatIndexerAllocation(pickFields(allocation, keys)),
     )
-    print.info(displayIndexerAllocations(outputFormat, allocations))
+    print.info(displayIndexerAllocations(outputFormat, allocations, wrapWidth))
   } else if (allocationOrAllocations) {
     const allocation = formatIndexerAllocation(pickFields(allocationOrAllocations, keys))
-    print.info(displayIndexerAllocation(outputFormat, allocation))
+    print.info(displayIndexerAllocation(outputFormat, allocation, wrapWidth))
   } else {
     print.error(`No allocations found`)
   }
@@ -139,6 +140,7 @@ export const printIndexerAllocations = (
 export const displayIndexerAllocations = (
   outputFormat: OutputFormat,
   allocations: Partial<IndexerAllocation>[],
+  wrapWidth: number,
 ): string =>
   outputFormat === OutputFormat.Json
     ? JSON.stringify(allocations, null, 2)
@@ -149,7 +151,7 @@ export const displayIndexerAllocations = (
     : table(
         [
           Object.keys(allocations[0]),
-          ...allocations.map(allocation => Object.values(allocation)),
+          ...allocations.map(allocation => Object.values(allocation).map(value => wrapCell(value, wrapWidth))),
         ],
         {
           border: getBorderCharacters('norc'),
@@ -159,12 +161,13 @@ export const displayIndexerAllocations = (
 export const displayIndexerAllocation = (
   outputFormat: OutputFormat,
   allocation: Partial<IndexerAllocation>,
+  wrapWidth: number,
 ): string =>
   outputFormat === OutputFormat.Json
     ? JSON.stringify(allocation, null, 2)
     : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(allocation).trim()
-    : table([Object.keys(allocation), Object.values(allocation)], {
+    : table([Object.keys(allocation), Object.values(allocation).map(value => wrapCell(value, wrapWidth))], {
         border: getBorderCharacters('norc'),
       }).trim()
 

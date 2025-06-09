@@ -17,14 +17,14 @@ import {
 const HELP = `
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4>
+)} [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4> <param5> <param6>
 ${chalk.bold('graph indexer actions queue')} [options] allocate <deploymentID> <amount>
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] unallocate <deploymentID> <allocationID> <poi> <force> <publicPOI> <blockNumber>
+)} [options] unallocate <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <publicPOI> <blockNumber>
+)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <blockNumber> <publicPOI> 
 
 ${chalk.dim('Options:')}
 
@@ -119,11 +119,14 @@ module.exports = {
         'allocationID',
         'amount',
         'poi',
+        'publicPOI',
+        'poiBlockNumber',
         'force',
         'priority',
         'status',
         'source',
         'reason',
+        'isLegacy',
       ])
     } catch (error) {
       actionSpinner.fail(error.toString())

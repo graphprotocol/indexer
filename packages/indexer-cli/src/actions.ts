@@ -37,7 +37,6 @@ export async function buildActionInput(
   priority: number,
   protocolNetwork: string,
 ): Promise<ActionInput> {
-  // TODO HORIZON: validate publicPOI and blockNumber for unallocate and reallocate only for horizon allocations
   await validateActionInput(type, actionParams)
 
   // TODO HORIZON: we could check isHorizon status here to set the proper value for isLegacy, but it requires multiNetworks
@@ -67,7 +66,7 @@ export async function buildActionInput(
         allocationID: actionParams.param1,
         poi: poi,
         publicPOI: actionParams.param5,
-        blockNumber: actionParams.param6,
+        poiBlockNumber: actionParams.param4 ? Number(actionParams.param4) : undefined,
         force: actionParams.param3 === 'true',
         type,
         source,
@@ -88,8 +87,8 @@ export async function buildActionInput(
         allocationID: actionParams.param1,
         amount: actionParams.param2?.toString(),
         poi: poi,
-        publicPOI: actionParams.param5,
-        blockNumber: actionParams.param6,
+        publicPOI: actionParams.param6,
+        poiBlockNumber: actionParams.param5 ? Number(actionParams.param5) : undefined,
         force: actionParams.param4 === 'true',
         type,
         source,
@@ -198,7 +197,7 @@ export async function queueActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -227,7 +226,7 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   amount: nullPassThrough(parseGRT),
   poi: nullPassThrough((x: string) => validatePOI(x)),
   publicPOI: nullPassThrough((x: string) => validatePOI(x)),
-  blockNumber: nullPassThrough((x: string) => Number(x)),
+  poiBlockNumber: nullPassThrough((x: string) => Number(x)),
   force: x => parseBoolean(x),
   type: x => validateActionType(x),
   status: x => validateActionStatus(x),
@@ -270,7 +269,7 @@ export async function executeApprovedActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -307,7 +306,7 @@ export async function approveActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -347,7 +346,7 @@ export async function cancelActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -386,7 +385,7 @@ export async function fetchAction(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -438,7 +437,7 @@ export async function fetchActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -478,7 +477,7 @@ export async function deleteActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason
@@ -518,7 +517,7 @@ export async function updateActions(
             amount
             poi
             publicPOI
-            blockNumber
+            poiBlockNumber
             force
             source
             reason

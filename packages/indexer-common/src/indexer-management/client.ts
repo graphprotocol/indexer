@@ -130,6 +130,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     priority: Int!
     source: String!
@@ -149,6 +151,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     source: String!
     reason: String!
@@ -163,6 +167,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: Int
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     type: ActionType
     status: ActionStatus
@@ -178,6 +184,8 @@ const SCHEMA_SDL = gql`
     transaction
     amount
     poi
+    publicPOI
+    poiBlockNumber
     force
     source
     reason
@@ -194,6 +202,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     source: String!
     reason: String!
@@ -485,7 +495,7 @@ const SCHEMA_SDL = gql`
     closeAllocation(
       allocation: String!
       poi: String
-      blockNumber: String
+      poiBlockNumber: Int
       publicPOI: String
       force: Boolean
       protocolNetwork: String!
@@ -493,7 +503,7 @@ const SCHEMA_SDL = gql`
     reallocateAllocation(
       allocation: String!
       poi: String
-      blockNumber: String
+      poiBlockNumber: Int
       publicPOI: String
       amount: String!
       force: Boolean

@@ -32,6 +32,7 @@ ${chalk.dim('Options:')}
       --first [N]                                                   Fetch only the N first records (default: all records)
       --fields [field1,field2,...]                                  Comma-separated names of the fields to display (no spaces allowed between fields)
   -o, --output table|json|yaml                                      Choose the output format: table (default), JSON, or YAML
+  -w, --wrap [N]                                                  Wrap the output to a specific width (default: 0, no wrapping)
 `
 
 const actionFields: (keyof Action)[] = [
@@ -42,6 +43,8 @@ const actionFields: (keyof Action)[] = [
   'allocationID',
   'amount',
   'poi',
+  'publicPOI',
+  'poiBlockNumber',
   'force',
   'priority',
   'status',
@@ -90,12 +93,15 @@ module.exports = {
       output,
       first,
       fields,
+      w,
+      wrap,
     } = parameters.options
 
     const [action] = fixParameters(parameters, { h, help }) || []
     let orderByParam = ActionParams.ID
     let orderDirectionValue = OrderDirection.DESC
     const outputFormat = o || output || 'table'
+    const wrapWidth = w || wrap || 0
 
     const protocolNetwork: string | undefined = extractProtocolNetworkOption(
       parameters.options,
@@ -224,7 +230,7 @@ module.exports = {
         action => (action.protocolNetwork = resolveChainAlias(action.protocolNetwork)),
       )
 
-      printObjectOrArray(print, outputFormat, actions, displayProperties)
+      printObjectOrArray(print, outputFormat, actions, displayProperties, wrapWidth)
     } catch (error) {
       actionSpinner.fail(error.toString())
       process.exitCode = 1
