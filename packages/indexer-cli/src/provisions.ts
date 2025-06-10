@@ -22,7 +22,7 @@ export interface IndexerProvision {
 
   protocolNetwork: string
 
-  // TODO: This is not really a provision property, but useful to avoid creating new types
+  // This is not really a provision property, but useful to avoid creating new types
   thawingUntil: string
 }
 

@@ -252,8 +252,7 @@ export class Agent {
       },
     )
 
-    // TODO HORIZON: Uncomment this
-    // this.reconciliationLoop()
+    this.reconciliationLoop()
     return this
   }
 

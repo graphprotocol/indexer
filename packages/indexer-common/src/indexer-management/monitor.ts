@@ -75,7 +75,7 @@ export class NetworkMonitor {
     const isHorizon = await this.isHorizon()
 
     if (isHorizon) {
-      // TODO: this assumes a block time of 12 seconds which is true for current protocol chain but not always
+      // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
       const BLOCK_IN_SECONDS = 12n
       const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
       const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
