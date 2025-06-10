@@ -1732,8 +1732,8 @@ export default {
       const poiData = await networkMonitor.resolvePOI(
         allocationData,
         poi,
-        allocationData.isLegacy ? undefined : publicPOI,
-        allocationData.isLegacy || blockNumber === null ? undefined : Number(blockNumber),
+        publicPOI,
+        blockNumber === null ? undefined : Number(blockNumber),
         force,
       )
       logger.debug('POI resolved', {
