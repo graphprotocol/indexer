@@ -2,6 +2,8 @@ import { DataTypes, Sequelize, Model, Association, CreationOptional } from 'sequ
 import { Address, toAddress } from '@graphprotocol/common-ts'
 import { caip2IdRegex } from '../parsers'
 import { TAPVerifier } from '@semiotic-labs/tap-contracts-bindings'
+import { RAV as RAVv2 } from '@graphprotocol/toolshed'
+import { BytesLike } from 'ethers'
 
 export interface ScalarTapReceiptsAttributes {
   id: number
@@ -100,6 +102,21 @@ export interface ReceiptAggregateVoucherAttributes {
   redeemedAt: Date | null
   final: boolean
 }
+
+export interface ReceiptAggregateVoucherV2Attributes {
+  collectionId: string
+  payer: string
+  serviceProvider: string
+  dataService: string
+  metadata: string
+  signature: Uint8Array
+  timestampNs: bigint
+  valueAggregate: bigint
+  last: boolean
+  redeemedAt: Date | null
+  final: boolean
+}
+
 export interface FailedReceiptAggregateVoucherAttributes {
   allocationId: string
   senderAddress: string
@@ -136,6 +153,53 @@ export class ReceiptAggregateVoucher
         allocationId: this.allocationId,
         timestampNs: this.timestampNs,
         valueAggregate: this.valueAggregate,
+      },
+      signature: this.signature,
+    }
+  }
+}
+
+// TODO HORIZON: move this to the toolshed package
+export type SignedRAVv2 = {
+  rav: RAVv2
+  signature: BytesLike
+}
+
+export class ReceiptAggregateVoucherV2
+  extends Model<ReceiptAggregateVoucherV2Attributes>
+  implements ReceiptAggregateVoucherV2Attributes
+{
+  public collectionId!: Address
+  public payer!: Address
+  public serviceProvider!: Address
+  public dataService!: Address
+  public metadata!: string
+  public signature!: Uint8Array
+  public timestampNs!: bigint
+  public valueAggregate!: bigint
+  public final!: boolean
+  public last!: boolean
+  public redeemedAt!: Date | null
+
+  declare createdAt: CreationOptional<Date>
+  declare updatedAt: CreationOptional<Date>
+
+  public readonly allocationSummary?: AllocationSummary
+
+  public static associations: {
+    allocationSummary: Association<ReceiptAggregateVoucherV2, AllocationSummary>
+  }
+
+  getSignedRAV(): SignedRAVv2 {
+    return {
+      rav: {
+        collectionId: this.collectionId,
+        payer: this.payer,
+        serviceProvider: this.serviceProvider,
+        dataService: this.dataService,
+        timestampNs: Number(this.timestampNs),
+        valueAggregate: this.valueAggregate,
+        metadata: this.metadata,
       },
       signature: this.signature,
     }
@@ -265,6 +329,7 @@ export interface QueryFeeModels {
   allocationReceipts: typeof AllocationReceipt
   vouchers: typeof Voucher
   receiptAggregateVouchers: typeof ReceiptAggregateVoucher
+  receiptAggregateVouchersV2: typeof ReceiptAggregateVoucherV2
   transferReceipts: typeof TransferReceipt
   transfers: typeof Transfer
   allocationSummaries: typeof AllocationSummary
@@ -370,6 +435,110 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
           this.setDataValue('senderAddress', addressWithoutPrefix)
         },
+      },
+      signature: {
+        type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      // ternary operator added to timestampNs and valueAggregate
+      // due to sequelize UPDATE
+      // calls  the getters with undefined data
+      // 0 is returned since no real data is being requested
+      timestampNs: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('timestampNs'))
+        },
+      },
+      valueAggregate: {
+        type: DataTypes.DECIMAL,
+        allowNull: false,
+        get() {
+          return BigInt(this.getDataValue('valueAggregate'))
+        },
+      },
+      last: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      final: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      redeemedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+        defaultValue: null,
+      },
+    },
+    {
+      underscored: true,
+      sequelize,
+      tableName: 'scalar_tap_ravs',
+    },
+  )
+
+
+  ReceiptAggregateVoucherV2.init(
+    {
+      collectionId: {
+        type: DataTypes.CHAR(64), // 64 because prefix '0x' gets removed by GraphTally agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('collectionId')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('collectionId', addressWithoutPrefix)
+        },
+      },
+      payer: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('payer')
+          return toAddress(rawValue)
+        },
+        set(value: string) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('payer', addressWithoutPrefix)
+        },
+      },
+      serviceProvider: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('serviceProvider')
+          return toAddress(rawValue)
+        },
+        set(value: string) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('serviceProvider', addressWithoutPrefix)
+        },
+      },
+      dataService: {
+        type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
+        allowNull: false,
+        primaryKey: true,
+        get() {
+          const rawValue = this.getDataValue('dataService')
+          return toAddress(rawValue)
+        },
+        set(value: string) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('dataService', addressWithoutPrefix)
+        },
+      },
+      metadata: {
+        type: DataTypes.STRING,
+        allowNull: false,
       },
       signature: {
         type: DataTypes.BLOB,
@@ -718,6 +887,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     allocationReceipts: AllocationReceipt,
     vouchers: Voucher,
     receiptAggregateVouchers: ReceiptAggregateVoucher,
+    receiptAggregateVouchersV2: ReceiptAggregateVoucherV2,
     transferReceipts: TransferReceipt,
     transfers: Transfer,
     allocationSummaries: AllocationSummary,
