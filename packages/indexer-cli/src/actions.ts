@@ -15,7 +15,7 @@ import {
 import { validatePOI, validateRequiredParams } from './command-helpers'
 import gql from 'graphql-tag'
 import { hexlify } from 'ethers'
-import { parseGRT } from '@graphprotocol/common-ts'
+import { formatGRT, parseGRT } from '@graphprotocol/common-ts'
 
 export interface GenericActionInputParams {
   targetDeployment: string
@@ -235,6 +235,25 @@ const ACTION_PARAMS_PARSERS: Record<keyof ActionUpdateInput, (x: never) => any> 
   isLegacy: x => parseBoolean(x),
 }
 
+const ACTION_CONVERTERS_TO_GRAPHQL: Record<
+  keyof ActionUpdateInput,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (x: never) => any
+> = {
+  deploymentID: x => x,
+  allocationID: x => x,
+  amount: nullPassThrough((x: bigint) => formatGRT(x)),
+  poi: x => x,
+  publicPOI: x => x,
+  poiBlockNumber: nullPassThrough((x: number) => x),
+  force: x => x,
+  type: x => x,
+  status: x => x,
+  reason: x => x,
+  protocolNetwork: x => x,
+  isLegacy: x => x,
+}
+
 /**
  * Parses a user-provided action update input into a normalized form.
  */
@@ -250,6 +269,22 @@ export const parseActionUpdateInput = (input: object): ActionUpdateInput => {
     }
   }
   return obj as ActionUpdateInput
+}
+
+/**
+ * Converts a normalized action to a representation
+ * compatible with the indexer management GraphQL API.
+ */
+export const actionToGraphQL = (
+  action: Partial<ActionUpdateInput>,
+): Partial<ActionUpdateInput> => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const obj = {} as any
+  for (const [key, value] of Object.entries(action)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    obj[key] = (ACTION_CONVERTERS_TO_GRAPHQL as any)[key](value)
+  }
+  return obj as Partial<ActionUpdateInput>
 }
 
 export async function executeApprovedActions(
@@ -530,7 +565,7 @@ export async function updateActions(
           }
         }
       `,
-      { filter, action },
+      { filter, action: actionToGraphQL(action) },
     )
     .toPromise()
 

@@ -165,7 +165,7 @@ const SCHEMA_SDL = gql`
     id: Int
     deploymentID: String
     allocationID: String
-    amount: Int
+    amount: String
     poi: String
     publicPOI: String
     poiBlockNumber: Int
