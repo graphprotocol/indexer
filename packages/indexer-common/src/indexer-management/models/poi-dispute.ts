@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 import { caip2IdRegex } from '../../parsers'
 
 export interface POIDisputeAttributes {
@@ -51,23 +51,23 @@ export class POIDispute
   extends Model<POIDisputeAttributes, POIDisputeCreationAttributes>
   implements POIDisputeAttributes
 {
-  public allocationID!: string
-  public subgraphDeploymentID!: string
-  public allocationIndexer!: string
-  public allocationAmount!: string
-  public allocationProof!: string
-  public closedEpoch!: number
-  public closedEpochReferenceProof!: string | null
-  public closedEpochStartBlockHash!: string
-  public closedEpochStartBlockNumber!: number
-  public previousEpochReferenceProof!: string | null
-  public previousEpochStartBlockHash!: string
-  public previousEpochStartBlockNumber!: number
-  public status!: string
-  public protocolNetwork!: string
+  declare allocationID: string
+  declare subgraphDeploymentID: string
+  declare allocationIndexer: string
+  declare allocationAmount: string
+  declare allocationProof: string
+  declare closedEpoch: number
+  declare closedEpochReferenceProof: string | null
+  declare closedEpochStartBlockHash: string
+  declare closedEpochStartBlockNumber: number
+  declare previousEpochReferenceProof: string | null
+  declare previousEpochStartBlockHash: string
+  declare previousEpochStartBlockNumber: number
+  declare status: string
+  declare protocolNetwork: string
 
-  public createdAt!: Date
-  public updatedAt!: Date
+  declare createdAt: Date
+  declare updatedAt: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
@@ -95,7 +95,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 20)) {
+            if (isHexString(value, 20)) {
               return
             }
 
@@ -128,7 +128,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 20)) {
+            if (isHexString(value, 20)) {
               return
             }
 
@@ -155,7 +155,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 
@@ -178,7 +178,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // null or "0x..." is ok
-            if (!value || utils.isHexString(value, 32)) {
+            if (!value || isHexString(value, 32)) {
               return
             }
 
@@ -197,7 +197,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 
@@ -220,7 +220,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // null or "0x..." is ok
-            if (!value || utils.isHexString(value, 32)) {
+            if (!value || isHexString(value, 32)) {
               return
             }
 
@@ -239,7 +239,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 

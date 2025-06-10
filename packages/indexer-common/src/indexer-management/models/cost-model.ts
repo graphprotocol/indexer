@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 
 export interface GraphQLCostModel {
   deployment: string
@@ -39,13 +39,13 @@ export class CostModel
   extends Model<CostModelAttributes, CostModelCreationAttributes>
   implements CostModelAttributes
 {
-  public id!: number
-  public deployment!: string
-  public model!: string | null
+  declare id: number
+  declare deployment: string
+  declare model: string | null
   public variables!: CostModelVariables | null
 
-  public createdAt!: Date
-  public updatedAt!: Date
+  declare createdAt: Date
+  declare updatedAt: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
@@ -80,7 +80,7 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
             }
 
             // "0x..." and "global" is ok
-            if (utils.isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
+            if (isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
               return
             }
 

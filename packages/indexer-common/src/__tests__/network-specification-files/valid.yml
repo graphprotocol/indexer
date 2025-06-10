@@ -18,6 +18,7 @@ indexerOptions:
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
+  maxProvisionInitialSize: 100000
 transactionMonitoring:
   gasIncreaseTimeout: 10
   gasIncreaseFactor: 10

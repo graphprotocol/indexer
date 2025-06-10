@@ -1,4 +1,9 @@
-import { SubgraphDeploymentID, parseGRT, formatGRT } from '@graphprotocol/common-ts'
+import {
+  SubgraphDeploymentID,
+  parseGRT,
+  formatGRT,
+  commify,
+} from '@graphprotocol/common-ts'
 import {
   nullPassThrough,
   parseBoolean,
@@ -12,7 +17,7 @@ import {
 import gql from 'graphql-tag'
 import yaml from 'yaml'
 import { table, getBorderCharacters } from 'table'
-import { BigNumber, utils } from 'ethers'
+
 import { OutputFormat, pickFields } from './command-helpers'
 import chalk from 'chalk'
 
@@ -47,15 +52,15 @@ const INDEXING_RULE_FORMATTERS: Record<
   //deployment: (d: SubgraphDeploymentIDIsh) => (typeof d === 'string' ? d : d.ipfsHash),
   identifier: x => x,
   identifierType: x => x,
-  allocationAmount: nullPassThrough(x => utils.commify(formatGRT(x))),
+  allocationAmount: nullPassThrough(x => commify(formatGRT(x))),
   allocationLifetime: nullPassThrough((x: number) => x.toString()),
   autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: number) => x.toString()),
-  maxSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
-  minSignal: nullPassThrough(x => utils.commify(formatGRT(x))),
-  minStake: nullPassThrough(x => utils.commify(formatGRT(x))),
+  maxSignal: nullPassThrough(x => commify(formatGRT(x))),
+  minSignal: nullPassThrough(x => commify(formatGRT(x))),
+  minStake: nullPassThrough(x => commify(formatGRT(x))),
   maxAllocationPercentage: nullPassThrough((x: number) => x.toPrecision(2)),
-  minAverageQueryFees: nullPassThrough(x => utils.commify(formatGRT(x))),
+  minAverageQueryFees: nullPassThrough(x => commify(formatGRT(x))),
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
@@ -71,15 +76,15 @@ const INDEXING_RULE_CONVERTERS_FROM_GRAPHQL: Record<
   id: x => x,
   identifier: x => x,
   identifierType: x => x,
-  allocationAmount: nullPassThrough((x: string) => BigNumber.from(x)),
+  allocationAmount: nullPassThrough((x: string) => BigInt(x)),
   allocationLifetime: nullPassThrough((x: string) => parseInt(x)),
   autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: string) => parseInt(x)),
-  minSignal: nullPassThrough((x: string) => BigNumber.from(x)),
-  maxSignal: nullPassThrough((x: string) => BigNumber.from(x)),
-  minStake: nullPassThrough((x: string) => BigNumber.from(x)),
+  minSignal: nullPassThrough((x: string) => BigInt(x)),
+  maxSignal: nullPassThrough((x: string) => BigInt(x)),
+  minStake: nullPassThrough((x: string) => BigInt(x)),
   maxAllocationPercentage: nullPassThrough((x: string) => parseFloat(x)),
-  minAverageQueryFees: nullPassThrough((x: string) => BigNumber.from(x)),
+  minAverageQueryFees: nullPassThrough((x: string) => BigInt(x)),
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,
@@ -95,15 +100,15 @@ const INDEXING_RULE_CONVERTERS_TO_GRAPHQL: Record<
   id: x => x,
   identifier: x => x,
   identifierType: x => x,
-  allocationAmount: nullPassThrough((x: BigNumber) => x.toString()),
+  allocationAmount: nullPassThrough((x: bigint) => x.toString()),
   allocationLifetime: nullPassThrough((x: number) => x),
   autoRenewal: x => x,
   parallelAllocations: nullPassThrough((x: number) => x),
-  minSignal: nullPassThrough((x: BigNumber) => x.toString()),
-  maxSignal: nullPassThrough((x: BigNumber) => x.toString()),
-  minStake: nullPassThrough((x: BigNumber) => x.toString()),
+  minSignal: nullPassThrough((x: bigint) => x.toString()),
+  maxSignal: nullPassThrough((x: bigint) => x.toString()),
+  minStake: nullPassThrough((x: bigint) => x.toString()),
   maxAllocationPercentage: nullPassThrough((x: number) => x),
-  minAverageQueryFees: nullPassThrough((x: BigNumber) => x.toString()),
+  minAverageQueryFees: nullPassThrough((x: bigint) => x.toString()),
   decisionBasis: x => x,
   custom: nullPassThrough(JSON.stringify),
   requireSupported: x => x,

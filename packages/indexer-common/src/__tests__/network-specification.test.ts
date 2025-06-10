@@ -70,6 +70,16 @@ describe('Failed deserialization', () => {
       path: ['subgraphs', 'maxBlockDistance'],
       message: 'Number must be greater than or equal to 0',
     },
+    {
+      file: 'invalid-provision-size.yml',
+      path: ['indexerOptions', 'maxProvisionInitialSize'],
+      message: 'Must be greater or equal than 100000 GRT',
+    },
+    {
+      file: 'invalid-payments-destination.yml',
+      path: ['indexerOptions', 'paymentsDestination'],
+      message: 'Invalid contract address',
+    },
   ]
 
   test.each(failedTests)(
