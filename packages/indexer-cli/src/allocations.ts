@@ -151,7 +151,9 @@ export const displayIndexerAllocations = (
     : table(
         [
           Object.keys(allocations[0]),
-          ...allocations.map(allocation => Object.values(allocation).map(value => wrapCell(value, wrapWidth))),
+          ...allocations.map(allocation =>
+            Object.values(allocation).map(value => wrapCell(value, wrapWidth)),
+          ),
         ],
         {
           border: getBorderCharacters('norc'),
@@ -167,9 +169,15 @@ export const displayIndexerAllocation = (
     ? JSON.stringify(allocation, null, 2)
     : outputFormat === OutputFormat.Yaml
     ? yaml.stringify(allocation).trim()
-    : table([Object.keys(allocation), Object.values(allocation).map(value => wrapCell(value, wrapWidth))], {
-        border: getBorderCharacters('norc'),
-      }).trim()
+    : table(
+        [
+          Object.keys(allocation),
+          Object.values(allocation).map(value => wrapCell(value, wrapWidth)),
+        ],
+        {
+          border: getBorderCharacters('norc'),
+        },
+      ).trim()
 
 function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | null {
   return (x: T | null) => (x === null ? null : fn(x))

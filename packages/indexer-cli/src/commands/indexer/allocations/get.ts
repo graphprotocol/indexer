@@ -171,7 +171,13 @@ module.exports = {
         )
       }
       spinner.succeed('Allocations')
-      printIndexerAllocations(print, outputFormat, allocations, displayProperties, wrapWidth)
+      printIndexerAllocations(
+        print,
+        outputFormat,
+        allocations,
+        displayProperties,
+        wrapWidth,
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

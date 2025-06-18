@@ -100,12 +100,16 @@ export function pickFields(
     }
   }
   for (const key of drop) {
-    delete obj[key] 
+    delete obj[key]
   }
   return obj
 }
 
-export function displayObjectData(outputFormat: OutputFormat, data: object, wrapWidth: number): string {
+export function displayObjectData(
+  outputFormat: OutputFormat,
+  data: object,
+  wrapWidth: number,
+): string {
   if (outputFormat === OutputFormat.Json) {
     return JSON.stringify(data, null, 2)
   } else if (outputFormat === OutputFormat.Yaml) {
@@ -268,7 +272,6 @@ export function requireProtocolNetworkOption(options: { [key: string]: any }): s
   }
   return protocolNetwork
 }
-
 
 export function wrapCell(value: unknown, wrapWidth: number): string {
   return wrapWidth > 0

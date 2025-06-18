@@ -85,12 +85,13 @@ module.exports = {
       )
 
       spinner.succeed('Allocation created')
-      printObjectOrArray(print, outputFormat, allocateResult, [
-        'allocation',
-        'deployment',
-        'allocatedTokens',
-        'protocolNetwork',
-      ], wrapWidth)
+      printObjectOrArray(
+        print,
+        outputFormat,
+        allocateResult,
+        ['allocation', 'deployment', 'allocatedTokens', 'protocolNetwork'],
+        wrapWidth,
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

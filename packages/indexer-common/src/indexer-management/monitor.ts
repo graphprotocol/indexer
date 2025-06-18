@@ -56,7 +56,7 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
-  ) { }
+  ) {}
 
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
@@ -285,7 +285,8 @@ export class NetworkMonitor {
 
       if (allocations.length === 0) {
         this.logger.warn(
-          `No ${AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
+          `No ${
+            AllocationStatus[status.toUpperCase() as keyof typeof AllocationStatus]
           } allocations found for indexer '${this.indexerOptions.address}'`,
         )
       }
@@ -1559,10 +1560,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 IndexerErrorCode.IE067,
                 `POI not available for deployment at current epoch start block.
               currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${deploymentStatus.length > 0
+              deploymentStatus: ${
+                deploymentStatus.length > 0
                   ? JSON.stringify(deploymentStatus)
                   : 'not deployed'
-                }`,
+              }`,
               )
             } else {
               return [poi, epochStartBlock.number]
@@ -1597,7 +1599,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     let returnBlockNumber = 0
     if (generatedPOIBlockNumber === 0) {
       if (blockNumber === undefined) {
-        throw indexerError(IndexerErrorCode.IE084, 'No block number generated and none provided')
+        throw indexerError(
+          IndexerErrorCode.IE084,
+          'No block number generated and none provided',
+        )
       }
       returnBlockNumber = blockNumber
     } else if (blockNumber === undefined || generatedPOIBlockNumber === blockNumber) {
@@ -1638,7 +1643,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     let returnPublicPOI: string
     if (generatedPublicPOI === undefined) {
       if (publicPOI === undefined) {
-        throw indexerError(IndexerErrorCode.IE085, 'No public POI generated and none provided')
+        throw indexerError(
+          IndexerErrorCode.IE085,
+          'No public POI generated and none provided',
+        )
       }
       returnPublicPOI = publicPOI
     } else if (publicPOI === undefined || generatedPublicPOI === publicPOI) {

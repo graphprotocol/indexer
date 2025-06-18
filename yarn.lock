@@ -568,15 +568,10 @@
     prom-client "14.2.0"
     sequelize "6.33.0"
 
-"@graphprotocol/contracts@^7.1.2":
-  version "7.1.2"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/contracts/-/contracts-7.1.2.tgz#919cf6747d25cb52855d01be6582c06695ae3b83"
-  integrity sha512-t8o0nA+cs5HEKLxjaV0zELBtDLAPm6hoXi0o5tnpw7vigyMPoP92QQkVfbjAt9eMnkC7/AyGRWOMBfAZV9l8Og==
-
-"@graphprotocol/horizon@^0.3.3":
-  version "0.3.3"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.3.3.tgz#2fe0a9ebf27532b5deea94443d47342e159d43c8"
-  integrity sha512-aAQ7zOaqGE/nMuu+h2CGwO8Tkho/m1CcezfOz54voBpFSqfxk2WggYe1lUWd+nvHpuynfgaqM4gW+kYTLliWYw==
+"@graphprotocol/interfaces@^0.2.4":
+  version "0.2.4"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.2.4.tgz#57e4d391db2f2add181667808d25c99f196e2897"
+  integrity sha512-a4IiWnKHenL5pli8YXNz/l3idkdWQX1CBT2wqiesqUXt1HKGLMreWySEtrcQHOsCl0jdCMzIMdnAd7KlCZQsCQ==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -588,19 +583,12 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/subgraph-service@^0.3.5":
-  version "0.3.5"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.3.5.tgz#38af1602b73602c57617e915ccf77c89a386a356"
-  integrity sha512-QmcQ4eOoUkmA+yStnRwIPAjCDyqIyQ0hLTL9IRZPDXs5a0ye7Kd9XIZDikuPlm1Bdqwu+tr2/yYdc3x3t0Sx2Q==
-
-"@graphprotocol/toolshed@0.5.5":
-  version "0.5.5"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.5.5.tgz#7fccd11499a5938fb51a1eb822ea8faaed05fdc1"
-  integrity sha512-fS/FmGAukWq2MjW4uOOJ/y+fXY6vB5kiZORLmKTN36hJnBXJsCOs6u8JNWER2E5MN4iTMSOLd6fj9JgncDNhsg==
+"@graphprotocol/toolshed@0.6.4":
+  version "0.6.4"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.4.tgz#f9be510403b808864fe81a969c04020c5e92b240"
+  integrity sha512-uFgR6LNxp+3IM4z0+Hb/968PzCGkpECwcdhb3l1jtsMV/PMmYfnsOJqphC84DbHUBG8WNT62D2WQEY9c8ZSucQ==
   dependencies:
-    "@graphprotocol/contracts" "^7.1.2"
-    "@graphprotocol/horizon" "^0.3.3"
-    "@graphprotocol/subgraph-service" "^0.3.5"
+    "@graphprotocol/interfaces" "^0.2.4"
     "@nomicfoundation/hardhat-ethers" "3.0.8"
     debug "^4.4.0"
     ethers "6.13.7"

@@ -661,7 +661,7 @@ export class Network {
       const service = await this.contracts.LegacyServiceRegistry.services(
         this.specification.indexerOptions.address,
       )
-      if (service.url === url && service.geohash === geoHash) {
+      if (service.url === url && service.geoHash === geoHash) {
         if (await this.transactionManager.isOperator.value()) {
           logger.info(`Indexer already registered, operator status already granted`)
         } else {

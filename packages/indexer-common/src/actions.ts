@@ -86,7 +86,7 @@ export const isValidActionInput = (
         'deploymentID' in variableToCheck &&
         'allocationID' in variableToCheck &&
         'amount' in variableToCheck
-        
+
       if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
         hasActionParams =
           hasActionParams &&

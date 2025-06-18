@@ -104,11 +104,13 @@ module.exports = {
       )
 
       spinner.succeed('Allocation closed')
-      printObjectOrArray(print, outputFormat, closeResult, [
-        'allocation',
-        'allocatedTokens',
-        'indexingRewards',
-      ], wrapWidth)
+      printObjectOrArray(
+        print,
+        outputFormat,
+        closeResult,
+        ['allocation', 'allocatedTokens', 'indexingRewards'],
+        wrapWidth,
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

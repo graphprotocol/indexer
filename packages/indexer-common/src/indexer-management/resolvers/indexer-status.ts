@@ -87,7 +87,7 @@ export default {
           address,
           protocolNetwork,
           url: service.url,
-          location: geohash.decode(service.geohash),
+          location: geohash.decode(service.geoHash),
           registered,
           isLegacy: true,
           __typename: 'IndexerRegistration',

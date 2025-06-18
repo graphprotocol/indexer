@@ -25,7 +25,9 @@ export async function up({ context }: Context): Promise<void> {
   const publicPOI = table.publicPOI
   const poiBlockNumber = table.poiBlockNumber
   if (publicPOI && poiBlockNumber) {
-    logger.info(`'publicPOI' and 'poiBlockNumber' columns already exist, migration not necessary`)
+    logger.info(
+      `'publicPOI' and 'poiBlockNumber' columns already exist, migration not necessary`,
+    )
     return
   }
 

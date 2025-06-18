@@ -36,7 +36,11 @@ import {
   isActionFailureArray,
   POIData,
 } from '@graphprotocol/indexer-common'
-import { encodeStartServiceData, encodeStopServiceData, PaymentTypes } from '@graphprotocol/toolshed'
+import {
+  encodeStartServiceData,
+  encodeStopServiceData,
+  PaymentTypes,
+} from '@graphprotocol/toolshed'
 import {
   encodeCollectIndexingRewardsData,
   encodePOIMetadata,
@@ -113,7 +117,7 @@ export class AllocationManager {
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
-  ) { }
+  ) {}
 
   async executeBatch(
     actions: Action[],
@@ -544,17 +548,17 @@ export class AllocationManager {
 
     const proof = isHorizon
       ? await horizonAllocationIdProof(
-        allocationSigner,
-        Number(this.network.specification.networkIdentifier.split(':')[1]),
-        this.network.specification.indexerOptions.address,
-        allocationId,
-        this.network.contracts.SubgraphService.target.toString(),
-      )
+          allocationSigner,
+          Number(this.network.specification.networkIdentifier.split(':')[1]),
+          this.network.specification.indexerOptions.address,
+          allocationId,
+          this.network.contracts.SubgraphService.target.toString(),
+        )
       : await legacyAllocationIdProof(
-        allocationSigner,
-        this.network.specification.indexerOptions.address,
-        allocationId,
-      )
+          allocationSigner,
+          this.network.specification.indexerOptions.address,
+          allocationId,
+        )
 
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
@@ -588,28 +592,29 @@ export class AllocationManager {
       throw indexerError(
         IndexerErrorCode.IE062,
 
-        `Allocation not created. ${receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
+        `Allocation not created. ${
+          receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
         }`,
       )
     }
 
     const createAllocationEventLogs = isLegacy
       ? this.network.transactionManager.findEvent(
-        'AllocationCreated',
-        this.network.contracts.LegacyStaking.interface,
-        'subgraphDeploymentID',
-        subgraphDeployment.bytes32,
-        receipt,
-        this.logger,
-      )
+          'AllocationCreated',
+          this.network.contracts.LegacyStaking.interface,
+          'subgraphDeploymentID',
+          subgraphDeployment.bytes32,
+          receipt,
+          this.logger,
+        )
       : this.network.transactionManager.findEvent(
-        'AllocationCreated',
-        this.network.contracts.SubgraphService.interface,
-        'indexer',
-        this.network.specification.indexerOptions.address,
-        receipt,
-        logger,
-      )
+          'AllocationCreated',
+          this.network.contracts.SubgraphService.interface,
+          'indexer',
+          this.network.specification.indexerOptions.address,
+          receipt,
+          logger,
+        )
 
     if (!createAllocationEventLogs) {
       throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
@@ -617,9 +622,13 @@ export class AllocationManager {
 
     logger.info(`Successfully allocated to subgraph deployment`, {
       amountGRT: formatGRT(createAllocationEventLogs.tokens),
-      allocation: isLegacy ? createAllocationEventLogs.allocationID : createAllocationEventLogs.allocationId,
+      allocation: isLegacy
+        ? createAllocationEventLogs.allocationID
+        : createAllocationEventLogs.allocationId,
       deployment: createAllocationEventLogs.subgraphDeploymentID,
-      epoch: isLegacy ? createAllocationEventLogs.epoch.toString() : createAllocationEventLogs.currentEpoch.toString(),
+      epoch: isLegacy
+        ? createAllocationEventLogs.epoch.toString()
+        : createAllocationEventLogs.currentEpoch.toString(),
       isLegacy,
     })
 
@@ -645,7 +654,9 @@ export class AllocationManager {
       type: 'allocate',
       transactionID: receipt.hash,
       deployment: deployment,
-      allocation: isLegacy ? createAllocationEventLogs.allocationID : createAllocationEventLogs.allocationId,
+      allocation: isLegacy
+        ? createAllocationEventLogs.allocationID
+        : createAllocationEventLogs.allocationId,
       allocatedTokens: amount,
       protocolNetwork: this.network.specification.networkIdentifier,
     }
@@ -730,7 +741,8 @@ export class AllocationManager {
         throw indexerError(IndexerErrorCode.IE065)
       }
     } else {
-      const allocation = await this.network.contracts.SubgraphService.getAllocation(allocationID)
+      const allocation =
+        await this.network.contracts.SubgraphService.getAllocation(allocationID)
       if (allocation.closedAt !== 0n) {
         throw indexerError(IndexerErrorCode.IE065)
       }
@@ -764,21 +776,23 @@ export class AllocationManager {
       )
     }
 
-    const closeAllocationEventLogs = isLegacy ? this.network.transactionManager.findEvent(
-      'AllocationClosed',
-      this.network.contracts.LegacyStaking.interface,
-      'allocationID',
-      allocationID,
-      receipt,
-      this.logger,
-    ) : this.network.transactionManager.findEvent(
-      'AllocationClosed',
-      this.network.contracts.SubgraphService.interface,
-      'allocationId',
-      allocationID,
-      receipt,
-      this.logger,
-    )
+    const closeAllocationEventLogs = isLegacy
+      ? this.network.transactionManager.findEvent(
+          'AllocationClosed',
+          this.network.contracts.LegacyStaking.interface,
+          'allocationID',
+          allocationID,
+          receipt,
+          this.logger,
+        )
+      : this.network.transactionManager.findEvent(
+          'AllocationClosed',
+          this.network.contracts.SubgraphService.interface,
+          'allocationId',
+          allocationID,
+          receipt,
+          this.logger,
+        )
 
     if (!closeAllocationEventLogs) {
       throw indexerError(
@@ -787,32 +801,38 @@ export class AllocationManager {
       )
     }
 
-    const rewardsEventLogs = isLegacy ? this.network.transactionManager.findEvent(
-      'RewardsAssigned',
-      this.network.contracts.RewardsManager.interface,
-      'allocationID',
-      allocationID,
-      receipt,
-      this.logger,
-    ) : this.network.transactionManager.findEvent(
-      'IndexingRewardsCollected',
-      this.network.contracts.SubgraphService.interface,
-      'allocationId',
-      allocationID,
-      receipt,
-      this.logger,
-    )
+    const rewardsEventLogs = isLegacy
+      ? this.network.transactionManager.findEvent(
+          'RewardsAssigned',
+          this.network.contracts.RewardsManager.interface,
+          'allocationID',
+          allocationID,
+          receipt,
+          this.logger,
+        )
+      : this.network.transactionManager.findEvent(
+          'IndexingRewardsCollected',
+          this.network.contracts.SubgraphService.interface,
+          'allocationId',
+          allocationID,
+          receipt,
+          this.logger,
+        )
 
-    const rewardsAssigned = rewardsEventLogs ?
-      (isLegacy ? rewardsEventLogs.amount : rewardsEventLogs.tokensIndexerRewards) :
-      0
+    const rewardsAssigned = rewardsEventLogs
+      ? isLegacy
+        ? rewardsEventLogs.amount
+        : rewardsEventLogs.tokensIndexerRewards
+      : 0
 
     if (rewardsAssigned == 0) {
       logger.warn('No rewards were distributed upon closing the allocation')
     }
 
     const subgraphDeploymentID = new SubgraphDeploymentID(
-      isLegacy ? closeAllocationEventLogs.subgraphDeploymentID : closeAllocationEventLogs.subgraphDeploymentId,
+      isLegacy
+        ? closeAllocationEventLogs.subgraphDeploymentID
+        : closeAllocationEventLogs.subgraphDeploymentId,
     )
 
     logger.info(`Successfully closed allocation`, {
@@ -882,20 +902,24 @@ export class AllocationManager {
           0,
         ),
       )
-      const collectCallData = this.network.contracts.SubgraphService.interface.encodeFunctionData(
-        'collect',
-        [params.indexer, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
-      )
+      const collectCallData =
+        this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
+          params.indexer,
+          PaymentTypes.IndexingRewards,
+          collectIndexingRewardsData,
+        ])
 
       // stopService
-      const stopServiceCallData = this.network.contracts.SubgraphService.interface.encodeFunctionData(
-        'stopService',
-        [params.indexer, encodeStopServiceData(params.allocationID)],
-      )
+      const stopServiceCallData =
+        this.network.contracts.SubgraphService.interface.encodeFunctionData(
+          'stopService',
+          [params.indexer, encodeStopServiceData(params.allocationID)],
+        )
 
-      return await this.network.contracts.SubgraphService.multicall.populateTransaction(
-        [collectCallData, stopServiceCallData],
-      )
+      return await this.network.contracts.SubgraphService.multicall.populateTransaction([
+        collectCallData,
+        stopServiceCallData,
+      ])
     }
   }
 
@@ -982,10 +1006,14 @@ export class AllocationManager {
       )
       if (state !== 1n) {
         logger.warn(`Allocation has already been closed`)
-        throw indexerError(IndexerErrorCode.IE065, `Legacy allocation has already been closed`)
+        throw indexerError(
+          IndexerErrorCode.IE065,
+          `Legacy allocation has already been closed`,
+        )
       }
     } else {
-      const allocationData = await this.network.contracts.SubgraphService.getAllocation(allocationID)
+      const allocationData =
+        await this.network.contracts.SubgraphService.getAllocation(allocationID)
       if (allocationData.closedAt !== 0n) {
         logger.warn(`Allocation has already been closed`)
         throw indexerError(IndexerErrorCode.IE065, `Allocation has already been closed`)
@@ -1023,7 +1051,8 @@ export class AllocationManager {
     // avoid unnecessary transactions.
     const isHorizon = await this.network.isHorizon.value()
     if (isHorizon) {
-      const allocationData = await this.network.contracts.SubgraphService.getAllocation(newAllocationId)
+      const allocationData =
+        await this.network.contracts.SubgraphService.getAllocation(newAllocationId)
       if (allocationData.createdAt !== 0n) {
         logger.warn(`Skipping allocation as it already exists onchain`, {
           indexer: this.network.specification.indexerOptions.address,
@@ -1047,7 +1076,6 @@ export class AllocationManager {
       }
     }
 
-
     logger.debug('Generating new allocation ID proof', {
       newAllocationSigner: allocationSigner,
       newAllocationID: newAllocationId,
@@ -1056,17 +1084,17 @@ export class AllocationManager {
     })
     const proof = isHorizon
       ? await horizonAllocationIdProof(
-        allocationSigner,
-        Number(this.network.specification.networkIdentifier.split(':')[1]),
-        this.network.specification.indexerOptions.address,
-        newAllocationId,
-        this.network.contracts.SubgraphService.target.toString(),
-      )
+          allocationSigner,
+          Number(this.network.specification.networkIdentifier.split(':')[1]),
+          this.network.specification.indexerOptions.address,
+          newAllocationId,
+          this.network.contracts.SubgraphService.target.toString(),
+        )
       : await legacyAllocationIdProof(
-        allocationSigner,
-        this.network.specification.indexerOptions.address,
-        newAllocationId,
-      )
+          allocationSigner,
+          this.network.specification.indexerOptions.address,
+          newAllocationId,
+        )
 
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
@@ -1234,7 +1262,9 @@ export class AllocationManager {
         throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
       }
 
-      subgraphDeploymentID = new SubgraphDeploymentID(closeAllocationEventLogs.subgraphDeploymentId)
+      subgraphDeploymentID = new SubgraphDeploymentID(
+        closeAllocationEventLogs.subgraphDeploymentId,
+      )
     }
 
     logger.info(`Successfully reallocated to deployment`, {
@@ -1324,10 +1354,12 @@ export class AllocationManager {
 
     // -- close allocation
     if (params.closingAllocationIsLegacy) {
-      txs.push(await this.network.contracts.LegacyStaking.closeAllocation.populateTransaction(
-        params.closingAllocationID,
-        params.poi.poi,
-      ))
+      txs.push(
+        await this.network.contracts.LegacyStaking.closeAllocation.populateTransaction(
+          params.closingAllocationID,
+          params.poi.poi,
+        ),
+      )
     } else {
       // Horizon: Need to multicall collect and stopService
 
@@ -1343,20 +1375,26 @@ export class AllocationManager {
           0,
         ),
       )
-      const collectCallData = this.network.contracts.SubgraphService.interface.encodeFunctionData(
-        'collect',
-        [params.indexer, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
-      )
+      const collectCallData =
+        this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
+          params.indexer,
+          PaymentTypes.IndexingRewards,
+          collectIndexingRewardsData,
+        ])
 
       // stopService
-      const stopServiceCallData = this.network.contracts.SubgraphService.interface.encodeFunctionData(
-        'stopService',
-        [params.indexer, encodeStopServiceData(params.closingAllocationID)],
-      )
+      const stopServiceCallData =
+        this.network.contracts.SubgraphService.interface.encodeFunctionData(
+          'stopService',
+          [params.indexer, encodeStopServiceData(params.closingAllocationID)],
+        )
 
-      txs.push(await this.network.contracts.SubgraphService.multicall.populateTransaction(
-        [collectCallData, stopServiceCallData],
-      ))
+      txs.push(
+        await this.network.contracts.SubgraphService.multicall.populateTransaction([
+          collectCallData,
+          stopServiceCallData,
+        ]),
+      )
     }
 
     // -- create new allocation
@@ -1368,19 +1406,23 @@ export class AllocationManager {
         params.newAllocationID,
         params.proof.toString(),
       )
-      txs.push(await this.network.contracts.SubgraphService.startService.populateTransaction(
-        params.indexer,
-        encodedData,
-      ))
+      txs.push(
+        await this.network.contracts.SubgraphService.startService.populateTransaction(
+          params.indexer,
+          encodedData,
+        ),
+      )
     } else {
-      txs.push(await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
-        params.indexer,
-        params.subgraphDeploymentID,
-        params.tokens,
-        params.newAllocationID,
-        params.metadata,
-        params.proof,
-      ))
+      txs.push(
+        await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
+          params.indexer,
+          params.subgraphDeploymentID,
+          params.tokens,
+          params.newAllocationID,
+          params.metadata,
+          params.proof,
+        ),
+      )
     }
 
     return txs
@@ -1441,9 +1483,9 @@ export class AllocationManager {
         action.poi === zeroHexString
           ? 0n
           : await this.network.contracts.RewardsManager.getRewards(
-            this.network.contracts.HorizonStaking.target,
-            action.allocationID,
-          )
+              this.network.contracts.HorizonStaking.target,
+              action.allocationID,
+            )
 
       unallocates = unallocates + allocation.allocatedTokens
     }
@@ -1503,10 +1545,10 @@ export class AllocationManager {
         throw indexerError(
           IndexerErrorCode.IE013,
           `Unfeasible action batch: Approved action batch GRT balance is ` +
-          `${formatGRT(batchDelta)} for horizon actions and ` +
-          `${formatGRT(batchDeltaLegacy)} for legacy actions ` +
-          `but available horizon stake equals ${formatGRT(indexerFreeStake.horizon)} ` +
-          `and legacy stake equals ${formatGRT(indexerFreeStake.legacy)}.`,
+            `${formatGRT(batchDelta)} for horizon actions and ` +
+            `${formatGRT(batchDeltaLegacy)} for legacy actions ` +
+            `but available horizon stake equals ${formatGRT(indexerFreeStake.horizon)} ` +
+            `and legacy stake equals ${formatGRT(indexerFreeStake.legacy)}.`,
         )
       }
     }

@@ -481,7 +481,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     },
   )
 
-
   ReceiptAggregateVoucherV2.init(
     {
       collectionId: {
