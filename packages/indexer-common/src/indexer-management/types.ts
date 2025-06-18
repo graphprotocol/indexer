@@ -7,6 +7,7 @@ import {
 import { Allocation, Provision } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
+import { TransactionReceipt } from 'ethers'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let registry: any
@@ -45,6 +46,18 @@ export interface ReallocateAllocationResult {
   createdAllocation: string
   createdAllocationStake: string
   protocolNetwork: string
+}
+
+export interface ActionExecutionResult {
+  actionID: number
+  success: boolean
+  result: AllocationResult
+}
+
+export interface ExecuteTransactionResult {
+  actionID: number
+  success: boolean
+  result: ActionFailure | TransactionReceipt | "paused" | "unauthorized"
 }
 
 export interface ActionFailure {
