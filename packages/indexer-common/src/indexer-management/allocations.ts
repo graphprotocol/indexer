@@ -764,6 +764,7 @@ export class AllocationManager {
     const logger = this.logger.child({ action: actionID })
     const isLegacy =
       (receipt as TransactionReceipt).to === this.network.contracts.HorizonStaking.target
+    const isHorizon = await this.network.isHorizon.value()
 
     logger.info(`Confirming unallocate transaction`, {
       isLegacy,
@@ -803,7 +804,7 @@ export class AllocationManager {
 
     const rewardsEventLogs = isLegacy
       ? this.network.transactionManager.findEvent(
-          'RewardsAssigned',
+          isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
           this.network.contracts.RewardsManager.interface,
           'allocationID',
           allocationID,
@@ -1196,7 +1197,7 @@ export class AllocationManager {
       }
 
       const rewardsEventLogs = this.network.transactionManager.findEvent(
-        'RewardsAssigned',
+        isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
         this.network.contracts.RewardsManager.interface,
         'allocationID',
         allocationID,

@@ -636,6 +636,7 @@ async function closeLegacyAllocation(
 ): Promise<{ txHash: string; rewardsAssigned: bigint }> {
   const contracts = network.contracts
   const transactionManager = network.transactionManager
+  const isHorizon = await network.isHorizon.value()
 
   // Double-check whether the allocation is still active on chain, to
   // avoid unnecessary transactions.
@@ -688,7 +689,7 @@ async function closeLegacyAllocation(
   }
 
   const rewardsEventLogs = transactionManager.findEvent(
-    'RewardsAssigned',
+    isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
     contracts.RewardsManager.interface,
     'allocationID',
     allocation.id,
@@ -853,6 +854,7 @@ async function reallocateLegacyAllocation(
   const transactionManager = network.transactionManager
   const address = network.specification.indexerOptions.address
   const currentEpoch = await contracts.EpochManager.currentEpoch()
+  const isHorizon = await network.isHorizon.value()
 
   // Double-check whether the allocation is still active on chain, to
   // avoid unnecessary transactions.
@@ -1023,7 +1025,7 @@ async function reallocateLegacyAllocation(
   }
 
   const rewardsEventLogs = transactionManager.findEvent(
-    'RewardsAssigned',
+    isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
     contracts.RewardsManager.interface,
     'allocationID',
     allocation.id,
