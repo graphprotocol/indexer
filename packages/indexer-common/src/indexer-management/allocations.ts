@@ -186,13 +186,17 @@ export class AllocationManager {
     // We need to process both staking contract and subgraph service transactions separately 
     // as they cannot be multicalled
     // Realistically, the only scenario where a batch would have both is shortly after the horizon upgrade
+    const stakingTransactions = preparedTransactions.filter(
+      (tx: TransactionRequest) =>
+        tx.to === this.network.contracts.HorizonStaking.target,
+    )
+    const subgraphServiceTransactions = preparedTransactions.filter(
+      (tx: TransactionRequest) =>
+        tx.to === this.network.contracts.SubgraphService.target,
+    )
 
     // -- STAKING CONTRACT --
-    const callDataStakingContract = preparedTransactions
-      .filter(
-        (tx: TransactionRequest) =>
-          tx.to === this.network.contracts.HorizonStaking.target,
-      )
+    const callDataStakingContract = stakingTransactions
       .filter((tx: TransactionRequest) => !!tx.data)
       .map((tx) => tx.data as string)
 
@@ -221,41 +225,33 @@ export class AllocationManager {
         )
 
         // Mark all actions with staking contract transactions as successful
-        for (const preparedTransaction of preparedTransactions) {
-          if (preparedTransaction.to === this.network.contracts.HorizonStaking.target) {
-            actionResults.push({
-              actionID: preparedTransaction.actionID,
-              success: true,
-              result: stakingTransactionResult,
-            })
-          }
+        for (const transaction of stakingTransactions) {
+          actionResults.push({
+            actionID: transaction.actionID,
+            success: true,
+            result: stakingTransactionResult,
+          })
         }
       } catch (error) {
         logger.error('Failed to execute staking contract transaction', { error })
 
         // Mark all actions with staking contract transactions as failed
-        for (const preparedTransaction of preparedTransactions) {
-          if (preparedTransaction.to === this.network.contracts.HorizonStaking.target) {
-            actionResults.push({
-              actionID: preparedTransaction.actionID,
-              success: false,
-              result: {
-                actionID: preparedTransaction.actionID,
-                failureReason: `Failed to execute staking contract transaction: ${error.message}`,
-                protocolNetwork: preparedTransaction.protocolNetwork,
-              },
-            })
-          }
+        for (const transaction of stakingTransactions) {
+          actionResults.push({
+            actionID: transaction.actionID,
+            success: false,
+            result: {
+              actionID: transaction.actionID,
+              failureReason: `Failed to execute staking contract transaction: ${error.message}`,
+              protocolNetwork: transaction.protocolNetwork,
+            },
+          })
         }
       }
     }
 
     // -- SUBGRAPH SERVICE --
-    const callDataSubgraphService = preparedTransactions
-      .filter(
-        (tx: TransactionRequest) =>
-          tx.to === this.network.contracts.SubgraphService.target,
-      )
+    const callDataSubgraphService = subgraphServiceTransactions
       // Reallocate of a legacy allocation during the transition period can result in 
       // a staking and subgraph service transaction in the same batch. If the staking tx failed we 
       // should not execute the subgraph service tx.
@@ -291,31 +287,27 @@ export class AllocationManager {
         )
 
         // Mark all actions with subgraph service transactions as successful
-        for (const preparedTransaction of preparedTransactions) {
-          if (preparedTransaction.to === this.network.contracts.SubgraphService.target) {
-            actionResults.push({
-              actionID: preparedTransaction.actionID,
-              success: true,
-              result: subgraphServiceTransactionResult,
-            })
-          }
+        for (const transaction of subgraphServiceTransactions) {
+          actionResults.push({
+            actionID: transaction.actionID,
+            success: true,
+            result: subgraphServiceTransactionResult,
+          })
         }
       } catch (error) {
         logger.error('Failed to execute subgraph service transaction', { error })
 
         // Mark all actions with subgraph service transactions as failed
-        for (const preparedTransaction of preparedTransactions) {
-          if (preparedTransaction.to === this.network.contracts.SubgraphService.target) {
-            actionResults.push({
-              actionID: preparedTransaction.actionID,
-              success: false,
-              result: {
-                actionID: preparedTransaction.actionID,
-                failureReason: `Failed to execute subgraph service transaction: ${error.message}`,
-                protocolNetwork: preparedTransaction.protocolNetwork,
-              },
-            })
-          }
+        for (const transaction of subgraphServiceTransactions) {
+          actionResults.push({
+            actionID: transaction.actionID,
+            success: false,
+            result: {
+              actionID: transaction.actionID,
+              failureReason: `Failed to execute subgraph service transaction: ${error.message}`,
+              protocolNetwork: transaction.protocolNetwork,
+            },
+          })
         }
       }
     }
