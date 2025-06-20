@@ -32,21 +32,30 @@ export class ScalarTapReceipts
 
 export interface TapHorizonReceiptsAttributes {
   id: number
-  allocation_id: Address
   signer_address: Address
+
   signature: Uint8Array
+  collection_id: string
+  payer: Address
+  data_service: Address
+  service_provider: Address
   timestamp_ns: bigint
   nonce: bigint
   value: bigint
+
   error_log?: string
 }
 export class TapHorizonReceipts
   extends Model<TapHorizonReceiptsAttributes>
   implements TapHorizonReceiptsAttributes {
   public id!: number
-  public allocation_id!: Address
   public signer_address!: Address
+
   public signature!: Uint8Array
+  public collection_id!: string
+  public payer!: Address
+  public data_service!: Address
+  public service_provider!: Address
   public timestamp_ns!: bigint
   public nonce!: bigint
   public value!: bigint
@@ -75,12 +84,17 @@ export class TapHorizonReceiptsInvalid
   extends Model<TapHorizonReceiptsAttributes>
   implements TapHorizonReceiptsAttributes {
   public id!: number
-  public allocation_id!: Address
   public signer_address!: Address
+
+  public signature!: Uint8Array
+  public collection_id!: string
+  public payer!: Address
+  public data_service!: Address
+  public service_provider!: Address
   public timestamp_ns!: bigint
   public nonce!: bigint
   public value!: bigint
-  public signature!: Uint8Array
+
   public error_log!: string
 
   declare createdAt: CreationOptional<Date>
@@ -143,17 +157,18 @@ export interface ReceiptAggregateVoucherAttributes {
 }
 
 export interface ReceiptAggregateVoucherV2Attributes {
-  collectionId: string
-  senderAddress: string
-  serviceProviderAddress: string
-  dataServiceAddress: string
-  metadata: string
   signature: Uint8Array
+  collectionId: string
+  payer: string
+  dataService: string
+  serviceProvider: string
   timestampNs: bigint
   valueAggregate: bigint
+  metadata: string
+  
   last: boolean
-  redeemedAt: Date | null
   final: boolean
+  redeemedAt: Date | null
 }
 
 export interface FailedReceiptAggregateVoucherAttributes {
@@ -167,9 +182,9 @@ export interface FailedReceiptAggregateVoucherAttributes {
 
 export interface FailedReceiptAggregateVoucherV2Attributes {
   collectionId: string
-  senderAddress: string
-  serviceProviderAddress: string
-  dataServiceAddress: string
+  payer: string
+  dataService: string
+  serviceProvider: string
   expectedRav: JSON
   rav_response: JSON
   reason: string
@@ -210,29 +225,26 @@ export class ReceiptAggregateVoucher
 
 // TODO HORIZON: move this to the toolshed package
 export type SignedRAVv2 = {
-  rav: Omit<RAVv2, 'payer' | 'serviceProvider' | 'dataService'> & {
-    senderAddress: string
-    serviceProviderAddress: string
-    dataServiceAddress: string
-  }
+  rav: RAVv2
   signature: BytesLike
 }
 
 export class ReceiptAggregateVoucherV2
   extends Model<ReceiptAggregateVoucherV2Attributes>
   implements ReceiptAggregateVoucherV2Attributes {
-  public collectionId!: Address
-  public senderAddress!: Address
-  public serviceProviderAddress!: Address
-  public dataServiceAddress!: Address
-  public metadata!: string
   public signature!: Uint8Array
+  public collectionId!: string
+  public payer!: Address
+  public dataService!: Address
+  public serviceProvider!: Address
   public timestampNs!: bigint
   public valueAggregate!: bigint
+  public metadata!: string
+
   public final!: boolean
   public last!: boolean
-  public redeemedAt!: Date | null
 
+  public redeemedAt!: Date | null
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
@@ -246,9 +258,9 @@ export class ReceiptAggregateVoucherV2
     return {
       rav: {
         collectionId: this.collectionId,
-        senderAddress: this.senderAddress,
-        serviceProviderAddress: this.serviceProviderAddress,
-        dataServiceAddress: this.dataServiceAddress,
+        payer: this.payer,
+        dataService: this.dataService,
+        serviceProvider: this.serviceProvider,
         timestampNs: Number(this.timestampNs),
         valueAggregate: this.valueAggregate,
         metadata: this.metadata,
@@ -274,10 +286,10 @@ export class FailedReceiptAggregateVoucher
 export class FailedReceiptAggregateVoucherV2
   extends Model<FailedReceiptAggregateVoucherV2Attributes>
   implements FailedReceiptAggregateVoucherV2Attributes {
-  public collectionId!: Address
-  public senderAddress!: Address
-  public serviceProviderAddress!: Address
-  public dataServiceAddress!: Address
+  public collectionId!: string
+  public payer!: Address
+  public dataService!: Address
+  public serviceProvider!: Address
   public expectedRav!: JSON
   public rav_response!: JSON
   public reason!: string
@@ -385,6 +397,7 @@ export class AllocationSummary
     allocationReceipts: Association<AllocationSummary, AllocationReceipt>
     voucher: Association<AllocationSummary, Voucher>
     receiptAggregateVoucher: Association<AllocationSummary, ReceiptAggregateVoucher>
+    receiptAggregateVoucherV2: Association<AllocationSummary, ReceiptAggregateVoucherV2>
   }
 }
 
@@ -555,48 +568,48 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           const rawValue = this.getDataValue('collectionId')
           return toAddress(rawValue)
         },
-        set(value: Address) {
+        set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
           this.setDataValue('collectionId', addressWithoutPrefix)
         },
       },
-      senderAddress: {
+      payer: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('senderAddress')
+          const rawValue = this.getDataValue('payer')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('senderAddress', addressWithoutPrefix)
+          this.setDataValue('payer', addressWithoutPrefix)
         },
       },
-      serviceProviderAddress: {
+      serviceProvider: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('serviceProviderAddress')
+          const rawValue = this.getDataValue('serviceProvider')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('serviceProviderAddress', addressWithoutPrefix)
+          this.setDataValue('serviceProvider', addressWithoutPrefix)
         },
       },
-      dataServiceAddress: {
+      dataService: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('dataServiceAddress')
+          const rawValue = this.getDataValue('dataService')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('dataServiceAddress', addressWithoutPrefix)
+          this.setDataValue('dataService', addressWithoutPrefix)
         },
       },
       metadata: {
@@ -830,48 +843,48 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           const rawValue = this.getDataValue('collectionId')
           return toAddress(rawValue)
         },
-        set(value: Address) {
+        set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
           this.setDataValue('collectionId', addressWithoutPrefix)
         },
       },
-      senderAddress: {
+      payer: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('senderAddress')
+          const rawValue = this.getDataValue('payer')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('senderAddress', addressWithoutPrefix)
+          this.setDataValue('payer', addressWithoutPrefix)
         },
       },
-      serviceProviderAddress: {
+      serviceProvider: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('serviceProviderAddress')
+          const rawValue = this.getDataValue('serviceProvider')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('serviceProviderAddress', addressWithoutPrefix)
+          this.setDataValue('serviceProvider', addressWithoutPrefix)
         },
       },
-      dataServiceAddress: {
+      dataService: {
         type: DataTypes.CHAR(40), // 40 because prefix '0x' gets removed by TAP agent
         allowNull: false,
         primaryKey: true,
         get() {
-          const rawValue = this.getDataValue('dataServiceAddress')
+          const rawValue = this.getDataValue('dataService')
           return toAddress(rawValue)
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('dataServiceAddress', addressWithoutPrefix)
+          this.setDataValue('dataService', addressWithoutPrefix)
         },
       },
       expectedRav: {
@@ -942,11 +955,23 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         primaryKey: true,
         autoIncrement: true,
       },
-      allocation_id: {
+      collection_id: {
         type: DataTypes.CHAR(40),
         allowNull: false,
       },
       signer_address: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      payer: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      data_service: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      service_provider: {
         type: DataTypes.CHAR(40),
         allowNull: false,
       },
@@ -1028,7 +1053,19 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         primaryKey: true,
         autoIncrement: true,
       },
-      allocation_id: {
+      collection_id: {
+        type: DataTypes.CHAR(64),
+        allowNull: false,
+      },
+      payer: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      data_service: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      service_provider: {
         type: DataTypes.CHAR(40),
         allowNull: false,
       },

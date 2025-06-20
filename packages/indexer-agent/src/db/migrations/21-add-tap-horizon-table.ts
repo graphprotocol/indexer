@@ -26,16 +26,30 @@ export async function up({ context }: Context): Promise<void> {
         primaryKey: true,
         autoIncrement: true,
       },
-      allocation_id: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
       signer_address: {
         type: DataTypes.CHAR(40),
         allowNull: false,
       },
+
+      // Values below are the individual fields of the EIP-712 receipt
       signature: {
         type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      collection_id: {
+        type: DataTypes.CHAR(64),
+        allowNull: false,
+      },
+      payer: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      data_service: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      service_provider: {
+        type: DataTypes.CHAR(40),
         allowNull: false,
       },
       timestamp_ns: {
@@ -59,7 +73,7 @@ export async function up({ context }: Context): Promise<void> {
     RETURNS trigger AS
     $$
     BEGIN
-        PERFORM pg_notify('tap_horizon_receipt_notification', format('{"id": %s, "allocation_id": "%s", "signer_address": "%s", "timestamp_ns": %s, "value": %s}', NEW.id, NEW.allocation_id, NEW.signer_address, NEW.timestamp_ns, NEW.value));
+        PERFORM pg_notify('tap_horizon_receipt_notification', format('{"id": %s, "collection_id": "%s", "signer_address": "%s", "timestamp_ns": %s, "value": %s}', NEW.id, NEW.collection_id, NEW.signer_address, NEW.timestamp_ns, NEW.value));
         RETURN NEW;
     END;
     $$ LANGUAGE 'plpgsql';
@@ -72,8 +86,8 @@ export async function up({ context }: Context): Promise<void> {
   await queryInterface.sequelize.query(functionSQL)
   await queryInterface.sequelize.query(triggerSQL)
 
-  queryInterface.addIndex('tap_horizon_receipts', ['allocation_id'], {
-    name: 'tap_horizon_receipts_allocation_id_idx',
+  queryInterface.addIndex('tap_horizon_receipts', ['collection_id'], {
+    name: 'tap_horizon_receipts_collection_id_idx',
   })
   queryInterface.addIndex('tap_horizon_receipts', ['timestamp_ns'], {
     name: 'tap_horizon_receipts_timestamp_ns_idx',
@@ -91,16 +105,30 @@ export async function up({ context }: Context): Promise<void> {
         primaryKey: true,
         autoIncrement: true,
       },
-      allocation_id: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
       signer_address: {
         type: DataTypes.CHAR(40),
         allowNull: false,
       },
+
+      // Values below are the individual fields of the EIP-712 receipt
       signature: {
         type: DataTypes.BLOB,
+        allowNull: false,
+      },
+      collection_id: {
+        type: DataTypes.CHAR(64),
+        allowNull: false,
+      },
+      payer: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      data_service: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      service_provider: {
+        type: DataTypes.CHAR(40),
         allowNull: false,
       },
       timestamp_ns: {
@@ -115,6 +143,10 @@ export async function up({ context }: Context): Promise<void> {
         type: DataTypes.DECIMAL(20),
         allowNull: false,
       },
+      error_log: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
     })
   }
 
@@ -123,28 +155,29 @@ export async function up({ context }: Context): Promise<void> {
   } else {
     // Create the tap_horizon_ravs table if it doesn't exist
     await queryInterface.createTable('tap_horizon_ravs', {
-      collection_id: {
-        type: DataTypes.CHAR(64),
-        allowNull: false,
-      },
-      sender_address: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      service_provider_address: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
-      data_service_address: {
-        type: DataTypes.CHAR(40),
-        allowNull: false,
-      },
+      // Values below are the individual fields of the EIP-712 receipt
       signature: {
         type: DataTypes.BLOB,
         allowNull: false,
       },
+      collection_id: {
+        type: DataTypes.CHAR(64),
+        allowNull: false,
+      },
+      payer: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      data_service: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
+      service_provider: {
+        type: DataTypes.CHAR(40),
+        allowNull: false,
+      },
       timestamp_ns: {
-        type: DataTypes.DECIMAL,
+        type: DataTypes.DECIMAL(20),
         allowNull: false,
       },
       value_aggregate: {
@@ -155,16 +188,18 @@ export async function up({ context }: Context): Promise<void> {
         type: DataTypes.BLOB,
         allowNull: false,
       },
-      final: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
+
       last: {
         type: DataTypes.BOOLEAN,
         allowNull: false,
         defaultValue: false,
       },
+      final: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+
       redeemed_at: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -182,7 +217,7 @@ export async function up({ context }: Context): Promise<void> {
 
   logger.info(`Add primary key`)
   await queryInterface.addConstraint('tap_horizon_ravs', {
-    fields: ['collection_id', 'sender_address', 'service_provider_address', 'data_service_address'],
+    fields: ['payer', 'data_service', 'service_provider', 'collection_id'],
     type: 'primary key',
     name: 'pk_tap_horizon_ravs',
   })
@@ -197,15 +232,15 @@ export async function up({ context }: Context): Promise<void> {
       type: DataTypes.CHAR(64),
       allowNull: false,
     },
-    sender_address: {
+    payer: {
       type: DataTypes.CHAR(40),
       allowNull: false,
     },
-    service_provider_address: {
+    data_service: {
       type: DataTypes.CHAR(40),
       allowNull: false,
     },
-    data_service_address: {
+    service_provider: {
       type: DataTypes.CHAR(40),
       allowNull: false,
     },
@@ -239,7 +274,7 @@ export async function down({ context }: Context): Promise<void> {
   )
   await queryInterface.removeIndex(
     'tap_horizon_receipts',
-    'tap_horizon_receipts_allocation_id_idx',
+    'tap_horizon_receipts_collection_id_idx',
   )
   await queryInterface.removeIndex(
     'tap_horizon_receipts',
