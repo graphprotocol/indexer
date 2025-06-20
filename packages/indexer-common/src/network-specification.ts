@@ -1,9 +1,8 @@
 import { toAddress, parseGRT } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
 import { validateNetworkIdentifier, validateIpfsHash } from './parsers'
 import { AllocationManagementMode } from './types'
 import { z } from 'zod'
-import { utils } from 'ethers'
+import { isAddress } from 'ethers'
 
 // TODO: make sure those values are always in sync with the AllocationManagementMode enum. Can we do this in compile time?
 const ALLOCATION_MANAGEMENT_MODE = ['auto', 'manual', 'oversight'] as const
@@ -12,7 +11,7 @@ function positiveNumber(): z.ZodNumber {
   return z.number().positive().finite()
 }
 
-function GRT(): z.ZodEffects<z.ZodNumber, BigNumber, number> {
+function GRT(): z.ZodEffects<z.ZodNumber, bigint, number> {
   return z
     .number()
     .nonnegative()
@@ -33,13 +32,20 @@ export const IndexerOptions = z
   .object({
     address: z
       .string()
-      .refine((val) => utils.isAddress(val), {
+      .refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       })
       .transform(toAddress),
     mnemonic: z.string(),
     url: z.string().url(),
     geoCoordinates: z.number().array().length(2).default([31.780715, -41.179504]),
+    paymentsDestination: z
+      .string()
+      .refine((val) => isAddress(val), {
+        message: 'Invalid contract address',
+      })
+      .transform(toAddress)
+      .optional(),
     restakeRewards: z.boolean().default(true),
     rebateClaimThreshold: GRT().default(1),
     rebateClaimBatchThreshold: GRT().default(5),
@@ -57,6 +63,11 @@ export const IndexerOptions = z
     autoAllocationMinBatchSize: positiveNumber().default(1),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
+    maxProvisionInitialSize: GRT()
+      .refine((x) => x >= parseGRT('100000') || x === 0n, {
+        message: 'Must be greater or equal than 100000 GRT',
+      })
+      .default(0),
     finalityTime: positiveNumber().default(3600),
   })
   .strict()
@@ -77,6 +88,7 @@ export const TransactionMonitoring = z
       .transform((x) => x * 10 ** 9)
       .optional(),
     maxTransactionAttempts: z.number().nonnegative().finite().default(0),
+    confirmationBlocks: positiveNumber().default(3),
   })
   .strict()
   .default({}) // defaults will be used for instantiation when the TransactionMonitoring group is absent.
@@ -145,13 +157,13 @@ export const TapContracts = z
   .record(
     z.string(),
     z.object({
-      TAPVerifier: z.string().refine((val) => utils.isAddress(val), {
+      TAPVerifier: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
-      AllocationIDTracker: z.string().refine((val) => utils.isAddress(val), {
+      AllocationIDTracker: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
-      Escrow: z.string().refine((val) => utils.isAddress(val), {
+      Escrow: z.string().refine((val) => isAddress(val), {
         message: 'Invalid contract address',
       }),
     }),
@@ -176,7 +188,8 @@ export const NetworkSpecification = z
     transactionMonitoring: TransactionMonitoring,
     subgraphs: ProtocolSubgraphs,
     networkProvider: NetworkProvider,
-    addressBook: z.string().optional(),
+    horizonAddressBook: z.string().optional(),
+    subgraphServiceAddressBook: z.string().optional(),
     tapAddressBook: TapContracts.optional(),
     allocationSyncInterval: positiveNumber().default(120000),
   })

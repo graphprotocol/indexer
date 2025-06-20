@@ -74,12 +74,15 @@ module.exports = {
         'allocationID',
         'amount',
         'poi',
+        'publicPOI',
+        'poiBlockNumber',
         'force',
         'priority',
         'transaction',
         'failureReason',
         'source',
         'reason',
+        'isLegacy',
       ])
     } catch (error) {
       spinner.fail(error.toString())

@@ -114,11 +114,14 @@ module.exports = {
         'allocationID',
         'amount',
         'poi',
+        'publicPOI',
+        'poiBlockNumber',
         'force',
         'priority',
         'status',
         'source',
         'reason',
+        'isLegacy',
       ])
     } catch (error) {
       actionSpinner.fail(error.toString())
