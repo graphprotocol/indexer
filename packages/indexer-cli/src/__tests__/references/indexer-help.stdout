@@ -10,6 +10,12 @@ Manage indexer configuration
   indexer rules delete               Remove one or many indexing rules                                
   indexer rules clear (reset)        Clear one or more indexing rules                                 
   indexer rules                      Configure indexing rules                                         
+  indexer provision thaw             Thaw stake from the indexer's provision                          
+  indexer provision remove           Remove thawed stake from the indexer's provision                 
+  indexer provision list-thaw        List thaw requests for the indexer's provision                   
+  indexer provision get              List indexer provision details                                   
+  indexer provision add              Add stake to the indexer's provision                             
+  indexer provision                  Manage indexer's provision                                       
   indexer disputes get               Cross-check POIs submitted in the network                        
   indexer disputes                   Configure allocation POI monitoring                              
   indexer cost set model             Update a cost model                                              
