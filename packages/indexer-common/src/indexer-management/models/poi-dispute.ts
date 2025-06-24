@@ -51,23 +51,23 @@ export class POIDispute
   extends Model<POIDisputeAttributes, POIDisputeCreationAttributes>
   implements POIDisputeAttributes
 {
-  public allocationID!: string
-  public subgraphDeploymentID!: string
-  public allocationIndexer!: string
-  public allocationAmount!: string
-  public allocationProof!: string
-  public closedEpoch!: number
-  public closedEpochReferenceProof!: string | null
-  public closedEpochStartBlockHash!: string
-  public closedEpochStartBlockNumber!: number
-  public previousEpochReferenceProof!: string | null
-  public previousEpochStartBlockHash!: string
-  public previousEpochStartBlockNumber!: number
-  public status!: string
-  public protocolNetwork!: string
+  declare allocationID: string
+  declare subgraphDeploymentID: string
+  declare allocationIndexer: string
+  declare allocationAmount: string
+  declare allocationProof: string
+  declare closedEpoch: number
+  declare closedEpochReferenceProof: string | null
+  declare closedEpochStartBlockHash: string
+  declare closedEpochStartBlockNumber: number
+  declare previousEpochReferenceProof: string | null
+  declare previousEpochStartBlockHash: string
+  declare previousEpochStartBlockNumber: number
+  declare status: string
+  declare protocolNetwork: string
 
-  public createdAt!: Date
-  public updatedAt!: Date
+  declare createdAt: Date
+  declare updatedAt: Date
 
   // eslint-disable-next-line @typescript-eslint/ban-types
   public toGraphQL(): object {
