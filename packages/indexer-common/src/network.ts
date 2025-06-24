@@ -37,6 +37,7 @@ import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
 import { TapCollector } from './allocations/tap-collector'
+import { GraphTallyCollector } from './allocations/graph-tally-collector'
 import { encodeRegistrationData } from '@graphprotocol/toolshed'
 
 export class Network {
@@ -49,6 +50,7 @@ export class Network {
   networkMonitor: NetworkMonitor
 
   tapCollector: TapCollector | undefined
+  graphTallyCollector: GraphTallyCollector | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
@@ -63,6 +65,7 @@ export class Network {
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
     tapCollector: TapCollector | undefined,
+    graphTallyCollector: GraphTallyCollector | undefined,
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
@@ -76,6 +79,7 @@ export class Network {
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
     this.tapCollector = tapCollector
+    this.graphTallyCollector = graphTallyCollector
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
@@ -312,6 +316,28 @@ export class Network {
         Tap Subgraph: ${!!tapSubgraph}.`)
     }
 
+
+    // --------------------------------------------------------------------------------
+    // * Graph Tally Collector
+    // --------------------------------------------------------------------------------
+    let graphTallyCollector: GraphTallyCollector | undefined = undefined
+    if (contracts && networkSubgraph) {
+      graphTallyCollector = GraphTallyCollector.create({
+        logger,
+        metrics,
+        transactionManager: transactionManager,
+        models: queryFeeModels,
+        contracts,
+        allocations,
+        networkSpecification: specification,
+        networkSubgraph,
+      })
+    } else {
+      logger.info(`RAV v2 process not initiated. 
+        Contracts: ${!!contracts}. 
+        Subgraph: ${!!networkSubgraph}.`)
+    }
+
     // --------------------------------------------------------------------------------
     // * Network
     // --------------------------------------------------------------------------------
@@ -324,6 +350,7 @@ export class Network {
       transactionManager,
       networkMonitor,
       tapCollector,
+      graphTallyCollector,
       specification,
       paused,
       isOperator,
