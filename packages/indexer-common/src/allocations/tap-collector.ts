@@ -23,7 +23,7 @@ import {
   parseGraphQLAllocation,
   sequentialTimerMap,
 } from '..'
-import { BigNumber } from 'ethers'
+import { BigNumber, Contract } from 'ethers'
 import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
@@ -35,12 +35,21 @@ const RAV_CHECK_INTERVAL_MS = 900_000
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
+// Multicall3 contract constants
+const MULTICALL3_ADDRESS = '0xcA11bde05977b3631167028862bE2a173976CA11'
+const MULTICALL3_ABI = [
+  'function aggregate3(tuple(address target, bool allowFailure, bytes callData)[] calls) payable returns (tuple(bool success, bytes returnData)[] returnData)',
+]
+
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
   ravRedeemsInvalid: Counter<string>
   ravRedeemsFailed: Counter<string>
   ravsRedeemDuration: Histogram<string>
   ravCollectedFees: Gauge<string>
+  ravBatchRedeemSize: Gauge<never>
+  ravBatchRedeemSuccess: Counter<never>
+  ravBatchRedeemFailed: Counter<never>
 }
 
 interface TapCollectorOptions {
@@ -110,6 +119,10 @@ export class TapCollector {
   declare networkSubgraph: SubgraphClient
   declare finalityTime: number
   declare indexerAddress: Address
+  declare ravRedemptionBatchSize: number
+  declare ravRedemptionBatchThreshold: BigNumber
+  declare ravRedemptionMaxBatchSize: number
+  declare multicall3: Contract | null
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -139,13 +152,39 @@ export class TapCollector {
     collector.tapSubgraph = tapSubgraph
     collector.networkSubgraph = networkSubgraph
 
-    const { voucherRedemptionThreshold, finalityTime, address } =
-      networkSpecification.indexerOptions
+    const {
+      voucherRedemptionThreshold,
+      finalityTime,
+      address,
+      ravRedemptionBatchSize,
+      ravRedemptionBatchThreshold,
+      ravRedemptionMaxBatchSize,
+    } = networkSpecification.indexerOptions
     collector.ravRedemptionThreshold = voucherRedemptionThreshold
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
+    collector.ravRedemptionBatchSize = ravRedemptionBatchSize
+    collector.ravRedemptionBatchThreshold = ravRedemptionBatchThreshold
+    collector.ravRedemptionMaxBatchSize = ravRedemptionMaxBatchSize
+    collector.multicall3 = null // Will be initialized if needed
 
-    collector.logger.info(`RAV processing is initiated`)
+    collector.logger.info(`RAV processing is initiated`, {
+      batchingEnabled: ravRedemptionBatchSize > 1,
+      batchSize: ravRedemptionBatchSize,
+      batchThreshold: formatGRT(ravRedemptionBatchThreshold),
+      maxBatchSize: ravRedemptionMaxBatchSize,
+    })
+
+    // Initialize Multicall3 if batching is enabled
+    if (ravRedemptionBatchSize > 1) {
+      collector.initializeMulticall3().catch((err) => {
+        collector.logger.warn(
+          'Failed to initialize Multicall3, falling back to individual redemptions',
+          { err },
+        )
+      })
+    }
+
     collector.startRAVProcessing()
     return collector
   }
@@ -180,6 +219,38 @@ export class TapCollector {
       .map(notifyAndMapEligible)
       .filter((signedRavs) => signedRavs.length > 0)
     eligibleRAVs.pipe(async (ravs) => await this.submitRAVs(ravs))
+  }
+
+  private async initializeMulticall3(): Promise<void> {
+    try {
+      const provider = this.transactionManager.wallet.provider
+      if (!provider) {
+        throw new Error('No provider available')
+      }
+
+      // Check if Multicall3 is deployed at the standard address
+      const code = await provider.getCode(MULTICALL3_ADDRESS)
+      if (code === '0x' || code === '0x0') {
+        this.logger.warn('Multicall3 contract not found at standard address', {
+          address: MULTICALL3_ADDRESS,
+        })
+        return
+      }
+
+      // Create Multicall3 contract instance
+      this.multicall3 = new Contract(
+        MULTICALL3_ADDRESS,
+        MULTICALL3_ABI,
+        this.transactionManager.wallet,
+      )
+
+      this.logger.info('Multicall3 initialized successfully', {
+        address: MULTICALL3_ADDRESS,
+      })
+    } catch (error) {
+      this.logger.error('Failed to initialize Multicall3', { error })
+      this.multicall3 = null
+    }
   }
 
   private getPendingRAVs(): Eventual<RavWithAllocation[]> {
@@ -556,47 +627,59 @@ export class TapCollector {
       ravsToSubmit: signedRavs.length,
     })
 
-    logger.info(`Redeem last RAVs on chain individually`, {
-      signedRavs,
-    })
     const escrowAccounts = await getEscrowAccounts(this.tapSubgraph, this.indexerAddress)
 
-    // Redeem RAV one-by-one as no plual version available
-    for (const { rav: signedRav, allocation, sender } of signedRavs) {
-      const { rav } = signedRav
+    // Check if batching is enabled and Multicall3 is available
+    const batchingEnabled = this.ravRedemptionBatchSize > 1 && this.multicall3 !== null
 
-      // verify escrow balances
-      const ravValue = BigInt(rav.valueAggregate.toString())
-      const senderBalance = escrowAccounts.getBalanceForSender(sender)
-      if (senderBalance < ravValue) {
-        this.logger.warn(
-          'RAV was not sent to the blockchain \
-          because its value aggregate is lower than escrow balance.',
-          {
-            rav,
-            sender,
-            senderBalance,
-          },
-        )
-        continue
-      }
-
-      const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
-        allocation: rav.allocationId,
+    if (batchingEnabled) {
+      logger.info(`Redeeming RAVs in batches`, {
+        totalRavs: signedRavs.length,
+        batchSize: this.ravRedemptionBatchSize,
+        maxBatchSize: this.ravRedemptionMaxBatchSize,
       })
-      try {
-        await this.redeemRav(logger, allocation, sender, signedRav)
-        // subtract from the escrow account
-        // THIS IS A MUT OPERATION
-        escrowAccounts.subtractSenderBalance(sender, ravValue)
-      } catch (err) {
-        this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId })
-        logger.error(`Failed to redeem RAV`, {
-          err: indexerError(IndexerErrorCode.IE055, err),
+      await this.submitRAVsInBatches(signedRavs, escrowAccounts, logger)
+    } else {
+      logger.info(`Redeem last RAVs on chain individually`, {
+        signedRavs,
+      })
+      // Redeem RAV one-by-one as no plual version available
+      for (const { rav: signedRav, allocation, sender } of signedRavs) {
+        const { rav } = signedRav
+
+        // verify escrow balances
+        const ravValue = BigInt(rav.valueAggregate.toString())
+        const senderBalance = escrowAccounts.getBalanceForSender(sender)
+        if (senderBalance < ravValue) {
+          this.logger.warn(
+            'RAV was not sent to the blockchain \
+          because its value aggregate is lower than escrow balance.',
+            {
+              rav,
+              sender,
+              senderBalance,
+            },
+          )
+          continue
+        }
+
+        const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+          allocation: rav.allocationId,
         })
-        continue
+        try {
+          await this.redeemRav(logger, allocation, sender, signedRav)
+          // subtract from the escrow account
+          // THIS IS A MUT OPERATION
+          escrowAccounts.subtractSenderBalance(sender, ravValue)
+        } catch (err) {
+          this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId })
+          logger.error(`Failed to redeem RAV`, {
+            err: indexerError(IndexerErrorCode.IE055, err),
+          })
+          continue
+        }
+        stopTimer()
       }
-      stopTimer()
     }
 
     try {
@@ -629,6 +712,220 @@ export class TapCollector {
     signedRavs.map((signedRav) =>
       this.metrics.ravRedeemsSuccess.inc({ allocation: signedRav.allocation.id }),
     )
+  }
+
+  private async submitRAVsInBatches(
+    signedRavs: RavWithAllocation[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    escrowAccounts: any,
+    logger: Logger,
+  ): Promise<void> {
+    // Filter RAVs by escrow balance
+    const validRavs = signedRavs.filter(({ rav: signedRav, sender }) => {
+      const ravValue = BigInt(signedRav.rav.valueAggregate.toString())
+      const senderBalance = escrowAccounts.getBalanceForSender(sender)
+      if (senderBalance < ravValue) {
+        logger.warn('RAV excluded from batch: value exceeds escrow balance', {
+          allocation: signedRav.rav.allocationId,
+          sender,
+          ravValue: ravValue.toString(),
+          senderBalance: senderBalance.toString(),
+        })
+        return false
+      }
+      return true
+    })
+
+    if (validRavs.length === 0) {
+      logger.warn('No valid RAVs to redeem after escrow balance check')
+      return
+    }
+
+    // Group RAVs into batches
+    const batches: RavWithAllocation[][] = []
+    let currentBatch: RavWithAllocation[] = []
+    let currentBatchValue = BigNumber.from(0)
+
+    for (const rav of validRavs) {
+      const ravValue = BigNumber.from(rav.rav.rav.valueAggregate)
+
+      // Check if adding this RAV would exceed batch limits
+      const wouldExceedSize = currentBatch.length >= this.ravRedemptionMaxBatchSize
+
+      // Start new batch if limits exceeded
+      if (
+        currentBatch.length > 0 &&
+        (wouldExceedSize ||
+          (currentBatch.length >= this.ravRedemptionBatchSize &&
+            currentBatchValue.gte(this.ravRedemptionBatchThreshold)))
+      ) {
+        batches.push(currentBatch)
+        currentBatch = []
+        currentBatchValue = BigNumber.from(0)
+      }
+
+      currentBatch.push(rav)
+      currentBatchValue = currentBatchValue.add(ravValue)
+    }
+
+    // Add final batch if it meets the threshold or contains all remaining RAVs
+    if (currentBatch.length > 0) {
+      if (
+        currentBatchValue.gte(this.ravRedemptionBatchThreshold) ||
+        batches.length === 0
+      ) {
+        batches.push(currentBatch)
+      } else {
+        // If final batch is below threshold, process individually
+        logger.info('Final batch below threshold, processing individually', {
+          batchSize: currentBatch.length,
+          batchValue: formatGRT(currentBatchValue),
+          threshold: formatGRT(this.ravRedemptionBatchThreshold),
+        })
+        for (const ravData of currentBatch) {
+          await this.redeemRavIndividually(ravData, escrowAccounts, logger)
+        }
+      }
+    }
+
+    logger.info('Processing RAV batches', {
+      totalBatches: batches.length,
+      totalRavs: validRavs.length,
+    })
+
+    // Process each batch
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i]
+      const batchValue = batch.reduce(
+        (sum, rav) => sum.add(rav.rav.rav.valueAggregate),
+        BigNumber.from(0),
+      )
+
+      logger.info(`Processing batch ${i + 1}/${batches.length}`, {
+        batchSize: batch.length,
+        batchValue: formatGRT(batchValue),
+      })
+
+      try {
+        await this.redeemRAVBatch(batch, escrowAccounts, logger)
+        this.metrics.ravBatchRedeemSuccess.inc()
+      } catch (err) {
+        this.metrics.ravBatchRedeemFailed.inc()
+        logger.error(
+          `Failed to redeem RAV batch, falling back to individual redemption`,
+          {
+            batch: i + 1,
+            error: err,
+          },
+        )
+
+        // Fall back to individual redemption for failed batch
+        for (const ravData of batch) {
+          await this.redeemRavIndividually(ravData, escrowAccounts, logger)
+        }
+      }
+    }
+  }
+
+  private async redeemRAVBatch(
+    batch: RavWithAllocation[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    escrowAccounts: any,
+    logger: Logger,
+  ): Promise<void> {
+    if (!this.multicall3) {
+      throw new Error('Multicall3 not initialized')
+    }
+
+    const escrow = this.tapContracts.escrow
+    const calls: { target: string; allowFailure: boolean; callData: string }[] = []
+
+    // Prepare all calls in the batch
+    for (const { rav: signedRav, allocation, sender } of batch) {
+      const proof = await tapAllocationIdProof(
+        allocationSigner(this.transactionManager.wallet, allocation),
+        parseInt(this.protocolNetwork.split(':')[1]),
+        sender,
+        toAddress(signedRav.rav.allocationId),
+        toAddress(escrow.address),
+      )
+
+      // Encode the redeem call
+      const callData = escrow.interface.encodeFunctionData('redeem', [signedRav, proof])
+
+      calls.push({
+        target: escrow.address,
+        allowFailure: false, // We want atomic execution
+        callData: callData,
+      })
+    }
+
+    // Execute batch via Multicall3
+    this.metrics.ravBatchRedeemSize.set(batch.length)
+    const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+      allocation: 'batch',
+    })
+
+    try {
+      const tx = await this.transactionManager.executeTransaction(
+        () => this.multicall3!.estimateGas.aggregate3(calls),
+        (gasLimit) => this.multicall3!.aggregate3(calls, { gasLimit }),
+        logger.child({ function: 'multicall3.aggregate3' }),
+      )
+
+      if (tx === 'paused' || tx === 'unauthorized') {
+        this.metrics.ravRedeemsInvalid.inc({ allocation: 'batch' })
+        throw new Error(`Transaction ${tx}`)
+      }
+
+      // Update escrow balances for successful batch
+      for (const { rav: signedRav, sender } of batch) {
+        const ravValue = BigInt(signedRav.rav.valueAggregate.toString())
+        escrowAccounts.subtractSenderBalance(sender, ravValue)
+
+        // Mark as redeemed
+        await this.markRavAsRedeemed(toAddress(signedRav.rav.allocationId), sender)
+      }
+
+      // Update metrics
+      for (const { allocation } of batch) {
+        this.metrics.ravRedeemsSuccess.inc({ allocation: allocation.id })
+      }
+
+      logger.info('Successfully redeemed RAV batch', {
+        batchSize: batch.length,
+        transactionHash: tx.transactionHash,
+      })
+    } finally {
+      stopTimer()
+    }
+  }
+
+  private async redeemRavIndividually(
+    ravData: RavWithAllocation,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    escrowAccounts: any,
+    logger: Logger,
+  ): Promise<void> {
+    const { rav: signedRav, allocation, sender } = ravData
+    const { rav } = signedRav
+    const ravValue = BigInt(rav.valueAggregate.toString())
+
+    const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+      allocation: rav.allocationId,
+    })
+
+    try {
+      await this.redeemRav(logger, allocation, sender, signedRav)
+      escrowAccounts.subtractSenderBalance(sender, ravValue)
+    } catch (err) {
+      this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId })
+      logger.error(`Failed to redeem RAV`, {
+        err: indexerError(IndexerErrorCode.IE055, err),
+      })
+    } finally {
+      stopTimer()
+    }
   }
 
   public async redeemRav(
@@ -746,5 +1043,23 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     help: 'Amount of query fees collected for a rav',
     registers: [metrics.registry],
     labelNames: ['allocation'],
+  }),
+
+  ravBatchRedeemSize: new metrics.client.Gauge({
+    name: `indexer_agent_rav_batch_redeem_size_${networkIdentifier}`,
+    help: 'Size of RAV batches being redeemed',
+    registers: [metrics.registry],
+  }),
+
+  ravBatchRedeemSuccess: new metrics.client.Counter({
+    name: `indexer_agent_rav_batch_redeem_success_${networkIdentifier}`,
+    help: 'Successful batch RAV redemptions',
+    registers: [metrics.registry],
+  }),
+
+  ravBatchRedeemFailed: new metrics.client.Counter({
+    name: `indexer_agent_rav_batch_redeem_failed_${networkIdentifier}`,
+    help: 'Failed batch RAV redemptions',
+    registers: [metrics.registry],
   }),
 })

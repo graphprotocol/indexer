@@ -50,6 +50,9 @@ export const IndexerOptions = z
     voucherRedemptionThreshold: GRT().default(1),
     voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
+    ravRedemptionBatchSize: positiveNumber().default(1),
+    ravRedemptionBatchThreshold: GRT().default(10),
+    ravRedemptionMaxBatchSize: positiveNumber().default(20),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
       .default('auto')
