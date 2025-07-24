@@ -39,6 +39,7 @@ import {
   NetworkMonitor,
   SubgraphFreshnessChecker,
   monitorEligibleAllocations,
+  IndexerManagementModels,
 } from '.'
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
@@ -46,6 +47,7 @@ import { QueryFeeModels } from './query-fees'
 import { TapCollector } from './allocations/tap-collector'
 import { GraphTallyCollector } from './allocations/graph-tally-collector'
 import { encodeRegistrationData } from '@graphprotocol/toolshed'
+import { DipsCollector } from './indexing-fees/dips'
 
 export class Network {
   logger: Logger
@@ -58,11 +60,13 @@ export class Network {
 
   tapCollector: TapCollector | undefined
   graphTallyCollector: GraphTallyCollector | undefined
+  dipsCollector: DipsCollector | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
   isHorizon: Eventual<boolean>
-
+  queryFeeModels: QueryFeeModels
+  managementModels: IndexerManagementModels
   private constructor(
     logger: Logger,
     contracts: GraphHorizonContracts & SubgraphServiceContracts,
@@ -77,6 +81,9 @@ export class Network {
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
     isHorizon: Eventual<boolean>,
+    queryFeeModels: QueryFeeModels,
+    managementModels: IndexerManagementModels,
+    dipsCollector: DipsCollector | undefined,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -91,11 +98,15 @@ export class Network {
     this.paused = paused
     this.isOperator = isOperator
     this.isHorizon = isHorizon
+    this.queryFeeModels = queryFeeModels
+    this.managementModels = managementModels
+    this.dipsCollector = dipsCollector
   }
 
   static async create(
     parentLogger: Logger,
     specification: spec.NetworkSpecification,
+    managementModels: IndexerManagementModels,
     queryFeeModels: QueryFeeModels,
     graphNode: GraphNode,
     metrics: Metrics,
@@ -305,6 +316,7 @@ export class Network {
     // * TAP Collector
     // --------------------------------------------------------------------------------
     let tapCollector: TapCollector | undefined = undefined
+    let dipsCollector: DipsCollector | undefined = undefined
     if (tapContracts && tapSubgraph) {
       tapCollector = TapCollector.create({
         logger,
@@ -318,8 +330,19 @@ export class Network {
         networkSubgraph,
         legacyMnemonics: specification.indexerOptions.legacyMnemonics,
       })
+      if (specification.indexerOptions.enableDips) {
+        dipsCollector = DipsCollector.create(
+          logger,
+          managementModels,
+          queryFeeModels,
+          specification,
+          tapCollector,
+          wallet,
+          graphNode,
+        )
+      }
     } else {
-      logger.info(`RAV process not initiated. 
+      logger.info(`RAV (and DIPs) process not initiated. 
         Tap Contracts: ${!!tapContracts}. 
         Tap Subgraph: ${!!tapSubgraph}.`)
     }
@@ -365,6 +388,9 @@ export class Network {
       paused,
       isOperator,
       isHorizon,
+      queryFeeModels,
+      managementModels,
+      dipsCollector,
     )
   }
 
