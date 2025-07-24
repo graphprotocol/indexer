@@ -1529,7 +1529,13 @@ export default {
       amount: string
       protocolNetwork: string
     },
-    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
+    {
+      multiNetworks,
+      graphNode,
+      logger,
+      models,
+      actionManager,
+    }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', {
       deployment,
@@ -1626,6 +1632,16 @@ export default {
 
       await models.IndexingRule.upsert(indexingRule)
 
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          deployment,
+          null,
+          toAddress(createAllocationEventLogs.allocationID),
+        )
+      }
+
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: indexingRule.identifier },
@@ -1670,7 +1686,7 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    { logger, models, multiNetworks }: IndexerManagementResolverContext,
+    { logger, models, multiNetworks, actionManager }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
@@ -1746,6 +1762,17 @@ export default {
 
       await models.IndexingRule.upsert(offchainIndexingRule)
 
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryCancelAgreement(allocation)
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          allocationData.subgraphDeployment.id.toString(),
+          toAddress(allocation),
+          null,
+        )
+      }
+
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: offchainIndexingRule.identifier },
@@ -1789,7 +1816,13 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    { logger, models, multiNetworks, graphNode }: IndexerManagementResolverContext,
+    {
+      logger,
+      models,
+      multiNetworks,
+      graphNode,
+      actionManager,
+    }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
     logger = logger.child({
       component: 'reallocateAllocationResolver',
@@ -1911,6 +1944,16 @@ export default {
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(indexingRule)
+
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          allocationData.subgraphDeployment.id.toString(),
+          toAddress(allocation),
+          toAddress(createAllocationEventLogs.allocationID),
+        )
+      }
 
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
