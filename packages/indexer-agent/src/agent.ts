@@ -298,6 +298,20 @@ export class Agent {
         { logger, milliseconds: requestIntervalSmall },
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              // There should be a DipsManager in the operator
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              logger.debug('Ensuring indexing rules for DIPs', {
+                protocolNetwork: network.specification.networkIdentifier,
+              })
+              await operator.dipsManager.ensureAgreementRules()
+            } else {
+              logger.debug(
+                'DIPs is disabled, skipping indexing rule enforcement',
+              )
+            }
             logger.trace('Fetching indexing rules', {
               protocolNetwork: network.specification.networkIdentifier,
             })
@@ -331,12 +345,21 @@ export class Agent {
         },
       )
 
-    // Skip fetching active deployments if the deployment management mode is manual and POI tracking is disabled
+    // Skip fetching active deployments if the deployment management mode is manual, DIPs is disabled, and POI tracking is disabled
     const activeDeployments: Eventual<SubgraphDeploymentID[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
         async () => {
-          if (this.deploymentManagement === DeploymentManagementMode.AUTO) {
+          let dipsEnabled = false
+          await this.multiNetworks.map(async ({ network }) => {
+            if (network.specification.indexerOptions.enableDips) {
+              dipsEnabled = true
+            }
+          })
+          if (
+            this.deploymentManagement === DeploymentManagementMode.AUTO ||
+            dipsEnabled
+          ) {
             logger.debug('Fetching active deployments')
             const assignments =
               await this.graphNode.subgraphDeploymentsAssignments(
@@ -345,7 +368,7 @@ export class Agent {
             return assignments.map(assignment => assignment.id)
           } else {
             logger.info(
-              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and POI tracking is disabled",
+              "Skipping fetching active deployments fetch since DeploymentManagementMode = 'manual' and DIPs is disabled",
             )
             return []
           }
@@ -358,24 +381,50 @@ export class Agent {
         },
       )
 
-    const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalSmall },
-        async () =>
-          await this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching network deployments', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.subgraphDeployments()
-          }),
-        {
-          onError: error =>
-            logger.warn(
-              `Failed to obtain network deployments, trying again later`,
-              { error },
-            ),
-        },
-      )
+    const networkAndDipsDeployments: Eventual<
+      NetworkMapped<SubgraphDeployment[]>
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalSmall },
+      async () =>
+        await this.multiNetworks.map(async ({ network, operator }) => {
+          logger.trace('Fetching network deployments', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          const deployments = network.networkMonitor.subgraphDeployments()
+          if (network.specification.indexerOptions.enableDips) {
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
+            }
+            const resolvedDeployments = await deployments
+            const dipsDeployments = await Promise.all(
+              (await operator.dipsManager.getActiveDipsDeployments()).map(
+                deployment =>
+                  network.networkMonitor.subgraphDeployment(
+                    deployment.ipfsHash,
+                  ),
+              ),
+            )
+            for (const deployment of dipsDeployments) {
+              if (
+                resolvedDeployments.find(
+                  d => d.id.bytes32 === deployment.id.bytes32,
+                ) == null
+              ) {
+                resolvedDeployments.push(deployment)
+              }
+            }
+            return resolvedDeployments
+          }
+          return deployments
+        }),
+      {
+        onError: error =>
+          logger.warn(
+            `Failed to obtain network deployments, trying again later`,
+            { error },
+          ),
+      },
+    )
 
     const eligibleTransferDeployments: Eventual<
       NetworkMapped<TransferredSubgraphDeployment[]>
@@ -430,13 +479,13 @@ export class Agent {
     const intermediateNetworkDeploymentAllocationDecisions: Eventual<
       NetworkMapped<AllocationDecision[]>
     > = join({
-      networkDeployments,
+      networkAndDipsDeployments,
       indexingRules,
     }).tryMap(
-      ({ indexingRules, networkDeployments }) => {
+      ({ indexingRules, networkAndDipsDeployments }) => {
         return mapValues(
-          this.multiNetworks.zip(indexingRules, networkDeployments),
-          ([indexingRules, networkDeployments]: [
+          this.multiNetworks.zip(indexingRules, networkAndDipsDeployments),
+          ([indexingRules, networkAndDipsDeployments]: [
             IndexingRuleAttributes[],
             SubgraphDeployment[],
           ]) => {
@@ -445,7 +494,11 @@ export class Agent {
             logger.trace('Evaluating which deployments are worth allocating to')
             return indexingRules.length === 0
               ? []
-              : evaluateDeployments(logger, networkDeployments, indexingRules)
+              : evaluateDeployments(
+                  logger,
+                  networkAndDipsDeployments,
+                  indexingRules,
+                )
           },
         )
       },
@@ -737,9 +790,42 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            this.logger.debug(
-              `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
-            )
+            await this.multiNetworks.map(async ({ network, operator }) => {
+              if (network.specification.indexerOptions.enableDips) {
+                // Reconcile DIPs deployments anyways
+                this.logger.warn(
+                  `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
+                )
+                if (!operator.dipsManager) {
+                  throw new Error('DipsManager is not available')
+                }
+                const dipsDeployments =
+                  await operator.dipsManager.getActiveDipsDeployments()
+                const newTargetDeployments = new Set([
+                  ...activeDeployments,
+                  ...dipsDeployments,
+                ])
+                try {
+                  await this.reconcileDeployments(
+                    activeDeployments,
+                    Array.from(newTargetDeployments),
+                    eligibleAllocations,
+                  )
+                } catch (err) {
+                  logger.warn(
+                    `Exited early while reconciling deployments. Skipped reconciling actions.`,
+                    {
+                      err: indexerError(IndexerErrorCode.IE005, err),
+                    },
+                  )
+                  return
+                }
+              } else {
+                this.logger.debug(
+                  `Skipping subgraph deployment reconciliation since DeploymentManagementMode = 'manual'`,
+                )
+              }
+            })
             break
           default:
             throw new Error(
@@ -760,6 +846,23 @@ export class Agent {
           })
           return
         }
+
+        await this.multiNetworks.mapNetworkMapped(
+          activeAllocations,
+          async ({ network, operator }, activeAllocations: Allocation[]) => {
+            if (network.specification.indexerOptions.enableDips) {
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+              this.logger.debug(
+                `Matching agreement allocations for network ${network.specification.networkIdentifier}`,
+              )
+              await operator.dipsManager.matchAgreementAllocations(
+                activeAllocations,
+              )
+            }
+          },
+        )
       },
     )
   }
@@ -1076,6 +1179,7 @@ export class Agent {
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
     operator: Operator,
+    forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
       deployment: deploymentAllocationDecision.deployment.ipfsHash,
@@ -1099,6 +1203,7 @@ export class Agent {
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
+          forceAction,
         )
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
@@ -1136,6 +1241,7 @@ export class Agent {
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
               isHorizon,
+              forceAction,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -1144,6 +1250,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               activeDeploymentAllocations,
+              forceAction,
             )
           } else {
             // Refresh any expiring allocations
@@ -1160,6 +1267,7 @@ export class Agent {
                 logger,
                 deploymentAllocationDecision,
                 expiringAllocations,
+                forceAction,
               )
             }
           }
