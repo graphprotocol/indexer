@@ -1,13 +1,7 @@
 import { Client, credentials } from '@grpc/grpc-js'
 import { UnaryCallback } from '@grpc/grpc-js/build/src/client'
 import { GatewayDipsServiceClientImpl } from '@graphprotocol/dips-proto/generated/gateway'
-import { Wallet } from 'ethers'
-import {
-  _TypedDataEncoder,
-  arrayify,
-  defaultAbiCoder,
-  recoverAddress,
-} from 'ethers/lib/utils'
+import { BaseWallet, TypedDataEncoder, getBytes, AbiCoder, recoverAddress } from 'ethers'
 import { toAddress } from '@graphprotocol/common-ts'
 
 type RpcImpl = (service: string, method: string, data: Uint8Array) => Promise<Uint8Array>
@@ -46,15 +40,16 @@ export const collectPaymentsTypes = {
 export class GatewayDipsServiceMessagesCodec {
   async createSignedCancellationRequest(
     agreementId: string,
-    wallet: Wallet,
+    wallet: BaseWallet,
   ): Promise<Uint8Array> {
-    const signature = await wallet._signTypedData(
+    const signature = await wallet.signTypedData(
       cancelAgreementDomain,
       cancelAgreementTypes,
       { agreement_id: agreementId },
     )
-    return arrayify(
-      defaultAbiCoder.encode(['tuple(bytes16)', 'bytes'], [[agreementId], signature]),
+    const abiCoder = AbiCoder.defaultAbiCoder()
+    return getBytes(
+      abiCoder.encode(['tuple(bytes16)', 'bytes'], [[agreementId], signature]),
     )
   }
 
@@ -62,9 +57,9 @@ export class GatewayDipsServiceMessagesCodec {
     agreementId: string,
     allocationId: string,
     entityCount: number,
-    wallet: Wallet,
+    wallet: BaseWallet,
   ): Promise<Uint8Array> {
-    const signature = await wallet._signTypedData(
+    const signature = await wallet.signTypedData(
       collectPaymentsDomain,
       collectPaymentsTypes,
       {
@@ -73,8 +68,9 @@ export class GatewayDipsServiceMessagesCodec {
         entity_count: entityCount,
       },
     )
-    return arrayify(
-      defaultAbiCoder.encode(
+    const abiCoder = AbiCoder.defaultAbiCoder()
+    return getBytes(
+      abiCoder.encode(
         ['tuple(bytes16, address, uint64)', 'bytes'],
         [[agreementId, toAddress(allocationId), entityCount], signature],
       ),
@@ -82,7 +78,8 @@ export class GatewayDipsServiceMessagesCodec {
   }
 
   decodeTapReceipt(receipt: Uint8Array, verifyingContract: string) {
-    const [message, signature] = defaultAbiCoder.decode(
+    const abiCoder = AbiCoder.defaultAbiCoder()
+    const [message, signature] = abiCoder.decode(
       ['tuple(address,uint64,uint64,uint128)', 'bytes'],
       receipt,
     )
@@ -107,7 +104,7 @@ export class GatewayDipsServiceMessagesCodec {
       ],
     }
 
-    const digest = _TypedDataEncoder.hash(domain, types, {
+    const digest = TypedDataEncoder.hash(domain, types, {
       allocation_id: allocationId,
       timestamp_ns: timestampNs,
       nonce: nonce,
