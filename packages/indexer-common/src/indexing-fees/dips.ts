@@ -34,7 +34,7 @@ import {
 } from '@graphprotocol/dips-proto/generated/gateway'
 import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
 import { NetworkSpecification } from '../network-specification'
-import { Wallet } from 'ethers'
+import { BaseWallet } from 'ethers'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
@@ -364,7 +364,7 @@ export class DipsCollector {
     private queryFeeModels: QueryFeeModels,
     private specification: NetworkSpecification,
     private tapCollector: TapCollector,
-    private wallet: Wallet,
+    private wallet: BaseWallet,
     private graphNode: GraphNode,
     public escrowSenderGetter: GetEscrowSenderForSigner,
   ) {
@@ -383,7 +383,7 @@ export class DipsCollector {
     queryFeeModels: QueryFeeModels,
     specification: NetworkSpecification,
     tapCollector: TapCollector,
-    wallet: Wallet,
+    wallet: BaseWallet,
     graphNode: GraphNode,
     escrowSenderGetter?: GetEscrowSenderForSigner,
   ) {
@@ -467,7 +467,7 @@ export class DipsCollector {
         this.logger.info('Decoding TAP receipt for agreement')
         const tapReceipt = this.gatewayDipsServiceMessagesCodec.decodeTapReceipt(
           response.tapReceipt,
-          this.tapCollector?.tapContracts.tapVerifier.address,
+          this.tapCollector?.tapContracts.tapVerifier.target.toString(),
         )
         // Check that the signer of the TAP receipt is a signer
         // on the corresponding escrow account for the payer (sender) of the
