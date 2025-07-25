@@ -1576,7 +1576,7 @@ export default {
         await allocationManager.dipsManager.tryUpdateAgreementAllocation(
           deployment,
           null,
-          toAddress(createAllocationEventLogs.allocationID),
+          toAddress(allocationId),
         )
       }
 
@@ -1889,7 +1889,7 @@ export default {
         await allocationManager.dipsManager.tryUpdateAgreementAllocation(
           allocationData.subgraphDeployment.id.toString(),
           toAddress(allocation),
-          toAddress(createAllocationEventLogs.allocationID),
+          toAddress(newAllocationId),
         )
       }
 

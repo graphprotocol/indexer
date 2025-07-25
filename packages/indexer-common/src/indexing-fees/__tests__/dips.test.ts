@@ -29,7 +29,6 @@ import {
 } from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
-import { BigNumber } from 'ethers'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
 
 // Make global Jest variables available
@@ -65,9 +64,9 @@ const mockSubgraphDeployment = (id: string) => {
     id: new SubgraphDeploymentID(id),
     ipfsHash: id,
     deniedAt: null,
-    stakedTokens: BigNumber.from('1000'),
-    signalledTokens: BigNumber.from('1000'),
-    queryFeesAmount: BigNumber.from('0'),
+    stakedTokens: 1000n,
+    signalledTokens: 1000n,
+    queryFeesAmount: 0n,
     protocolNetwork: 'eip155:421614',
   }
 }
