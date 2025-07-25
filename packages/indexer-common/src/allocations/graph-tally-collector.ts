@@ -112,7 +112,7 @@ export class GraphTallyCollector {
   declare indexerAddress: Address
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
-  private constructor() { }
+  private constructor() {}
 
   public static create({
     logger,
@@ -163,8 +163,8 @@ export class GraphTallyCollector {
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
-          allocations: signedRavs.belowThreshold.map(
-            (signedRav) => dataSlice(signedRav.rav.rav.collectionId, 12).toString(),
+          allocations: signedRavs.belowThreshold.map((signedRav) =>
+            dataSlice(signedRav.rav.rav.collectionId, 12).toString(),
           ),
         })
       }
@@ -205,7 +205,9 @@ export class GraphTallyCollector {
             return {
               rav: signedRav,
               allocation: allocations.find(
-                (a) => a.id === toAddress(dataSlice(signedRav.rav.collectionId, 12).toString()),
+                (a) =>
+                  a.id ===
+                  toAddress(dataSlice(signedRav.rav.collectionId, 12).toString()),
               ),
               payer: rav.payer,
             }
@@ -228,7 +230,7 @@ export class GraphTallyCollector {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const returnedAllocations: any[] = []
 
-    for (; ;) {
+    for (;;) {
       const result = await this.networkSubgraph.query<AllocationsResponse>(
         gql`
           query allocations(
@@ -301,15 +303,24 @@ export class GraphTallyCollector {
   private getSignedRAVsEventual(
     pendingRAVs: Eventual<RavWithAllocation[]>,
   ): Eventual<ValidRavs> {
-
     return pendingRAVs.tryMap(
       async (pendingRAVs) => {
-        const escrowAccounts = await getEscrowAccounts(this.networkSubgraph, this.indexerAddress, this.contracts.GraphTallyCollector.target.toString())
+        const escrowAccounts = await getEscrowAccounts(
+          this.networkSubgraph,
+          this.indexerAddress,
+          this.contracts.GraphTallyCollector.target.toString(),
+        )
         return await pReduce(
           pendingRAVs,
           async (results, rav) => {
-            const tokensCollected = escrowAccounts.getTokensCollectedForReceiver(rav.payer, rav.rav.rav.collectionId)
-            if ((BigInt(rav.rav.rav.valueAggregate) - tokensCollected) < this.ravRedemptionThreshold) {
+            const tokensCollected = escrowAccounts.getTokensCollectedForReceiver(
+              rav.payer,
+              rav.rav.rav.collectionId,
+            )
+            if (
+              BigInt(rav.rav.rav.valueAggregate) - tokensCollected <
+              this.ravRedemptionThreshold
+            ) {
               results.belowThreshold.push(rav)
             } else {
               results.eligible.push(rav)
@@ -416,14 +427,16 @@ export class GraphTallyCollector {
     const transactions: GraphTallyTransaction[] = []
 
     const unfinalizedRavsAllocationIds = [
-      ...new Set(ravs.map((value) => toAddress(value.collectionId.slice(12)).toLowerCase())),
+      ...new Set(
+        ravs.map((value) => toAddress(value.collectionId.slice(12)).toLowerCase()),
+      ),
     ]
 
     const payerAddresses = [
       ...new Set(ravs.map((value) => toAddress(value.payer).toLowerCase())),
     ]
 
-    for (; ;) {
+    for (;;) {
       let block: { hash: string } | undefined = undefined
       if (meta?.block?.hash) {
         block = {
@@ -510,17 +523,17 @@ export class GraphTallyCollector {
         UPDATE tap_horizon_ravs
         SET redeemed_at = NULL
         WHERE (collection_id::char(64), payer::char(40)) IN (VALUES ${ravsNotRedeemed
-        .map(
-          (rav) =>
-            `('${rav.collectionId
-              .toString()
-              .toLowerCase()
-              .replace('0x', '')}'::char(64), '${rav.payer
+          .map(
+            (rav) =>
+              `('${rav.collectionId
+                .toString()
+                .toLowerCase()
+                .replace('0x', '')}'::char(64), '${rav.payer
                 .toString()
                 .toLowerCase()
                 .replace('0x', '')}'::char(40))`,
-        )
-        .join(', ')})
+          )
+          .join(', ')})
         AND redeemed_at < to_timestamp(${blockTimestampSecs})
       `
 
@@ -558,17 +571,27 @@ export class GraphTallyCollector {
       signedRavs,
     })
 
-    const escrowAccounts = await getEscrowAccounts(this.networkSubgraph, this.indexerAddress, this.contracts.GraphTallyCollector.target.toString())
+    const escrowAccounts = await getEscrowAccounts(
+      this.networkSubgraph,
+      this.indexerAddress,
+      this.contracts.GraphTallyCollector.target.toString(),
+    )
 
     // Redeem RAV one-by-one as no plual version available
-    const tokensCollectedPerAllocation: { allocationId: string, tokensCollected: bigint }[] = [];
+    const tokensCollectedPerAllocation: {
+      allocationId: string
+      tokensCollected: bigint
+    }[] = []
 
     for (const { rav: signedRav, allocation, payer } of signedRavs) {
       const { rav } = signedRav
 
       // verify escrow balances
       const ravValue = BigInt(rav.valueAggregate.toString())
-      const tokensAlreadyCollected = escrowAccounts.getTokensCollectedForReceiver(payer, rav.collectionId)
+      const tokensAlreadyCollected = escrowAccounts.getTokensCollectedForReceiver(
+        payer,
+        rav.collectionId,
+      )
       const payerBalance = escrowAccounts.getBalanceForPayer(payer)
 
       // In horizon the RAV value is monotonically increasing. To calculate the actual outstanding amount we need to subtract the tokens already collected.
@@ -597,7 +620,10 @@ export class GraphTallyCollector {
         if (!actualTokensCollected) {
           throw new Error(`Failed to redeem RAV v2: no tokens collected`)
         }
-        tokensCollectedPerAllocation.push({ allocationId: allocation.id, tokensCollected: actualTokensCollected })
+        tokensCollectedPerAllocation.push({
+          allocationId: allocation.id,
+          tokensCollected: actualTokensCollected,
+        })
         escrowAccounts.updateBalances(payer, rav.collectionId, actualTokensCollected)
       } catch (err) {
         this.metrics.ravRedeemsFailed.inc({ collection: rav.collectionId })
@@ -650,7 +676,12 @@ export class GraphTallyCollector {
 
     // Submit the signed RAV on chain
     const txReceipt = await this.transactionManager.executeTransaction(
-      () => this.contracts.SubgraphService.collect.estimateGas(rav.serviceProvider, PaymentTypes.QueryFee, encodedData),
+      () =>
+        this.contracts.SubgraphService.collect.estimateGas(
+          rav.serviceProvider,
+          PaymentTypes.QueryFee,
+          encodedData,
+        ),
       (gasLimit) =>
         this.contracts.SubgraphService.collect(rav.serviceProvider, 0, encodedData, {
           gasLimit,
@@ -668,14 +699,16 @@ export class GraphTallyCollector {
     const contractInterface = this.contracts.GraphTallyCollector.interface
     const event = contractInterface.getEvent('PaymentCollected')
 
-    const log = txReceipt.logs.find(log => log.topics[0] === event.topicHash);
-    if (!log) throw new Error('PaymentCollected event not found!');
+    const log = txReceipt.logs.find((log) => log.topics[0] === event.topicHash)
+    if (!log) throw new Error('PaymentCollected event not found!')
 
-    const decoded = contractInterface.decodeEventLog(event, log.data, log.topics);
+    const decoded = contractInterface.decodeEventLog(event, log.data, log.topics)
     if (!decoded.tokens) {
-      throw new Error(`Actual value collected not found for collection ${rav.collectionId}`)
+      throw new Error(
+        `Actual value collected not found for collection ${rav.collectionId}`,
+      )
     }
-    const actualTokensCollected = BigInt(decoded.tokens);
+    const actualTokensCollected = BigInt(decoded.tokens)
 
     this.metrics.ravCollectedFees.set(
       { collection: rav.collectionId },
@@ -696,7 +729,7 @@ export class GraphTallyCollector {
       )
     }
 
-    return actualTokensCollected;
+    return actualTokensCollected
   }
 
   private async markRavAsRedeemed(
@@ -710,13 +743,10 @@ export class GraphTallyCollector {
             UPDATE tap_horizon_ravs
             SET redeemed_at = ${timestamp ? `to_timestamp(${timestamp})` : 'NOW()'}
             WHERE collection_id = '${collectionId
-        .toString()
-        .toLowerCase()
-        .replace('0x', '')}'
-            AND payer = '${payer
-        .toString()
-        .toLowerCase()
-        .replace('0x', '')}'
+              .toString()
+              .toLowerCase()
+              .replace('0x', '')}'
+            AND payer = '${payer.toString().toLowerCase().replace('0x', '')}'
           `
 
     await this.models.receiptAggregateVouchersV2.sequelize?.query(query)

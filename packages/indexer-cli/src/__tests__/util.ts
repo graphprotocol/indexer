@@ -279,6 +279,7 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
+      isLegacy: false,
     })
     await models.Action.create({
       id: 2,
@@ -288,6 +289,7 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
+      isLegacy: false,
     })
   } catch (e) {
     logger.error('Failed to seed ', { error: e })

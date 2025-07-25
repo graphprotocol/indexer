@@ -17,7 +17,8 @@ export interface ScalarTapReceiptsAttributes {
 }
 export class ScalarTapReceipts
   extends Model<ScalarTapReceiptsAttributes>
-  implements ScalarTapReceiptsAttributes {
+  implements ScalarTapReceiptsAttributes
+{
   public id!: number
   public allocation_id!: Address
   public signer_address!: Address
@@ -47,7 +48,8 @@ export interface TapHorizonReceiptsAttributes {
 }
 export class TapHorizonReceipts
   extends Model<TapHorizonReceiptsAttributes>
-  implements TapHorizonReceiptsAttributes {
+  implements TapHorizonReceiptsAttributes
+{
   public id!: number
   public signer_address!: Address
 
@@ -66,7 +68,8 @@ export class TapHorizonReceipts
 
 export class ScalarTapReceiptsInvalid
   extends Model<ScalarTapReceiptsAttributes>
-  implements ScalarTapReceiptsAttributes {
+  implements ScalarTapReceiptsAttributes
+{
   public id!: number
   public allocation_id!: Address
   public signer_address!: Address
@@ -82,7 +85,8 @@ export class ScalarTapReceiptsInvalid
 
 export class TapHorizonReceiptsInvalid
   extends Model<TapHorizonReceiptsAttributes>
-  implements TapHorizonReceiptsAttributes {
+  implements TapHorizonReceiptsAttributes
+{
   public id!: number
   public signer_address!: Address
 
@@ -111,7 +115,8 @@ export interface AllocationReceiptAttributes {
 
 export class AllocationReceipt
   extends Model<AllocationReceiptAttributes>
-  implements AllocationReceiptAttributes {
+  implements AllocationReceiptAttributes
+{
   public id!: string
   public allocation!: Address
   public fees!: string
@@ -165,7 +170,7 @@ export interface ReceiptAggregateVoucherV2Attributes {
   timestampNs: bigint
   valueAggregate: bigint
   metadata: string
-  
+
   last: boolean
   final: boolean
   redeemedAt: Date | null
@@ -179,7 +184,6 @@ export interface FailedReceiptAggregateVoucherAttributes {
   reason: string
 }
 
-
 export interface FailedReceiptAggregateVoucherV2Attributes {
   collectionId: string
   payer: string
@@ -192,7 +196,8 @@ export interface FailedReceiptAggregateVoucherV2Attributes {
 
 export class ReceiptAggregateVoucher
   extends Model<ReceiptAggregateVoucherAttributes>
-  implements ReceiptAggregateVoucherAttributes {
+  implements ReceiptAggregateVoucherAttributes
+{
   public allocationId!: Address
   public senderAddress!: Address
   public signature!: Uint8Array
@@ -231,7 +236,8 @@ export type SignedRAVv2 = {
 
 export class ReceiptAggregateVoucherV2
   extends Model<ReceiptAggregateVoucherV2Attributes>
-  implements ReceiptAggregateVoucherV2Attributes {
+  implements ReceiptAggregateVoucherV2Attributes
+{
   public signature!: Uint8Array
   public collectionId!: string
   public payer!: Address
@@ -274,7 +280,8 @@ export type SignedRAV = TAPVerifier.SignedRAVStruct
 
 export class FailedReceiptAggregateVoucher
   extends Model<FailedReceiptAggregateVoucherAttributes>
-  implements FailedReceiptAggregateVoucherAttributes {
+  implements FailedReceiptAggregateVoucherAttributes
+{
   public allocationId!: Address
   public senderAddress!: Address
   public expectedRav!: JSON
@@ -282,10 +289,10 @@ export class FailedReceiptAggregateVoucher
   public reason!: string
 }
 
-
 export class FailedReceiptAggregateVoucherV2
   extends Model<FailedReceiptAggregateVoucherV2Attributes>
-  implements FailedReceiptAggregateVoucherV2Attributes {
+  implements FailedReceiptAggregateVoucherV2Attributes
+{
   public collectionId!: string
   public payer!: Address
   public dataService!: Address
@@ -305,7 +312,8 @@ export interface TransferReceiptAttributes {
 
 export class TransferReceipt
   extends Model<TransferReceiptAttributes>
-  implements TransferReceiptAttributes {
+  implements TransferReceiptAttributes
+{
   public id!: number
   public signer!: Address
   public fees!: string
@@ -370,7 +378,8 @@ export interface AllocationSummaryAttributes {
 
 export class AllocationSummary
   extends Model<AllocationSummaryAttributes>
-  implements AllocationSummaryAttributes {
+  implements AllocationSummaryAttributes
+{
   public allocation!: Address
   public closedAt!: Date
   public createdTransfers!: number
@@ -832,7 +841,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
     },
   )
 
-
   FailedReceiptAggregateVoucherV2.init(
     {
       collectionId: {
@@ -1043,7 +1051,6 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       tableName: 'scalar_tap_receipts_invalid',
     },
   )
-
 
   TapHorizonReceiptsInvalid.init(
     {
