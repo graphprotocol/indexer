@@ -163,16 +163,14 @@ Auto-graft will:
 3. Deploy Subgraph A and sync to block 15M
 4. Finally deploy your subgraph starting from block 15M
 
-### Automatic Pausing
+### Dependency Syncing
 
-After each dependency reaches its target block, it's automatically paused to:
-- Prevent unnecessary indexing beyond the graft point
-- Save computational resources
-- Ensure data consistency
+When a dependency reaches its target block, auto-graft will:
+- Log a warning that the graft dependency has reached the required block height
+- Continue indexing past the graft point to ensure the dependency remains available
+- Allow the main subgraph to successfully graft from this dependency
 
-Auto-graft will check for active allocations before pausing a dependency. If a subgraph has an active allocation (meaning it's still serving queries), it will NOT be automatically paused to prevent service disruption. This ensures that customers can continue querying subgraphs that are actively allocated.
-
-*Note: This allocation check was introduced in v0.24.1*
+*Note: Prior to v0.24.2, dependencies were automatically paused after reaching their target block. This behavior was removed to ensure better availability and prevent issues with allocations.*
 
 ## Monitoring Auto-Graft
 
@@ -183,9 +181,9 @@ Monitor these log messages to track auto-graft progress:
 - `"Auto graft deploy subgraph dependencies"` - Process started
 - `"graft dep chain found"` - Dependencies identified
 - `"Dependency subgraph found, checking if it's healthy"` - Existing dependency detected
-- `"Dependency subgraph not found, creating, deploying and pausing..."` - New dependency being deployed
+- `"Dependency subgraph not found, creating, deploying..."` - New dependency being deployed
 - `"Begin syncing subgraph deployment to block"` - Syncing in progress
-- `"Successfully synced"` - Dependency ready
+- `"Graft dependency has reached target block height. Continuing to index past graft point."` - Dependency ready for grafting
 
 ### Checking Dependency Status
 

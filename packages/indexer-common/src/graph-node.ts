@@ -1,6 +1,6 @@
 import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
-import { Logger, SubgraphDeploymentID, NetworkContracts } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { Client, createClient } from '@urql/core'
 import {
   INDEXER_ERROR_MESSAGES,
@@ -665,7 +665,6 @@ export class GraphNode {
     name: string,
     deployment: SubgraphDeploymentID,
     currentAssignments?: SubgraphDeploymentAssignment[],
-    contracts?: NetworkContracts,
   ): Promise<void> {
     this.logger.debug('Ensure subgraph deployment is syncing', {
       name,
@@ -694,12 +693,7 @@ export class GraphNode {
         await this.resume(deployment)
       } else {
         // Subgraph deployment not found
-        await this.autoGraftDeployDependencies(
-          deployment,
-          deploymentAssignments,
-          name,
-          contracts,
-        )
+        await this.autoGraftDeployDependencies(deployment, deploymentAssignments, name)
 
         // Create and deploy the subgraph
         this.logger.debug(
@@ -738,7 +732,6 @@ export class GraphNode {
     deployment: SubgraphDeploymentID,
     deploymentAssignments: SubgraphDeploymentAssignment[],
     name: string,
-    contracts?: NetworkContracts,
   ) {
     this.logger.debug('Auto graft deploy subgraph dependencies')
     const { network: subgraphChainName } = await this.subgraphFeatures(deployment)
@@ -795,25 +788,17 @@ export class GraphNode {
             )
           }
         } else if (!dependencyAssignment) {
-          this.logger.debug(
-            'Dependency subgraph not found, creating, deploying and pausing...',
-            {
-              name,
-              deployment: dependency.base.display,
-              block_required: dependency.block,
-            },
-          )
+          this.logger.debug('Dependency subgraph not found, creating, deploying...', {
+            name,
+            deployment: dependency.base.display,
+            block_required: dependency.block,
+          })
           // are we paused at the block we wanted?
 
           await this.create(name)
           await this.deploy(name, dependency.base)
         }
-        await this.syncToBlockAndPause(
-          dependency.block,
-          dependency.base,
-          subgraphChainName,
-          contracts,
-        )
+        await this.syncToBlock(dependency.block, dependency.base, subgraphChainName)
       }
     }
   }
@@ -824,11 +809,10 @@ export class GraphNode {
    * This will resume a paused subgraph if the block height target is higher than the
    * current block height
    */
-  public async syncToBlockAndPause(
+  public async syncToBlock(
     blockHeight: number,
     subgraphDeployment: SubgraphDeploymentID,
     chainName: string | null,
-    contracts?: NetworkContracts,
   ): Promise<void> {
     async function waitForMs(ms: number) {
       return new Promise((resolve) => setTimeout(resolve, ms))
@@ -920,78 +904,14 @@ export class GraphNode {
 
       // Is the graftBaseBlock within the range of the earliest and head of the chain?
       if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
-        if (!deployed[0].paused) {
-          // Check if there's an active allocation before pausing
-          let hasActiveAllocation = false
-          let checkFailed = false
-
-          // If contracts are provided, check for active allocations
-          if (contracts) {
-            try {
-              // Check if any allocations exist for this subgraph deployment
-              const filter = contracts.staking.filters.AllocationCreated(
-                null, // indexer (any)
-                subgraphDeployment.bytes32, // subgraphDeploymentID
-              )
-              const events = await contracts.staking.queryFilter(filter)
-
-              // Check each allocation to see if it's still active
-              for (const event of events) {
-                const allocationId = event.args?.allocationID
-                if (allocationId) {
-                  const state = await contracts.staking.getAllocationState(allocationId)
-                  // State 1 means Active allocation
-                  if (state === 1) {
-                    hasActiveAllocation = true
-                    break
-                  }
-                }
-              }
-
-              if (hasActiveAllocation) {
-                this.logger.warn(`Subgraph has active allocation, not going to pause`, {
-                  subgraph: subgraphDeployment.ipfsHash,
-                  blockHeight,
-                  indexingStatus,
-                })
-              }
-            } catch (error) {
-              checkFailed = true
-              this.logger.error(`Failed to check allocation state, not going to pause`, {
-                subgraph: subgraphDeployment.ipfsHash,
-                error,
-              })
-            }
-          } else {
-            // No contracts provided, skip pause for safety
-            this.logger.warn(
-              `No contracts provided to check allocation state, not going to pause`,
-              {
-                subgraph: subgraphDeployment.ipfsHash,
-                blockHeight,
-              },
-            )
-            checkFailed = true
-          }
-
-          // Only pause if we successfully checked and found no active allocations
-          if (!hasActiveAllocation && !checkFailed) {
-            this.logger.debug(
-              `Subgraph synced to block! Pausing as requirement is met.`,
-              {
-                subgraph: subgraphDeployment.ipfsHash,
-                indexingStatus,
-              },
-            )
-            // pause the subgraph to prevent further indexing
-            await this.pause(subgraphDeployment)
-          }
-        } else {
-          this.logger.debug(`Subgraph already paused and synced to block.`, {
+        this.logger.warn(
+          `Graft dependency has reached target block height. Continuing to index past graft point.`,
+          {
             subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-        }
+            blockHeight,
+            currentBlock: chain.latestBlock.number,
+          },
+        )
         break
       }
 
