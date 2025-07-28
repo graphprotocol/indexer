@@ -5,7 +5,6 @@ import { Socket } from 'net'
 import { URL } from 'url'
 import path from 'path'
 import { Sequelize } from 'sequelize'
-import stripAnsi from 'strip-ansi'
 import {
   ActionStatus,
   ActionType,
@@ -55,6 +54,22 @@ let metrics: Metrics
 
 const yamlObj = loadTestYamlConfig()
 const testNetworkSpecification = specification.NetworkSpecification.parse(yamlObj)
+
+// Replace strip-ansi with a simple function using the same regex pattern
+// Based on ansi-regex v6.1.0 pattern
+function stripAnsi(str: string): string {
+  if (typeof str !== 'string') {
+    throw new TypeError(`Expected a string, got ${typeof str}`)
+  }
+
+  // Regex pattern from ansi-regex
+  const pattern = [
+    '[\\u001B\\u009B][[\\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]+)*|[a-zA-Z\\d]+(?:;[-a-zA-Z\\d\\/#&.:=?%@~_]*)*)?(?:\\u0007|\\u001B\\u005C|\\u009C))',
+    '(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PR-TZcf-nq-uy=><~]))',
+  ].join('|')
+
+  return str.replace(new RegExp(pattern, 'g'), '')
+}
 
 export const setupMultiNetworks = async () => {
   return await setup(true)
@@ -279,6 +294,7 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
+      isLegacy: false,
     })
     await models.Action.create({
       id: 2,
@@ -288,6 +304,7 @@ export const seedActions = async () => {
       source: 'test',
       reason: 'test',
       protocolNetwork: 'eip155:421614',
+      isLegacy: false,
     })
   } catch (e) {
     logger.error('Failed to seed ', { error: e })

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 import { caip2IdRegex } from '../../parsers'
 
 export interface POIDisputeAttributes {
@@ -95,7 +95,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 20)) {
+            if (isHexString(value, 20)) {
               return
             }
 
@@ -128,7 +128,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 20)) {
+            if (isHexString(value, 20)) {
               return
             }
 
@@ -155,7 +155,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 
@@ -178,7 +178,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // null or "0x..." is ok
-            if (!value || utils.isHexString(value, 32)) {
+            if (!value || isHexString(value, 32)) {
               return
             }
 
@@ -197,7 +197,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 
@@ -220,7 +220,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // null or "0x..." is ok
-            if (!value || utils.isHexString(value, 32)) {
+            if (!value || isHexString(value, 32)) {
               return
             }
 
@@ -239,7 +239,7 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
             }
 
             // "0x..." is ok
-            if (utils.isHexString(value, 32)) {
+            if (isHexString(value, 32)) {
               return
             }
 

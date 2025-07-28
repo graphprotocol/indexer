@@ -6,7 +6,7 @@ const bail = (s) => {
 process.env.NODE_NO_WARNINGS = '1'
 
 module.exports = {
-  collectCoverage: true,
+  collectCoverage: false,
   preset: 'ts-jest',
   forceExit: true,
   testEnvironment: 'node',

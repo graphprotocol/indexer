@@ -10,10 +10,10 @@ import {
   TapTransaction,
   TransactionManager,
 } from '@graphprotocol/indexer-common'
-import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
 import { NetworkSpecification } from 'indexer-common/src/network-specification'
 import { createMockAllocation } from '../../indexer-management/__tests__/helpers.test'
-import { getContractAddress } from 'ethers/lib/utils'
+import { getCreateAddress } from 'ethers'
+import { NetworkContracts as TapContracts } from '@semiotic-labs/tap-contracts-bindings'
 
 const timeout = 30_000
 
@@ -29,7 +29,7 @@ for (let i = 0; i < 2999; i++) {
   const mockAllocation = createMockAllocation()
   allocations.push({
     ...mockAllocation,
-    id: getContractAddress({ from, nonce: i }) as Address,
+    id: getCreateAddress({ from, nonce: i }) as Address,
   })
 }
 
@@ -191,7 +191,7 @@ describe.skip('TAP Pagination', () => {
       const mockAllocation = createMockAllocation()
       allocations.push({
         ...mockAllocation,
-        id: getContractAddress({ from, nonce: 3000 }) as Address,
+        id: getCreateAddress({ from, nonce: 3000 }) as Address,
       })
       {
         const allocations = await tapCollector['getAllocationsfromAllocationIds']([])

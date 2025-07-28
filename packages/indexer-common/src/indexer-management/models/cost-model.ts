@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-empty-interface */
 
 import { Optional, Model, DataTypes, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 
 export interface GraphQLCostModel {
   deployment: string
@@ -80,7 +80,7 @@ export const defineCostModelModels = (sequelize: Sequelize): CostModelModels => 
             }
 
             // "0x..." and "global" is ok
-            if (utils.isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
+            if (isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
               return
             }
 
