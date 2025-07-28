@@ -6,6 +6,7 @@ import {
   Metrics,
   SubgraphDeploymentID,
   timer,
+  NetworkContracts,
 } from '@graphprotocol/common-ts'
 import {
   ActivationCriteria,
@@ -1256,13 +1257,19 @@ export class Agent {
   }
 
   // TODO: After indexer-service deprecation: Move to be an initialization check inside Network.create()
-  async ensureSubgraphIndexing(deployment: string, networkIdentifier: string) {
+  async ensureSubgraphIndexing(
+    deployment: string,
+    networkIdentifier: string,
+    contracts?: NetworkContracts,
+  ) {
     try {
       // TODO: Check both the local deployment and the external subgraph endpoint
       // Make sure the subgraph is being indexed
       await this.graphNode.ensure(
         `indexer-agent/${deployment.slice(-10)}`,
         new SubgraphDeploymentID(deployment),
+        undefined, // currentAssignments
+        contracts,
       )
 
       // Validate if the Network Subgraph belongs to the current provider's network.
@@ -1288,6 +1295,7 @@ export class Agent {
       await this.ensureSubgraphIndexing(
         network.specification.subgraphs.networkSubgraph.deployment,
         network.specification.networkIdentifier,
+        network.contracts,
       )
     }
     // Epoch subgraph
@@ -1297,6 +1305,7 @@ export class Agent {
       await this.ensureSubgraphIndexing(
         network.specification.subgraphs.epochSubgraph.deployment,
         network.specification.networkIdentifier,
+        network.contracts,
       )
     }
     // TAP subgraph
@@ -1304,6 +1313,7 @@ export class Agent {
       await this.ensureSubgraphIndexing(
         network.specification.subgraphs.tapSubgraph.deployment,
         network.specification.networkIdentifier,
+        network.contracts,
       )
     }
   }

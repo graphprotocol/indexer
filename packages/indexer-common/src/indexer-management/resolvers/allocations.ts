@@ -451,6 +451,8 @@ export default {
       await graphNode.ensure(
         `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
         subgraphDeployment,
+        undefined, // currentAssignments
+        contracts,
       )
 
       logger.debug('Obtain a unique Allocation ID')

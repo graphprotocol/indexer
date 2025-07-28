@@ -433,6 +433,7 @@ export class AllocationManager {
           `indexer-agent/${action.deploymentID!.slice(-10)}`,
           new SubgraphDeploymentID(action.deploymentID!),
           currentAssignments,
+          this.network.contracts,
         ),
       {
         stopOnError: false,

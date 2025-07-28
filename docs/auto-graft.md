@@ -170,6 +170,10 @@ After each dependency reaches its target block, it's automatically paused to:
 - Save computational resources
 - Ensure data consistency
 
+Auto-graft will check for active allocations before pausing a dependency. If a subgraph has an active allocation (meaning it's still serving queries), it will NOT be automatically paused to prevent service disruption. This ensures that customers can continue querying subgraphs that are actively allocated.
+
+*Note: This allocation check was introduced in v0.24.1*
+
 ## Monitoring Auto-Graft
 
 ### Key Log Messages

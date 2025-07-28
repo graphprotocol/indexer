@@ -1,6 +1,6 @@
 import gql from 'graphql-tag'
 import jayson, { Client as RpcClient } from 'jayson/promise'
-import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
+import { Logger, SubgraphDeploymentID, NetworkContracts } from '@graphprotocol/common-ts'
 import { Client, createClient } from '@urql/core'
 import {
   INDEXER_ERROR_MESSAGES,
@@ -665,6 +665,7 @@ export class GraphNode {
     name: string,
     deployment: SubgraphDeploymentID,
     currentAssignments?: SubgraphDeploymentAssignment[],
+    contracts?: NetworkContracts,
   ): Promise<void> {
     this.logger.debug('Ensure subgraph deployment is syncing', {
       name,
@@ -693,7 +694,12 @@ export class GraphNode {
         await this.resume(deployment)
       } else {
         // Subgraph deployment not found
-        await this.autoGraftDeployDependencies(deployment, deploymentAssignments, name)
+        await this.autoGraftDeployDependencies(
+          deployment,
+          deploymentAssignments,
+          name,
+          contracts,
+        )
 
         // Create and deploy the subgraph
         this.logger.debug(
@@ -732,6 +738,7 @@ export class GraphNode {
     deployment: SubgraphDeploymentID,
     deploymentAssignments: SubgraphDeploymentAssignment[],
     name: string,
+    contracts?: NetworkContracts,
   ) {
     this.logger.debug('Auto graft deploy subgraph dependencies')
     const { network: subgraphChainName } = await this.subgraphFeatures(deployment)
@@ -805,6 +812,7 @@ export class GraphNode {
           dependency.block,
           dependency.base,
           subgraphChainName,
+          contracts,
         )
       }
     }
@@ -820,6 +828,7 @@ export class GraphNode {
     blockHeight: number,
     subgraphDeployment: SubgraphDeploymentID,
     chainName: string | null,
+    contracts?: NetworkContracts,
   ): Promise<void> {
     async function waitForMs(ms: number) {
       return new Promise((resolve) => setTimeout(resolve, ms))
@@ -912,12 +921,71 @@ export class GraphNode {
       // Is the graftBaseBlock within the range of the earliest and head of the chain?
       if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
         if (!deployed[0].paused) {
-          this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
-            subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-          // pause the subgraph to prevent further indexing
-          await this.pause(subgraphDeployment)
+          // Check if there's an active allocation before pausing
+          let hasActiveAllocation = false
+          let checkFailed = false
+
+          // If contracts are provided, check for active allocations
+          if (contracts) {
+            try {
+              // Check if any allocations exist for this subgraph deployment
+              const filter = contracts.staking.filters.AllocationCreated(
+                null, // indexer (any)
+                subgraphDeployment.bytes32, // subgraphDeploymentID
+              )
+              const events = await contracts.staking.queryFilter(filter)
+
+              // Check each allocation to see if it's still active
+              for (const event of events) {
+                const allocationId = event.args?.allocationID
+                if (allocationId) {
+                  const state = await contracts.staking.getAllocationState(allocationId)
+                  // State 1 means Active allocation
+                  if (state === 1) {
+                    hasActiveAllocation = true
+                    break
+                  }
+                }
+              }
+
+              if (hasActiveAllocation) {
+                this.logger.warn(`Subgraph has active allocation, not going to pause`, {
+                  subgraph: subgraphDeployment.ipfsHash,
+                  blockHeight,
+                  indexingStatus,
+                })
+              }
+            } catch (error) {
+              checkFailed = true
+              this.logger.error(`Failed to check allocation state, not going to pause`, {
+                subgraph: subgraphDeployment.ipfsHash,
+                error,
+              })
+            }
+          } else {
+            // No contracts provided, skip pause for safety
+            this.logger.warn(
+              `No contracts provided to check allocation state, not going to pause`,
+              {
+                subgraph: subgraphDeployment.ipfsHash,
+                blockHeight,
+              },
+            )
+            checkFailed = true
+          }
+
+          // Only pause if we successfully checked and found no active allocations
+          if (!hasActiveAllocation && !checkFailed) {
+            this.logger.debug(
+              `Subgraph synced to block! Pausing as requirement is met.`,
+              {
+                subgraph: subgraphDeployment.ipfsHash,
+                indexingStatus,
+              },
+            )
+            // pause the subgraph to prevent further indexing
+            await this.pause(subgraphDeployment)
+          }
         } else {
           this.logger.debug(`Subgraph already paused and synced to block.`, {
             subgraph: subgraphDeployment.ipfsHash,
