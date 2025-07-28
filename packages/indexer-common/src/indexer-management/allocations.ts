@@ -77,6 +77,11 @@ export interface ReallocateTransactionParams {
   proof: BytesLike
 }
 
+export interface PreparedTransaction {
+  action: Action
+  result: PopulateTransactionResult
+}
+
 // An Action with resolved Allocation and Unallocation values
 export interface ActionStakeUsageSummary {
   action: Action
@@ -91,11 +96,21 @@ export type PopulateTransactionResult =
   | PopulatedTransaction[]
   | ActionFailure
 
+// Result when we attempt to execute a batch
+export interface BatchExecutionResult {
+  receipt: ContractReceipt | 'paused' | 'unauthorized'
+  prepared: PreparedTransaction[] // Actions that were prepared and ready to execute
+  failed: PreparedTransaction[] // Actions that failed during preparation
+}
+
 export type TransactionResult =
-  | ContractReceipt
-  | 'paused'
-  | 'unauthorized'
-  | ActionFailure[]
+  | BatchExecutionResult // We attempted execution (even if paused/unauthorized)
+  | ActionFailure[] // All failed during preparation, nothing to execute
+
+// Type guard to check if all preparations failed
+const isAllFailures = (result: TransactionResult): result is ActionFailure[] => {
+  return Array.isArray(result)
+}
 
 export class AllocationManager {
   constructor(
@@ -112,11 +127,48 @@ export class AllocationManager {
     const logger = this.logger.child({ function: 'executeBatch' })
     logger.trace('Executing action batch', { actions })
     const result = await this.executeTransactions(actions, onFinishedDeploying)
-    if (Array.isArray(result)) {
-      logger.trace('Execute batch transaction failed', { actionBatchResult: result })
-      return result as ActionFailure[]
+
+    // Handle the case where all preparations failed
+    if (isAllFailures(result)) {
+      logger.trace('All transaction preparations failed', { failures: result })
+      return result
     }
-    return await this.confirmTransactions(result, actions)
+
+    // Handle BatchExecutionResult - we have some prepared transactions
+    const allResults: AllocationResult[] = []
+
+    // Add failures to results
+    for (const failed of result.failed) {
+      allResults.push(failed.result as ActionFailure)
+    }
+
+    // Process prepared transactions if we have a valid receipt
+    if (result.receipt !== 'paused' && result.receipt !== 'unauthorized') {
+      const confirmedResults = await this.confirmTransactions(
+        result.receipt,
+        result.prepared.map((p) => p.action),
+      )
+      allResults.push(...confirmedResults)
+    } else {
+      // If paused or unauthorized, mark prepared actions as failed
+      logger.info(`Execution skipped: ${result.receipt}`, {
+        preparedCount: result.prepared.length,
+        failedCount: result.failed.length,
+      })
+
+      for (const prepared of result.prepared) {
+        allResults.push({
+          actionID: prepared.action.id,
+          failureReason:
+            result.receipt === 'paused'
+              ? 'Network is paused'
+              : 'Not authorized as operator',
+          protocolNetwork: prepared.action.protocolNetwork,
+        } as ActionFailure)
+      }
+    }
+
+    return allResults
   }
 
   private async executeTransactions(
@@ -135,37 +187,72 @@ export class AllocationManager {
     await this.deployBeforeAllocating(logger, validatedActions)
     await onFinishedDeploying(validatedActions)
 
-    const populateTransactionsResults = await this.prepareTransactions(validatedActions)
+    const preparedTransactions = await this.prepareTransactions(validatedActions)
 
-    const failedTransactionPreparations = populateTransactionsResults
-      .filter((result) => isActionFailure(result))
-      .map((result) => result as ActionFailure)
+    // Separate successful and failed preparations
+    const failedPreparations = preparedTransactions.filter((prepared) =>
+      isActionFailure(prepared.result),
+    )
+    const successfulPreparations = preparedTransactions.filter(
+      (prepared) => !isActionFailure(prepared.result),
+    )
 
-    if (failedTransactionPreparations.length > 0) {
-      logger.trace('Failed to prepare transactions', { failedTransactionPreparations })
-      return failedTransactionPreparations
-    }
-
-    logger.trace('Prepared transactions ', {
-      preparedTransactions: populateTransactionsResults,
+    // Log the preparation results
+    logger.info('Transaction preparation complete', {
+      total: preparedTransactions.length,
+      successful: successfulPreparations.length,
+      failed: failedPreparations.length,
     })
 
-    const callData = populateTransactionsResults
+    // If all failed, return early with failures
+    if (successfulPreparations.length === 0) {
+      logger.warn('All transaction preparations failed', {
+        failures: failedPreparations.map((f) => ({
+          actionId: f.action.id,
+          reason: (f.result as ActionFailure).failureReason,
+        })),
+      })
+      return failedPreparations.map((f) => f.result as ActionFailure)
+    }
+
+    // If some failed, log details
+    if (failedPreparations.length > 0) {
+      logger.warn('Some transaction preparations failed', {
+        failures: failedPreparations.map((f) => ({
+          actionId: f.action.id,
+          type: f.action.type,
+          deploymentId: f.action.deploymentID,
+          reason: (f.result as ActionFailure).failureReason,
+        })),
+      })
+    }
+
+    // Build multicall only for successful preparations
+    const callData = successfulPreparations
+      .map((prepared) => prepared.result)
       .flat()
       .map((tx) => tx as PopulatedTransaction)
       .filter((tx: PopulatedTransaction) => !!tx.data)
       .map((tx) => tx.data as string)
     logger.trace('Prepared transaction calldata', { callData })
 
-    return await this.network.transactionManager.executeTransaction(
+    // Execute multicall for successful preparations only
+    const receipt = await this.network.transactionManager.executeTransaction(
       async () => this.network.contracts.staking.estimateGas.multicall(callData),
       async (gasLimit) =>
         this.network.contracts.staking.multicall(callData, { gasLimit }),
       this.logger.child({
-        actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
+        actions: successfulPreparations.map((p) => p.action.id),
         function: 'staking.multicall',
       }),
     )
+
+    // Return result with both prepared and failed transactions
+    return {
+      receipt,
+      prepared: successfulPreparations,
+      failed: failedPreparations,
+    } as BatchExecutionResult
   }
 
   async confirmTransactions(
@@ -246,7 +333,7 @@ export class AllocationManager {
     }
   }
 
-  async prepareTransactions(actions: Action[]): Promise<PopulateTransactionResult[]> {
+  async prepareTransactions(actions: Action[]): Promise<PreparedTransaction[]> {
     const currentEpoch = await this.network.contracts.epochManager.currentEpoch()
     const context: TransactionPreparationContext = {
       activeAllocations: await this.network.networkMonitor.allocations(
@@ -264,7 +351,10 @@ export class AllocationManager {
     }
     return await pMap(
       actions,
-      async (action: Action) => await this.prepareTransaction(action, context),
+      async (action: Action) => ({
+        action,
+        result: await this.prepareTransaction(action, context),
+      }),
       {
         stopOnError: false,
       },
