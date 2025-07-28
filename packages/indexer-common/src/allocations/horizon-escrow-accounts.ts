@@ -7,14 +7,14 @@ export type PaymentsEscrowAccountResponse = {
     payer: {
       id: string
     }
-  }[],
+  }[]
   // Not a typo just how graph-client pluralizes the field name
   graphTallyTokensCollecteds: {
     tokens: string
     collectionId: string
     payer: {
       id: string
-    },
+    }
   }[]
 }
 
@@ -22,7 +22,10 @@ export class PaymentsEscrowAccounts {
   private payersBalances: Map<string, bigint>
   private receiversTokensCollected: Map<string, bigint>
 
-  constructor(payersBalances: Map<string, bigint>, receiversTokensCollected: Map<string, bigint>) {
+  constructor(
+    payersBalances: Map<string, bigint>,
+    receiversTokensCollected: Map<string, bigint>,
+  ) {
     this.payersBalances = payersBalances
     this.receiversTokensCollected = receiversTokensCollected
   }
@@ -38,7 +41,9 @@ export class PaymentsEscrowAccounts {
   getTokensCollectedForReceiver(payer: string, collectionId: string): bigint {
     const balance = this.receiversTokensCollected.get(`${payer}-${collectionId}`)
     if (balance === undefined) {
-      throw new Error(`No tokens collected found for payer: ${payer} and collectionId: ${collectionId}`)
+      throw new Error(
+        `No tokens collected found for payer: ${payer} and collectionId: ${collectionId}`,
+      )
     }
     return balance
   }
@@ -81,7 +86,9 @@ export const getEscrowAccounts = async (
   const result = await subgraph.query<PaymentsEscrowAccountResponse>(
     gql`
       query PaymentsEscrowAccountQuery($indexer: ID!, $collector: String!) {
-        paymentsEscrowAccounts(where: { receiver_: { id: $indexer }, collector: $collector }) {
+        paymentsEscrowAccounts(
+          where: { receiver_: { id: $indexer }, collector: $collector }
+        ) {
           balance
           payer {
             id

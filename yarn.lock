@@ -568,6 +568,11 @@
     prom-client "14.2.0"
     sequelize "6.33.0"
 
+"@graphprotocol/horizon@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.4.1.tgz#b29f0944eeb9d4b50fc586e533904b9e51f18ade"
+  integrity sha512-YC/HVmWuCkfembwVQbPEY9NEDNsPsuHxnBMCThB1nAyai9I0Ad/nKnHZ+9baFmq5Sg1YwXxDG7Nc4SQJlgZD2g==
+
 "@graphprotocol/interfaces@^0.2.5":
   version "0.2.5"
   resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.2.5.tgz#b628b198f4f2c6118d6acbf29f70c2de3ba61211"
@@ -582,6 +587,11 @@
     pumpify "^2.0.1"
     split2 "^3.1.1"
     through2 "^3.0.1"
+
+"@graphprotocol/subgraph-service@0.4.1":
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.4.1.tgz#31a76c10031aa118960a1fa0d7ba955cac123f32"
+  integrity sha512-vJA9lzlNQr4IRDPAbUiXM1ybizB4GzI0B1bndvB2X00ecTOWQQCiDl0W/qlApQ86+YXMjU2g90Db23ldqVOvyQ==
 
 "@graphprotocol/toolshed@0.6.5":
   version "0.6.5"

@@ -57,7 +57,7 @@ export interface ActionExecutionResult {
 export interface ExecuteTransactionResult {
   actionID: number
   success: boolean
-  result: ActionFailure | TransactionReceipt | "paused" | "unauthorized"
+  result: ActionFailure | TransactionReceipt | 'paused' | 'unauthorized'
 }
 
 export interface ActionFailure {
