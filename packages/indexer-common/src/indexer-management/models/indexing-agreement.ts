@@ -6,6 +6,7 @@ import {
   CreationOptional,
   InferCreationAttributes,
   InferAttributes,
+  ForeignKey,
 } from 'sequelize'
 
 // Indexing Fees AKA "DIPs"
@@ -40,8 +41,26 @@ export class IndexingAgreement extends Model<
   declare last_payment_collected_at: Date | null
 }
 
+export type DipsReceiptStatus = 'PENDING' | 'SUBMITTED' | 'FAILED'
+
+export class DipsReceipt extends Model<
+  InferAttributes<DipsReceipt>,
+  InferCreationAttributes<DipsReceipt>
+> {
+  declare id: string // Primary key - Receipt ID from Dipper
+  declare agreement_id: ForeignKey<IndexingAgreement['id']>
+  declare amount: string
+  declare status: DipsReceiptStatus
+  declare transaction_hash: string | null
+  declare error_message: string | null
+  declare created_at: CreationOptional<Date>
+  declare updated_at: CreationOptional<Date>
+  declare retry_count: CreationOptional<number>
+}
+
 export interface IndexingFeesModels {
   IndexingAgreement: typeof IndexingAgreement
+  DipsReceipt: typeof DipsReceipt
 }
 
 export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesModels => {
@@ -209,7 +228,83 @@ export const defineIndexingFeesModels = (sequelize: Sequelize): IndexingFeesMode
     },
   )
 
+  DipsReceipt.init(
+    {
+      id: {
+        type: DataTypes.STRING(255),
+        primaryKey: true,
+        allowNull: false,
+      },
+      agreement_id: {
+        type: DataTypes.UUID,
+        allowNull: false,
+        references: {
+          model: IndexingAgreement,
+          key: 'id',
+        },
+      },
+      amount: {
+        type: DataTypes.DECIMAL(39),
+        allowNull: false,
+      },
+      status: {
+        type: DataTypes.ENUM('PENDING', 'SUBMITTED', 'FAILED'),
+        allowNull: false,
+        defaultValue: 'PENDING',
+      },
+      transaction_hash: {
+        type: DataTypes.CHAR(66),
+        allowNull: true,
+      },
+      error_message: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+      },
+      created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+      },
+      retry_count: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        defaultValue: 0,
+      },
+    },
+    {
+      modelName: 'DipsReceipt',
+      sequelize,
+      tableName: 'dips_receipts',
+      timestamps: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      indexes: [
+        {
+          fields: ['agreement_id'],
+        },
+        {
+          fields: ['status'],
+        },
+      ],
+    },
+  )
+
+  // Define associations
+  DipsReceipt.belongsTo(IndexingAgreement, {
+    foreignKey: 'agreement_id',
+    as: 'agreement',
+  })
+
+  IndexingAgreement.hasMany(DipsReceipt, {
+    foreignKey: 'agreement_id',
+    as: 'receipts',
+  })
+
   return {
     ['IndexingAgreement']: IndexingAgreement,
+    ['DipsReceipt']: DipsReceipt,
   }
 }
