@@ -454,12 +454,9 @@ describe('DipsCollector', () => {
       const dipsCollector = new DipsCollector(
         logger,
         managementModels,
-        queryFeeModels,
         networkSpecWithDips,
-        network.tapCollector!,
         network.wallet,
         graphNode,
-        jest.fn(),
       )
       expect(dipsCollector).toBeDefined()
     })
@@ -467,12 +464,9 @@ describe('DipsCollector', () => {
       const dipsCollector = new DipsCollector(
         logger,
         managementModels,
-        queryFeeModels,
         networkSpecWithDips,
-        network.tapCollector!,
         network.wallet,
         graphNode,
-        jest.fn(),
       )
       expect(dipsCollector).toBeDefined()
       expect(startCollectionLoop).toHaveBeenCalled()
@@ -490,12 +484,9 @@ describe('DipsCollector', () => {
           new DipsCollector(
             logger,
             managementModels,
-            queryFeeModels,
             specWithoutDipper,
-            network.tapCollector!,
             network.wallet,
             graphNode,
-            jest.fn(),
           ),
       ).toThrow('dipperEndpoint is not set')
     })
@@ -570,10 +561,7 @@ describe('DipsCollector', () => {
             value: '1000',
           }
         })
-      dipsCollector.escrowSenderGetter = jest.fn().mockImplementation(() => {
-        logger.info('MOCK Getting escrow sender for signer')
-        return toAddress('0x123456df40c29949a75a6693c77834c00b8a5678')
-      })
+      // escrowSenderGetter has been removed from DipsCollector
 
       await dipsCollector.tryCollectPayment(agreement)
 

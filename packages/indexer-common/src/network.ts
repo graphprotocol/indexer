@@ -334,9 +334,7 @@ export class Network {
         dipsCollector = DipsCollector.create(
           logger,
           managementModels,
-          queryFeeModels,
           specification,
-          tapCollector,
           wallet,
           graphNode,
         )

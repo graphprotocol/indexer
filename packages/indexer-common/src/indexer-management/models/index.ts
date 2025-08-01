@@ -10,6 +10,7 @@ export * from './cost-model'
 export * from './indexing-rule'
 export * from './poi-dispute'
 export * from './action'
+export * from './indexing-agreement'
 
 export type IndexerManagementModels = IndexingRuleModels &
   CostModelModels &
