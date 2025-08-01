@@ -9,17 +9,14 @@ import {
   ActionStatus,
   Allocation,
   AllocationManager,
-  getEscrowSenderForSigner,
+  DipsReceiptStatus,
   GraphNode,
   IndexerManagementModels,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
   Network,
-  QueryFeeModels,
   sequentialTimerMap,
-  SubgraphClient,
   SubgraphIdentifierType,
-  TapCollector,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
 import { Op } from 'sequelize'
@@ -46,10 +43,6 @@ const normalizeAddressForDB = (address: string) => {
   return toAddress(address).toLowerCase().replace('0x', '')
 }
 
-type GetEscrowSenderForSigner = (
-  tapSubgraph: SubgraphClient,
-  signer: Address,
-) => Promise<Address>
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
   declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
@@ -361,12 +354,9 @@ export class DipsCollector {
   constructor(
     private logger: Logger,
     private managementModels: IndexerManagementModels,
-    private queryFeeModels: QueryFeeModels,
     private specification: NetworkSpecification,
-    private tapCollector: TapCollector,
     private wallet: BaseWallet,
     private graphNode: GraphNode,
-    public escrowSenderGetter: GetEscrowSenderForSigner,
   ) {
     if (!this.specification.indexerOptions.dipperEndpoint) {
       throw new Error('dipperEndpoint is not set')
@@ -380,22 +370,16 @@ export class DipsCollector {
   static create(
     logger: Logger,
     managementModels: IndexerManagementModels,
-    queryFeeModels: QueryFeeModels,
     specification: NetworkSpecification,
-    tapCollector: TapCollector,
     wallet: BaseWallet,
     graphNode: GraphNode,
-    escrowSenderGetter?: GetEscrowSenderForSigner,
   ) {
     const collector = new DipsCollector(
       logger,
       managementModels,
-      queryFeeModels,
       specification,
-      tapCollector,
       wallet,
       graphNode,
-      escrowSenderGetter ?? getEscrowSenderForSigner,
     )
     collector.startCollectionLoop()
     return collector
@@ -421,6 +405,7 @@ export class DipsCollector {
 
   // Collect payments for all outstanding agreements
   async collectAllPayments() {
+    // Part 1: Collect new payments
     const outstandingAgreements = await this.managementModels.IndexingAgreement.findAll({
       where: {
         last_payment_collected_at: null,
@@ -431,6 +416,53 @@ export class DipsCollector {
     })
     for (const agreement of outstandingAgreements) {
       await this.tryCollectPayment(agreement)
+    }
+
+    // Part 2: Poll pending receipts
+    await this.pollPendingReceipts()
+  }
+
+  async pollPendingReceipts() {
+    // Find all pending receipts
+    const pendingReceipts = await this.managementModels.DipsReceipt.findAll({
+      where: {
+        status: 'PENDING',
+      },
+    })
+
+    if (pendingReceipts.length === 0) {
+      return
+    }
+
+    this.logger.info(`Polling ${pendingReceipts.length} pending receipts`)
+
+    for (const receipt of pendingReceipts) {
+      try {
+        const statusResponse = await this.gatewayDipsServiceClient.GetReceiptById({
+          version: 1,
+          receiptId: receipt.id,
+        })
+
+        if (statusResponse.status !== receipt.status) {
+          const oldStatus = receipt.status
+          receipt.status = statusResponse.status as DipsReceiptStatus
+          receipt.transaction_hash = statusResponse.transactionHash || null
+          receipt.error_message = statusResponse.errorMessage || null
+          await receipt.save()
+
+          this.logger.info(
+            `Receipt ${receipt.id} status updated from ${oldStatus} to ${statusResponse.status}`,
+            {
+              receiptId: receipt.id,
+              oldStatus: oldStatus,
+              newStatus: statusResponse.status,
+              transactionHash: statusResponse.transactionHash,
+            },
+          )
+        }
+      } catch (error) {
+        this.logger.error(`Error polling receipt ${receipt.id}`, { error })
+      }
     }
   }
   async tryCollectPayment(agreement: IndexingAgreement) {
@@ -460,36 +492,29 @@ export class DipsCollector {
         signedCollection: collection,
       })
       if (response.status === CollectPaymentStatus.ACCEPT) {
-        if (!this.tapCollector) {
-          throw new Error('TapCollector not initialized')
-        }
-        // Store the tap receipt in the database
-        this.logger.info('Decoding TAP receipt for agreement')
-        const tapReceipt = this.gatewayDipsServiceMessagesCodec.decodeTapReceipt(
-          response.tapReceipt,
-          this.tapCollector?.tapContracts.tapVerifier.target.toString(),
-        )
-        // Check that the signer of the TAP receipt is a signer
-        // on the corresponding escrow account for the payer (sender) of the
-        // indexing agreement
-        const escrowSender = await this.escrowSenderGetter(
-          this.tapCollector?.tapSubgraph,
-          tapReceipt.signer_address,
-        )
-        if (escrowSender !== toAddress(agreement.payer)) {
-          // TODO: should we cancel the agreement here?
-          throw new Error(
-            'Signer of TAP receipt is not a signer on the indexing agreement',
-          )
-        }
-        if (tapReceipt.allocation_id !== toAddress(agreement.last_allocation_id)) {
-          throw new Error('Allocation ID mismatch')
-        }
-        await this.queryFeeModels.scalarTapReceipts.create(tapReceipt)
+        const receiptId = response.receiptId
+        const amount = response.amount
+
+        // Store the receipt ID in the database
+        this.logger.info(`Received receipt ID ${receiptId} for agreement ${agreement.id}`)
+
+        // Create DipsReceipt record with PENDING status
+        await this.managementModels.DipsReceipt.create({
+          id: receiptId,
+          agreement_id: agreement.id,
+          amount: amount,
+          status: 'PENDING',
+          retry_count: 0,
+        })
+
         // Mark the agreement as having had a payment collected
         agreement.last_payment_collected_at = new Date()
         agreement.updated_at = new Date()
         await agreement.save()
+
+        this.logger.info(
+          `Payment collection initiated for agreement ${agreement.id}, receipt ID: ${receiptId}`,
+        )
       } else {
         throw new Error(`Payment request not accepted: ${response.status}`)
       }

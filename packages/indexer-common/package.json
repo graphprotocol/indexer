@@ -25,7 +25,7 @@
     "@pinax/graph-networks-registry": "0.6.7",
     "@bufbuild/protobuf": "2.2.3",
     "@graphprotocol/common-ts": "3.0.1",
-    "@graphprotocol/dips-proto": "0.2.2",
+    "@graphprotocol/dips-proto": "0.3.0",
     "@graphprotocol/horizon": "0.4.1",
     "@graphprotocol/subgraph-service": "0.4.1",
     "@graphprotocol/toolshed": "0.6.5",
