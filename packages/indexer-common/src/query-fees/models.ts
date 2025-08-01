@@ -7,19 +7,28 @@ import { BytesLike } from 'ethers'
 
 export interface ScalarTapReceiptsAttributes {
   id: number
-  allocation_id: Address
-  signer_address: Address
+  allocation_id: string
+  signer_address: string
   signature: Uint8Array
   timestamp_ns: bigint
   nonce: bigint
   value: bigint
   error_log?: string
 }
+export interface ScalarTapReceiptsCreationAttributes {
+  allocation_id: string
+  signer_address: string
+  signature: Uint8Array
+  timestamp_ns: bigint
+  nonce: bigint
+  value: bigint
+}
+
 export class ScalarTapReceipts
-  extends Model<ScalarTapReceiptsAttributes>
+  extends Model<ScalarTapReceiptsAttributes, ScalarTapReceiptsCreationAttributes>
   implements ScalarTapReceiptsAttributes
 {
-  public id!: number
+  public id!: CreationOptional<number>
   public allocation_id!: Address
   public signer_address!: Address
   public signature!: Uint8Array
@@ -926,10 +935,26 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
       allocation_id: {
         type: DataTypes.CHAR(40),
         allowNull: false,
+        get() {
+          const rawValue = this.getDataValue('allocation_id')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('allocation_id', addressWithoutPrefix)
+        },
       },
       signer_address: {
         type: DataTypes.CHAR(40),
         allowNull: false,
+        get() {
+          const rawValue = this.getDataValue('signer_address')
+          return toAddress(rawValue)
+        },
+        set(value: Address) {
+          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('signer_address', addressWithoutPrefix)
+        },
       },
       signature: {
         type: DataTypes.BLOB,

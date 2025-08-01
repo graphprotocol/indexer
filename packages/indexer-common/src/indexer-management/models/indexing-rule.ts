@@ -9,6 +9,7 @@ export enum IndexingDecisionBasis {
   NEVER = 'never',
   ALWAYS = 'always',
   OFFCHAIN = 'offchain',
+  DIPS = 'dips',
 }
 
 export const INDEXING_RULE_GLOBAL = 'global'
@@ -245,7 +246,7 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: true,
       },
       decisionBasis: {
-        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain'),
+        type: DataTypes.ENUM('rules', 'never', 'always', 'offchain', 'dips'),
         allowNull: false,
         defaultValue: 'rules',
       },
