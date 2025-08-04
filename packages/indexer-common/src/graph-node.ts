@@ -788,24 +788,17 @@ export class GraphNode {
             )
           }
         } else if (!dependencyAssignment) {
-          this.logger.debug(
-            'Dependency subgraph not found, creating, deploying and pausing...',
-            {
-              name,
-              deployment: dependency.base.display,
-              block_required: dependency.block,
-            },
-          )
+          this.logger.debug('Dependency subgraph not found, creating, deploying...', {
+            name,
+            deployment: dependency.base.display,
+            block_required: dependency.block,
+          })
           // are we paused at the block we wanted?
 
           await this.create(name)
           await this.deploy(name, dependency.base)
         }
-        await this.syncToBlockAndPause(
-          dependency.block,
-          dependency.base,
-          subgraphChainName,
-        )
+        await this.syncToBlock(dependency.block, dependency.base, subgraphChainName)
       }
     }
   }
@@ -816,7 +809,7 @@ export class GraphNode {
    * This will resume a paused subgraph if the block height target is higher than the
    * current block height
    */
-  public async syncToBlockAndPause(
+  public async syncToBlock(
     blockHeight: number,
     subgraphDeployment: SubgraphDeploymentID,
     chainName: string | null,
@@ -911,19 +904,14 @@ export class GraphNode {
 
       // Is the graftBaseBlock within the range of the earliest and head of the chain?
       if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
-        if (!deployed[0].paused) {
-          this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
+        this.logger.warn(
+          `Graft dependency has reached target block height. Continuing to index past graft point.`,
+          {
             subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-          // pause the subgraph to prevent further indexing
-          await this.pause(subgraphDeployment)
-        } else {
-          this.logger.debug(`Subgraph already paused and synced to block.`, {
-            subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-        }
+            blockHeight,
+            currentBlock: chain.latestBlock.number,
+          },
+        )
         break
       }
 
