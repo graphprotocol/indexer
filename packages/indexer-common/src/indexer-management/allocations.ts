@@ -33,6 +33,7 @@ import {
   uniqueAllocationID,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
+import { preprocessRules } from '../subgraphs'
 
 import {
   BigNumber,
@@ -1127,8 +1128,16 @@ export class AllocationManager {
         `SHOULD BE UNREACHABLE: No matching subgraphDeployment (${subgraphDeploymentID.ipfsHash}) found on the network`,
       )
     }
-    return isDeploymentWorthAllocatingTowards(logger, subgraphDeployment, indexingRules)
-      .toAllocate
+
+    const { deploymentRulesMap, globalRule } = preprocessRules(indexingRules)
+
+    return isDeploymentWorthAllocatingTowards(
+      logger,
+      subgraphDeployment,
+      indexingRules,
+      deploymentRulesMap,
+      globalRule,
+    ).toAllocate
   }
 
   // Calculates the balance (GRT delta) of a single Action.
