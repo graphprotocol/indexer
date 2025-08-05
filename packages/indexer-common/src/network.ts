@@ -785,7 +785,13 @@ async function connectToProtocolContracts(
   } catch (error) {
     const errorMessage =
       'Failed to connect to contracts, please ensure you are using the intended protocol network.'
-    logger.error(errorMessage, { error, networkIdentifier, numericNetworkId })
+    logger.error(errorMessage, {
+      error,
+      networkIdentifier,
+      numericNetworkId,
+      horizonAddressBook,
+      subgraphServiceAddressBook,
+    })
     throw new Error(`${errorMessage} Error: ${error}`)
   }
 

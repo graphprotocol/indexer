@@ -542,6 +542,11 @@
   resolved "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.3.tgz#555193ab2e3bb3b6adc3d551c9c030d9e860daf6"
   integrity sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==
 
+"@graphprotocol/address-book@0.1.0", "@graphprotocol/address-book@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/address-book/-/address-book-0.1.0.tgz#96cf1e8fc506797adc85d582e5246320b83a8232"
+  integrity sha512-QHtpxitV7YCjq8mXx6ruvbSKcwDNiWBFFRJKgAlTCJgebFdfxmovr1GzV8biFB1587gfYmfL8OEU9pafZq3n+g==
+
 "@graphprotocol/common-ts@3.0.1":
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/@graphprotocol/common-ts/-/common-ts-3.0.1.tgz#c20428a5c2c7cf8f6631fea9fc304e203b0e7483"
@@ -573,10 +578,10 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.4.1.tgz#b29f0944eeb9d4b50fc586e533904b9e51f18ade"
   integrity sha512-YC/HVmWuCkfembwVQbPEY9NEDNsPsuHxnBMCThB1nAyai9I0Ad/nKnHZ+9baFmq5Sg1YwXxDG7Nc4SQJlgZD2g==
 
-"@graphprotocol/interfaces@^0.2.5":
-  version "0.2.5"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.2.5.tgz#b628b198f4f2c6118d6acbf29f70c2de3ba61211"
-  integrity sha512-z2Worw4OzMs9aDup8MkkoNk/QmJFKhPIfQrYnbu0FKImyi72z1JVQXfaH8ypH3QO4/Lpc3PrK81cJFxqdWNExQ==
+"@graphprotocol/interfaces@^0.5.2":
+  version "0.5.2"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.5.2.tgz#61532bb7bda90aca92a944cd9d1c9aaffbfb53b9"
+  integrity sha512-dW7odjioGFEO4gFE/vpFVSbwxz+HOtA4OrmnRgAiu7f1uQvjv8FAKuDZNeWR4MkIYHqbEPa4QGj9NtIm4TzLaw==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -593,12 +598,13 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.4.1.tgz#31a76c10031aa118960a1fa0d7ba955cac123f32"
   integrity sha512-vJA9lzlNQr4IRDPAbUiXM1ybizB4GzI0B1bndvB2X00ecTOWQQCiDl0W/qlApQ86+YXMjU2g90Db23ldqVOvyQ==
 
-"@graphprotocol/toolshed@0.6.5":
-  version "0.6.5"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.5.tgz#42fd39d1a5b9a41002c81feaecfa574f9e2dbe46"
-  integrity sha512-yVyFX2rVYzgUUUcuyLCctItNXEQFeNYi739/kZupf3I/FHevaFpIvB4ZFn/Kg9SAi7556Vv3JfAPO6jkJ/xypg==
+"@graphprotocol/toolshed@0.6.11":
+  version "0.6.11"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.11.tgz#7f0d2986fd6a7ca59145d18fa6d1f228cd231a16"
+  integrity sha512-J9fuR9k3Bh63mGqyfI314rlrOE5YL+LcuqMpx0UoRPWDEymGMipZ4jzzRuThWe2gGWJ4o1jk5JCnIv/eKDNUMw==
   dependencies:
-    "@graphprotocol/interfaces" "^0.2.5"
+    "@graphprotocol/address-book" "^0.1.0"
+    "@graphprotocol/interfaces" "^0.5.2"
     "@nomicfoundation/hardhat-ethers" "3.0.8"
     debug "^4.4.0"
     ethers "6.13.7"
