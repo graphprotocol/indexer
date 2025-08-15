@@ -1,4 +1,11 @@
-import { Wallet, Signer, HDNodeWallet, solidityPackedKeccak256, getBytes } from 'ethers'
+import {
+  Wallet,
+  Signer,
+  HDNodeWallet,
+  solidityPackedKeccak256,
+  getBytes,
+  Mnemonic,
+} from 'ethers'
 import { Address, SubgraphDeploymentID, toAddress } from '@graphprotocol/common-ts'
 import { Allocation } from './types'
 
@@ -8,7 +15,7 @@ const deriveKeyPair = (
   deployment: SubgraphDeploymentID,
   index: number,
 ): { publicKey: string; privateKey: string; address: Address } => {
-  const path = [epoch, ...Buffer.from(deployment.ipfsHash), index].join('/')
+  const path = 'm/' + [epoch, ...Buffer.from(deployment.ipfsHash), index].join('/')
   const derivedKey = hdNode.derivePath(path)
   return {
     publicKey: derivedKey.publicKey,
@@ -22,7 +29,7 @@ export const allocationSignerPrivateKey = (
   wallet: HDNodeWallet,
   allocation: Allocation,
 ): string => {
-  const hdNode = HDNodeWallet.fromPhrase(wallet.mnemonic!.phrase)
+  const hdNode = HDNodeWallet.fromMnemonic(wallet.mnemonic!, 'm')
 
   // The allocation was either created at the epoch it intended to or one
   // epoch later. So try both both.
@@ -69,7 +76,8 @@ export const uniqueAllocationID = (
   existingIDs: Address[],
 ): { allocationSigner: Signer; allocationId: Address } => {
   for (let i = 0; i < 100; i++) {
-    const hdNode = HDNodeWallet.fromPhrase(indexerMnemonic)
+    const mnemonicObj = Mnemonic.fromPhrase(indexerMnemonic)
+    const hdNode = HDNodeWallet.fromMnemonic(mnemonicObj, 'm')
     const keyPair = deriveKeyPair(hdNode, epoch, deployment, i)
     if (!existingIDs.includes(keyPair.address)) {
       return {
