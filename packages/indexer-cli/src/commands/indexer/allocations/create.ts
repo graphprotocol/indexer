@@ -3,28 +3,24 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { BigNumber } from 'ethers'
 import { createAllocation } from '../../../allocations'
+import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
 import {
-  processIdentifier,
-  SubgraphIdentifierType,
-  validateNetworkIdentifier,
-} from '@graphprotocol/indexer-common'
-import { printObjectOrArray } from '../../../command-helpers'
+  extractProtocolNetworkOption,
+  printObjectOrArray,
+} from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
   'graph indexer allocations create',
-)} [options] <deployment-id> <network> <amount> <index-node>
+)} [options] <deployment-id> <amount> <index-node>
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
+  -n, --network <network>       The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
-
-${chalk.dim('Networks:')}
-  mainnet, arbitrum-one, sepolia or arbitrum sepolia
+  -w, --wrap [N]                Wrap the output to a specific width (default: 0, no wrapping)
 `
 
 module.exports = {
@@ -36,10 +32,11 @@ module.exports = {
 
     const spinner = toolbox.print.spin('Processing inputs')
 
-    const { h, help, o, output } = parameters.options
+    const { h, help, o, output, w, wrap } = parameters.options
 
     const outputFormat = o || output || 'table'
     const toHelp = help || h || undefined
+    const wrapWidth = w || wrap || 0
 
     if (toHelp) {
       spinner.stopAndPersist({ symbol: '💁', text: HELP })
@@ -52,21 +49,16 @@ module.exports = {
       return
     }
 
-    const [deploymentID, protocolNetwork, amount, indexNode] = parameters.array || []
+    const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+
       if (!deploymentID || !amount || !protocolNetwork) {
         throw new Error(
           'Must provide a deployment ID, a network identifier and allocation amount' +
             `(deploymentID: '${deploymentID}', network: '${protocolNetwork}' allocationAmount: '${amount}')`,
         )
-      }
-
-      // This nested try block is necessary to complement the parsing error with the 'network' field.
-      try {
-        validateNetworkIdentifier(protocolNetwork)
-      } catch (parsingError) {
-        throw new Error(`Invalid 'network' provided. ${parsingError}`)
       }
 
       const [deploymentString, type] = await processIdentifier(deploymentID, {
@@ -78,7 +70,7 @@ module.exports = {
           `Invalid 'deploymentID' provided (${deploymentID}), must be bytes32 or base58 formatted)`,
         )
       }
-      const allocationAmount = BigNumber.from(amount)
+      const allocationAmount = BigInt(amount)
 
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
@@ -93,12 +85,13 @@ module.exports = {
       )
 
       spinner.succeed('Allocation created')
-      printObjectOrArray(print, outputFormat, allocateResult, [
-        'allocation',
-        'deployment',
-        'allocatedTokens',
-        'protocolNetwork',
-      ])
+      printObjectOrArray(
+        print,
+        outputFormat,
+        allocateResult,
+        ['allocation', 'deployment', 'allocatedTokens', 'protocolNetwork'],
+        wrapWidth,
+      )
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1

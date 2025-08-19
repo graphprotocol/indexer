@@ -23,7 +23,6 @@ import {
   parseGraphQLAllocation,
   sequentialTimerMap,
 } from '..'
-import { BigNumber } from 'ethers'
 import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
@@ -104,7 +103,7 @@ export class TapCollector {
   declare transactionManager: TransactionManager
   declare tapContracts: TapContracts
   declare allocations: Eventual<Allocation[]>
-  declare ravRedemptionThreshold: BigNumber
+  declare ravRedemptionThreshold: bigint
   declare protocolNetwork: string
   declare tapSubgraph: SubgraphClient
   declare networkSubgraph: SubgraphClient
@@ -156,9 +155,8 @@ export class TapCollector {
         const logger = this.logger.child({ function: 'startRAVProcessing()' })
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
-            (total, signedRav) =>
-              total.add(BigNumber.from(signedRav.rav.rav.valueAggregate)),
-            BigNumber.from(0),
+            (total, signedRav) => total + BigInt(signedRav.rav.rav.valueAggregate),
+            0n,
           ),
         )
         logger.info(`Query RAVs below the redemption threshold`, {
@@ -208,7 +206,7 @@ export class TapCollector {
             return {
               rav: signedRav,
               allocation: allocations.find(
-                (a) => a.id === toAddress(signedRav.rav.allocationId),
+                (a) => a.id === toAddress(signedRav.rav.allocationId.toString()),
               ),
               sender: rav.senderAddress,
             }
@@ -223,7 +221,7 @@ export class TapCollector {
     ravs: ReceiptAggregateVoucher[],
   ): Promise<Allocation[]> {
     const allocationIds: string[] = ravs.map((rav) =>
-      rav.getSignedRAV().rav.allocationId.toLowerCase(),
+      rav.getSignedRAV().rav.allocationId.toString().toLowerCase(),
     )
 
     let block: { hash: string } | undefined = undefined
@@ -309,9 +307,7 @@ export class TapCollector {
         return await pReduce(
           pendingRAVs,
           async (results, rav) => {
-            if (
-              BigNumber.from(rav.rav.rav.valueAggregate).lt(this.ravRedemptionThreshold)
-            ) {
+            if (BigInt(rav.rav.rav.valueAggregate) < this.ravRedemptionThreshold) {
               results.belowThreshold.push(rav)
             } else {
               results.eligible.push(rav)
@@ -582,7 +578,7 @@ export class TapCollector {
       }
 
       const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
-        allocation: rav.allocationId,
+        allocation: rav.allocationId.toString(),
       })
       try {
         await this.redeemRav(logger, allocation, sender, signedRav)
@@ -590,7 +586,7 @@ export class TapCollector {
         // THIS IS A MUT OPERATION
         escrowAccounts.subtractSenderBalance(sender, ravValue)
       } catch (err) {
-        this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId })
+        this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId.toString() })
         logger.error(`Failed to redeem RAV`, {
           err: indexerError(IndexerErrorCode.IE055, err),
         })
@@ -607,13 +603,13 @@ export class TapCollector {
             const { rav } = signedRav
             const [summary] = await ensureAllocationSummary(
               this.models,
-              toAddress(rav.allocationId),
+              toAddress(rav.allocationId.toString()),
               transaction,
               this.protocolNetwork,
             )
-            summary.withdrawnFees = BigNumber.from(summary.withdrawnFees)
-              .add(rav.valueAggregate)
-              .toString()
+            summary.withdrawnFees = (
+              BigInt(summary.withdrawnFees) + BigInt(rav.valueAggregate)
+            ).toString()
             await summary.save({ transaction })
           }
         },
@@ -645,8 +641,8 @@ export class TapCollector {
       allocationSigner(this.transactionManager.wallet, allocation),
       parseInt(this.protocolNetwork.split(':')[1]),
       sender,
-      toAddress(rav.allocationId),
-      toAddress(escrow.escrow.address),
+      toAddress(rav.allocationId.toString()),
+      toAddress(escrow.escrow.target.toString()),
     )
     this.logger.debug(`Computed allocationIdProof`, {
       allocationId: rav.allocationId,
@@ -654,7 +650,7 @@ export class TapCollector {
     })
     // Submit the signed RAV on chain
     const txReceipt = await this.transactionManager.executeTransaction(
-      () => escrow.escrow.estimateGas.redeem(signedRav, proof),
+      () => escrow.escrow.redeem.estimateGas(signedRav, proof),
       (gasLimit) =>
         escrow.escrow.redeem(signedRav, proof, {
           gasLimit,
@@ -664,17 +660,17 @@ export class TapCollector {
 
     // get tx receipt and post process
     if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
-      this.metrics.ravRedeemsInvalid.inc({ allocation: rav.allocationId })
+      this.metrics.ravRedeemsInvalid.inc({ allocation: rav.allocationId.toString() })
       return
     }
 
     this.metrics.ravCollectedFees.set(
-      { allocation: rav.allocationId },
+      { allocation: rav.allocationId.toString() },
       parseFloat(rav.valueAggregate.toString()),
     )
 
     try {
-      await this.markRavAsRedeemed(toAddress(rav.allocationId), sender)
+      await this.markRavAsRedeemed(toAddress(rav.allocationId.toString()), sender)
       logger.info(
         `Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
       )

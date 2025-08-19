@@ -31,7 +31,6 @@ import { createSyncingServer } from '../syncing-server'
 import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
-import { BigNumber } from 'ethers'
 import { displayZodParsingError } from '@graphprotocol/indexer-common'
 import { readFileSync } from 'fs'
 import { AgentConfigs } from '../types'
@@ -100,6 +99,13 @@ export const start = {
         default: 0,
         group: 'Ethereum',
       })
+      .option('confirmation-blocks', {
+        description:
+          'The number of blocks to wait for a transaction to be confirmed',
+        type: 'number',
+        default: 3,
+        group: 'Ethereum',
+      })
       .option('mnemonic', {
         description: 'Mnemonic for the operator wallet',
         type: 'string',
@@ -110,6 +116,12 @@ export const start = {
         description: 'Ethereum address of the indexer',
         type: 'string',
         required: true,
+        group: 'Ethereum',
+      })
+      .option('payments-destination', {
+        description:
+          'Address where payments are sent to. If not provided payments will be restaked.',
+        type: 'string',
         group: 'Ethereum',
       })
       .option('public-indexer-url', {
@@ -247,8 +259,13 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
-      .option('address-book', {
-        description: 'Graph contracts address book file path',
+      .option('horizon-address-book', {
+        description: 'Graph Horizon contracts address book file path',
+        type: 'string',
+        required: false,
+      })
+      .option('subgraph-service-address-book', {
+        description: 'Subgraph Service contracts address book file path',
         type: 'string',
         required: false,
       })
@@ -266,6 +283,13 @@ export const start = {
         description: 'Whether to register the indexer on chain',
         type: 'boolean',
         default: true,
+        group: 'Protocol',
+      })
+      .option('max-provision-initial-size', {
+        description:
+          'The maximum number of tokens for the initial Subgraph Service provision',
+        type: 'number',
+        default: 0,
         group: 'Protocol',
       })
       .option('poi-disputable-epochs', {
@@ -347,6 +371,7 @@ export async function createNetworkSpecification(
 
   const indexerOptions = {
     address: argv.indexerAddress,
+    paymentsDestination: argv.paymentsDestination,
     mnemonic: argv.mnemonic,
     url: argv.publicIndexerUrl,
     geoCoordinates: argv.indexerGeoCoordinates,
@@ -364,6 +389,7 @@ export async function createNetworkSpecification(
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
+    maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
   }
 
@@ -373,6 +399,7 @@ export async function createNetworkSpecification(
     gasPriceMax: argv.gasPriceMax,
     baseFeePerGasMax: argv.baseFeeGasMax,
     maxTransactionAttempts: argv.maxTransactionAttempts,
+    confirmationBlocks: argv.confirmationBlocks,
   }
 
   const subgraphs = {
@@ -444,8 +471,9 @@ export async function createNetworkSpecification(
       transactionMonitoring,
       subgraphs,
       networkProvider,
-      addressBook: argv.addressBook,
-      tapAddressBook,
+      horizonAddressBook: argv.horizonAddressBook,
+      subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
+      tapAddressBook: tapAddressBook,
     })
   } catch (parsingError) {
     displayZodParsingError(parsingError)
@@ -602,7 +630,7 @@ export async function run(
     defaults: {
       globalIndexingRule: {
         // TODO: Update this, there will be defaults per network
-        allocationAmount: BigNumber.from(100),
+        allocationAmount: BigInt(100),
         parallelAllocations: 1,
       },
     },

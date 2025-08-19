@@ -19,7 +19,7 @@ import {
 } from '@graphprotocol/common-ts'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { Op, Sequelize } from 'sequelize'
-import { utils } from 'ethers'
+import { hexlify, verifyTypedData } from 'ethers'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -483,7 +483,7 @@ describe('TAP', () => {
       const [first] = await queryFeeModels.receiptAggregateVouchers.findAll()
       const signedRav = first.getSignedRAV()
 
-      const signerAddress = utils.verifyTypedData(
+      const signerAddress = verifyTypedData(
         domain,
         {
           ReceiptAggregateVoucher: [
@@ -493,7 +493,7 @@ describe('TAP', () => {
           ],
         },
         signedRav.rav,
-        signedRav.signature,
+        hexlify(signedRav.signature),
       )
 
       expect(signerAddress).toEqual('0x886574712d0ca20C36FD090A594Df7eCa17cd38e')

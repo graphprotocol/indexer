@@ -142,23 +142,23 @@ describe.skip('Allocation Manager', () => {
     // Allocate test action
     expect(allocate.action.type).toBe(ActionType.ALLOCATE)
     expect(allocate.allocates).toStrictEqual(parseGRT('10000'))
-    expect(allocate.rewards.isZero()).toBeTruthy()
-    expect(allocate.unallocates.isZero()).toBeTruthy()
+    expect(allocate.rewards).toBe(0n)
+    expect(allocate.unallocates).toBe(0n)
     expect(allocate.balance).toStrictEqual(parseGRT('10000'))
 
     // Unallocate test action
     expect(unallocate.action.type).toBe(ActionType.UNALLOCATE)
-    expect(unallocate.allocates.isZero()).toBeTruthy()
-    expect(unallocate.rewards.isZero()).toBeFalsy()
+    expect(unallocate.allocates).toBe(0n)
+    expect(unallocate.rewards).toBe(0n)
     expect(unallocate.unallocates).toStrictEqual(parseGRT('10000'))
     expect(unallocate.balance).toStrictEqual(
-      unallocate.allocates.sub(unallocate.unallocates).sub(unallocate.rewards),
+      unallocate.allocates - unallocate.unallocates - unallocate.rewards,
     )
 
     // This Reallocate test Action intentionally uses a null or zeroed POI, so it should not accrue rewards.
     expect(reallocate.action.type).toBe(ActionType.REALLOCATE)
     expect(reallocate.allocates).toStrictEqual(parseGRT('10000'))
-    expect(reallocate.rewards.isZero()).toBeTruthy()
+    expect(reallocate.rewards).toBe(0n)
     expect(reallocate.unallocates).toStrictEqual(parseGRT('10000'))
     expect(reallocate.balance).toStrictEqual(parseGRT('0'))
   })
