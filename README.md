@@ -1,6 +1,6 @@
 # Graph Protocol Indexer Components
 
-![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
+[![CI](https://github.com/graphprotocol/indexer/actions/workflows/ci.yml/badge.svg)](https://github.com/graphprotocol/indexer/actions/workflows/ci.yml)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
 **NOTE: THIS PROJECT IS BETA SOFTWARE.**
