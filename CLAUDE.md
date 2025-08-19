@@ -131,7 +131,7 @@ Tests require:
    ```
 
 ## Current State
-- Version: v0.24.2
+- Version: v0.24.3
 - Active branch: release-v0.24
 - Main branch: main
 - Uncommitted changes in docs/ and config/

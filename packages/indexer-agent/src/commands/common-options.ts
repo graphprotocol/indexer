@@ -108,6 +108,14 @@ export function injectCommonStartupOptions(argv: Argv): Argv {
       group: 'Indexer Infrastructure',
       default: 'https://ipfs.network.thegraph.com',
     })
+    .option('enable-auto-graft', {
+      description:
+        'Automatically deploy and sync graft dependencies for subgraphs',
+      type: 'boolean',
+      required: false,
+      group: 'Indexer Infrastructure',
+      default: false,
+    })
     .option('graph-node-query-endpoint', {
       description: 'Graph Node endpoint for querying subgraphs',
       type: 'string',

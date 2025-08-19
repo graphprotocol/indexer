@@ -2,12 +2,23 @@
 
 ## Quick Start
 
-Auto-graft automatically handles subgraph dependencies when deploying grafted subgraphs. It requires an IPFS endpoint to fetch dependency manifests.
+Auto-graft automatically handles subgraph dependencies when deploying grafted subgraphs. It requires an IPFS endpoint to fetch dependency manifests and must be explicitly enabled.
 
 ### Prerequisites
 
-**Required Configuration - IPFS Endpoint:**
+**Required Configuration:**
 
+1. **Enable Auto-Graft (New in v0.24.3):**
+```bash
+# Option 1: Command-line argument
+graph-indexer-agent start --enable-auto-graft
+
+# Option 2: Environment variable
+export INDEXER_AGENT_ENABLE_AUTO_GRAFT=true
+```
+Default: `false` (disabled - must be explicitly enabled)
+
+2. **IPFS Endpoint:**
 ```bash
 # Option 1: Environment variable
 export INDEXER_AGENT_IPFS_ENDPOINT=https://ipfs.thegraph.com
@@ -15,7 +26,6 @@ export INDEXER_AGENT_IPFS_ENDPOINT=https://ipfs.thegraph.com
 # Option 2: Command-line argument
 graph-indexer-agent start --ipfs-endpoint https://ipfs.thegraph.com
 ```
-
 Default: `https://ipfs.network.thegraph.com` (if not specified)
 
 ## Introduction
@@ -62,11 +72,12 @@ Before using auto-graft, ensure you have:
 
 - **Graph Node**: Running with grafting support enabled (grafting is supported on all networks)
 - **IPFS Access**: The indexer must be able to fetch subgraph manifests from IPFS (configured via `--ipfs-endpoint` or `INDEXER_AGENT_IPFS_ENDPOINT` environment variable)
+- **Auto-Graft Enabled**: Starting from v0.24.3, auto-graft must be explicitly enabled via `--enable-auto-graft` flag or `INDEXER_AGENT_ENABLE_AUTO_GRAFT=true`
 - **Indexer Infrastructure**: Standard indexer setup with indexer-agent and indexer-service
 
 ## Using Auto-Graft
 
-The beauty of auto-graft is that it requires no configuration or special commands. Simply deploy your grafted subgraph as you would any other subgraph, and auto-graft handles the rest.
+Once enabled with the `--enable-auto-graft` flag, auto-graft requires no additional configuration or special commands. Simply deploy your grafted subgraph as you would any other subgraph, and auto-graft handles the rest.
 
 ### Example Subgraph Manifest with Graft
 
@@ -170,7 +181,7 @@ When a dependency reaches its target block, auto-graft will:
 - Continue indexing past the graft point to ensure the dependency remains available
 - Allow the main subgraph to successfully graft from this dependency
 
-*Note: Prior to v0.24.2, dependencies were automatically paused after reaching their target block. This behavior was removed to ensure better availability and prevent issues with allocations.*
+*Note: Prior to v0.24.3, auto-graft was enabled by default when an IPFS endpoint was configured. Starting from v0.24.3, it must be explicitly enabled with the `--enable-auto-graft` flag.*
 
 ## Monitoring Auto-Graft
 
