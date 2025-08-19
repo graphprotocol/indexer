@@ -142,7 +142,8 @@ export class SubgraphManifestResolver {
 export class GraphNode {
   admin: RpcClient
   private queryBaseURL: URL
-  private manifestResolver: SubgraphManifestResolver
+  private manifestResolver: SubgraphManifestResolver | null
+  private enableAutoGraft: boolean
 
   status: Client
   logger: Logger
@@ -153,6 +154,7 @@ export class GraphNode {
     queryEndpoint: string,
     statusEndpoint: string,
     ipfsEndpoint: string,
+    enableAutoGraft: boolean = false,
   ) {
     this.logger = logger.child({ component: 'GraphNode' })
     this.status = createClient({
@@ -170,10 +172,19 @@ export class GraphNode {
     }
 
     this.queryBaseURL = new URL(`/subgraphs/id/`, queryEndpoint)
-    this.manifestResolver = new SubgraphManifestResolver(
-      ipfsEndpoint,
-      this.logger.child({ component: 'SubgraphManifestResolver' }),
-    )
+    this.enableAutoGraft = enableAutoGraft
+
+    // Only initialize manifest resolver if auto-graft is enabled
+    if (enableAutoGraft && ipfsEndpoint) {
+      this.manifestResolver = new SubgraphManifestResolver(
+        ipfsEndpoint,
+        this.logger.child({ component: 'SubgraphManifestResolver' }),
+      )
+      this.logger.info('Auto-graft feature enabled', { ipfsEndpoint })
+    } else {
+      this.manifestResolver = null
+      this.logger.info('Auto-graft feature disabled')
+    }
   }
 
   async connect(): Promise<void> {
@@ -693,7 +704,11 @@ export class GraphNode {
         await this.resume(deployment)
       } else {
         // Subgraph deployment not found
-        await this.autoGraftDeployDependencies(deployment, deploymentAssignments, name)
+
+        // Only attempt auto-graft if enabled
+        if (this.enableAutoGraft) {
+          await this.autoGraftDeployDependencies(deployment, deploymentAssignments, name)
+        }
 
         // Create and deploy the subgraph
         this.logger.debug(
@@ -734,6 +749,16 @@ export class GraphNode {
     name: string,
   ) {
     this.logger.debug('Auto graft deploy subgraph dependencies')
+
+    // Safety check - should not happen if called correctly from ensure()
+    if (!this.manifestResolver) {
+      this.logger.error('Auto-graft called but manifest resolver not initialized', {
+        name,
+        deployment: deployment.display,
+      })
+      return
+    }
+
     const { network: subgraphChainName } = await this.subgraphFeatures(deployment)
     const dependencies = await this.manifestResolver.resolveWithDependencies(deployment)
     if (dependencies.dependencies.length == 0) {
@@ -742,10 +767,9 @@ export class GraphNode {
         deployment: deployment.display,
       })
     } else {
-      this.logger.debug(
-        'graft dep chain found',
-        dependencies.dependencies.map((d) => d.base.ipfsHash),
-      )
+      this.logger.debug('graft dependency chain found', {
+        dependencies: dependencies.dependencies.map((d) => d.base.ipfsHash),
+      })
 
       for (const dependency of dependencies.dependencies) {
         const queriedAssignments = await this.subgraphDeploymentAssignmentsByDeploymentID(
@@ -774,6 +798,7 @@ export class GraphNode {
             (status) => status.subgraphDeployment.ipfsHash === dependency.base.ipfsHash,
           )
           if (!deploymentStatus) {
+            // we found a dependency assignment, but it's not present in indexing status
             this.logger.error(`Subgraph not found in indexing status`, {
               subgraph: dependency.base.ipfsHash,
               indexingStatus,
@@ -788,24 +813,20 @@ export class GraphNode {
             )
           }
         } else if (!dependencyAssignment) {
-          this.logger.debug(
-            'Dependency subgraph not found, creating, deploying and pausing...',
-            {
-              name,
-              deployment: dependency.base.display,
-              block_required: dependency.block,
-            },
-          )
+          // important:
+          const idempotentName = `autograft-${dependency.base.ipfsHash.slice(0, 8)}`
+          this.logger.debug('Dependency subgraph not found, creating, deploying...', {
+            parentName: name,
+            idempotentName,
+            deployment: dependency.base.display,
+            block_required: dependency.block,
+          })
           // are we paused at the block we wanted?
 
-          await this.create(name)
-          await this.deploy(name, dependency.base)
+          await this.create(idempotentName)
+          await this.deploy(idempotentName, dependency.base)
         }
-        await this.syncToBlockAndPause(
-          dependency.block,
-          dependency.base,
-          subgraphChainName,
-        )
+        await this.syncToBlock(dependency.block, dependency.base, subgraphChainName)
       }
     }
   }
@@ -816,7 +837,7 @@ export class GraphNode {
    * This will resume a paused subgraph if the block height target is higher than the
    * current block height
    */
-  public async syncToBlockAndPause(
+  public async syncToBlock(
     blockHeight: number,
     subgraphDeployment: SubgraphDeploymentID,
     chainName: string | null,
@@ -829,6 +850,10 @@ export class GraphNode {
       subgraph: subgraphDeployment.ipfsHash,
       blockHeight,
     })
+
+    let lastProgressBlock = 0
+    let stuckCounter = 0
+    const maxStuckIterations = 20 // Increased since we're checking every 3s
 
     // loop-wait for the block to be synced
     for (;;) {
@@ -882,6 +907,28 @@ export class GraphNode {
         throw new Error(`Subgraph not found in indexing status`)
       }
 
+      // Check for fatal errors - no point continuing if subgraph has failed
+      if (deploymentStatus.fatalError) {
+        this.logger.error(`Subgraph has fatal error, cannot sync to block`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          targetBlock: blockHeight,
+          fatalError: deploymentStatus.fatalError,
+        })
+        throw new Error(
+          `Subgraph has fatal error: ${deploymentStatus.fatalError.message}`,
+        )
+      }
+
+      // Check health status
+      if (deploymentStatus.health === 'failed') {
+        this.logger.error(`Subgraph is in failed state, cannot sync to block`, {
+          subgraph: subgraphDeployment.ipfsHash,
+          targetBlock: blockHeight,
+          health: deploymentStatus.health,
+        })
+        throw new Error(`Subgraph is in failed state, cannot sync to target block`)
+      }
+
       const chain = deploymentStatus.chains.find((chain) => chain.network === chainName)
 
       if (!chain) {
@@ -909,21 +956,38 @@ export class GraphNode {
         await this.resume(subgraphDeployment)
       }
 
+      // Check for progress to detect stuck syncs
+      const currentBlock = chain.latestBlock?.number || 0
+      if (currentBlock > 0) {
+        if (currentBlock === lastProgressBlock) {
+          stuckCounter++
+          if (stuckCounter >= maxStuckIterations) {
+            this.logger.error(`Subgraph sync appears stuck at block ${currentBlock}`, {
+              subgraph: subgraphDeployment.ipfsHash,
+              targetBlock: blockHeight,
+              stuckAtBlock: currentBlock,
+              iterations: stuckCounter,
+            })
+            throw new Error(
+              `Sync appears stuck at block ${currentBlock} after ${stuckCounter} checks`,
+            )
+          }
+        } else {
+          stuckCounter = 0
+          lastProgressBlock = currentBlock
+        }
+      }
+
       // Is the graftBaseBlock within the range of the earliest and head of the chain?
       if (chain.latestBlock && chain.latestBlock.number >= blockHeight) {
-        if (!deployed[0].paused) {
-          this.logger.debug(`Subgraph synced to block! Pausing as requirement is met.`, {
+        this.logger.warn(
+          `Graft dependency has reached target block height. Continuing to index past graft point.`,
+          {
             subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-          // pause the subgraph to prevent further indexing
-          await this.pause(subgraphDeployment)
-        } else {
-          this.logger.debug(`Subgraph already paused and synced to block.`, {
-            subgraph: subgraphDeployment.ipfsHash,
-            indexingStatus,
-          })
-        }
+            blockHeight,
+            currentBlock: chain.latestBlock.number,
+          },
+        )
         break
       }
 
@@ -931,7 +995,12 @@ export class GraphNode {
         `Subgraph not yet synced to block ${blockHeight}, waiting for 3s`,
         {
           subgraph: subgraphDeployment.ipfsHash,
-          indexingStatus,
+          currentBlock,
+          targetBlock: blockHeight,
+          progress:
+            currentBlock > 0
+              ? `${((currentBlock / blockHeight) * 100).toFixed(2)}%`
+              : 'starting',
         },
       )
       await waitForMs(waitTimeMs)

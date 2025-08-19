@@ -7,8 +7,8 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Component          | Release                                                                              |
 | ------------------ | ------------------------------------------------------------------------------------ |
 | contracts          | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)              |
-| indexer-agent      | [0.23.8](https://github.com/graphprotocol/indexer/releases/tag/v0.23.8)              |
-| indexer-cli        | [0.23.8](https://github.com/graphprotocol/indexer/releases/tag/v0.23.8)              |
+| indexer-agent      | [0.24.3](https://github.com/graphprotocol/indexer/releases/tag/v0.24.3)              |
+| indexer-cli        | [0.24.3](https://github.com/graphprotocol/indexer/releases/tag/v0.24.3)              |
 | indexer-service-rs | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | tap-agent          | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | graph-node         | [0.35.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1)           |
@@ -56,7 +56,7 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS` |
 | `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
 | `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
-| `INDEXER_AGENT_IPFS_ENDPOINT` | `--ipfs-endpoint` | `https://ipfs.network.thegraph.com` |
+| `INDEXER_AGENT_IPFS_ENDPOINT` | `--ipfs-endpoint` | `https://ipfs.thegraph.com` |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -94,7 +94,7 @@ Notes:
 | Environment Variable | CLI Argument     | Value                               |
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `arbitrum-sepolia:...`              |
-| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+| `ipfs`               | `--ipfs`         | `https://ipfs.thegraph.com` |
 
 ## Feature support
 

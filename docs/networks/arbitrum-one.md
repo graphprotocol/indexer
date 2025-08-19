@@ -89,4 +89,4 @@ Notes:
 | Environment Variable | CLI Argument     | Value                               |
 | -------------------- | ---------------- | ----------------------------------- |
 | `ethereum`           | `--ethereum-rpc` | `mainnet:<ethereum-json-rpc-url>`   |
-| `ipfs`               | `--ipfs`         | `https://ipfs.network.thegraph.com` |
+| `ipfs`               | `--ipfs`         | `https://ipfs.thegraph.com` |

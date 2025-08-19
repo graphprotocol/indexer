@@ -111,6 +111,7 @@ const setupMonitor = async () => {
     'https://test-query-endpoint.xyz',
     statusEndpoint,
     'https://test-ipfs-endpoint.xyz',
+    false, // disable auto-graft for tests
   )
 
   const indexerOptions = spec.IndexerOptions.parse({
