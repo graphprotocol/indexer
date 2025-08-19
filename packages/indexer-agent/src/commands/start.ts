@@ -503,6 +503,7 @@ export async function run(
     argv.graphNodeQueryEndpoint,
     argv.graphNodeStatusEndpoint,
     argv.ipfsEndpoint,
+    argv.enableAutoGraft,
   )
 
   // --------------------------------------------------------------------------------
