@@ -50,8 +50,12 @@ const PERFORMANCE_CONFIG = {
   DEPLOYMENT_CONCURRENCY: process.env.DEPLOYMENT_CONCURRENCY
     ? parseInt(process.env.DEPLOYMENT_CONCURRENCY, 10)
     : 15,
-  BATCH_SIZE: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 10,
-  CACHE_TTL: process.env.CACHE_TTL ? parseInt(process.env.CACHE_TTL, 10) : 30_000,
+  BATCH_SIZE: process.env.BATCH_SIZE
+    ? parseInt(process.env.BATCH_SIZE, 10)
+    : 10,
+  CACHE_TTL: process.env.CACHE_TTL
+    ? parseInt(process.env.CACHE_TTL, 10)
+    : 30_000,
   ENABLE_CIRCUIT_BREAKER: process.env.ENABLE_CIRCUIT_BREAKER !== 'false',
   ENABLE_PRIORITY_QUEUE: process.env.ENABLE_PRIORITY_QUEUE !== 'false',
   ENABLE_CACHE: process.env.ENABLE_CACHE !== 'false',
@@ -467,11 +471,13 @@ export class Agent {
               },
             )
 
-            const deploymentMap: NetworkMapped<SubgraphDeployment[]> = Object.fromEntries(
-              Object.values(networkDeployments).map(
-                (result) => [result.networkId, result.deployments]
+            const deploymentMap: NetworkMapped<SubgraphDeployment[]> =
+              Object.fromEntries(
+                Object.values(networkDeployments).map(result => [
+                  result.networkId,
+                  result.deployments,
+                ]),
               )
-            )
             return deploymentMap
           } else {
             // Fallback to sequential fetching

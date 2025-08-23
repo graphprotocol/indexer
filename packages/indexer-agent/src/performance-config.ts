@@ -104,14 +104,18 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
 
   // Circuit breaker settings
   enableCircuitBreaker: true,
-  circuitBreakerFailureThreshold: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
-  circuitBreakerResetTimeout: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_RESET_TIMEOUT,
+  circuitBreakerFailureThreshold:
+    PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+  circuitBreakerResetTimeout:
+    PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_RESET_TIMEOUT,
   circuitBreakerHalfOpenMaxAttempts: 3,
 
   // Priority queue settings
   enablePriorityQueue: true,
-  priorityQueueSignalThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_SIGNAL_THRESHOLD,
-  priorityQueueStakeThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_STAKE_THRESHOLD,
+  priorityQueueSignalThreshold:
+    PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_SIGNAL_THRESHOLD,
+  priorityQueueStakeThreshold:
+    PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_STAKE_THRESHOLD,
 
   // Network settings
   enableParallelNetworkQueries: true,
@@ -133,9 +137,18 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
  * Apply concurrency-related environment variable overrides
  */
 function applyConcurrencySettings(config: PerformanceConfig): void {
-  config.allocationConcurrency = parseEnvInt('ALLOCATION_CONCURRENCY', config.allocationConcurrency)
-  config.deploymentConcurrency = parseEnvInt('DEPLOYMENT_CONCURRENCY', config.deploymentConcurrency)
-  config.networkQueryConcurrency = parseEnvInt('NETWORK_QUERY_CONCURRENCY', config.networkQueryConcurrency)
+  config.allocationConcurrency = parseEnvInt(
+    'ALLOCATION_CONCURRENCY',
+    config.allocationConcurrency,
+  )
+  config.deploymentConcurrency = parseEnvInt(
+    'DEPLOYMENT_CONCURRENCY',
+    config.deploymentConcurrency,
+  )
+  config.networkQueryConcurrency = parseEnvInt(
+    'NETWORK_QUERY_CONCURRENCY',
+    config.networkQueryConcurrency,
+  )
   config.batchSize = parseEnvInt('BATCH_SIZE', config.batchSize)
 }
 
@@ -152,36 +165,69 @@ function applyCacheSettings(config: PerformanceConfig): void {
  * Apply circuit breaker environment variable overrides
  */
 function applyCircuitBreakerSettings(config: PerformanceConfig): void {
-  config.enableCircuitBreaker = parseEnvBoolean('ENABLE_CIRCUIT_BREAKER', config.enableCircuitBreaker)
-  config.circuitBreakerFailureThreshold = parseEnvInt('CIRCUIT_BREAKER_FAILURE_THRESHOLD', config.circuitBreakerFailureThreshold)
-  config.circuitBreakerResetTimeout = parseEnvInt('CIRCUIT_BREAKER_RESET_TIMEOUT', config.circuitBreakerResetTimeout)
+  config.enableCircuitBreaker = parseEnvBoolean(
+    'ENABLE_CIRCUIT_BREAKER',
+    config.enableCircuitBreaker,
+  )
+  config.circuitBreakerFailureThreshold = parseEnvInt(
+    'CIRCUIT_BREAKER_FAILURE_THRESHOLD',
+    config.circuitBreakerFailureThreshold,
+  )
+  config.circuitBreakerResetTimeout = parseEnvInt(
+    'CIRCUIT_BREAKER_RESET_TIMEOUT',
+    config.circuitBreakerResetTimeout,
+  )
 }
 
 /**
  * Apply priority queue environment variable overrides
  */
 function applyPriorityQueueSettings(config: PerformanceConfig): void {
-  config.enablePriorityQueue = parseEnvBoolean('ENABLE_PRIORITY_QUEUE', config.enablePriorityQueue)
-  config.priorityQueueSignalThreshold = parseEnvString('PRIORITY_QUEUE_SIGNAL_THRESHOLD', config.priorityQueueSignalThreshold)
-  config.priorityQueueStakeThreshold = parseEnvString('PRIORITY_QUEUE_STAKE_THRESHOLD', config.priorityQueueStakeThreshold)
+  config.enablePriorityQueue = parseEnvBoolean(
+    'ENABLE_PRIORITY_QUEUE',
+    config.enablePriorityQueue,
+  )
+  config.priorityQueueSignalThreshold = parseEnvString(
+    'PRIORITY_QUEUE_SIGNAL_THRESHOLD',
+    config.priorityQueueSignalThreshold,
+  )
+  config.priorityQueueStakeThreshold = parseEnvString(
+    'PRIORITY_QUEUE_STAKE_THRESHOLD',
+    config.priorityQueueStakeThreshold,
+  )
 }
 
 /**
  * Apply network-related environment variable overrides
  */
 function applyNetworkSettings(config: PerformanceConfig): void {
-  config.enableParallelNetworkQueries = parseEnvBoolean('ENABLE_PARALLEL_NETWORK_QUERIES', config.enableParallelNetworkQueries)
-  config.networkQueryBatchSize = parseEnvInt('NETWORK_QUERY_BATCH_SIZE', config.networkQueryBatchSize)
-  config.networkQueryTimeout = parseEnvInt('NETWORK_QUERY_TIMEOUT', config.networkQueryTimeout)
+  config.enableParallelNetworkQueries = parseEnvBoolean(
+    'ENABLE_PARALLEL_NETWORK_QUERIES',
+    config.enableParallelNetworkQueries,
+  )
+  config.networkQueryBatchSize = parseEnvInt(
+    'NETWORK_QUERY_BATCH_SIZE',
+    config.networkQueryBatchSize,
+  )
+  config.networkQueryTimeout = parseEnvInt(
+    'NETWORK_QUERY_TIMEOUT',
+    config.networkQueryTimeout,
+  )
 }
 
 /**
  * Apply retry-related environment variable overrides
  */
 function applyRetrySettings(config: PerformanceConfig): void {
-  config.maxRetryAttempts = parseEnvInt('MAX_RETRY_ATTEMPTS', config.maxRetryAttempts)
+  config.maxRetryAttempts = parseEnvInt(
+    'MAX_RETRY_ATTEMPTS',
+    config.maxRetryAttempts,
+  )
   config.retryDelay = parseEnvInt('RETRY_DELAY', config.retryDelay)
-  config.retryBackoffMultiplier = parseEnvFloat('RETRY_BACKOFF_MULTIPLIER', config.retryBackoffMultiplier)
+  config.retryBackoffMultiplier = parseEnvFloat(
+    'RETRY_BACKOFF_MULTIPLIER',
+    config.retryBackoffMultiplier,
+  )
 }
 
 /**
@@ -189,8 +235,14 @@ function applyRetrySettings(config: PerformanceConfig): void {
  */
 function applyMonitoringSettings(config: PerformanceConfig): void {
   config.enableMetrics = parseEnvBoolean('ENABLE_METRICS', config.enableMetrics)
-  config.metricsInterval = parseEnvInt('METRICS_INTERVAL', config.metricsInterval)
-  config.enableDetailedLogging = parseEnvBoolean('ENABLE_DETAILED_LOGGING', config.enableDetailedLogging)
+  config.metricsInterval = parseEnvInt(
+    'METRICS_INTERVAL',
+    config.metricsInterval,
+  )
+  config.enableDetailedLogging = parseEnvBoolean(
+    'ENABLE_DETAILED_LOGGING',
+    config.enableDetailedLogging,
+  )
 }
 
 /**
