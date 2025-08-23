@@ -8,7 +8,7 @@ The project includes a `Dockerfile.dev` for consistent local development and tes
 
 ### Prerequisites
 
-- [Podman](https://podman.io/) or [Docker](https://docker.com/) installed
+- [Docker](https://docker.com/) installed (or [Podman](https://podman.io/) as an alternative)
 - Git (for cloning the repository)
 - At least 4GB of available RAM
 
@@ -16,42 +16,46 @@ The project includes a `Dockerfile.dev` for consistent local development and tes
 
 ```bash
 # Build the development image
-podman build -f Dockerfile.dev -t indexer-dev:latest .
-
-# Or with Docker
 docker build -f Dockerfile.dev -t indexer-dev:latest .
+
+# Note: You can also use Podman as a drop-in replacement for Docker
+# podman build -f Dockerfile.dev -t indexer-dev:latest .
 ```
 
 ### Testing Performance Improvements Locally
 
+**Note**: All `docker` commands in this section can be used with Podman by simply replacing `docker` with `podman`.
+
 1. **Mount your local project and run tests:**
 ```bash
 # Test the complete build
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
 
 # Test individual packages
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && yarn compile"
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && yarn compile"
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-cli && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-cli && yarn compile"
 ```
 
 2. **Test the new CLI flag:**
 ```bash
 # Verify the new flag is available
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && node bin/graph-indexer-agent start --help | grep -A 5 'indexer-min-stake-threshold'"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && node bin/graph-indexer-agent start --help | grep -A 5 'indexer-min-stake-threshold'"
 ```
 
 3. **Run TypeScript type checking:**
 ```bash
 # Check specific files for type errors
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && tsc --noEmit src/subgraphs.ts"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && tsc --noEmit src/subgraphs.ts"
 ```
 
 ### Interactive Development
 
+**Note**: All `docker` commands in this section can be used with Podman by simply replacing `docker` with `podman`.
+
 ```bash
 # Start an interactive shell in the container
-podman run --rm -it -v $(pwd):/opt/indexer indexer-dev:latest bash
+docker run --rm -it -v $(pwd):/opt/indexer indexer-dev:latest bash
 
 # Inside the container, you can:
 cd /opt/indexer
@@ -62,14 +66,16 @@ yarn test           # Run tests
 
 ### Environment Variables for Testing
 
+**Note**: All `docker` commands in this section can be used with Podman by simply replacing `docker` with `podman`.
+
 The development image supports the same environment variables as the production build:
 
 ```bash
 # Test with custom batch sizes
-podman run --rm -v $(pwd):/opt/indexer -e INDEXER_DEPLOYMENT_BATCH_SIZE=1000 indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer -e INDEXER_DEPLOYMENT_BATCH_SIZE=1000 indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
 
 # Test with custom stake thresholds
-podman run --rm -v $(pwd):/opt/indexer -e INDEXER_MIN_STAKE_THRESHOLD=5000000000000000000 indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer -e INDEXER_MIN_STAKE_THRESHOLD=5000000000000000000 indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
 ```
 
 ### Troubleshooting
@@ -81,14 +87,16 @@ podman run --rm -v $(pwd):/opt/indexer -e INDEXER_MIN_STAKE_THRESHOLD=5000000000
 
 ### Performance Testing
 
+**Note**: All `docker` commands in this section can be used with Podman by simply replacing `docker` with `podman`.
+
 To test the performance improvements with large datasets:
 
 ```bash
 # Test compilation performance
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && time yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && time yarn compile"
 
 # Test individual package compilation
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && time tsc --noEmit"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && time tsc --noEmit"
 ```
 
 ## Project Structure
@@ -209,12 +217,14 @@ The script will:
 
 ### Using Docker for Testing
 
+**Note**: All `docker` commands in this section can be used with Podman by simply replacing `docker` with `podman`.
+
 ```bash
 # Run tests in the development container
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn test"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn test"
 
 # Run specific test suites
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-common && yarn test"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && yarn test"
 ```
 
 ## Contributing
@@ -265,6 +275,8 @@ When making changes that affect performance:
 
 **Problem**: Port conflicts
 **Solution**: Use different ports or stop conflicting services
+
+**Note**: If you're using Podman instead of Docker, replace `docker` with `podman` in all commands. Podman is a drop-in replacement for Docker and supports the same command-line interface.
 
 ## Resources
 
