@@ -196,7 +196,7 @@ export class AllocationDecision {
 function evaluateDeploymentByRules(
   logger: Logger,
   deployment: SubgraphDeployment,
-  deploymentRule: IndexingRuleAttributes
+  deploymentRule: IndexingRuleAttributes,
 ): AllocationDecision {
   const stakedTokens = BigNumber.from(deployment.stakedTokens)
   const signalledTokens = BigNumber.from(deployment.signalledTokens)
@@ -210,10 +210,7 @@ function evaluateDeploymentByRules(
       ActivationCriteria.MIN_STAKE,
       deployment.protocolNetwork,
     )
-  } else if (
-    deploymentRule.minSignal &&
-    signalledTokens.gte(deploymentRule.minSignal)
-  ) {
+  } else if (deploymentRule.minSignal && signalledTokens.gte(deploymentRule.minSignal)) {
     return new AllocationDecision(
       deployment.id,
       deploymentRule,
@@ -264,22 +261,28 @@ export async function evaluateDeployments(
   logger.debug(`Starting deployment evaluation`, {
     totalDeployments: networkDeployments.length,
     totalRules: rules.length,
-    deploymentRules: deploymentRulesMap.size
+    deploymentRules: deploymentRulesMap.size,
   })
 
   // Filter deployments by minimum thresholds to reduce work
   // Use provided threshold or fall back to environment variable
-  const MIN_STAKE_THRESHOLD = BigNumber.from(minStakeThreshold || process.env.INDEXER_MIN_STAKE_THRESHOLD || '1000000000000000000') // Default: 1 GRT minimum
-  const significantDeployments = networkDeployments.filter(deployment =>
-    deployment.stakedTokens.gte(MIN_STAKE_THRESHOLD) ||
-    deployment.signalledTokens.gte(MIN_STAKE_THRESHOLD) ||
-    deploymentRulesMap.has(deployment.id.toString()) // Always include if we have specific rules
+  const MIN_STAKE_THRESHOLD = BigNumber.from(
+    minStakeThreshold || process.env.INDEXER_MIN_STAKE_THRESHOLD || '1000000000000000000',
+  ) // Default: 1 GRT minimum
+  const significantDeployments = networkDeployments.filter(
+    (deployment) =>
+      deployment.stakedTokens.gte(MIN_STAKE_THRESHOLD) ||
+      deployment.signalledTokens.gte(MIN_STAKE_THRESHOLD) ||
+      deploymentRulesMap.has(deployment.id.toString()), // Always include if we have specific rules
   )
 
   logger.debug(`Filtered deployments by significance`, {
     originalCount: networkDeployments.length,
     filteredCount: significantDeployments.length,
-    reduction: `${((1 - significantDeployments.length / networkDeployments.length) * 100).toFixed(1)}%`
+    reduction: `${(
+      (1 - significantDeployments.length / networkDeployments.length) *
+      100
+    ).toFixed(1)}%`,
   })
 
   const BATCH_SIZE = parseInt(process.env.INDEXER_DEPLOYMENT_BATCH_SIZE || '500') // Process in smaller batches to prevent blocking
@@ -295,12 +298,17 @@ export async function evaluateDeployments(
       totalBatches: Math.ceil(significantDeployments.length / BATCH_SIZE),
       batchSize: batch.length,
       startIndex: i,
-      endIndex: Math.min(i + BATCH_SIZE, significantDeployments.length)
+      endIndex: Math.min(i + BATCH_SIZE, significantDeployments.length),
     })
 
     // Process batch synchronously for efficiency
     const batchDecisions = batch.map((deployment) =>
-      isDeploymentWorthAllocatingTowardsOptimized(logger, deployment, deploymentRulesMap, globalRule),
+      isDeploymentWorthAllocatingTowardsOptimized(
+        logger,
+        deployment,
+        deploymentRulesMap,
+        globalRule,
+      ),
     )
 
     allDecisions.push(...batchDecisions)
@@ -309,13 +317,13 @@ export async function evaluateDeployments(
     logger.trace(`Completed deployment batch`, {
       batchNumber: Math.floor(i / BATCH_SIZE) + 1,
       batchTime: `${batchTime.toFixed(2)}ms`,
-      deploymentsProcessed: batch.length
+      deploymentsProcessed: batch.length,
     })
 
     // Yield control to event loop every batch to prevent blocking
     // Only yield if we have more batches to process
     if (i + BATCH_SIZE < significantDeployments.length) {
-      await new Promise(resolve => setImmediate(resolve))
+      await new Promise((resolve) => setImmediate(resolve))
     }
   }
 
@@ -323,9 +331,9 @@ export async function evaluateDeployments(
   logger.info(`Deployment evaluation completed`, {
     totalDeployments: networkDeployments.length,
     evaluatedDeployments: significantDeployments.length,
-    allocatableDeployments: allDecisions.filter(d => d.toAllocate).length,
+    allocatableDeployments: allDecisions.filter((d) => d.toAllocate).length,
     totalTime: `${totalTime.toFixed(2)}ms`,
-    avgTimePerDeployment: `${(totalTime / significantDeployments.length).toFixed(3)}ms`
+    avgTimePerDeployment: `${(totalTime / significantDeployments.length).toFixed(3)}ms`,
   })
 
   return allDecisions
@@ -346,8 +354,10 @@ export function isDeploymentWorthAllocatingTowardsOptimized(
 
   logger.trace('Evaluating whether subgraphDeployment is worth allocating towards', {
     deployment: deployment.id.display,
-    hasSpecificRule: deploymentRulesMap.has(deployment.id.toString()) || deploymentRulesMap.has(deployment.id.bytes32),
-    matchingRule: deploymentRule?.identifier
+    hasSpecificRule:
+      deploymentRulesMap.has(deployment.id.toString()) ||
+      deploymentRulesMap.has(deployment.id.bytes32),
+    matchingRule: deploymentRule?.identifier,
   })
 
   // The deployment is not eligible for deployment if it doesn't have an allocation amount

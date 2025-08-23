@@ -31,6 +31,9 @@ RUN yarn --frozen-lockfile --non-interactive --production=false
 # Install lerna and typescript globally for the build commands
 RUN npm install -g lerna typescript
 
+# Install dependencies for all packages to ensure proper resolution
+RUN yarn install
+
 # Build the packages
 RUN yarn compile || npx lerna run compile || echo "Build completed with possible warnings"
 
