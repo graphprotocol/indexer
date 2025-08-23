@@ -290,9 +290,9 @@ export class ConcurrentReconciler {
    */
   private async reconcileDeploymentInternal(
     deployment: SubgraphDeploymentID,
-    activeAllocations: Allocation[],
-    network: Network,
-    operator: Operator,
+    _activeAllocations: Allocation[],
+    _network: Network,
+    _operator: Operator,
   ): Promise<void> {
     // Implementation would include actual reconciliation logic
     // This is a placeholder for the core logic
@@ -336,11 +336,11 @@ export class ConcurrentReconciler {
    */
   private async processAllocationDecision(
     decision: AllocationDecision,
-    activeAllocations: Allocation[],
-    epoch: number,
-    maxAllocationEpochs: number,
-    network: Network,
-    operator: Operator,
+    _activeAllocations: Allocation[],
+    _epoch: number,
+    _maxAllocationEpochs: number,
+    _network: Network,
+    _operator: Operator,
   ): Promise<void> {
     const startTime = Date.now()
     
@@ -416,13 +416,13 @@ export class ConcurrentReconciler {
   /**
    * Get reconciliation metrics
    */
-  getMetrics(): Readonly<ReconciliationMetrics> {
+  getMetrics(): Readonly<ReconciliationMetrics & { cacheHitRate: number; circuitBreakerState: string; queueSize: number }> {
     return {
       ...this.metrics,
       cacheHitRate: this.cache?.getHitRate() || 0,
       circuitBreakerState: this.circuitBreaker?.getState() || 'N/A',
       queueSize: this.priorityQueue?.size() || 0,
-    } as any
+    }
   }
 
   /**

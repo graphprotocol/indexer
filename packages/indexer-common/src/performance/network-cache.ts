@@ -23,7 +23,7 @@ interface CacheMetrics {
  * High-performance caching layer for network data with TTL and LRU eviction
  */
 export class NetworkDataCache {
-  private cache = new Map<string, CachedEntry<any>>()
+  private cache = new Map<string, CachedEntry<unknown>>()
   private readonly ttl: number
   private readonly maxSize: number
   private readonly enableMetrics: boolean

@@ -254,7 +254,7 @@ export class CircuitBreaker {
   /**
    * Create a wrapped function with circuit breaker protection
    */
-  wrap<T extends (...args: any[]) => Promise<any>>(
+  wrap<T extends (...args: never[]) => Promise<unknown>>(
     fn: T,
     fallback?: (...args: Parameters<T>) => ReturnType<T> | Promise<Awaited<ReturnType<T>>>,
   ): T {
