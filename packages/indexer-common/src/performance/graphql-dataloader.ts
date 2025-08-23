@@ -4,9 +4,9 @@ import gql from 'graphql-tag'
 import { SubgraphClient } from '../subgraph-client'
 import { Allocation } from '../allocations'
 import { SubgraphDeployment } from '../types'
-import { 
+import {
   parseGraphQLAllocation,
-  parseGraphQLSubgraphDeployment 
+  parseGraphQLSubgraphDeployment
 } from '../indexer-management/types'
 
 export interface DataLoaderOptions {
@@ -294,8 +294,8 @@ export class GraphQLDataLoader {
       const query = gql`
         query batchMultiAllocations($queries: [AllocationQuery!]!) {
           batchAllocations: allocations(
-            where: { 
-              OR: $queries 
+            where: {
+              OR: $queries
             }
             first: 1000
           ) {

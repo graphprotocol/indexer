@@ -55,13 +55,13 @@ import { AgentConfigs, NetworkAndOperator } from './types'
 
 // Configuration constants for performance tuning
 const PERFORMANCE_CONFIG = {
-  ALLOCATION_CONCURRENCY: process.env.ALLOCATION_CONCURRENCY 
+  ALLOCATION_CONCURRENCY: process.env.ALLOCATION_CONCURRENCY
     ? parseInt(process.env.ALLOCATION_CONCURRENCY) : 20,
-  DEPLOYMENT_CONCURRENCY: process.env.DEPLOYMENT_CONCURRENCY 
+  DEPLOYMENT_CONCURRENCY: process.env.DEPLOYMENT_CONCURRENCY
     ? parseInt(process.env.DEPLOYMENT_CONCURRENCY) : 15,
-  BATCH_SIZE: process.env.BATCH_SIZE 
+  BATCH_SIZE: process.env.BATCH_SIZE
     ? parseInt(process.env.BATCH_SIZE) : 10,
-  CACHE_TTL: process.env.CACHE_TTL 
+  CACHE_TTL: process.env.CACHE_TTL
     ? parseInt(process.env.CACHE_TTL) : 30000,
   ENABLE_CIRCUIT_BREAKER: process.env.ENABLE_CIRCUIT_BREAKER !== 'false',
   ENABLE_PRIORITY_QUEUE: process.env.ENABLE_PRIORITY_QUEUE !== 'false',
@@ -86,7 +86,7 @@ const deploymentRuleInList = (
     rule =>
       rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
       new SubgraphDeploymentID(rule.identifier).toString() ==
-        deployment.toString(),
+      deployment.toString(),
   ) !== undefined
 
 const uniqueDeploymentsOnly = (
@@ -215,7 +215,7 @@ export class Agent {
   autoMigrationSupport: boolean
   deploymentManagement: DeploymentManagementMode
   pollingInterval: number
-  
+
   // Performance optimization components
   private cache: NetworkDataCache
   private circuitBreaker: CircuitBreaker
@@ -238,24 +238,24 @@ export class Agent {
     this.autoMigrationSupport = !!configs.autoMigrationSupport
     this.deploymentManagement = configs.deploymentManagement
     this.pollingInterval = configs.pollingInterval
-    
+
     // Initialize performance components
     this.cache = new NetworkDataCache(this.logger, {
       ttl: PERFORMANCE_CONFIG.CACHE_TTL,
       maxSize: 2000,
       enableMetrics: true,
     })
-    
+
     this.circuitBreaker = new CircuitBreaker(this.logger, {
       failureThreshold: 5,
       resetTimeout: 60000,
       halfOpenMaxAttempts: 3,
     })
-    
+
     this.priorityQueue = new AllocationPriorityQueue(this.logger)
-    
+
     this.dataLoader = new Map()
-    
+
     this.reconciler = new ConcurrentReconciler(this.logger, {
       concurrency: PERFORMANCE_CONFIG.ALLOCATION_CONCURRENCY,
       batchSize: PERFORMANCE_CONFIG.BATCH_SIZE,
@@ -263,12 +263,12 @@ export class Agent {
       enablePriorityQueue: PERFORMANCE_CONFIG.ENABLE_PRIORITY_QUEUE,
       enableCache: PERFORMANCE_CONFIG.ENABLE_CACHE,
     })
-    
+
     // Enhanced deployment queue with higher concurrency
-    this.deploymentQueue = new PQueue({ 
-      concurrency: PERFORMANCE_CONFIG.DEPLOYMENT_CONCURRENCY 
+    this.deploymentQueue = new PQueue({
+      concurrency: PERFORMANCE_CONFIG.DEPLOYMENT_CONCURRENCY
     })
-    
+
     // Start metrics collection
     this.startMetricsCollection()
   }
@@ -344,13 +344,13 @@ export class Agent {
     const requestIntervalSmall = this.pollingInterval
     const requestIntervalLarge = this.pollingInterval * 5
     const logger = this.logger.child({ component: 'ReconciliationLoop' })
-    
+
     // Use parallel timers instead of sequential for independent data fetching
-    const currentEpochNumber: Eventual<NetworkMapped<number>> = 
+    const currentEpochNumber: Eventual<NetworkMapped<number>> =
       this.createCachedEventual(
         'currentEpoch',
         requestIntervalLarge,
-        async () => 
+        async () =>
           await this.multiNetworks.map(({ network }) => {
             logger.trace('Fetching current epoch number', {
               protocolNetwork: network.specification.networkIdentifier,
@@ -382,7 +382,7 @@ export class Agent {
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
             const cacheKey = `rules-${network.specification.networkIdentifier}`
-            
+
             return this.cache.getCachedOrFetch(
               cacheKey,
               async () => {
@@ -395,7 +395,7 @@ export class Agent {
                     rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
                   )
                   .map(rule => rule.identifier!)
-                  
+
                 if (subgraphRuleIds.length > 0) {
                   const subgraphsMatchingRules =
                     await network.networkMonitor.subgraphs(subgraphRuleIds)
@@ -417,7 +417,7 @@ export class Agent {
             )
           })
         },
-        error => 
+        error =>
           logger.warn(`Failed to obtain indexing rules, trying again later`, {
             error,
           }),
@@ -461,7 +461,7 @@ export class Agent {
               this.multiNetworks.values.map(async ({ network }) => {
                 const networkId = network.specification.networkIdentifier
                 const loader = this.dataLoader.get(networkId)
-                
+
                 if (loader) {
                   // Use DataLoader for batched queries
                   return {
@@ -469,14 +469,14 @@ export class Agent {
                     deployments: await network.networkMonitor.subgraphDeployments(),
                   }
                 }
-                
+
                 return {
                   networkId,
                   deployments: await network.networkMonitor.subgraphDeployments(),
                 }
               })
             )
-            
+
             const deploymentMap: NetworkMapped<SubgraphDeployment[]> = {}
             for (const result of results) {
               if (result.status === 'fulfilled') {
@@ -512,7 +512,7 @@ export class Agent {
             async ({ network }: NetworkAndOperator) => {
               const networkId = network.specification.networkIdentifier
               const loader = this.dataLoader.get(networkId)
-              
+
               if (loader) {
                 // Use DataLoader for efficient batching
                 const indexer = network.specification.indexerOptions.address
@@ -521,16 +521,16 @@ export class Agent {
                   'Active'
                 )
               }
-              
+
               return network.networkMonitor.allocations(AllocationStatus.ACTIVE)
             }
           )
-          
+
           logger.info('Fetched active allocations', {
             networks: Object.keys(allocations).length,
             totalAllocations: Object.values(allocations).flat().length,
           })
-          
+
           return allocations
         },
         error =>
@@ -602,7 +602,7 @@ export class Agent {
           })
           return
         }
-        
+
         // Log performance metrics
         this.logPerformanceMetrics()
       },
@@ -633,11 +633,11 @@ export class Agent {
             interval * 0.8, // Cache for 80% of the interval
           )
         }
-        
+
         if (PERFORMANCE_CONFIG.ENABLE_CIRCUIT_BREAKER) {
           return this.circuitBreaker.execute(fetcher)
         }
-        
+
         return fetcher()
       },
       { onError },
@@ -653,7 +653,7 @@ export class Agent {
     eligibleAllocations: Allocation[],
   ): Promise<void> {
     const logger = this.logger.child({ function: 'optimizedReconcileDeployments' })
-    
+
     logger.info('Reconciling deployments with optimizations', {
       active: activeDeployments.length,
       target: targetDeployments.length,
@@ -662,21 +662,21 @@ export class Agent {
 
     const activeSet = new Set(activeDeployments.map(d => d.bytes32))
     const targetSet = new Set(targetDeployments.map(d => d.bytes32))
-    
+
     // Deployments to add
     const toAdd = targetDeployments.filter(d => !activeSet.has(d.bytes32))
-    
+
     // Deployments to remove
     const toRemove = activeDeployments.filter(d => !targetSet.has(d.bytes32))
-    
+
     // Process additions and removals in parallel batches
     const operations: Array<() => Promise<void>> = []
-    
+
     // Queue additions
     for (const deployment of toAdd) {
       operations.push(async () => {
         const cacheKey = `deployment-add-${deployment.ipfsHash}`
-        
+
         // Check cache to avoid duplicate operations
         if (this.cache.get(cacheKey)) {
           logger.trace('Skipping cached deployment addition', {
@@ -684,7 +684,7 @@ export class Agent {
           })
           return
         }
-        
+
         logger.info(`Adding deployment`, {
           deployment: deployment.ipfsHash,
           eligibleAllocations: eligibleAllocations.filter(
@@ -692,39 +692,39 @@ export class Agent {
               allocation.subgraphDeployment.id.bytes32 === deployment.bytes32,
           ).length,
         })
-        
+
         await this.graphNode.ensure(
           `indexer-agent/${deployment.ipfsHash.slice(-10)}`,
           deployment,
         )
-        
+
         // Cache successful operation
         this.cache.set(cacheKey, true)
       })
     }
-    
+
     // Queue removals
     for (const deployment of toRemove) {
       operations.push(async () => {
         const cacheKey = `deployment-remove-${deployment.ipfsHash}`
-        
+
         if (this.cache.get(cacheKey)) {
           logger.trace('Skipping cached deployment removal', {
             deployment: deployment.ipfsHash,
           })
           return
         }
-        
+
         const hasEligibleAllocations = eligibleAllocations.some(
           allocation =>
             allocation.subgraphDeployment.id.bytes32 === deployment.bytes32,
         )
-        
+
         if (!hasEligibleAllocations) {
           logger.info(`Removing deployment`, {
             deployment: deployment.ipfsHash,
           })
-          
+
           await this.graphNode.remove(deployment)
           this.cache.set(cacheKey, true)
         } else {
@@ -734,11 +734,11 @@ export class Agent {
         }
       })
     }
-    
+
     // Execute all operations with controlled concurrency
     await this.deploymentQueue.addAll(operations)
     await this.deploymentQueue.onIdle()
-    
+
     logger.info('Deployment reconciliation complete', {
       added: toAdd.length,
       removed: toRemove.length,
@@ -754,7 +754,7 @@ export class Agent {
     maxAllocationEpochs: NetworkMapped<number>,
   ): Promise<void> {
     const logger = this.logger.child({ function: 'optimizedReconcileActions' })
-    
+
     // Filter and validate allocation decisions
     const validatedAllocationDecisions =
       await this.multiNetworks.mapNetworkMapped(
@@ -775,7 +775,7 @@ export class Agent {
             )
             return [] as AllocationDecision[]
           }
-          
+
           // Filter out network subgraph if not allowed
           const networkSubgraphDeployment = network.networkSubgraph.deployment
           if (
@@ -815,7 +815,7 @@ export class Agent {
           status: ActionStatus.APPROVED,
           protocolNetwork: network.specification.networkIdentifier,
         })
-        
+
         if (approvedActions.length > 0) {
           logger.info(
             `There are ${approvedActions.length} approved actions awaiting execution`,
@@ -839,7 +839,7 @@ export class Agent {
         // Use priority queue if enabled
         if (PERFORMANCE_CONFIG.ENABLE_PRIORITY_QUEUE) {
           this.priorityQueue.enqueueBatch(allocationDecisions)
-          
+
           const batches: AllocationDecision[][] = []
           while (!this.priorityQueue.isEmpty()) {
             const batch = this.priorityQueue.dequeueBatch(
@@ -849,7 +849,7 @@ export class Agent {
               batches.push(batch)
             }
           }
-          
+
           // Process batches in sequence, items within batch in parallel
           for (const batch of batches) {
             await pMap(
@@ -888,7 +888,7 @@ export class Agent {
 
   // Keep existing helper methods...
   // [Rest of the existing Agent class methods remain the same]
-  
+
   /**
    * Start performance metrics collection
    */
@@ -897,7 +897,7 @@ export class Agent {
       this.logPerformanceMetrics()
     }, 60000) // Log every minute
   }
-  
+
   /**
    * Log performance metrics
    */
@@ -915,9 +915,9 @@ export class Agent {
         pending: this.deploymentQueue.pending,
       },
     }
-    
+
     this.logger.info('Performance metrics', metrics)
-    
+
     // Export metrics to Prometheus if configured
     if (this.metrics) {
       this.metrics.gauge('indexer_agent_cache_hit_rate', metrics.cacheHitRate)
@@ -925,26 +925,26 @@ export class Agent {
       this.metrics.gauge('indexer_agent_deployment_queue_size', metrics.deploymentQueueStats.size)
     }
   }
-  
+
   /**
    * Cleanup resources on shutdown
    */
   async shutdown(): Promise<void> {
     this.logger.info('Shutting down agent')
-    
+
     if (this.metricsCollector) {
       clearInterval(this.metricsCollector)
     }
-    
+
     await this.reconciler.onIdle()
     await this.deploymentQueue.onIdle()
-    
+
     this.cache.clear()
     this.priorityQueue.clear()
-    
+
     this.logger.info('Agent shutdown complete')
   }
-  
+
   // Additional helper methods for target deployments and allocation decisions
   private createTargetDeployments(
     networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>>,
@@ -963,7 +963,7 @@ export class Agent {
               : evaluateDeployments(this.logger, deployments, rules)
           },
         )
-        
+
         return uniqueDeployments([
           ...Object.values(decisions)
             .flat()
@@ -978,7 +978,7 @@ export class Agent {
       },
     )
   }
-  
+
   private createAllocationDecisions(
     networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>>,
     indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>>,

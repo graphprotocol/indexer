@@ -102,7 +102,7 @@ cat > indexer-agent-optimized.env << EOF
 ALLOCATION_CONCURRENCY=$ALLOCATION_CONCURRENCY
 DEPLOYMENT_CONCURRENCY=$DEPLOYMENT_CONCURRENCY
 ENABLE_CACHE=$ENABLE_CACHE
-ENABLE_CIRCUIT_BREAKER=$ENABLE_CIRCUIT_BREAKER  
+ENABLE_CIRCUIT_BREAKER=$ENABLE_CIRCUIT_BREAKER
 ENABLE_PRIORITY_QUEUE=$ENABLE_PRIORITY_QUEUE
 CACHE_TTL=$CACHE_TTL
 BATCH_SIZE=$BATCH_SIZE
@@ -127,11 +127,11 @@ services:
     image: indexer-agent-optimized:latest
     container_name: indexer-agent-opt
     restart: unless-stopped
-    
+
     # Environment configuration
     env_file:
       - indexer-agent-optimized.env
-    
+
     # Resource limits (adjust based on your system)
     deploy:
       resources:
@@ -141,7 +141,7 @@ services:
         reservations:
           memory: 4G
           cpus: '2'
-    
+
     # Health check
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
@@ -149,19 +149,19 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
-    
+
     # Ports (adjust based on your configuration)
     ports:
       - "18000:8000"  # Management API
       - "18001:8001"  # Vector event server
       - "18002:8002"  # Syncing port
       - "19090:9090"  # Metrics port (if configured)
-    
+
     # Volumes for persistent data
     volumes:
       - ./data:/opt/data
       - ./logs:/opt/logs
-      
+
     # Network configuration
     networks:
       - indexer-network
@@ -233,7 +233,7 @@ echo "🚀 Starting Optimized Indexer Agent..."
 # Validate required environment variables
 required_vars=(
     "ETHEREUM"
-    "MNEMONIC" 
+    "MNEMONIC"
     "INDEXER_ADDRESS"
     "GRAPH_NODE_QUERY_ENDPOINT"
     "GRAPH_NODE_STATUS_ENDPOINT"
@@ -293,31 +293,31 @@ echo "=================================="
 # Function to get container stats
 get_container_stats() {
     local container_name="indexer-agent-opt"
-    
+
     if ! docker ps | grep -q $container_name; then
         echo "❌ Container $container_name is not running"
         return 1
     fi
-    
+
     echo ""
     echo "🖥️  Resource Usage:"
     docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" $container_name
-    
+
     echo ""
     echo "🔄 Performance Metrics:"
-    
+
     # Try to get performance metrics from the management API
     if command -v curl &> /dev/null; then
         echo "   Fetching metrics from management API..."
-        
+
         # Cache metrics
         cache_hit_rate=$(curl -s http://localhost:18000/metrics 2>/dev/null | grep "cache_hit_rate" | tail -1 || echo "N/A")
         echo "   Cache Hit Rate: $cache_hit_rate"
-        
-        # Queue metrics  
+
+        # Queue metrics
         queue_size=$(curl -s http://localhost:18000/metrics 2>/dev/null | grep "queue_size" | tail -1 || echo "N/A")
         echo "   Queue Size: $queue_size"
-        
+
         # Processing rate
         allocation_rate=$(curl -s http://localhost:18000/metrics 2>/dev/null | grep "allocation_processing_rate" | tail -1 || echo "N/A")
         echo "   Allocation Processing Rate: $allocation_rate"
@@ -379,7 +379,7 @@ echo "   docker-compose -f docker-compose.optimized.yml logs -f"
 echo ""
 echo "🚀 Performance Improvements Available:"
 echo "   • 10-20x faster allocation processing"
-echo "   • 50-70% reduction in reconciliation time"  
+echo "   • 50-70% reduction in reconciliation time"
 echo "   • 90% reduction in timeout errors"
 echo "   • 30-40% reduction in memory usage"
 echo "   • Automatic recovery from failures"

@@ -41,7 +41,7 @@ export class NetworkDataCache {
     this.ttl = options.ttl || 30000 // Default 30 seconds
     this.maxSize = options.maxSize || 1000
     this.enableMetrics = options.enableMetrics || false
-    
+
     // Periodic cleanup of expired entries
     setInterval(() => this.cleanup(), this.ttl)
   }
@@ -102,7 +102,7 @@ export class NetworkDataCache {
       timestamp: Date.now(),
       hits: 0,
     })
-    
+
     this.updateAccessOrder(key)
     this.metrics.size = this.cache.size
   }
@@ -210,14 +210,14 @@ export class NetworkDataCache {
   private cleanup(): void {
     const now = Date.now()
     let cleaned = 0
-    
+
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > this.ttl) {
         this.invalidate(key)
         cleaned++
       }
     }
-    
+
     if (cleaned > 0) {
       this.logger.trace('Cleaned expired cache entries', { count: cleaned })
     }

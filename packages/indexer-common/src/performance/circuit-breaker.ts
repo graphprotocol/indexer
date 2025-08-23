@@ -43,7 +43,7 @@ export class CircuitBreaker {
     this.resetTimeout = options.resetTimeout || 60000 // 1 minute
     this.halfOpenMaxAttempts = options.halfOpenMaxAttempts || 3
     this.monitoringPeriod = options.monitoringPeriod || 300000 // 5 minutes
-    
+
     // Periodic stats reset
     setInterval(() => this.resetStats(), this.monitoringPeriod)
   }
@@ -65,9 +65,8 @@ export class CircuitBreaker {
         this.logger.debug('Circuit is OPEN, using fallback')
         return fallback()
       } else {
-        throw new Error(`Circuit breaker is OPEN. Reset in ${
-          Math.ceil((this.resetTimeout - (Date.now() - this.stats.lastFailureTime)) / 1000)
-        } seconds`)
+        throw new Error(`Circuit breaker is OPEN. Reset in ${Math.ceil((this.resetTimeout - (Date.now() - this.stats.lastFailureTime)) / 1000)
+          } seconds`)
       }
     }
 
@@ -89,13 +88,13 @@ export class CircuitBreaker {
       return result
     } catch (error) {
       this.onFailure()
-      
+
       // Try fallback if available
       if (fallback && this.state === 'OPEN') {
         this.logger.warn('Execution failed, using fallback', { error })
         return fallback()
       }
-      
+
       throw error
     }
   }
@@ -109,7 +108,7 @@ export class CircuitBreaker {
   ): Promise<Array<{ success: boolean; result?: T; error?: Error }>> {
     const { concurrency = 5, stopOnFailure = false } = options
     const results: Array<{ success: boolean; result?: T; error?: Error }> = []
-    
+
     const chunks: Array<Array<() => Promise<T>>> = []
     for (let i = 0; i < operations.length; i += concurrency) {
       chunks.push(operations.slice(i, i + concurrency))
@@ -230,11 +229,11 @@ export class CircuitBreaker {
   private transitionTo(newState: CircuitState): void {
     const oldState = this.state
     this.state = newState
-    
+
     if (oldState !== newState) {
       this.logger.info('Circuit state changed', { from: oldState, to: newState })
       this.stateChangeCallbacks.forEach(cb => cb(newState))
-      
+
       if (newState === 'HALF_OPEN') {
         this.halfOpenAttempts = 0
       }

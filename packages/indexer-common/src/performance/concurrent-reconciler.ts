@@ -48,7 +48,7 @@ export class ConcurrentReconciler {
 
   constructor(logger: Logger, options: ReconcilerOptions = {}) {
     this.logger = logger.child({ component: 'ConcurrentReconciler' })
-    
+
     this.options = {
       concurrency: options.concurrency || 20,
       batchSize: options.batchSize || 10,
@@ -114,10 +114,10 @@ export class ConcurrentReconciler {
 
     // Split deployments into batches
     const batches = this.createBatches(deployments, this.options.batchSize)
-    
+
     // Process batches concurrently
     await Promise.all(
-      batches.map(batch => 
+      batches.map(batch =>
         this.processBatch(batch, activeAllocations, network, operator)
       )
     )
@@ -150,11 +150,11 @@ export class ConcurrentReconciler {
     if (this.options.enablePriorityQueue && this.priorityQueue) {
       // Use priority queue for intelligent ordering
       this.priorityQueue.enqueueBatch(decisions)
-      
+
       while (!this.priorityQueue.isEmpty()) {
         const batch = this.priorityQueue.dequeueBatch(this.options.batchSize)
         if (batch.length === 0) break
-        
+
         await this.processAllocationBatch(
           batch,
           activeAllocations,
@@ -201,7 +201,7 @@ export class ConcurrentReconciler {
   ): Promise<void> {
     const tasks = batch.map(deployment => async () => {
       const workerId = deployment.ipfsHash
-      
+
       try {
         // Check if already processing
         if (this.workers.has(workerId)) {
@@ -215,10 +215,10 @@ export class ConcurrentReconciler {
           network,
           operator,
         )
-        
+
         this.workers.set(workerId, workerPromise)
         await workerPromise
-        
+
       } finally {
         this.workers.delete(workerId)
       }
@@ -237,7 +237,7 @@ export class ConcurrentReconciler {
     operator: Operator,
   ): Promise<void> {
     const startTime = Date.now()
-    
+
     for (let attempt = 1; attempt <= this.options.retryAttempts; attempt++) {
       try {
         // Use circuit breaker if enabled
@@ -262,7 +262,7 @@ export class ConcurrentReconciler {
         this.metrics.successful++
         this.updateAverageProcessingTime(Date.now() - startTime)
         return
-        
+
       } catch (error) {
         this.logger.warn(`Deployment reconciliation attempt ${attempt} failed`, {
           deployment: deployment.ipfsHash,
@@ -282,7 +282,7 @@ export class ConcurrentReconciler {
         }
       }
     }
-    
+
     this.metrics.totalProcessed++
   }
 
@@ -303,7 +303,7 @@ export class ConcurrentReconciler {
     this.logger.trace('Reconciling deployment', {
       deployment: deployment.ipfsHash,
     })
-    
+
     // Add actual reconciliation logic here
     // This would interact with the network and operator
   }
@@ -352,13 +352,13 @@ export class ConcurrentReconciler {
     _operator: Operator,
   ): Promise<void> {
     const startTime = Date.now()
-    
+
     try {
       // Use cache if enabled
       if (this.cache) {
         const cacheKey = `allocation-${decision.deployment.ipfsHash}`
         const cached = this.cache.get<boolean>(cacheKey)
-        
+
         if (cached !== undefined) {
           this.logger.trace('Using cached allocation decision', {
             deployment: decision.deployment.ipfsHash,
@@ -382,7 +382,7 @@ export class ConcurrentReconciler {
 
       this.metrics.successful++
       this.updateAverageProcessingTime(Date.now() - startTime)
-      
+
     } catch (error) {
       this.metrics.failed++
       this.logger.error('Failed to process allocation decision', {
