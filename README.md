@@ -278,6 +278,12 @@ These optimizations are particularly beneficial when:
 - Running on resource-constrained environments
 - Requiring consistent response times during high-load periods
 
+## Development
+
+For comprehensive development and testing guidance, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+The project includes a `Dockerfile.dev` for consistent local development and testing environments, particularly useful for testing performance improvements and ensuring compatibility across different systems.
+
 ## Terraform & Kubernetes
 
 The [terraform/](./terraform/) and [k8s/](./k8s) directories provide a
