@@ -157,6 +157,7 @@ export enum ActivationCriteria {
   OFFCHAIN = 'offchain',
   INVALID_ALLOCATION_AMOUNT = 'invalid_allocation_amount',
   L2_TRANSFER_SUPPORT = 'l2_transfer_support',
+  INVALID_DECISION_BASIS = 'invalid_decision_basis',
 }
 
 interface RuleMatch {
@@ -192,14 +193,239 @@ export class AllocationDecision {
   }
 }
 
-export function evaluateDeployments(
+function evaluateDeploymentByRules(
+  logger: Logger,
+  deployment: SubgraphDeployment,
+  deploymentRule: IndexingRuleAttributes,
+): AllocationDecision {
+  const stakedTokens = BigNumber.from(deployment.stakedTokens)
+  const signalledTokens = BigNumber.from(deployment.signalledTokens)
+  const avgQueryFees = BigNumber.from(deployment.queryFeesAmount)
+
+  if (deploymentRule.minStake && stakedTokens.gte(deploymentRule.minStake)) {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      true,
+      ActivationCriteria.MIN_STAKE,
+      deployment.protocolNetwork,
+    )
+  } else if (deploymentRule.minSignal && signalledTokens.gte(deploymentRule.minSignal)) {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      true,
+      ActivationCriteria.SIGNAL_THRESHOLD,
+      deployment.protocolNetwork,
+    )
+  } else if (
+    deploymentRule.minAverageQueryFees &&
+    avgQueryFees.gte(deploymentRule.minAverageQueryFees)
+  ) {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      true,
+      ActivationCriteria.MIN_AVG_QUERY_FEES,
+      deployment.protocolNetwork,
+    )
+  } else {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      false,
+      ActivationCriteria.NONE,
+      deployment.protocolNetwork,
+    )
+  }
+}
+
+export async function evaluateDeployments(
   logger: Logger,
   networkDeployments: SubgraphDeployment[],
   rules: IndexingRuleAttributes[],
-): AllocationDecision[] {
-  return networkDeployments.map((deployment) =>
-    isDeploymentWorthAllocatingTowards(logger, deployment, rules),
+  minStakeThreshold?: string,
+): Promise<AllocationDecision[]> {
+  const startTime = performance.now()
+
+  // Pre-build optimized rule lookups for O(1) access
+  const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
+  const deploymentRulesMap = new Map<string, IndexingRuleAttributes>()
+
+  rules
+    .filter((rule) => rule.identifierType === SubgraphIdentifierType.DEPLOYMENT)
+    .forEach((rule) => {
+      deploymentRulesMap.set(rule.identifier, rule)
+    })
+
+  logger.debug(`Starting deployment evaluation`, {
+    totalDeployments: networkDeployments.length,
+    totalRules: rules.length,
+    deploymentRules: deploymentRulesMap.size,
+  })
+
+  // Filter deployments by minimum thresholds to reduce work
+  // Use provided threshold or fall back to environment variable
+  const MIN_STAKE_THRESHOLD = BigNumber.from(
+    minStakeThreshold || process.env.INDEXER_MIN_STAKE_THRESHOLD || '1000000000000000000',
+  ) // Default: 1 GRT minimum
+  const significantDeployments = networkDeployments.filter(
+    (deployment) =>
+      deployment.stakedTokens.gte(MIN_STAKE_THRESHOLD) ||
+      deployment.signalledTokens.gte(MIN_STAKE_THRESHOLD) ||
+      deploymentRulesMap.has(deployment.id.toString()), // Always include if we have specific rules
   )
+
+  logger.debug(`Filtered deployments by significance`, {
+    originalCount: networkDeployments.length,
+    filteredCount: significantDeployments.length,
+    reduction: `${(
+      (1 - significantDeployments.length / networkDeployments.length) *
+      100
+    ).toFixed(1)}%`,
+  })
+
+  const BATCH_SIZE = parseInt(process.env.INDEXER_DEPLOYMENT_BATCH_SIZE || '500') // Process in smaller batches to prevent blocking
+  const allDecisions: AllocationDecision[] = []
+
+  // Process deployments in batches with yielding
+  for (let i = 0; i < significantDeployments.length; i += BATCH_SIZE) {
+    const batch = significantDeployments.slice(i, i + BATCH_SIZE)
+    const batchStartTime = performance.now()
+
+    logger.trace(`Processing deployment batch`, {
+      batchNumber: Math.floor(i / BATCH_SIZE) + 1,
+      totalBatches: Math.ceil(significantDeployments.length / BATCH_SIZE),
+      batchSize: batch.length,
+      startIndex: i,
+      endIndex: Math.min(i + BATCH_SIZE, significantDeployments.length),
+    })
+
+    // Process batch synchronously for efficiency
+    const batchDecisions = batch.map((deployment) =>
+      isDeploymentWorthAllocatingTowardsOptimized(
+        logger,
+        deployment,
+        deploymentRulesMap,
+        globalRule,
+      ),
+    )
+
+    allDecisions.push(...batchDecisions)
+
+    const batchTime = performance.now() - batchStartTime
+    logger.trace(`Completed deployment batch`, {
+      batchNumber: Math.floor(i / BATCH_SIZE) + 1,
+      batchTime: `${batchTime.toFixed(2)}ms`,
+      deploymentsProcessed: batch.length,
+    })
+
+    // Yield control to event loop every batch to prevent blocking
+    // Only yield if we have more batches to process
+    if (i + BATCH_SIZE < significantDeployments.length) {
+      await new Promise((resolve) => setImmediate(resolve))
+    }
+  }
+
+  const totalTime = performance.now() - startTime
+  logger.info(`Deployment evaluation completed`, {
+    totalDeployments: networkDeployments.length,
+    evaluatedDeployments: significantDeployments.length,
+    allocatableDeployments: allDecisions.filter((d) => d.toAllocate).length,
+    totalTime: `${totalTime.toFixed(2)}ms`,
+    avgTimePerDeployment: `${(totalTime / significantDeployments.length).toFixed(3)}ms`,
+  })
+
+  return allDecisions
+}
+
+// Optimized version that uses pre-built rule map for O(1) lookups
+export function isDeploymentWorthAllocatingTowardsOptimized(
+  logger: Logger,
+  deployment: SubgraphDeployment,
+  deploymentRulesMap: Map<string, IndexingRuleAttributes>,
+  globalRule: IndexingRuleAttributes | undefined,
+): AllocationDecision {
+  // O(1) lookup instead of O(N) filtering and finding
+  const deploymentRule =
+    deploymentRulesMap.get(deployment.id.toString()) ||
+    deploymentRulesMap.get(deployment.id.bytes32) ||
+    globalRule
+
+  logger.trace('Evaluating whether subgraphDeployment is worth allocating towards', {
+    deployment: deployment.id.display,
+    hasSpecificRule:
+      deploymentRulesMap.has(deployment.id.toString()) ||
+      deploymentRulesMap.has(deployment.id.bytes32),
+    matchingRule: deploymentRule?.identifier,
+  })
+
+  // The deployment is not eligible for deployment if it doesn't have an allocation amount
+  if (!deploymentRule?.allocationAmount) {
+    logger.debug(`Could not find matching rule with defined 'allocationAmount':`, {
+      deployment: deployment.id.display,
+    })
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      false,
+      ActivationCriteria.INVALID_ALLOCATION_AMOUNT,
+      deployment.protocolNetwork,
+    )
+  }
+
+  // Reject unsupported subgraphs early
+  if (deployment.deniedAt > 0 && deploymentRule.requireSupported) {
+    return new AllocationDecision(
+      deployment.id,
+      deploymentRule,
+      false,
+      ActivationCriteria.UNSUPPORTED,
+      deployment.protocolNetwork,
+    )
+  }
+
+  switch (deploymentRule?.decisionBasis) {
+    case IndexingDecisionBasis.RULES: {
+      return evaluateDeploymentByRules(logger, deployment, deploymentRule)
+    }
+    case IndexingDecisionBasis.NEVER: {
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        false,
+        ActivationCriteria.NEVER,
+        deployment.protocolNetwork,
+      )
+    }
+    case IndexingDecisionBasis.ALWAYS: {
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        true,
+        ActivationCriteria.ALWAYS,
+        deployment.protocolNetwork,
+      )
+    }
+    case IndexingDecisionBasis.OFFCHAIN: {
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        true,
+        ActivationCriteria.OFFCHAIN,
+        deployment.protocolNetwork,
+      )
+    }
+    default: {
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        false,
+        ActivationCriteria.INVALID_DECISION_BASIS,
+        deployment.protocolNetwork,
+      )
+    }
+  }
 }
 
 export function isDeploymentWorthAllocatingTowards(

@@ -25,4 +25,5 @@ export interface AgentConfigs {
   autoMigrationSupport: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   pollingInterval: number
+  indexerMinStakeThreshold: string
 }
