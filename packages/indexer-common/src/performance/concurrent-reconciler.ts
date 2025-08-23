@@ -1,5 +1,6 @@
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { AllocationDecision, Allocation } from '../allocations'
+import { Allocation } from '../allocations'
+import { AllocationDecision } from '../subgraphs'
 import { Network } from '../network'
 import { Operator } from '../operator'
 import pMap from 'p-map'

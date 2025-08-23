@@ -1,5 +1,5 @@
 import { Logger } from '@graphprotocol/common-ts'
-import { AllocationDecision } from '../allocations'
+import { AllocationDecision } from '../subgraphs'
 import { BigNumber } from 'ethers'
 
 export interface PriorityItem<T> {

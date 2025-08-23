@@ -2,12 +2,12 @@ import DataLoader from 'dataloader'
 import { Logger } from '@graphprotocol/common-ts'
 import gql from 'graphql-tag'
 import { SubgraphClient } from '../subgraph-client'
+import { Allocation } from '../allocations'
+import { SubgraphDeployment } from '../types'
 import { 
-  Allocation, 
-  SubgraphDeployment, 
   parseGraphQLAllocation,
   parseGraphQLSubgraphDeployment 
-} from '../allocations'
+} from '../indexer-management/types'
 
 export interface DataLoaderOptions {
   cache?: boolean
@@ -80,7 +80,8 @@ export class GraphQLDataLoader {
    * Load multiple allocations
    */
   async loadAllocations(ids: string[]): Promise<(Allocation | null)[]> {
-    return this.allocationLoader.loadMany(ids)
+    const results = await this.allocationLoader.loadMany(ids)
+    return results.map(result => (result instanceof Error ? null : result))
   }
 
   /**
@@ -104,7 +105,8 @@ export class GraphQLDataLoader {
    * Load multiple deployments
    */
   async loadDeployments(ids: string[]): Promise<(SubgraphDeployment | null)[]> {
-    return this.deploymentLoader.loadMany(ids)
+    const results = await this.deploymentLoader.loadMany(ids)
+    return results.map(result => (result instanceof Error ? null : result))
   }
 
   /**
