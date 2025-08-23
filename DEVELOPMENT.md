@@ -81,7 +81,7 @@ docker run --rm -v $(pwd):/opt/indexer -e INDEXER_MIN_STAKE_THRESHOLD=5000000000
 ### Troubleshooting
 
 - **Build failures**: Ensure you have sufficient RAM (4GB+) and disk space
-- **Permission issues**: On some systems, you may need to use `sudo` with podman/docker commands
+- **Permission issues**: On some systems, you may need to use `sudo` with docker commands
 - **Volume mount issues**: Ensure the current directory path is correct and accessible
 - **Dependency issues**: The image includes `yarn install` to ensure all dependencies are properly resolved
 
@@ -123,7 +123,7 @@ cd indexer
 yarn install
 
 # Build the development image
-podman build -f Dockerfile.dev -t indexer-dev:latest .
+docker build -f Dockerfile.dev -t indexer-dev:latest .
 ```
 
 ### 2. Make Changes
@@ -136,13 +136,13 @@ podman build -f Dockerfile.dev -t indexer-dev:latest .
 
 ```bash
 # Test compilation
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn compile"
 
 # Run tests
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn test"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer && yarn test"
 
 # Test specific functionality
-podman run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && node bin/graph-indexer-agent start --help"
+docker run --rm -v $(pwd):/opt/indexer indexer-dev:latest bash -c "cd /opt/indexer/packages/indexer-agent && node bin/graph-indexer-agent start --help"
 ```
 
 ### 4. Commit and Push
@@ -285,4 +285,4 @@ When making changes that affect performance:
 - [Yarn Workspaces](https://classic.yarnpkg.com/en/docs/workspaces/)
 - [TypeScript Documentation](https://www.typescriptlang.org/)
 - [Docker Documentation](https://docs.docker.com/)
-- [Podman Documentation](https://podman.io/getting-started/)
+- [Podman Documentation](https://podman.io/getting-started/) (alternative to Docker)
