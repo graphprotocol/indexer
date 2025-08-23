@@ -6,7 +6,7 @@ import { Allocation } from '../allocations'
 import { SubgraphDeployment } from '../types'
 import {
   parseGraphQLAllocation,
-  parseGraphQLSubgraphDeployment
+  parseGraphQLSubgraphDeployment,
 } from '../indexer-management/types'
 
 export interface DataLoaderOptions {
@@ -42,7 +42,7 @@ export class GraphQLDataLoader {
     const defaultOptions: DataLoaderOptions = {
       cache: true,
       maxBatchSize: 100,
-      batchScheduleFn: callback => process.nextTick(callback),
+      batchScheduleFn: (callback) => process.nextTick(callback),
       ...options,
     }
 
@@ -64,7 +64,7 @@ export class GraphQLDataLoader {
         this.batchLoadMultiAllocations(keys),
       {
         ...defaultOptions,
-        cacheKeyFn: key => `${key.indexer}-${key.status}`,
+        cacheKeyFn: (key) => `${key.indexer}-${key.status}`,
       },
     )
   }
@@ -81,16 +81,13 @@ export class GraphQLDataLoader {
    */
   async loadAllocations(ids: string[]): Promise<(Allocation | null)[]> {
     const results = await this.allocationLoader.loadMany(ids)
-    return results.map(result => (result instanceof Error ? null : result))
+    return results.map((result) => (result instanceof Error ? null : result))
   }
 
   /**
    * Load allocations by indexer and status
    */
-  async loadAllocationsByIndexer(
-    indexer: string,
-    status: string,
-  ): Promise<Allocation[]> {
+  async loadAllocationsByIndexer(indexer: string, status: string): Promise<Allocation[]> {
     return this.multiAllocationLoader.load({ indexer, status })
   }
 
@@ -106,7 +103,7 @@ export class GraphQLDataLoader {
    */
   async loadDeployments(ids: string[]): Promise<(SubgraphDeployment | null)[]> {
     const results = await this.deploymentLoader.loadMany(ids)
-    return results.map(result => (result instanceof Error ? null : result))
+    return results.map((result) => (result instanceof Error ? null : result))
   }
 
   /**
@@ -181,7 +178,7 @@ export class GraphQLDataLoader {
       `
 
       const result = await this.networkSubgraph.checkedQuery(query, {
-        ids: ids.map(id => id.toLowerCase()),
+        ids: ids.map((id) => id.toLowerCase()),
       })
 
       if (result.error) {
@@ -204,7 +201,7 @@ export class GraphQLDataLoader {
       })
 
       // Return in the same order as requested
-      return ids.map(id => allocationsMap.get(id.toLowerCase()) || null)
+      return ids.map((id) => allocationsMap.get(id.toLowerCase()) || null)
     } catch (error) {
       this.logger.error('Failed to batch load allocations', { error })
       throw error
@@ -241,7 +238,7 @@ export class GraphQLDataLoader {
       `
 
       const result = await this.networkSubgraph.checkedQuery(query, {
-        ids: ids.map(id => id.toLowerCase()),
+        ids: ids.map((id) => id.toLowerCase()),
       })
 
       if (result.error) {
@@ -264,7 +261,7 @@ export class GraphQLDataLoader {
       })
 
       // Return in the same order as requested
-      return ids.map(id => deploymentsMap.get(id.toLowerCase()) || null)
+      return ids.map((id) => deploymentsMap.get(id.toLowerCase()) || null)
     } catch (error) {
       this.logger.error('Failed to batch load deployments', { error })
       throw error
@@ -293,12 +290,7 @@ export class GraphQLDataLoader {
       // Build optimized query for all unique combinations
       const query = gql`
         query batchMultiAllocations($queries: [AllocationQuery!]!) {
-          batchAllocations: allocations(
-            where: {
-              OR: $queries
-            }
-            first: 1000
-          ) {
+          batchAllocations: allocations(where: { OR: $queries }, first: 1000) {
             id
             status
             indexer {
@@ -319,12 +311,11 @@ export class GraphQLDataLoader {
         }
       `
 
-      const queries = Array.from(indexerGroups.entries()).flatMap(
-        ([indexer, statuses]) =>
-          Array.from(statuses).map(status => ({
-            indexer: indexer.toLowerCase(),
-            status,
-          })),
+      const queries = Array.from(indexerGroups.entries()).flatMap(([indexer, statuses]) =>
+        Array.from(statuses).map((status) => ({
+          indexer: indexer.toLowerCase(),
+          status,
+        })),
       )
 
       const result = await this.networkSubgraph.checkedQuery(query, { queries })
@@ -340,9 +331,9 @@ export class GraphQLDataLoader {
         if (!allocationsMap.has(key)) {
           allocationsMap.set(key, [])
         }
-        allocationsMap.get(key)!.push(
-          parseGraphQLAllocation(allocation, this.protocolNetwork),
-        )
+        allocationsMap
+          .get(key)!
+          .push(parseGraphQLAllocation(allocation, this.protocolNetwork))
       }
 
       const loadTime = Date.now() - startTime
@@ -352,7 +343,7 @@ export class GraphQLDataLoader {
       })
 
       // Return in the same order as requested
-      return keys.map(key => {
+      return keys.map((key) => {
         const mapKey = `${key.indexer.toLowerCase()}-${key.status}`
         return allocationsMap.get(mapKey) || []
       })
@@ -365,10 +356,7 @@ export class GraphQLDataLoader {
   /**
    * Warm up the cache with frequently accessed data
    */
-  async warmup(
-    allocationIds: string[],
-    deploymentIds: string[],
-  ): Promise<void> {
+  async warmup(allocationIds: string[], deploymentIds: string[]): Promise<void> {
     const startTime = Date.now()
     this.logger.info('Warming up DataLoader cache', {
       allocations: allocationIds.length,

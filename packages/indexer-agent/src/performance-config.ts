@@ -3,6 +3,8 @@
  * These values can be overridden via environment variables
  */
 
+import { cpus, totalmem } from 'os'
+
 export interface PerformanceConfig {
   // Concurrency settings
   allocationConcurrency: number
@@ -99,7 +101,9 @@ export function loadPerformanceConfig(): PerformanceConfig {
   }
 
   if (process.env.NETWORK_QUERY_CONCURRENCY) {
-    config.networkQueryConcurrency = parseInt(process.env.NETWORK_QUERY_CONCURRENCY)
+    config.networkQueryConcurrency = parseInt(
+      process.env.NETWORK_QUERY_CONCURRENCY,
+    )
   }
 
   if (process.env.BATCH_SIZE) {
@@ -123,11 +127,15 @@ export function loadPerformanceConfig(): PerformanceConfig {
   }
 
   if (process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-    config.circuitBreakerFailureThreshold = parseInt(process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD)
+    config.circuitBreakerFailureThreshold = parseInt(
+      process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+    )
   }
 
   if (process.env.CIRCUIT_BREAKER_RESET_TIMEOUT) {
-    config.circuitBreakerResetTimeout = parseInt(process.env.CIRCUIT_BREAKER_RESET_TIMEOUT)
+    config.circuitBreakerResetTimeout = parseInt(
+      process.env.CIRCUIT_BREAKER_RESET_TIMEOUT,
+    )
   }
 
   if (process.env.ENABLE_PRIORITY_QUEUE !== undefined) {
@@ -135,19 +143,24 @@ export function loadPerformanceConfig(): PerformanceConfig {
   }
 
   if (process.env.PRIORITY_QUEUE_SIGNAL_THRESHOLD) {
-    config.priorityQueueSignalThreshold = process.env.PRIORITY_QUEUE_SIGNAL_THRESHOLD
+    config.priorityQueueSignalThreshold =
+      process.env.PRIORITY_QUEUE_SIGNAL_THRESHOLD
   }
 
   if (process.env.PRIORITY_QUEUE_STAKE_THRESHOLD) {
-    config.priorityQueueStakeThreshold = process.env.PRIORITY_QUEUE_STAKE_THRESHOLD
+    config.priorityQueueStakeThreshold =
+      process.env.PRIORITY_QUEUE_STAKE_THRESHOLD
   }
 
   if (process.env.ENABLE_PARALLEL_NETWORK_QUERIES !== undefined) {
-    config.enableParallelNetworkQueries = process.env.ENABLE_PARALLEL_NETWORK_QUERIES !== 'false'
+    config.enableParallelNetworkQueries =
+      process.env.ENABLE_PARALLEL_NETWORK_QUERIES !== 'false'
   }
 
   if (process.env.NETWORK_QUERY_BATCH_SIZE) {
-    config.networkQueryBatchSize = parseInt(process.env.NETWORK_QUERY_BATCH_SIZE)
+    config.networkQueryBatchSize = parseInt(
+      process.env.NETWORK_QUERY_BATCH_SIZE,
+    )
   }
 
   if (process.env.NETWORK_QUERY_TIMEOUT) {
@@ -163,7 +176,9 @@ export function loadPerformanceConfig(): PerformanceConfig {
   }
 
   if (process.env.RETRY_BACKOFF_MULTIPLIER) {
-    config.retryBackoffMultiplier = parseFloat(process.env.RETRY_BACKOFF_MULTIPLIER)
+    config.retryBackoffMultiplier = parseFloat(
+      process.env.RETRY_BACKOFF_MULTIPLIER,
+    )
   }
 
   if (process.env.ENABLE_METRICS !== undefined) {
@@ -175,7 +190,8 @@ export function loadPerformanceConfig(): PerformanceConfig {
   }
 
   if (process.env.ENABLE_DETAILED_LOGGING !== undefined) {
-    config.enableDetailedLogging = process.env.ENABLE_DETAILED_LOGGING === 'true'
+    config.enableDetailedLogging =
+      process.env.ENABLE_DETAILED_LOGGING === 'true'
   }
 
   return config
@@ -205,7 +221,10 @@ export function validatePerformanceConfig(config: PerformanceConfig): void {
     throw new Error('cacheMaxSize must be between 100 and 10000')
   }
 
-  if (config.circuitBreakerFailureThreshold < 1 || config.circuitBreakerFailureThreshold > 20) {
+  if (
+    config.circuitBreakerFailureThreshold < 1 ||
+    config.circuitBreakerFailureThreshold > 20
+  ) {
     throw new Error('circuitBreakerFailureThreshold must be between 1 and 20')
   }
 
@@ -221,16 +240,28 @@ export function getOptimizedConfig(): PerformanceConfig {
   const config = loadPerformanceConfig()
 
   // Adjust based on available system resources
-  const cpuCount = require('os').cpus().length
-  const totalMemory = require('os').totalmem()
+  const cpuCount = cpus().length
+  const totalMemory = totalmem()
 
   // Adjust concurrency based on CPU cores
   if (cpuCount >= 8) {
-    config.allocationConcurrency = Math.min(30, config.allocationConcurrency * 1.5)
-    config.deploymentConcurrency = Math.min(25, config.deploymentConcurrency * 1.5)
+    config.allocationConcurrency = Math.min(
+      30,
+      config.allocationConcurrency * 1.5,
+    )
+    config.deploymentConcurrency = Math.min(
+      25,
+      config.deploymentConcurrency * 1.5,
+    )
   } else if (cpuCount <= 2) {
-    config.allocationConcurrency = Math.max(5, config.allocationConcurrency * 0.5)
-    config.deploymentConcurrency = Math.max(5, config.deploymentConcurrency * 0.5)
+    config.allocationConcurrency = Math.max(
+      5,
+      config.allocationConcurrency * 0.5,
+    )
+    config.deploymentConcurrency = Math.max(
+      5,
+      config.deploymentConcurrency * 0.5,
+    )
   }
 
   // Adjust cache size based on available memory

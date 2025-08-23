@@ -51,10 +51,7 @@ export class CircuitBreaker {
   /**
    * Execute a function with circuit breaker protection
    */
-  async execute<T>(
-    fn: () => Promise<T>,
-    fallback?: () => T | Promise<T>,
-  ): Promise<T> {
+  async execute<T>(fn: () => Promise<T>, fallback?: () => T | Promise<T>): Promise<T> {
     this.stats.totalRequests++
 
     // Check if circuit should transition from OPEN to HALF_OPEN
@@ -65,8 +62,11 @@ export class CircuitBreaker {
         this.logger.debug('Circuit is OPEN, using fallback')
         return fallback()
       } else {
-        throw new Error(`Circuit breaker is OPEN. Reset in ${Math.ceil((this.resetTimeout - (Date.now() - this.stats.lastFailureTime)) / 1000)
-          } seconds`)
+        throw new Error(
+          `Circuit breaker is OPEN. Reset in ${Math.ceil(
+            (this.resetTimeout - (Date.now() - this.stats.lastFailureTime)) / 1000,
+          )} seconds`,
+        )
       }
     }
 
@@ -115,9 +115,7 @@ export class CircuitBreaker {
     }
 
     for (const chunk of chunks) {
-      const chunkResults = await Promise.allSettled(
-        chunk.map(op => this.execute(op))
-      )
+      const chunkResults = await Promise.allSettled(chunk.map((op) => this.execute(op)))
 
       for (const result of chunkResults) {
         if (result.status === 'fulfilled') {
@@ -158,7 +156,7 @@ export class CircuitBreaker {
    */
   getHealthPercentage(): number {
     if (this.stats.totalRequests === 0) return 100
-    return ((this.stats.successes / this.stats.totalRequests) * 100)
+    return (this.stats.successes / this.stats.totalRequests) * 100
   }
 
   /**
@@ -232,7 +230,7 @@ export class CircuitBreaker {
 
     if (oldState !== newState) {
       this.logger.info('Circuit state changed', { from: oldState, to: newState })
-      this.stateChangeCallbacks.forEach(cb => cb(newState))
+      this.stateChangeCallbacks.forEach((cb) => cb(newState))
 
       if (newState === 'HALF_OPEN') {
         this.halfOpenAttempts = 0
@@ -255,7 +253,9 @@ export class CircuitBreaker {
    */
   wrap<T extends (...args: never[]) => Promise<unknown>>(
     fn: T,
-    fallback?: (...args: Parameters<T>) => ReturnType<T> | Promise<Awaited<ReturnType<T>>>,
+    fallback?: (
+      ...args: Parameters<T>
+    ) => ReturnType<T> | Promise<Awaited<ReturnType<T>>>,
   ): T {
     return (async (...args: Parameters<T>) => {
       return this.execute(

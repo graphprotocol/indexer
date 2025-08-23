@@ -77,7 +77,7 @@ export class AllocationPriorityQueue {
    * Enqueue multiple decisions efficiently
    */
   enqueueBatch(decisions: AllocationDecision[]): void {
-    const itemsWithPriority = decisions.map(decision => ({
+    const itemsWithPriority = decisions.map((decision) => ({
       item: decision,
       priority: this.calculatePriority(decision),
     }))
@@ -87,7 +87,8 @@ export class AllocationPriorityQueue {
 
     // Merge with existing queue
     const merged: PriorityItem<AllocationDecision>[] = []
-    let i = 0, j = 0
+    let i = 0,
+      j = 0
 
     while (i < this.queue.length && j < itemsWithPriority.length) {
       if (this.queue[i].priority >= itemsWithPriority[j].priority) {
@@ -104,7 +105,7 @@ export class AllocationPriorityQueue {
     this.queue = merged
 
     // Update metrics
-    decisions.forEach(decision => {
+    decisions.forEach((decision) => {
       this.processingTimes.set(decision.deployment.ipfsHash, Date.now())
     })
 
@@ -170,9 +171,7 @@ export class AllocationPriorityQueue {
    * Get all items matching a predicate
    */
   filter(predicate: (decision: AllocationDecision) => boolean): AllocationDecision[] {
-    return this.queue
-      .filter(item => predicate(item.item))
-      .map(item => item.item)
+    return this.queue.filter((item) => predicate(item.item)).map((item) => item.item)
   }
 
   /**
@@ -180,7 +179,7 @@ export class AllocationPriorityQueue {
    */
   remove(predicate: (decision: AllocationDecision) => boolean): number {
     const initialSize = this.queue.length
-    this.queue = this.queue.filter(item => !predicate(item.item))
+    this.queue = this.queue.filter((item) => !predicate(item.item))
     const removed = initialSize - this.queue.length
 
     if (removed > 0) {
@@ -199,7 +198,7 @@ export class AllocationPriorityQueue {
     priorityModifier: (current: number) => number,
   ): boolean {
     const index = this.queue.findIndex(
-      item => item.item.deployment.ipfsHash === deployment
+      (item) => item.item.deployment.ipfsHash === deployment,
     )
 
     if (index === -1) return false
@@ -270,7 +269,7 @@ export class AllocationPriorityQueue {
    * Get queue items sorted by priority
    */
   getItems(): Array<{ decision: AllocationDecision; priority: number }> {
-    return this.queue.map(item => ({
+    return this.queue.map((item) => ({
       decision: item.item,
       priority: item.priority,
     }))
@@ -318,7 +317,7 @@ export class AllocationPriorityQueue {
 
     // Deployment ID based priority (for consistent ordering)
     const deploymentHash = decision.deployment.ipfsHash
-    const hashPriority = parseInt(deploymentHash.slice(-4), 16) / 65535 * 10
+    const hashPriority = (parseInt(deploymentHash.slice(-4), 16) / 65535) * 10
     priority += hashPriority
 
     return Math.max(0, priority) // Ensure non-negative priority

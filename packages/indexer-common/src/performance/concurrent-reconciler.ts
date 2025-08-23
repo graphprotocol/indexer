@@ -117,9 +117,9 @@ export class ConcurrentReconciler {
 
     // Process batches concurrently
     await Promise.all(
-      batches.map(batch =>
-        this.processBatch(batch, activeAllocations, network, operator)
-      )
+      batches.map((batch) =>
+        this.processBatch(batch, activeAllocations, network, operator),
+      ),
     )
 
     const duration = Date.now() - startTime
@@ -178,7 +178,7 @@ export class ConcurrentReconciler {
             operator,
           )
         },
-        { concurrency: this.options.concurrency }
+        { concurrency: this.options.concurrency },
       )
     }
 
@@ -199,7 +199,7 @@ export class ConcurrentReconciler {
     network: Network,
     operator: Operator,
   ): Promise<void> {
-    const tasks = batch.map(deployment => async () => {
+    const tasks = batch.map((deployment) => async () => {
       const workerId = deployment.ipfsHash
 
       try {
@@ -218,7 +218,6 @@ export class ConcurrentReconciler {
 
         this.workers.set(workerId, workerPromise)
         await workerPromise
-
       } finally {
         this.workers.delete(workerId)
       }
@@ -262,7 +261,6 @@ export class ConcurrentReconciler {
         this.metrics.successful++
         this.updateAverageProcessingTime(Date.now() - startTime)
         return
-
       } catch (error) {
         this.logger.warn(`Deployment reconciliation attempt ${attempt} failed`, {
           deployment: deployment.ipfsHash,
@@ -331,7 +329,7 @@ export class ConcurrentReconciler {
           operator,
         )
       },
-      { concurrency: Math.min(this.options.concurrency, batch.length) }
+      { concurrency: Math.min(this.options.concurrency, batch.length) },
     )
   }
 
@@ -382,7 +380,6 @@ export class ConcurrentReconciler {
 
       this.metrics.successful++
       this.updateAverageProcessingTime(Date.now() - startTime)
-
     } catch (error) {
       this.metrics.failed++
       this.logger.error('Failed to process allocation decision', {
@@ -410,7 +407,7 @@ export class ConcurrentReconciler {
    * Delay helper for retries
    */
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms))
+    return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
   /**
@@ -425,7 +422,13 @@ export class ConcurrentReconciler {
   /**
    * Get reconciliation metrics
    */
-  getMetrics(): Readonly<ReconciliationMetrics & { cacheHitRate: number; circuitBreakerState: string; queueSize: number }> {
+  getMetrics(): Readonly<
+    ReconciliationMetrics & {
+      cacheHitRate: number
+      circuitBreakerState: string
+      queueSize: number
+    }
+  > {
     return {
       ...this.metrics,
       cacheHitRate: this.cache?.getHitRate() || 0,

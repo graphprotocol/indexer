@@ -149,7 +149,10 @@ export class NetworkDataCache {
       }
     }
     if (count > 0) {
-      this.logger.debug('Invalidated cache entries by pattern', { pattern: pattern.toString(), count })
+      this.logger.debug('Invalidated cache entries by pattern', {
+        pattern: pattern.toString(),
+        count,
+      })
     }
   }
 
@@ -238,7 +241,7 @@ export class NetworkDataCache {
     for (const chunk of chunks) {
       await Promise.all(
         chunk.map(({ key, fetcher }) =>
-          this.getCachedOrFetch(key, fetcher).catch(error =>
+          this.getCachedOrFetch(key, fetcher).catch((error) =>
             this.logger.warn('Failed to warm cache entry', { key, error }),
           ),
         ),
