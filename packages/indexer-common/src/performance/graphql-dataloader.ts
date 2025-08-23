@@ -355,7 +355,7 @@ export class GraphQLDataLoader {
       const result = await this.networkSubgraph.checkedQuery(query, { queries })
 
       if (result.error) {
-        throw new BatchLoadError('deployments', ids.length, result.error)
+        throw new BatchLoadError('multi-allocations', keys.length, result.error)
       }
 
       // Group allocations by indexer and status
