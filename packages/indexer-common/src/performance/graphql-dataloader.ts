@@ -231,12 +231,18 @@ export class GraphQLDataLoader {
       // Return in the same order as requested
       return ids.map((id) => allocationsMap.get(id.toLowerCase()) || null)
     } catch (error) {
-      const batchError = error instanceof BatchLoadError ? error : 
-        new BatchLoadError('allocations', ids.length, error instanceof Error ? error : undefined)
-      this.logger.error('Failed to batch load allocations', { 
+      const batchError =
+        error instanceof BatchLoadError
+          ? error
+          : new BatchLoadError(
+              'allocations',
+              ids.length,
+              error instanceof Error ? error : undefined,
+            )
+      this.logger.error('Failed to batch load allocations', {
         error: batchError.message,
         requestedCount: ids.length,
-        operation: batchError.operation 
+        operation: batchError.operation,
       })
       throw batchError
     }
