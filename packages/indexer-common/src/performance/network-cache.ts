@@ -24,6 +24,7 @@ interface CacheMetrics {
  */
 export class NetworkDataCache {
   private cache = new Map<string, CachedEntry<unknown>>()
+  private cleanupInterval?: NodeJS.Timeout
   private readonly ttl: number
   private readonly maxSize: number
   private readonly enableMetrics: boolean
@@ -38,12 +39,12 @@ export class NetworkDataCache {
 
   constructor(logger: Logger, options: CacheOptions = {}) {
     this.logger = logger.child({ component: 'NetworkDataCache' })
-    this.ttl = options.ttl || 30000 // Default 30 seconds
-    this.maxSize = options.maxSize || 1000
-    this.enableMetrics = options.enableMetrics || false
+    this.ttl = options.ttl ?? 30000 // Default 30 seconds
+    this.maxSize = options.maxSize ?? 1000
+    this.enableMetrics = options.enableMetrics ?? false
 
     // Periodic cleanup of expired entries
-    setInterval(() => this.cleanup(), this.ttl)
+    this.cleanupInterval = setInterval(() => this.cleanup(), this.ttl)
   }
 
   /**
@@ -55,7 +56,7 @@ export class NetworkDataCache {
     customTtl?: number,
   ): Promise<T> {
     const cached = this.cache.get(key)
-    const effectiveTtl = customTtl || this.ttl
+    const effectiveTtl = customTtl ?? this.ttl
 
     if (cached && Date.now() - cached.timestamp < effectiveTtl) {
       // Cache hit
@@ -65,7 +66,7 @@ export class NetworkDataCache {
         this.metrics.hits++
         this.logger.trace('Cache hit', { key, hits: cached.hits })
       }
-      return cached.data as T
+      return this.validateCachedData<T>(cached.data, key)
     }
 
     // Cache miss
@@ -82,7 +83,7 @@ export class NetworkDataCache {
       // On error, return stale data if available
       if (cached) {
         this.logger.warn('Fetcher failed, returning stale data', { key, error })
-        return cached.data as T
+        return this.validateCachedData<T>(cached.data, key)
       }
       throw error
     }
@@ -116,7 +117,7 @@ export class NetworkDataCache {
       cached.hits++
       this.updateAccessOrder(key)
       if (this.enableMetrics) this.metrics.hits++
-      return cached.data as T
+      return this.validateCachedData<T>(cached.data, key)
     }
     if (this.enableMetrics) this.metrics.misses++
     return undefined
@@ -198,8 +199,10 @@ export class NetworkDataCache {
    */
   private evictLRU(): void {
     if (this.accessOrder.length > 0) {
-      const lruKey = this.accessOrder.shift()!
-      this.cache.delete(lruKey)
+      const lruKey = this.accessOrder.shift()
+      if (lruKey) {
+        this.cache.delete(lruKey)
+      }
       if (this.enableMetrics) {
         this.metrics.evictions++
       }
@@ -249,5 +252,26 @@ export class NetworkDataCache {
     }
 
     this.logger.info('Cache warmed up', { entries: entries.length })
+  }
+
+  /**
+   * Validate cached data with proper type checking
+   */
+  private validateCachedData<T>(data: unknown, key: string): T {
+    if (data === undefined || data === null) {
+      throw new Error(`Invalid cached data for key: ${key}`)
+    }
+    return data as T
+  }
+
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = undefined
+    }
+    this.clear()
   }
 }

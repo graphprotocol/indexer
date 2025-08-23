@@ -16,6 +16,34 @@ export interface DataLoaderOptions {
 }
 
 /**
+ * Specific error types for DataLoader operations
+ */
+export class DataLoaderError extends Error {
+  constructor(
+    message: string,
+    public readonly operation: string,
+    public readonly cause?: Error,
+  ) {
+    super(message)
+    this.name = 'DataLoaderError'
+  }
+}
+
+export class BatchLoadError extends DataLoaderError {
+  constructor(
+    operation: string,
+    public readonly requestedCount: number,
+    cause?: Error,
+  ) {
+    super(
+      `Failed to batch load ${operation} (requested: ${requestedCount})`,
+      operation,
+      cause,
+    )
+  }
+}
+
+/**
  * GraphQL DataLoader implementation for batching and caching queries
  */
 export class GraphQLDataLoader {
@@ -182,7 +210,7 @@ export class GraphQLDataLoader {
       })
 
       if (result.error) {
-        throw result.error
+        throw new BatchLoadError('allocations', ids.length, result.error)
       }
 
       const allocationsMap = new Map<string, Allocation>()
@@ -203,8 +231,14 @@ export class GraphQLDataLoader {
       // Return in the same order as requested
       return ids.map((id) => allocationsMap.get(id.toLowerCase()) || null)
     } catch (error) {
-      this.logger.error('Failed to batch load allocations', { error })
-      throw error
+      const batchError = error instanceof BatchLoadError ? error : 
+        new BatchLoadError('allocations', ids.length, error instanceof Error ? error : undefined)
+      this.logger.error('Failed to batch load allocations', { 
+        error: batchError.message,
+        requestedCount: ids.length,
+        operation: batchError.operation 
+      })
+      throw batchError
     }
   }
 
@@ -242,7 +276,7 @@ export class GraphQLDataLoader {
       })
 
       if (result.error) {
-        throw result.error
+        throw new BatchLoadError('deployments', ids.length, result.error)
       }
 
       const deploymentsMap = new Map<string, SubgraphDeployment>()
@@ -321,7 +355,7 @@ export class GraphQLDataLoader {
       const result = await this.networkSubgraph.checkedQuery(query, { queries })
 
       if (result.error) {
-        throw result.error
+        throw new BatchLoadError('deployments', ids.length, result.error)
       }
 
       // Group allocations by indexer and status

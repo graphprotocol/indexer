@@ -5,6 +5,50 @@
 
 import { cpus, totalmem } from 'os'
 
+// Constants for performance configuration
+const PERFORMANCE_DEFAULTS = {
+  ALLOCATION_CONCURRENCY: 20,
+  DEPLOYMENT_CONCURRENCY: 15,
+  NETWORK_QUERY_CONCURRENCY: 10,
+  BATCH_SIZE: 10,
+  CACHE_TTL: 30_000, // 30 seconds
+  CACHE_MAX_SIZE: 2000,
+  CACHE_CLEANUP_INTERVAL: 60_000, // 1 minute
+  CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5,
+  CIRCUIT_BREAKER_RESET_TIMEOUT: 60_000, // 1 minute
+  PRIORITY_QUEUE_SIGNAL_THRESHOLD: '1000000000000000000000', // 1000 GRT
+  PRIORITY_QUEUE_STAKE_THRESHOLD: '10000000000000000000000', // 10000 GRT
+  NETWORK_QUERY_BATCH_SIZE: 50,
+  NETWORK_QUERY_TIMEOUT: 30_000, // 30 seconds
+  MAX_RETRY_ATTEMPTS: 3,
+  RETRY_DELAY: 1000, // 1 second
+  RETRY_BACKOFF_MULTIPLIER: 2,
+  METRICS_INTERVAL: 60_000, // 1 minute
+} as const
+
+/**
+ * Utility function for parsing environment variables
+ */
+function parseEnvInt(key: string, defaultValue: number): number {
+  const value = process.env[key]
+  return value ? parseInt(value, 10) : defaultValue
+}
+
+function parseEnvFloat(key: string, defaultValue: number): number {
+  const value = process.env[key]
+  return value ? parseFloat(value) : defaultValue
+}
+
+function parseEnvBoolean(key: string, defaultValue: boolean): boolean {
+  const value = process.env[key]
+  if (value === undefined) return defaultValue
+  return value !== 'false'
+}
+
+function parseEnvString(key: string, defaultValue: string): string {
+  return process.env[key] ?? defaultValue
+}
+
 export interface PerformanceConfig {
   // Concurrency settings
   allocationConcurrency: number
@@ -47,42 +91,106 @@ export interface PerformanceConfig {
 
 export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   // Concurrency settings
-  allocationConcurrency: 20,
-  deploymentConcurrency: 15,
-  networkQueryConcurrency: 10,
-  batchSize: 10,
+  allocationConcurrency: PERFORMANCE_DEFAULTS.ALLOCATION_CONCURRENCY,
+  deploymentConcurrency: PERFORMANCE_DEFAULTS.DEPLOYMENT_CONCURRENCY,
+  networkQueryConcurrency: PERFORMANCE_DEFAULTS.NETWORK_QUERY_CONCURRENCY,
+  batchSize: PERFORMANCE_DEFAULTS.BATCH_SIZE,
 
   // Cache settings
   enableCache: true,
-  cacheTTL: 30000, // 30 seconds
-  cacheMaxSize: 2000,
-  cacheCleanupInterval: 60000, // 1 minute
+  cacheTTL: PERFORMANCE_DEFAULTS.CACHE_TTL,
+  cacheMaxSize: PERFORMANCE_DEFAULTS.CACHE_MAX_SIZE,
+  cacheCleanupInterval: PERFORMANCE_DEFAULTS.CACHE_CLEANUP_INTERVAL,
 
   // Circuit breaker settings
   enableCircuitBreaker: true,
-  circuitBreakerFailureThreshold: 5,
-  circuitBreakerResetTimeout: 60000, // 1 minute
+  circuitBreakerFailureThreshold: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+  circuitBreakerResetTimeout: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_RESET_TIMEOUT,
   circuitBreakerHalfOpenMaxAttempts: 3,
 
   // Priority queue settings
   enablePriorityQueue: true,
-  priorityQueueSignalThreshold: '1000000000000000000000', // 1000 GRT
-  priorityQueueStakeThreshold: '10000000000000000000000', // 10000 GRT
+  priorityQueueSignalThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_SIGNAL_THRESHOLD,
+  priorityQueueStakeThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_STAKE_THRESHOLD,
 
   // Network settings
   enableParallelNetworkQueries: true,
-  networkQueryBatchSize: 50,
-  networkQueryTimeout: 30000, // 30 seconds
+  networkQueryBatchSize: PERFORMANCE_DEFAULTS.NETWORK_QUERY_BATCH_SIZE,
+  networkQueryTimeout: PERFORMANCE_DEFAULTS.NETWORK_QUERY_TIMEOUT,
 
   // Retry settings
-  maxRetryAttempts: 3,
-  retryDelay: 1000, // 1 second
-  retryBackoffMultiplier: 2,
+  maxRetryAttempts: PERFORMANCE_DEFAULTS.MAX_RETRY_ATTEMPTS,
+  retryDelay: PERFORMANCE_DEFAULTS.RETRY_DELAY,
+  retryBackoffMultiplier: PERFORMANCE_DEFAULTS.RETRY_BACKOFF_MULTIPLIER,
 
   // Monitoring settings
   enableMetrics: true,
-  metricsInterval: 60000, // 1 minute
+  metricsInterval: PERFORMANCE_DEFAULTS.METRICS_INTERVAL,
   enableDetailedLogging: false,
+}
+
+/**
+ * Apply concurrency-related environment variable overrides
+ */
+function applyConcurrencySettings(config: PerformanceConfig): void {
+  config.allocationConcurrency = parseEnvInt('ALLOCATION_CONCURRENCY', config.allocationConcurrency)
+  config.deploymentConcurrency = parseEnvInt('DEPLOYMENT_CONCURRENCY', config.deploymentConcurrency)
+  config.networkQueryConcurrency = parseEnvInt('NETWORK_QUERY_CONCURRENCY', config.networkQueryConcurrency)
+  config.batchSize = parseEnvInt('BATCH_SIZE', config.batchSize)
+}
+
+/**
+ * Apply cache-related environment variable overrides
+ */
+function applyCacheSettings(config: PerformanceConfig): void {
+  config.enableCache = parseEnvBoolean('ENABLE_CACHE', config.enableCache)
+  config.cacheTTL = parseEnvInt('CACHE_TTL', config.cacheTTL)
+  config.cacheMaxSize = parseEnvInt('CACHE_MAX_SIZE', config.cacheMaxSize)
+}
+
+/**
+ * Apply circuit breaker environment variable overrides
+ */
+function applyCircuitBreakerSettings(config: PerformanceConfig): void {
+  config.enableCircuitBreaker = parseEnvBoolean('ENABLE_CIRCUIT_BREAKER', config.enableCircuitBreaker)
+  config.circuitBreakerFailureThreshold = parseEnvInt('CIRCUIT_BREAKER_FAILURE_THRESHOLD', config.circuitBreakerFailureThreshold)
+  config.circuitBreakerResetTimeout = parseEnvInt('CIRCUIT_BREAKER_RESET_TIMEOUT', config.circuitBreakerResetTimeout)
+}
+
+/**
+ * Apply priority queue environment variable overrides
+ */
+function applyPriorityQueueSettings(config: PerformanceConfig): void {
+  config.enablePriorityQueue = parseEnvBoolean('ENABLE_PRIORITY_QUEUE', config.enablePriorityQueue)
+  config.priorityQueueSignalThreshold = parseEnvString('PRIORITY_QUEUE_SIGNAL_THRESHOLD', config.priorityQueueSignalThreshold)
+  config.priorityQueueStakeThreshold = parseEnvString('PRIORITY_QUEUE_STAKE_THRESHOLD', config.priorityQueueStakeThreshold)
+}
+
+/**
+ * Apply network-related environment variable overrides
+ */
+function applyNetworkSettings(config: PerformanceConfig): void {
+  config.enableParallelNetworkQueries = parseEnvBoolean('ENABLE_PARALLEL_NETWORK_QUERIES', config.enableParallelNetworkQueries)
+  config.networkQueryBatchSize = parseEnvInt('NETWORK_QUERY_BATCH_SIZE', config.networkQueryBatchSize)
+  config.networkQueryTimeout = parseEnvInt('NETWORK_QUERY_TIMEOUT', config.networkQueryTimeout)
+}
+
+/**
+ * Apply retry-related environment variable overrides
+ */
+function applyRetrySettings(config: PerformanceConfig): void {
+  config.maxRetryAttempts = parseEnvInt('MAX_RETRY_ATTEMPTS', config.maxRetryAttempts)
+  config.retryDelay = parseEnvInt('RETRY_DELAY', config.retryDelay)
+  config.retryBackoffMultiplier = parseEnvFloat('RETRY_BACKOFF_MULTIPLIER', config.retryBackoffMultiplier)
+}
+
+/**
+ * Apply monitoring-related environment variable overrides
+ */
+function applyMonitoringSettings(config: PerformanceConfig): void {
+  config.enableMetrics = parseEnvBoolean('ENABLE_METRICS', config.enableMetrics)
+  config.metricsInterval = parseEnvInt('METRICS_INTERVAL', config.metricsInterval)
+  config.enableDetailedLogging = parseEnvBoolean('ENABLE_DETAILED_LOGGING', config.enableDetailedLogging)
 }
 
 /**
@@ -91,108 +199,13 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
 export function loadPerformanceConfig(): PerformanceConfig {
   const config = { ...DEFAULT_PERFORMANCE_CONFIG }
 
-  // Override with environment variables if present
-  if (process.env.ALLOCATION_CONCURRENCY) {
-    config.allocationConcurrency = parseInt(process.env.ALLOCATION_CONCURRENCY)
-  }
-
-  if (process.env.DEPLOYMENT_CONCURRENCY) {
-    config.deploymentConcurrency = parseInt(process.env.DEPLOYMENT_CONCURRENCY)
-  }
-
-  if (process.env.NETWORK_QUERY_CONCURRENCY) {
-    config.networkQueryConcurrency = parseInt(
-      process.env.NETWORK_QUERY_CONCURRENCY,
-    )
-  }
-
-  if (process.env.BATCH_SIZE) {
-    config.batchSize = parseInt(process.env.BATCH_SIZE)
-  }
-
-  if (process.env.ENABLE_CACHE !== undefined) {
-    config.enableCache = process.env.ENABLE_CACHE !== 'false'
-  }
-
-  if (process.env.CACHE_TTL) {
-    config.cacheTTL = parseInt(process.env.CACHE_TTL)
-  }
-
-  if (process.env.CACHE_MAX_SIZE) {
-    config.cacheMaxSize = parseInt(process.env.CACHE_MAX_SIZE)
-  }
-
-  if (process.env.ENABLE_CIRCUIT_BREAKER !== undefined) {
-    config.enableCircuitBreaker = process.env.ENABLE_CIRCUIT_BREAKER !== 'false'
-  }
-
-  if (process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD) {
-    config.circuitBreakerFailureThreshold = parseInt(
-      process.env.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
-    )
-  }
-
-  if (process.env.CIRCUIT_BREAKER_RESET_TIMEOUT) {
-    config.circuitBreakerResetTimeout = parseInt(
-      process.env.CIRCUIT_BREAKER_RESET_TIMEOUT,
-    )
-  }
-
-  if (process.env.ENABLE_PRIORITY_QUEUE !== undefined) {
-    config.enablePriorityQueue = process.env.ENABLE_PRIORITY_QUEUE !== 'false'
-  }
-
-  if (process.env.PRIORITY_QUEUE_SIGNAL_THRESHOLD) {
-    config.priorityQueueSignalThreshold =
-      process.env.PRIORITY_QUEUE_SIGNAL_THRESHOLD
-  }
-
-  if (process.env.PRIORITY_QUEUE_STAKE_THRESHOLD) {
-    config.priorityQueueStakeThreshold =
-      process.env.PRIORITY_QUEUE_STAKE_THRESHOLD
-  }
-
-  if (process.env.ENABLE_PARALLEL_NETWORK_QUERIES !== undefined) {
-    config.enableParallelNetworkQueries =
-      process.env.ENABLE_PARALLEL_NETWORK_QUERIES !== 'false'
-  }
-
-  if (process.env.NETWORK_QUERY_BATCH_SIZE) {
-    config.networkQueryBatchSize = parseInt(
-      process.env.NETWORK_QUERY_BATCH_SIZE,
-    )
-  }
-
-  if (process.env.NETWORK_QUERY_TIMEOUT) {
-    config.networkQueryTimeout = parseInt(process.env.NETWORK_QUERY_TIMEOUT)
-  }
-
-  if (process.env.MAX_RETRY_ATTEMPTS) {
-    config.maxRetryAttempts = parseInt(process.env.MAX_RETRY_ATTEMPTS)
-  }
-
-  if (process.env.RETRY_DELAY) {
-    config.retryDelay = parseInt(process.env.RETRY_DELAY)
-  }
-
-  if (process.env.RETRY_BACKOFF_MULTIPLIER) {
-    config.retryBackoffMultiplier = parseFloat(
-      process.env.RETRY_BACKOFF_MULTIPLIER,
-    )
-  }
-
-  if (process.env.ENABLE_METRICS !== undefined) {
-    config.enableMetrics = process.env.ENABLE_METRICS !== 'false'
-  }
-
-  if (process.env.METRICS_INTERVAL) {
-    config.metricsInterval = parseInt(process.env.METRICS_INTERVAL)
-  }
-
-  if (process.env.ENABLE_DETAILED_LOGGING !== undefined) {
-    config.enableDetailedLogging =
-      process.env.ENABLE_DETAILED_LOGGING === 'true'
-  }
+  applyConcurrencySettings(config)
+  applyCacheSettings(config)
+  applyCircuitBreakerSettings(config)
+  applyPriorityQueueSettings(config)
+  applyNetworkSettings(config)
+  applyRetrySettings(config)
+  applyMonitoringSettings(config)
 
   return config
 }

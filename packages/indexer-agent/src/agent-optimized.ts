@@ -45,19 +45,19 @@ import { AgentConfigs, NetworkAndOperator } from './types'
 // Configuration constants for performance tuning
 const PERFORMANCE_CONFIG = {
   ALLOCATION_CONCURRENCY: process.env.ALLOCATION_CONCURRENCY
-    ? parseInt(process.env.ALLOCATION_CONCURRENCY)
+    ? parseInt(process.env.ALLOCATION_CONCURRENCY, 10)
     : 20,
   DEPLOYMENT_CONCURRENCY: process.env.DEPLOYMENT_CONCURRENCY
-    ? parseInt(process.env.DEPLOYMENT_CONCURRENCY)
+    ? parseInt(process.env.DEPLOYMENT_CONCURRENCY, 10)
     : 15,
-  BATCH_SIZE: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE) : 10,
-  CACHE_TTL: process.env.CACHE_TTL ? parseInt(process.env.CACHE_TTL) : 30000,
+  BATCH_SIZE: process.env.BATCH_SIZE ? parseInt(process.env.BATCH_SIZE, 10) : 10,
+  CACHE_TTL: process.env.CACHE_TTL ? parseInt(process.env.CACHE_TTL, 10) : 30_000,
   ENABLE_CIRCUIT_BREAKER: process.env.ENABLE_CIRCUIT_BREAKER !== 'false',
   ENABLE_PRIORITY_QUEUE: process.env.ENABLE_PRIORITY_QUEUE !== 'false',
   ENABLE_CACHE: process.env.ENABLE_CACHE !== 'false',
   NETWORK_QUERY_BATCH_SIZE: 50,
   PARALLEL_NETWORK_QUERIES: true,
-}
+} as const
 
 type ActionReconciliationContext = [AllocationDecision[], number, number]
 

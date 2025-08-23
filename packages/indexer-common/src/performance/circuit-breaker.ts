@@ -36,16 +36,17 @@ export class CircuitBreaker {
   private readonly monitoringPeriod: number
   private logger: Logger
   private stateChangeCallbacks: Array<(state: CircuitState) => void> = []
+  private monitoringInterval?: NodeJS.Timeout
 
   constructor(logger: Logger, options: CircuitBreakerOptions = {}) {
     this.logger = logger.child({ component: 'CircuitBreaker' })
-    this.failureThreshold = options.failureThreshold || 5
-    this.resetTimeout = options.resetTimeout || 60000 // 1 minute
-    this.halfOpenMaxAttempts = options.halfOpenMaxAttempts || 3
-    this.monitoringPeriod = options.monitoringPeriod || 300000 // 5 minutes
+    this.failureThreshold = options.failureThreshold ?? 5
+    this.resetTimeout = options.resetTimeout ?? 60_000 // 1 minute
+    this.halfOpenMaxAttempts = options.halfOpenMaxAttempts ?? 3
+    this.monitoringPeriod = options.monitoringPeriod ?? 300_000 // 5 minutes
 
     // Periodic stats reset
-    setInterval(() => this.resetStats(), this.monitoringPeriod)
+    this.monitoringInterval = setInterval(() => this.resetStats(), this.monitoringPeriod)
   }
 
   /**
@@ -263,5 +264,16 @@ export class CircuitBreaker {
         fallback ? () => fallback(...args) : undefined,
       )
     }) as T
+  }
+
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval)
+      this.monitoringInterval = undefined
+    }
+    this.stateChangeCallbacks = []
   }
 }
