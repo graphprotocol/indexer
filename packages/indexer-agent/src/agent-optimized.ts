@@ -445,7 +445,8 @@ export class Agent {
         async () => {
           if (PERFORMANCE_CONFIG.PARALLEL_NETWORK_QUERIES) {
             // Fetch all network deployments in parallel
-            const networkDeployments = await this.multiNetworks.map(async ({ network }: NetworkAndOperator) => {
+            const networkDeployments = await this.multiNetworks.map(
+              async ({ network }: NetworkAndOperator) => {
                 const networkId = network.specification.networkIdentifier
                 const loader = this.dataLoader.get(networkId)
 
@@ -463,7 +464,8 @@ export class Agent {
                   deployments:
                     await network.networkMonitor.subgraphDeployments(),
                 }
-              })
+              },
+            )
 
             const deploymentMap: NetworkMapped<SubgraphDeployment[]> = {}
             for (const result of Object.values(networkDeployments)) {
@@ -941,16 +943,17 @@ export class Agent {
     return join({ networkDeployments, indexingRules }).tryMap(
       async ({ networkDeployments, indexingRules }) => {
         const decisionsEntries = await Promise.all(
-          Object.entries(this.multiNetworks.zip(indexingRules, networkDeployments)).map(
-            async ([networkId, [rules, deployments]]) => {
-              const decisions = rules.length === 0
+          Object.entries(
+            this.multiNetworks.zip(indexingRules, networkDeployments),
+          ).map(async ([networkId, [rules, deployments]]) => {
+            const decisions =
+              rules.length === 0
                 ? []
                 : await evaluateDeployments(this.logger, deployments, rules)
-              return [networkId, decisions]
-            }
-          )
+            return [networkId, decisions]
+          }),
         )
-        
+
         const decisions = Object.fromEntries(decisionsEntries)
 
         return uniqueDeployments([
@@ -975,16 +978,17 @@ export class Agent {
     return join({ networkDeployments, indexingRules }).tryMap(
       async ({ networkDeployments, indexingRules }) => {
         const decisionsEntries = await Promise.all(
-          Object.entries(this.multiNetworks.zip(indexingRules, networkDeployments)).map(
-            async ([networkId, [rules, deployments]]) => {
-              const decisions = rules.length === 0
+          Object.entries(
+            this.multiNetworks.zip(indexingRules, networkDeployments),
+          ).map(async ([networkId, [rules, deployments]]) => {
+            const decisions =
+              rules.length === 0
                 ? []
                 : await evaluateDeployments(this.logger, deployments, rules)
-              return [networkId, decisions]
-            }
-          )
+            return [networkId, decisions]
+          }),
         )
-        
+
         return Object.fromEntries(decisionsEntries)
       },
       {
