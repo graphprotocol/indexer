@@ -467,10 +467,11 @@ export class Agent {
               },
             )
 
-            const deploymentMap: NetworkMapped<SubgraphDeployment[]> = {}
-            for (const result of Object.values(networkDeployments)) {
-              deploymentMap[result.networkId] = result.deployments
-            }
+            const deploymentMap: NetworkMapped<SubgraphDeployment[]> = Object.fromEntries(
+              Object.values(networkDeployments).map(
+                (result) => [result.networkId, result.deployments]
+              )
+            )
             return deploymentMap
           } else {
             // Fallback to sequential fetching
