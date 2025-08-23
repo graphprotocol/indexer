@@ -247,29 +247,29 @@ export function getOptimizedConfig(): PerformanceConfig {
   if (cpuCount >= 8) {
     config.allocationConcurrency = Math.min(
       30,
-      config.allocationConcurrency * 1.5,
+      Math.round(config.allocationConcurrency * 1.5),
     )
     config.deploymentConcurrency = Math.min(
       25,
-      config.deploymentConcurrency * 1.5,
+      Math.round(config.deploymentConcurrency * 1.5),
     )
   } else if (cpuCount <= 2) {
     config.allocationConcurrency = Math.max(
       5,
-      config.allocationConcurrency * 0.5,
+      Math.round(config.allocationConcurrency * 0.5),
     )
     config.deploymentConcurrency = Math.max(
       5,
-      config.deploymentConcurrency * 0.5,
+      Math.round(config.deploymentConcurrency * 0.5),
     )
   }
 
   // Adjust cache size based on available memory
   const memoryGB = totalMemory / (1024 * 1024 * 1024)
   if (memoryGB >= 16) {
-    config.cacheMaxSize = Math.min(5000, config.cacheMaxSize * 2)
+    config.cacheMaxSize = Math.min(5000, Math.round(config.cacheMaxSize * 2))
   } else if (memoryGB <= 4) {
-    config.cacheMaxSize = Math.max(500, config.cacheMaxSize * 0.5)
+    config.cacheMaxSize = Math.max(500, Math.round(config.cacheMaxSize * 0.5))
   }
 
   return config
