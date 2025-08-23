@@ -426,21 +426,32 @@ export class Agent {
       networkDeployments,
       indexingRules,
     }).tryMap(
-      ({ indexingRules, networkDeployments }) => {
-        return mapValues(
-          this.multiNetworks.zip(indexingRules, networkDeployments),
-          ([indexingRules, networkDeployments]: [
-            IndexingRuleAttributes[],
-            SubgraphDeployment[],
-          ]) => {
-            // Identify subgraph deployments on the network that are worth picking up;
-            // these may overlap with the ones we're already indexing
-            logger.trace('Evaluating which deployments are worth allocating to')
-            return indexingRules.length === 0
-              ? []
-              : evaluateDeployments(logger, networkDeployments, indexingRules)
-          },
+      async ({ indexingRules, networkDeployments }) => {
+        const results = await Promise.all(
+          Object.entries(this.multiNetworks.zip(indexingRules, networkDeployments)).map(
+            async ([networkId, [indexingRules, networkDeployments]]: [
+              string,
+              [IndexingRuleAttributes[], SubgraphDeployment[]]
+            ]) => {
+              // Identify subgraph deployments on the network that are worth picking up;
+              // these may overlap with the ones we're already indexing
+              logger.trace('Evaluating which deployments are worth allocating to', {
+                protocolNetwork: networkId,
+                deploymentCount: networkDeployments.length,
+                ruleCount: indexingRules.length
+              })
+
+              const decisions = indexingRules.length === 0
+                ? []
+                : await evaluateDeployments(logger, networkDeployments, indexingRules)
+
+              return [networkId, decisions] as [string, AllocationDecision[]]
+            }
+          )
         )
+
+        // Convert back to the expected object format
+        return Object.fromEntries(results)
       },
       {
         onError: error =>
