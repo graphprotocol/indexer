@@ -252,7 +252,7 @@ export class GraphQLDataLoader {
       for (const deployment of result.data.subgraphDeployments || []) {
         deploymentsMap.set(
           deployment.id.toLowerCase(),
-          parseGraphQLSubgraphDeployment(deployment),
+          parseGraphQLSubgraphDeployment(deployment, this.protocolNetwork),
         )
       }
 

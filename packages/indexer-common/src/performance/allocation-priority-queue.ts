@@ -283,54 +283,9 @@ export class AllocationPriorityQueue {
   private calculatePriority(decision: AllocationDecision): number {
     let priority = 0
 
-    // Critical factors (1000+ points)
-    if (decision.urgent) {
-      priority += 10000 // Urgent allocations get top priority
-    }
-
-    if (decision.toAllocate && !decision.deployment.activeAllocations) {
-      priority += 5000 // New allocations for unallocated deployments
-    }
-
     // High priority factors (100-999 points)
     if (decision.toAllocate) {
       priority += 500 // Creating allocations is generally high priority
-    }
-
-    // Signal-based priority (up to 1000 points)
-    if (decision.deployment.signalledTokens.gt(this.signalThreshold)) {
-      const signalScore = Math.min(
-        1000,
-        decision.deployment.signalledTokens
-          .div(this.signalThreshold)
-          .toNumber() * 10
-      )
-      priority += signalScore
-    }
-
-    // Stake-based priority (up to 500 points)
-    if (decision.deployment.stakedTokens.gt(this.stakeThreshold)) {
-      const stakeScore = Math.min(
-        500,
-        decision.deployment.stakedTokens
-          .div(this.stakeThreshold)
-          .toNumber() * 5
-      )
-      priority += stakeScore
-    }
-
-    // Query fees priority (up to 300 points)
-    if (decision.deployment.queryFeesAmount.gt(0)) {
-      const feeScore = Math.min(
-        300,
-        Math.log10(decision.deployment.queryFeesAmount.toNumber()) * 30
-      )
-      priority += feeScore
-    }
-
-    // Profitability-based priority (up to 200 points)
-    if (decision.profitability && decision.profitability > 0) {
-      priority += Math.min(200, decision.profitability * 100)
     }
 
     // Lower priority for closing allocations (-100 points)
@@ -338,10 +293,33 @@ export class AllocationPriorityQueue {
       priority -= 100
     }
 
-    // Safety check failures get deprioritized (-500 points)
-    if (decision.deployment.deniedAt && decision.deployment.deniedAt > 0) {
-      priority -= 500
+    // Rule-based priority
+    if (decision.ruleMatch.rule) {
+      const rule = decision.ruleMatch.rule
+      
+      // Higher allocation amount suggests higher importance
+      if (rule.allocationAmount) {
+        const amount = parseFloat(rule.allocationAmount)
+        priority += Math.min(200, Math.log10(amount + 1) * 20)
+      }
+      
+      // Priority based on decision basis
+      if (rule.decisionBasis === 'always') {
+        priority += 100
+      } else if (rule.decisionBasis === 'rules') {
+        priority += 50
+      }
+      
+      // Safety considerations
+      if (rule.safety === false) {
+        priority -= 200 // Deprioritize unsafe deployments
+      }
     }
+
+    // Deployment ID based priority (for consistent ordering)
+    const deploymentHash = decision.deployment.ipfsHash
+    const hashPriority = parseInt(deploymentHash.slice(-4), 16) / 65535 * 10
+    priority += hashPriority
 
     return Math.max(0, priority) // Ensure non-negative priority
   }
