@@ -247,6 +247,7 @@ export async function evaluateDeployments(
   logger: Logger,
   networkDeployments: SubgraphDeployment[],
   rules: IndexingRuleAttributes[],
+  minStakeThreshold?: string,
 ): Promise<AllocationDecision[]> {
   const startTime = performance.now()
 
@@ -266,8 +267,9 @@ export async function evaluateDeployments(
     deploymentRules: deploymentRulesMap.size
   })
 
-    // Filter deployments by minimum thresholds to reduce work
-  const MIN_STAKE_THRESHOLD = BigNumber.from(process.env.INDEXER_MIN_STAKE_THRESHOLD || '1000000000000000000') // Default: 1 GRT minimum
+  // Filter deployments by minimum thresholds to reduce work
+  // Use provided threshold or fall back to environment variable
+  const MIN_STAKE_THRESHOLD = BigNumber.from(minStakeThreshold || process.env.INDEXER_MIN_STAKE_THRESHOLD || '1000000000000000000') // Default: 1 GRT minimum
   const significantDeployments = networkDeployments.filter(deployment =>
     deployment.stakedTokens.gte(MIN_STAKE_THRESHOLD) ||
     deployment.signalledTokens.gte(MIN_STAKE_THRESHOLD) ||

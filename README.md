@@ -120,9 +120,10 @@ Indexer Infrastructure
   --allocation-management               Indexer agent allocation management
                                         automation mode (auto|manual|oversight)
                                                       [string] [default: "auto"]
-  --auto-allocation-min-batch-size                 Minimum number of allocation 
-                                        transactions inside a batch for AUTO 
+  --auto-allocation-min-batch-size                 Minimum number of allocation
+                                        transactions inside a batch for AUTO
                                         management mode    [number] [default: 1]
+  --indexer-min-stake-threshold        Minimum stake/signal amount in wei to consider a deployment significant for evaluation. Deployments below this threshold are filtered out unless they have specific indexing rules. Default: 1 GRT (1000000000000000000 wei) [string] [default: "1000000000000000000"]
 
 Network Subgraph
   --network-subgraph-deployment   Network subgraph deployment           [string]
@@ -180,34 +181,34 @@ simply by running `graph indexer`.
 $ graph indexer --help
 Manage indexer configuration
 
-  indexer status                     Check the status of an indexer                                   
-  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)     
-  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)   
-  indexer rules set                  Set one or more indexing rules                                   
-  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary) 
-  indexer rules maybe                Index a deployment based on rules                                
-  indexer rules get                  Get one or more indexing rules                                   
-  indexer rules delete               Remove one or many indexing rules                                
-  indexer rules clear (reset)        Clear one or more indexing rules                                 
-  indexer rules                      Configure indexing rules                                         
-  indexer disputes get               Cross-check POIs submitted in the network                        
-  indexer disputes                   Configure allocation POI monitoring                              
-  indexer cost set model             Update a cost model                                              
-  indexer cost get                   Get cost models for one or all subgraphs        
-  indexer cost                       Manage costing for subgraphs                                     
-  indexer connect                    Connect to indexer management API                                
-  indexer allocations reallocate     Reallocate to subgraph deployment                                
-  indexer allocations get            List one or more allocations                                     
-  indexer allocations create         Create an allocation                                             
-  indexer allocations close          Close an allocation                                              
-  indexer allocations                Manage indexer allocations                                       
-  indexer actions queue              Queue an action item                                             
-  indexer actions get                List one or more actions                                         
-  indexer actions execute            Execute approved items in the action queue                       
-  indexer actions cancel             Cancel an item in the queue                                      
-  indexer actions approve            Approve an action item                                           
-  indexer actions                    Manage indexer actions                                           
-  indexer                            Manage indexer configuration 
+  indexer status                     Check the status of an indexer
+  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)
+  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)
+  indexer rules set                  Set one or more indexing rules
+  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary)
+  indexer rules maybe                Index a deployment based on rules
+  indexer rules get                  Get one or more indexing rules
+  indexer rules delete               Remove one or many indexing rules
+  indexer rules clear (reset)        Clear one or more indexing rules
+  indexer rules                      Configure indexing rules
+  indexer disputes get               Cross-check POIs submitted in the network
+  indexer disputes                   Configure allocation POI monitoring
+  indexer cost set model             Update a cost model
+  indexer cost get                   Get cost models for one or all subgraphs
+  indexer cost                       Manage costing for subgraphs
+  indexer connect                    Connect to indexer management API
+  indexer allocations reallocate     Reallocate to subgraph deployment
+  indexer allocations get            List one or more allocations
+  indexer allocations create         Create an allocation
+  indexer allocations close          Close an allocation
+  indexer allocations                Manage indexer allocations
+  indexer actions queue              Queue an action item
+  indexer actions get                List one or more actions
+  indexer actions execute            Execute approved items in the action queue
+  indexer actions cancel             Cancel an item in the queue
+  indexer actions approve            Approve an action item
+  indexer actions                    Manage indexer actions
+  indexer                            Manage indexer configuration
 ```
 
 ## Running from source
@@ -256,6 +257,26 @@ After this, the indexer agent can be run as follows:
 
    This starts the indexer agent and serves the so-called indexer management API
    on the host at port 18000.
+
+## Performance Optimization Features
+
+The indexer agent includes several performance optimizations for handling large numbers of subgraph deployments:
+
+### Batching and Filtering
+- **Deployment Batching**: Processes deployments in configurable batches (default: 500) to prevent event loop blocking
+- **Stake Threshold Filtering**: Automatically filters out deployments below a minimum stake/signal threshold to reduce processing overhead
+- **Rule Lookup Optimization**: Uses O(1) Map-based lookups instead of O(N) linear scans for indexing rules
+
+### Configuration Options
+- `--indexer-min-stake-threshold`: Set minimum stake amount in wei (default: 1 GRT = 1000000000000000000 wei)
+- `INDEXER_DEPLOYMENT_BATCH_SIZE`: Environment variable for batch size (default: 500)
+
+### Use Cases
+These optimizations are particularly beneficial when:
+- Processing 10,000+ subgraph deployments
+- Managing complex indexing rule sets
+- Running on resource-constrained environments
+- Requiring consistent response times during high-load periods
 
 ## Terraform & Kubernetes
 

@@ -303,6 +303,12 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
+      .option('indexer-min-stake-threshold', {
+        description: 'Minimum stake/signal amount in wei to consider a deployment significant for evaluation. Deployments below this threshold are filtered out unless they have specific indexing rules. Default: 1 GRT (1000000000000000000 wei)',
+        type: 'string',
+        default: '1000000000000000000',
+        group: 'Indexer Infrastructure',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -661,6 +667,7 @@ export async function run(
       (s: string) => new SubgraphDeploymentID(s),
     ),
     pollingInterval: argv.pollingInterval,
+    indexerMinStakeThreshold: argv.indexerMinStakeThreshold,
   }
   const agent = new Agent(agentConfigs)
   await agent.start()

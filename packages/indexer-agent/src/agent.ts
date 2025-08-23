@@ -443,7 +443,7 @@ export class Agent {
 
               const decisions = indexingRules.length === 0
                 ? []
-                : await evaluateDeployments(logger, networkDeployments, indexingRules)
+                : await evaluateDeployments(logger, networkDeployments, indexingRules, this.configs.indexerMinStakeThreshold)
 
               return [networkId, decisions] as [string, AllocationDecision[]]
             }
