@@ -290,8 +290,11 @@ export class ConcurrentReconciler {
    */
   private async reconcileDeploymentInternal(
     deployment: SubgraphDeploymentID,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _activeAllocations: Allocation[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _network: Network,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _operator: Operator,
   ): Promise<void> {
     // Implementation would include actual reconciliation logic
@@ -336,10 +339,15 @@ export class ConcurrentReconciler {
    */
   private async processAllocationDecision(
     decision: AllocationDecision,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _activeAllocations: Allocation[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _epoch: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _maxAllocationEpochs: number,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _network: Network,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     _operator: Operator,
   ): Promise<void> {
     const startTime = Date.now()
