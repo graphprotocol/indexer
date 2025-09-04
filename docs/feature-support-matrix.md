@@ -34,6 +34,8 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:34443                | mode          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:1284                 | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:30                   | rootstock     | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
+| eip155:11155111             | sepolia       | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
+| eip155:97                   | chapel        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | **Data Source Features**    |               |             |              |                   |                      |                  |              |
 | ipfs.cat in mappings        |               | Yes         | Yes          | No                | No                   | No               |              |
 | ENS                         |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
