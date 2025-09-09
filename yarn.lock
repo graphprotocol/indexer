@@ -578,10 +578,10 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/horizon/-/horizon-0.4.1.tgz#b29f0944eeb9d4b50fc586e533904b9e51f18ade"
   integrity sha512-YC/HVmWuCkfembwVQbPEY9NEDNsPsuHxnBMCThB1nAyai9I0Ad/nKnHZ+9baFmq5Sg1YwXxDG7Nc4SQJlgZD2g==
 
-"@graphprotocol/interfaces@^0.5.2":
-  version "0.5.2"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.5.2.tgz#61532bb7bda90aca92a944cd9d1c9aaffbfb53b9"
-  integrity sha512-dW7odjioGFEO4gFE/vpFVSbwxz+HOtA4OrmnRgAiu7f1uQvjv8FAKuDZNeWR4MkIYHqbEPa4QGj9NtIm4TzLaw==
+"@graphprotocol/interfaces@^0.6.0":
+  version "0.6.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.6.0.tgz#2fc7434be09815d88af5515b636266154b57482d"
+  integrity sha512-rnhqVCJtnHf0BbEp3tpiiCdBMiDsXC6Spx8KmR5+zIl2j7VdSlcFuY29KRkY5exuuvULHuWfKn7AqEMG9UnCrw==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -598,13 +598,13 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.4.1.tgz#31a76c10031aa118960a1fa0d7ba955cac123f32"
   integrity sha512-vJA9lzlNQr4IRDPAbUiXM1ybizB4GzI0B1bndvB2X00ecTOWQQCiDl0W/qlApQ86+YXMjU2g90Db23ldqVOvyQ==
 
-"@graphprotocol/toolshed@0.6.11":
-  version "0.6.11"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.11.tgz#7f0d2986fd6a7ca59145d18fa6d1f228cd231a16"
-  integrity sha512-J9fuR9k3Bh63mGqyfI314rlrOE5YL+LcuqMpx0UoRPWDEymGMipZ4jzzRuThWe2gGWJ4o1jk5JCnIv/eKDNUMw==
+"@graphprotocol/toolshed@0.6.12":
+  version "0.6.12"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.12.tgz#5a8deb487d8259695fe9171453ffce730d3ab66c"
+  integrity sha512-MQajVo2HxwvrPeWgN1n4iShoVHgHGvJ3/QvuPQgub8h9FLGryu8Zbosf4VPNQyf2eb3zRZSbguFQ5iErN2owzw==
   dependencies:
     "@graphprotocol/address-book" "^0.1.0"
-    "@graphprotocol/interfaces" "^0.5.2"
+    "@graphprotocol/interfaces" "^0.6.0"
     "@nomicfoundation/hardhat-ethers" "3.0.8"
     debug "^4.4.0"
     ethers "6.13.7"

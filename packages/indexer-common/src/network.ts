@@ -620,7 +620,13 @@ export class Network {
     const indexerRegistrationData = await this.contracts.SubgraphService.indexers(
       this.specification.indexerOptions.address,
     )
-    const isRegistered = indexerRegistrationData.registeredAt !== 0n
+    logger.debug('Indexer registration data', {
+      indexerRegistrationData: {
+        url: indexerRegistrationData.url,
+        geoHash: indexerRegistrationData.geoHash,
+      },
+    })
+    const isRegistered = indexerRegistrationData.url.length > 0
     if (isRegistered) {
       if (
         indexerRegistrationData.url === url &&
