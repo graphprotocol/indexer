@@ -1010,15 +1010,21 @@ export class Agent {
   }
 
   async identifyExpiringAllocations(
-    _logger: Logger,
+    logger: Logger,
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
     maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
+    logger.debug('Identify expiring allocations', {
+      activeAllocations: activeAllocations.map(allocation => allocation.id),
+      epoch,
+      maxAllocationDuration,
+      network: network.specification.networkIdentifier,
+    })
     let expiredAllocations = activeAllocations.filter(
-      async (allocation: Allocation) => {
+     (allocation: Allocation) => {
         let desiredAllocationLifetime: number = 0
         if (allocation.isLegacy) {
           desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
@@ -1034,6 +1040,10 @@ export class Agent {
         return epoch >= allocation.createdAtEpoch + desiredAllocationLifetime
       },
     )
+    logger.debug('Expired allocations found', {
+      expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+      count: expiredAllocations.length,
+    })
     // The allocations come from the network subgraph; due to short indexing
     // latencies, this data may be slightly outdated. Cross-check with the
     // contracts to avoid closing allocations that are already closed on
