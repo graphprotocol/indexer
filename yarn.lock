@@ -598,10 +598,10 @@
   resolved "https://registry.yarnpkg.com/@graphprotocol/subgraph-service/-/subgraph-service-0.4.1.tgz#31a76c10031aa118960a1fa0d7ba955cac123f32"
   integrity sha512-vJA9lzlNQr4IRDPAbUiXM1ybizB4GzI0B1bndvB2X00ecTOWQQCiDl0W/qlApQ86+YXMjU2g90Db23ldqVOvyQ==
 
-"@graphprotocol/toolshed@0.6.12":
-  version "0.6.12"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.12.tgz#5a8deb487d8259695fe9171453ffce730d3ab66c"
-  integrity sha512-MQajVo2HxwvrPeWgN1n4iShoVHgHGvJ3/QvuPQgub8h9FLGryu8Zbosf4VPNQyf2eb3zRZSbguFQ5iErN2owzw==
+"@graphprotocol/toolshed@0.6.13":
+  version "0.6.13"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.13.tgz#c9deac16de5f5cf88c93989740d95b3855fbdac7"
+  integrity sha512-6AP6HZnZka0tCtHxKWTnP2qfB27nwRsfTRm3crH2wSZEf4g3wZRMeyMJp0gE6Ws9wXkl0Doc7YS7CHo6p6LaCg==
   dependencies:
     "@graphprotocol/address-book" "^0.1.0"
     "@graphprotocol/interfaces" "^0.6.0"

@@ -464,7 +464,7 @@ export async function createNetworkSpecification(
   const tapAddressBook = loadFile(argv.tapAddressBook)
 
   try {
-    return spec.NetworkSpecification.parse({
+    const networkSpecification = spec.NetworkSpecification.parse({
       networkIdentifier,
       gateway,
       indexerOptions,
@@ -475,6 +475,10 @@ export async function createNetworkSpecification(
       subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
       tapAddressBook: tapAddressBook,
     })
+    logger.trace("Network specification", {
+      networkSpecification,
+    })
+    return networkSpecification
   } catch (parsingError) {
     displayZodParsingError(parsingError)
     process.exit(1)

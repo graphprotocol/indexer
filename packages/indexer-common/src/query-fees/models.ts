@@ -238,19 +238,19 @@ export class ReceiptAggregateVoucherV2
   extends Model<ReceiptAggregateVoucherV2Attributes>
   implements ReceiptAggregateVoucherV2Attributes
 {
-  public signature!: Uint8Array
-  public collectionId!: string
-  public payer!: Address
-  public dataService!: Address
-  public serviceProvider!: Address
-  public timestampNs!: bigint
-  public valueAggregate!: bigint
-  public metadata!: string
+  declare signature: Uint8Array
+  declare collectionId: string
+  declare payer: Address
+  declare dataService: Address
+  declare serviceProvider: Address
+  declare timestampNs: bigint
+  declare valueAggregate: bigint
+  declare metadata: string
 
-  public final!: boolean
-  public last!: boolean
+  declare final: boolean
+  declare last: boolean
 
-  public redeemedAt!: Date | null
+  declare redeemedAt: Date | null
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
@@ -267,7 +267,7 @@ export class ReceiptAggregateVoucherV2
         payer: this.payer,
         dataService: this.dataService,
         serviceProvider: this.serviceProvider,
-        timestampNs: Number(this.timestampNs),
+        timestampNs: this.timestampNs,
         valueAggregate: this.valueAggregate,
         metadata: this.metadata,
       },
@@ -575,11 +575,11 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         primaryKey: true,
         get() {
           const rawValue = this.getDataValue('collectionId')
-          return toAddress(rawValue)
+          return `0x${rawValue}`
         },
         set(value: string) {
-          const addressWithoutPrefix = value.toLowerCase().replace('0x', '')
-          this.setDataValue('collectionId', addressWithoutPrefix)
+          const collectionWithoutPrefix = value.toLowerCase().replace('0x', '')
+          this.setDataValue('collectionId', collectionWithoutPrefix)
         },
       },
       payer: {
@@ -849,7 +849,7 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         primaryKey: true,
         get() {
           const rawValue = this.getDataValue('collectionId')
-          return toAddress(rawValue)
+          return `0x${rawValue}`
         },
         set(value: string) {
           const addressWithoutPrefix = value.toLowerCase().replace('0x', '')

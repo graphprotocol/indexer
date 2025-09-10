@@ -29,7 +29,7 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 import { encodeCollectQueryFeesData, PaymentTypes } from '@graphprotocol/toolshed'
-import { zeroPadValue, dataSlice } from 'ethers'
+import { dataSlice, hexlify, zeroPadValue } from 'ethers'
 
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
@@ -68,7 +68,7 @@ export interface RavWithAllocation {
 }
 
 export interface SubgraphResponse {
-  transactions: GraphTallyTransaction[]
+  paymentsEscrowTransactions: GraphTallyTransaction[]
   _meta: GraphTallyMeta
 }
 
@@ -150,8 +150,9 @@ export class GraphTallyCollector {
 
   startRAVProcessing() {
     const notifyAndMapEligible = (signedRavs: ValidRavs) => {
+      const logger = this.logger.child({ function: 'startRAVProcessingV2()' })
+
       if (signedRavs.belowThreshold.length > 0) {
-        const logger = this.logger.child({ function: 'startRAVProcessingV2()' })
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
             (total, signedRav) => total + BigInt(signedRav.rav.rav.valueAggregate),
@@ -164,7 +165,24 @@ export class GraphTallyCollector {
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
           allocations: signedRavs.belowThreshold.map((signedRav) =>
-            dataSlice(signedRav.rav.rav.collectionId, 12).toString(),
+            collectionIdToAllocationId(signedRav.rav.rav.collectionId),
+          ),
+        })
+      }
+
+      if (signedRavs.eligible.length > 0) {
+        const totalValueGRT = formatGRT(
+          signedRavs.eligible.reduce(
+            (total, signedRav) => total + BigInt(signedRav.rav.rav.valueAggregate),
+            0n,
+          ),
+        )
+        logger.info(`Query RAVs v2 eligible for redemption`, {
+          ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
+          eligibleCount: signedRavs.eligible.length,
+          totalValueGRT,
+          allocations: signedRavs.eligible.map((signedRav) =>
+            collectionIdToAllocationId(signedRav.rav.rav.collectionId),
           ),
         })
       }
@@ -191,9 +209,27 @@ export class GraphTallyCollector {
           this.logger.info(`No pending RAVs v2 to process`)
           return []
         }
+        this.logger.trace(`Unfiltered pending RAVs v2 to process`, {
+          count: ravs.length,
+          ravs: ravs.map((r) => ({
+            collectionId: r.collectionId,
+            payer: r.payer,
+            valueAggregate: r.valueAggregate,
+            dataService: r.dataService,
+          })),
+        })
         if (ravs.length > 0) {
           ravs = await this.filterAndUpdateRavs(ravs)
         }
+        this.logger.trace(`Filtered pending RAVs v2 to process`, {
+          count: ravs.length,
+          ravs: ravs.map((r) => ({
+            collectionId: r.collectionId,
+            payer: r.payer,
+            valueAggregate: r.valueAggregate,
+            dataService: r.dataService,
+          })),
+        })
         const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
         this.logger.info(`Retrieved allocations for pending RAVs v2`, {
           ravs: ravs.length,
@@ -207,7 +243,7 @@ export class GraphTallyCollector {
               allocation: allocations.find(
                 (a) =>
                   a.id ===
-                  toAddress(dataSlice(signedRav.rav.collectionId, 12).toString()),
+                  toAddress(collectionIdToAllocationId(signedRav.rav.collectionId)),
               ),
               payer: rav.payer,
             }
@@ -221,8 +257,9 @@ export class GraphTallyCollector {
   private async getAllocationsfromAllocationIds(
     ravs: ReceiptAggregateVoucherV2[],
   ): Promise<Allocation[]> {
+    // collectionId -> allocationId
     const allocationIds: string[] = ravs.map((rav) =>
-      dataSlice(rav.collectionId, 12).toString().toLowerCase(),
+      collectionIdToAllocationId(rav.collectionId),
     )
 
     let block: { hash: string } | undefined = undefined
@@ -306,6 +343,7 @@ export class GraphTallyCollector {
     return pendingRAVs.tryMap(
       async (pendingRAVs) => {
         const escrowAccounts = await getEscrowAccounts(
+          this.logger,
           this.networkSubgraph,
           this.indexerAddress,
           this.contracts.GraphTallyCollector.target.toString(),
@@ -317,10 +355,17 @@ export class GraphTallyCollector {
               rav.payer,
               rav.rav.rav.collectionId,
             )
-            if (
+            const belowThreshold =
               BigInt(rav.rav.rav.valueAggregate) - tokensCollected <
               this.ravRedemptionThreshold
-            ) {
+            this.logger.trace('RAVs v2 threshold filtering', {
+              collectionId: rav.rav.rav.collectionId,
+              valueAggregate: formatGRT(rav.rav.rav.valueAggregate),
+              tokensCollected: formatGRT(tokensCollected),
+              threshold: formatGRT(this.ravRedemptionThreshold),
+              belowThreshold,
+            })
+            if (belowThreshold) {
               results.belowThreshold.push(rav)
             } else {
               results.eligible.push(rav)
@@ -359,10 +404,10 @@ export class GraphTallyCollector {
       // get all ravs that wasn't possible to find the transaction
       .filter(
         (rav) =>
-          !subgraphResponse.transactions.find(
+          !subgraphResponse.paymentsEscrowTransactions.find(
             (tx) =>
               toAddress(rav.payer) === toAddress(tx.payer.id) &&
-              dataSlice(rav.collectionId, 12) === tx.allocationId,
+              toAddress(collectionIdToAllocationId(rav.collectionId)) === tx.allocationId,
           ),
       )
 
@@ -390,7 +435,7 @@ export class GraphTallyCollector {
     ravsLastNotFinal: ReceiptAggregateVoucherV2[],
   ) {
     // get a list of transactions for ravs marked as not redeemed in our database
-    const redeemedRavsNotOnOurDatabase = subgraphResponse.transactions
+    const redeemedRavsNotOnOurDatabase = subgraphResponse.paymentsEscrowTransactions
       // get only the transactions that exists, this prevents errors marking as redeemed
       // transactions for different senders with the same allocation id
       .filter((tx) => {
@@ -400,7 +445,7 @@ export class GraphTallyCollector {
             // rav has the same sender address as tx
             toAddress(rav.payer) === toAddress(tx.payer.id) &&
             // rav has the same allocation id as tx
-            dataSlice(rav.collectionId, 12) === tx.allocationId &&
+            toAddress(collectionIdToAllocationId(rav.collectionId)) === tx.allocationId &&
             // rav was marked as not redeemed in the db
             !rav.redeemedAt,
         )
@@ -424,11 +469,13 @@ export class GraphTallyCollector {
   ): Promise<SubgraphResponse> {
     let meta: GraphTallyMeta | undefined = undefined
     let lastId = ''
-    const transactions: GraphTallyTransaction[] = []
+    const paymentsEscrowTransactions: GraphTallyTransaction[] = []
 
     const unfinalizedRavsAllocationIds = [
       ...new Set(
-        ravs.map((value) => toAddress(value.collectionId.slice(12)).toLowerCase()),
+        ravs.map((value) =>
+          toAddress(collectionIdToAllocationId(value.collectionId)).toLowerCase(),
+        ),
       ),
     ]
 
@@ -447,14 +494,14 @@ export class GraphTallyCollector {
       const result: QueryResult<SubgraphResponse> =
         await this.networkSubgraph.query<SubgraphResponse>(
           gql`
-            query transactions(
+            query paymentsEscrowTransactions(
               $lastId: String!
               $pageSize: Int!
               $block: Block_height
               $unfinalizedRavsAllocationIds: [String!]!
               $payerAddresses: [String!]!
             ) {
-              transactions(
+              paymentsEscrowTransactions(
                 first: $pageSize
                 block: $block
                 orderBy: id
@@ -494,15 +541,15 @@ export class GraphTallyCollector {
         throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
       meta = result.data._meta
-      transactions.push(...result.data.transactions)
-      if (result.data.transactions.length < PAGE_SIZE) {
+      paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
+      if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
         break
       }
-      lastId = result.data.transactions.slice(-1)[0].id
+      lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
     }
 
     return {
-      transactions,
+      paymentsEscrowTransactions,
       _meta: meta!,
     }
   }
@@ -572,6 +619,7 @@ export class GraphTallyCollector {
     })
 
     const escrowAccounts = await getEscrowAccounts(
+      this.logger,
       this.networkSubgraph,
       this.indexerAddress,
       this.contracts.GraphTallyCollector.target.toString(),
@@ -620,6 +668,10 @@ export class GraphTallyCollector {
         if (!actualTokensCollected) {
           throw new Error(`Failed to redeem RAV v2: no tokens collected`)
         }
+        this.logger.debug(`RAV v2 redeemed successfully`, {
+          rav,
+          actualTokensCollected,
+        })
         tokensCollectedPerAllocation.push({
           allocationId: allocation.id,
           tokensCollected: actualTokensCollected,
@@ -672,7 +724,13 @@ export class GraphTallyCollector {
   ): Promise<bigint | undefined> {
     const { rav, signature } = signedRav
 
-    const encodedData = encodeCollectQueryFeesData(rav, signature.toString(), 0n)
+    const encodedData = encodeCollectQueryFeesData(rav, hexlify(signature), 0n)
+
+    logger.debug('Redeeming RAV v2: sending transaction', {
+      rav,
+      signature: hexlify(signature),
+      encodedData,
+    })
 
     // Submit the signed RAV on chain
     const txReceipt = await this.transactionManager.executeTransaction(
@@ -694,6 +752,11 @@ export class GraphTallyCollector {
       this.metrics.ravRedeemsInvalid.inc({ collection: rav.collectionId })
       return
     }
+
+    logger.debug('Redeeming RAV v2: transaction successful', {
+      rav,
+      txReceipt,
+    })
 
     // Get the actual value collected
     const contractInterface = this.contracts.GraphTallyCollector.interface
@@ -789,3 +852,7 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     labelNames: ['collection'],
   }),
 })
+
+function collectionIdToAllocationId(collectionId: string): string {
+  return dataSlice(collectionId, 12).toString().toLowerCase()
+}

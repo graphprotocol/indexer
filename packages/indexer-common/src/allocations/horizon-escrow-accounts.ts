@@ -1,3 +1,4 @@
+import { Logger } from '@graphprotocol/common-ts'
 import { SubgraphClient } from '../subgraph-client'
 import gql from 'graphql-tag'
 
@@ -21,17 +22,20 @@ export type PaymentsEscrowAccountResponse = {
 export class PaymentsEscrowAccounts {
   private payersBalances: Map<string, bigint>
   private receiversTokensCollected: Map<string, bigint>
+  private logger: Logger
 
   constructor(
+    logger: Logger,
     payersBalances: Map<string, bigint>,
     receiversTokensCollected: Map<string, bigint>,
   ) {
+    this.logger = logger
     this.payersBalances = payersBalances
     this.receiversTokensCollected = receiversTokensCollected
   }
 
   getBalanceForPayer(payer: string): bigint {
-    const balance = this.payersBalances.get(payer)
+    const balance = this.payersBalances.get(payer.toLowerCase())
     if (balance === undefined) {
       throw new Error(`No balance found for payer: ${payer}`)
     }
@@ -39,13 +43,19 @@ export class PaymentsEscrowAccounts {
   }
 
   getTokensCollectedForReceiver(payer: string, collectionId: string): bigint {
-    const balance = this.receiversTokensCollected.get(`${payer}-${collectionId}`)
+    const balance = this.receiversTokensCollected.get(
+      `${payer.toLowerCase()}-${collectionId.toLowerCase()}`,
+    )
     if (balance === undefined) {
-      throw new Error(
-        `No tokens collected found for payer: ${payer} and collectionId: ${collectionId}`,
+      this.logger.debug(
+        'No tokens collected found for payer and collectionId. Assuming 0.',
+        {
+          payer,
+          collectionId,
+        },
       )
     }
-    return balance
+    return balance ?? BigInt(0)
   }
 
   updateBalances(payer: string, collectionId: string, value: bigint) {
@@ -55,30 +65,41 @@ export class PaymentsEscrowAccounts {
       throw new Error(`Negative balances are not allowed`)
     }
     const newBalance = balance - value
-    this.payersBalances.set(payer, newBalance)
+    this.payersBalances.set(payer.toLowerCase(), newBalance)
 
     // receiver tokens collected
     const tokensCollected = this.getTokensCollectedForReceiver(payer, collectionId)
-    this.receiversTokensCollected.set(`${payer}-${collectionId}`, tokensCollected + value)
+    this.receiversTokensCollected.set(
+      `${payer.toLowerCase()}-${collectionId.toLowerCase()}`,
+      tokensCollected + value,
+    )
   }
 
-  static fromResponse(response: PaymentsEscrowAccountResponse): PaymentsEscrowAccounts {
+  static fromResponse(
+    logger: Logger,
+    response: PaymentsEscrowAccountResponse,
+  ): PaymentsEscrowAccounts {
     const payersBalances = new Map<string, bigint>()
     const tokensCollected = new Map<string, bigint>()
 
     response.paymentsEscrowAccounts.forEach((account) => {
-      payersBalances.set(account.payer.id, BigInt(account.balance))
+      payersBalances.set(account.payer.id.toLowerCase(), BigInt(account.balance))
     })
 
+    // not a typo, graph-client pluralization awesomeness
     response.graphTallyTokensCollecteds.forEach((token) => {
-      tokensCollected.set(`${token.payer.id}-${token.collectionId}`, BigInt(token.tokens))
+      tokensCollected.set(
+        `${token.payer.id.toLowerCase()}-${token.collectionId.toLowerCase()}`,
+        BigInt(token.tokens),
+      )
     })
 
-    return new PaymentsEscrowAccounts(payersBalances, tokensCollected)
+    return new PaymentsEscrowAccounts(logger, payersBalances, tokensCollected)
   }
 }
 
 export const getEscrowAccounts = async (
+  logger: Logger,
   subgraph: SubgraphClient,
   indexer: string,
   collectorAddress: string,
@@ -105,9 +126,14 @@ export const getEscrowAccounts = async (
     `,
     { indexer, collector: collectorAddress },
   )
+  logger.trace('Payments escrow accounts', {
+    indexer,
+    collector: collectorAddress,
+    accounts: result.data,
+  })
   if (!result.data) {
     throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
   }
 
-  return PaymentsEscrowAccounts.fromResponse(result.data)
+  return PaymentsEscrowAccounts.fromResponse(logger, result.data)
 }

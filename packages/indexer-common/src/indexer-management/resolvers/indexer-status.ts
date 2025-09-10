@@ -101,7 +101,7 @@ export default {
 
     if (await network.isHorizon.value()) {
       const service = await contracts.SubgraphService.indexers(address)
-      if (service.registeredAt !== 0n) {
+      if (service.url.length > 0) {
         registrationInfo.push({
           address,
           protocolNetwork,
