@@ -380,18 +380,18 @@ export class AllocationSummary
   extends Model<AllocationSummaryAttributes>
   implements AllocationSummaryAttributes
 {
-  public allocation!: Address
-  public closedAt!: Date
-  public createdTransfers!: number
-  public resolvedTransfers!: number
-  public failedTransfers!: number
-  public openTransfers!: number
-  public collectedFees!: string
-  public withdrawnFees!: string
-  public protocolNetwork!: string
+  declare allocation: Address
+  declare closedAt: Date
+  declare createdTransfers: number
+  declare resolvedTransfers: number
+  declare failedTransfers: number
+  declare openTransfers: number
+  declare collectedFees: string
+  declare withdrawnFees: string
+  declare protocolNetwork: string
 
-  public readonly createdAt!: Date
-  public readonly updatedAt!: Date
+  declare readonly createdAt: Date
+  declare readonly updatedAt: Date
 
   public readonly transfers?: Transfer[]
   public readonly allocationReceipts?: AllocationReceipt[]

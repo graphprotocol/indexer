@@ -12,7 +12,6 @@ import {
   indexerError,
   IndexerErrorCode,
   QueryFeeModels,
-  ensureAllocationSummary,
   TransactionManager,
   specification as spec,
   SignedRAVv2,
@@ -258,6 +257,9 @@ export class GraphTallyCollector {
     ravs: ReceiptAggregateVoucherV2[],
   ): Promise<Allocation[]> {
     // collectionId -> allocationId
+    if (ravs.length === 0) {
+      return []
+    }
     const allocationIds: string[] = ravs.map((rav) =>
       collectionIdToAllocationId(rav.collectionId),
     )
@@ -394,6 +396,16 @@ export class GraphTallyCollector {
     // look for all transactions for that includes senderaddress[] and allocations[]
     const subgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
+    this.logger.trace('Cross checking RAVs v2 indexer database with subgraph', {
+      subgraphResponse,
+      ravsLastNotFinal: ravsLastNotFinal.map((rav) => ({
+        collectionId: rav.collectionId,
+        payer: rav.payer,
+        valueAggregate: rav.valueAggregate,
+        dataService: rav.dataService,
+      })),
+    })
+
     // check for redeemed ravs in tx list but not marked as redeemed in our database
     this.markRavsInTransactionsAsRedeemed(subgraphResponse, ravsLastNotFinal)
 
@@ -407,7 +419,7 @@ export class GraphTallyCollector {
           !subgraphResponse.paymentsEscrowTransactions.find(
             (tx) =>
               toAddress(rav.payer) === toAddress(tx.payer.id) &&
-              toAddress(collectionIdToAllocationId(rav.collectionId)) === tx.allocationId,
+              toAddress(collectionIdToAllocationId(rav.collectionId)) === toAddress(tx.allocationId),
           ),
       )
 
@@ -445,7 +457,7 @@ export class GraphTallyCollector {
             // rav has the same sender address as tx
             toAddress(rav.payer) === toAddress(tx.payer.id) &&
             // rav has the same allocation id as tx
-            toAddress(collectionIdToAllocationId(rav.collectionId)) === tx.allocationId &&
+            toAddress(collectionIdToAllocationId(rav.collectionId)) === toAddress(tx.allocationId) &&
             // rav was marked as not redeemed in the db
             !rav.redeemedAt,
         )
@@ -455,6 +467,9 @@ export class GraphTallyCollector {
     // but was redeemed on the blockchain, update it to redeemed
     if (redeemedRavsNotOnOurDatabase.length > 0) {
       for (const rav of redeemedRavsNotOnOurDatabase) {
+        this.logger.trace('Found transaction for RAV v2 that was redeemed on the blockchain but not on our database, marking it as redeemed', {
+          rav,
+        })
         await this.markRavAsRedeemed(
           zeroPadValue(rav.allocationId, 32),
           rav.payer.id,
@@ -564,6 +579,10 @@ export class GraphTallyCollector {
       return
     }
 
+    this.logger.trace('Could not find transaction for RAV v2 that was redeemed on the database, unsetting redeemed_at', {
+      ravsNotRedeemed,
+    })
+
     // WE use sql directly due to a bug in sequelize update:
     // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
     const query = `
@@ -605,7 +624,13 @@ export class GraphTallyCollector {
         AND redeemed_at < to_timestamp(${blockTimestampSecs - this.finalityTime})
       `
 
-    await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
+    const result = await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
+    this.logger.debug('Marked RAVs v2 as final', {
+      result,
+      blockTimestampSecs,
+      finalityTime: this.finalityTime,
+      threshold: blockTimestampSecs - this.finalityTime,
+    })
   }
 
   private async submitRAVs(signedRavs: RavWithAllocation[]): Promise<void> {
@@ -685,32 +710,6 @@ export class GraphTallyCollector {
         continue
       }
       stopTimer()
-    }
-
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      await this.models.allocationSummaries.sequelize!.transaction(
-        async (transaction) => {
-          for (const { allocationId, tokensCollected } of tokensCollectedPerAllocation) {
-            const [summary] = await ensureAllocationSummary(
-              this.models,
-              toAddress(allocationId.toString()),
-              transaction,
-              this.protocolNetwork,
-            )
-            summary.withdrawnFees = (
-              BigInt(summary.withdrawnFees) + BigInt(tokensCollected)
-            ).toString()
-            await summary.save({ transaction })
-          }
-        },
-      )
-
-      logger.info(`Updated allocation summaries table with withdrawn fees for RAV v2`)
-    } catch (err) {
-      logger.warn(`Failed to update allocation summaries for RAV v2`, {
-        err,
-      })
     }
 
     signedRavs.map((signedRav) =>
