@@ -1024,7 +1024,7 @@ export class Agent {
       network: network.specification.networkIdentifier,
     })
     let expiredAllocations = activeAllocations.filter(
-     (allocation: Allocation) => {
+      (allocation: Allocation) => {
         let desiredAllocationLifetime: number = 0
         if (allocation.isLegacy) {
           desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch

@@ -475,7 +475,7 @@ export async function createNetworkSpecification(
       subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
       tapAddressBook: tapAddressBook,
     })
-    logger.trace("Network specification", {
+    logger.trace('Network specification', {
       networkSpecification,
     })
     return networkSpecification

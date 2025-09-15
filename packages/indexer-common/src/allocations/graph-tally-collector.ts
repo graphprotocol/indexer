@@ -419,7 +419,8 @@ export class GraphTallyCollector {
           !subgraphResponse.paymentsEscrowTransactions.find(
             (tx) =>
               toAddress(rav.payer) === toAddress(tx.payer.id) &&
-              toAddress(collectionIdToAllocationId(rav.collectionId)) === toAddress(tx.allocationId),
+              toAddress(collectionIdToAllocationId(rav.collectionId)) ===
+                toAddress(tx.allocationId),
           ),
       )
 
@@ -457,7 +458,8 @@ export class GraphTallyCollector {
             // rav has the same sender address as tx
             toAddress(rav.payer) === toAddress(tx.payer.id) &&
             // rav has the same allocation id as tx
-            toAddress(collectionIdToAllocationId(rav.collectionId)) === toAddress(tx.allocationId) &&
+            toAddress(collectionIdToAllocationId(rav.collectionId)) ===
+              toAddress(tx.allocationId) &&
             // rav was marked as not redeemed in the db
             !rav.redeemedAt,
         )
@@ -467,9 +469,12 @@ export class GraphTallyCollector {
     // but was redeemed on the blockchain, update it to redeemed
     if (redeemedRavsNotOnOurDatabase.length > 0) {
       for (const rav of redeemedRavsNotOnOurDatabase) {
-        this.logger.trace('Found transaction for RAV v2 that was redeemed on the blockchain but not on our database, marking it as redeemed', {
-          rav,
-        })
+        this.logger.trace(
+          'Found transaction for RAV v2 that was redeemed on the blockchain but not on our database, marking it as redeemed',
+          {
+            rav,
+          },
+        )
         await this.markRavAsRedeemed(
           zeroPadValue(rav.allocationId, 32),
           rav.payer.id,
@@ -579,9 +584,12 @@ export class GraphTallyCollector {
       return
     }
 
-    this.logger.trace('Could not find transaction for RAV v2 that was redeemed on the database, unsetting redeemed_at', {
-      ravsNotRedeemed,
-    })
+    this.logger.trace(
+      'Could not find transaction for RAV v2 that was redeemed on the database, unsetting redeemed_at',
+      {
+        ravsNotRedeemed,
+      },
+    )
 
     // WE use sql directly due to a bug in sequelize update:
     // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
