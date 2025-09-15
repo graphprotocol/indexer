@@ -16,7 +16,14 @@ import {
   connectContracts as connectTapContracts,
   NetworkContracts as TapContracts,
 } from '@semiotic-labs/tap-contracts-bindings'
-import { FetchRequest, getAddress, HDNodeWallet, JsonRpcProvider, Provider, Wallet } from 'ethers'
+import {
+  FetchRequest,
+  getAddress,
+  HDNodeWallet,
+  JsonRpcProvider,
+  Provider,
+  Wallet,
+} from 'ethers'
 import { strict as assert } from 'assert'
 import geohash from 'ngeohash'
 import pRetry, { Options } from 'p-retry'
@@ -620,9 +627,10 @@ export class Network {
     const indexerRegistrationData = await this.contracts.SubgraphService.indexers(
       this.specification.indexerOptions.address,
     )
-    const paymentsDestinationData = await this.contracts.SubgraphService.paymentsDestination(
-      this.specification.indexerOptions.address,
-    )
+    const paymentsDestinationData =
+      await this.contracts.SubgraphService.paymentsDestination(
+        this.specification.indexerOptions.address,
+      )
     logger.debug('Indexer registration data', {
       indexerRegistrationData: {
         url: indexerRegistrationData.url,
