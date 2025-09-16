@@ -58,6 +58,9 @@ Indexer Infrastructure
                                                       [number] [default: 120000]
   --ipfs-endpoint                   IPFS endpoint for querying manifests.
               [string] [required] [default: "https://ipfs.network.thegraph.com"]
+  --enable-auto-graft               Automatically deploy and sync graft
+                                    dependencies for subgraphs
+                                                      [boolean] [default: false]
   --graph-node-query-endpoint       Graph Node endpoint for querying subgraphs
                                                              [string] [required]
   --graph-node-status-endpoint      Graph Node endpoint for indexing statuses
@@ -115,6 +118,8 @@ Ethereum
                                   will be treated as the max gas price  [number]
   --transaction-attempts          The maximum number of transaction attempts
                                   (Use 0 for unlimited)    [number] [default: 0]
+  --confirmation-blocks           The number of blocks to wait for a transaction
+                                  to be confirmed          [number] [default: 3]
   --mnemonic                      Mnemonic for the operator wallet
                                                              [string] [required]
   --indexer-address               Ethereum address of the indexer
@@ -214,34 +219,44 @@ simply by running `graph indexer`.
 $ graph indexer --help
 Manage indexer configuration
 
-  indexer status                     Check the status of an indexer                                   
-  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)     
-  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)   
-  indexer rules set                  Set one or more indexing rules                                   
-  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary) 
-  indexer rules maybe                Index a deployment based on rules                                
-  indexer rules get                  Get one or more indexing rules                                   
-  indexer rules delete               Remove one or many indexing rules                                
-  indexer rules clear (reset)        Clear one or more indexing rules                                 
-  indexer rules                      Configure indexing rules                                         
-  indexer disputes get               Cross-check POIs submitted in the network                        
-  indexer disputes                   Configure allocation POI monitoring                              
-  indexer cost set model             Update a cost model                                              
-  indexer cost get                   Get cost models for one or all subgraphs        
-  indexer cost                       Manage costing for subgraphs                                     
-  indexer connect                    Connect to indexer management API                                
-  indexer allocations reallocate     Reallocate to subgraph deployment                                
-  indexer allocations get            List one or more allocations                                     
-  indexer allocations create         Create an allocation                                             
-  indexer allocations close          Close an allocation                                              
-  indexer allocations                Manage indexer allocations                                       
-  indexer actions queue              Queue an action item                                             
-  indexer actions get                List one or more actions                                         
-  indexer actions execute            Execute approved items in the action queue                       
-  indexer actions cancel             Cancel an item in the queue                                      
-  indexer actions approve            Approve an action item                                           
-  indexer actions                    Manage indexer actions                                           
-  indexer                            Manage indexer configuration 
+  indexer                            Manage indexer configuration
+  indexer status                     Check the status of an indexer
+  indexer rules                      Configure indexing rules
+  indexer rules clear (reset)        Clear one or more indexing rules
+  indexer rules delete               Remove one or many indexing rules
+  indexer rules get                  Get one or more indexing rules
+  indexer rules maybe                Index a deployment based on rules
+  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary)
+  indexer rules set                  Set one or more indexing rules
+  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)
+  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)
+  indexer provision                  Manage indexer's provision
+  indexer provision add              Add stake to the indexer's provision
+  indexer provision get              List indexer provision details
+  indexer provision list-thaw        List thaw requests for the indexer's provision
+  indexer provision remove           Remove thawed stake from the indexer's provision
+  indexer provision thaw             Thaw stake from the indexer's provision
+  indexer disputes                   Configure allocation POI monitoring
+  indexer disputes get               Cross-check POIs submitted in the network
+  indexer cost                       Manage costing for subgraphs
+  indexer cost set model             Update a cost model
+  indexer cost delete                Remove one or many cost models
+  indexer cost get                   Get cost models for one or all subgraphs
+  indexer connect                    Connect to indexer management API
+  indexer allocations                Manage indexer allocations
+  indexer allocations close          Close an allocation
+  indexer allocations collect        Collect receipts for an allocation
+  indexer allocations create         Create an allocation
+  indexer allocations get            List one or more allocations
+  indexer allocations reallocate     Reallocate to subgraph deployment
+  indexer actions                    Manage indexer actions
+  indexer actions approve            Approve an action item
+  indexer actions cancel             Cancel an item in the queue
+  indexer actions delete             Delete one or many actions in the queue
+  indexer actions execute            Execute approved items in the action queue
+  indexer actions get                List one or more actions
+  indexer actions queue              Queue an action item
+  indexer actions update             Update one or more actions
 ```
 
 ## Running from source
