@@ -30,8 +30,9 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | Block Oracle Owner | [`0x5f49491e965895ded343af13389ee45ef60ed793`](https://arbiscan.io/address/0x5f49491e965895ded343af13389ee45ef60ed793) |
 | TAP Escrow         | [`0x8f477709eF277d4A880801D01A140a9CF88bA0d3`](https://arbiscan.io/address/0x8f477709eF277d4A880801D01A140a9CF88bA0d3) |
 
-Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/dev/addresses.json#L752) and 
-[semiotic-ai/timeline-aggregation-protocol-contracts](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/main/addresses.json).
+All network contracts can be found in
+- [horizon core contracts](https://github.com/graphprotocol/contracts/blob/main/packages/horizon/addresses.json)
+- [subgraph service contracts](https://github.com/graphprotocol/contracts/blob/main/packages/subgraph-service/addresses.json)
 
 ## Configuration
 
@@ -51,6 +52,8 @@ Other network contracts can be found in [graphprotocol/contracts](https://github
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4KFYqUWRTZQ9gn7GPHC6YQ2q15chJfVrX43ezYcwkgxB`   |
 | `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | `QmUhiH6Z5xo6o3GNzsSvqpGKLmCt6w5WzKQ1yHk6C8AA8S`   |
 | `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/4sukbNVTzGELnhdnpyPqsf1QqtzNHEYKKmJkgaT8z6M1` |
+| `INDEXER_AGENT_MAX_PROVISION_INITIAL_SIZE`  | `--max-provision-initial-size`  | Maximum tokens for initial SubgraphService provision (Default: 0)                                                         |
+| `INDEXER_AGENT_PAYMENTS_DESTINATION`        | `--payments-destination`        | Address where payments are sent (if not provided, rewards are restaked)                                                   |
 
 
 In order to avoid collecting or claiming query fees below a certain threshold

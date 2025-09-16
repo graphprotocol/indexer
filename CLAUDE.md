@@ -130,8 +130,33 @@ Tests require:
    INDEXER_TEST_API_KEY=<Graph API key>
    ```
 
+## Horizon Support
+
+The indexer now supports Graph Horizon, the next-generation architecture for The Graph Protocol:
+
+### Key Changes
+- **Dual Contract System**: Supports both legacy and Horizon contracts simultaneously
+- **New Contracts**: HorizonStaking, SubgraphService, PaymentsEscrow, GraphTallyCollector
+- **Enhanced TAP v2**: Receipt Aggregate Vouchers v2 (RAV v2) with collection-based aggregation
+- **Automatic Detection**: System automatically detects Horizon-enabled networks
+- **Address Books**: Separate configuration for horizon, subgraph-service, and TAP contracts
+
+### Configuration
+```bash
+# New Horizon-specific options
+--horizon-address-book           # Path to Horizon contracts address book
+--subgraph-service-address-book  # Path to SubgraphService contracts address book
+--tap-address-book               # Path to TAP contracts address book
+--max-provision-initial-size    # Initial SubgraphService provision size
+--payments-destination           # Separate payment collection address
+```
+
+### Database Migrations
+- Migration 21: Adds TAP Horizon tables for receipts and RAVs
+- Migration 22: Adds TAP Horizon deny list functionality
+
 ## Current State
 - Version: v0.24.3
-- Active branch: release-v0.24
 - Main branch: main
-- Uncommitted changes in docs/ and config/
+- Beta software status
+- Horizon support: Active on supported networks

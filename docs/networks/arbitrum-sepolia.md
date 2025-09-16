@@ -30,8 +30,9 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Block Oracle Owner | [`0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868`](https://sepolia.arbiscan.io/address/0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868) |
 | TAP Escrow         | [`0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02`](https://sepolia.arbiscan.io/address/0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02) |
 
-Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/main/packages/contracts/addresses.json) and 
-[semiotic-ai/timeline-aggregation-protocol-contracts](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/main/addresses.json).
+All network contracts can be found in
+- [horizon core contracts](https://github.com/graphprotocol/contracts/blob/main/packages/horizon/addresses.json)
+- [subgraph service contracts](https://github.com/graphprotocol/contracts/blob/main/packages/subgraph-service/addresses.json)
 
 ## Configuration
 
@@ -57,6 +58,8 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
 | `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
 | `INDEXER_AGENT_IPFS_ENDPOINT` | `--ipfs-endpoint` | `https://ipfs.thegraph.com` |
+| `INDEXER_AGENT_MAX_PROVISION_INITIAL_SIZE`  | `--max-provision-initial-size`  | Maximum tokens for initial SubgraphService provision (Default: 0)                                                         |
+| `INDEXER_AGENT_PAYMENTS_DESTINATION`        | `--payments-destination`        | Address where payments are sent (if not provided, rewards are restaked)                                                   |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration

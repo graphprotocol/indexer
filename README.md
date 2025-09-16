@@ -10,8 +10,9 @@
 For configuration details for The Graph Network and the testnet, see the
 [Mainnet and Testnet Configuration docs](./docs/networks.md).
 
-An overview of [Scalar](./docs/scalar.md), a microtransaction framework for
-query fees, can be found [here](./docs/scalar.md).
+## Horizon Support
+
+The indexer agent now supports Graph Horizon, the next-generation architecture for The Graph Protocol. Horizon introduces provision management, improved allocation management, enhanced payment processing via TAP v2, and support for the new set of protocol contracts. The indexer automatically detects Horizon-enabled networks and manages the transition seamlessly.
 
 ## Running from NPM packages
 
