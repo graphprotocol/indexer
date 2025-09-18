@@ -328,14 +328,12 @@ export class Network {
     // --------------------------------------------------------------------------------
     let graphTallyCollector: GraphTallyCollector | undefined = undefined
     const isHorizonValue = await isHorizon.value()
-    logger.info(`Checking if RAV v2 process should be initiated`,
-      {
-        contracts: !!contracts,
-        networkSubgraph: !!networkSubgraph,
-        isHorizon: isHorizonValue,
-        shouldInit: contracts && networkSubgraph && isHorizonValue,
-      }
-    )
+    logger.info(`Checking if RAV v2 process should be initiated`, {
+      contracts: !!contracts,
+      networkSubgraph: !!networkSubgraph,
+      isHorizon: isHorizonValue,
+      shouldInit: contracts && networkSubgraph && isHorizonValue,
+    })
     if (contracts && networkSubgraph && isHorizonValue) {
       graphTallyCollector = GraphTallyCollector.create({
         logger,
@@ -344,8 +342,8 @@ export class Network {
         models: queryFeeModels,
         contracts,
         allocations,
-          networkSpecification: specification,
-          networkSubgraph,
+        networkSpecification: specification,
+        networkSubgraph,
       })
     }
 
