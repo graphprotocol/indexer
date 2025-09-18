@@ -327,7 +327,14 @@ export class Network {
     // * Graph Tally Collector
     // --------------------------------------------------------------------------------
     let graphTallyCollector: GraphTallyCollector | undefined = undefined
-    if (contracts && networkSubgraph) {
+    const isHorizonValue = await isHorizon.value()
+    logger.info(`Checking if RAV v2 process should be initiated`, {
+      contracts: !!contracts,
+      networkSubgraph: !!networkSubgraph,
+      isHorizon: isHorizonValue,
+      shouldInit: contracts && networkSubgraph && isHorizonValue,
+    })
+    if (contracts && networkSubgraph && isHorizonValue) {
       graphTallyCollector = GraphTallyCollector.create({
         logger,
         metrics,
@@ -338,10 +345,6 @@ export class Network {
         networkSpecification: specification,
         networkSubgraph,
       })
-    } else {
-      logger.info(`RAV v2 process not initiated. 
-        Contracts: ${!!contracts}. 
-        Subgraph: ${!!networkSubgraph}.`)
     }
 
     // --------------------------------------------------------------------------------
@@ -707,6 +710,11 @@ export class Network {
         this.specification.indexerOptions.address,
       )
       if (service.url === url && service.geoHash === geoHash) {
+        logger.debug('Indexer already registered', {
+          address: this.specification.indexerOptions.address,
+          serviceRegistry: this.contracts.LegacyServiceRegistry.target,
+          service,
+        })
         if (await this.transactionManager.isOperator.value()) {
           logger.info(`Indexer already registered, operator status already granted`)
         } else {
@@ -739,11 +747,17 @@ export class Network {
     const events = receipt.logs
     const event = events.find((event) =>
       event.topics.includes(
-        // eslint-disable-next-line @typescript-eslint/no-non-null-asserted-optional-chain
         this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-          ?.topicHash!,
+          .topicHash,
       ),
     )
+    logger.info('Event', {
+      event,
+      events,
+      topicHash:
+        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
+          .topicHash,
+    })
     assert.ok(event)
 
     logger.info(`Successfully registered indexer (Legacy registration)`)
