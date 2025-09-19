@@ -1638,14 +1638,22 @@ export class AllocationManager {
       const allocation = await this.network.networkMonitor.allocation(action.allocationID)
 
       // Accrue rewards, except for zeroed POI
+      const isHorizon = await this.network.isHorizon.value()
       const zeroHexString = hexlify(new Uint8Array(32).fill(0))
-      rewards =
-        action.poi === zeroHexString
-          ? 0n
-          : await this.network.contracts.RewardsManager.getRewards(
-              this.network.contracts.HorizonStaking.target,
-              action.allocationID,
-            )
+      if (action.poi === zeroHexString) {
+        rewards = 0n
+      } else {
+        if (isHorizon) {
+          rewards = await this.network.contracts.RewardsManager.getRewards(
+            this.network.contracts.HorizonStaking.target,
+            action.allocationID,
+          )
+        } else {
+          rewards = await this.network.contracts.LegacyRewardsManager.getRewards(
+            action.allocationID,
+          )
+        }
+      }
 
       unallocates = unallocates + allocation.allocatedTokens
     }

@@ -573,10 +573,10 @@
     prom-client "14.2.0"
     sequelize "6.33.0"
 
-"@graphprotocol/interfaces@^0.6.2":
-  version "0.6.2"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.6.2.tgz#c854e18b87a60519f84e9a52808d02aebf8a1fad"
-  integrity sha512-N1cpPIklsmYqmcC0tb+dzOF7WFQhHe/zmbV4P2W8EPt680U23h93HWI5/FQzwDLa6v2P13sP7faLuEbRzw4Tvg==
+"@graphprotocol/interfaces@^0.6.3":
+  version "0.6.3"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.6.3.tgz#52a71147bf9c737da9daf65cc718aab3e6a74c9b"
+  integrity sha512-B09TfRa6MweRGsnqTQwmxXHHCJiV4PXgYtBpKSF6Fn8rt8uhd9vDL3eml8yKD57rEZVzun/o5zRaNz7FiQrddw==
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -588,13 +588,13 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/toolshed@0.6.15":
-  version "0.6.15"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.15.tgz#bac4ba5b614fb24d56fc0c8fa6debaf848857b56"
-  integrity sha512-ZuGdup0DHF7J9TaBXZRXvi87j2d97paWkpWXrHZPV9Rd77MFU5EcOVnfbGiPjzpgneQ0gQcS7Fy6MgnkJYLrSg==
+"@graphprotocol/toolshed@0.6.16":
+  version "0.6.16"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-0.6.16.tgz#e849de334ba13fa79621870f537ed7555e3efa88"
+  integrity sha512-baRmzwksBwwhgDhaQhtdeKBZtQMONs8nxJLqcLFaw9WckoBID0nN7wipf+Kj1aCM+Hj+x8HDZxf4O4pBUiB7IQ==
   dependencies:
     "@graphprotocol/address-book" "^0.1.0"
-    "@graphprotocol/interfaces" "^0.6.2"
+    "@graphprotocol/interfaces" "^0.6.3"
     "@nomicfoundation/hardhat-ethers" "3.0.8"
     debug "^4.4.0"
     ethers "6.13.7"
