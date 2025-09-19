@@ -188,7 +188,7 @@ export class AllocationManager {
 
     // We need to process both staking contract and subgraph service transactions separately
     // as they cannot be multicalled
-    // Realistically, the only scenario where a batch would have both is shortly after the horizon upgrade
+    // The only scenario where a batch would have both is shortly after the horizon upgrade
     const stakingTransactions = preparedTransactions.filter(
       (tx: TransactionRequest) => tx.to === this.network.contracts.HorizonStaking.target,
     )
@@ -1505,7 +1505,7 @@ export class AllocationManager {
       metadata: params.metadata,
       proof: params.proof,
     })
-
+    const isHorizon = await this.network.isHorizon.value()
     const txs: TransactionRequest[] = []
 
     // -- close allocation
@@ -1516,6 +1516,40 @@ export class AllocationManager {
           params.poi.poi,
         ),
       )
+
+      // If we are in Horizon and the indexer already has a provision
+      // automatically add the allocated stake to the Subgraph Service provision
+      // this prevents the indexer from having to do it manually, which is likely to cause downtime
+      if (isHorizon) {
+        const provision = await this.network.contracts.HorizonStaking.getProvision(
+          this.network.specification.indexerOptions.address,
+          this.network.contracts.SubgraphService.target,
+        )
+        if (provision.createdAt > 0n) {
+          logger.info('[Horizon] Automatically provisioning the legacy allocation unallocated stake to the Subgraph Service', {
+            indexer: this.network.specification.indexerOptions.address,
+            subgraphDeploymentID: params.subgraphDeploymentID.toString(),
+            legacyAllocationID: params.closingAllocationID,
+            newAllocationID: params.newAllocationID,
+            tokens: formatGRT(params.tokens),
+          })
+          txs.push(
+            await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
+              params.indexer,
+              this.network.contracts.SubgraphService.target,
+              params.tokens,
+            ),
+          )
+        } else {
+          logger.info('[Horizon] Skipping automatic provisioning after legacy allocation closure, could not find indexer provision', {
+            indexer: this.network.specification.indexerOptions.address,
+            subgraphDeploymentID: params.subgraphDeploymentID.toString(),
+            legacyAllocationID: params.closingAllocationID,
+            newAllocationID: params.newAllocationID,
+            tokens: formatGRT(params.tokens),
+          })
+        }
+      }
     } else {
       // Horizon: Need to multicall collect and stopService
 
@@ -1554,7 +1588,6 @@ export class AllocationManager {
     }
 
     // -- create new allocation
-    const isHorizon = await this.network.isHorizon.value()
     if (isHorizon) {
       const encodedData = encodeStartServiceData(
         params.subgraphDeploymentID.toString(),
