@@ -41,6 +41,7 @@ export interface ReallocateAllocationResult {
   actionID: number
   type: 'reallocate'
   transactionID: string | undefined
+  secondTransactionID?: string
   closedAllocation: string
   indexingRewardsCollected: string
   createdAllocation: string
@@ -54,10 +55,10 @@ export interface ActionExecutionResult {
   result: AllocationResult
 }
 
-export interface ExecuteTransactionResult {
+export interface ExecuteActionResult {
   actionID: number
   success: boolean
-  result: ActionFailure | TransactionReceipt | 'paused' | 'unauthorized'
+  result: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[]
 }
 
 export interface ActionFailure {
@@ -70,6 +71,19 @@ export interface ActionFailure {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const isActionFailure = (variableToCheck: any): variableToCheck is ActionFailure =>
   'failureReason' in variableToCheck
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const isPartialActionFailure = (variableToCheck: any): variableToCheck is Partial<ActionFailure> =>
+  'failureReason' in variableToCheck
+
+export function isTransactionReceiptArray(
+  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[]
+): arr is TransactionReceipt[] {
+  return arr.every(
+    (r): r is TransactionReceipt =>
+      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r)
+  );
+}
 
 export const isActionFailureArray = (
   variableToCheck: any,
