@@ -91,7 +91,11 @@ export class NetworkMonitor {
       )
 
       return {
-        legacy: 28, // Hardcode to the latest known value. This is required for legacy allos in the transition period.
+        // Hardcoded to the latest known value. This is required to check for legacy allo expiration during the transition period.
+        // - Arbitrum One: 28
+        // - Arbitrum Sepolia: 8
+        // - Local Network: 4
+        legacy: 28,
         horizon: horizonDurationInEpochs,
       }
     } else {

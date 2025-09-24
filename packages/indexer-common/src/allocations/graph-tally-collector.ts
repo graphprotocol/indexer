@@ -142,7 +142,7 @@ export class GraphTallyCollector {
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
 
-    collector.logger.info(`RAV v2 processing is initiated`)
+    collector.logger.info(`[TAPv2] RAV processing is initiated`)
     collector.startRAVProcessing()
     return collector
   }
@@ -158,8 +158,8 @@ export class GraphTallyCollector {
             0n,
           ),
         )
-        logger.info(`Query RAVs v2 below the redemption threshold`, {
-          hint: 'If you would like to redeem RAVs v2 like this, reduce the voucher redemption threshold',
+        logger.info(`[TAPv2] Query RAVs below the redemption threshold`, {
+          hint: 'If you would like to redeem RAVs like this, reduce the voucher redemption threshold',
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
@@ -176,7 +176,7 @@ export class GraphTallyCollector {
             0n,
           ),
         )
-        logger.info(`Query RAVs v2 eligible for redemption`, {
+        logger.info(`[TAPv2] Query RAVs eligible for redemption`, {
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           eligibleCount: signedRavs.eligible.length,
           totalValueGRT,
@@ -205,10 +205,10 @@ export class GraphTallyCollector {
       async () => {
         let ravs = await this.pendingRAVs()
         if (ravs.length === 0) {
-          this.logger.info(`No pending RAVs v2 to process`)
+          this.logger.info(`[TAPv2] No pending RAVs to process`)
           return []
         }
-        this.logger.trace(`Unfiltered pending RAVs v2 to process`, {
+        this.logger.trace(`[TAPv2] Unfiltered pending RAVs to process`, {
           count: ravs.length,
           ravs: ravs.map((r) => ({
             collectionId: r.collectionId,
@@ -220,7 +220,7 @@ export class GraphTallyCollector {
         if (ravs.length > 0) {
           ravs = await this.filterAndUpdateRavs(ravs)
         }
-        this.logger.trace(`Filtered pending RAVs v2 to process`, {
+        this.logger.trace(`[TAPv2] Filtered pending RAVs to process`, {
           count: ravs.length,
           ravs: ravs.map((r) => ({
             collectionId: r.collectionId,
@@ -230,7 +230,7 @@ export class GraphTallyCollector {
           })),
         })
         const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
-        this.logger.info(`Retrieved allocations for pending RAVs v2`, {
+        this.logger.info(`[TAPv2] Retrieved allocations for pending RAVs`, {
           ravs: ravs.length,
           allocations: allocations.length,
         })
@@ -249,7 +249,10 @@ export class GraphTallyCollector {
           })
           .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
       },
-      { onError: (err) => this.logger.error(`Failed to query pending RAVs v2`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.info(`[TAPv2] Failed to query pending RAVs`, { err }),
+      },
     )
   }
 
@@ -319,7 +322,7 @@ export class GraphTallyCollector {
         { allocationIds, lastId, pageSize: PAGE_SIZE, block },
       )
       if (!result.data) {
-        throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
+        throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
 
       returnedAllocations.push(...result.data.allocations)
@@ -332,7 +335,7 @@ export class GraphTallyCollector {
 
     if (returnedAllocations.length == 0) {
       this.logger.error(
-        `No allocations returned for ${allocationIds} in network subgraph`,
+        `[TAPv2] No allocations returned for ${allocationIds} in network subgraph`,
       )
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -360,7 +363,7 @@ export class GraphTallyCollector {
             const belowThreshold =
               BigInt(rav.rav.rav.valueAggregate) - tokensCollected <
               this.ravRedemptionThreshold
-            this.logger.trace('RAVs v2 threshold filtering', {
+            this.logger.trace('[TAPv2] RAVs threshold filtering', {
               collectionId: rav.rav.rav.collectionId,
               valueAggregate: formatGRT(rav.rav.rav.valueAggregate),
               tokensCollected: formatGRT(tokensCollected),
@@ -377,7 +380,10 @@ export class GraphTallyCollector {
           { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
         )
       },
-      { onError: (err) => this.logger.error(`Failed to reduce to signed RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.info(`[TAPv2] Failed to reduce to signed RAVs`, { err }),
+      },
     )
   }
 
@@ -396,7 +402,7 @@ export class GraphTallyCollector {
     // look for all transactions for that includes senderaddress[] and allocations[]
     const subgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
-    this.logger.trace('Cross checking RAVs v2 indexer database with subgraph', {
+    this.logger.trace('[TAPv2] Cross checking RAVs indexer database with subgraph', {
       subgraphResponse,
       ravsLastNotFinal: ravsLastNotFinal.map((rav) => ({
         collectionId: rav.collectionId,
@@ -470,7 +476,7 @@ export class GraphTallyCollector {
     if (redeemedRavsNotOnOurDatabase.length > 0) {
       for (const rav of redeemedRavsNotOnOurDatabase) {
         this.logger.trace(
-          'Found transaction for RAV v2 that was redeemed on the blockchain but not on our database, marking it as redeemed',
+          '[TAPv2] Found transaction for RAV that was redeemed on the blockchain but not on our database, marking it as redeemed',
           {
             rav,
           },
@@ -558,7 +564,7 @@ export class GraphTallyCollector {
         )
 
       if (!result.data) {
-        throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
+        throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
       meta = result.data._meta
       paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
@@ -585,7 +591,7 @@ export class GraphTallyCollector {
     }
 
     this.logger.trace(
-      'Could not find transaction for RAV v2 that was redeemed on the database, unsetting redeemed_at',
+      '[TAPv2] Could not find transaction for RAV that was redeemed on the database, unsetting redeemed_at',
       {
         ravsNotRedeemed,
       },
@@ -614,7 +620,7 @@ export class GraphTallyCollector {
     await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
 
     this.logger.warn(
-      `Reverted Redeemed RAVs v2: ${ravsNotRedeemed
+      `[TAPv2] Reverted Redeemed RAVs: ${ravsNotRedeemed
         .map((rav) => `(${rav.payer},${rav.collectionId})`)
         .join(', ')}`,
     )
@@ -633,7 +639,7 @@ export class GraphTallyCollector {
       `
 
     const result = await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
-    this.logger.debug('Marked RAVs v2 as final', {
+    this.logger.debug('[TAPv2] Marked RAVs as final', {
       result,
       blockTimestampSecs,
       finalityTime: this.finalityTime,
@@ -647,7 +653,7 @@ export class GraphTallyCollector {
       ravsToSubmit: signedRavs.length,
     })
 
-    logger.info(`Submit last RAVs v2 on chain individually`, {
+    logger.info(`[TAPv2] Submit last RAVs on chain individually`, {
       signedRavs,
     })
 
@@ -679,7 +685,7 @@ export class GraphTallyCollector {
       const tokensToCollect = ravValue - tokensAlreadyCollected
       if (payerBalance < tokensToCollect) {
         this.logger.warn(
-          'RAV v2 was not sent to the blockchain \
+          '[TAPv2] RAV was not sent to the blockchain \
           because its value aggregate is lower than escrow balance.',
           {
             rav,
@@ -699,9 +705,9 @@ export class GraphTallyCollector {
         // THIS IS A MUT OPERATION
         const actualTokensCollected = await this.redeemRav(logger, signedRav)
         if (!actualTokensCollected) {
-          throw new Error(`Failed to redeem RAV v2: no tokens collected`)
+          throw new Error(`[TAPv2] Failed to redeem RAV: no tokens collected`)
         }
-        this.logger.debug(`RAV v2 redeemed successfully`, {
+        this.logger.debug(`[TAPv2] RAV redeemed successfully`, {
           rav,
           actualTokensCollected,
         })
@@ -712,7 +718,7 @@ export class GraphTallyCollector {
         escrowAccounts.updateBalances(payer, rav.collectionId, actualTokensCollected)
       } catch (err) {
         this.metrics.ravRedeemsFailed.inc({ collection: rav.collectionId })
-        logger.error(`Failed to redeem RAV v2`, {
+        logger.info(`[TAPv2] Failed to redeem RAV`, {
           err: indexerError(IndexerErrorCode.IE055, err),
         })
         continue
@@ -733,7 +739,7 @@ export class GraphTallyCollector {
 
     const encodedData = encodeCollectQueryFeesData(rav, hexlify(signature), 0n)
 
-    logger.debug('Redeeming RAV v2: sending transaction', {
+    logger.debug('[TAPv2] Redeeming RAV: sending transaction', {
       rav,
       signature: hexlify(signature),
       encodedData,
@@ -760,7 +766,7 @@ export class GraphTallyCollector {
       return
     }
 
-    logger.debug('Redeeming RAV v2: transaction successful', {
+    logger.debug('[TAPv2] Redeeming RAV: transaction successful', {
       rav,
       txReceipt,
     })
@@ -788,11 +794,11 @@ export class GraphTallyCollector {
     try {
       await this.markRavAsRedeemed(rav.collectionId, rav.payer)
       logger.info(
-        `Updated receipt aggregate vouchers v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
+        `[TAPv2] Updated receipt aggregate vouchers v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
       )
     } catch (err) {
       logger.warn(
-        `Failed to update receipt aggregate voucher v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
+        `[TAPv2] Failed to update receipt aggregate voucher v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
         {
           err,
         },
@@ -826,28 +832,28 @@ export class GraphTallyCollector {
 const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => ({
   ravRedeemsSuccess: new metrics.client.Counter({
     name: `indexer_agent_rav_v2_exchanges_ok_${networkIdentifier}`,
-    help: 'Successfully redeemed ravs v2',
+    help: 'Successfully redeemed RAVs',
     registers: [metrics.registry],
     labelNames: ['collection'],
   }),
 
   ravRedeemsInvalid: new metrics.client.Counter({
     name: `indexer_agent_rav_v2_exchanges_invalid_${networkIdentifier}`,
-    help: 'Invalid ravs v2 redeems - tx paused or unauthorized',
+    help: 'Invalid RAVs redeems - tx paused or unauthorized',
     registers: [metrics.registry],
     labelNames: ['collection'],
   }),
 
   ravRedeemsFailed: new metrics.client.Counter({
     name: `indexer_agent_rav_v2_redeems_failed_${networkIdentifier}`,
-    help: 'Failed redeems for ravs v2',
+    help: 'Failed redeems for RAVs',
     registers: [metrics.registry],
     labelNames: ['collection'],
   }),
 
   ravsRedeemDuration: new metrics.client.Histogram({
     name: `indexer_agent_rav_v2_redeem_duration_${networkIdentifier}`,
-    help: 'Duration of redeeming ravs v2',
+    help: 'Duration of redeeming RAVs',
     registers: [metrics.registry],
     labelNames: ['collection'],
   }),

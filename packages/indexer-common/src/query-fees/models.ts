@@ -198,14 +198,14 @@ export class ReceiptAggregateVoucher
   extends Model<ReceiptAggregateVoucherAttributes>
   implements ReceiptAggregateVoucherAttributes
 {
-  public allocationId!: Address
-  public senderAddress!: Address
-  public signature!: Uint8Array
-  public timestampNs!: bigint
-  public valueAggregate!: bigint
-  public final!: boolean
-  public last!: boolean
-  public redeemedAt!: Date | null
+  declare allocationId: Address
+  declare senderAddress: Address
+  declare signature: Uint8Array
+  declare timestampNs: bigint
+  declare valueAggregate: bigint
+  declare final: boolean
+  declare last: boolean
+  declare redeemedAt: Date | null
 
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>

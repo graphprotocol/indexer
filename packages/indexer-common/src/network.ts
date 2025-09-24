@@ -614,6 +614,17 @@ export class Network {
   }
 
   private async _register(logger: Logger, geoHash: string, url: string): Promise<void> {
+    // First ensure the indexer has a provision, can't register without one
+    const provision = await this.contracts.HorizonStaking.getProvision(
+      this.specification.indexerOptions.address,
+      this.contracts.SubgraphService.target,
+    )
+
+    if (provision.createdAt === 0n) {
+      this.logger.info('Indexer does not have a provision, skipping registration.')
+      return
+    }
+
     const paymentsDestination =
       this.specification.indexerOptions.paymentsDestination?.toString() ??
       '0x0000000000000000000000000000000000000000'

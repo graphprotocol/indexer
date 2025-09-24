@@ -144,7 +144,7 @@ export class TapCollector {
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
 
-    collector.logger.info(`RAV processing is initiated`)
+    collector.logger.info(`[TAPv1] RAV processing is initiated`)
     collector.startRAVProcessing()
     return collector
   }
@@ -159,7 +159,7 @@ export class TapCollector {
             0n,
           ),
         )
-        logger.info(`Query RAVs below the redemption threshold`, {
+        logger.info(`[TAPv1] Query RAVs below the redemption threshold`, {
           hint: 'If you would like to redeem RAVs like this, reduce the voucher redemption threshold',
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
@@ -189,14 +189,30 @@ export class TapCollector {
       async () => {
         let ravs = await this.pendingRAVs()
         if (ravs.length === 0) {
-          this.logger.info(`No pending RAVs to process`)
+          this.logger.info(`[TAPv1] No pending RAVs to process`)
           return []
         }
+        this.logger.trace(`[TAPv1] Unfiltered pending RAVs to process`, {
+          count: ravs.length,
+          ravs: ravs.map((r) => ({
+            allocationId: r.allocationId,
+            senderAddress: r.senderAddress,
+            valueAggregate: r.valueAggregate,
+          })),
+        })
         if (ravs.length > 0) {
           ravs = await this.filterAndUpdateRavs(ravs)
         }
+        this.logger.trace(`[TAPv1] Filtered pending RAVs to process`, {
+          count: ravs.length,
+          ravs: ravs.map((r) => ({
+            allocationId: r.allocationId,
+            senderAddress: r.senderAddress,
+            valueAggregate: r.valueAggregate,
+          })),
+        })
         const allocations: Allocation[] = await this.getAllocationsfromAllocationIds(ravs)
-        this.logger.info(`Retrieved allocations for pending RAVs`, {
+        this.logger.info(`[TAPv1] Retrieved allocations for pending RAVs`, {
           ravs: ravs.length,
           allocations: allocations.length,
         })
@@ -213,7 +229,10 @@ export class TapCollector {
           })
           .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
       },
-      { onError: (err) => this.logger.error(`Failed to query pending RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.error(`[TAPv1] Failed to query pending RAVs`, { err }),
+      },
     )
   }
 
@@ -279,7 +298,7 @@ export class TapCollector {
         { allocationIds, lastId, pageSize: PAGE_SIZE, block },
       )
       if (!result.data) {
-        throw `There was an error while querying Network Subgraph. Errors: ${result.error}`
+        throw `[TAPv1] There was an error while querying Network Subgraph. Errors: ${result.error}`
       }
 
       returnedAllocations.push(...result.data.allocations)
@@ -292,7 +311,7 @@ export class TapCollector {
 
     if (returnedAllocations.length == 0) {
       this.logger.error(
-        `No allocations returned for ${allocationIds} in network subgraph`,
+        `[TAPv1] No allocations returned for ${allocationIds} in network subgraph`,
       )
     }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -307,7 +326,15 @@ export class TapCollector {
         return await pReduce(
           pendingRAVs,
           async (results, rav) => {
-            if (BigInt(rav.rav.rav.valueAggregate) < this.ravRedemptionThreshold) {
+            const belowThreshold =
+              BigInt(rav.rav.rav.valueAggregate) < this.ravRedemptionThreshold
+            this.logger.trace('[TAPv1] RAVs threshold filtering', {
+              allocationId: rav.rav.rav.allocationId,
+              valueAggregate: formatGRT(rav.rav.rav.valueAggregate),
+              threshold: formatGRT(this.ravRedemptionThreshold),
+              belowThreshold,
+            })
+            if (belowThreshold) {
               results.belowThreshold.push(rav)
             } else {
               results.eligible.push(rav)
@@ -317,7 +344,10 @@ export class TapCollector {
           { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
         )
       },
-      { onError: (err) => this.logger.error(`Failed to reduce to signed RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.error(`[TAPv1] Failed to reduce to signed RAVs`, { err }),
+      },
     )
   }
 
@@ -335,6 +365,15 @@ export class TapCollector {
   ): Promise<ReceiptAggregateVoucher[]> {
     // look for all transactions for that includes senderaddress[] and allocations[]
     const tapSubgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
+
+    this.logger.trace('[TAPv1] Cross checking RAVs indexer database with subgraph', {
+      subgraphResponse: tapSubgraphResponse,
+      ravsLastNotFinal: ravsLastNotFinal.map((rav) => ({
+        allocationId: rav.allocationId,
+        senderAddress: rav.senderAddress,
+        valueAggregate: rav.valueAggregate,
+      })),
+    })
 
     // check for redeemed ravs in tx list but not marked as redeemed in our database
     this.markRavsInTransactionsAsRedeemed(tapSubgraphResponse, ravsLastNotFinal)
@@ -397,6 +436,12 @@ export class TapCollector {
     // but was redeemed on the blockchain, update it to redeemed
     if (redeemedRavsNotOnOurDatabase.length > 0) {
       for (const rav of redeemedRavsNotOnOurDatabase) {
+        this.logger.trace(
+          '[TAPv1] Found transaction for RAV that was redeemed on the blockchain but not on our database, marking it as redeemed',
+          {
+            rav,
+          },
+        )
         await this.markRavAsRedeemed(
           toAddress(rav.allocationID),
           toAddress(rav.sender.id),
@@ -429,6 +474,13 @@ export class TapCollector {
         }
       }
 
+      this.logger.trace('[TAPv1] Querying Tap Subgraph for RAVs', {
+        lastId,
+        pageSize: PAGE_SIZE,
+        block,
+        unfinalizedRavsAllocationIds,
+        senderAddresses,
+      })
       const result: QueryResult<TapSubgraphResponse> =
         await this.tapSubgraph.query<TapSubgraphResponse>(
           gql`
@@ -476,7 +528,10 @@ export class TapCollector {
         )
 
       if (!result.data) {
-        throw `There was an error while querying Tap Subgraph. Errors: ${result.error}`
+        this.logger.error('[TAPv1] There was an error while querying Tap Subgraph', {
+          result,
+        })
+        throw `[TAPv1] There was an error while querying Tap Subgraph. Errors: ${result.error}`
       }
       meta = result.data._meta
       transactions.push(...result.data.transactions)
@@ -502,6 +557,13 @@ export class TapCollector {
       return
     }
 
+    this.logger.trace(
+      '[TAPv1] Could not find transaction for RAV that was redeemed on the database, unsetting redeemed_at',
+      {
+        ravsNotRedeemed,
+      },
+    )
+
     // WE use sql directly due to a bug in sequelize update:
     // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
     const query = `
@@ -525,7 +587,7 @@ export class TapCollector {
     await this.models.receiptAggregateVouchers.sequelize?.query(query)
 
     this.logger.warn(
-      `Reverted Redeemed RAVs: ${ravsNotRedeemed
+      `[TAPv1] Reverted Redeemed RAVs: ${ravsNotRedeemed
         .map((rav) => `(${rav.senderAddress},${rav.allocationId})`)
         .join(', ')}`,
     )
@@ -543,7 +605,13 @@ export class TapCollector {
         AND redeemed_at < to_timestamp(${blockTimestampSecs - this.finalityTime})
       `
 
-    await this.models.receiptAggregateVouchers.sequelize?.query(query)
+    const result = await this.models.receiptAggregateVouchers.sequelize?.query(query)
+    this.logger.debug('[TAPv1] Marked RAVs as final', {
+      result,
+      blockTimestampSecs,
+      finalityTime: this.finalityTime,
+      threshold: blockTimestampSecs - this.finalityTime,
+    })
   }
 
   private async submitRAVs(signedRavs: RavWithAllocation[]): Promise<void> {
@@ -552,7 +620,7 @@ export class TapCollector {
       ravsToSubmit: signedRavs.length,
     })
 
-    logger.info(`Redeem last RAVs on chain individually`, {
+    logger.info(`[TAPv1] Redeem last RAVs on chain individually`, {
       signedRavs,
     })
     const escrowAccounts = await getEscrowAccounts(this.tapSubgraph, this.indexerAddress)
@@ -566,7 +634,7 @@ export class TapCollector {
       const senderBalance = escrowAccounts.getBalanceForSender(sender)
       if (senderBalance < ravValue) {
         this.logger.warn(
-          'RAV was not sent to the blockchain \
+          '[TAPv1] RAV was not sent to the blockchain \
           because its value aggregate is lower than escrow balance.',
           {
             rav,
@@ -582,12 +650,15 @@ export class TapCollector {
       })
       try {
         await this.redeemRav(logger, allocation, sender, signedRav)
+        this.logger.debug('[TAPv1] RAV redeemed successfully', {
+          rav,
+        })
         // subtract from the escrow account
         // THIS IS A MUT OPERATION
         escrowAccounts.subtractSenderBalance(sender, ravValue)
       } catch (err) {
         this.metrics.ravRedeemsFailed.inc({ allocation: rav.allocationId.toString() })
-        logger.error(`Failed to redeem RAV`, {
+        logger.error(`[TAPv1] Failed to redeem RAV`, {
           err: indexerError(IndexerErrorCode.IE055, err),
         })
         continue
@@ -615,9 +686,9 @@ export class TapCollector {
         },
       )
 
-      logger.info(`Updated allocation summaries table with withdrawn fees`)
+      logger.info(`[TAPv1] Updated allocation summaries table with withdrawn fees`)
     } catch (err) {
-      logger.warn(`Failed to update allocation summaries`, {
+      logger.warn(`[TAPv1] Failed to update allocation summaries`, {
         err,
       })
     }
@@ -644,7 +715,7 @@ export class TapCollector {
       toAddress(rav.allocationId.toString()),
       toAddress(escrow.escrow.target.toString()),
     )
-    this.logger.debug(`Computed allocationIdProof`, {
+    this.logger.debug(`[TAPv1] Computed allocationIdProof`, {
       allocationId: rav.allocationId,
       proof,
     })
@@ -664,6 +735,11 @@ export class TapCollector {
       return
     }
 
+    logger.debug('[TAPv1] Redeeming RAV: transaction successful', {
+      rav,
+      txReceipt,
+    })
+
     this.metrics.ravCollectedFees.set(
       { allocation: rav.allocationId.toString() },
       parseFloat(rav.valueAggregate.toString()),
@@ -672,11 +748,11 @@ export class TapCollector {
     try {
       await this.markRavAsRedeemed(toAddress(rav.allocationId.toString()), sender)
       logger.info(
-        `Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
+        `[TAPv1] Updated receipt aggregate vouchers table with redeemed_at for allocation ${rav.allocationId} and sender ${sender}`,
       )
     } catch (err) {
       logger.warn(
-        `Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
+        `[TAPv1] Failed to update receipt aggregate voucher table with redeemed_at for allocation ${rav.allocationId}`,
         {
           err,
         },
