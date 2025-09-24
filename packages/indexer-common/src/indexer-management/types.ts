@@ -73,16 +73,17 @@ export const isActionFailure = (variableToCheck: any): variableToCheck is Action
   'failureReason' in variableToCheck
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export const isPartialActionFailure = (variableToCheck: any): variableToCheck is Partial<ActionFailure> =>
-  'failureReason' in variableToCheck
+export const isPartialActionFailure = (
+  variableToCheck: any,
+): variableToCheck is Partial<ActionFailure> => 'failureReason' in variableToCheck
 
 export function isTransactionReceiptArray(
-  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[]
+  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[],
 ): arr is TransactionReceipt[] {
   return arr.every(
     (r): r is TransactionReceipt =>
-      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r)
-  );
+      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r),
+  )
 }
 
 export const isActionFailureArray = (

@@ -249,7 +249,10 @@ export class GraphTallyCollector {
           })
           .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
       },
-      { onError: (err) => this.logger.info(`[TAPv2] Failed to query pending RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.info(`[TAPv2] Failed to query pending RAVs`, { err }),
+      },
     )
   }
 
@@ -377,7 +380,10 @@ export class GraphTallyCollector {
           { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
         )
       },
-      { onError: (err) => this.logger.info(`[TAPv2] Failed to reduce to signed RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.info(`[TAPv2] Failed to reduce to signed RAVs`, { err }),
+      },
     )
   }
 

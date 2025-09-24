@@ -228,7 +228,11 @@ export class AllocationManager {
             }),
           )
 
-        this.processActionResults(actionResults, stakingTransactions, stakingTransactionResult)
+        this.processActionResults(
+          actionResults,
+          stakingTransactions,
+          stakingTransactionResult,
+        )
       } catch (error) {
         logger.error('Failed to execute staking contract transaction', { error })
         this.processActionResults(actionResults, stakingTransactions, {
@@ -278,7 +282,11 @@ export class AllocationManager {
             }),
           )
 
-        this.processActionResults(actionResults, subgraphServiceTransactions, subgraphServiceTransactionResult)
+        this.processActionResults(
+          actionResults,
+          subgraphServiceTransactions,
+          subgraphServiceTransactionResult,
+        )
       } catch (error) {
         logger.error('Failed to execute subgraph service transaction', { error })
         this.processActionResults(actionResults, subgraphServiceTransactions, {
@@ -302,28 +310,36 @@ export class AllocationManager {
 
   /**
    * Processes the result of transaction batches for an action
-   * 
-   * Reallocate actions can have multiple transaction batches associated with it (one for the staking contract and one for the subgraph service). 
+   *
+   * Reallocate actions can have multiple transaction batches associated with it (one for the staking contract and one for the subgraph service).
    * This method is used to consolidate the results to one per action.
-   * 
+   *
    * @param actionResults - Track the result of each action
    * @param transactions - The transactions to process, multicalled together
    * @param transactionResult - The result of the transaction that was multicalled and executed
    */
   processActionResults(
-    actionResults: ExecuteActionResult[], 
-    transactions: ActionTransactionRequest[], 
-    transactionResult: Partial<ActionFailure> | TransactionReceipt | 'paused' | 'unauthorized'
+    actionResults: ExecuteActionResult[],
+    transactions: ActionTransactionRequest[],
+    transactionResult:
+      | Partial<ActionFailure>
+      | TransactionReceipt
+      | 'paused'
+      | 'unauthorized',
   ) {
     const actionFailed = isPartialActionFailure(transactionResult)
     const buildActionFailureResult = (tx: ActionTransactionRequest): ActionFailure => ({
       actionID: tx.actionID,
-      failureReason: (transactionResult as Partial<ActionFailure>).failureReason ?? 'Unknown failure reason',
+      failureReason:
+        (transactionResult as Partial<ActionFailure>).failureReason ??
+        'Unknown failure reason',
       protocolNetwork: tx.protocolNetwork,
-    });
-  
+    })
+
     for (const transaction of transactions) {
-      const existing = actionResults.find((result) => result.actionID === transaction.actionID)
+      const existing = actionResults.find(
+        (result) => result.actionID === transaction.actionID,
+      )
 
       if (existing) {
         if (actionFailed) {
@@ -333,26 +349,29 @@ export class AllocationManager {
           existing.result.push(transactionResult)
         }
         continue
-      } 
+      }
 
       actionResults.push(
-        actionFailed ? {
-        actionID: transaction.actionID,
-        success: false,
-        result: [buildActionFailureResult(transaction)]
-      } : {
-        actionID: transaction.actionID,
-        success: true,
-        result: [transactionResult],
-      })
+        actionFailed
+          ? {
+              actionID: transaction.actionID,
+              success: false,
+              result: [buildActionFailureResult(transaction)],
+            }
+          : {
+              actionID: transaction.actionID,
+              success: true,
+              result: [transactionResult],
+            },
+      )
     }
   }
 
   /**
    * Confirms the execution of an action.
-   * 
+   *
    * Note that an unallocate actions can require multiple transaction batches to resolve.
-   * 
+   *
    * @param actionResults - The results of the action
    * @param actions - The actions to confirm
    */
@@ -390,8 +409,14 @@ export class AllocationManager {
 
         // Action fails if any of the transaction batches fail
         // TODO: handle multiple transaction batches failing. Here we only handle the first one.
-        if (actionResult.result.some((result) => result === 'paused' || result === 'unauthorized')) {
-          const transactionFailureReason = actionResult.result.find((result) => result === 'paused' || result === 'unauthorized')!
+        if (
+          actionResult.result.some(
+            (result) => result === 'paused' || result === 'unauthorized',
+          )
+        ) {
+          const transactionFailureReason = actionResult.result.find(
+            (result) => result === 'paused' || result === 'unauthorized',
+          )!
           logger.debug('Execute batch transaction failed', {
             actionBatchResult: actionResult,
             reason: transactionFailureReason,
@@ -399,7 +424,7 @@ export class AllocationManager {
           return {
             actionID: actionResult.actionID,
             transactionID: undefined,
-            failureReason: transactionFailureReason,
+            failureReason: transactionFailureReason as string, // ts not narrowing down this to a string
             protocolNetwork: action.protocolNetwork,
           }
         }
@@ -443,9 +468,9 @@ export class AllocationManager {
 
   /**
    * Confirms the execution of an action using transaction receipts.
-   * 
+   *
    * Reallocate actions can have multiple receipts.
-   * 
+   *
    * @param receipts - The receipts to process
    * @param action - The action to confirm
    */
@@ -856,6 +881,14 @@ export class AllocationManager {
 
     let populatedTransaction: ContractTransaction
     if (isHorizon) {
+      // Fail automatically if the indexer is not registered
+      // This provides a better ux during the transition period
+      const registrationData = await this.network.contracts.SubgraphService.indexers(
+        params.indexer,
+      )
+      if (registrationData.url.length === 0) {
+        throw indexerError(IndexerErrorCode.IE086)
+      }
       const encodedData = encodeStartServiceData(
         params.subgraphDeploymentID.toString(),
         BigInt(params.tokens),
@@ -1338,8 +1371,6 @@ export class AllocationManager {
     const logger = this.logger.child({ action: actionID })
     const isHorizon = await this.network.isHorizon.value()
 
-
-
     logger.info(`Confirming reallocate transaction`, {
       allocationID,
       isHorizon,
@@ -1384,34 +1415,36 @@ export class AllocationManager {
           )
 
           // not possible to create legacy allocation if what was closed was not a legacy allocation
-          const stakingCreateAllocationEventLogs = this.network.transactionManager.findEvent(
-            'AllocationCreated',
-            this.network.contracts.LegacyStaking.interface,
-            'subgraphDeploymentID',
-            stakingCloseAllocationEventLogs.subgraphDeploymentID,
-            receipt,
-            this.logger,
-          )
+          const stakingCreateAllocationEventLogs =
+            this.network.transactionManager.findEvent(
+              'AllocationCreated',
+              this.network.contracts.LegacyStaking.interface,
+              'subgraphDeploymentID',
+              stakingCloseAllocationEventLogs.subgraphDeploymentID,
+              receipt,
+              this.logger,
+            )
 
           if (stakingCreateAllocationEventLogs !== undefined) {
             createAllocationEventLogs = stakingCreateAllocationEventLogs
           }
         }
-      } 
+      }
       // Subgraph Service contract
       else {
         // Subgraph Service contract
         // Possible transactions to handle:
         // - collect + stopService for a new allocation
         // - startService for a new allocation
-        const subgraphServiceCloseAllocationEventLogs = this.network.transactionManager.findEvent(
-          'AllocationClosed',
-          this.network.contracts.SubgraphService.interface,
-          'allocationId',
-          allocationID,
-          receipt,
-          this.logger,
-        )
+        const subgraphServiceCloseAllocationEventLogs =
+          this.network.transactionManager.findEvent(
+            'AllocationClosed',
+            this.network.contracts.SubgraphService.interface,
+            'allocationId',
+            allocationID,
+            receipt,
+            this.logger,
+          )
         if (subgraphServiceCloseAllocationEventLogs !== undefined) {
           closeAllocationEventLogs = subgraphServiceCloseAllocationEventLogs
 
@@ -1432,14 +1465,15 @@ export class AllocationManager {
           )
         }
 
-        const subgraphServiceCreateAllocationEventLogs = this.network.transactionManager.findEvent(
-          'AllocationCreated',
-          this.network.contracts.SubgraphService.interface,
-          'indexer',
-          this.network.specification.indexerOptions.address,
-          receipt,
-          logger,
-        )
+        const subgraphServiceCreateAllocationEventLogs =
+          this.network.transactionManager.findEvent(
+            'AllocationCreated',
+            this.network.contracts.SubgraphService.interface,
+            'indexer',
+            this.network.specification.indexerOptions.address,
+            receipt,
+            logger,
+          )
         if (subgraphServiceCreateAllocationEventLogs !== undefined) {
           createAllocationEventLogs = subgraphServiceCreateAllocationEventLogs
         }
@@ -1463,7 +1497,7 @@ export class AllocationManager {
 
     if (rewardsAssigned === 0n) {
       logger.warn('No rewards were distributed upon closing the allocation', {
-        allocationID
+        allocationID,
       })
     }
 
@@ -1582,13 +1616,16 @@ export class AllocationManager {
           this.network.contracts.SubgraphService.target,
         )
         if (provision.createdAt > 0n) {
-          logger.info('[Horizon] Automatically provisioning the legacy allocation unallocated stake to the Subgraph Service', {
-            indexer: this.network.specification.indexerOptions.address,
-            subgraphDeploymentID: params.subgraphDeploymentID.toString(),
-            legacyAllocationID: params.closingAllocationID,
-            newAllocationID: params.newAllocationID,
-            tokens: formatGRT(params.tokens),
-          })
+          logger.info(
+            'Automatically provisioning the legacy allocation unallocated stake to the Subgraph Service',
+            {
+              indexer: this.network.specification.indexerOptions.address,
+              subgraphDeploymentID: params.subgraphDeploymentID.toString(),
+              legacyAllocationID: params.closingAllocationID,
+              newAllocationID: params.newAllocationID,
+              tokens: formatGRT(params.tokens),
+            },
+          )
           txs.push(
             await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
               params.indexer,
@@ -1597,13 +1634,16 @@ export class AllocationManager {
             ),
           )
         } else {
-          logger.info('[Horizon] Skipping automatic provisioning after legacy allocation closure, could not find indexer provision', {
-            indexer: this.network.specification.indexerOptions.address,
-            subgraphDeploymentID: params.subgraphDeploymentID.toString(),
-            legacyAllocationID: params.closingAllocationID,
-            newAllocationID: params.newAllocationID,
-            tokens: formatGRT(params.tokens),
-          })
+          logger.info(
+            'Skipping automatic provisioning after legacy allocation closure, could not find indexer provision',
+            {
+              indexer: this.network.specification.indexerOptions.address,
+              subgraphDeploymentID: params.subgraphDeploymentID.toString(),
+              legacyAllocationID: params.closingAllocationID,
+              newAllocationID: params.newAllocationID,
+              tokens: formatGRT(params.tokens),
+            },
+          )
         }
       }
     } else {
@@ -1645,6 +1685,15 @@ export class AllocationManager {
 
     // -- create new allocation
     if (isHorizon) {
+      // Fail automatically if the indexer is not registered
+      // This provides a better ux during the transition period
+      const registrationData = await this.network.contracts.SubgraphService.indexers(
+        params.indexer,
+      )
+      if (registrationData.url.length === 0) {
+        throw indexerError(IndexerErrorCode.IE086)
+      }
+
       const encodedData = encodeStartServiceData(
         params.subgraphDeploymentID.toString(),
         BigInt(params.tokens),

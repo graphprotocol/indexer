@@ -229,7 +229,10 @@ export class TapCollector {
           })
           .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
       },
-      { onError: (err) => this.logger.error(`[TAPv1] Failed to query pending RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.error(`[TAPv1] Failed to query pending RAVs`, { err }),
+      },
     )
   }
 
@@ -323,7 +326,8 @@ export class TapCollector {
         return await pReduce(
           pendingRAVs,
           async (results, rav) => {
-            const belowThreshold = BigInt(rav.rav.rav.valueAggregate) < this.ravRedemptionThreshold
+            const belowThreshold =
+              BigInt(rav.rav.rav.valueAggregate) < this.ravRedemptionThreshold
             this.logger.trace('[TAPv1] RAVs threshold filtering', {
               allocationId: rav.rav.rav.allocationId,
               valueAggregate: formatGRT(rav.rav.rav.valueAggregate),
@@ -340,7 +344,10 @@ export class TapCollector {
           { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
         )
       },
-      { onError: (err) => this.logger.error(`[TAPv1] Failed to reduce to signed RAVs`, { err }) },
+      {
+        onError: (err) =>
+          this.logger.error(`[TAPv1] Failed to reduce to signed RAVs`, { err }),
+      },
     )
   }
 

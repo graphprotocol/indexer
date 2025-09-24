@@ -96,6 +96,7 @@ export enum IndexerErrorCode {
   IE083 = 'IE083',
   IE084 = 'IE084',
   IE085 = 'IE085',
+  IE086 = 'IE086',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -185,6 +186,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE083: 'Failed to thaw stake from provision',
   IE084: 'Could not resolve POI block number',
   IE085: 'Could not resolve public POI',
+  IE086: 'Indexer not registered in the Subgraph Service',
 }
 
 export type IndexerErrorCause = unknown

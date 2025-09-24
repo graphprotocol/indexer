@@ -257,7 +257,11 @@ export class ActionManager {
         {
           status: status,
           transaction: result.transactionID,
-          failureReason: isActionFailure(result) ? result.failureReason : null,
+          // truncate failure reason to 1000 characters
+          // avoids SequelizeDatabaseError: value too long for type character varying(1000)
+          failureReason: isActionFailure(result)
+            ? result.failureReason.substring(0, 1000)
+            : null,
         },
         {
           where: { id: result.actionID },
