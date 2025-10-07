@@ -542,7 +542,12 @@
   resolved "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.3.tgz#555193ab2e3bb3b6adc3d551c9c030d9e860daf6"
   integrity sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==
 
-"@graphprotocol/address-book@0.1.0", "@graphprotocol/address-book@^0.1.0":
+"@graphprotocol/address-book@1.0.1":
+  version "1.0.1"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/address-book/-/address-book-1.0.1.tgz#6ce2fbd2f3d9b0b9b671d41b2cc40250634d6796"
+  integrity sha512-hI2OjEXAEiaGGS9Geb/HQyUmek0RVISwFL63U7ojmEa6mbtD7ZT4PAdWMp3KT5Q8s1OMY4WiE+ehUsJtkwVleA==
+
+"@graphprotocol/address-book@^0.1.0":
   version "0.1.0"
   resolved "https://registry.yarnpkg.com/@graphprotocol/address-book/-/address-book-0.1.0.tgz#96cf1e8fc506797adc85d582e5246320b83a8232"
   integrity sha512-QHtpxitV7YCjq8mXx6ruvbSKcwDNiWBFFRJKgAlTCJgebFdfxmovr1GzV8biFB1587gfYmfL8OEU9pafZq3n+g==
