@@ -39,7 +39,7 @@
     "isomorphic-fetch": "3.0.0",
     "table": "6.7.5",
     "yaml": "1.10.2",
-    "wrap-ansi": "9.0.0"
+    "wrap-ansi": "8.1.0"
   },
   "devDependencies": {
     "@types/isomorphic-fetch": "0.0.36",
