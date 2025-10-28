@@ -39,11 +39,12 @@
     "isomorphic-fetch": "3.0.0",
     "table": "6.7.5",
     "yaml": "1.10.2",
-    "wrap-ansi": "9.0.0"
+    "wrap-ansi": "7.0.0"
   },
   "devDependencies": {
     "@types/isomorphic-fetch": "0.0.36",
     "@types/lodash.clonedeep": "^4.5.7",
+    "@types/wrap-ansi": "3.0.0",
     "@typescript-eslint/eslint-plugin": "6.7.0",
     "@typescript-eslint/parser": "6.7.0",
     "eslint": "8.49.0",
