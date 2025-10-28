@@ -1,64 +1,129 @@
-# Feature support matrix
+# Feature Support Matrix
 
-As described in [GIP-0008](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xbdd884654a393620a7e8665b4289201b7542c3ee62becfad133e951b0c408444), the Feature support matrix defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration.
+As described in [GIP-0008](https://snapshot.org/#/council.graphprotocol.eth/proposal/0xbdd884654a393620a7e8665b4289201b7542c3ee62becfad133e951b0c408444), the Feature Support Matrix defines indexing & querying features which are experimental or not fully supported for indexing & query rewards and arbitration.
 
-The matrix below reflects the canonical Council-ratified version. As outlined in GIP-00008, Council ratification is currently required for each update, which may happen at different stages of feature development and testing lifecycle.
+---
 
-| Subgraph Feature            | Aliases       | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Indexing Rewards | Deprecated   |
-| --------------------------- | ------------- | ----------- | ------------ | ----------------- | -------------------- | ---------------- | ------------ |
-| **Core Features**           |               |             |              |                   |                      |                  |              |
-| Full-text Search            |               | Yes         | No           | No                | Yes                  | Yes              |              |
-| Non-Fatal Errors            |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| Grafting                    |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| **Data Source Types**       |               |             |              |                   |                      |                  |              |
-| eip155:\*                   | \*            | Yes         | No           | No                | No                   | No               |              |
-| eip155:1                    | mainnet       | Yes         | No           | Yes               | Yes                  | Yes              |              |
-| eip155:100                  | gnosis        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| near:\*                     | \*            | Yes         | Yes          | No                | No                   | No               |              |
-| ~~arweave:\*~~ (deprecated) | \*            | Yes         | Yes          | No                | No                   | No               | v0.39.0      |
-| eip155:42161                | arbitrum-one  | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:42220                | celo          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:43114                | avalanche     | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:250                  | fantom        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:137                  | polygon       | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:10                   | optimism      | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:8453                 | base          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:534352               | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:59144                | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:56                   | bsc           | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:122                  | fuse          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:81457                | blast-mainnet | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:288                  | boba          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:56288                | boba-bnb      | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:7777777              | zora          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:34443                | mode          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:1284                 | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:30                   | rootstock     | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| **Data Source Features**    |               |             |              |                   |                      |                  |              |
-| ipfs.cat in mappings        |               | Yes         | Yes          | No                | No                   | No               |              |
-| ENS                         |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| File data sources: Arweave  |               | Yes         | Yes          | No                | Yes                  | Yes              |              |
-| File data sources: IPFS     |               | Yes         | Yes          | No                | Yes                  | Yes              |              |
-| Substreams: mainnet         |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| Substreams: optimism        |               | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
+## Governance
 
-Note: Items marked as deprecated are no longer supported in the specified version or later of `graph-node`.
+As of [GGP-0062](https://snapshot.org/#/s:council.graphprotocol.eth/proposal/0x4eff14202f6204c0927860a9adff865fce33c32b6cbe7054227457631ee261b9), the Feature Support Matrix is maintained by The Graph core protocol developers, and indexing rewards for networks are managed by The Graph Foundation (with review by the Technical Advisory Board).
 
-The accepted `graph-node` version range must always be specified; it always comprises the latest available version and the one immediately preceding it.
-The latest for the feature matrix above:
+### Responsibilities
+
+**The Graph Foundation** (with TAB review):
+- Adding or removing indexing rewards for networks
+- Since indexing rewards determine arbitration support, this also controls which networks have arbitration enabled
+
+**Core Protocol Developers**:
+- Graph-node version requirements
+- Core feature support and experimental status
+- Data source feature support
+- Technical implementation details
+
+**Council Approval Required For**:
+- Changes to arbitration eligibility for **existing features** or data sources
+- Determining which **new features** or **new data source types** are eligible for indexing rewards
+- Changes to arbitration policy that affect dispute resolution
+
+**No Council Approval Required For**:
+- Adding/removing networks with indexing rewards (Foundation + TAB authority)
+- Adding new experimental features (not yet eligible for rewards)
+- Graph-node version updates
+- Documentation improvements and clarifications
+
+---
+
+## Graph Node Version Requirements
+
+For arbitration to function fairly and consistently, indexers must run compatible versions of graph-node. As specified in the [Arbitration Charter (Section 10)](https://github.com/graphprotocol/graph-improvement-proposals/blob/main/gips/0009-arbitration-charter.md#10-subgraph-api-and-indexer-software-versioning), a defined version window ensures that:
+
+1. **Consistent behavior**: All indexers subject to arbitration run compatible software
+2. **Fair disputes**: Fishermen and indexers are evaluated against the same implementation
+3. **Reasonable upgrade window**: Indexers have time to upgrade without being out of compliance
+
+The accepted `graph-node` version range for indexers:
 
 ```
 graph-node: >=0.38.0 <=0.39.1
 ```
 
-### Latest Council snapshot
+**Policy**: This range must always comprise the latest available version and one immediately preceding it, providing indexers with a reasonable window to upgrade while ensuring the network runs on recent, well-tested software.
 
-[GGP-0050 Updated Feature Matrix Support (zora, mode, moonbeam)](https://snapshot.org/#/s:council.graphprotocol.eth/proposal/0x7c1b0eaa299a24ba23f76d86d85b903ac8e8457db3656531e7bd5cee80c20146)
+**Last Updated**: 2024-10-21
 
-### Other notes
+---
 
-- Currently, one single matrix is used to reflect protocol behaviour for both Ethereum mainnet and Arbitrum One.
-- Aliases can be used in subgraph manifest files to refer to specific networks.
-- Experimental features are generally not fully supported for indexing rewards and arbitration, and usage of experimental features will be considered during any arbitration that does occur.
-- Query fees apply to all queries, regardless of the underlying features used by a subgraph.
-- Subgraph features not named in the matrix are assumed to be fully supported for indexing & query rewards and arbitration
+## Network Support & Arbitration
+
+### Default Policy
+
+**Networks with indexing rewards have full arbitration support (both query and indexing).**
+
+This is a bidirectional relationship:
+- **Indexing rewards enabled** → Arbitration support enabled
+- **Arbitration support enabled** → Indexing rewards enabled
+
+### How to Check Network Support
+
+To verify if a network supports arbitration:
+
+1. Check the [Networks Registry - Networks Table](https://github.com/graphprotocol/networks-registry/blob/main/docs/networks-table.md)
+2. Look for ✅ in the **"Indexing Rewards"** column
+3. If ✅ present → Network has full arbitration support
+4. If no ✅ → Network does not have arbitration support
+
+For complete network information (RPC endpoints, services, deprecation status, etc.), see the [Networks Registry](https://github.com/graphprotocol/networks-registry).
+
+### Arbitration Policy Documentation
+
+For detailed information about the arbitration policy and how it relates to indexing rewards, see [Network Arbitration Policy](https://github.com/graphprotocol/networks-registry/blob/main/docs/arbitration-policy.md).
+
+### Exception Networks
+
+Only networks that deviate from the default policy are listed here:
+
+_Currently, all networks follow the default policy. This table will list exceptions if they arise._
+
+| Network (CAIP-2) | Aliases | Query Arbitration | Indexing Arbitration | Notes |
+| --- | --- | --- | --- | --- |
+| | | | | |
+
+---
+
+## Core Subgraph Features
+
+| Feature | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Deprecated |
+| --- | --- | --- | --- | --- | --- |
+| Full-text Search | Yes | No | No | Yes | |
+| Non-Fatal Errors | Yes | Yes | Yes | Yes | |
+| Grafting | Yes | Yes | Yes | Yes | |
+
+---
+
+## Data Source Features
+
+| Feature | Implemented | Experimental | Query Arbitration | Indexing Arbitration | Deprecated |
+| --- | --- | --- | --- | --- | --- |
+| ipfs.cat in mappings | Yes | Yes | No | No | |
+| ENS | Yes | Yes | Yes | Yes | |
+| File data sources: Arweave | Yes | Yes | No | Yes | |
+| File data sources: IPFS | Yes | Yes | No | Yes | |
+| Substreams: mainnet | Yes | Yes | Yes | Yes | |
+| Substreams: optimism | Yes | Yes | Yes | Yes | |
+
+---
+
+## Deprecated Features and Networks
+
+For information about deprecated networks and features, including which graph-node version deprecated them, see the [Networks Registry](https://github.com/graphprotocol/networks-registry).
+
+Networks with a `deprecatedAt` timestamp in their `graphNode` section are no longer supported for subgraph deployments.
+
+---
+
+## Notes
+
+- Currently, one single matrix reflects protocol behaviour for both Ethereum mainnet and Arbitrum One.
+- Experimental features are generally not fully supported for indexing rewards and arbitration.
+- Query fees apply to all queries, regardless of features used.
+- Features not named in the matrix are assumed fully supported for indexing & query rewards and arbitration.
