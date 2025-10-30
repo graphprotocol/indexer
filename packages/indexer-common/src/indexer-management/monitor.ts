@@ -1631,8 +1631,14 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     blockNumber: number,
     force: boolean,
   ): Promise<string> {
+    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
+    if (null === supportedNetworkAlias) {
+      this.logger.error("Network is not supported, can't resolve public POI")
+      return hexlify(new Uint8Array(32).fill(0))
+    }
+
     const blockHash = await this.graphNode.blockHashFromNumber(
-      resolveChainAlias(this.networkCAIPID),
+      supportedNetworkAlias,
       blockNumber,
     )
     const generatedPublicPOI = await this.graphNode.proofOfIndexing(
