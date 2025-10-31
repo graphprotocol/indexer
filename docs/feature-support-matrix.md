@@ -55,7 +55,7 @@ graph-node: >=0.38.0 <=0.39.1
 
 ### Latest Council snapshot
 
-[GGP-0057: Delegation of Chain Integration & Deprecation Authority to The Graph Foundation (with TAB Approval Requirement)](https://snapshot.box/#/s:council.graphprotocol.eth/proposal/0x4eff14202f6204c0927860a9adff865fce33c32b6cbe7054227457631ee261b9)
+[GGP-0057](https://snapshot.box/#/s:council.graphprotocol.eth/proposal/0x4eff14202f6204c0927860a9adff865fce33c32b6cbe7054227457631ee261b9) :Delegation of Chain Integration & Deprecation Authority to The Graph Foundation (with TAB Approval Requirement)
 This proposal delegates responsibility for approving new chain integrations (indexing rewards) and deprecating chains to The Graph Foundation, contingent upon receiving approval from the Technical Advisory Board (TAB). This change is intended to streamline operations while maintaining technical oversight. The Council retains override authority.
 
 
