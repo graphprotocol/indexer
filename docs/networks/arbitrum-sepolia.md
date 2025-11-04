@@ -51,7 +51,7 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
 | `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway.testnet.thegraph.com/`                                                                        |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmU2HFM9KAqTs8RaGedFXj22qChew27DxRu6jH5shiV7XK`                                                                        |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmbYMUj9zw2nk6AzKJiSVFnxbEcNwEYFhziLyPz7tytukx`                                                                        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_DEPLOYMENT`   | `--epoch-subgraph-deployment`   | `Qmd1e53TmQDbCKWpr5VoUz2HzTc2fAjuyhMuguXZ1qFaTB`                                                                        |
 | `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS` |
@@ -80,7 +80,7 @@ They are configured using a TOML file provided with `--config`. You should start
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `indexer.indexer_address`              | Ethereum address of testnet indexer                                                                                     |
 | `indexer.operator_mnemonic`            | Ethereum mnemonic for testnet operator                                                                                  |
-| `subgraphs.network.deployment_id`      | `QmU2HFM9KAqTs8RaGedFXj22qChew27DxRu6jH5shiV7XK`                                                                        |
+| `subgraphs.network.deployment_id`      | `QmbYMUj9zw2nk6AzKJiSVFnxbEcNwEYFhziLyPz7tytukx`                                                                        |
 | `subgraphs.network.query_url`          | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
 | `subgraphs.escrow.deployment_id`       | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
 | `subgraphs.escrow.query_url`           | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
