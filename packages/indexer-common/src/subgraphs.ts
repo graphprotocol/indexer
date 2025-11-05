@@ -192,13 +192,39 @@ export class AllocationDecision {
   }
 }
 
+export interface PreprocessedRules {
+  deploymentRulesMap: Map<string, IndexingRuleAttributes>
+  globalRule: IndexingRuleAttributes | undefined
+}
+
+export function preprocessRules(rules: IndexingRuleAttributes[]): PreprocessedRules {
+  const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
+  const deploymentRulesMap = new Map<string, IndexingRuleAttributes>()
+
+  rules.forEach((rule) => {
+    if (rule.identifierType === SubgraphIdentifierType.DEPLOYMENT) {
+      deploymentRulesMap.set(rule.identifier, rule)
+    }
+  })
+
+  return { deploymentRulesMap, globalRule }
+}
+
 export function evaluateDeployments(
   logger: Logger,
   networkDeployments: SubgraphDeployment[],
   rules: IndexingRuleAttributes[],
 ): AllocationDecision[] {
+  const { deploymentRulesMap, globalRule } = preprocessRules(rules)
+
   return networkDeployments.map((deployment) =>
-    isDeploymentWorthAllocatingTowards(logger, deployment, rules),
+    isDeploymentWorthAllocatingTowards(
+      logger,
+      deployment,
+      rules,
+      deploymentRulesMap,
+      globalRule,
+    ),
   )
 }
 
@@ -206,15 +232,11 @@ export function isDeploymentWorthAllocatingTowards(
   logger: Logger,
   deployment: SubgraphDeployment,
   rules: IndexingRuleAttributes[],
+  deploymentRulesMap: Map<string, IndexingRuleAttributes>,
+  globalRule: IndexingRuleAttributes | undefined,
 ): AllocationDecision {
-  const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
-  const deploymentRule =
-    rules
-      .filter((rule) => rule.identifierType == SubgraphIdentifierType.DEPLOYMENT)
-      .find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
-      ) || globalRule
+  // Use the pre-processed map for O(1) lookup
+  const deploymentRule = deploymentRulesMap.get(deployment.id.ipfsHash) || globalRule
 
   logger.trace('Evaluating whether subgraphDeployment is worth allocating towards', {
     deployment,
