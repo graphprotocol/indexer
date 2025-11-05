@@ -15,6 +15,7 @@ import {
   AllocationStatus,
   CloseAllocationResult,
   CreateAllocationResult,
+  DipsManager,
   fetchIndexingRules,
   GraphNode,
   indexerError,
@@ -113,12 +114,17 @@ const isAllFailures = (result: TransactionResult): result is ActionFailure[] => 
 }
 
 export class AllocationManager {
+  declare dipsManager: DipsManager | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
-  ) {}
+  ) {
+    if (this.network.specification.indexerOptions.dipperEndpoint) {
+      this.dipsManager = new DipsManager(this.logger, this.models, this.network, this)
+    }
+  }
 
   async executeBatch(
     actions: Action[],
@@ -609,6 +615,14 @@ export class AllocationManager {
       await upsertIndexingRule(logger, this.models, indexingRule)
     }
 
+    if (this.dipsManager) {
+      await this.dipsManager.tryUpdateAgreementAllocation(
+        deployment,
+        null,
+        toAddress(createAllocationEventLogs.allocationID),
+      )
+    }
+
     return {
       actionID,
       type: 'allocate',
@@ -764,6 +778,15 @@ export class AllocationManager {
     } as Partial<IndexingRuleAttributes>
 
     await upsertIndexingRule(logger, this.models, neverIndexingRule)
+
+    if (this.dipsManager) {
+      await this.dipsManager.tryCancelAgreement(allocationID)
+      await this.dipsManager.tryUpdateAgreementAllocation(
+        allocation.subgraphDeployment.id.toString(),
+        toAddress(allocationID),
+        null,
+      )
+    }
 
     return {
       actionID,
@@ -1064,6 +1087,14 @@ export class AllocationManager {
       await upsertIndexingRule(logger, this.models, indexingRule)
     }
 
+    if (this.dipsManager) {
+      await this.dipsManager.tryUpdateAgreementAllocation(
+        subgraphDeploymentID.toString(),
+        toAddress(allocationID),
+        toAddress(createAllocationEventLogs.allocationID),
+      )
+    }
+
     return {
       actionID,
       type: 'reallocate',
@@ -1122,11 +1153,7 @@ export class AllocationManager {
     const subgraphDeployment = await this.network.networkMonitor.subgraphDeployment(
       subgraphDeploymentID.ipfsHash,
     )
-    if (!subgraphDeployment) {
-      throw Error(
-        `SHOULD BE UNREACHABLE: No matching subgraphDeployment (${subgraphDeploymentID.ipfsHash}) found on the network`,
-      )
-    }
+
     return isDeploymentWorthAllocatingTowards(logger, subgraphDeployment, indexingRules)
       .toAllocate
   }

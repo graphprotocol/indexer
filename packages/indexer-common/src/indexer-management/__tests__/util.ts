@@ -59,6 +59,7 @@ export const createTestManagementClient = async (
   const network = await Network.create(
     logger,
     networkSpecification,
+    managementModels,
     queryFeeModels,
     graphNode,
     metrics,

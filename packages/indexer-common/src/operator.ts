@@ -16,6 +16,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  DipsManager,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { BigNumber, utils } from 'ethers'
@@ -80,6 +81,13 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+  }
+
+  get dipsManager(): DipsManager | null {
+    const network = this.specification.networkIdentifier
+    const allocationManager =
+      this.indexerManagement.actionManager?.allocationManagers[network]
+    return allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
@@ -258,16 +266,26 @@ export class Operator {
     return result.data.actions
   }
 
-  async queueAction(action: ActionItem): Promise<Action[]> {
+  async queueAction(action: ActionItem, forceAction: boolean = false): Promise<Action[]> {
     let status = ActionStatus.QUEUED
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
-        throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        }
+        break
       case AllocationManagementMode.AUTO:
         status = ActionStatus.APPROVED
         break
       case AllocationManagementMode.OVERSIGHT:
-        status = ActionStatus.QUEUED
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          status = ActionStatus.QUEUED
+        }
+        break
     }
 
     const actionInput = {
@@ -336,6 +354,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
+    forceAction: boolean = false,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
@@ -364,15 +383,18 @@ export class Operator {
     }
 
     // Send AllocateAction to the queue
-    await this.queueAction({
-      params: {
-        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-        amount: formatGRT(desiredAllocationAmount),
+    await this.queueAction(
+      {
+        params: {
+          deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+          amount: formatGRT(desiredAllocationAmount),
+        },
+        type: ActionType.ALLOCATE,
+        reason: deploymentAllocationDecision.reasonString(),
+        protocolNetwork: deploymentAllocationDecision.protocolNetwork,
       },
-      type: ActionType.ALLOCATE,
-      reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-    })
+      forceAction,
+    )
 
     return
   }
@@ -381,6 +403,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     const activeDeploymentAllocationsEligibleForClose = activeDeploymentAllocations.map(
       (allocation) => allocation.id,
@@ -400,17 +423,20 @@ export class Operator {
         activeDeploymentAllocationsEligibleForClose,
         async (allocation) => {
           // Send unallocate action to the queue
-          await this.queueAction({
-            params: {
-              allocationID: allocation,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              poi: undefined,
-              force: false,
-            },
-            type: ActionType.UNALLOCATE,
-            reason: deploymentAllocationDecision.reasonString(),
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-          } as ActionItem)
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                poi: undefined,
+                force: false,
+              },
+              type: ActionType.UNALLOCATE,
+              reason: deploymentAllocationDecision.reasonString(),
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+            } as ActionItem,
+            forceAction,
+          )
         },
         { concurrency: 1 },
       )
@@ -421,6 +447,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     expiredAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
       logger.info(`Reallocating expired allocations`, {
@@ -437,16 +464,19 @@ export class Operator {
       await pMap(
         expiredAllocations,
         async (allocation) => {
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              amount: formatGRT(desiredAllocationAmount),
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                amount: formatGRT(desiredAllocationAmount),
+              },
+              type: ActionType.REALLOCATE,
+              reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
             },
-            type: ActionType.REALLOCATE,
-            reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-          })
+            forceAction,
+          )
         },
         {
           stopOnError: false,

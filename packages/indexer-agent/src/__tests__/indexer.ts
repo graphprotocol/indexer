@@ -149,6 +149,7 @@ const setup = async () => {
   const network = await Network.create(
     logger,
     networkSpecification,
+    models,
     queryFeeModels,
     graphNode,
     metrics,
