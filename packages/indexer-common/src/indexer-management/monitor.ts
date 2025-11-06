@@ -1061,6 +1061,14 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     blockNumber: number | undefined,
     force: boolean,
   ): Promise<POIData> {
+    this.logger.trace('Resolving POI data', {
+      allocation: allocation.id,
+      poi: poi,
+      publicPOI: publicPOI,
+      blockNumber: blockNumber,
+      force: force,
+    })
+
     const [resolvedPOI, resolvedPOIBlockNumber] = await this._resolvePOI(
       allocation,
       poi,

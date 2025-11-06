@@ -495,7 +495,7 @@ const SCHEMA_SDL = gql`
     closeAllocation(
       allocation: String!
       poi: String
-      poiBlockNumber: Int
+      blockNumber: Int
       publicPOI: String
       force: Boolean
       protocolNetwork: String!
@@ -503,7 +503,7 @@ const SCHEMA_SDL = gql`
     reallocateAllocation(
       allocation: String!
       poi: String
-      poiBlockNumber: Int
+      blockNumber: Int
       publicPOI: String
       amount: String!
       force: Boolean
