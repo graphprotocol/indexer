@@ -1645,6 +1645,10 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return hexlify(new Uint8Array(32).fill(0))
     }
 
+    if (force && publicPOI !== undefined) {
+      return publicPOI
+    }
+
     const blockHash = await this.graphNode.blockHashFromNumber(
       supportedNetworkAlias,
       blockNumber,
