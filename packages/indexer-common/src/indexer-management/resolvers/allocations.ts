@@ -42,6 +42,7 @@ import {
   PaymentTypes,
 } from '@graphprotocol/toolshed'
 import { extractNetwork } from './utils'
+import { tryParseCustomError } from '../../utils'
 import { GraphNode } from '../../graph-node'
 
 interface AllocationFilter {
@@ -1547,11 +1548,12 @@ export default {
         protocolNetwork,
       }
     } catch (error) {
+      const parsedError = tryParseCustomError(error)
       logger.error(`Failed to allocate`, {
         amount: formatGRT(allocationAmount),
-        error,
+        error: parsedError,
       })
-      throw error
+      throw parsedError
     }
   },
 
@@ -1666,8 +1668,9 @@ export default {
         protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
-      logger.error(error.toString())
-      throw error
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to unallocate', { error: parsedError })
+      throw parsedError
     }
   },
 
@@ -1832,8 +1835,9 @@ export default {
         protocolNetwork,
       }
     } catch (error) {
-      logger.error(error.toString())
-      throw error
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to reallocate', { error: parsedError })
+      throw parsedError
     }
   },
 }

@@ -10,6 +10,7 @@ import { indexerError, IndexerErrorCode } from './errors'
 import { DocumentNode, SelectionSetNode, Kind } from 'graphql'
 import cloneDeep from 'lodash.clonedeep'
 import { sequentialTimerMap } from './sequential-timer'
+import { parseCustomError } from '@graphprotocol/toolshed'
 
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
@@ -121,3 +122,15 @@ function findFirstSelectionSet(node: any): SelectionSetNode | null {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export function tryParseCustomError(error: unknown): string | unknown {
+  try {
+    const typedError = error as { code: string; data: string }
+    if (typedError && typedError.code === 'CALL_EXCEPTION' && typedError.data) {
+      return parseCustomError(typedError.data)
+    }
+    return error
+  } catch (e) {
+    return error
+  }
+}

@@ -97,6 +97,7 @@ export enum IndexerErrorCode {
   IE084 = 'IE084',
   IE085 = 'IE085',
   IE086 = 'IE086',
+  IE087 = 'IE087',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -187,6 +188,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE084: 'Could not resolve POI block number',
   IE085: 'Could not resolve public POI',
   IE086: 'Indexer not registered in the Subgraph Service',
+  IE087: 'Contract execution reverted with custom error',
 }
 
 export type IndexerErrorCause = unknown
