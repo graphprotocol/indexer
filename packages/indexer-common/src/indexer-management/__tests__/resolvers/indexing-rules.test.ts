@@ -196,7 +196,7 @@ describe('Indexing rules', () => {
       identifier: INDEXING_RULE_GLOBAL,
       identifierType: SubgraphIdentifierType.GROUP,
       allocationAmount: '1',
-      allocationLifetime: 10,
+      allocationLifetime: 2,
       autoRenewal: true,
       parallelAllocations: 1,
       maxAllocationPercentage: 0.5,
@@ -512,14 +512,14 @@ describe('Indexing rules', () => {
       identifierType: SubgraphIdentifierType.DEPLOYMENT,
       allocationAmount: '1',
       minSignal: '2',
-      allocationLifetime: 20,
+      allocationLifetime: 2,
       autoRenewal: false,
       protocolNetwork: 'arbitrum-sepolia',
     }
 
     const expected = {
       ...input,
-      allocationLifetime: 20,
+      allocationLifetime: 2,
       autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
@@ -645,7 +645,7 @@ describe('Indexing rules', () => {
       minSignal: '1',
       decisionBasis: IndexingDecisionBasis.NEVER,
       minAverageQueryFees: '1',
-      allocationLifetime: 15,
+      allocationLifetime: 3,
       requireSupported: true,
       autoRenewal: true,
       safety: false,
@@ -658,7 +658,7 @@ describe('Indexing rules', () => {
       allocationAmount: '1',
       minSignal: '2',
       decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      allocationLifetime: 10,
+      allocationLifetime: 2,
       autoRenewal: false,
       requireSupported: false,
       safety: true,
@@ -667,7 +667,7 @@ describe('Indexing rules', () => {
 
     const globalExpected = {
       ...globalInput,
-      allocationLifetime: 15,
+      allocationLifetime: 3,
       autoRenewal: true,
       parallelAllocations: null,
       maxAllocationPercentage: null,
@@ -682,7 +682,7 @@ describe('Indexing rules', () => {
 
     const deploymentExpected = {
       ...deploymentInput,
-      allocationLifetime: 10,
+      allocationLifetime: 2,
       autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
@@ -698,7 +698,7 @@ describe('Indexing rules', () => {
 
     const deploymentMergedExpected = {
       ...deploymentInput,
-      allocationLifetime: 10,
+      allocationLifetime: 2,
       autoRenewal: false,
       parallelAllocations: null,
       maxAllocationPercentage: null,
