@@ -236,7 +236,9 @@ export class AllocationManager {
         )
       } catch (error) {
         const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute staking contract transaction', { error: parsedError })
+        logger.error('Failed to execute staking contract transaction', {
+          error: parsedError,
+        })
         this.processActionResults(actionResults, stakingTransactions, {
           failureReason: `Failed to execute staking contract transaction: ${
             typeof parsedError === 'string' ? parsedError : error.message
@@ -293,7 +295,9 @@ export class AllocationManager {
         )
       } catch (error) {
         const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute subgraph service transaction', { error: parsedError })
+        logger.error('Failed to execute subgraph service transaction', {
+          error: parsedError,
+        })
         this.processActionResults(actionResults, subgraphServiceTransactions, {
           failureReason: `Failed to execute subgraph service transaction: ${
             typeof parsedError === 'string' ? parsedError : error.message
