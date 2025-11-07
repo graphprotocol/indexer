@@ -236,21 +236,23 @@ export class GraphTallyCollector {
         })
         this.logger.trace(`[TAPv2] RAW DATA`, { ravs, allocations })
 
-        const pendingRAVsToProcess =  ravs
-        .map((rav) => {
-          const signedRav = rav.getSignedRAV()
-          return {
-            rav: signedRav,
-            allocation: allocations.find(
-              (a) =>
-                a.id ===
-                toAddress(collectionIdToAllocationId(signedRav.rav.collectionId)),
-            ),
-            payer: rav.payer,
-          }
+        const pendingRAVsToProcess = ravs
+          .map((rav) => {
+            const signedRav = rav.getSignedRAV()
+            return {
+              rav: signedRav,
+              allocation: allocations.find(
+                (a) =>
+                  a.id ===
+                  toAddress(collectionIdToAllocationId(signedRav.rav.collectionId)),
+              ),
+              payer: rav.payer,
+            }
+          })
+          .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
+        this.logger.trace(`[TAPv2] Pending RAVs to process`, {
+          pendingRAVsToProcess: pendingRAVsToProcess.length,
         })
-        .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
-        this.logger.trace(`[TAPv2] Pending RAVs to process`, { pendingRAVsToProcess: pendingRAVsToProcess.length })
         return pendingRAVsToProcess
       },
       {

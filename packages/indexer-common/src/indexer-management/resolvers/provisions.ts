@@ -6,6 +6,7 @@ import gql from 'graphql-tag'
 
 import { IndexerManagementResolverContext } from '@graphprotocol/indexer-common'
 import { extractNetwork } from './utils'
+import { tryParseCustomError } from '../../utils'
 import { formatGRT, parseGRT } from '@graphprotocol/common-ts'
 import { ThawRequestType } from '@graphprotocol/toolshed'
 
@@ -291,11 +292,12 @@ export default {
         protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
+      const parsedError = tryParseCustomError(error)
       logger.error('Failed to add stake to provision', {
         amount: formatGRT(provisionAmount),
-        error,
+        error: parsedError,
       })
-      throw error
+      throw parsedError
     }
   },
   thawFromProvision: async (
@@ -436,11 +438,12 @@ export default {
         protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
+      const parsedError = tryParseCustomError(error)
       logger.error('Failed to thaw stake from provision', {
         amount: formatGRT(thawAmount),
-        error,
+        error: parsedError,
       })
-      throw error
+      throw parsedError
     }
   },
   thawRequests: async (
@@ -633,10 +636,11 @@ export default {
         protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
+      const parsedError = tryParseCustomError(error)
       logger.error('Failed to deprovision stake from provision', {
-        error,
+        error: parsedError,
       })
-      throw error
+      throw parsedError
     }
   },
 }
