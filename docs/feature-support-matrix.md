@@ -26,11 +26,7 @@ The matrix below reflects the canonical Council-ratified version. As outlined in
 | eip155:534352               | scroll        | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:59144                | linea         | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:56                   | bsc           | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:122                  | fuse          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:81457                | blast-mainnet | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:288                  | boba          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:7777777              | zora          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
-| eip155:34443                | mode          | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:1284                 | moonbeam      | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:30                   | rootstock     | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
 | eip155:11155111             | sepolia       | Yes         | Yes          | Yes               | Yes                  | Yes              |              |
