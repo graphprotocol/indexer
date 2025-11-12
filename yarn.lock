@@ -542,10 +542,10 @@
   resolved "https://registry.yarnpkg.com/@gar/promisify/-/promisify-1.1.3.tgz#555193ab2e3bb3b6adc3d551c9c030d9e860daf6"
   integrity sha512-k2Ty1JcVojjJFwrg/ThKi2ujJ7XNLYaFGNB/bWT9wGR+oSMJHMa5w+CUq6p/pVrKeNNgA7pCqEcjSnHVoqJQFw==
 
-"@graphprotocol/address-book@^1.0.1":
-  version "1.0.1"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/address-book/-/address-book-1.0.1.tgz#6ce2fbd2f3d9b0b9b671d41b2cc40250634d6796"
-  integrity sha512-hI2OjEXAEiaGGS9Geb/HQyUmek0RVISwFL63U7ojmEa6mbtD7ZT4PAdWMp3KT5Q8s1OMY4WiE+ehUsJtkwVleA==
+"@graphprotocol/address-book@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/address-book/-/address-book-1.1.0.tgz#935dc7a58f426e5b838059fbc778fe208b234d78"
+  integrity sha512-38NiutGOWdDIYgB/3kGp/7LxPRCNomipjo1hGlaj6RvyydySooVSmb3A+j84faUso+uhYxt8+9y1EFN7XVnT7Q==
 
 "@graphprotocol/common-ts@3.0.1":
   version "3.0.1"
@@ -588,12 +588,12 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/toolshed@1.0.3":
-  version "1.0.3"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.0.3.tgz#9e958aaec20e06f6aa7f7804a3bc467412ba5a08"
-  integrity sha512-OsNWlbMhSWxlVpeA35jCzI0QyGDVo3DPQYKs89wOBNQt2DUbGj6x5LmmGP46Ue+a6Mj1TpvmdbjRgpI+CicCXQ==
+"@graphprotocol/toolshed@1.1.1":
+  version "1.1.1"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.1.1.tgz#eb57f20a70ed415f1a601d49b4e2fb3cad1929b3"
+  integrity sha512-55XP4k+XqfXTlBzO2wbK54Ll1IFE4pI/KUrAoD6Y4tb5sXOMn77qUxdk09DccfNZpFs761/l0C7SGbpIoP1Rzg==
   dependencies:
-    "@graphprotocol/address-book" "^1.0.1"
+    "@graphprotocol/address-book" "^1.1.0"
     "@graphprotocol/interfaces" "^0.6.4"
     "@nomicfoundation/hardhat-ethers" "^3.1.0"
     debug "^4.4.0"
