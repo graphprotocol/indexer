@@ -1637,13 +1637,39 @@ export class AllocationManager {
               tokens: formatGRT(params.tokens),
             },
           )
-          txs.push(
-            await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
-              params.indexer,
-              this.network.contracts.SubgraphService.target,
-              params.tokens,
-            ),
-          )
+
+          try {
+            // Calculate how much of the allocated amount "corresponds" to the indexer's own stake
+            // Note that this calculation is imperfect by design, the real calculation is too complicated to be done here
+            // but also the network state can change between the calculation and the moment the transaction is executed
+            // In those cases it's possible that the transaction will fail and the reallocation will be rejected, requiring
+            // manual intervention from the indexer.
+            const ownStake = await this.network.contracts.HorizonStaking.getProviderTokensAvailable(params.indexer, this.network.contracts.SubgraphService.target)
+            const delegatedStake = await this.network.contracts.HorizonStaking.getDelegatedTokensAvailable(params.indexer, this.network.contracts.SubgraphService.target)
+            const totalStake = ownStake + delegatedStake
+            const stakeRatio = ownStake / totalStake
+            const tokensToAdd = BigInt(params.tokens) * stakeRatio
+            logger.info('Automatic provisioning amount calculated', {
+              indexer: params.indexer,
+              ownStake: formatGRT(ownStake),
+              delegatedStake: formatGRT(delegatedStake),
+              stakeRatio: stakeRatio.toString(),
+              tokensToAdd: formatGRT(tokensToAdd),
+            })
+            if (tokensToAdd > 0n) {
+               txs.push(
+                 await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
+                   params.indexer,
+                   this.network.contracts.SubgraphService.target,
+                   tokensToAdd,
+                 ),
+               )
+             }
+          } catch (error) {
+            logger.error('Error while automatically provisioning the legacy allocation unallocated stake to the Subgraph Service', {
+              error: error,
+            })
+          }
         } else {
           logger.info(
             'Skipping automatic provisioning after legacy allocation closure, could not find indexer provision',
