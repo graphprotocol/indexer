@@ -1644,8 +1644,16 @@ export class AllocationManager {
             // but also the network state can change between the calculation and the moment the transaction is executed
             // In those cases it's possible that the transaction will fail and the reallocation will be rejected, requiring
             // manual intervention from the indexer.
-            const ownStake = await this.network.contracts.HorizonStaking.getProviderTokensAvailable(params.indexer, this.network.contracts.SubgraphService.target)
-            const delegatedStake = await this.network.contracts.HorizonStaking.getDelegatedTokensAvailable(params.indexer, this.network.contracts.SubgraphService.target)
+            const ownStake =
+              await this.network.contracts.HorizonStaking.getProviderTokensAvailable(
+                params.indexer,
+                this.network.contracts.SubgraphService.target,
+              )
+            const delegatedStake =
+              await this.network.contracts.HorizonStaking.getDelegatedTokensAvailable(
+                params.indexer,
+                this.network.contracts.SubgraphService.target,
+              )
             const totalStake = ownStake + delegatedStake
             const stakeRatio = ownStake / totalStake
             const tokensToAdd = BigInt(params.tokens) * stakeRatio
@@ -1657,18 +1665,21 @@ export class AllocationManager {
               tokensToAdd: formatGRT(tokensToAdd),
             })
             if (tokensToAdd > 0n) {
-               txs.push(
-                 await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
-                   params.indexer,
-                   this.network.contracts.SubgraphService.target,
-                   tokensToAdd,
-                 ),
-               )
-             }
+              txs.push(
+                await this.network.contracts.HorizonStaking.addToProvision.populateTransaction(
+                  params.indexer,
+                  this.network.contracts.SubgraphService.target,
+                  tokensToAdd,
+                ),
+              )
+            }
           } catch (error) {
-            logger.error('Error while automatically provisioning the legacy allocation unallocated stake to the Subgraph Service', {
-              error: error,
-            })
+            logger.error(
+              'Error while automatically provisioning the legacy allocation unallocated stake to the Subgraph Service',
+              {
+                error: error,
+              },
+            )
           }
         } else {
           logger.info(
