@@ -30,6 +30,12 @@ Manage indexer configuration
   indexer rules set                  Set one or more indexing rules
   indexer rules start (always)       Always index a deployment (and start indexing it if necessary)
   indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)
+  indexer provision                  Manage indexer's provision
+  indexer provision add              Add stake to the indexer's provision
+  indexer provision get              List indexer provision details
+  indexer provision list-thaw        List thaw requests for the indexer's provision
+  indexer provision remove           Remove thawed stake from the indexer's provision
+  indexer provision thaw             Thaw stake from the indexer's provision
   indexer disputes                   Configure allocation POI monitoring
   indexer disputes get               Cross-check POIs submitted in the network
   indexer cost                       Manage costing for subgraphs
@@ -39,6 +45,7 @@ Manage indexer configuration
   indexer connect                    Connect to indexer management API
   indexer allocations                Manage indexer allocations
   indexer allocations close          Close an allocation
+  indexer allocations collect        Collect receipts for an allocation
   indexer allocations create         Create an allocation
   indexer allocations get            List one or more allocations
   indexer allocations reallocate     Reallocate to subgraph deployment
@@ -135,6 +142,29 @@ $ graph indexer rules clear 0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd
 ╟────────────────────────────────────────────────────────────────────┼────────────┼─────────────────────────┼───────────┼───────────┼──────────┼─────────────────────┼────────┼───────────────╢
 ║ 0xa4e311bfa7edabed7b31d93e0b3e751659669852ef46adbedd44dc2454db4bf3 │            │                         │           │           │          │                     │        │ rules         ║
 ╚════════════════════════════════════════════════════════════════════╧════════════╧═════════════════════════╧═══════════╧═══════════╧══════════╧═════════════════════╧════════╧═══════════════╝
+```
+
+## Horizon Support - Provision Management
+
+The CLI now includes commands to manage the Subgraph Service provision for the Horizon protocol. Note that the provision must first be created via the indexer agent.
+
+### Managing indexer provision:
+
+```sh
+# Get current provision details
+$ graph indexer provision get
+
+# Add stake to provision
+$ graph indexer provision add <amount>
+
+# Thaw stake from provision
+$ graph indexer provision thaw <amount>
+
+# List thaw requests
+$ graph indexer provision list-thaw
+
+# Remove thawed stake
+$ graph indexer provision remove <thawRequestId>
 ```
 
 # Working with the repo

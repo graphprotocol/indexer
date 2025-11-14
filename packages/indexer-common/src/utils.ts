@@ -1,14 +1,16 @@
-import { Wallet, utils } from 'ethers'
 import {
-  BaseProvider,
+  Provider,
   JsonRpcProvider,
   getDefaultProvider,
-} from '@ethersproject/providers'
+  formatEther,
+  HDNodeWallet,
+} from 'ethers'
 import { Logger, Metrics } from '@graphprotocol/common-ts'
 import { indexerError, IndexerErrorCode } from './errors'
 import { DocumentNode, SelectionSetNode, Kind } from 'graphql'
 import cloneDeep from 'lodash.clonedeep'
 import { sequentialTimerMap } from './sequential-timer'
+import { parseCustomError } from '@graphprotocol/toolshed'
 
 export const parseBoolean = (
   val: string | boolean | number | undefined | null,
@@ -21,7 +23,7 @@ export function nullPassThrough<T, U>(fn: (x: T) => U): (x: T | null) => U | nul
   return (x: T | null) => (x === null ? null : fn(x))
 }
 
-export function getTestProvider(network: string): BaseProvider {
+export function getTestProvider(network: string): Provider {
   const testJsonRpcProviderUrl = process.env.INDEXER_TEST_JRPC_PROVIDER_URL
   if (testJsonRpcProviderUrl) {
     return new JsonRpcProvider(testJsonRpcProviderUrl)
@@ -40,7 +42,7 @@ const registerMetrics = (metrics: Metrics, networkIdentifier: string) => ({
 
 export async function monitorEthBalance(
   logger: Logger,
-  wallet: Wallet,
+  wallet: HDNodeWallet,
   metrics: Metrics,
   networkIdentifier: string,
 ): Promise<void> {
@@ -52,8 +54,8 @@ export async function monitorEthBalance(
 
   sequentialTimerMap({ logger, milliseconds: 120_000 }, async () => {
     try {
-      const balance = await wallet.getBalance()
-      const eth = parseFloat(utils.formatEther(balance))
+      const balance = await wallet.provider!.getBalance(wallet.address)
+      const eth = parseFloat(formatEther(balance))
       balanceMetrics.operatorEthBalance.set(eth)
       logger.info('Current operator ETH balance', {
         balance: eth,
@@ -120,3 +122,15 @@ function findFirstSelectionSet(node: any): SelectionSetNode | null {
 }
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+export function tryParseCustomError(error: unknown): string | unknown {
+  try {
+    const typedError = error as { code: string; data: string }
+    if (typedError && typedError.code === 'CALL_EXCEPTION' && typedError.data) {
+      return parseCustomError(typedError.data)
+    }
+    return error
+  } catch (e) {
+    return error
+  }
+}

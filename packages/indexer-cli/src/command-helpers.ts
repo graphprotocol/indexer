@@ -27,6 +27,7 @@
 // parameters array and returns the result of that.
 
 import { table, getBorderCharacters } from 'table'
+import wrapAnsi from 'wrap-ansi'
 
 export enum OutputFormat {
   Table = 'table',
@@ -35,8 +36,8 @@ export enum OutputFormat {
 }
 import yaml from 'yaml'
 import { GluegunParameters, GluegunPrint } from 'gluegun'
-import { utils } from 'ethers'
 import { validateNetworkIdentifier } from '@graphprotocol/indexer-common'
+import { hexlify, isHexString } from 'ethers'
 
 export const fixParameters = (
   parameters: GluegunParameters,
@@ -104,29 +105,48 @@ export function pickFields(
   return obj
 }
 
-export function displayObjectData(outputFormat: OutputFormat, data: object): string {
-  return outputFormat === OutputFormat.Json
-    ? JSON.stringify(data, null, 2)
-    : outputFormat === OutputFormat.Yaml
-    ? yaml.stringify(data).trim()
-    : table([Object.keys(data), Object.values(data)], {
-        border: getBorderCharacters('norc'),
-      }).trim()
+export function displayObjectData(
+  outputFormat: OutputFormat,
+  data: object,
+  wrapWidth: number,
+): string {
+  if (outputFormat === OutputFormat.Json) {
+    return JSON.stringify(data, null, 2)
+  } else if (outputFormat === OutputFormat.Yaml) {
+    return yaml.stringify(data).trim()
+  } else {
+    const keys = Object.keys(data)
+    const values = Object.values(data).map(value => wrapCell(value, wrapWidth))
+
+    return table([keys, values], {
+      border: getBorderCharacters('norc'),
+    }).trim()
+  }
 }
 
 export function displayObjectArrayData(
   outputFormat: OutputFormat,
   data: object[],
+  wrapWidth: number,
 ): string {
-  return outputFormat === OutputFormat.Json
-    ? JSON.stringify(data, null, 2)
-    : outputFormat === OutputFormat.Yaml
-    ? yaml.stringify(data).trim()
-    : data.length === 0
-    ? 'No items found'
-    : table([Object.keys(data[0]), ...data.map(item => Object.values(item))], {
-        border: getBorderCharacters('norc'),
-      }).trim()
+  if (outputFormat === OutputFormat.Json) {
+    return JSON.stringify(data, null, 2)
+  } else if (outputFormat === OutputFormat.Yaml) {
+    return yaml.stringify(data).trim()
+  } else if (data.length === 0) {
+    return 'No items found'
+  } else {
+    const keys = Object.keys(data[0])
+
+    const tableData = [
+      keys,
+      ...data.map(item => keys.map(key => wrapCell((item as any)[key], wrapWidth))),
+    ]
+
+    return table(tableData, {
+      border: getBorderCharacters('norc'),
+    }).trim()
+  }
 }
 
 export function printObjectOrArray(
@@ -134,12 +154,13 @@ export function printObjectOrArray(
   outputFormat: OutputFormat,
   data: object | object[],
   keys: string[],
+  wrapWidth: number = 0,
 ): void {
   if (Array.isArray(data)) {
     const formatted = data.map(item => pickFields(item, keys))
-    print.info(displayObjectArrayData(outputFormat, formatted))
+    print.info(displayObjectArrayData(outputFormat, formatted, wrapWidth))
   } else if (data) {
-    print.info(displayObjectData(outputFormat, pickFields(data, keys)))
+    print.info(displayObjectData(outputFormat, pickFields(data, keys), wrapWidth))
   } else {
     print.error(`No items returned`)
   }
@@ -159,13 +180,13 @@ export async function validateRequiredParams(
 export function validatePOI(poi: string | undefined): string | undefined {
   if (poi !== undefined) {
     if (typeof poi == 'number' && poi == 0) {
-      poi = utils.hexlify(Array(32).fill(0))
+      poi = hexlify(new Uint8Array(32).fill(0))
     }
     if (typeof poi == 'string' && poi == '0') {
-      poi = utils.hexlify(Array(32).fill(0))
+      poi = hexlify(new Uint8Array(32).fill(0))
     }
     // Ensure user provided POI is formatted properly - '0x...' (32 bytes)
-    const isHex = utils.isHexString(poi, 32)
+    const isHex = isHexString(poi, 32)
     if (!isHex) {
       throw new Error(
         `Invalid POI provided ('${poi}'): Must be a 32 byte length hex string`,
@@ -250,4 +271,10 @@ export function requireProtocolNetworkOption(options: { [key: string]: any }): s
     throw new Error("The option '--network' is required")
   }
   return protocolNetwork
+}
+
+export function wrapCell(value: unknown, wrapWidth: number): string {
+  return wrapWidth > 0
+    ? wrapAnsi(String(value), wrapWidth, { hard: true })
+    : String(value)
 }

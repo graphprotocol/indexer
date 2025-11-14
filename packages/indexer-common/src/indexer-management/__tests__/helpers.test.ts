@@ -1,9 +1,7 @@
 import {
-  connectContracts,
   connectDatabase,
   createLogger,
   Logger,
-  NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
@@ -34,7 +32,11 @@ import {
   getTestProvider,
 } from '@graphprotocol/indexer-common'
 import { mockLogger, mockProvider } from '../../__tests__/subgraph.test'
-import { BigNumber, ethers, utils } from 'ethers'
+import { hexlify, Provider } from 'ethers'
+import {
+  connectGraphHorizon,
+  connectSubgraphService,
+} from '@graphprotocol/toolshed/deployments'
 
 // Make global Jest variable available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,8 +46,7 @@ declare const __LOG_LEVEL__: any
 
 let sequelize: Sequelize
 let models: IndexerManagementModels
-let ethereum: ethers.providers.BaseProvider
-let contracts: NetworkContracts
+let ethereum: Provider
 let graphNode: GraphNode
 let networkSubgraph: SubgraphClient
 let epochSubgraph: SubgraphClient
@@ -71,7 +72,12 @@ const setupMonitor = async () => {
     level: __LOG_LEVEL__ ?? 'error',
   })
   ethereum = getTestProvider('sepolia')
-  contracts = await connectContracts(ethereum, 5, undefined)
+  const horizonContracts = connectGraphHorizon(5, ethereum)
+  const subgraphServiceContracts = connectSubgraphService(5, ethereum)
+  const contracts = {
+    ...horizonContracts,
+    ...subgraphServiceContracts,
+  }
 
   const subgraphFreshnessChecker = new SubgraphFreshnessChecker(
     'Test Subgraph',
@@ -131,16 +137,16 @@ export const createMockAllocation = (): Allocation => {
   const mockDeployment = {
     id: new SubgraphDeploymentID('QmcpeU4pZxzKB9TJ6fzH6PyZi9h8PJ6pG1c4izb9VAakJq'),
     deniedAt: 0,
-    stakedTokens: BigNumber.from(50000),
-    signalledTokens: BigNumber.from(100000),
-    queryFeesAmount: BigNumber.from(0),
+    stakedTokens: 50000n,
+    signalledTokens: 100000n,
+    queryFeesAmount: 0n,
   } as SubgraphDeployment
   const mockAllocation = {
     id: toAddress('0xbAd8935f75903A1eF5ea62199d98Fd7c3c1ab20C'),
     status: AllocationStatus.CLOSED,
     subgraphDeployment: mockDeployment,
     indexer: toAddress('0xc61127cdfb5380df4214b0200b9a07c7c49d34f9'),
-    allocatedTokens: BigNumber.from(1000),
+    allocatedTokens: 1000n,
     createdAtEpoch: 3,
     createdAtBlockHash:
       '0x675e9411241c431570d07b920321b2ff6aed2359aa8e26109905d34bffd8932a',
@@ -241,6 +247,7 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
+      isLegacy: true,
     }
 
     await models.Action.upsert(action)
@@ -278,6 +285,14 @@ describe('Actions', () => {
         updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
       }),
     ).resolves.toHaveLength(0)
+
+    await expect(
+      ActionManager.fetchActions(models, null, {
+        status: ActionStatus.FAILED,
+        type: ActionType.ALLOCATE,
+        isLegacy: true,
+      }),
+    ).resolves.toHaveLength(1)
   })
 })
 describe('Types', () => {
@@ -327,8 +342,11 @@ describe.skip('Monitor: local', () => {
     await expect(networkMonitor.currentEpochNumber()).resolves.toBeGreaterThan(1500)
   })
 
-  test('Fetch maxAllocationEpoch', async () => {
-    await expect(networkMonitor.maxAllocationEpoch()).resolves.toBeGreaterThan(1)
+  test('Fetch maxAllocationDuration', async () => {
+    await expect(networkMonitor.maxAllocationDuration()).resolves.toMatchObject({
+      legacy: expect.any(Number),
+      horizon: expect.any(Number),
+    })
   })
 
   test('Fetch network chain current epoch', async () => {
@@ -340,7 +358,13 @@ describe.skip('Monitor: local', () => {
 
   test('Resolve POI using force=true', async () => {
     await expect(
-      networkMonitor.resolvePOI(mockAllocation, utils.hexlify(Array(32).fill(0)), true),
+      networkMonitor.resolvePOI(
+        mockAllocation,
+        hexlify(new Uint8Array(32).fill(0)),
+        undefined,
+        undefined,
+        true,
+      ),
     ).resolves.toEqual(
       '0x0000000000000000000000000000000000000000000000000000000000000000',
     )
@@ -348,7 +372,7 @@ describe.skip('Monitor: local', () => {
 
   test('Fail to resolve POI', async () => {
     await expect(
-      networkMonitor.resolvePOI(mockAllocation, undefined, false),
+      networkMonitor.resolvePOI(mockAllocation, undefined, undefined, undefined, false),
     ).rejects.toEqual(indexerError(IndexerErrorCode.IE018, `Could not resolve POI`))
   })
 })

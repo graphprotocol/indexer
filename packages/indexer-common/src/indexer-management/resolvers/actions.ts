@@ -20,6 +20,7 @@ import {
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
 import groupBy from 'lodash.groupby'
+import { extractNetwork } from './utils'
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -169,6 +170,14 @@ export default {
         throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
       }
     })
+
+    // Set proper value for isLegacy - any new actions in horizon are not legacy
+    await Promise.all(
+      actions.map(async (action) => {
+        const network = extractNetwork(action.protocolNetwork, multiNetworks)
+        action.isLegacy = !(await network.isHorizon.value())
+      }),
+    )
 
     // Let Network Monitors validate actions based on their protocol networks
     await multiNetworks.mapNetworkMapped(

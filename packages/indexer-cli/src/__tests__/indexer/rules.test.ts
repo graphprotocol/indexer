@@ -407,7 +407,7 @@ describe('Indexer rules tests', () => {
           'decisionBasis',
           'offchain',
           'allocationLifetime',
-          '12',
+          '2',
         ],
         'references/indexer-rule-subgraph-offchain',
         {
@@ -485,7 +485,7 @@ describe('Indexer rules tests', () => {
           'decisionBasis',
           'offchain',
           'allocationLifetime',
-          '21',
+          '3',
           'autoRenewal',
           'false',
         ],

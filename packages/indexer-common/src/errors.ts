@@ -88,6 +88,15 @@ export enum IndexerErrorCode {
   IE075 = 'IE075',
   IE076 = 'IE076',
   IE077 = 'IE077',
+  IE078 = 'IE078',
+  IE079 = 'IE079',
+  IE080 = 'IE080',
+  IE081 = 'IE081',
+  IE082 = 'IE082',
+  IE083 = 'IE083',
+  IE084 = 'IE084',
+  IE085 = 'IE085',
+  IE086 = 'IE086',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -169,6 +178,15 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE075: 'Failed to connect to network contracts',
   IE076: 'Failed to resume subgraph deployment',
   IE077: 'Failed to allocate: subgraph not healthily syncing',
+  IE078: 'No provision found',
+  IE079: 'Failed to add stake to provision: Invalid stake amount provided',
+  IE080: 'Failed to add stake to provision: stake not added on chain',
+  IE081: 'Multiple provisions found',
+  IE082: 'Graph Horizon protocol not detected',
+  IE083: 'Failed to thaw stake from provision',
+  IE084: 'Could not resolve POI block number',
+  IE085: 'Could not resolve public POI',
+  IE086: 'Indexer not registered in the Subgraph Service',
 }
 
 export type IndexerErrorCause = unknown

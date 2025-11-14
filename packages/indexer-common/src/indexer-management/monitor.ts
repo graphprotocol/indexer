@@ -1,3 +1,4 @@
+/* eslint-disable no-case-declarations */
 import {
   Allocation,
   AllocationStatus,
@@ -18,20 +19,27 @@ import {
   resolveChainAlias,
   TransferredSubgraphDeployment,
   sequentialTimerReduce,
+  HorizonTransitionValue,
+  Provision,
+  parseGraphQLProvision,
+  POIData,
+  IndexingStatusCode,
 } from '@graphprotocol/indexer-common'
+import {
+  GraphHorizonContracts,
+  SubgraphServiceContracts,
+} from '@graphprotocol/toolshed/deployments'
 import {
   Address,
   Eventual,
   Logger,
   mutable,
-  NetworkContracts,
   SubgraphDeploymentID,
   toAddress,
   formatGRT,
 } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
+import { HDNodeWallet, hexlify, Provider, ZeroAddress } from 'ethers'
 import gql from 'graphql-tag'
-import { providers, utils, Wallet } from 'ethers'
 import pRetry, { Options } from 'p-retry'
 import { IndexerOptions } from '../network-specification'
 import pMap from 'p-map'
@@ -41,12 +49,12 @@ import { SubgraphClient } from '../subgraph-client'
 export class NetworkMonitor {
   constructor(
     public networkCAIPID: string,
-    private contracts: NetworkContracts,
+    private contracts: GraphHorizonContracts & SubgraphServiceContracts,
     private indexerOptions: IndexerOptions,
     private logger: Logger,
     private graphNode: GraphNode,
     private networkSubgraph: SubgraphClient,
-    private ethereum: providers.BaseProvider,
+    private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
   ) {}
 
@@ -55,11 +63,90 @@ export class NetworkMonitor {
   }
 
   async currentEpochNumber(): Promise<number> {
-    return (await this.contracts.epochManager.currentEpoch()).toNumber()
+    return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
-  async maxAllocationEpoch(): Promise<number> {
-    return await this.contracts.staking.maxAllocationEpochs()
+  // Maximum allocation duration is different for legacy and horizon allocations
+  // - Legacy allocations - expiration measured in epochs, determined by maxAllocationEpochs
+  // - Horizon allocations - expiration measured in seconds, determined by maxPOIStaleness.
+  // To simplify the agent logic, this function converts horizon allocation values, returning epoch values
+  // regardless of the allocation type.
+  async maxAllocationDuration(): Promise<HorizonTransitionValue> {
+    const isHorizon = await this.isHorizon()
+
+    if (isHorizon) {
+      // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
+      const BLOCK_IN_SECONDS = 12n
+      const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+      const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+
+      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
+      // incurs in a severe penalty (missing out on indexing rewards)
+      const horizonDurationInSeconds = Number(
+        await this.contracts.SubgraphService.maxPOIStaleness(),
+      )
+      const horizonDurationInEpochs = Math.max(
+        1,
+        Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
+      )
+
+      return {
+        // Hardcoded to the latest known value. This is required to check for legacy allo expiration during the transition period.
+        // - Arbitrum One: 28
+        // - Arbitrum Sepolia: 8
+        // - Local Network: 4
+        legacy: 28,
+        horizon: horizonDurationInEpochs,
+      }
+    } else {
+      return {
+        legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
+        horizon: 0,
+      }
+    }
+  }
+
+  /**
+   * Returns the amount of free stake for the indexer.
+   *
+   * The free stake is the amount of tokens that the indexer can use to stake in
+   * new allocations.
+   *
+   * Horizon: It's calculated as the difference between the tokens
+   * available in the provision and the tokens already locked allocations.
+   *
+   * Legacy: It's given by the indexer's stake capacity.
+   *
+   * @returns The amount of free stake for the indexer.
+   */
+  async freeStake(): Promise<HorizonTransitionValue<bigint, bigint>> {
+    const isHorizon = await this.isHorizon()
+
+    if (isHorizon) {
+      const address = this.indexerOptions.address
+      const dataService = this.contracts.SubgraphService.target.toString()
+      const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
+      const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
+        address,
+        dataService,
+        delegationRatio,
+      )
+      const lockedStake =
+        await this.contracts.SubgraphService.allocationProvisionTracker(address)
+      const freeStake = tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
+
+      return {
+        legacy: 0n, // In horizon new legacy allocations cannot be created so we return 0
+        horizon: freeStake,
+      }
+    } else {
+      return {
+        legacy: await this.contracts.LegacyStaking.getIndexerCapacity(
+          this.indexerOptions.address,
+        ),
+        horizon: 0n,
+      }
+    }
   }
 
   /**
@@ -99,12 +186,15 @@ export class NetworkMonitor {
           allocation(id: $allocation) {
             id
             status
+            isLegacy
             indexer {
               id
             }
             allocatedTokens
+            createdAt
             createdAtEpoch
             createdAtBlockHash
+            closedAt
             closedAtEpoch
             subgraphDeployment {
               id
@@ -153,11 +243,14 @@ export class NetworkMonitor {
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -213,6 +306,50 @@ export class NetworkMonitor {
       })
       throw err
     }
+  }
+
+  async provision(indexer: string, dataService: string): Promise<Provision> {
+    const result = await this.networkSubgraph.checkedQuery(
+      gql`
+        query provisions($indexer: String!, $dataService: String!) {
+          provisions(where: { indexer: $indexer, dataService: $dataService }) {
+            id
+            indexer {
+              id
+            }
+            dataService {
+              id
+            }
+            tokensProvisioned
+            tokensAllocated
+            tokensThawing
+            thawingPeriod
+            maxVerifierCut
+          }
+        }
+      `,
+      { indexer, dataService },
+    )
+    if (result.error) {
+      throw result.error
+    }
+
+    if (
+      !result.data.provisions ||
+      result.data.length == 0 ||
+      result.data.provisions.length == 0
+    ) {
+      const errorMessage = `No provision found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE078, errorMessage)
+    }
+
+    if (result.data.provisions.length > 1) {
+      const errorMessage = `Multiple provisions found for indexer '${indexer}' and data service '${dataService}'`
+      this.logger.warn(errorMessage)
+      throw indexerError(IndexerErrorCode.IE081, errorMessage)
+    }
+    return parseGraphQLProvision(result.data.provisions[0])
   }
 
   async epochs(epochNumbers: number[]): Promise<Epoch[]> {
@@ -281,11 +418,14 @@ export class NetworkMonitor {
                 orderDirection: desc
               ) {
                 id
+                isLegacy
                 indexer {
                   id
                 }
                 allocatedTokens
+                createdAt
                 createdAtEpoch
+                closedAt
                 closedAtEpoch
                 createdAtBlockHash
                 subgraphDeployment {
@@ -356,12 +496,15 @@ export class NetworkMonitor {
               orderDirection: desc
             ) {
               id
+              isLegacy
               poi
               indexer {
                 id
               }
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               subgraphDeployment {
@@ -620,18 +763,18 @@ export class NetworkMonitor {
             idOnL1: deployment.idOnL1,
             idOnL2: deployment.idOnL2,
             startedTransferToL2: deployment.startedTransferToL2,
-            startedTransferToL2At: BigNumber.from(deployment.startedTransferToL2At),
-            startedTransferToL2AtBlockNumber: BigNumber.from(
+            startedTransferToL2At: BigInt(deployment.startedTransferToL2At),
+            startedTransferToL2AtBlockNumber: BigInt(
               deployment.startedTransferToL2AtBlockNumber,
             ),
             startedTransferToL2AtTx: deployment.startedTransferToL2AtTx,
             transferredToL2: deployment.transferredToL2,
             transferredToL2At: deployment.transferredToL2At
-              ? BigNumber.from(deployment.transferredToL2At)
+              ? BigInt(deployment.transferredToL2At)
               : null,
             transferredToL2AtTx: deployment.transferredToL2AtTx,
             transferredToL2AtBlockNumber: deployment.transferredToL2AtBlockNumber
-              ? BigNumber.from(deployment.transferredToL2AtBlockNumber)
+              ? BigInt(deployment.transferredToL2AtBlockNumber)
               : null,
             ipfsHash: version.subgraphDeployment.ipfsHash,
             protocolNetwork: this.networkCAIPID,
@@ -832,7 +975,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       // Calls the configured provider for blocks from protocol chain, or Graph Node otherwise.
       let startBlockHash: string
       if (networkID == this.networkCAIPID) {
-        startBlockHash = (await this.ethereum.getBlock(+validBlock.blockNumber)).hash
+        const block = await this.ethereum.getBlock(+validBlock.blockNumber)
+        startBlockHash = block!.hash!
       } else {
         startBlockHash = await this.graphNode.blockHashFromNumber(
           networkAlias,
@@ -913,89 +1057,63 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
   async resolvePOI(
     allocation: Allocation,
     poi: string | undefined,
+    publicPOI: string | undefined,
+    blockNumber: number | undefined,
     force: boolean,
-  ): Promise<string> {
-    // If the network is not supported, we can't resolve POI, as there will be no active epoch
-    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
-    if (null === supportedNetworkAlias) {
-      this.logger.info("Network is not supported, can't resolve POI")
-      return utils.hexlify(Array(32).fill(0))
-    }
+  ): Promise<POIData> {
+    this.logger.trace('Resolving POI data', {
+      allocation: allocation.id,
+      poi: poi,
+      publicPOI: publicPOI,
+      blockNumber: blockNumber,
+      force: force,
+    })
 
-    // poi = undefined, force=true  -- submit even if poi is 0x0
-    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-    // poi = undefined, force=false -- submit with generated POI if one available
-    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
-    switch (force) {
-      case true:
-        switch (!!poi) {
-          case true:
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            return poi!
-          case false:
-            return (
-              (await this.graphNode.proofOfIndexing(
-                allocation.subgraphDeployment.id,
-                await this.fetchPOIBlockPointer(supportedNetworkAlias, allocation),
-                allocation.indexer,
-              )) || utils.hexlify(Array(32).fill(0))
-            )
-        }
-        break
-      case false: {
-        const epochStartBlock = await this.fetchPOIBlockPointer(
-          supportedNetworkAlias,
-          allocation,
-        )
-        // Obtain the start block of the current epoch
-        const generatedPOI = await this.graphNode.proofOfIndexing(
-          allocation.subgraphDeployment.id,
-          epochStartBlock,
-          allocation.indexer,
-        )
-        switch (poi == generatedPOI) {
-          case true:
-            if (poi == undefined) {
-              const deploymentStatus = await this.graphNode.indexingStatus([
-                allocation.subgraphDeployment.id,
-              ])
-              throw indexerError(
-                IndexerErrorCode.IE067,
-                `POI not available for deployment at current epoch start block.
-              currentEpochStartBlock: ${epochStartBlock.number}
-              deploymentStatus: ${
-                deploymentStatus.length > 0
-                  ? JSON.stringify(deploymentStatus)
-                  : 'not deployed'
-              }`,
-              )
-            } else {
-              return poi
-            }
-          case false:
-            if (poi == undefined && generatedPOI !== undefined) {
-              return generatedPOI
-            } else if (poi !== undefined && generatedPOI == undefined) {
-              return poi
-            }
-            throw indexerError(
-              IndexerErrorCode.IE068,
-              `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
-              POI: ${poi},
-              referencePOI: ${generatedPOI}`,
-            )
-        }
+    const [resolvedPOI, resolvedPOIBlockNumber] = await this._resolvePOI(
+      allocation,
+      poi,
+      force,
+    )
+
+    if (allocation.isLegacy) {
+      return {
+        poi: resolvedPOI,
+        publicPOI: hexlify(new Uint8Array(32).fill(0)),
+        blockNumber: 0,
+        indexingStatus: IndexingStatusCode.Unknown,
+      }
+    } else {
+      const resolvedBlockNumber = await this._resolvePOIBlockNumber(
+        blockNumber,
+        resolvedPOIBlockNumber,
+        force,
+      )
+      const resolvedPublicPOI = await this._resolvePublicPOI(
+        allocation,
+        publicPOI,
+        resolvedBlockNumber,
+        force,
+      )
+      const resolvedIndexingStatus = await this._resolveIndexingStatus(
+        allocation.subgraphDeployment.id,
+      )
+
+      return {
+        poi: resolvedPOI,
+        publicPOI: resolvedPublicPOI,
+        blockNumber: resolvedBlockNumber,
+        indexingStatus: resolvedIndexingStatus,
       }
     }
   }
 
   async monitorNetworkPauses(
     logger: Logger,
-    contracts: NetworkContracts,
+    contracts: GraphHorizonContracts & SubgraphServiceContracts,
     networkSubgraph: SubgraphClient,
   ): Promise<Eventual<boolean>> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const initialPauseValue = await contracts.controller.paused().catch((_) => {
+    const initialPauseValue = await contracts.Controller.paused().catch((_) => {
       return false
     })
     return sequentialTimerReduce(
@@ -1043,9 +1161,8 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
 
   async monitorIsOperator(
     logger: Logger,
-    contracts: NetworkContracts,
     indexerAddress: Address,
-    wallet: Wallet,
+    wallet: HDNodeWallet,
   ): Promise<Eventual<boolean>> {
     // If indexer and operator address are identical, operator status is
     // implicitly granted => we'll never have to check again
@@ -1062,7 +1179,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       async (isOperator) => {
         try {
           logger.debug('Check operator status')
-          return await contracts.staking.isOperator(wallet.address, indexerAddress)
+          return await this.isOperator(wallet.address, indexerAddress)
         } catch (err) {
           logger.warn(
             `Failed to check operator status for indexer, assuming it has not changed`,
@@ -1071,7 +1188,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           return isOperator
         }
       },
-      await contracts.staking.isOperator(wallet.address, indexerAddress),
+      await this.isOperator(wallet.address, indexerAddress),
     ).map((isOperator) => {
       logger.info(
         isOperator
@@ -1079,6 +1196,34 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
           : `No operator status for indexer`,
       )
       return isOperator
+    })
+  }
+
+  async monitorIsHorizon(
+    logger: Logger,
+    interval: number = 300_000,
+  ): Promise<Eventual<boolean>> {
+    return sequentialTimerReduce(
+      {
+        logger,
+        milliseconds: interval,
+      },
+      async (isHorizon) => {
+        try {
+          logger.debug('Check if network is Horizon ready')
+          return await this.isHorizon()
+        } catch (err) {
+          logger.warn(
+            `Failed to check if network is Horizon ready, assuming it has not changed`,
+            { err: indexerError(IndexerErrorCode.IE008, err), isHorizon },
+          )
+          return isHorizon
+        }
+      },
+      await this.isHorizon(),
+    ).map((isHorizon) => {
+      logger.info(isHorizon ? `Network is Horizon ready` : `Network is not Horizon ready`)
+      return isHorizon
     })
   }
 
@@ -1105,12 +1250,15 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
               first: 1000
             ) {
               id
+              isLegacy
               indexer {
                 id
               }
               queryFeesCollected
               allocatedTokens
+              createdAt
               createdAtEpoch
+              closedAt
               closedAtEpoch
               createdAtBlockHash
               closedAtBlockHash
@@ -1134,11 +1282,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         throw result.error
       }
 
-      const totalFees: BigNumber = result.data.allocations.reduce(
-        (total: BigNumber, rawAlloc: { queryFeesCollected: string }) => {
-          return total.add(BigNumber.from(rawAlloc.queryFeesCollected))
+      const totalFees: bigint = result.data.allocations.reduce(
+        (total: bigint, rawAlloc: { queryFeesCollected: string }) => {
+          return total + BigInt(rawAlloc.queryFeesCollected)
         },
-        BigNumber.from(0),
+        0n,
       )
 
       const parsedAllocs: Allocation[] =
@@ -1147,7 +1295,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       // If the total fees claimable do not meet the minimum required for batching, return an empty array
       if (
         parsedAllocs.length > 0 &&
-        totalFees.lt(this.indexerOptions.rebateClaimBatchThreshold)
+        totalFees < this.indexerOptions.rebateClaimBatchThreshold
       ) {
         this.logger.info(
           `Allocation rebate batch value does not meet minimum for claiming`,
@@ -1198,7 +1346,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
     let allocations: Allocation[] = []
 
     try {
-      const zeroPOI = utils.hexlify(Array(32).fill(0))
+      const zeroPOI = hexlify(new Uint8Array(32).fill(0))
       const disputableEpoch = currentEpoch - this.indexerOptions.poiDisputableEpochs
       let lastId = ''
       while (dataRemaining) {
@@ -1225,6 +1373,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 orderDirection: asc
               ) {
                 id
+                isLegacy
                 createdAt
                 indexer {
                   id
@@ -1233,6 +1382,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
                 allocatedTokens
                 createdAtEpoch
                 closedAtEpoch
+                closedAt
                 closedAtBlockHash
                 subgraphDeployment {
                   id
@@ -1278,7 +1428,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
         async (epoch) => {
           try {
             const startBlock = await this.ethereum.getBlock(epoch.startBlock)
-            epoch.startBlockHash = startBlock?.hash
+            epoch.startBlockHash = startBlock!.hash!
           } catch {
             logger.debug('Failed to fetch block hash for startBlock of epoch', {
               epoch: epoch.id,
@@ -1320,5 +1470,246 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       })
       throw err
     }
+  }
+
+  private async isHorizon() {
+    try {
+      const maxThawingPeriod = await this.contracts.HorizonStaking.getMaxThawingPeriod()
+      return maxThawingPeriod > 0
+    } catch (err) {
+      return false
+    }
+  }
+
+  private async isOperator(operatorAddress: string, indexerAddress: string) {
+    if (await this.isHorizon()) {
+      return await this.contracts.HorizonStaking.isAuthorized(
+        indexerAddress,
+        this.contracts.SubgraphService.target,
+        operatorAddress,
+      )
+    } else {
+      return await this.contracts.LegacyStaking.isOperator(
+        operatorAddress,
+        indexerAddress,
+      )
+    }
+  }
+
+  // Returns a tuple of [POI, blockNumber]
+  // - POI is the POI to submit, which could be user provider or generated
+  // - blockNumber is the block number of the POI. If it's 0 then the block number is not known at this point.
+  private async _resolvePOI(
+    allocation: Allocation,
+    poi: string | undefined,
+    force: boolean,
+  ): Promise<[string, number]> {
+    // If the network is not supported, we can't resolve POI, as there will be no active epoch
+    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
+    if (null === supportedNetworkAlias) {
+      this.logger.info("Network is not supported, can't resolve POI")
+      return [hexlify(new Uint8Array(32).fill(0)), 0]
+    }
+
+    // poi = undefined, force=true  -- submit even if poi is 0x0
+    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
+    // poi = undefined, force=false -- submit with generated POI if one available
+    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
+    switch (force) {
+      case true:
+        switch (!!poi) {
+          case true:
+            this.logger.trace('Resolve POI: Force true, poi defined', {
+              poi,
+              blockNumber: 0,
+            })
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            return [poi!, 0]
+          case false:
+            const poiBlockNumber = await this.fetchPOIBlockPointer(
+              supportedNetworkAlias,
+              allocation,
+            )
+            const generatedPOI = await this.graphNode.proofOfIndexing(
+              allocation.subgraphDeployment.id,
+              poiBlockNumber,
+              allocation.indexer,
+            )
+            const returnValue: [string, number] =
+              generatedPOI !== undefined
+                ? [generatedPOI, poiBlockNumber.number]
+                : [hexlify(new Uint8Array(32).fill(0)), 0]
+
+            this.logger.trace('Resolve POI: Force true, poi undefined', {
+              poi: returnValue[0],
+              blockNumber: returnValue[1],
+            })
+            return returnValue
+        }
+        break
+      case false: {
+        const epochStartBlock = await this.fetchPOIBlockPointer(
+          supportedNetworkAlias,
+          allocation,
+        )
+        // Obtain the start block of the current epoch
+        const generatedPOI = await this.graphNode.proofOfIndexing(
+          allocation.subgraphDeployment.id,
+          epochStartBlock,
+          allocation.indexer,
+        )
+        switch (poi == generatedPOI) {
+          case true:
+            this.logger.trace('Resolve POI: Force false, poi matches generated', {
+              poi,
+              blockNumber: epochStartBlock.number,
+            })
+            if (poi == undefined) {
+              const deploymentStatus = await this.graphNode.indexingStatus([
+                allocation.subgraphDeployment.id,
+              ])
+              throw indexerError(
+                IndexerErrorCode.IE067,
+                `POI not available for deployment at current epoch start block.
+              currentEpochStartBlock: ${epochStartBlock.number}
+              deploymentStatus: ${
+                deploymentStatus.length > 0
+                  ? JSON.stringify(deploymentStatus)
+                  : 'not deployed'
+              }`,
+              )
+            } else {
+              return [poi, epochStartBlock.number]
+            }
+          case false:
+            this.logger.trace('Resolve POI: Force false, poi does not match generated', {
+              poi,
+              generatedPOI,
+              blockNumber: epochStartBlock.number,
+            })
+            if (poi == undefined && generatedPOI !== undefined) {
+              return [generatedPOI, epochStartBlock.number]
+            } else if (poi !== undefined && generatedPOI == undefined) {
+              return [poi, 0]
+            }
+            throw indexerError(
+              IndexerErrorCode.IE068,
+              `User provided POI does not match reference fetched from the graph-node. Use '--force' to bypass this POI accuracy check.
+              POI: ${poi},
+              referencePOI: ${generatedPOI}`,
+            )
+        }
+      }
+    }
+  }
+
+  private async _resolvePOIBlockNumber(
+    blockNumber: number | undefined,
+    generatedPOIBlockNumber: number,
+    force: boolean,
+  ): Promise<number> {
+    let returnBlockNumber = 0
+    if (generatedPOIBlockNumber === 0) {
+      if (blockNumber === undefined) {
+        throw indexerError(
+          IndexerErrorCode.IE084,
+          'No block number generated and none provided',
+        )
+      }
+      returnBlockNumber = blockNumber
+    } else if (blockNumber === undefined || generatedPOIBlockNumber === blockNumber) {
+      returnBlockNumber = generatedPOIBlockNumber
+    } else {
+      returnBlockNumber = force ? blockNumber : generatedPOIBlockNumber
+    }
+
+    this.logger.trace('Resolve POI block number:', {
+      blockNumber,
+      generatedPOIBlockNumber,
+      returnBlockNumber,
+      force,
+    })
+
+    return returnBlockNumber
+  }
+
+  private async _resolvePublicPOI(
+    allocation: Allocation,
+    publicPOI: string | undefined,
+    blockNumber: number,
+    force: boolean,
+  ): Promise<string> {
+    const supportedNetworkAlias = await this.allocationNetworkAlias(allocation)
+    if (null === supportedNetworkAlias) {
+      this.logger.error("Network is not supported, can't resolve public POI")
+      return hexlify(new Uint8Array(32).fill(0))
+    }
+
+    if (force && publicPOI !== undefined) {
+      return publicPOI
+    }
+
+    const blockHash = await this.graphNode.blockHashFromNumber(
+      supportedNetworkAlias,
+      blockNumber,
+    )
+    const generatedPublicPOI = await this.graphNode.proofOfIndexing(
+      allocation.subgraphDeployment.id,
+      {
+        number: blockNumber,
+        hash: blockHash,
+      },
+      ZeroAddress,
+    )
+
+    let returnPublicPOI: string
+    if (generatedPublicPOI === undefined) {
+      if (publicPOI === undefined) {
+        throw indexerError(
+          IndexerErrorCode.IE085,
+          'No public POI generated and none provided',
+        )
+      }
+      returnPublicPOI = publicPOI
+    } else if (publicPOI === undefined || generatedPublicPOI === publicPOI) {
+      returnPublicPOI = generatedPublicPOI
+    } else {
+      returnPublicPOI = force ? publicPOI : generatedPublicPOI
+    }
+
+    this.logger.trace('Resolve public POI:', {
+      blockNumber,
+      publicPOI,
+      generatedPublicPOI,
+      returnPublicPOI,
+      force,
+    })
+
+    return returnPublicPOI
+  }
+
+  private async _resolveIndexingStatus(
+    deployment: SubgraphDeploymentID,
+  ): Promise<IndexingStatusCode> {
+    const indexingStatus = await this.graphNode.indexingStatus([deployment])
+
+    let indexingStatusCode = IndexingStatusCode.Unknown
+    if (indexingStatus.length === 1) {
+      switch (indexingStatus[0].health) {
+        case 'healthy':
+          indexingStatusCode = IndexingStatusCode.Healthy
+          break
+        case 'unhealthy':
+          indexingStatusCode = IndexingStatusCode.Unhealthy
+          break
+        case 'failed':
+          indexingStatusCode = IndexingStatusCode.Failed
+          break
+        default:
+          indexingStatusCode = IndexingStatusCode.Unknown
+          break
+      }
+    }
+    return indexingStatusCode
   }
 }

@@ -6,7 +6,7 @@ import { displayZodParsingError } from './error-handling'
 import path from 'path'
 
 export function loadTestYamlConfig() {
-  const PUBLIC_JSON_RPC_ENDPOINT = 'https://ethereum-sepolia.publicnode.com'
+  const PUBLIC_JSON_RPC_ENDPOINT = 'https://sepolia-rollup.arbitrum.io/rpc'
   const testProviderUrl =
     process.env.INDEXER_TEST_JRPC_PROVIDER_URL ?? PUBLIC_JSON_RPC_ENDPOINT
   const INDEXER_TEST_API_KEY: string = process.env['INDEXER_TEST_API_KEY'] || ''

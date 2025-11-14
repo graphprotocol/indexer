@@ -2,15 +2,15 @@ import { createLogger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { SubgraphDependencies, SubgraphManifestResolver } from '../graph-node'
 import express, { Request, Response } from 'express'
 import { AddressInfo } from 'net'
-import { utils } from 'ethers'
+import { keccak256, toUtf8Bytes } from 'ethers'
 
 const EXAMPLE_VALID_IPFS_HASH = 'Qmd9nZKCH8UZU1pBzk7G8ECJr3jX3a2vAf3vowuTwFvrQg'
 const EXAMPLE_NON_MANIFEST_VALID_IPFS_HASH =
   'QmddQDkcHHM7mGvYrrnoGnQ1q9GdHQfbTvj2mfbyz2Q49K'
 
 function mockManifestHash(input: string): string {
-  const utf8Bytes = utils.toUtf8Bytes(input)
-  const hash = utils.keccak256(utf8Bytes) // Generate a keccak256 hash of the input
+  const utf8Bytes = toUtf8Bytes(input)
+  const hash = keccak256(utf8Bytes) // Generate a keccak256 hash of the input
   return new SubgraphDeploymentID(hash).ipfsHash
 }
 

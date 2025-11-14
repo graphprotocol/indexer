@@ -38,6 +38,7 @@ import {
   DeploymentManagementMode,
   SubgraphStatus,
   sequentialTimerMap,
+  HorizonTransitionValue,
 } from '@graphprotocol/indexer-common'
 
 import PQueue from 'p-queue'
@@ -47,7 +48,11 @@ import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
 
-type ActionReconciliationContext = [AllocationDecision[], number, number]
+type ActionReconciliationContext = [
+  AllocationDecision[],
+  number,
+  HorizonTransitionValue,
+]
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -233,6 +238,7 @@ export class Agent {
         try {
           await operator.ensureGlobalIndexingRule()
           await this.ensureAllSubgraphsIndexing(network)
+          await network.provision()
           await network.register()
         } catch (err) {
           this.logger.critical(
@@ -270,21 +276,22 @@ export class Agent {
         },
       )
 
-    const maxAllocationEpochs: Eventual<NetworkMapped<number>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalLarge },
-        () =>
-          this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching max allocation epochs', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.contracts.staking.maxAllocationEpochs()
-          }),
-        {
-          onError: error =>
-            logger.warn(`Failed to fetch max allocation epochs`, { error }),
-        },
-      )
+    const maxAllocationDuration: Eventual<
+      NetworkMapped<HorizonTransitionValue>
+    > = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalLarge },
+      () =>
+        this.multiNetworks.map(({ network }) => {
+          logger.trace('Fetching max allocation duration', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          return network.networkMonitor.maxAllocationDuration()
+        }),
+      {
+        onError: error =>
+          logger.warn(`Failed to fetch max allocation duration`, { error }),
+      },
+    )
 
     const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
       sequentialTimerMap(
@@ -304,9 +311,9 @@ export class Agent {
               await network.networkMonitor.subgraphs(subgraphRuleIds)
             if (subgraphsMatchingRules.length >= 1) {
               const epochLength =
-                await network.contracts.epochManager.epochLength()
+                await network.contracts.EpochManager.epochLength()
               const blockPeriod = 15
-              const bufferPeriod = epochLength.toNumber() * blockPeriod * 100 // 100 epochs
+              const bufferPeriod = Number(epochLength) * blockPeriod * 100 // 100 epochs
               rules = convertSubgraphBasedRulesToDeploymentBased(
                 rules,
                 subgraphsMatchingRules,
@@ -486,7 +493,7 @@ export class Agent {
               const matchingTransfer = eligibleTransferDeployments.find(
                 deployment =>
                   deployment.ipfsHash == decision.deployment.ipfsHash &&
-                  deployment.startedTransferToL2At.toNumber() > oneWeekAgo,
+                  Number(deployment.startedTransferToL2At) > oneWeekAgo,
               )
               if (matchingTransfer) {
                 logger.debug('Found a matching subgraph transfer', {
@@ -652,7 +659,7 @@ export class Agent {
     join({
       ticker: timer(requestIntervalLarge),
       currentEpochNumber,
-      maxAllocationEpochs,
+      maxAllocationDuration,
       activeDeployments,
       targetDeployments,
       activeAllocations,
@@ -662,7 +669,7 @@ export class Agent {
     }).pipe(
       async ({
         currentEpochNumber,
-        maxAllocationEpochs,
+        maxAllocationDuration,
         activeDeployments,
         targetDeployments,
         activeAllocations,
@@ -682,7 +689,8 @@ export class Agent {
               currentEpochNumber: number,
             ) =>
               currentEpochNumber -
-              network.specification.indexerOptions.poiDisputableEpochs,
+              (network.specification.indexerOptions
+                .poiDisputableEpochs as number),
           )
 
           // Find disputable allocations
@@ -744,7 +752,7 @@ export class Agent {
           await this.reconcileActions(
             networkDeploymentAllocationDecisions,
             currentEpochNumber,
-            maxAllocationEpochs,
+            maxAllocationDuration,
           )
         } catch (err) {
           logger.warn(`Exited early while reconciling actions`, {
@@ -821,22 +829,22 @@ export class Agent {
             await network.networkProvider.getBlock(
               pool.previousEpochStartBlockHash!,
             )
-          pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock.number
+          pool.closedAtEpochStartBlockNumber = closedAtEpochStartBlock!.number
           pool.referencePOI = await this.graphNode.proofOfIndexing(
             pool.subgraphDeployment,
             {
-              number: closedAtEpochStartBlock.number,
-              hash: closedAtEpochStartBlock.hash,
+              number: closedAtEpochStartBlock!.number,
+              hash: closedAtEpochStartBlock!.hash!,
             },
             pool.allocationIndexer,
           )
-          pool.previousEpochStartBlockHash = previousEpochStartBlock.hash
-          pool.previousEpochStartBlockNumber = previousEpochStartBlock.number
+          pool.previousEpochStartBlockHash = previousEpochStartBlock!.hash!
+          pool.previousEpochStartBlockNumber = previousEpochStartBlock!.number
           pool.referencePreviousPOI = await this.graphNode.proofOfIndexing(
             pool.subgraphDeployment,
             {
-              number: previousEpochStartBlock.number,
-              hash: previousEpochStartBlock.hash,
+              number: previousEpochStartBlock!.number,
+              hash: previousEpochStartBlock!.hash!,
             },
             pool.allocationIndexer,
           )
@@ -1002,23 +1010,40 @@ export class Agent {
   }
 
   async identifyExpiringAllocations(
-    _logger: Logger,
+    logger: Logger,
     activeAllocations: Allocation[],
     deploymentAllocationDecision: AllocationDecision,
     epoch: number,
-    maxAllocationEpochs: number,
+    maxAllocationDuration: HorizonTransitionValue,
     network: Network,
   ): Promise<Allocation[]> {
-    const desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
-      .rule?.allocationLifetime
-      ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
-      : Math.max(1, maxAllocationEpochs - 1)
-
-    // Identify expiring allocations
+    logger.debug('Identify expiring allocations', {
+      activeAllocations: activeAllocations.map(allocation => allocation.id),
+      epoch,
+      maxAllocationDuration,
+      network: network.specification.networkIdentifier,
+    })
     let expiredAllocations = activeAllocations.filter(
-      allocation =>
-        epoch >= allocation.createdAtEpoch + desiredAllocationLifetime,
+      (allocation: Allocation) => {
+        let desiredAllocationLifetime: number = 0
+        if (allocation.isLegacy) {
+          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
+            .rule?.allocationLifetime
+            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
+            : Math.max(1, maxAllocationDuration.legacy - 1)
+        } else {
+          desiredAllocationLifetime = deploymentAllocationDecision.ruleMatch
+            .rule?.allocationLifetime
+            ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
+            : maxAllocationDuration.horizon
+        }
+        return epoch >= allocation.createdAtEpoch + desiredAllocationLifetime
+      },
     )
+    logger.debug('Expired allocations found', {
+      expiredAllocations: expiredAllocations.map(allocation => allocation.id),
+      count: expiredAllocations.length,
+    })
     // The allocations come from the network subgraph; due to short indexing
     // latencies, this data may be slightly outdated. Cross-check with the
     // contracts to avoid closing allocations that are already closed on
@@ -1027,9 +1052,17 @@ export class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          const onChainAllocation =
-            await network.contracts.staking.getAllocation(allocation.id)
-          return onChainAllocation.closedAtEpoch.eq('0')
+          if (allocation.isLegacy) {
+            const onChainAllocation =
+              await network.contracts.LegacyStaking.getAllocation(allocation.id)
+            return onChainAllocation.closedAtEpoch == 0n
+          } else {
+            const onChainAllocation =
+              await network.contracts.SubgraphService.getAllocation(
+                allocation.id,
+              )
+            return onChainAllocation.closedAt == 0n
+          }
         } catch (err) {
           this.logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
@@ -1050,7 +1083,7 @@ export class Agent {
     deploymentAllocationDecision: AllocationDecision,
     activeAllocations: Allocation[],
     epoch: number,
-    maxAllocationEpochs: number,
+    maxAllocationDuration: HorizonTransitionValue,
     network: Network,
     operator: Operator,
   ): Promise<void> {
@@ -1059,6 +1092,8 @@ export class Agent {
       protocolNetwork: network.specification.networkIdentifier,
       epoch,
     })
+
+    const isHorizon = await network.isHorizon.value()
 
     // TODO: Can we replace `filter` for `find` here? Is there such a case when we
     // would have multiple allocations for the same subgraph?
@@ -1110,6 +1145,7 @@ export class Agent {
               logger,
               deploymentAllocationDecision,
               mostRecentlyClosedAllocation,
+              isHorizon,
             )
           }
         } else if (activeDeploymentAllocations.length > 0) {
@@ -1126,7 +1162,7 @@ export class Agent {
               activeDeploymentAllocations,
               deploymentAllocationDecision,
               epoch,
-              maxAllocationEpochs,
+              maxAllocationDuration,
               network,
             )
             if (expiringAllocations.length > 0) {
@@ -1145,7 +1181,7 @@ export class Agent {
   async reconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
     epoch: NetworkMapped<number>,
-    maxAllocationEpochs: NetworkMapped<number>,
+    maxAllocationDuration: NetworkMapped<HorizonTransitionValue>,
   ): Promise<void> {
     // --------------------------------------------------------------------------------
     // Filter out networks set to `manual` allocation management mode, and ensure the
@@ -1198,14 +1234,14 @@ export class Agent {
       this.multiNetworks.zip3(
         validatedAllocationDecisions,
         epoch,
-        maxAllocationEpochs,
+        maxAllocationDuration,
       ),
       async (
         { network, operator }: NetworkAndOperator,
         [
           allocationDecisions,
           epoch,
-          maxAllocationEpochs,
+          maxAllocationDuration,
         ]: ActionReconciliationContext,
       ) => {
         // Do nothing if there are already approved actions in the queue awaiting execution
@@ -1230,7 +1266,7 @@ export class Agent {
         this.logger.trace(`Reconcile allocation actions`, {
           protocolNetwork: network.specification.networkIdentifier,
           epoch,
-          maxAllocationEpochs,
+          maxAllocationDuration,
           targetDeployments: allocationDecisions
             .filter(decision => decision.toAllocate)
             .map(decision => decision.deployment.ipfsHash),
@@ -1246,7 +1282,7 @@ export class Agent {
             decision,
             activeAllocations,
             epoch,
-            maxAllocationEpochs,
+            maxAllocationDuration,
             network,
             operator,
           ),

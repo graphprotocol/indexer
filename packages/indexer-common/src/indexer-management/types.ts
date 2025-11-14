@@ -4,10 +4,10 @@ import {
   SubgraphDeploymentID,
   toAddress,
 } from '@graphprotocol/common-ts'
-import { BigNumber } from 'ethers'
-import { Allocation } from '../allocations'
+import { Allocation, Provision } from '../allocations'
 import { GraphNode } from '../graph-node'
 import { SubgraphDeployment } from '../types'
+import { TransactionReceipt } from 'ethers'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 let registry: any
@@ -34,7 +34,6 @@ export interface CloseAllocationResult {
   allocation: string
   allocatedTokens: string
   indexingRewards: string
-  receiptsWorthCollecting: boolean
   protocolNetwork: string
 }
 
@@ -42,12 +41,24 @@ export interface ReallocateAllocationResult {
   actionID: number
   type: 'reallocate'
   transactionID: string | undefined
+  secondTransactionID?: string
   closedAllocation: string
   indexingRewardsCollected: string
-  receiptsWorthCollecting: boolean
   createdAllocation: string
   createdAllocationStake: string
   protocolNetwork: string
+}
+
+export interface ActionExecutionResult {
+  actionID: number
+  success: boolean
+  result: AllocationResult
+}
+
+export interface ExecuteActionResult {
+  actionID: number
+  success: boolean
+  result: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[]
 }
 
 export interface ActionFailure {
@@ -60,6 +71,25 @@ export interface ActionFailure {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export const isActionFailure = (variableToCheck: any): variableToCheck is ActionFailure =>
   'failureReason' in variableToCheck
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export const isPartialActionFailure = (
+  variableToCheck: any,
+): variableToCheck is Partial<ActionFailure> => 'failureReason' in variableToCheck
+
+export function isTransactionReceiptArray(
+  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[],
+): arr is TransactionReceipt[] {
+  return arr.every(
+    (r): r is TransactionReceipt =>
+      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r),
+  )
+}
+
+export const isActionFailureArray = (
+  variableToCheck: any,
+): variableToCheck is ActionFailure[] =>
+  Array.isArray(variableToCheck) && variableToCheck.every(isActionFailure)
 
 export type AllocationResult =
   | CreateAllocationResult
@@ -74,9 +104,9 @@ export const parseGraphQLSubgraphDeployment = (
 ): SubgraphDeployment => ({
   id: new SubgraphDeploymentID(subgraphDeployment.id),
   deniedAt: subgraphDeployment.deniedAt,
-  stakedTokens: BigNumber.from(subgraphDeployment.stakedTokens),
-  signalledTokens: BigNumber.from(subgraphDeployment.signalledTokens),
-  queryFeesAmount: BigNumber.from(subgraphDeployment.queryFeesAmount),
+  stakedTokens: BigInt(subgraphDeployment.stakedTokens),
+  signalledTokens: BigInt(subgraphDeployment.signalledTokens),
+  queryFeesAmount: BigInt(subgraphDeployment.queryFeesAmount),
   protocolNetwork,
 })
 
@@ -88,18 +118,21 @@ export const parseGraphQLAllocation = (
   // Ensure the allocation ID (an address) is checksummed
   id: toAddress(allocation.id),
   status: allocation.status,
+  isLegacy: allocation.isLegacy,
   subgraphDeployment: {
     id: new SubgraphDeploymentID(allocation.subgraphDeployment.id),
     deniedAt: allocation.subgraphDeployment.deniedAt,
-    stakedTokens: BigNumber.from(allocation.subgraphDeployment.stakedTokens),
-    signalledTokens: BigNumber.from(allocation.subgraphDeployment.signalledTokens),
-    queryFeesAmount: BigNumber.from(allocation.subgraphDeployment.queryFeesAmount),
+    stakedTokens: BigInt(allocation.subgraphDeployment.stakedTokens),
+    signalledTokens: BigInt(allocation.subgraphDeployment.signalledTokens),
+    queryFeesAmount: BigInt(allocation.subgraphDeployment.queryFeesAmount),
     protocolNetwork,
   },
   indexer: toAddress(allocation.indexer.id),
-  allocatedTokens: BigNumber.from(allocation.allocatedTokens),
+  allocatedTokens: BigInt(allocation.allocatedTokens),
+  createdAt: allocation.createdAt,
   createdAtBlockHash: allocation.createdAtBlockHash,
   createdAtEpoch: allocation.createdAtEpoch,
+  closedAt: allocation.closedAt,
   closedAtEpoch: allocation.closedAtEpoch,
   closedAtEpochStartBlockHash: undefined,
   previousEpochStartBlockHash: undefined,
@@ -107,6 +140,17 @@ export const parseGraphQLAllocation = (
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
   queryFeesCollected: allocation.queryFeesCollected,
+})
+
+export const parseGraphQLProvision = (provision: any): Provision => ({
+  id: provision.id.toString(),
+  dataService: toAddress(provision.dataService),
+  indexer: toAddress(provision.indexer),
+  tokensProvisioned: BigInt(provision.tokensProvisioned),
+  tokensAllocated: BigInt(provision.tokensAllocated),
+  tokensThawing: BigInt(provision.tokensThawing),
+  maxVerifierCut: BigInt(provision.maxVerifierCut),
+  thawingPeriod: BigInt(provision.thawingPeriod),
 })
 
 export interface RewardsPool {
@@ -354,4 +398,18 @@ export function networkIsL2(networkIdentifier: string): boolean {
   // Normalize network identifier
   networkIdentifier = resolveChainId(networkIdentifier)
   return networkIdentifier === 'eip155:42161' || networkIdentifier === 'eip155:421614'
+}
+
+export enum IndexingStatusCode {
+  Unknown = 0,
+  Healthy = 1,
+  Unhealthy = 2,
+  Failed = 3,
+}
+
+export interface POIData {
+  poi: string
+  publicPOI: string
+  blockNumber: number
+  indexingStatus: IndexingStatusCode
 }
