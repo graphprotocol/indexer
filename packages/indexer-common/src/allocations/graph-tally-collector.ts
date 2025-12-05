@@ -236,20 +236,30 @@ export class GraphTallyCollector {
         })
         this.logger.trace(`[TAPv2] RAW DATA`, { ravs, allocations })
 
-        const pendingRAVsToProcess = ravs
-          .map((rav) => {
-            const signedRav = rav.getSignedRAV()
-            return {
+        // Create an object for O(1) allocation lookups instead of O(n) Array.find()
+        // This optimizes performance from O(n²) to O(n) for large datasets
+        const allocationMap: { [key: string]: Allocation } = {}
+        for (let i = 0; i < allocations.length; i++) {
+          const allocation = allocations[i]
+          allocationMap[allocation.id.toLowerCase()] = allocation
+        }
+
+        const pendingRAVsToProcess: RavWithAllocation[] = []
+        for (let i = 0; i < ravs.length; i++) {
+          const rav = ravs[i]
+          const signedRav = rav.getSignedRAV()
+          const allocationId = toAddress(
+            collectionIdToAllocationId(signedRav.rav.collectionId),
+          ).toLowerCase()
+          const allocation = allocationMap[allocationId] // O(1) lookup
+          if (allocation !== undefined) {
+            pendingRAVsToProcess.push({
               rav: signedRav,
-              allocation: allocations.find(
-                (a) =>
-                  a.id ===
-                  toAddress(collectionIdToAllocationId(signedRav.rav.collectionId)),
-              ),
+              allocation: allocation,
               payer: rav.payer,
-            }
-          })
-          .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
+            })
+          }
+        }
         this.logger.trace(`[TAPv2] Pending RAVs to process`, {
           pendingRAVsToProcess: pendingRAVsToProcess.length,
         })
