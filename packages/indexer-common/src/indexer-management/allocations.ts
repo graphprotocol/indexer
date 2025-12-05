@@ -26,6 +26,7 @@ import {
   IndexingStatus,
   isActionFailure,
   isDeploymentWorthAllocatingTowards,
+  preprocessRules,
   Network,
   ReallocateAllocationResult,
   SubgraphIdentifierType,
@@ -1791,8 +1792,14 @@ export class AllocationManager {
         `SHOULD BE UNREACHABLE: No matching subgraphDeployment (${subgraphDeploymentID.ipfsHash}) found on the network`,
       )
     }
-    return isDeploymentWorthAllocatingTowards(logger, subgraphDeployment, indexingRules)
-      .toAllocate
+    // Use preprocessed rules for O(1) lookup
+    const { deploymentRulesMap, globalRule } = preprocessRules(indexingRules)
+    return isDeploymentWorthAllocatingTowards(
+      logger,
+      subgraphDeployment,
+      deploymentRulesMap,
+      globalRule,
+    ).toAllocate
   }
 
   // Calculates the balance (GRT delta) of a single Action.
