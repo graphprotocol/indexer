@@ -159,6 +159,30 @@ interface RuleMatch {
   activationCriteria: ActivationCriteria
 }
 
+export interface PreprocessedRules {
+  deploymentRulesMap: { [key: string]: IndexingRuleAttributes }
+  globalRule: IndexingRuleAttributes | undefined
+}
+
+// Preprocess rules into a Map for O(1) lookups instead of O(n) Array.filter().find()
+// This optimizes performance from O(n²) to O(n) when evaluating many deployments
+export function preprocessRules(rules: IndexingRuleAttributes[]): PreprocessedRules {
+  const deploymentRulesMap: { [key: string]: IndexingRuleAttributes } = {}
+  let globalRule: IndexingRuleAttributes | undefined = undefined
+
+  for (let i = 0; i < rules.length; i++) {
+    const rule = rules[i]
+    if (rule.identifier === INDEXING_RULE_GLOBAL) {
+      globalRule = rule
+    } else if (rule.identifierType === SubgraphIdentifierType.DEPLOYMENT) {
+      const key = new SubgraphDeploymentID(rule.identifier).bytes32
+      deploymentRulesMap[key] = rule
+    }
+  }
+
+  return { deploymentRulesMap, globalRule }
+}
+
 export class AllocationDecision {
   declare deployment: SubgraphDeploymentID
   declare toAllocate: boolean
@@ -192,24 +216,26 @@ export function evaluateDeployments(
   networkDeployments: SubgraphDeployment[],
   rules: IndexingRuleAttributes[],
 ): AllocationDecision[] {
+  // Preprocess rules once for O(1) lookups instead of O(n) per deployment
+  const { deploymentRulesMap, globalRule } = preprocessRules(rules)
   return networkDeployments.map((deployment) =>
-    isDeploymentWorthAllocatingTowards(logger, deployment, rules),
+    isDeploymentWorthAllocatingTowards(
+      logger,
+      deployment,
+      deploymentRulesMap,
+      globalRule,
+    ),
   )
 }
 
 export function isDeploymentWorthAllocatingTowards(
   logger: Logger,
   deployment: SubgraphDeployment,
-  rules: IndexingRuleAttributes[],
+  deploymentRulesMap: { [key: string]: IndexingRuleAttributes },
+  globalRule: IndexingRuleAttributes | undefined,
 ): AllocationDecision {
-  const globalRule = rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
-  const deploymentRule =
-    rules
-      .filter((rule) => rule.identifierType == SubgraphIdentifierType.DEPLOYMENT)
-      .find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.id.bytes32,
-      ) || globalRule
+  // O(1) lookup using preprocessed rules map
+  const deploymentRule = deploymentRulesMap[deployment.id.bytes32] || globalRule
 
   logger.trace('Evaluating whether subgraphDeployment is worth allocating towards', {
     deployment,
