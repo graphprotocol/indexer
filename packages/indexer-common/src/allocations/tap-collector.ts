@@ -216,18 +216,32 @@ export class TapCollector {
           ravs: ravs.length,
           allocations: allocations.length,
         })
-        return ravs
-          .map((rav) => {
-            const signedRav = rav.getSignedRAV()
-            return {
+
+        // Create an object for O(1) allocation lookups instead of O(n) Array.find()
+        // This optimizes performance from O(n²) to O(n) for large datasets
+        const allocationMap: { [key: string]: Allocation } = {}
+        for (let i = 0; i < allocations.length; i++) {
+          const allocation = allocations[i]
+          allocationMap[allocation.id.toLowerCase()] = allocation
+        }
+
+        const results: RavWithAllocation[] = []
+        for (let i = 0; i < ravs.length; i++) {
+          const rav = ravs[i]
+          const signedRav = rav.getSignedRAV()
+          const allocationId = toAddress(
+            signedRav.rav.allocationId.toString(),
+          ).toLowerCase()
+          const allocation = allocationMap[allocationId] // O(1) lookup instead of O(n) find
+          if (allocation !== undefined) {
+            results.push({
               rav: signedRav,
-              allocation: allocations.find(
-                (a) => a.id === toAddress(signedRav.rav.allocationId.toString()),
-              ),
+              allocation: allocation,
               sender: rav.senderAddress,
-            }
-          })
-          .filter((rav) => rav.allocation !== undefined) as RavWithAllocation[] // this is safe because we filter out undefined allocations
+            })
+          }
+        }
+        return results
       },
       {
         onError: (err) =>
