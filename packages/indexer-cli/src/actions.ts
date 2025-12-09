@@ -61,12 +61,20 @@ export async function buildActionInput(
       if (poi == '0' || poi == '0x0') {
         poi = hexlify(new Uint8Array(32).fill(0))
       }
+      let publicPOI = actionParams.param5
+      if (publicPOI == '0' || publicPOI == '0x0') {
+        publicPOI = hexlify(new Uint8Array(32).fill(0))
+      }
+      let poiBlockNumber: number | undefined = undefined
+      if (actionParams.param4 !== undefined) {
+        poiBlockNumber = Number(actionParams.param4)
+      }
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         poi: poi,
-        publicPOI: actionParams.param5,
-        poiBlockNumber: actionParams.param4 ? Number(actionParams.param4) : undefined,
+        publicPOI: publicPOI,
+        poiBlockNumber: poiBlockNumber,
         force: actionParams.param3 === 'true',
         type,
         source,
@@ -82,13 +90,21 @@ export async function buildActionInput(
       if (poi == '0' || poi == '0x0') {
         poi = hexlify(new Uint8Array(32).fill(0))
       }
+      let publicPOI = actionParams.param6
+      if (publicPOI == '0' || publicPOI == '0x0') {
+        publicPOI = hexlify(new Uint8Array(32).fill(0))
+      }
+      let poiBlockNumber: number | undefined = undefined
+      if (actionParams.param5 !== undefined) {
+        poiBlockNumber = Number(actionParams.param5)
+      }
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         amount: actionParams.param2?.toString(),
         poi: poi,
-        publicPOI: actionParams.param6,
-        poiBlockNumber: actionParams.param5 ? Number(actionParams.param5) : undefined,
+        publicPOI: publicPOI,
+        poiBlockNumber: poiBlockNumber,
         force: actionParams.param4 === 'true',
         type,
         source,
