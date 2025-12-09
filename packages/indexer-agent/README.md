@@ -182,8 +182,6 @@ To use the Indexer Agent in Multi Network Mode, set the environment variable
 Start the Agent in multiple Protocol Networks
 
 Indexer Infrastructure
-  --index-node-ids                 Node IDs of Graph nodes to use for indexing
-                                   (separated by commas)      [array] [required]
   --indexer-management-port        Port to serve the indexer management API at
                                                         [number] [default: 8000]
   --metrics-port                   Port to serve Prometheus metrics at

@@ -54,8 +54,6 @@ spec:
                 secretKeyRef:
                   name: ethereum
                   key: url
-            - name: INDEXER_AGENT_INDEX_NODE_IDS
-              value: index-node-0
             - name: INDEXER_AGENT_GRAPH_NODE_QUERY_ENDPOINT
               value: http://query-node.default.svc.cluster.local/
             - name: INDEXER_AGENT_GRAPH_NODE_ADMIN_ENDPOINT
