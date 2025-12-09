@@ -96,7 +96,7 @@ export async function buildActionInput(
       }
       let poiBlockNumber: number | undefined = undefined
       if (actionParams.param5 !== undefined) {
-	      poiBlockNumber = Number(actionParams.param5)
+        poiBlockNumber = Number(actionParams.param5)
       }
       return {
         deploymentID: actionParams.targetDeployment,
