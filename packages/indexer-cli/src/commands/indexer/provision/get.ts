@@ -96,15 +96,17 @@ module.exports = {
         displayProperties,
       )
 
-      print.info('')
-      print.info(
-        `Indexer's idle stake: ${commify(
-          formatGRT(result.data.provisions[0].idleStake),
-        )} GRT`,
-      )
-      print.info(
-        "To add this stake to the Subgraph Service provision, run 'graph indexer provision add <amount>'",
-      )
+      if (result.data.provisions && result.data.provisions.length > 0) {
+        print.info('')
+        print.info(
+          `Indexer's idle stake: ${commify(
+            formatGRT(result.data.provisions[0].idleStake),
+          )} GRT`,
+        )
+        print.info(
+          "To add this stake to the Subgraph Service provision, run 'graph indexer provision add <amount>'",
+        )
+      }
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1
