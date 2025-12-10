@@ -1,9 +1,22 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+/**
+ * OptimizedAgent - Performance-enhanced Agent that extends the original Agent class
+ *
+ * This implementation adds performance optimizations while inheriting all working
+ * business logic from the original Agent class:
+ * - NetworkDataCache: LRU caching for network data
+ * - CircuitBreaker: Fault tolerance for network operations
+ * - AllocationPriorityQueue: Priority-based allocation processing
+ * - GraphQLDataLoader: Batched GraphQL queries
+ * - ConcurrentReconciler: Parallel reconciliation processing
+ *
+ * IMPORTANT: This class extends Agent to inherit all allocation management logic.
+ * Only the reconciliation loop and data fetching are optimized.
+ */
 import {
   Eventual,
   join,
   Logger,
-  Metrics,
   SubgraphDeploymentID,
   timer,
 } from '@graphprotocol/common-ts'
@@ -14,7 +27,6 @@ import {
   AllocationStatus,
   indexerError,
   IndexerErrorCode,
-  IndexerManagementClient,
   IndexingRuleAttributes,
   Network,
   Subgraph,
@@ -22,14 +34,13 @@ import {
   SubgraphIdentifierType,
   evaluateDeployments,
   AllocationDecision,
-  GraphNode,
   Operator,
-  MultiNetworks,
   NetworkMapped,
   DeploymentManagementMode,
   SubgraphStatus,
   sequentialTimerMap,
-  // Import new performance utilities
+  HorizonTransitionValue,
+  // Performance utilities
   NetworkDataCache,
   CircuitBreaker,
   AllocationPriorityQueue,
@@ -39,8 +50,8 @@ import {
 
 import PQueue from 'p-queue'
 import pMap from 'p-map'
-import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
+import { Agent, convertSubgraphBasedRulesToDeploymentBased } from './agent'
 
 // Configuration constants for performance tuning
 const PERFORMANCE_CONFIG = {
@@ -63,25 +74,11 @@ const PERFORMANCE_CONFIG = {
   PARALLEL_NETWORK_QUERIES: true,
 } as const
 
-type ActionReconciliationContext = [AllocationDecision[], number, number]
-
-// Commented out unused function - may be needed later
-// const deploymentInList = (
-//   list: SubgraphDeploymentID[],
-//   deployment: SubgraphDeploymentID,
-// ): boolean =>
-//   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
-
-const deploymentRuleInList = (
-  list: IndexingRuleAttributes[],
-  deployment: SubgraphDeploymentID,
-): boolean =>
-  list.find(
-    rule =>
-      rule.identifierType == SubgraphIdentifierType.DEPLOYMENT &&
-      new SubgraphDeploymentID(rule.identifier).toString() ==
-        deployment.toString(),
-  ) !== undefined
+type ActionReconciliationContext = [
+  AllocationDecision[],
+  number,
+  HorizonTransitionValue,
+]
 
 const uniqueDeploymentsOnly = (
   value: SubgraphDeploymentID,
@@ -93,123 +90,25 @@ const uniqueDeployments = (
   deployments: SubgraphDeploymentID[],
 ): SubgraphDeploymentID[] => deployments.filter(uniqueDeploymentsOnly)
 
-export const convertSubgraphBasedRulesToDeploymentBased = (
-  rules: IndexingRuleAttributes[],
-  subgraphs: Subgraph[],
-  previousVersionBuffer: number,
-): IndexingRuleAttributes[] => {
-  const toAdd: IndexingRuleAttributes[] = []
-  rules.map(rule => {
-    if (rule.identifierType !== SubgraphIdentifierType.SUBGRAPH) {
-      return rule
-    }
-    const ruleSubgraph = subgraphs.find(
-      subgraph => subgraph.id == rule.identifier,
-    )
-    if (ruleSubgraph) {
-      const latestVersion = ruleSubgraph.versionCount - 1
-      const latestDeploymentVersion = ruleSubgraph.versions.find(
-        version => version.version == latestVersion,
-      )
-      if (latestDeploymentVersion) {
-        if (!deploymentRuleInList(rules, latestDeploymentVersion!.deployment)) {
-          rule.identifier = latestDeploymentVersion!.deployment.toString()
-          rule.identifierType = SubgraphIdentifierType.DEPLOYMENT
-        }
-
-        const currentTimestamp = Math.floor(Date.now() / 1000)
-        if (
-          latestDeploymentVersion.createdAt >
-          currentTimestamp - previousVersionBuffer
-        ) {
-          const previousDeploymentVersion = ruleSubgraph.versions.find(
-            version => version.version == latestVersion - 1,
-          )
-          if (
-            previousDeploymentVersion &&
-            !deploymentRuleInList(rules, previousDeploymentVersion.deployment)
-          ) {
-            const previousDeploymentRule = { ...rule }
-            previousDeploymentRule.identifier =
-              previousDeploymentVersion!.deployment.toString()
-            previousDeploymentRule.identifierType =
-              SubgraphIdentifierType.DEPLOYMENT
-            toAdd.push(previousDeploymentRule)
-          }
-        }
-      }
-    }
-    return rule
-  })
-  rules.push(...toAdd)
-  return rules
-}
-
-// Extracts the network identifier from a pair of matching Network and Operator objects.
-function networkAndOperatorIdentity({
-  network,
-  operator,
-}: NetworkAndOperator): string {
-  const networkId = network.specification.networkIdentifier
-  const operatorId = operator.specification.networkIdentifier
-  if (networkId !== operatorId) {
-    throw new Error(
-      `Network and Operator pairs have different network identifiers: ${networkId} != ${operatorId}`,
-    )
-  }
-  return networkId
-}
-
-// Helper function to produce a `MultiNetworks<NetworkAndOperator>` while validating its
-// inputs.
-function createMultiNetworks(
-  networks: Network[],
-  operators: Operator[],
-): MultiNetworks<NetworkAndOperator> {
-  // Validate that Networks and Operator arrays have even lengths and
-  // contain unique, matching network identifiers.
-  const visited = new Set()
-  const validInputs =
-    networks.length === operators.length &&
-    networks.every((network, index) => {
-      const sameIdentifier =
-        network.specification.networkIdentifier ===
-        operators[index].specification.networkIdentifier
-      if (!sameIdentifier) {
-        return false
-      }
-      if (visited.has(network.specification.networkIdentifier)) {
-        return false
-      }
-      visited.add(network.specification.networkIdentifier)
-      return true
-    })
-
-  if (!validInputs) {
-    throw new Error(
-      'Invalid Networks and Operator pairs used in Agent initialization',
-    )
-  }
-  // Note on undefineds: `lodash.zip` can return `undefined` if array lengths are
-  // uneven, but we have just checked that.
-  const networksAndOperators = zip(networks, operators).map(pair => {
-    const [network, operator] = pair
-    return { network: network!, operator: operator! }
-  })
-  return new MultiNetworks(networksAndOperators, networkAndOperatorIdentity)
-}
-
-export class Agent {
-  logger: Logger
-  metrics: Metrics
-  graphNode: GraphNode
-  multiNetworks: MultiNetworks<NetworkAndOperator>
-  indexerManagement: IndexerManagementClient
-  offchainSubgraphs: SubgraphDeploymentID[]
-  autoMigrationSupport: boolean
-  deploymentManagement: DeploymentManagementMode
-  pollingInterval: number
-
+/**
+ * OptimizedAgent extends the original Agent class with performance enhancements.
+ *
+ * Inherited from Agent:
+ * - identifyPotentialDisputes() - POI dispute detection
+ * - identifyExpiringAllocations() - Expired allocation detection
+ * - reconcileDeploymentAllocationAction() - Core allocation management
+ * - reconcileDeployments() - Deployment reconciliation
+ * - reconcileActions() - Action queue management
+ * - ensureSubgraphIndexing() - Subgraph indexing
+ * - ensureAllSubgraphsIndexing() - All subgraphs indexing
+ *
+ * Optimized in this class:
+ * - start() - Adds DataLoader initialization
+ * - optimizedReconciliationLoop() - Enhanced data fetching with caching
+ * - optimizedReconcileDeployments() - Parallel deployment processing
+ * - optimizedReconcileActions() - Priority queue based processing
+ */
+export class OptimizedAgent extends Agent {
   // Performance optimization components
   private cache: NetworkDataCache
   private circuitBreaker: CircuitBreaker
@@ -220,18 +119,7 @@ export class Agent {
   private metricsCollector: NodeJS.Timeout | null = null
 
   constructor(configs: AgentConfigs) {
-    this.logger = configs.logger.child({ component: 'Agent' })
-    this.metrics = configs.metrics
-    this.graphNode = configs.graphNode
-    this.indexerManagement = configs.indexerManagement
-    this.multiNetworks = createMultiNetworks(
-      configs.networks,
-      configs.operators,
-    )
-    this.offchainSubgraphs = configs.offchainSubgraphs
-    this.autoMigrationSupport = !!configs.autoMigrationSupport
-    this.deploymentManagement = configs.deploymentManagement
-    this.pollingInterval = configs.pollingInterval
+    super(configs)
 
     // Initialize performance components
     this.cache = new NetworkDataCache(this.logger, {
@@ -267,7 +155,7 @@ export class Agent {
     this.startMetricsCollection()
   }
 
-  async start(): Promise<Agent> {
+  async start(): Promise<OptimizedAgent> {
     // --------------------------------------------------------------------------------
     // * Connect to Graph Node
     // --------------------------------------------------------------------------------
@@ -306,6 +194,7 @@ export class Agent {
           // Use circuit breaker for network operations
           await this.circuitBreaker.execute(async () => {
             await operator.ensureGlobalIndexingRule()
+            // Use inherited method from Agent
             await this.ensureAllSubgraphsIndexing(network)
             await network.register()
           })
@@ -313,7 +202,7 @@ export class Agent {
           this.logger.critical(
             `Failed to prepare indexer for ${network.specification.networkIdentifier}`,
             {
-              error: err.message,
+              error: (err as Error).message,
             },
           )
           process.exit(1)
@@ -321,7 +210,7 @@ export class Agent {
       },
     )
 
-    // Start optimized reconciliation loop
+    // Start optimized reconciliation loop instead of the default one
     this.optimizedReconciliationLoop()
     return this
   }
@@ -332,7 +221,7 @@ export class Agent {
   optimizedReconciliationLoop() {
     const requestIntervalSmall = this.pollingInterval
     const requestIntervalLarge = this.pollingInterval * 5
-    const logger = this.logger.child({ component: 'ReconciliationLoop' })
+    const logger = this.logger.child({ component: 'OptimizedReconciliationLoop' })
 
     // Use parallel timers instead of sequential for independent data fetching
     const currentEpochNumber: Eventual<NetworkMapped<number>> =
@@ -349,19 +238,20 @@ export class Agent {
         error => logger.warn(`Failed to fetch current epoch`, { error }),
       )
 
-    const maxAllocationEpochs: Eventual<NetworkMapped<number>> =
+    // Use the correct method: maxAllocationDuration() returns HorizonTransitionValue
+    const maxAllocationDuration: Eventual<NetworkMapped<HorizonTransitionValue>> =
       this.createCachedEventual(
-        'maxAllocationEpochs',
+        'maxAllocationDuration',
         requestIntervalLarge,
         () =>
           this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching max allocation epochs', {
+            logger.trace('Fetching max allocation duration', {
               protocolNetwork: network.specification.networkIdentifier,
             })
-            return network.contracts.staking.maxAllocationEpochs()
+            return network.networkMonitor.maxAllocationDuration()
           }),
         error =>
-          logger.warn(`Failed to fetch max allocation epochs`, { error }),
+          logger.warn(`Failed to fetch max allocation duration`, { error }),
       )
 
     // Fetch indexing rules with caching
@@ -395,7 +285,7 @@ export class Agent {
                       await network.contracts.epochManager.epochLength()
                     const blockPeriod = 15
                     const bufferPeriod =
-                      epochLength.toNumber() * blockPeriod * 100
+                      Number(epochLength) * blockPeriod * 100
                     rules = convertSubgraphBasedRulesToDeploymentBased(
                       rules,
                       subgraphsMatchingRules,
@@ -513,7 +403,7 @@ export class Agent {
                 const indexer = network.specification.indexerOptions.address
                 return loader.loadAllocationsByIndexer(
                   indexer.toLowerCase(),
-                  'Active',
+                  AllocationStatus.ACTIVE,
                 )
               }
 
@@ -539,7 +429,7 @@ export class Agent {
     join({
       ticker: timer(requestIntervalLarge),
       currentEpochNumber,
-      maxAllocationEpochs,
+      maxAllocationDuration,
       activeDeployments,
       targetDeployments: this.createTargetDeployments(
         networkDeployments,
@@ -553,7 +443,7 @@ export class Agent {
     }).pipe(
       async ({
         currentEpochNumber,
-        maxAllocationEpochs,
+        maxAllocationDuration,
         activeDeployments,
         targetDeployments,
         activeAllocations,
@@ -589,7 +479,7 @@ export class Agent {
           await this.optimizedReconcileActions(
             networkDeploymentAllocationDecisions,
             currentEpochNumber,
-            maxAllocationEpochs,
+            maxAllocationDuration,
           )
         } catch (err) {
           logger.warn(`Exited early while reconciling actions`, {
@@ -744,11 +634,14 @@ export class Agent {
 
   /**
    * Optimized action reconciliation with priority queue and parallelism
+   *
+   * Uses the inherited reconcileDeploymentAllocationAction() from Agent class
+   * for actual allocation operations.
    */
   async optimizedReconcileActions(
     networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
     epoch: NetworkMapped<number>,
-    maxAllocationEpochs: NetworkMapped<number>,
+    maxAllocationDuration: NetworkMapped<HorizonTransitionValue>,
   ): Promise<void> {
     const logger = this.logger.child({ function: 'optimizedReconcileActions' })
 
@@ -797,14 +690,14 @@ export class Agent {
       this.multiNetworks.zip3(
         validatedAllocationDecisions,
         epoch,
-        maxAllocationEpochs,
+        maxAllocationDuration,
       ),
       async (
         { network, operator }: NetworkAndOperator,
         [
           allocationDecisions,
           epoch,
-          maxAllocationEpochs,
+          maxAllocationDuration,
         ]: ActionReconciliationContext,
       ) => {
         // Check for approved actions
@@ -828,7 +721,7 @@ export class Agent {
         logger.trace(`Reconcile allocation actions with optimization`, {
           protocolNetwork: network.specification.networkIdentifier,
           epoch,
-          maxAllocationEpochs,
+          maxAllocationDuration,
           decisions: allocationDecisions.length,
           concurrency: PERFORMANCE_CONFIG.ALLOCATION_CONCURRENCY,
         })
@@ -852,11 +745,12 @@ export class Agent {
             await pMap(
               batch,
               async decision =>
+                // Use inherited method from Agent class
                 this.reconcileDeploymentAllocationAction(
                   decision,
                   activeAllocations,
                   epoch,
-                  maxAllocationEpochs,
+                  maxAllocationDuration,
                   network,
                   operator,
                 ),
@@ -868,11 +762,12 @@ export class Agent {
           await pMap(
             allocationDecisions,
             async decision =>
+              // Use inherited method from Agent class
               this.reconcileDeploymentAllocationAction(
                 decision,
                 activeAllocations,
                 epoch,
-                maxAllocationEpochs,
+                maxAllocationDuration,
                 network,
                 operator,
               ),
@@ -882,9 +777,6 @@ export class Agent {
       },
     )
   }
-
-  // Keep existing helper methods...
-  // [Rest of the existing Agent class methods remain the same]
 
   /**
    * Start performance metrics collection
@@ -917,8 +809,6 @@ export class Agent {
 
     // Export metrics to Prometheus if configured
     if (this.metrics) {
-      // TODO: Implement proper Prometheus metrics integration
-      // For now, just log the metrics
       this.logger.debug('Performance metrics exported', metrics)
     }
   }
@@ -927,7 +817,7 @@ export class Agent {
    * Cleanup resources on shutdown
    */
   async shutdown(): Promise<void> {
-    this.logger.info('Shutting down agent')
+    this.logger.info('Shutting down optimized agent')
 
     if (this.metricsCollector) {
       clearInterval(this.metricsCollector)
@@ -936,13 +826,16 @@ export class Agent {
     await this.reconciler.onIdle()
     await this.deploymentQueue.onIdle()
 
+    // Dispose circuit breaker
+    this.circuitBreaker.dispose()
+
     this.cache.clear()
     this.priorityQueue.clear()
 
-    this.logger.info('Agent shutdown complete')
+    this.logger.info('Optimized agent shutdown complete')
   }
 
-  // Additional helper methods for target deployments and allocation decisions
+  // Helper methods for target deployments and allocation decisions
   private createTargetDeployments(
     networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>>,
     indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>>,
@@ -1003,71 +896,6 @@ export class Agent {
           this.logger.warn(`Failed to create allocation decisions`, { error }),
       },
     )
-  }
-
-  // Keep all existing methods from original Agent class...
-  async identifyPotentialDisputes(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    disputableAllocations: Allocation[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    disputableEpoch: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    operator: Operator,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    network: Network,
-  ): Promise<void> {
-    // Implementation remains the same
-  }
-
-  async identifyExpiringAllocations(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    logger: Logger,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    activeAllocations: Allocation[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    deploymentAllocationDecision: AllocationDecision,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    currentEpoch: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    maxAllocationEpochs: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    network: Network,
-  ): Promise<Allocation[]> {
-    // Implementation remains the same
-    return []
-  }
-
-  async reconcileDeploymentAllocationAction(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    deploymentAllocationDecision: AllocationDecision,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    activeAllocations: Allocation[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    epoch: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    maxAllocationEpochs: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    network: Network,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    operator: Operator,
-  ): Promise<void> {
-    // Implementation remains the same as original
-  }
-
-  async ensureSubgraphIndexing(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    deployment: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    networkIdentifier: string,
-  ) {
-    // Implementation remains the same
-  }
-
-  async ensureAllSubgraphsIndexing(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    network: Network,
-  ) {
-    // Implementation remains the same
   }
 }
 
