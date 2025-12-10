@@ -9,7 +9,7 @@
 - **delegated stake**: stake that has been delegated to a specific (indexer, provision). Pre-horizon delegation is automatically credited to the `SubgraphService` provision.
 - **available stake**: stake that is available within the provision to be used, for example for allocations. Note that this will include provisioned tokens plus delegated stake.
 
-[](./images/provision.png)
+![](./images/provision.png)
 
 ## Provision creation for the Subgraph Service
 `indexer-agent` will perform the initial creation of the provision. This is attempted _only_ when the agent starts up and _only_ if the indexer's idle stake is greater than 100k GRT, that is:
