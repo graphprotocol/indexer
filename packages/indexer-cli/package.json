@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-cli",
-  "version": "0.24.3",
+  "version": "0.25.2",
   "description": "Indexer CLI for The Graph Network",
   "main": "./dist/cli.js",
   "files": [
@@ -26,23 +26,25 @@
     "test:watch": "jest --watch --detectOpenHandles --verbose"
   },
   "dependencies": {
-    "@graphprotocol/common-ts": "2.0.11",
-    "@graphprotocol/indexer-common": "^0.24.3",
+    "@graphprotocol/common-ts": "3.0.1",
+    "@graphprotocol/indexer-common": "0.25.2",
     "@iarna/toml": "2.2.5",
     "@thi.ng/iterators": "5.1.74",
     "@urql/core": "3.1.0",
     "chalk": "4.1.2",
     "env-paths": "2.2.1",
-    "ethers": "5.7.0",
+    "ethers": "6.13.7",
     "gluegun": "4.7.0",
     "graphql-tag": "2.12.6",
     "isomorphic-fetch": "3.0.0",
     "table": "6.7.5",
-    "yaml": "1.10.2"
+    "yaml": "1.10.2",
+    "wrap-ansi": "7.0.0"
   },
   "devDependencies": {
     "@types/isomorphic-fetch": "0.0.36",
     "@types/lodash.clonedeep": "^4.5.7",
+    "@types/wrap-ansi": "3.0.0",
     "@typescript-eslint/eslint-plugin": "6.7.0",
     "@typescript-eslint/parser": "6.7.0",
     "eslint": "8.49.0",
@@ -53,7 +55,7 @@
     "typescript": "5.2.2"
   },
   "resolutions": {
-    "ethers": "5.7.0",
+    "ethers": "6.13.7",
     "sequelize": "6.33.0"
   },
   "gitHead": "972ab96774007b2aee15b1da169d2ff4be9f9d27"

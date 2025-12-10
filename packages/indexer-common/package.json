@@ -1,6 +1,6 @@
 {
   "name": "@graphprotocol/indexer-common",
-  "version": "0.24.3",
+  "version": "0.25.2",
   "description": "Common library for Graph Protocol indexer components",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -23,8 +23,9 @@
   },
   "dependencies": {
     "@pinax/graph-networks-registry": "0.6.7",
-    "@graphprotocol/common-ts": "2.0.11",
-    "@semiotic-labs/tap-contracts-bindings": "^1.2.1",
+    "@graphprotocol/common-ts": "3.0.1",
+    "@graphprotocol/toolshed": "1.1.1",
+    "@semiotic-labs/tap-contracts-bindings": "2.0.0",
     "@thi.ng/heaps": "1.2.38",
     "@types/lodash.clonedeep": "^4.5.7",
     "@types/lodash.intersection": "^4.4.7",
@@ -35,8 +36,8 @@
     "axios": "1.6.2",
     "body-parser": "1.20.2",
     "cors": "2.8.5",
+    "ethers": "6.13.7",
     "dataloader": "^2.2.2",
-    "ethers": "5.7.0",
     "evt": "1.10.1",
     "express": "4.18.2",
     "fastify": "3.25.0",
@@ -83,9 +84,8 @@
     "typescript": "5.2.2"
   },
   "resolutions": {
-    "ethers": "5.7.0",
+    "ethers": "6.13.7",
     "sequelize": "6.33.0",
-    "@ethersproject/bignumber": "5.7.0",
     "@urql/exchange-execute/@urql/core": "3.1.0"
   },
   "babel": {

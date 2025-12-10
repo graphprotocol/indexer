@@ -7,8 +7,8 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Component          | Release                                                                              |
 | ------------------ | ------------------------------------------------------------------------------------ |
 | contracts          | [5.3.3](https://github.com/graphprotocol/contracts/releases/tag/v5.3.3)              |
-| indexer-agent      | [0.24.3](https://github.com/graphprotocol/indexer/releases/tag/v0.24.3)              |
-| indexer-cli        | [0.24.3](https://github.com/graphprotocol/indexer/releases/tag/v0.24.3)              |
+| indexer-agent      | [0.25.0](https://github.com/graphprotocol/indexer/releases/tag/v0.25.0)              |
+| indexer-cli        | [0.25.0](https://github.com/graphprotocol/indexer/releases/tag/v0.25.0)              |
 | indexer-service-rs | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | tap-agent          | [1.0.0](https://github.com/graphprotocol/indexer-rs/releases/tag/v1.0.0)             |
 | graph-node         | [0.35.1](https://github.com/graphprotocol/graph-node/releases/tag/v0.35.1)           |
@@ -17,8 +17,8 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 
 | Parameter                   | Value             |
 | --------------------------- | ----------------- |
-| Epoch length                | ~ 2h (554 blocks) |
-| Maximum allocation lifetime | ~ 9h (4 epochs)   |
+| Epoch length                | ~ 1.84h (554 blocks) |
+| Maximum allocation lifetime | ~ 14.7h (8 epochs)   |
 
 ## Contracts & accounts
 
@@ -30,8 +30,9 @@ The Graph Network's testnet is on Arbitrum Sepolia (eip155:421614). Sepolia netw
 | Block Oracle Owner | [`0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868`](https://sepolia.arbiscan.io/address/0x76BC183A6d9AC1e4C5ccb27b7D46DDf0d2cc9868) |
 | TAP Escrow         | [`0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02`](https://sepolia.arbiscan.io/address/0x1e4dC4f9F95E102635D8F7ED71c5CdbFa20e2d02) |
 
-Other network contracts can be found in [graphprotocol/contracts](https://github.com/graphprotocol/contracts/blob/main/packages/contracts/addresses.json) and 
-[semiotic-ai/timeline-aggregation-protocol-contracts](https://github.com/semiotic-ai/timeline-aggregation-protocol-contracts/blob/main/addresses.json).
+All network contracts can be found in
+- [horizon core contracts](https://github.com/graphprotocol/contracts/blob/main/packages/horizon/addresses.json)
+- [subgraph service contracts](https://github.com/graphprotocol/contracts/blob/main/packages/subgraph-service/addresses.json)
 
 ## Configuration
 
@@ -49,14 +50,16 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                                                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
-| `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.testnet.thegraph.com/`                                                                        |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                                                        |
-| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
-| `INDEXER_AGENT_EPOCH_SUBGRAPH_DEPLOYMENT`   | `--epoch-subgraph-deployment`   | `QmNNn48AU8CZei8sYLXrXABMHkiXAuQDvFaZHYYPryKEvF`                                                                        |
-| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS` |
+| `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway.testnet.thegraph.com/`                                                                        |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmU1cnG7azpYU3BMBZaHR36kVo5YB3fMjJwxKtwa6L5GFK`                                                                        |
+| `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_DEPLOYMENT`   | `--epoch-subgraph-deployment`   | `Qmd1e53TmQDbCKWpr5VoUz2HzTc2fAjuyhMuguXZ1qFaTB`                                                                        |
+| `INDEXER_AGENT_EPOCH_SUBGRAPH_ENDPOINT`     | `--epoch-subgraph-endpoint`     | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/BhnsdeZihU4SuokxZMLF4FQBVJ3jgtZf6v51gHvz3bSS` |
 | `INDEXER_AGENT_TAP_SUBGRAPH_DEPLOYMENT`     | `--tap-subgraph-deployment`     | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
-| `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
-| `INDEXER_AGENT_IPFS_ENDPOINT` | `--ipfs-endpoint` | `https://ipfs.thegraph.com` |
+| `INDEXER_AGENT_TAP_SUBGRAPH_ENDPOINT`       | `--tap-subgraph-endpoint`       | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
+| `INDEXER_AGENT_IPFS_ENDPOINT`               | `--ipfs-endpoint`               | `https://ipfs.thegraph.com` |
+| `INDEXER_AGENT_MAX_PROVISION_INITIAL_SIZE`  | `--max-provision-initial-size`  | Maximum tokens for initial SubgraphService provision (Default: 0)                                                         |
+| `INDEXER_AGENT_PAYMENTS_DESTINATION`        | `--payments-destination`        | Address where payments are sent (if not provided, rewards are restaked)                                                   |
 
 In order to avoid collecting or claiming query fees below a certain threshold
 (e.g. below the cost of the two transactions), the following configuration
@@ -77,12 +80,15 @@ They are configured using a TOML file provided with `--config`. You should start
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | `indexer.indexer_address`              | Ethereum address of testnet indexer                                                                                     |
 | `indexer.operator_mnemonic`            | Ethereum mnemonic for testnet operator                                                                                  |
-| `subgraphs.network.deployment_id`      | `QmXnGVrg6DvscnvJd86aHAPLGyGrkM17weMrAsFAEMmQLL`                                                                        |
-| `subgraphs.network.query_url`          | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
+| `subgraphs.network.deployment_id`      | `QmU1cnG7azpYU3BMBZaHR36kVo5YB3fMjJwxKtwa6L5GFK`                                                                        |
+| `subgraphs.network.query_url`          | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |
 | `subgraphs.escrow.deployment_id`       | `QmUiLdbsk6c51UMdcNBxsP3KadJpkmp6a3k2NCprR4ZFeM`                                                                        |
-| `subgraphs.escrow.query_url`           | `https://gateway-arbitrum.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
+| `subgraphs.escrow.query_url`           | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD` |
 | `blockchain.receipts_verifier_address` | `0xfC24cE7a4428A6B89B52645243662A02BA734ECF`                                                                            |
+| `blockchain.receipts_verifier_address_v2` | `0x382863e7B662027117449bd2c49285582bbBd21B`                                                                         |
+| `blockchain.subgraph_service`          | `0xc24A3dAC5d06d771f657A48B20cE1a671B78f26b`                                                                            |
 | `tap.sender_aggregator_endpoints`      | `0xC3dDf37906724732FfD748057FEBe23379b0710D = https://tap-aggregator.testnet.thegraph.com`                              |
+| `horizon.enabled`                      | `true`                                                                                                                  |
 
 Notes:
 - You can supply those nested values using environment variables as such: `indexer.indexer_address` -> `INDEXER_SERVICE_INDEXER__INDEXER_ADDRESS` (mind the double `_`)

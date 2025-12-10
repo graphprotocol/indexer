@@ -1,5 +1,5 @@
 import { Logger } from '@graphprotocol/common-ts'
-import { utils } from 'ethers'
+import { isHexString } from 'ethers'
 import { QueryInterface, DataTypes } from 'sequelize'
 
 interface MigrationContext {
@@ -45,7 +45,7 @@ export async function up({ context }: Context): Promise<void> {
               throw new Error('Deployment ID must be a string')
             }
             // "0x..." and "global" is ok
-            if (utils.isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
+            if (isHexString(value, 32) || value === COST_MODEL_GLOBAL) {
               return
             }
 

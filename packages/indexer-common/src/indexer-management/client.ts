@@ -12,9 +12,14 @@ import costModelResolvers from './resolvers/cost-models'
 import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
-import { BigNumber } from 'ethers'
+import provisionResolvers from './resolvers/provisions'
 import { GraphNode } from '../graph-node'
-import { ActionManager, MultiNetworks, Network } from '@graphprotocol/indexer-common'
+import {
+  ActionManager,
+  MultiNetworks,
+  Network,
+  RulesManager,
+} from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -22,6 +27,7 @@ export interface IndexerManagementResolverContext {
   logger: Logger
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
+  rulesManager: RulesManager | undefined
   multiNetworks: MultiNetworks<Network> | undefined
 }
 
@@ -75,6 +81,7 @@ const SCHEMA_SDL = gql`
     stakedTokens: BigInt!
     status: AllocationStatus!
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   type CreateAllocationResult {
@@ -88,14 +95,12 @@ const SCHEMA_SDL = gql`
     allocation: String!
     allocatedTokens: String!
     indexingRewards: String!
-    receiptsWorthCollecting: Boolean!
     protocolNetwork: String!
   }
 
   type ReallocateAllocationResult {
     closedAllocation: String!
     indexingRewardsCollected: String!
-    receiptsWorthCollecting: Boolean!
     createdAllocation: String!
     createdAllocationStake: String!
     protocolNetwork: String!
@@ -125,6 +130,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     priority: Int!
     source: String!
@@ -134,6 +141,7 @@ const SCHEMA_SDL = gql`
     createdAt: BigInt!
     updatedAt: BigInt
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionInput {
@@ -143,19 +151,24 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     source: String!
     reason: String!
     priority: Int!
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionUpdateInput {
     id: Int
     deploymentID: String
     allocationID: String
-    amount: Int
+    amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     type: ActionType
     status: ActionStatus
@@ -171,6 +184,8 @@ const SCHEMA_SDL = gql`
     transaction
     amount
     poi
+    publicPOI
+    poiBlockNumber
     force
     source
     reason
@@ -187,6 +202,8 @@ const SCHEMA_SDL = gql`
     allocationID: String
     amount: String
     poi: String
+    publicPOI: String
+    poiBlockNumber: Int
     force: Boolean
     source: String!
     reason: String!
@@ -195,6 +212,7 @@ const SCHEMA_SDL = gql`
     failureReason: String
     priority: Int
     protocolNetwork: String!
+    isLegacy: Boolean!
   }
 
   input ActionFilter {
@@ -299,6 +317,7 @@ const SCHEMA_SDL = gql`
     address: String
     registered: Boolean!
     location: GeoLocation
+    isLegacy: Boolean!
   }
 
   type IndexingError {
@@ -344,10 +363,12 @@ const SCHEMA_SDL = gql`
   }
 
   type IndexerEndpoint {
+    name: String!
     url: String
     healthy: Boolean!
     protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
+    isLegacy: Boolean!
   }
 
   type IndexerEndpoints {
@@ -366,13 +387,65 @@ const SCHEMA_SDL = gql`
     model: String
   }
 
+  type Provision {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    tokensAllocated: String!
+    tokensThawing: String!
+    maxVerifierCut: String!
+    thawingPeriod: String!
+    protocolNetwork: String!
+    idleStake: String!
+  }
+
+  type AddToProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    protocolNetwork: String!
+  }
+
+  type ThawFromProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensThawing: String!
+    thawingPeriod: String!
+    thawingUntil: String!
+    protocolNetwork: String!
+  }
+
+  type ThawRequest {
+    id: String!
+    fulfilled: String!
+    dataService: String!
+    indexer: String!
+    shares: String!
+    thawingUntil: String!
+    protocolNetwork: String!
+    currentBlockTimestamp: String!
+  }
+
+  type RemoveFromProvisionResult {
+    id: String!
+    dataService: String!
+    indexer: String!
+    tokensProvisioned: String!
+    tokensThawing: String!
+    tokensRemoved: String!
+    protocolNetwork: String!
+  }
+
   type Query {
     indexingRule(
       identifier: IndexingRuleIdentifier!
       merged: Boolean! = false
     ): IndexingRule
     indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
-    indexerRegistration(protocolNetwork: String!): IndexerRegistration!
+    indexerRegistration(protocolNetwork: String!): [IndexerRegistration]!
     indexerDeployments: [IndexerDeployment]!
     indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
     indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
@@ -397,6 +470,9 @@ const SCHEMA_SDL = gql`
       orderDirection: OrderDirection
       first: Int
     ): [Action]!
+
+    provisions(protocolNetwork: String!): [Provision!]!
+    thawRequests(protocolNetwork: String!): [ThawRequest!]!
   }
 
   type Mutation {
@@ -419,12 +495,16 @@ const SCHEMA_SDL = gql`
     closeAllocation(
       allocation: String!
       poi: String
+      blockNumber: Int
+      publicPOI: String
       force: Boolean
       protocolNetwork: String!
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
       poi: String
+      blockNumber: Int
+      publicPOI: String
       amount: String!
       force: Boolean
       protocolNetwork: String!
@@ -438,6 +518,10 @@ const SCHEMA_SDL = gql`
     deleteActions(actionIDs: [String!]!): Int!
     approveActions(actionIDs: [String!]!): [Action]!
     executeApprovedActions: [ActionResult!]!
+
+    addToProvision(protocolNetwork: String!, amount: String!): AddToProvisionResult!
+    thawFromProvision(protocolNetwork: String!, amount: String!): ThawFromProvisionResult!
+    removeFromProvision(protocolNetwork: String!): RemoveFromProvisionResult!
   }
 `
 
@@ -445,7 +529,7 @@ export interface IndexerManagementDefaults {
   globalIndexingRule: Omit<
     IndexingRuleCreationAttributes,
     'identifier' | 'allocationAmount'
-  > & { allocationAmount: BigNumber }
+  > & { allocationAmount: bigint }
 }
 
 export interface IndexerManagementClientOptions {
@@ -482,10 +566,15 @@ export const createIndexerManagementClient = async (
     ...poiDisputeResolvers,
     ...allocationResolvers,
     ...actionResolvers,
+    ...provisionResolvers,
   }
 
   const actionManager = multiNetworks
     ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+    : undefined
+
+  const rulesManager = multiNetworks
+    ? await RulesManager.create(multiNetworks, logger, models)
     : undefined
 
   const context: IndexerManagementResolverContext = {
@@ -495,6 +584,7 @@ export const createIndexerManagementClient = async (
     logger: logger.child({ component: 'IndexerManagementClient' }),
     multiNetworks,
     actionManager,
+    rulesManager,
   }
 
   const exchange = executeExchange({

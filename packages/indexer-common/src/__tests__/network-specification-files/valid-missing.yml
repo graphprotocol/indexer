@@ -19,6 +19,7 @@ indexerOptions:
   voucherRedemptionMaxBatchSize: 15
   allocationManagementMode: "auto"
   autoAllocationMinBatchSize: 20
+  maxProvisionInitialSize: 0
 subgraphs:
   networkSubgraph:
     deployment: QmPK1s3pNYLi9ERiq3BDxKa4XosgWwFRQUydHUtz4YgpqB

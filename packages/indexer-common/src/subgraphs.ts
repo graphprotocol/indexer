@@ -1,5 +1,4 @@
-import { base58 } from 'ethers/lib/utils'
-import { BigNumber, utils } from 'ethers'
+import { decodeBase58, isHexString } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { SubgraphDeployment } from './types'
 import {
@@ -32,11 +31,7 @@ export async function validateSubgraphID(
   }
 
   const values = s.split('-')
-  if (
-    values.length == 2 &&
-    utils.isHexString(values[0], 20) &&
-    !isNaN(parseInt(values[1]))
-  ) {
+  if (values.length == 2 && isHexString(values[0], 20) && !isNaN(parseInt(values[1]))) {
     return type
   }
 
@@ -57,7 +52,7 @@ export async function validateDeploymentID(
   // Case 4: 'Qm...'
   try {
     // This will throw if it's not valid
-    base58.decode(s)
+    decodeBase58(s)
 
     if (s.length === 46) {
       return type
@@ -68,7 +63,7 @@ export async function validateDeploymentID(
 
   // Case 5: '0x...' (32 bytes)
   try {
-    if (utils.isHexString(s, 32)) {
+    if (isHexString(s, 32)) {
       return type
     }
   } catch {
@@ -281,11 +276,11 @@ export function isDeploymentWorthAllocatingTowards(
         deployment.protocolNetwork,
       )
     case IndexingDecisionBasis.RULES: {
-      const stakedTokens = BigNumber.from(deployment.stakedTokens)
-      const signalledTokens = BigNumber.from(deployment.signalledTokens)
-      const avgQueryFees = BigNumber.from(deployment.queryFeesAmount)
+      const stakedTokens = deployment.stakedTokens
+      const signalledTokens = deployment.signalledTokens
+      const avgQueryFees = deployment.queryFeesAmount
 
-      if (deploymentRule.minStake && stakedTokens.gte(deploymentRule.minStake)) {
+      if (deploymentRule.minStake && stakedTokens >= BigInt(deploymentRule.minStake)) {
         return new AllocationDecision(
           deployment.id,
           deploymentRule,
@@ -295,7 +290,7 @@ export function isDeploymentWorthAllocatingTowards(
         )
       } else if (
         deploymentRule.minSignal &&
-        signalledTokens.gte(deploymentRule.minSignal)
+        signalledTokens >= BigInt(deploymentRule.minSignal)
       ) {
         return new AllocationDecision(
           deployment.id,
@@ -306,7 +301,7 @@ export function isDeploymentWorthAllocatingTowards(
         )
       } else if (
         deploymentRule.minAverageQueryFees &&
-        avgQueryFees.gte(deploymentRule.minAverageQueryFees)
+        avgQueryFees >= BigInt(deploymentRule.minAverageQueryFees)
       ) {
         return new AllocationDecision(
           deployment.id,

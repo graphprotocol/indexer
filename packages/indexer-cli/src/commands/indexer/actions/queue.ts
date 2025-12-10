@@ -17,23 +17,25 @@ import {
 const HELP = `
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4>
+)} [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4> <param5> <param6>
 ${chalk.bold('graph indexer actions queue')} [options] allocate <deploymentID> <amount>
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] unallocate <deploymentID> <allocationID> <poi> <force>
+)} [options] unallocate <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force>
+)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <blockNumber> <publicPOI> 
 
 ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
-  -n, --network <STRING>        [Required] The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+  -n, --network <STRING>        The protocol network for this action (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -s, --source <STRING>         Specify the source of the action decision
   -r, --reason <STRING>         Specify the reason for the action to be taken
   -p, --priority <INT>          Define a priority order for the action
+
+  For action type specific options, see the help for the specific action type.
 `
 
 module.exports = {
@@ -62,7 +64,7 @@ module.exports = {
       return
     }
 
-    const [type, targetDeployment, param1, param2, param3, param4] =
+    const [type, targetDeployment, param1, param2, param3, param4, param5, param6] =
       parameters.array || []
 
     let actionInputParams: ActionInput
@@ -77,7 +79,7 @@ module.exports = {
 
       actionInputParams = await buildActionInput(
         validateActionType(type),
-        { targetDeployment, param1, param2, param3, param4 },
+        { targetDeployment, param1, param2, param3, param4, param5, param6 },
         decisionSource,
         decisionReason,
         ActionStatus.QUEUED,
@@ -117,11 +119,14 @@ module.exports = {
         'allocationID',
         'amount',
         'poi',
+        'publicPOI',
+        'poiBlockNumber',
         'force',
         'priority',
         'status',
         'source',
         'reason',
+        'isLegacy',
       ])
     } catch (error) {
       actionSpinner.fail(error.toString())
