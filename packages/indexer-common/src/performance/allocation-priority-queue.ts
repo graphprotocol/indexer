@@ -5,6 +5,7 @@ import { BigNumber } from 'ethers'
 export interface PriorityItem<T> {
   item: T
   priority: number
+  enqueuedAt: number
 }
 
 export interface QueueMetrics {
@@ -12,10 +13,40 @@ export interface QueueMetrics {
   totalDequeued: number
   currentSize: number
   averageWaitTime: number
+  peakSize: number
 }
 
+// Default configuration constants
+const PRIORITY_QUEUE_DEFAULTS = {
+  SIGNAL_THRESHOLD: '1000000000000000000000', // 1000 GRT
+  STAKE_THRESHOLD: '10000000000000000000000', // 10000 GRT
+  MAX_PROCESSING_TIMES_SIZE: 10000, // Maximum entries in processingTimes map
+  CLEANUP_INTERVAL: 300_000, // 5 minutes
+  MAX_STALE_AGE: 600_000, // 10 minutes - remove stale processing times
+} as const
+
+// Priority weight constants
+const PRIORITY_WEIGHTS = {
+  ALLOCATE: 500,
+  DEALLOCATE: -100,
+  ALWAYS_RULE: 100,
+  RULES_RULE: 50,
+  UNSAFE_PENALTY: -200,
+  ALLOCATION_AMOUNT_MULTIPLIER: 20,
+  ALLOCATION_AMOUNT_CAP: 200,
+  HASH_PRIORITY_DIVISOR: 65535,
+  HASH_PRIORITY_MULTIPLIER: 10,
+} as const
+
 /**
- * Priority queue for allocation decisions with intelligent prioritization
+ * Priority queue for allocation decisions with intelligent prioritization.
+ *
+ * Features:
+ * - O(log n) insertion with binary search
+ * - O(n) batch merge sort for bulk operations
+ * - Bounded memory with automatic cleanup
+ * - Priority-based dequeuing
+ * - Metrics tracking
  */
 export class AllocationPriorityQueue {
   private queue: PriorityItem<AllocationDecision>[] = []
@@ -25,46 +56,63 @@ export class AllocationPriorityQueue {
     totalDequeued: 0,
     currentSize: 0,
     averageWaitTime: 0,
+    peakSize: 0,
   }
   private logger: Logger
   private signalThreshold: BigNumber
   private stakeThreshold: BigNumber
+  private cleanupInterval?: NodeJS.Timeout
+  private disposed = false
 
   constructor(
     logger: Logger,
-    signalThreshold: BigNumber = BigNumber.from('1000000000000000000000'), // 1000 GRT
-    stakeThreshold: BigNumber = BigNumber.from('10000000000000000000000'), // 10000 GRT
+    signalThreshold: BigNumber = BigNumber.from(PRIORITY_QUEUE_DEFAULTS.SIGNAL_THRESHOLD),
+    stakeThreshold: BigNumber = BigNumber.from(PRIORITY_QUEUE_DEFAULTS.STAKE_THRESHOLD),
   ) {
     this.logger = logger.child({ component: 'AllocationPriorityQueue' })
     this.signalThreshold = signalThreshold
     this.stakeThreshold = stakeThreshold
+
+    // Start periodic cleanup to prevent memory leaks
+    this.cleanupInterval = setInterval(
+      () => this.cleanupStaleEntries(),
+      PRIORITY_QUEUE_DEFAULTS.CLEANUP_INTERVAL,
+    )
+
+    // Ensure interval doesn't prevent process exit
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref()
+    }
+
+    this.logger.debug('AllocationPriorityQueue initialized', {
+      signalThreshold: signalThreshold.toString(),
+      stakeThreshold: stakeThreshold.toString(),
+    })
   }
 
   /**
    * Enqueue an allocation decision with calculated priority
    */
   enqueue(decision: AllocationDecision): void {
+    this.ensureNotDisposed()
+
     const priority = this.calculatePriority(decision)
-    const item: PriorityItem<AllocationDecision> = { item: decision, priority }
-
-    // Binary search to find insertion point for O(log n) insertion
-    let left = 0
-    let right = this.queue.length
-
-    while (left < right) {
-      const mid = Math.floor((left + right) / 2)
-      if (this.queue[mid].priority > priority) {
-        left = mid + 1
-      } else {
-        right = mid
-      }
+    const now = Date.now()
+    const item: PriorityItem<AllocationDecision> = {
+      item: decision,
+      priority,
+      enqueuedAt: now,
     }
 
-    this.queue.splice(left, 0, item)
-    this.processingTimes.set(decision.deployment.ipfsHash, Date.now())
+    // Binary search to find insertion point for O(log n) insertion
+    const insertIndex = this.findInsertionIndex(priority)
+    this.queue.splice(insertIndex, 0, item)
+
+    // Track processing time with bounded map
+    this.trackProcessingTime(decision.deployment.ipfsHash, now)
 
     this.metrics.totalEnqueued++
-    this.metrics.currentSize = this.queue.length
+    this.updateSizeMetrics()
 
     this.logger.trace('Enqueued allocation decision', {
       deployment: decision.deployment.ipfsHash,
@@ -74,43 +122,37 @@ export class AllocationPriorityQueue {
   }
 
   /**
-   * Enqueue multiple decisions efficiently
+   * Enqueue multiple decisions efficiently using merge sort
    */
   enqueueBatch(decisions: AllocationDecision[]): void {
-    const itemsWithPriority = decisions.map((decision) => ({
-      item: decision,
-      priority: this.calculatePriority(decision),
-    }))
+    this.ensureNotDisposed()
 
-    // Sort new items by priority
+    if (decisions.length === 0) return
+
+    const now = Date.now()
+
+    // Calculate priorities and create items
+    const itemsWithPriority: PriorityItem<AllocationDecision>[] = decisions.map(
+      (decision) => ({
+        item: decision,
+        priority: this.calculatePriority(decision),
+        enqueuedAt: now,
+      }),
+    )
+
+    // Sort new items by priority (descending)
     itemsWithPriority.sort((a, b) => b.priority - a.priority)
 
-    // Merge with existing queue
-    const merged: PriorityItem<AllocationDecision>[] = []
-    let i = 0,
-      j = 0
+    // Merge with existing queue (both are sorted)
+    this.queue = this.mergeSortedArrays(this.queue, itemsWithPriority)
 
-    while (i < this.queue.length && j < itemsWithPriority.length) {
-      if (this.queue[i].priority >= itemsWithPriority[j].priority) {
-        merged.push(this.queue[i++])
-      } else {
-        merged.push(itemsWithPriority[j++])
-      }
+    // Track processing times with bounds
+    for (const decision of decisions) {
+      this.trackProcessingTime(decision.deployment.ipfsHash, now)
     }
 
-    // Add remaining items
-    while (i < this.queue.length) merged.push(this.queue[i++])
-    while (j < itemsWithPriority.length) merged.push(itemsWithPriority[j++])
-
-    this.queue = merged
-
-    // Update metrics
-    decisions.forEach((decision) => {
-      this.processingTimes.set(decision.deployment.ipfsHash, Date.now())
-    })
-
     this.metrics.totalEnqueued += decisions.length
-    this.metrics.currentSize = this.queue.length
+    this.updateSizeMetrics()
 
     this.logger.debug('Batch enqueued allocation decisions', {
       count: decisions.length,
@@ -122,23 +164,27 @@ export class AllocationPriorityQueue {
    * Dequeue the highest priority allocation decision
    */
   dequeue(): AllocationDecision | undefined {
+    this.ensureNotDisposed()
+
     const item = this.queue.shift()
     if (!item) return undefined
 
     const decision = item.item
-    const enqueueTime = this.processingTimes.get(decision.deployment.ipfsHash)
+    const deploymentId = decision.deployment.ipfsHash
 
+    // Calculate and track wait time
+    const enqueueTime = this.processingTimes.get(deploymentId)
     if (enqueueTime) {
       const waitTime = Date.now() - enqueueTime
       this.updateAverageWaitTime(waitTime)
-      this.processingTimes.delete(decision.deployment.ipfsHash)
+      this.processingTimes.delete(deploymentId)
     }
 
     this.metrics.totalDequeued++
     this.metrics.currentSize = this.queue.length
 
     this.logger.trace('Dequeued allocation decision', {
-      deployment: decision.deployment.ipfsHash,
+      deployment: deploymentId,
       priority: item.priority,
       queueSize: this.queue.length,
     })
@@ -150,14 +196,37 @@ export class AllocationPriorityQueue {
    * Dequeue multiple items at once for batch processing
    */
   dequeueBatch(count: number): AllocationDecision[] {
-    const items: AllocationDecision[] = []
+    this.ensureNotDisposed()
 
-    for (let i = 0; i < count && this.queue.length > 0; i++) {
-      const decision = this.dequeue()
-      if (decision) items.push(decision)
+    const actualCount = Math.min(count, this.queue.length)
+    if (actualCount === 0) return []
+
+    const items = this.queue.splice(0, actualCount)
+    const decisions: AllocationDecision[] = []
+    const now = Date.now()
+
+    for (const item of items) {
+      const deploymentId = item.item.deployment.ipfsHash
+      const enqueueTime = this.processingTimes.get(deploymentId)
+
+      if (enqueueTime) {
+        const waitTime = now - enqueueTime
+        this.updateAverageWaitTime(waitTime)
+        this.processingTimes.delete(deploymentId)
+      }
+
+      decisions.push(item.item)
     }
 
-    return items
+    this.metrics.totalDequeued += decisions.length
+    this.metrics.currentSize = this.queue.length
+
+    this.logger.trace('Batch dequeued allocation decisions', {
+      count: decisions.length,
+      queueSize: this.queue.length,
+    })
+
+    return decisions
   }
 
   /**
@@ -165,6 +234,14 @@ export class AllocationPriorityQueue {
    */
   peek(): AllocationDecision | undefined {
     return this.queue[0]?.item
+  }
+
+  /**
+   * Peek at multiple items without removing them
+   */
+  peekBatch(count: number): AllocationDecision[] {
+    const actualCount = Math.min(count, this.queue.length)
+    return this.queue.slice(0, actualCount).map((item) => item.item)
   }
 
   /**
@@ -179,7 +256,21 @@ export class AllocationPriorityQueue {
    */
   remove(predicate: (decision: AllocationDecision) => boolean): number {
     const initialSize = this.queue.length
-    this.queue = this.queue.filter((item) => !predicate(item.item))
+    const removedItems: PriorityItem<AllocationDecision>[] = []
+
+    this.queue = this.queue.filter((item) => {
+      if (predicate(item.item)) {
+        removedItems.push(item)
+        return false
+      }
+      return true
+    })
+
+    // Clean up processing times for removed items
+    for (const item of removedItems) {
+      this.processingTimes.delete(item.item.deployment.ipfsHash)
+    }
+
     const removed = initialSize - this.queue.length
 
     if (removed > 0) {
@@ -197,6 +288,8 @@ export class AllocationPriorityQueue {
     deployment: string,
     priorityModifier: (current: number) => number,
   ): boolean {
+    this.ensureNotDisposed()
+
     const index = this.queue.findIndex(
       (item) => item.item.deployment.ipfsHash === deployment,
     )
@@ -208,22 +301,13 @@ export class AllocationPriorityQueue {
 
     if (newPriority === item.priority) return true
 
-    // Remove and re-insert with new priority
+    // Remove from current position
     this.queue.splice(index, 1)
+
+    // Update priority and re-insert
     item.priority = newPriority
-
-    let left = 0
-    let right = this.queue.length
-    while (left < right) {
-      const mid = Math.floor((left + right) / 2)
-      if (this.queue[mid].priority > newPriority) {
-        left = mid + 1
-      } else {
-        right = mid
-      }
-    }
-
-    this.queue.splice(left, 0, item)
+    const newIndex = this.findInsertionIndex(newPriority)
+    this.queue.splice(newIndex, 0, item)
 
     this.logger.trace('Reprioritized allocation', {
       deployment,
@@ -232,6 +316,13 @@ export class AllocationPriorityQueue {
     })
 
     return true
+  }
+
+  /**
+   * Check if queue contains a deployment
+   */
+  has(deployment: string): boolean {
+    return this.queue.some((item) => item.item.deployment.ipfsHash === deployment)
   }
 
   /**
@@ -266,12 +357,14 @@ export class AllocationPriorityQueue {
   }
 
   /**
-   * Get queue items sorted by priority
+   * Get queue items sorted by priority (for debugging/monitoring)
    */
-  getItems(): Array<{ decision: AllocationDecision; priority: number }> {
+  getItems(): Array<{ decision: AllocationDecision; priority: number; waitTime: number }> {
+    const now = Date.now()
     return this.queue.map((item) => ({
       decision: item.item,
       priority: item.priority,
+      waitTime: now - item.enqueuedAt,
     }))
   }
 
@@ -282,14 +375,11 @@ export class AllocationPriorityQueue {
   private calculatePriority(decision: AllocationDecision): number {
     let priority = 0
 
-    // High priority factors (100-999 points)
+    // High priority for creating allocations
     if (decision.toAllocate) {
-      priority += 500 // Creating allocations is generally high priority
-    }
-
-    // Lower priority for closing allocations (-100 points)
-    if (!decision.toAllocate) {
-      priority -= 100
+      priority += PRIORITY_WEIGHTS.ALLOCATE
+    } else {
+      priority += PRIORITY_WEIGHTS.DEALLOCATE
     }
 
     // Rule-based priority
@@ -298,37 +388,191 @@ export class AllocationPriorityQueue {
 
       // Higher allocation amount suggests higher importance
       if (rule.allocationAmount) {
-        const amount = parseFloat(rule.allocationAmount)
-        priority += Math.min(200, Math.log10(amount + 1) * 20)
+        try {
+          const amount = parseFloat(rule.allocationAmount)
+          if (!isNaN(amount) && amount > 0) {
+            priority += Math.min(
+              PRIORITY_WEIGHTS.ALLOCATION_AMOUNT_CAP,
+              Math.log10(amount + 1) * PRIORITY_WEIGHTS.ALLOCATION_AMOUNT_MULTIPLIER,
+            )
+          }
+        } catch {
+          // Ignore parse errors
+        }
       }
 
       // Priority based on decision basis
       if (rule.decisionBasis === 'always') {
-        priority += 100
+        priority += PRIORITY_WEIGHTS.ALWAYS_RULE
       } else if (rule.decisionBasis === 'rules') {
-        priority += 50
+        priority += PRIORITY_WEIGHTS.RULES_RULE
       }
 
       // Safety considerations
       if (rule.safety === false) {
-        priority -= 200 // Deprioritize unsafe deployments
+        priority += PRIORITY_WEIGHTS.UNSAFE_PENALTY
       }
     }
 
-    // Deployment ID based priority (for consistent ordering)
+    // Deployment ID based priority (for consistent ordering of equal priorities)
     const deploymentHash = decision.deployment.ipfsHash
-    const hashPriority = (parseInt(deploymentHash.slice(-4), 16) / 65535) * 10
-    priority += hashPriority
+    if (deploymentHash && deploymentHash.length >= 4) {
+      const hashSuffix = deploymentHash.slice(-4)
+      const hashValue = parseInt(hashSuffix, 16)
+      if (!isNaN(hashValue)) {
+        const hashPriority =
+          (hashValue / PRIORITY_WEIGHTS.HASH_PRIORITY_DIVISOR) *
+          PRIORITY_WEIGHTS.HASH_PRIORITY_MULTIPLIER
+        priority += hashPriority
+      }
+    }
 
-    return Math.max(0, priority) // Ensure non-negative priority
+    return Math.max(0, priority)
   }
 
   /**
-   * Update average wait time metric
+   * Find insertion index using binary search (descending order)
+   */
+  private findInsertionIndex(priority: number): number {
+    let left = 0
+    let right = this.queue.length
+
+    while (left < right) {
+      const mid = Math.floor((left + right) / 2)
+      if (this.queue[mid].priority > priority) {
+        left = mid + 1
+      } else {
+        right = mid
+      }
+    }
+
+    return left
+  }
+
+  /**
+   * Merge two sorted arrays (both in descending priority order)
+   */
+  private mergeSortedArrays(
+    arr1: PriorityItem<AllocationDecision>[],
+    arr2: PriorityItem<AllocationDecision>[],
+  ): PriorityItem<AllocationDecision>[] {
+    const merged: PriorityItem<AllocationDecision>[] = []
+    let i = 0
+    let j = 0
+
+    while (i < arr1.length && j < arr2.length) {
+      if (arr1[i].priority >= arr2[j].priority) {
+        merged.push(arr1[i++])
+      } else {
+        merged.push(arr2[j++])
+      }
+    }
+
+    // Add remaining items
+    while (i < arr1.length) merged.push(arr1[i++])
+    while (j < arr2.length) merged.push(arr2[j++])
+
+    return merged
+  }
+
+  /**
+   * Track processing time with bounded map size
+   */
+  private trackProcessingTime(deploymentId: string, timestamp: number): void {
+    // If map is at capacity, remove oldest entries
+    if (this.processingTimes.size >= PRIORITY_QUEUE_DEFAULTS.MAX_PROCESSING_TIMES_SIZE) {
+      const entriesToRemove = Math.floor(
+        PRIORITY_QUEUE_DEFAULTS.MAX_PROCESSING_TIMES_SIZE * 0.1,
+      )
+      const iterator = this.processingTimes.keys()
+
+      for (let i = 0; i < entriesToRemove; i++) {
+        const key = iterator.next().value
+        if (key) {
+          this.processingTimes.delete(key)
+        }
+      }
+
+      this.logger.trace('Cleaned up processing times map', {
+        removed: entriesToRemove,
+        currentSize: this.processingTimes.size,
+      })
+    }
+
+    this.processingTimes.set(deploymentId, timestamp)
+  }
+
+  /**
+   * Clean up stale entries from processingTimes map
+   */
+  private cleanupStaleEntries(): void {
+    if (this.disposed) return
+
+    const now = Date.now()
+    const maxAge = PRIORITY_QUEUE_DEFAULTS.MAX_STALE_AGE
+    let cleaned = 0
+
+    for (const [key, timestamp] of this.processingTimes.entries()) {
+      if (now - timestamp > maxAge) {
+        this.processingTimes.delete(key)
+        cleaned++
+      }
+    }
+
+    if (cleaned > 0) {
+      this.logger.trace('Cleaned up stale processing times', { count: cleaned })
+    }
+  }
+
+  /**
+   * Update average wait time metric using exponential moving average
    */
   private updateAverageWaitTime(waitTime: number): void {
-    const alpha = 0.1 // Exponential moving average factor
+    const alpha = 0.1
     this.metrics.averageWaitTime =
       alpha * waitTime + (1 - alpha) * this.metrics.averageWaitTime
+  }
+
+  /**
+   * Update size-related metrics
+   */
+  private updateSizeMetrics(): void {
+    this.metrics.currentSize = this.queue.length
+    if (this.queue.length > this.metrics.peakSize) {
+      this.metrics.peakSize = this.queue.length
+    }
+  }
+
+  /**
+   * Ensure queue is not disposed
+   */
+  private ensureNotDisposed(): void {
+    if (this.disposed) {
+      throw new Error('AllocationPriorityQueue has been disposed')
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    if (this.disposed) return
+
+    this.disposed = true
+
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval)
+      this.cleanupInterval = undefined
+    }
+
+    this.clear()
+    this.logger.debug('AllocationPriorityQueue disposed')
+  }
+
+  /**
+   * Support for async disposal
+   */
+  async [Symbol.asyncDispose](): Promise<void> {
+    this.dispose()
   }
 }
