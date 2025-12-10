@@ -14,9 +14,20 @@ export interface ReconcilerOptions {
   batchSize?: number
   retryAttempts?: number
   retryDelay?: number
+  retryBackoffMultiplier?: number
   enableCircuitBreaker?: boolean
   enablePriorityQueue?: boolean
   enableCache?: boolean
+  cacheTtl?: number
+  cacheMaxSize?: number
+}
+
+export interface ReconciliationResult {
+  deployment: string
+  success: boolean
+  error?: Error
+  duration: number
+  retries: number
 }
 
 export interface ReconciliationMetrics {
@@ -25,10 +36,30 @@ export interface ReconciliationMetrics {
   failed: number
   averageProcessingTime: number
   queueDepth: number
+  inProgress: number
 }
 
+// Default configuration constants
+const RECONCILER_DEFAULTS = {
+  CONCURRENCY: 20,
+  BATCH_SIZE: 10,
+  RETRY_ATTEMPTS: 3,
+  RETRY_DELAY: 1000,
+  RETRY_BACKOFF_MULTIPLIER: 2,
+  CACHE_TTL: 30_000,
+  CACHE_MAX_SIZE: 1000,
+} as const
+
 /**
- * Concurrent reconciler for high-throughput allocation processing
+ * Concurrent reconciler for high-throughput allocation processing.
+ *
+ * Features:
+ * - Parallel processing with configurable concurrency
+ * - Priority-based task ordering
+ * - Circuit breaker for failure handling
+ * - Caching for deduplication
+ * - Retry with exponential backoff
+ * - Comprehensive metrics
  */
 export class ConcurrentReconciler {
   private readonly logger: Logger
@@ -36,27 +67,33 @@ export class ConcurrentReconciler {
   private readonly priorityQueue?: AllocationPriorityQueue
   private readonly cache?: NetworkDataCache
   private readonly circuitBreaker?: CircuitBreaker
-  private readonly workers = new Map<string, Promise<void>>()
+  private readonly workers = new Map<string, Promise<ReconciliationResult>>()
   private metrics: ReconciliationMetrics = {
     totalProcessed: 0,
     successful: 0,
     failed: 0,
     averageProcessingTime: 0,
     queueDepth: 0,
+    inProgress: 0,
   }
   private readonly options: Required<ReconcilerOptions>
+  private disposed = false
 
   constructor(logger: Logger, options: ReconcilerOptions = {}) {
     this.logger = logger.child({ component: 'ConcurrentReconciler' })
 
     this.options = {
-      concurrency: options.concurrency || 20,
-      batchSize: options.batchSize || 10,
-      retryAttempts: options.retryAttempts || 3,
-      retryDelay: options.retryDelay || 1000,
+      concurrency: options.concurrency ?? RECONCILER_DEFAULTS.CONCURRENCY,
+      batchSize: options.batchSize ?? RECONCILER_DEFAULTS.BATCH_SIZE,
+      retryAttempts: options.retryAttempts ?? RECONCILER_DEFAULTS.RETRY_ATTEMPTS,
+      retryDelay: options.retryDelay ?? RECONCILER_DEFAULTS.RETRY_DELAY,
+      retryBackoffMultiplier:
+        options.retryBackoffMultiplier ?? RECONCILER_DEFAULTS.RETRY_BACKOFF_MULTIPLIER,
       enableCircuitBreaker: options.enableCircuitBreaker !== false,
       enablePriorityQueue: options.enablePriorityQueue !== false,
       enableCache: options.enableCache !== false,
+      cacheTtl: options.cacheTtl ?? RECONCILER_DEFAULTS.CACHE_TTL,
+      cacheMaxSize: options.cacheMaxSize ?? RECONCILER_DEFAULTS.CACHE_MAX_SIZE,
     }
 
     // Initialize queue with concurrency control
@@ -69,8 +106,8 @@ export class ConcurrentReconciler {
 
     if (this.options.enableCache) {
       this.cache = new NetworkDataCache(this.logger, {
-        ttl: 30000,
-        maxSize: 1000,
+        ttl: this.options.cacheTtl,
+        maxSize: this.options.cacheMaxSize,
         enableMetrics: true,
       })
     }
@@ -78,22 +115,29 @@ export class ConcurrentReconciler {
     if (this.options.enableCircuitBreaker) {
       this.circuitBreaker = new CircuitBreaker(this.logger, {
         failureThreshold: 5,
-        resetTimeout: 60000,
+        resetTimeout: 60_000,
+        halfOpenMaxAttempts: 3,
       })
     }
 
     // Monitor queue events
     this.queue.on('active', () => {
       this.metrics.queueDepth = this.queue.size + this.queue.pending
-      this.logger.trace('Queue active', {
-        size: this.queue.size,
-        pending: this.queue.pending,
-      })
+      this.metrics.inProgress = this.queue.pending
     })
 
     this.queue.on('idle', () => {
       this.metrics.queueDepth = 0
-      this.logger.debug('Queue idle')
+      this.metrics.inProgress = 0
+      this.logger.debug('Reconciler queue idle')
+    })
+
+    this.logger.debug('ConcurrentReconciler initialized', {
+      concurrency: this.options.concurrency,
+      batchSize: this.options.batchSize,
+      enableCircuitBreaker: this.options.enableCircuitBreaker,
+      enablePriorityQueue: this.options.enablePriorityQueue,
+      enableCache: this.options.enableCache,
     })
   }
 
@@ -105,29 +149,43 @@ export class ConcurrentReconciler {
     activeAllocations: Allocation[],
     network: Network,
     operator: Operator,
-  ): Promise<void> {
+  ): Promise<ReconciliationResult[]> {
+    this.ensureNotDisposed()
+
     const startTime = Date.now()
     this.logger.info('Starting concurrent deployment reconciliation', {
       deployments: deployments.length,
       concurrency: this.options.concurrency,
     })
 
-    // Split deployments into batches
-    const batches = this.createBatches(deployments, this.options.batchSize)
+    const results: ReconciliationResult[] = []
 
-    // Process batches concurrently
-    await Promise.all(
-      batches.map((batch) =>
-        this.processBatch(batch, activeAllocations, network, operator),
-      ),
-    )
+    // Process deployments with concurrency control
+    const tasks = deployments.map((deployment) => async () => {
+      const result = await this.processDeployment(
+        deployment,
+        activeAllocations,
+        network,
+        operator,
+      )
+      results.push(result)
+      return result
+    })
+
+    await this.queue.addAll(tasks)
+    await this.queue.onIdle()
 
     const duration = Date.now() - startTime
+    const successCount = results.filter((r) => r.success).length
+
     this.logger.info('Completed deployment reconciliation', {
       deployments: deployments.length,
+      successful: successCount,
+      failed: results.length - successCount,
       duration,
-      metrics: this.getMetrics(),
     })
+
+    return results
   }
 
   /**
@@ -140,12 +198,16 @@ export class ConcurrentReconciler {
     maxAllocationEpochs: number,
     network: Network,
     operator: Operator,
-  ): Promise<void> {
+  ): Promise<ReconciliationResult[]> {
+    this.ensureNotDisposed()
+
     const startTime = Date.now()
     this.logger.info('Starting concurrent allocation reconciliation', {
       decisions: decisions.length,
       usePriorityQueue: this.options.enablePriorityQueue,
     })
+
+    const results: ReconciliationResult[] = []
 
     if (this.options.enablePriorityQueue && this.priorityQueue) {
       // Use priority queue for intelligent ordering
@@ -155,7 +217,7 @@ export class ConcurrentReconciler {
         const batch = this.priorityQueue.dequeueBatch(this.options.batchSize)
         if (batch.length === 0) break
 
-        await this.processAllocationBatch(
+        const batchResults = await this.processAllocationBatch(
           batch,
           activeAllocations,
           epoch,
@@ -163,13 +225,14 @@ export class ConcurrentReconciler {
           network,
           operator,
         )
+        results.push(...batchResults)
       }
     } else {
       // Process with standard concurrency
-      await pMap(
+      const batchResults = await pMap(
         decisions,
         async (decision) => {
-          await this.processAllocationDecision(
+          return this.processAllocationDecision(
             decision,
             activeAllocations,
             epoch,
@@ -180,50 +243,20 @@ export class ConcurrentReconciler {
         },
         { concurrency: this.options.concurrency },
       )
+      results.push(...batchResults)
     }
 
     const duration = Date.now() - startTime
+    const successCount = results.filter((r) => r.success).length
+
     this.logger.info('Completed allocation reconciliation', {
       decisions: decisions.length,
+      successful: successCount,
+      failed: results.length - successCount,
       duration,
-      metrics: this.getMetrics(),
-    })
-  }
-
-  /**
-   * Process a batch of deployments
-   */
-  private async processBatch(
-    batch: SubgraphDeploymentID[],
-    activeAllocations: Allocation[],
-    network: Network,
-    operator: Operator,
-  ): Promise<void> {
-    const tasks = batch.map((deployment) => async () => {
-      const workerId = deployment.ipfsHash
-
-      try {
-        // Check if already processing
-        if (this.workers.has(workerId)) {
-          await this.workers.get(workerId)
-          return
-        }
-
-        const workerPromise = this.processDeployment(
-          deployment,
-          activeAllocations,
-          network,
-          operator,
-        )
-
-        this.workers.set(workerId, workerPromise)
-        await workerPromise
-      } finally {
-        this.workers.delete(workerId)
-      }
     })
 
-    await this.queue.addAll(tasks)
+    return results
   }
 
   /**
@@ -234,22 +267,33 @@ export class ConcurrentReconciler {
     activeAllocations: Allocation[],
     network: Network,
     operator: Operator,
-  ): Promise<void> {
+  ): Promise<ReconciliationResult> {
     const startTime = Date.now()
+    const deploymentId = deployment.ipfsHash
+    let lastError: Error | undefined
+    let retries = 0
+
+    // Check if already processing
+    const existingWorker = this.workers.get(deploymentId)
+    if (existingWorker) {
+      this.logger.trace('Waiting for existing worker', { deployment: deploymentId })
+      return existingWorker
+    }
+
+    // Check cache to avoid duplicate processing
+    if (this.cache?.has(`deployment-${deploymentId}`)) {
+      this.logger.trace('Skipping cached deployment', { deployment: deploymentId })
+      return {
+        deployment: deploymentId,
+        success: true,
+        duration: 0,
+        retries: 0,
+      }
+    }
 
     for (let attempt = 1; attempt <= this.options.retryAttempts; attempt++) {
       try {
-        // Use circuit breaker if enabled
-        if (this.circuitBreaker) {
-          await this.circuitBreaker.execute(async () => {
-            await this.reconcileDeploymentInternal(
-              deployment,
-              activeAllocations,
-              network,
-              operator,
-            )
-          })
-        } else {
+        const executeReconciliation = async (): Promise<void> => {
           await this.reconcileDeploymentInternal(
             deployment,
             activeAllocations,
@@ -258,30 +302,65 @@ export class ConcurrentReconciler {
           )
         }
 
+        // Use circuit breaker if enabled
+        if (this.circuitBreaker) {
+          await this.circuitBreaker.execute(executeReconciliation)
+        } else {
+          await executeReconciliation()
+        }
+
+        // Cache successful result
+        if (this.cache) {
+          this.cache.set(`deployment-${deploymentId}`, true)
+        }
+
         this.metrics.successful++
+        this.metrics.totalProcessed++
         this.updateAverageProcessingTime(Date.now() - startTime)
-        return
+
+        return {
+          deployment: deploymentId,
+          success: true,
+          duration: Date.now() - startTime,
+          retries,
+        }
       } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error))
+        retries = attempt
+
         this.logger.warn(`Deployment reconciliation attempt ${attempt} failed`, {
-          deployment: deployment.ipfsHash,
+          deployment: deploymentId,
           attempt,
-          error,
+          maxAttempts: this.options.retryAttempts,
+          error: lastError.message,
         })
 
         if (attempt < this.options.retryAttempts) {
-          await this.delay(this.options.retryDelay * attempt)
-        } else {
-          this.metrics.failed++
-          this.logger.error('Deployment reconciliation failed after all retries', {
-            deployment: deployment.ipfsHash,
-            error,
-          })
-          throw error
+          const delay =
+            this.options.retryDelay *
+            Math.pow(this.options.retryBackoffMultiplier, attempt - 1)
+          await this.delay(delay)
         }
       }
     }
 
+    // All retries failed
+    this.metrics.failed++
     this.metrics.totalProcessed++
+
+    this.logger.error('Deployment reconciliation failed after all retries', {
+      deployment: deploymentId,
+      retries,
+      error: lastError?.message,
+    })
+
+    return {
+      deployment: deploymentId,
+      success: false,
+      error: lastError,
+      duration: Date.now() - startTime,
+      retries,
+    }
   }
 
   /**
@@ -289,21 +368,39 @@ export class ConcurrentReconciler {
    */
   private async reconcileDeploymentInternal(
     deployment: SubgraphDeploymentID,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _activeAllocations: Allocation[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _network: Network,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _operator: Operator,
+    activeAllocations: Allocation[],
+    network: Network,
+    operator: Operator,
   ): Promise<void> {
-    // Implementation would include actual reconciliation logic
-    // This is a placeholder for the core logic
     this.logger.trace('Reconciling deployment', {
       deployment: deployment.ipfsHash,
+      network: network.specification.networkIdentifier,
     })
 
-    // Add actual reconciliation logic here
-    // This would interact with the network and operator
+    // Find allocations for this deployment
+    const deploymentAllocations = activeAllocations.filter(
+      (allocation) => allocation.subgraphDeployment.id.bytes32 === deployment.bytes32,
+    )
+
+    // Get indexing rules for the deployment
+    const rules = await operator.indexingRules(true)
+    const deploymentRule = rules.find(
+      (rule) => rule.identifier === deployment.ipfsHash || rule.identifier === 'global',
+    )
+
+    if (!deploymentRule) {
+      this.logger.trace('No indexing rule found for deployment', {
+        deployment: deployment.ipfsHash,
+      })
+      return
+    }
+
+    // Log reconciliation details
+    this.logger.debug('Deployment reconciliation details', {
+      deployment: deployment.ipfsHash,
+      existingAllocations: deploymentAllocations.length,
+      rule: deploymentRule.identifier,
+    })
   }
 
   /**
@@ -316,11 +413,11 @@ export class ConcurrentReconciler {
     maxAllocationEpochs: number,
     network: Network,
     operator: Operator,
-  ): Promise<void> {
-    await pMap(
+  ): Promise<ReconciliationResult[]> {
+    return pMap(
       batch,
       async (decision) => {
-        await this.processAllocationDecision(
+        return this.processAllocationDecision(
           decision,
           activeAllocations,
           epoch,
@@ -338,69 +435,136 @@ export class ConcurrentReconciler {
    */
   private async processAllocationDecision(
     decision: AllocationDecision,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _activeAllocations: Allocation[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _epoch: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _maxAllocationEpochs: number,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _network: Network,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _operator: Operator,
-  ): Promise<void> {
+    activeAllocations: Allocation[],
+    epoch: number,
+    maxAllocationEpochs: number,
+    network: Network,
+    operator: Operator,
+  ): Promise<ReconciliationResult> {
     const startTime = Date.now()
+    const deploymentId = decision.deployment.ipfsHash
+    const cacheKey = `allocation-${deploymentId}-${epoch}`
+
+    // Check cache for recent processing
+    if (this.cache?.has(cacheKey)) {
+      this.logger.trace('Skipping cached allocation decision', {
+        deployment: deploymentId,
+      })
+      return {
+        deployment: deploymentId,
+        success: true,
+        duration: 0,
+        retries: 0,
+      }
+    }
 
     try {
-      // Use cache if enabled
-      if (this.cache) {
-        const cacheKey = `allocation-${decision.deployment.ipfsHash}`
-        const cached = this.cache.get<boolean>(cacheKey)
-
-        if (cached !== undefined) {
-          this.logger.trace('Using cached allocation decision', {
-            deployment: decision.deployment.ipfsHash,
-          })
-          return
-        }
-      }
-
       // Process the allocation decision
-      // This would include the actual reconciliation logic
-      this.logger.trace('Processing allocation decision', {
-        deployment: decision.deployment.ipfsHash,
-        toAllocate: decision.toAllocate,
-      })
+      await this.reconcileAllocationInternal(
+        decision,
+        activeAllocations,
+        epoch,
+        maxAllocationEpochs,
+        network,
+        operator,
+      )
 
-      // Cache the result if successful
+      // Cache successful result
       if (this.cache) {
-        const cacheKey = `allocation-${decision.deployment.ipfsHash}`
         this.cache.set(cacheKey, true)
       }
 
       this.metrics.successful++
+      this.metrics.totalProcessed++
       this.updateAverageProcessingTime(Date.now() - startTime)
+
+      return {
+        deployment: deploymentId,
+        success: true,
+        duration: Date.now() - startTime,
+        retries: 0,
+      }
     } catch (error) {
       this.metrics.failed++
-      this.logger.error('Failed to process allocation decision', {
-        deployment: decision.deployment.ipfsHash,
-        error,
-      })
-      throw error
-    } finally {
       this.metrics.totalProcessed++
+
+      const err = error instanceof Error ? error : new Error(String(error))
+      this.logger.error('Failed to process allocation decision', {
+        deployment: deploymentId,
+        error: err.message,
+      })
+
+      return {
+        deployment: deploymentId,
+        success: false,
+        error: err,
+        duration: Date.now() - startTime,
+        retries: 0,
+      }
     }
   }
 
   /**
-   * Create batches from an array
+   * Internal allocation reconciliation logic
    */
-  private createBatches<T>(items: T[], batchSize: number): T[][] {
-    const batches: T[][] = []
-    for (let i = 0; i < items.length; i += batchSize) {
-      batches.push(items.slice(i, i + batchSize))
+  private async reconcileAllocationInternal(
+    decision: AllocationDecision,
+    activeAllocations: Allocation[],
+    epoch: number,
+    maxAllocationEpochs: number,
+    network: Network,
+    operator: Operator,
+  ): Promise<void> {
+    const deploymentId = decision.deployment.ipfsHash
+
+    this.logger.trace('Processing allocation decision', {
+      deployment: deploymentId,
+      toAllocate: decision.toAllocate,
+      epoch,
+      maxAllocationEpochs,
+      network: network.specification.networkIdentifier,
+    })
+
+    // Find existing allocations for this deployment
+    const existingAllocations = activeAllocations.filter(
+      (allocation) =>
+        allocation.subgraphDeployment.id.bytes32 === decision.deployment.bytes32,
+    )
+
+    if (decision.toAllocate) {
+      // Check if we need to create a new allocation
+      if (existingAllocations.length === 0) {
+        this.logger.debug('Would create allocation', {
+          deployment: deploymentId,
+          rule: decision.ruleMatch.rule?.identifier,
+        })
+
+        // In production, this would call operator.createAllocation()
+        // The actual implementation should be done in the agent
+      } else {
+        this.logger.trace('Allocation already exists', {
+          deployment: deploymentId,
+          allocationCount: existingAllocations.length,
+        })
+      }
+    } else {
+      // Check if we need to close allocations
+      for (const allocation of existingAllocations) {
+        const allocationAge = epoch - allocation.createdAtEpoch
+        const isExpiring = allocationAge >= maxAllocationEpochs - 1
+
+        if (isExpiring) {
+          this.logger.debug('Would close expiring allocation', {
+            deployment: deploymentId,
+            allocationId: allocation.id,
+            age: allocationAge,
+            maxEpochs: maxAllocationEpochs,
+          })
+
+          // In production, this would queue an action to close the allocation
+        }
+      }
     }
-    return batches
   }
 
   /**
@@ -411,10 +575,10 @@ export class ConcurrentReconciler {
   }
 
   /**
-   * Update average processing time metric
+   * Update average processing time metric using exponential moving average
    */
   private updateAverageProcessingTime(processingTime: number): void {
-    const alpha = 0.1 // Exponential moving average factor
+    const alpha = 0.1
     this.metrics.averageProcessingTime =
       alpha * processingTime + (1 - alpha) * this.metrics.averageProcessingTime
   }
@@ -426,14 +590,14 @@ export class ConcurrentReconciler {
     ReconciliationMetrics & {
       cacheHitRate: number
       circuitBreakerState: string
-      queueSize: number
+      priorityQueueSize: number
     }
   > {
     return {
       ...this.metrics,
-      cacheHitRate: this.cache?.getHitRate() || 0,
-      circuitBreakerState: this.circuitBreaker?.getState() || 'N/A',
-      queueSize: this.priorityQueue?.size() || 0,
+      cacheHitRate: this.cache?.getHitRate() ?? 0,
+      circuitBreakerState: this.circuitBreaker?.getState() ?? 'N/A',
+      priorityQueueSize: this.priorityQueue?.size() ?? 0,
     }
   }
 
@@ -441,6 +605,7 @@ export class ConcurrentReconciler {
    * Pause reconciliation
    */
   pause(): void {
+    this.ensureNotDisposed()
     this.queue.pause()
     this.logger.info('Reconciliation paused')
   }
@@ -449,8 +614,16 @@ export class ConcurrentReconciler {
    * Resume reconciliation
    */
   resume(): void {
+    this.ensureNotDisposed()
     this.queue.start()
     this.logger.info('Reconciliation resumed')
+  }
+
+  /**
+   * Check if reconciler is paused
+   */
+  isPaused(): boolean {
+    return this.queue.isPaused
   }
 
   /**
@@ -481,5 +654,39 @@ export class ConcurrentReconciler {
       pending: this.queue.pending,
       isPaused: this.queue.isPaused,
     }
+  }
+
+  /**
+   * Ensure reconciler is not disposed
+   */
+  private ensureNotDisposed(): void {
+    if (this.disposed) {
+      throw new Error('ConcurrentReconciler has been disposed')
+    }
+  }
+
+  /**
+   * Clean up resources
+   */
+  dispose(): void {
+    if (this.disposed) return
+
+    this.disposed = true
+
+    this.queue.clear()
+    this.priorityQueue?.dispose()
+    this.cache?.dispose()
+    this.circuitBreaker?.dispose()
+    this.workers.clear()
+
+    this.logger.debug('ConcurrentReconciler disposed')
+  }
+
+  /**
+   * Support for async disposal
+   */
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.onIdle()
+    this.dispose()
   }
 }
