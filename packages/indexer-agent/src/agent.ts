@@ -8,7 +8,6 @@ import {
   timer,
 } from '@graphprotocol/common-ts'
 import {
-  ActivationCriteria,
   ActionStatus,
   Allocation,
   AllocationManagementMode,
@@ -32,9 +31,6 @@ import {
   validateProviderNetworkIdentifier,
   MultiNetworks,
   NetworkMapped,
-  TransferredSubgraphDeployment,
-  networkIsL2,
-  networkIsL1,
   DeploymentManagementMode,
   SubgraphStatus,
   sequentialTimerMap,
@@ -44,7 +40,6 @@ import {
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import mapValues from 'lodash.mapvalues'
 import zip from 'lodash.zip'
 import { AgentConfigs, NetworkAndOperator } from './types'
 
@@ -194,7 +189,6 @@ export class Agent {
   multiNetworks: MultiNetworks<NetworkAndOperator>
   indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
-  autoMigrationSupport: boolean
   deploymentManagement: DeploymentManagementMode
   pollingInterval: number
 
@@ -208,7 +202,6 @@ export class Agent {
       configs.operators,
     )
     this.offchainSubgraphs = configs.offchainSubgraphs
-    this.autoMigrationSupport = !!configs.autoMigrationSupport
     this.deploymentManagement = configs.deploymentManagement
     this.pollingInterval = configs.pollingInterval
   }
@@ -377,69 +370,36 @@ export class Agent {
         },
       )
 
-    const eligibleTransferDeployments: Eventual<
-      NetworkMapped<TransferredSubgraphDeployment[]>
-    > = sequentialTimerMap(
-      { logger, milliseconds: requestIntervalLarge },
-      async () => {
-        // Return early if the auto migration feature is disabled.
-        if (!this.autoMigrationSupport) {
-          logger.trace(
-            'Auto Migration feature is disabled, skipping querying transferred subgraphs',
-          )
-          return this.multiNetworks.map(async () => [])
-        }
-
-        const statuses = await this.graphNode.indexingStatus([])
-        return this.multiNetworks.map(async ({ network }) => {
-          const protocolNetwork = network.specification.networkIdentifier
-          logger.trace('Fetching deployments eligible for L2 transfer', {
-            protocolNetwork,
-          })
-          const transfers =
-            await network.networkMonitor.transferredDeployments()
-          logger.trace(
-            `Found ${transfers.length} transferred subgraphs in the network`,
-            { protocolNetwork },
-          )
-          return transfers
-            .map(transfer => {
-              const status = statuses.find(
-                status =>
-                  status.subgraphDeployment.ipfsHash == transfer.ipfsHash,
-              )
-              if (status) {
-                transfer.ready = status.synced && status.health == 'healthy'
-              }
-              return transfer
-            })
-            .filter(transfer => transfer.ready == true)
-        })
-      },
-      {
-        onError: error =>
-          logger.warn(
-            `Failed to obtain transferred deployments, trying again later`,
-            { error },
-          ),
-      },
-    )
-
-    // While in the L1 -> L2 transfer period this will be an intermediate value
-    // with the final value including transfer considerations
-    const intermediateNetworkDeploymentAllocationDecisions: Eventual<
+    const networkDeploymentAllocationDecisions: Eventual<
       NetworkMapped<AllocationDecision[]>
     > = join({
       networkDeployments,
       indexingRules,
     }).tryMap(
-      ({ indexingRules, networkDeployments }) => {
-        return mapValues(
+      async ({ indexingRules, networkDeployments }) => {
+        return this.multiNetworks.mapNetworkMapped(
           this.multiNetworks.zip(indexingRules, networkDeployments),
-          ([indexingRules, networkDeployments]: [
-            IndexingRuleAttributes[],
-            SubgraphDeployment[],
-          ]) => {
+          async (
+            { network }: NetworkAndOperator,
+            [indexingRules, networkDeployments]: [
+              IndexingRuleAttributes[],
+              SubgraphDeployment[],
+            ],
+          ) => {
+            // Skip evaluation entirely for networks in manual allocation mode
+            if (
+              network.specification.indexerOptions.allocationManagementMode ===
+              AllocationManagementMode.MANUAL
+            ) {
+              logger.trace(
+                `Skipping deployment evaluation since AllocationManagementMode = 'manual'`,
+                {
+                  protocolNetwork: network.specification.networkIdentifier,
+                },
+              )
+              return []
+            }
+
             // Identify subgraph deployments on the network that are worth picking up;
             // these may overlap with the ones we're already indexing
             logger.trace('Evaluating which deployments are worth allocating to')
@@ -454,94 +414,6 @@ export class Agent {
           logger.warn(`Failed to evaluate deployments, trying again later`, {
             error,
           }),
-      },
-    )
-
-    // Update targetDeployments and networkDeplomentAllocationDecisions using transferredSubgraphDeployments data
-    // This will be somewhat custom and will likely be yanked out later after the transfer stage is complete
-    // Cases:
-    // - L1 subgraph that had the transfer started: keep synced and allocated to for at least one week
-    //   post transfer.
-    // - L2 subgraph that has been transferred:
-    //   - if already synced, allocate to it immediately using default allocation amount
-    //   - if not synced, no changes
-    const networkDeploymentAllocationDecisions: Eventual<
-      NetworkMapped<AllocationDecision[]>
-    > = join({
-      intermediateNetworkDeploymentAllocationDecisions,
-      eligibleTransferDeployments,
-    }).tryMap(
-      ({
-        intermediateNetworkDeploymentAllocationDecisions,
-        eligibleTransferDeployments,
-      }) =>
-        mapValues(
-          this.multiNetworks.zip(
-            intermediateNetworkDeploymentAllocationDecisions,
-            eligibleTransferDeployments,
-          ),
-          ([allocationDecisions, eligibleTransferDeployments]: [
-            AllocationDecision[],
-            TransferredSubgraphDeployment[],
-          ]) => {
-            logger.debug(
-              `Found ${eligibleTransferDeployments.length} deployments eligible for transfer`,
-              { eligibleTransferDeployments },
-            )
-            const oneWeekAgo = Math.floor(Date.now() / 1_000) - 86_400 * 7
-            return allocationDecisions.map(decision => {
-              const matchingTransfer = eligibleTransferDeployments.find(
-                deployment =>
-                  deployment.ipfsHash == decision.deployment.ipfsHash &&
-                  Number(deployment.startedTransferToL2At) > oneWeekAgo,
-              )
-              if (matchingTransfer) {
-                logger.debug('Found a matching subgraph transfer', {
-                  matchingTransfer,
-                })
-                // L1 deployments being transferred need to be supported for one week post transfer
-                // to ensure continued support.
-                if (networkIsL1(matchingTransfer.protocolNetwork)) {
-                  decision.toAllocate = true
-                  decision.ruleMatch.activationCriteria =
-                    ActivationCriteria.L2_TRANSFER_SUPPORT
-                  logger.debug(
-                    `Allocating towards L1 subgraph deployment to support its transfer`,
-                    {
-                      subgraphDeployment: matchingTransfer,
-                      allocationDecision: decision,
-                    },
-                  )
-                }
-                // L2 Deployments
-                if (
-                  networkIsL2(matchingTransfer.protocolNetwork) &&
-                  !!matchingTransfer.transferredToL2
-                ) {
-                  decision.toAllocate = true
-                  decision.ruleMatch.activationCriteria =
-                    ActivationCriteria.L2_TRANSFER_SUPPORT
-                  logger.debug(
-                    `Allocating towards transferred L2 subgraph deployment`,
-                    {
-                      subgraphDeployment: matchingTransfer,
-                      allocationDecision: decision,
-                    },
-                  )
-                }
-              }
-              return decision
-            })
-          },
-        ),
-      {
-        onError: error =>
-          logger.warn(
-            `Failed to merge L2 transfer decisions, trying again later`,
-            {
-              error,
-            },
-          ),
       },
     )
 

@@ -151,7 +151,6 @@ export enum ActivationCriteria {
   NEVER = 'never',
   OFFCHAIN = 'offchain',
   INVALID_ALLOCATION_AMOUNT = 'invalid_allocation_amount',
-  L2_TRANSFER_SUPPORT = 'l2_transfer_support',
 }
 
 interface RuleMatch {

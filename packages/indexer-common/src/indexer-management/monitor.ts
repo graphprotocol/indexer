@@ -17,7 +17,6 @@ import {
   BlockPointer,
   resolveChainId,
   resolveChainAlias,
-  TransferredSubgraphDeployment,
   sequentialTimerReduce,
   HorizonTransitionValue,
   Provision,
@@ -701,93 +700,6 @@ export class NetworkMonitor {
         },
       )
       throw err
-    }
-  }
-
-  async transferredDeployments(): Promise<TransferredSubgraphDeployment[]> {
-    this.logger.debug('Querying the Network for transferred subgraph deployments')
-    try {
-      const result = await this.networkSubgraph.checkedQuery(
-        // TODO: Consider querying for the same time range as the Agent's evaluation, limiting
-        // results to recent transfers.
-        gql`
-          {
-            subgraphs(
-              where: { startedTransferToL2: true }
-              orderBy: startedTransferToL2At
-              orderDirection: asc
-            ) {
-              id
-              idOnL1
-              idOnL2
-              startedTransferToL2
-              startedTransferToL2At
-              startedTransferToL2AtBlockNumber
-              startedTransferToL2AtTx
-              transferredToL2
-              transferredToL2At
-              transferredToL2AtBlockNumber
-              transferredToL2AtTx
-              versions {
-                subgraphDeployment {
-                  ipfsHash
-                }
-              }
-            }
-          }
-        `,
-      )
-
-      if (result.error) {
-        throw result.error
-      }
-
-      const transferredDeployments = result.data.subgraphs
-
-      // There may be no transferred subgraphs, handle gracefully
-      if (transferredDeployments.length == 0) {
-        this.logger.warn(
-          'Failed to query subgraph deployments transferred to L2: no deployments found',
-        )
-        throw new Error('No transferred subgraph deployments returned')
-      }
-
-      // Flatten multiple subgraphDeployment versions into a single `TransferredSubgraphDeployment` object
-      // TODO: We could use `zod` to parse GraphQL responses into the expected type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      return transferredDeployments.flatMap((deployment: any) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return deployment.versions.map((version: any) => {
-          return {
-            id: deployment.id,
-            idOnL1: deployment.idOnL1,
-            idOnL2: deployment.idOnL2,
-            startedTransferToL2: deployment.startedTransferToL2,
-            startedTransferToL2At: BigInt(deployment.startedTransferToL2At),
-            startedTransferToL2AtBlockNumber: BigInt(
-              deployment.startedTransferToL2AtBlockNumber,
-            ),
-            startedTransferToL2AtTx: deployment.startedTransferToL2AtTx,
-            transferredToL2: deployment.transferredToL2,
-            transferredToL2At: deployment.transferredToL2At
-              ? BigInt(deployment.transferredToL2At)
-              : null,
-            transferredToL2AtTx: deployment.transferredToL2AtTx,
-            transferredToL2AtBlockNumber: deployment.transferredToL2AtBlockNumber
-              ? BigInt(deployment.transferredToL2AtBlockNumber)
-              : null,
-            ipfsHash: version.subgraphDeployment.ipfsHash,
-            protocolNetwork: this.networkCAIPID,
-            ready: null,
-          }
-        })
-      })
-    } catch (err) {
-      const error = indexerError(IndexerErrorCode.IE009, err.message)
-      this.logger.error(`Failed to query transferred subgraph deployments`, {
-        error,
-      })
-      throw error
     }
   }
 

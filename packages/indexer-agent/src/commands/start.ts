@@ -688,7 +688,6 @@ export async function run(
     indexerManagement: indexerManagementClient,
     networks,
     deploymentManagement: argv.deploymentManagement,
-    autoMigrationSupport: argv.enableAutoMigrationSupport,
     offchainSubgraphs: argv.offchainSubgraphs.map(
       (s: string) => new SubgraphDeploymentID(s),
     ),
