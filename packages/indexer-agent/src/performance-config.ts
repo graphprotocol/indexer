@@ -1,53 +1,81 @@
 /**
- * Performance configuration for the indexer agent
- * These values can be overridden via environment variables
+ * Centralized performance configuration for the indexer agent.
+ * This is the single source of truth for all performance-related settings.
+ * Values can be overridden via environment variables.
  */
 
 import { cpus, totalmem } from 'os'
 
-// Constants for performance configuration
-const PERFORMANCE_DEFAULTS = {
+// ============================================================================
+// Default Configuration Constants
+// ============================================================================
+
+export const PERFORMANCE_DEFAULTS = {
+  // Concurrency settings
   ALLOCATION_CONCURRENCY: 20,
   DEPLOYMENT_CONCURRENCY: 15,
   NETWORK_QUERY_CONCURRENCY: 10,
   BATCH_SIZE: 10,
+
+  // Cache settings
   CACHE_TTL: 30_000, // 30 seconds
   CACHE_MAX_SIZE: 2000,
   CACHE_CLEANUP_INTERVAL: 60_000, // 1 minute
+
+  // Circuit breaker settings
   CIRCUIT_BREAKER_FAILURE_THRESHOLD: 5,
   CIRCUIT_BREAKER_RESET_TIMEOUT: 60_000, // 1 minute
+  CIRCUIT_BREAKER_HALF_OPEN_MAX_ATTEMPTS: 3,
+  CIRCUIT_BREAKER_MONITORING_PERIOD: 300_000, // 5 minutes
+
+  // Priority queue settings
   PRIORITY_QUEUE_SIGNAL_THRESHOLD: '1000000000000000000000', // 1000 GRT
   PRIORITY_QUEUE_STAKE_THRESHOLD: '10000000000000000000000', // 10000 GRT
+
+  // Network settings
   NETWORK_QUERY_BATCH_SIZE: 50,
   NETWORK_QUERY_TIMEOUT: 30_000, // 30 seconds
+
+  // Retry settings
   MAX_RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000, // 1 second
   RETRY_BACKOFF_MULTIPLIER: 2,
+
+  // Monitoring settings
   METRICS_INTERVAL: 60_000, // 1 minute
 } as const
 
-/**
- * Utility function for parsing environment variables
- */
+// ============================================================================
+// Environment Variable Parsing Utilities
+// ============================================================================
+
 function parseEnvInt(key: string, defaultValue: number): number {
   const value = process.env[key]
-  return value ? parseInt(value, 10) : defaultValue
+  if (value === undefined || value === '') return defaultValue
+  const parsed = parseInt(value, 10)
+  return isNaN(parsed) ? defaultValue : parsed
 }
 
 function parseEnvFloat(key: string, defaultValue: number): number {
   const value = process.env[key]
-  return value ? parseFloat(value) : defaultValue
+  if (value === undefined || value === '') return defaultValue
+  const parsed = parseFloat(value)
+  return isNaN(parsed) ? defaultValue : parsed
 }
 
 function parseEnvBoolean(key: string, defaultValue: boolean): boolean {
   const value = process.env[key]
-  if (value === undefined) return defaultValue
-  return value !== 'false'
+  if (value === undefined || value === '') return defaultValue
+  return value.toLowerCase() !== 'false' && value !== '0'
 }
 
 function parseEnvString(key: string, defaultValue: string): string {
   return process.env[key] ?? defaultValue
 }
+
+// ============================================================================
+// Configuration Interface
+// ============================================================================
 
 export interface PerformanceConfig {
   // Concurrency settings
@@ -67,6 +95,7 @@ export interface PerformanceConfig {
   circuitBreakerFailureThreshold: number
   circuitBreakerResetTimeout: number
   circuitBreakerHalfOpenMaxAttempts: number
+  circuitBreakerMonitoringPeriod: number
 
   // Priority queue settings
   enablePriorityQueue: boolean
@@ -89,6 +118,10 @@ export interface PerformanceConfig {
   enableDetailedLogging: boolean
 }
 
+// ============================================================================
+// Default Configuration
+// ============================================================================
+
 export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   // Concurrency settings
   allocationConcurrency: PERFORMANCE_DEFAULTS.ALLOCATION_CONCURRENCY,
@@ -104,18 +137,15 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
 
   // Circuit breaker settings
   enableCircuitBreaker: true,
-  circuitBreakerFailureThreshold:
-    PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
-  circuitBreakerResetTimeout:
-    PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_RESET_TIMEOUT,
-  circuitBreakerHalfOpenMaxAttempts: 3,
+  circuitBreakerFailureThreshold: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_FAILURE_THRESHOLD,
+  circuitBreakerResetTimeout: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_RESET_TIMEOUT,
+  circuitBreakerHalfOpenMaxAttempts: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_HALF_OPEN_MAX_ATTEMPTS,
+  circuitBreakerMonitoringPeriod: PERFORMANCE_DEFAULTS.CIRCUIT_BREAKER_MONITORING_PERIOD,
 
   // Priority queue settings
   enablePriorityQueue: true,
-  priorityQueueSignalThreshold:
-    PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_SIGNAL_THRESHOLD,
-  priorityQueueStakeThreshold:
-    PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_STAKE_THRESHOLD,
+  priorityQueueSignalThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_SIGNAL_THRESHOLD,
+  priorityQueueStakeThreshold: PERFORMANCE_DEFAULTS.PRIORITY_QUEUE_STAKE_THRESHOLD,
 
   // Network settings
   enableParallelNetworkQueries: true,
@@ -133,9 +163,10 @@ export const DEFAULT_PERFORMANCE_CONFIG: PerformanceConfig = {
   enableDetailedLogging: false,
 }
 
-/**
- * Apply concurrency-related environment variable overrides
- */
+// ============================================================================
+// Configuration Loaders
+// ============================================================================
+
 function applyConcurrencySettings(config: PerformanceConfig): void {
   config.allocationConcurrency = parseEnvInt(
     'ALLOCATION_CONCURRENCY',
@@ -152,18 +183,16 @@ function applyConcurrencySettings(config: PerformanceConfig): void {
   config.batchSize = parseEnvInt('BATCH_SIZE', config.batchSize)
 }
 
-/**
- * Apply cache-related environment variable overrides
- */
 function applyCacheSettings(config: PerformanceConfig): void {
   config.enableCache = parseEnvBoolean('ENABLE_CACHE', config.enableCache)
   config.cacheTTL = parseEnvInt('CACHE_TTL', config.cacheTTL)
   config.cacheMaxSize = parseEnvInt('CACHE_MAX_SIZE', config.cacheMaxSize)
+  config.cacheCleanupInterval = parseEnvInt(
+    'CACHE_CLEANUP_INTERVAL',
+    config.cacheCleanupInterval,
+  )
 }
 
-/**
- * Apply circuit breaker environment variable overrides
- */
 function applyCircuitBreakerSettings(config: PerformanceConfig): void {
   config.enableCircuitBreaker = parseEnvBoolean(
     'ENABLE_CIRCUIT_BREAKER',
@@ -177,11 +206,12 @@ function applyCircuitBreakerSettings(config: PerformanceConfig): void {
     'CIRCUIT_BREAKER_RESET_TIMEOUT',
     config.circuitBreakerResetTimeout,
   )
+  config.circuitBreakerHalfOpenMaxAttempts = parseEnvInt(
+    'CIRCUIT_BREAKER_HALF_OPEN_MAX_ATTEMPTS',
+    config.circuitBreakerHalfOpenMaxAttempts,
+  )
 }
 
-/**
- * Apply priority queue environment variable overrides
- */
 function applyPriorityQueueSettings(config: PerformanceConfig): void {
   config.enablePriorityQueue = parseEnvBoolean(
     'ENABLE_PRIORITY_QUEUE',
@@ -197,9 +227,6 @@ function applyPriorityQueueSettings(config: PerformanceConfig): void {
   )
 }
 
-/**
- * Apply network-related environment variable overrides
- */
 function applyNetworkSettings(config: PerformanceConfig): void {
   config.enableParallelNetworkQueries = parseEnvBoolean(
     'ENABLE_PARALLEL_NETWORK_QUERIES',
@@ -215,14 +242,8 @@ function applyNetworkSettings(config: PerformanceConfig): void {
   )
 }
 
-/**
- * Apply retry-related environment variable overrides
- */
 function applyRetrySettings(config: PerformanceConfig): void {
-  config.maxRetryAttempts = parseEnvInt(
-    'MAX_RETRY_ATTEMPTS',
-    config.maxRetryAttempts,
-  )
+  config.maxRetryAttempts = parseEnvInt('MAX_RETRY_ATTEMPTS', config.maxRetryAttempts)
   config.retryDelay = parseEnvInt('RETRY_DELAY', config.retryDelay)
   config.retryBackoffMultiplier = parseEnvFloat(
     'RETRY_BACKOFF_MULTIPLIER',
@@ -230,15 +251,9 @@ function applyRetrySettings(config: PerformanceConfig): void {
   )
 }
 
-/**
- * Apply monitoring-related environment variable overrides
- */
 function applyMonitoringSettings(config: PerformanceConfig): void {
   config.enableMetrics = parseEnvBoolean('ENABLE_METRICS', config.enableMetrics)
-  config.metricsInterval = parseEnvInt(
-    'METRICS_INTERVAL',
-    config.metricsInterval,
-  )
+  config.metricsInterval = parseEnvInt('METRICS_INTERVAL', config.metricsInterval)
   config.enableDetailedLogging = parseEnvBoolean(
     'ENABLE_DETAILED_LOGGING',
     config.enableDetailedLogging,
@@ -262,54 +277,127 @@ export function loadPerformanceConfig(): PerformanceConfig {
   return config
 }
 
+// ============================================================================
+// Configuration Validation
+// ============================================================================
+
+export interface ValidationError {
+  field: string
+  message: string
+  value: unknown
+}
+
 /**
  * Validate performance configuration
  */
-export function validatePerformanceConfig(config: PerformanceConfig): void {
+export function validatePerformanceConfig(
+  config: PerformanceConfig,
+): ValidationError[] {
+  const errors: ValidationError[] = []
+
+  // Concurrency validation
   if (config.allocationConcurrency < 1 || config.allocationConcurrency > 100) {
-    throw new Error('allocationConcurrency must be between 1 and 100')
+    errors.push({
+      field: 'allocationConcurrency',
+      message: 'Must be between 1 and 100',
+      value: config.allocationConcurrency,
+    })
   }
 
   if (config.deploymentConcurrency < 1 || config.deploymentConcurrency > 50) {
-    throw new Error('deploymentConcurrency must be between 1 and 50')
+    errors.push({
+      field: 'deploymentConcurrency',
+      message: 'Must be between 1 and 50',
+      value: config.deploymentConcurrency,
+    })
   }
 
   if (config.batchSize < 1 || config.batchSize > 100) {
-    throw new Error('batchSize must be between 1 and 100')
+    errors.push({
+      field: 'batchSize',
+      message: 'Must be between 1 and 100',
+      value: config.batchSize,
+    })
   }
 
+  // Cache validation
   if (config.cacheTTL < 1000 || config.cacheTTL > 300000) {
-    throw new Error('cacheTTL must be between 1000ms and 300000ms (5 minutes)')
+    errors.push({
+      field: 'cacheTTL',
+      message: 'Must be between 1000ms and 300000ms (5 minutes)',
+      value: config.cacheTTL,
+    })
   }
 
   if (config.cacheMaxSize < 100 || config.cacheMaxSize > 10000) {
-    throw new Error('cacheMaxSize must be between 100 and 10000')
+    errors.push({
+      field: 'cacheMaxSize',
+      message: 'Must be between 100 and 10000',
+      value: config.cacheMaxSize,
+    })
   }
 
+  // Circuit breaker validation
   if (
     config.circuitBreakerFailureThreshold < 1 ||
     config.circuitBreakerFailureThreshold > 20
   ) {
-    throw new Error('circuitBreakerFailureThreshold must be between 1 and 20')
+    errors.push({
+      field: 'circuitBreakerFailureThreshold',
+      message: 'Must be between 1 and 20',
+      value: config.circuitBreakerFailureThreshold,
+    })
   }
 
+  // Retry validation
   if (config.maxRetryAttempts < 0 || config.maxRetryAttempts > 10) {
-    throw new Error('maxRetryAttempts must be between 0 and 10')
+    errors.push({
+      field: 'maxRetryAttempts',
+      message: 'Must be between 0 and 10',
+      value: config.maxRetryAttempts,
+    })
   }
+
+  if (config.retryBackoffMultiplier < 1 || config.retryBackoffMultiplier > 5) {
+    errors.push({
+      field: 'retryBackoffMultiplier',
+      message: 'Must be between 1 and 5',
+      value: config.retryBackoffMultiplier,
+    })
+  }
+
+  return errors
 }
 
 /**
- * Get optimized configuration based on system resources
+ * Validate configuration and throw if invalid
+ */
+export function validatePerformanceConfigOrThrow(config: PerformanceConfig): void {
+  const errors = validatePerformanceConfig(config)
+  if (errors.length > 0) {
+    const messages = errors.map((e) => `${e.field}: ${e.message} (got ${e.value})`)
+    throw new Error(`Invalid performance configuration:\n${messages.join('\n')}`)
+  }
+}
+
+// ============================================================================
+// Optimized Configuration
+// ============================================================================
+
+/**
+ * Get optimized configuration based on system resources.
+ * Automatically adjusts settings based on available CPU and memory.
  */
 export function getOptimizedConfig(): PerformanceConfig {
   const config = loadPerformanceConfig()
 
-  // Adjust based on available system resources
+  // Get system resources
   const cpuCount = cpus().length
-  const totalMemory = totalmem()
+  const totalMemoryGB = totalmem() / (1024 * 1024 * 1024)
 
   // Adjust concurrency based on CPU cores
   if (cpuCount >= 8) {
+    // High-performance system
     config.allocationConcurrency = Math.min(
       30,
       Math.round(config.allocationConcurrency * 1.5),
@@ -318,7 +406,12 @@ export function getOptimizedConfig(): PerformanceConfig {
       25,
       Math.round(config.deploymentConcurrency * 1.5),
     )
+    config.networkQueryConcurrency = Math.min(
+      15,
+      Math.round(config.networkQueryConcurrency * 1.5),
+    )
   } else if (cpuCount <= 2) {
+    // Low-resource system
     config.allocationConcurrency = Math.max(
       5,
       Math.round(config.allocationConcurrency * 0.5),
@@ -327,15 +420,66 @@ export function getOptimizedConfig(): PerformanceConfig {
       5,
       Math.round(config.deploymentConcurrency * 0.5),
     )
+    config.networkQueryConcurrency = Math.max(
+      3,
+      Math.round(config.networkQueryConcurrency * 0.5),
+    )
   }
 
   // Adjust cache size based on available memory
-  const memoryGB = totalMemory / (1024 * 1024 * 1024)
-  if (memoryGB >= 16) {
+  if (totalMemoryGB >= 16) {
+    // High memory system
     config.cacheMaxSize = Math.min(5000, Math.round(config.cacheMaxSize * 2))
-  } else if (memoryGB <= 4) {
+  } else if (totalMemoryGB <= 4) {
+    // Low memory system
     config.cacheMaxSize = Math.max(500, Math.round(config.cacheMaxSize * 0.5))
   }
 
+  // Ensure integer values for concurrency
+  config.allocationConcurrency = Math.floor(config.allocationConcurrency)
+  config.deploymentConcurrency = Math.floor(config.deploymentConcurrency)
+  config.networkQueryConcurrency = Math.floor(config.networkQueryConcurrency)
+  config.cacheMaxSize = Math.floor(config.cacheMaxSize)
+
   return config
+}
+
+// ============================================================================
+// Configuration Summary
+// ============================================================================
+
+/**
+ * Get a human-readable summary of the configuration
+ */
+export function getConfigSummary(config: PerformanceConfig): Record<string, unknown> {
+  return {
+    concurrency: {
+      allocation: config.allocationConcurrency,
+      deployment: config.deploymentConcurrency,
+      networkQuery: config.networkQueryConcurrency,
+      batchSize: config.batchSize,
+    },
+    cache: {
+      enabled: config.enableCache,
+      ttl: `${config.cacheTTL / 1000}s`,
+      maxSize: config.cacheMaxSize,
+    },
+    circuitBreaker: {
+      enabled: config.enableCircuitBreaker,
+      failureThreshold: config.circuitBreakerFailureThreshold,
+      resetTimeout: `${config.circuitBreakerResetTimeout / 1000}s`,
+    },
+    priorityQueue: {
+      enabled: config.enablePriorityQueue,
+    },
+    retry: {
+      maxAttempts: config.maxRetryAttempts,
+      delay: `${config.retryDelay}ms`,
+      backoffMultiplier: config.retryBackoffMultiplier,
+    },
+    monitoring: {
+      metrics: config.enableMetrics,
+      detailedLogging: config.enableDetailedLogging,
+    },
+  }
 }
