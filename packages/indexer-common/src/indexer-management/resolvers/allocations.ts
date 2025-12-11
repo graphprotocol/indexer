@@ -40,7 +40,7 @@ import {
   encodeStopServiceData,
   PaymentTypes,
 } from '@graphprotocol/toolshed'
-import { extractNetwork } from './utils'
+import { getNetwork, getProtocolNetwork } from './utils'
 import { tryParseCustomError } from '../../utils'
 import { GraphNode } from '../../graph-node'
 
@@ -851,95 +851,79 @@ async function reallocateAllocation(
 export default {
   allocations: async (
     { filter }: { filter: AllocationFilter },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    { network, logger }: IndexerManagementResolverContext,
   ): Promise<AllocationInfo[]> => {
     logger.debug('Execute allocations() query', {
       filter,
     })
-    if (!multiNetworks) {
+    if (!network) {
       throw Error(
         'IndexerManagementClient must be in `network` mode to fetch allocations',
       )
     }
 
-    const allocationsByNetwork = await multiNetworks.map(
-      async (network: Network): Promise<AllocationInfo[]> => {
-        // Return early if a different protocol network is specifically requested
-        if (
-          filter.protocolNetwork &&
-          filter.protocolNetwork !== network.specification.networkIdentifier
-        ) {
-          return []
-        }
-
-        const {
-          networkMonitor,
-          networkSubgraph,
-          contracts,
-          specification: {
-            indexerOptions: { address },
-          },
-        } = network
-
-        const [currentEpoch, maxAllocationDuration, epochLength] = await Promise.all([
-          networkMonitor.networkCurrentEpoch(),
-          networkMonitor.maxAllocationDuration(),
-          contracts.EpochManager.epochLength(),
-        ])
-
-        const allocation = filter.allocation
-          ? filter.allocation === 'all'
-            ? null
-            : toAddress(filter.allocation)
-          : null
-
-        const variables = {
-          indexer: toAddress(address),
-          allocation,
-          status: filter.status,
-        }
-
-        const context = {
-          currentEpoch: currentEpoch.epochNumber,
-          currentEpochStartBlock: currentEpoch.startBlockNumber,
-          currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
-          latestBlock: currentEpoch.latestBlock,
-          maxAllocationDuration: maxAllocationDuration,
-          blocksPerEpoch: Number(epochLength),
-          avgBlockTime: 13000,
-          protocolNetwork: network.specification.networkIdentifier,
-        }
-
-        return queryAllocations(logger, networkSubgraph, variables, context)
+    const {
+      networkMonitor,
+      networkSubgraph,
+      contracts,
+      specification: {
+        indexerOptions: { address },
       },
-    )
+    } = network
 
-    return Object.values(allocationsByNetwork).flat()
+    const [currentEpoch, maxAllocationDuration, epochLength] = await Promise.all([
+      networkMonitor.networkCurrentEpoch(),
+      networkMonitor.maxAllocationDuration(),
+      contracts.EpochManager.epochLength(),
+    ])
+
+    const allocation = filter.allocation
+      ? filter.allocation === 'all'
+        ? null
+        : toAddress(filter.allocation)
+      : null
+
+    const variables = {
+      indexer: toAddress(address),
+      allocation,
+      status: filter.status,
+    }
+
+    const context = {
+      currentEpoch: currentEpoch.epochNumber,
+      currentEpochStartBlock: currentEpoch.startBlockNumber,
+      currentEpochElapsedBlocks: epochElapsedBlocks(currentEpoch),
+      latestBlock: currentEpoch.latestBlock,
+      maxAllocationDuration: maxAllocationDuration,
+      blocksPerEpoch: Number(epochLength),
+      avgBlockTime: 13000,
+      protocolNetwork: network.specification.networkIdentifier,
+    }
+
+    return queryAllocations(logger, networkSubgraph, variables, context)
   },
 
   createAllocation: async (
     {
       deployment,
       amount,
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
       deployment: string
       amount: string
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
+    const { graphNode, logger, models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute createAllocation() mutation', {
       deployment,
       amount,
       protocolNetwork,
     })
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch allocations',
-      )
-    }
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
     const allocationAmount = parseGRT(amount)
     const subgraphDeployment = new SubgraphDeploymentID(deployment)
@@ -1035,29 +1019,27 @@ export default {
       blockNumber,
       publicPOI,
       force,
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
       allocation: string
       poi: string | undefined
       blockNumber: string | undefined
       publicPOI: string | undefined
       force: boolean
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { logger, models, multiNetworks }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
+    const { logger, models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
       poi: poi || 'none provided',
       blockNumber: blockNumber || 'none provided',
       publicPOI: publicPOI || 'none provided',
     })
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch allocations',
-      )
-    }
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
     const allocationData = await networkMonitor.allocation(allocation)
 
@@ -1129,7 +1111,7 @@ export default {
       publicPOI,
       amount,
       force,
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
       allocation: string
       poi: string | undefined
@@ -1137,10 +1119,14 @@ export default {
       publicPOI: string | undefined
       amount: string
       force: boolean
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { logger, models, multiNetworks }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
+    let { logger } = context
+    const { models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger = logger.child({
       component: 'reallocateAllocationResolver',
     })
@@ -1152,14 +1138,8 @@ export default {
       force,
     })
 
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch allocations',
-      )
-    }
-
     // Obtain the Network object and its associated components and data
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
 
     const allocationAmount = parseGRT(amount)

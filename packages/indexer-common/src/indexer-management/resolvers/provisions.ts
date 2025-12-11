@@ -1,11 +1,11 @@
-import { indexerError, IndexerErrorCode, Network } from '@graphprotocol/indexer-common'
+import { indexerError, IndexerErrorCode } from '@graphprotocol/indexer-common'
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 /* eslint-disable @typescript-eslint/ban-types */
 
 import gql from 'graphql-tag'
 
 import { IndexerManagementResolverContext } from '@graphprotocol/indexer-common'
-import { extractNetwork } from './utils'
+import { getNetwork, getProtocolNetwork } from './utils'
 import { tryParseCustomError } from '../../utils'
 import { formatGRT, parseGRT } from '@graphprotocol/common-ts'
 import { ThawRequestType } from '@graphprotocol/toolshed'
@@ -112,21 +112,20 @@ const PROVISION_QUERIES = {
 export default {
   provisions: async (
     {
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<ProvisionInfo[]> => {
+    const { logger } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute provisions() query', {
       protocolNetwork,
     })
 
-    if (!multiNetworks) {
-      throw Error('IndexerManagementClient must be in `network` mode to fetch provisions')
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
 
     if (!(await network.isHorizon.value())) {
       throw indexerError(IndexerErrorCode.IE082)
@@ -136,73 +135,65 @@ export default {
     const dataService = network.contracts.SubgraphService.target.toString().toLowerCase()
     const idleStake = await network.contracts.HorizonStaking.getIdleStake(indexer)
 
-    const provisionsByNetwork = await multiNetworks.map(
-      async (network: Network): Promise<ProvisionInfo[]> => {
-        // Return early if a different protocol network is specifically requested
-        if (
-          protocolNetwork &&
-          protocolNetwork !== network.specification.networkIdentifier
-        ) {
-          return []
-        }
+    const { networkSubgraph } = network
 
-        const { networkSubgraph } = network
+    logger.trace('Query Provisions', {
+      indexer,
+      dataService,
+    })
 
-        logger.trace('Query Provisions', {
-          indexer,
-          dataService,
-        })
+    const result = await networkSubgraph.checkedQuery(PROVISION_QUERIES.all, {
+      indexer,
+      dataService,
+    })
 
-        const result = await networkSubgraph.checkedQuery(PROVISION_QUERIES.all, {
-          indexer,
-          dataService,
-        })
+    if (result.error) {
+      logger.error('Querying provisions failed', {
+        error: result.error,
+      })
+    }
 
-        if (result.error) {
-          logger.error('Querying provisions failed', {
-            error: result.error,
-          })
-        }
-
-        return result.data.provisions.map((provision) => ({
-          id: provision.id,
-          dataService,
-          indexer,
-          tokensProvisioned: provision.tokensProvisioned,
-          tokensAllocated: provision.tokensAllocated,
-          tokensThawing: provision.tokensThawing,
-          maxVerifierCut: provision.maxVerifierCut,
-          thawingPeriod: provision.thawingPeriod,
-          protocolNetwork: network.specification.networkIdentifier,
-          idleStake: idleStake.toString(),
-        }))
-      },
+    return result.data.provisions.map(
+      (provision: {
+        id: string
+        tokensProvisioned: string
+        tokensAllocated: string
+        tokensThawing: string
+        maxVerifierCut: string
+        thawingPeriod: string
+      }) => ({
+        id: provision.id,
+        dataService,
+        indexer,
+        tokensProvisioned: provision.tokensProvisioned,
+        tokensAllocated: provision.tokensAllocated,
+        tokensThawing: provision.tokensThawing,
+        maxVerifierCut: provision.maxVerifierCut,
+        thawingPeriod: provision.thawingPeriod,
+        protocolNetwork: network.specification.networkIdentifier,
+        idleStake: idleStake.toString(),
+      }),
     )
-
-    return Object.values(provisionsByNetwork).flat()
   },
   addToProvision: async (
     {
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
       amount,
     }: {
-      protocolNetwork: string
+      protocolNetwork: string | undefined
       amount: string
     },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<AddToProvisionResult> => {
+    const { logger } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute addToProvision() mutation', {
       protocolNetwork,
       amount,
     })
 
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to add stake to a provision',
-      )
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager
@@ -302,26 +293,23 @@ export default {
   },
   thawFromProvision: async (
     {
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
       amount,
     }: {
-      protocolNetwork: string
+      protocolNetwork: string | undefined
       amount: string
     },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<ThawFromProvisionResult> => {
+    const { logger } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute thawFromProvision() mutation', {
       protocolNetwork,
       amount,
     })
 
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to add stake to a provision',
-      )
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager
@@ -448,21 +436,20 @@ export default {
   },
   thawRequests: async (
     {
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<ThawRequestInfo[]> => {
+    const { logger } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute thawRequests() query', {
       protocolNetwork,
     })
 
-    if (!multiNetworks) {
-      throw Error('IndexerManagementClient must be in `network` mode to fetch provisions')
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
 
     if (!(await network.isHorizon.value())) {
       throw indexerError(IndexerErrorCode.IE082)
@@ -471,74 +458,61 @@ export default {
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = network.contracts.SubgraphService.target.toString().toLowerCase()
 
-    const thawRequestsByNetwork = await multiNetworks.map(
-      async (network: Network): Promise<ThawRequestInfo[]> => {
-        // Return early if a different protocol network is specifically requested
-        if (
-          protocolNetwork &&
-          protocolNetwork !== network.specification.networkIdentifier
-        ) {
-          return []
-        }
+    const { networkSubgraph } = network
 
-        const { networkSubgraph } = network
+    logger.trace('Query Thaw Requests', {
+      indexer,
+      dataService,
+    })
 
-        logger.trace('Query Thaw Requests', {
-          indexer,
-          dataService,
-        })
+    const result = await networkSubgraph.checkedQuery(PROVISION_QUERIES.thawRequests, {
+      indexer,
+      dataService,
+    })
 
-        const result = await networkSubgraph.checkedQuery(
-          PROVISION_QUERIES.thawRequests,
-          {
-            indexer,
-            dataService,
-          },
-        )
+    if (result.error) {
+      logger.error('Querying thaw requests failed', {
+        error: result.error,
+      })
+    }
 
-        if (result.error) {
-          logger.error('Querying thaw requests failed', {
-            error: result.error,
-          })
-        }
+    const currentBlockTimestamp =
+      (await network.networkProvider.getBlock('latest'))?.timestamp ?? 0
 
-        const currentBlockTimestamp =
-          (await network.networkProvider.getBlock('latest'))?.timestamp ?? 0
-
-        return result.data.thawRequests.map((thawRequest) => ({
-          id: thawRequest.id,
-          fulfilled: thawRequest.fulfilled,
-          dataService,
-          indexer,
-          shares: thawRequest.shares,
-          thawingUntil: thawRequest.thawingUntil,
-          currentBlockTimestamp: currentBlockTimestamp.toString(),
-          protocolNetwork: network.specification.networkIdentifier,
-        }))
-      },
+    return result.data.thawRequests.map(
+      (thawRequest: {
+        id: string
+        fulfilled: string
+        shares: string
+        thawingUntil: string
+      }) => ({
+        id: thawRequest.id,
+        fulfilled: thawRequest.fulfilled,
+        dataService,
+        indexer,
+        shares: thawRequest.shares,
+        thawingUntil: thawRequest.thawingUntil,
+        currentBlockTimestamp: currentBlockTimestamp.toString(),
+        protocolNetwork: network.specification.networkIdentifier,
+      }),
     )
-
-    return Object.values(thawRequestsByNetwork).flat()
   },
   removeFromProvision: async (
     {
-      protocolNetwork,
+      protocolNetwork: providedProtocolNetwork,
     }: {
-      protocolNetwork: string
+      protocolNetwork: string | undefined
     },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<RemoveFromProvisionResult> => {
+    const { logger } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, providedProtocolNetwork)
     logger.debug('Execute removeFromProvision() mutation', {
       protocolNetwork,
     })
 
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to add stake to a provision',
-      )
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const network = getNetwork(context, protocolNetwork)
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager

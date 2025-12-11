@@ -2,17 +2,20 @@
 
 import { POIDispute, POIDisputeIdentifier, POIDisputeCreationAttributes } from '../models'
 import { IndexerManagementResolverContext } from '../client'
-import { validateNetworkIdentifier } from '../../parsers'
 import { Op, WhereOptions } from 'sequelize'
 import groupBy from 'lodash.groupby'
+import { getProtocolNetwork } from './utils'
 
 export default {
   dispute: async (
     { identifier }: { identifier: POIDisputeIdentifier },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    const { models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, identifier.protocolNetwork)
     const dispute = await models.POIDispute.findOne({
-      where: { ...identifier },
+      where: { allocationID: identifier.allocationID, protocolNetwork },
     })
     return dispute?.toGraphQL() || dispute
   },
@@ -23,22 +26,18 @@ export default {
       minClosedEpoch,
       protocolNetwork: uncheckedProtocolNetwork,
     }: { status: string; minClosedEpoch: number; protocolNetwork: string | undefined },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    // Sanitize protocol network identifier
-    const protocolNetwork = uncheckedProtocolNetwork
-      ? validateNetworkIdentifier(uncheckedProtocolNetwork)
-      : undefined
+    const { models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, uncheckedProtocolNetwork)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sqlAndExpression: WhereOptions<any> = [
       { status },
       { closedEpoch: { [Op.gte]: minClosedEpoch } },
+      { protocolNetwork },
     ]
-
-    if (protocolNetwork) {
-      sqlAndExpression.push({ protocolNetwork })
-    }
 
     const disputes = await models.POIDispute.findAll({
       where: { [Op.and]: sqlAndExpression },
@@ -49,14 +48,12 @@ export default {
 
   storeDisputes: async (
     { disputes }: { disputes: POIDisputeCreationAttributes[] },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    // Sanitize protocol network identifiers
+    const { models } = context
+    // Normalize protocol network identifiers - use context network if not provided
     for (const dispute of disputes) {
-      if (!dispute.protocolNetwork) {
-        throw new Error(`Dispute is missing the attribute 'protocolNetwork'`)
-      }
-      dispute.protocolNetwork = validateNetworkIdentifier(dispute.protocolNetwork)
+      dispute.protocolNetwork = getProtocolNetwork(context, dispute.protocolNetwork)
     }
 
     const createdDisputes = await models.POIDispute.bulkCreate(disputes, {
@@ -74,16 +71,14 @@ export default {
 
   deleteDisputes: async (
     { identifiers }: { identifiers: POIDisputeIdentifier[] },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<number> => {
+    const { models } = context
     let totalNumDeleted = 0
 
-    // Sanitize protocol network identifiers
+    // Normalize protocol network identifiers - use context network if not provided
     for (const identifier of identifiers) {
-      if (!identifier.protocolNetwork) {
-        throw new Error(`Dispute is missing the attribute 'protocolNetwork'`)
-      }
-      identifier.protocolNetwork = validateNetworkIdentifier(identifier.protocolNetwork)
+      identifier.protocolNetwork = getProtocolNetwork(context, identifier.protocolNetwork)
     }
 
     // Batch by protocolNetwork

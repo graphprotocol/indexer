@@ -10,9 +10,8 @@ import { IndexerManagementDefaults, IndexerManagementResolverContext } from '../
 import { Transaction } from 'sequelize'
 import { fetchIndexingRules } from '../rules'
 import { ensureAllocationLifetime, processIdentifier } from '../../'
-import { validateNetworkIdentifier } from '../../parsers'
 import groupBy from 'lodash.groupby'
-import { extractNetwork } from './utils'
+import { getNetwork, getProtocolNetwork } from './utils'
 
 const resetGlobalRule = async (
   ruleIdentifier: IndexingRuleIdentifier,
@@ -36,15 +35,17 @@ export default {
       identifier: indexingRuleIdentifier,
       merged,
     }: { identifier: IndexingRuleIdentifier; merged: boolean },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
+    const { models } = context
     const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
       all: false,
       global: true,
     })
 
-    // Sanitize protocol network identifier
-    const protocolNetwork = validateNetworkIdentifier(
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(
+      context,
       indexingRuleIdentifier.protocolNetwork,
     )
 
@@ -67,39 +68,27 @@ export default {
       merged,
       protocolNetwork: uncheckedProtocolNetwork,
     }: { merged: boolean; protocolNetwork: string | undefined },
-    { models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object[]> => {
-    // Convert the input `protocolNetwork` value to a CAIP2-ID
-    const protocolNetwork = uncheckedProtocolNetwork
-      ? validateNetworkIdentifier(uncheckedProtocolNetwork)
-      : undefined
+    const { models } = context
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(context, uncheckedProtocolNetwork)
     return await fetchIndexingRules(models, merged, protocolNetwork)
   },
 
   setIndexingRule: async (
     { rule }: { rule: IndexingRuleCreationAttributes },
-    { multiNetworks, models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<object> => {
+    const { models } = context
     if (!rule.identifier) {
       throw Error('Cannot set indexingRule without identifier')
     }
 
-    if (!rule.protocolNetwork) {
-      throw Error("Cannot set an indexing rule without the field 'protocolNetwork'")
-    } else {
-      try {
-        rule.protocolNetwork = validateNetworkIdentifier(rule.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
-    }
+    // Get protocol network from context or provided value
+    rule.protocolNetwork = getProtocolNetwork(context, rule.protocolNetwork)
 
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to set indexing rules',
-      )
-    }
-    const network = extractNetwork(rule.protocolNetwork, multiNetworks)
+    const network = getNetwork(context, rule.protocolNetwork)
 
     const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(rule, network)
     if (!isValid) {
@@ -121,15 +110,17 @@ export default {
 
   deleteIndexingRule: async (
     { identifier: indexingRuleIdentifier }: { identifier: IndexingRuleIdentifier },
-    { models, defaults }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<boolean> => {
+    const { models, defaults } = context
     const [identifier] = await processIdentifier(indexingRuleIdentifier.identifier, {
       all: false,
       global: true,
     })
 
-    // Sanitize protocol network identifier
-    const protocolNetwork = validateNetworkIdentifier(
+    // Get protocol network from context or provided value
+    const protocolNetwork = getProtocolNetwork(
+      context,
       indexingRuleIdentifier.protocolNetwork,
     )
 
@@ -161,13 +152,14 @@ export default {
 
   deleteIndexingRules: async (
     { identifiers: indexingRuleIdentifiers }: { identifiers: IndexingRuleIdentifier[] },
-    { models, defaults }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<boolean> => {
+    const { models, defaults } = context
     let totalNumDeleted = 0
 
-    // Sanitize protocol network identifiers
+    // Normalize protocol network identifiers - use context network if not provided
     for (const identifier of indexingRuleIdentifiers) {
-      identifier.protocolNetwork = validateNetworkIdentifier(identifier.protocolNetwork)
+      identifier.protocolNetwork = getProtocolNetwork(context, identifier.protocolNetwork)
     }
 
     // Batch deletions by the `IndexingRuleIdentifier.protocolNetwork` attribute .
