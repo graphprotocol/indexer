@@ -124,3 +124,5 @@ yalc.lock
 # local-network override mode files
 tap-contracts.json
 config/config.yaml
+
+commit-changes.sh

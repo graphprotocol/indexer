@@ -22,7 +22,6 @@ export interface AgentConfigs {
   indexerManagement: IndexerManagementClient
   networks: Network[]
   deploymentManagement: DeploymentManagementMode
-  autoMigrationSupport: boolean
   offchainSubgraphs: SubgraphDeploymentID[]
   pollingInterval: number
 }
