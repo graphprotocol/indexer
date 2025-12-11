@@ -35,7 +35,7 @@ export async function buildActionInput(
   reason: string,
   status: ActionStatus,
   priority: number,
-  protocolNetwork: string,
+  protocolNetwork?: string,
 ): Promise<ActionInput> {
   await validateActionInput(type, actionParams)
 

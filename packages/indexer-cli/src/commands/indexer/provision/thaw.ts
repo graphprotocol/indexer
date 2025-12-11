@@ -42,7 +42,7 @@ module.exports = {
         throw new Error('Must provide an amount to thaw from the provision')
       }
 
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!['json', 'yaml', 'table'].includes(outputFormat)) {
         throw Error(
