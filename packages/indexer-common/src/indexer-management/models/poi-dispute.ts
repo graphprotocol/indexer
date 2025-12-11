@@ -18,14 +18,29 @@ export interface POIDisputeAttributes {
   previousEpochStartBlockHash: string
   previousEpochStartBlockNumber: number
   status: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
-// Unambiguously identify a POI Dispute in the Database.
-// This type should match the POIDispute primary key columns.
+/**
+ * Unambiguously identify a POI Dispute in the Database.
+ * This type should match the POIDispute primary key columns.
+ */
 export interface POIDisputeIdentifier {
   allocationID: string
-  protocolNetwork: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   * Optional in API - resolvers will use the context's single network if not provided.
+   */
+  protocolNetwork?: string
 }
 
 export interface POIDisputeCreationAttributes
@@ -64,6 +79,7 @@ export class POIDispute
   declare previousEpochStartBlockHash: string
   declare previousEpochStartBlockNumber: number
   declare status: string
+  /** @deprecated LEGACY DEBT: Multi-network removed. See POIDisputeAttributes.protocolNetwork */
   declare protocolNetwork: string
 
   declare createdAt: Date
@@ -255,6 +271,10 @@ export const definePOIDisputeModels = (sequelize: Sequelize): POIDisputeModels =
         type: DataTypes.STRING,
         allowNull: false,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,

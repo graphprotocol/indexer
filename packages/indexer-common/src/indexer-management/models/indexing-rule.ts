@@ -30,14 +30,29 @@ export interface IndexingRuleAttributes {
   decisionBasis: IndexingDecisionBasis
   requireSupported: boolean
   safety: boolean
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
-// Unambiguously identify a Indexing Rule in the Database.
-// This type should match the IndexingRules primary key columns.
+/**
+ * Unambiguously identify an Indexing Rule in the Database.
+ * This type should match the IndexingRules primary key columns.
+ */
 export interface IndexingRuleIdentifier {
   identifier: string
-  protocolNetwork: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   * Optional in API - resolvers will use the context's single network if not provided.
+   */
+  protocolNetwork?: string
 }
 
 export interface IndexingRuleCreationAttributes
@@ -82,6 +97,7 @@ export class IndexingRule
   declare decisionBasis: IndexingDecisionBasis
   declare requireSupported: boolean
   declare safety: boolean
+  /** @deprecated LEGACY DEBT: Multi-network removed. See IndexingRuleAttributes.protocolNetwork */
   declare protocolNetwork: string
 
   declare createdAt: Date
@@ -259,6 +275,10 @@ export const defineIndexingRuleModels = (sequelize: Sequelize): IndexingRuleMode
         allowNull: false,
         defaultValue: true,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,
