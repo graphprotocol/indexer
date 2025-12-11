@@ -4,27 +4,21 @@ import {
   INDEXING_RULE_GLOBAL,
   IndexingRule,
   IndexingRuleAttributes,
-  MultiNetworks,
   Network,
   sequentialTimerMap,
 } from '@graphprotocol/indexer-common'
 import { parseIndexingRule } from '../rules'
 import groupBy from 'lodash.groupby'
-import { extractNetwork } from './resolvers/utils'
 import { IndexingRuleCreationAttributes } from './models'
 
 export class RulesManager {
-  declare multiNetworks: MultiNetworks<Network>
+  declare network: Network
   declare models: IndexerManagementModels
   declare logger: Logger
 
-  static async create(
-    multiNetworks: MultiNetworks<Network>,
-    logger: Logger,
-    models: IndexerManagementModels,
-  ) {
+  static async create(network: Network, logger: Logger, models: IndexerManagementModels) {
     const rulesManager = new RulesManager()
-    rulesManager.multiNetworks = multiNetworks
+    rulesManager.network = network
     rulesManager.logger = logger
     rulesManager.models = models
 
@@ -36,6 +30,8 @@ export class RulesManager {
 
   async monitorRules(): Promise<void> {
     const logger = this.logger.child({ component: 'RulesMonitor' })
+    const protocolNetwork = this.network.specification.networkIdentifier
+
     const rules: Eventual<IndexingRuleAttributes[]> = sequentialTimerMap(
       {
         logger,
@@ -45,7 +41,7 @@ export class RulesManager {
         logger.trace('Fetching indexing rules')
         let rules: IndexingRuleAttributes[] = []
         try {
-          rules = await fetchIndexingRules(this.models, true)
+          rules = await fetchIndexingRules(this.models, true, protocolNetwork)
           logger.trace(`Fetched ${rules.length} indexing rules`)
         } catch (err) {
           logger.warn('Failed to fetch indexing rules', { err })
@@ -62,10 +58,9 @@ export class RulesManager {
     join({ rules }).pipe(async ({ rules }) => {
       logger.info(`Indexing rules found, evaluating allocation lifetime`)
       for (const rule of rules) {
-        const network = extractNetwork(rule.protocolNetwork, this.multiNetworks)
         const [isValid, maxSuggestedLifetime] = await ensureAllocationLifetime(
           rule,
-          network,
+          this.network,
         )
         if (!isValid) {
           logger.warn(`Invalid rule allocation lifetime. Indexing rewards at risk!`, {

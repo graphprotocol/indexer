@@ -13,8 +13,6 @@ import {
   IndexerErrorCode,
   IndexerManagementModels,
   isActionFailure,
-  MultiNetworks,
-  NetworkMapped,
   Network,
   OrderDirection,
   GraphNode,
@@ -23,37 +21,34 @@ import {
 
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger } from '@graphprotocol/common-ts'
-import groupBy from 'lodash.groupby'
 
 export class ActionManager {
-  declare multiNetworks: MultiNetworks<Network>
+  declare network: Network
   declare logger: Logger
   declare models: IndexerManagementModels
-  declare allocationManagers: NetworkMapped<AllocationManager>
+  declare allocationManager: AllocationManager
 
   executeBatchActionsPromise: Promise<Action[]> | undefined
 
   static async create(
-    multiNetworks: MultiNetworks<Network>,
+    network: Network,
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
-    actionManager.multiNetworks = multiNetworks
+    actionManager.network = network
     actionManager.logger = logger.child({ component: 'ActionManager' })
     actionManager.models = models
-    actionManager.allocationManagers = await multiNetworks.map(async (network) => {
-      return new AllocationManager(
-        logger.child({
-          component: 'AllocationManager',
-          protocolNetwork: network.specification.networkIdentifier,
-        }),
-        models,
-        graphNode,
-        network,
-      )
-    })
+    actionManager.allocationManager = new AllocationManager(
+      logger.child({
+        component: 'AllocationManager',
+        protocolNetwork: network.specification.networkIdentifier,
+      }),
+      models,
+      graphNode,
+      network,
+    )
 
     logger.info('Begin monitoring the queue for approved actions to execute')
     await actionManager.monitorQueue()
@@ -61,11 +56,7 @@ export class ActionManager {
     return actionManager
   }
 
-  private async batchReady(
-    approvedActions: Action[],
-    network: Network,
-    logger: Logger,
-  ): Promise<boolean> {
+  private async batchReady(approvedActions: Action[], logger: Logger): Promise<boolean> {
     logger.info('Batch ready?', {
       approvedActions,
     })
@@ -74,6 +65,8 @@ export class ActionManager {
       logger.info('Batch not ready: No approved actions found')
       return false
     }
+
+    const network = this.network
 
     // In auto management mode the worker will execute the batch if:
     // 1) Number of approved actions >= minimum batch size
@@ -125,6 +118,9 @@ export class ActionManager {
 
   async monitorQueue(): Promise<void> {
     const logger = this.logger.child({ component: 'QueueMonitor' })
+    const network = this.network
+    const protocolNetwork = network.specification.networkIdentifier
+
     const approvedActions: Eventual<Action[]> = sequentialTimerMap(
       {
         logger,
@@ -136,6 +132,7 @@ export class ActionManager {
         try {
           actions = await ActionManager.fetchActions(this.models, null, {
             status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
+            protocolNetwork,
           })
           logger.trace(`Fetched ${actions.length} approved actions`)
         } catch (err) {
@@ -153,62 +150,53 @@ export class ActionManager {
 
     join({ approvedActions }).pipe(async ({ approvedActions }) => {
       logger.debug('Approved actions found, evaluating batch')
-      const approvedActionsByNetwork: NetworkMapped<Action[]> = groupBy(
-        approvedActions,
-        (action: Action) => action.protocolNetwork,
-      )
 
-      await this.multiNetworks.mapNetworkMapped(
-        approvedActionsByNetwork,
-        async (network: Network, approvedActions: Action[]) => {
-          const networkLogger = logger.child({
-            protocolNetwork: network.specification.networkIdentifier,
-            indexer: network.specification.indexerOptions.address,
-            operator: network.transactionManager.wallet.address,
+      const networkLogger = logger.child({
+        protocolNetwork: network.specification.networkIdentifier,
+        indexer: network.specification.indexerOptions.address,
+        operator: network.transactionManager.wallet.address,
+      })
+
+      if (await this.batchReady(approvedActions, networkLogger)) {
+        const paused = await network.paused.value()
+        const isOperator = await network.isOperator.value()
+        networkLogger.debug('Batch ready, preparing to execute', {
+          paused,
+          isOperator,
+          protocolNetwork: network.specification.networkIdentifier,
+        })
+        // Do nothing else if the network is paused
+        if (paused) {
+          networkLogger.info(
+            `The network is currently paused, not doing anything until it resumes`,
+          )
+          return
+        }
+
+        // Do nothing if we're not authorized as an operator for the indexer
+        if (!isOperator) {
+          networkLogger.error(`Not authorized as an operator for the indexer`, {
+            err: indexerError(IndexerErrorCode.IE034),
           })
+          return
+        }
 
-          if (await this.batchReady(approvedActions, network, networkLogger)) {
-            const paused = await network.paused.value()
-            const isOperator = await network.isOperator.value()
-            networkLogger.debug('Batch ready, preparing to execute', {
-              paused,
-              isOperator,
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            // Do nothing else if the network is paused
-            if (paused) {
-              networkLogger.info(
-                `The network is currently paused, not doing anything until it resumes`,
-              )
-              return
-            }
+        networkLogger.info('Executing batch of approved actions', {
+          actions: approvedActions,
+          note: 'If actions were approved very recently they may be missing from this batch',
+        })
 
-            // Do nothing if we're not authorized as an operator for the indexer
-            if (!isOperator) {
-              networkLogger.error(`Not authorized as an operator for the indexer`, {
-                err: indexerError(IndexerErrorCode.IE034),
-              })
-              return
-            }
-
-            networkLogger.info('Executing batch of approved actions', {
-              actions: approvedActions,
-              note: 'If actions were approved very recently they may be missing from this batch',
-            })
-
-            try {
-              const attemptedActions = await this.executeApprovedActions(network)
-              networkLogger.trace('Attempted to execute all approved actions', {
-                actions: attemptedActions,
-              })
-            } catch (error) {
-              networkLogger.error('Failed to execute batch of approved actions', {
-                error,
-              })
-            }
-          }
-        },
-      )
+        try {
+          const attemptedActions = await this.executeApprovedActions()
+          networkLogger.trace('Attempted to execute all approved actions', {
+            actions: attemptedActions,
+          })
+        } catch (error) {
+          networkLogger.error('Failed to execute batch of approved actions', {
+            error,
+          })
+        }
+      }
     })
   }
 
@@ -275,7 +263,7 @@ export class ActionManager {
   }
 
   // a promise guard to ensure that only one batch of actions is executed at a time
-  async executeApprovedActions(network: Network): Promise<Action[]> {
+  async executeApprovedActions(): Promise<Action[]> {
     if (this.executeBatchActionsPromise) {
       this.logger.warn('Previous batch action execution is still in progress')
       return this.executeBatchActionsPromise
@@ -283,7 +271,7 @@ export class ActionManager {
 
     let updatedActions: Action[] = []
     try {
-      this.executeBatchActionsPromise = this.executeApprovedActionsInner(network)
+      this.executeBatchActionsPromise = this.executeApprovedActionsInner()
       updatedActions = await this.executeBatchActionsPromise
     } catch (error) {
       this.logger.error(`Failed to execute batch of approved actions -> ${error}`)
@@ -293,9 +281,9 @@ export class ActionManager {
     return updatedActions
   }
 
-  async executeApprovedActionsInner(network: Network): Promise<Action[]> {
+  async executeApprovedActionsInner(): Promise<Action[]> {
     let updatedActions: Action[] = []
-    const protocolNetwork = network.specification.networkIdentifier
+    const protocolNetwork = this.network.specification.networkIdentifier
     const logger = this.logger.child({
       function: 'executeApprovedActions',
       protocolNetwork,
@@ -371,9 +359,6 @@ export class ActionManager {
         startTimeMs: Date.now() - batchStartTime,
       })
 
-      const allocationManager =
-        this.allocationManagers[network.specification.networkIdentifier]
-
       let results: AllocationResult[]
       try {
         // TODO: we should lift the batch execution (graph-node, then contracts) up to here so we can
@@ -394,92 +379,68 @@ export class ActionManager {
           )
         }
         // This will return all results if successful, if failed it will return the failed actions
-        results = await allocationManager.executeBatch(
+        results = await this.allocationManager.executeBatch(
           prioritizedActions,
           onFinishedDeploying,
         )
-        logger.debug('Completed batch action execution', {
-          results,
-          endTimeMs: Date.now() - batchStartTime,
-        })
       } catch (error) {
-        // Release the actions from the PENDING state. This means they will be retried again on the next batch execution.
-        logger.error(
-          `Error raised during executeBatch, releasing ${prioritizedActions.length} actions from PENDING state. \
-          These will be attempted again on the next batch.`,
-          error,
-        )
+        logger.error('Failed to execute batch of approved actions', { error })
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         await this.models.Action.sequelize!.transaction(
           { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
           async (transaction) => {
-            return await this.markActions(
-              prioritizedActions,
-              transaction,
-              ActionStatus.APPROVED,
-            )
+            await this.markActions(prioritizedActions, transaction, ActionStatus.APPROVED)
           },
         )
         return []
       }
-
-      // Happy path: execution went well (success or failure but no exceptions). Update the actions with the results.
-      updatedActions = await this.models.Action.sequelize!.transaction(
+      logger.debug('Finished executing batch of approved actions', {
+        results,
+        elapsedMs: Date.now() - batchStartTime,
+      })
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      await this.models.Action.sequelize!.transaction(
         { isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE },
         async (transaction) => {
-          return await this.updateActionStatusesWithResults(results, transaction)
+          updatedActions = await this.updateActionStatusesWithResults(
+            results,
+            transaction,
+          )
         },
       )
-
-      logger.debug('Updated action statuses', {
-        updatedActions,
-        updatedTimeMs: Date.now() - batchStartTime,
-      })
     } catch (error) {
-      logger.error(`Failed to execute batch tx on staking contract: ${error}`)
-      throw indexerError(IndexerErrorCode.IE072, error)
+      logger.error('Failed to execute batch of approved actions', { error })
     }
-
-    logger.debug('End executing approved actions')
     return updatedActions
   }
 
-  public static async fetchActions(
+  static async fetchActions(
     models: IndexerManagementModels,
-    transaction: Transaction | null,
-    filter: ActionFilter,
-    orderBy?: ActionParams,
-    orderDirection?: OrderDirection,
+    orderBy: ActionParams | null,
+    filter?: ActionFilter,
     first?: number,
+    orderDirection?: OrderDirection,
   ): Promise<Action[]> {
-    const orderObject: Order = orderBy
+    const order: Order | undefined = orderBy
       ? [[orderBy.toString(), orderDirection ?? 'desc']]
-      : [['id', 'desc']]
-
+      : undefined
+    const whereClause = filter ? actionFilterToWhereOptions(filter) : undefined
+    const limit = first ?? undefined
     return await models.Action.findAll({
-      transaction,
-      where: actionFilterToWhereOptions(filter),
-      order: orderObject,
-      limit: first,
+      order,
+      where: whereClause,
+      limit,
     })
   }
 
-  public static async updateActions(
+  static async updateActions(
     models: IndexerManagementModels,
     action: ActionUpdateInput,
     filter: ActionFilter,
   ): Promise<[number, Action[]]> {
-    if (Object.keys(filter).length === 0) {
-      throw Error(
-        'Cannot bulk update actions without a filter, please provide a least 1 filter value',
-      )
-    }
-    return await models.Action.update(
-      { ...action },
-      {
-        where: actionFilterToWhereOptions(filter),
-        returning: true,
-        validate: true,
-      },
-    )
+    return await models.Action.update(action, {
+      where: actionFilterToWhereOptions(filter),
+      returning: true,
+    })
   }
 }
