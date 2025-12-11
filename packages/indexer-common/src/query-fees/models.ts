@@ -110,6 +110,12 @@ export interface AllocationReceiptAttributes {
   allocation: Address
   fees: string
   signature: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
@@ -121,6 +127,7 @@ export class AllocationReceipt
   public allocation!: Address
   public fees!: string
   public signature!: string
+  /** @deprecated LEGACY DEBT: Multi-network removed. See AllocationReceiptAttributes.protocolNetwork */
   public protocolNetwork!: string
 
   public readonly createdAt!: Date
@@ -131,6 +138,12 @@ export interface VoucherAttributes {
   allocation: Address
   amount: string
   signature: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
@@ -141,6 +154,7 @@ export class Voucher extends Model<VoucherAttributes> implements VoucherAttribut
 
   public readonly createdAt!: Date
   public readonly updatedAt!: Date
+  /** @deprecated LEGACY DEBT: Multi-network removed. See VoucherAttributes.protocolNetwork */
   public protocolNetwork!: string
 
   public readonly allocationSummary?: AllocationSummary
@@ -307,6 +321,12 @@ export interface TransferReceiptAttributes {
   signer: Address
   fees: string
   signature: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
@@ -318,6 +338,7 @@ export class TransferReceipt
   public signer!: Address
   public fees!: string
   public signature!: string
+  /** @deprecated LEGACY DEBT: Multi-network removed. See TransferReceiptAttributes.protocolNetwork */
   public protocolNetwork!: string
 
   public readonly createdAt!: Date
@@ -343,6 +364,12 @@ export interface TransferAttributes {
   signer: Address
   allocationClosedAt: Date | null
   status: TransferStatus
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
@@ -352,6 +379,7 @@ export class Transfer extends Model<TransferAttributes> implements TransferAttri
   public signer!: Address
   public allocationClosedAt!: Date | null
   public status!: TransferStatus
+  /** @deprecated LEGACY DEBT: Multi-network removed. See TransferAttributes.protocolNetwork */
   public protocolNetwork!: string
 
   public readonly createdAt!: Date
@@ -373,6 +401,12 @@ export interface AllocationSummaryAttributes {
   openTransfers: number
   collectedFees: string
   withdrawnFees: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Always populated with the single configured network. Can be removed in a future
+   * migration that changes the primary key structure.
+   */
   protocolNetwork: string
 }
 
@@ -388,6 +422,7 @@ export class AllocationSummary
   declare openTransfers: number
   declare collectedFees: string
   declare withdrawnFees: string
+  /** @deprecated LEGACY DEBT: Multi-network removed. See AllocationSummaryAttributes.protocolNetwork */
   declare protocolNetwork: string
 
   declare readonly createdAt: Date
@@ -452,6 +487,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           min: 0.0,
         },
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,
@@ -482,6 +521,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.STRING,
         allowNull: false,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,
@@ -693,6 +736,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
           min: 0.0,
         },
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,
@@ -734,6 +781,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         ),
         allowNull: false,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,
@@ -781,6 +832,10 @@ export function defineQueryFeeModels(sequelize: Sequelize): QueryFeeModels {
         type: DataTypes.DECIMAL,
         allowNull: false,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING,
         primaryKey: true,

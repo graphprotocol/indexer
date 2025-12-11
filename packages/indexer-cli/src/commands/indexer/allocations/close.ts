@@ -83,7 +83,7 @@ module.exports = {
 
     spinner.text = `Closing allocation '${id}`
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!protocolNetwork) {
         throw new Error(

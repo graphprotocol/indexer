@@ -52,7 +52,7 @@ module.exports = {
     const [deploymentID, amount, indexNode] = parameters.array || []
 
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!deploymentID || !amount || !protocolNetwork) {
         throw new Error(

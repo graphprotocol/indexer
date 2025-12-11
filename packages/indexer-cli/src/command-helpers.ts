@@ -230,22 +230,15 @@ export function suggestCommands(
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function extractProtocolNetworkOption(
-  options: {
-    [key: string]: any
-  },
-  required = false,
-): string | undefined {
+export function extractProtocolNetworkOption(options: {
+  [key: string]: any
+}): string | undefined {
   const { n, network } = options
 
   // Tries to extract the --network option from Gluegun options.
-  // Throws if required is set to true and the option is not found.
+  // Returns undefined if not provided (single network mode will use context network).
   if (!n && !network) {
-    if (required) {
-      throw new Error("The option '--network' is required")
-    } else {
-      return undefined
-    }
+    return undefined
   }
 
   // Check for invalid usage
@@ -264,13 +257,14 @@ export function extractProtocolNetworkOption(
   }
 }
 
-// Same as `extractProtocolNetworkOption`, but always require the --network option to be set
-export function requireProtocolNetworkOption(options: { [key: string]: any }): string {
-  const protocolNetwork = extractProtocolNetworkOption(options, true)
-  if (!protocolNetwork) {
-    throw new Error("The option '--network' is required")
-  }
-  return protocolNetwork
+/**
+ * @deprecated Use extractProtocolNetworkOption instead. Network is no longer required
+ * as the system operates in single-network mode.
+ */
+export function requireProtocolNetworkOption(options: {
+  [key: string]: any
+}): string | undefined {
+  return extractProtocolNetworkOption(options)
 }
 
 export function wrapCell(value: unknown, wrapWidth: number): string {

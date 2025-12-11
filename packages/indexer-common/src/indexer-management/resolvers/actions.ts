@@ -11,16 +11,15 @@ import {
   ActionType,
   ActionUpdateInput,
   IndexerManagementModels,
-  Network,
-  NetworkMapped,
   OrderDirection,
   validateActionInputs,
-  validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
 import { literal, Op, Transaction } from 'sequelize'
 import { ActionManager } from '../actions'
-import groupBy from 'lodash.groupby'
-import { extractNetwork } from './utils'
+import { getProtocolNetwork } from './utils'
+
+/** ActionInput with protocolNetwork guaranteed to be set (after normalization) */
+type NormalizedActionInput = ActionInput & { protocolNetwork: string }
 
 // Perform insert, update, or no-op depending on existing queue data
 // INSERT - No item in the queue yet targeting this deploymentID
@@ -29,7 +28,7 @@ import { extractNetwork } from './utils'
 // TODO: Use pending status for actions in process of execution, detect here and if duplicate pending found, NOOP
 async function executeQueueOperation(
   logger: Logger,
-  action: ActionInput,
+  action: NormalizedActionInput,
   actionsAwaitingExecution: Action[],
   recentlyAttemptedActions: Action[],
   models: IndexerManagementModels,
@@ -142,64 +141,51 @@ export default {
     })
     return await ActionManager.fetchActions(
       models,
-      null,
-      filter,
       orderBy,
-      orderDirection,
+      filter,
       first,
+      orderDirection,
     )
   },
 
   queueActions: async (
     { actions }: { actions: ActionInput[] },
-    { actionManager, logger, multiNetworks, models }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<ActionResult[]> => {
+    const { actionManager, logger, network, models } = context
     logger.debug(`Execute 'queueActions' mutation`, {
       actions,
     })
 
-    if (!actionManager || !multiNetworks) {
+    if (!actionManager || !network) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
 
-    // Sanitize protocol network identifier
+    // Normalize protocol network identifier - use context network if not provided
     actions.forEach((action) => {
-      try {
-        action.protocolNetwork = validateNetworkIdentifier(action.protocolNetwork)
-      } catch (e) {
-        throw Error(`Invalid value for the field 'protocolNetwork'. ${e}`)
-      }
+      action.protocolNetwork = getProtocolNetwork(context, action.protocolNetwork)
     })
 
     // Set proper value for isLegacy - any new actions in horizon are not legacy
     await Promise.all(
       actions.map(async (action) => {
-        const network = extractNetwork(action.protocolNetwork, multiNetworks)
         action.isLegacy = !(await network.isHorizon.value())
       }),
     )
 
-    // Let Network Monitors validate actions based on their protocol networks
-    await multiNetworks.mapNetworkMapped(
-      groupBy(actions, (action) => action.protocolNetwork),
-      (network: Network, actions: ActionInput[]) =>
-        validateActionInputs(actions, network.networkMonitor, logger),
-    )
+    // Validate actions using the network monitor
+    await validateActionInputs(actions, network.networkMonitor, logger)
 
     let results: ActionResult[] = []
 
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     await models.Action.sequelize!.transaction(async (transaction) => {
-      const alreadyQueuedActions = await ActionManager.fetchActions(models, transaction, {
+      const alreadyQueuedActions = await ActionManager.fetchActions(models, null, {
         status: ActionStatus.QUEUED,
       })
-      const alreadyApprovedActions = await ActionManager.fetchActions(
-        models,
-        transaction,
-        {
-          status: ActionStatus.APPROVED,
-        },
-      )
+      const alreadyApprovedActions = await ActionManager.fetchActions(models, null, {
+        status: ActionStatus.APPROVED,
+      })
       const actionsAwaitingExecution = alreadyQueuedActions.concat(alreadyApprovedActions)
 
       // Fetch recently attempted actions
@@ -207,23 +193,15 @@ export default {
         [Op.gte]: literal("NOW() - INTERVAL '15m'"),
       }
 
-      const recentlyFailedActions = await ActionManager.fetchActions(
-        models,
-        transaction,
-        {
-          status: ActionStatus.FAILED,
-          updatedAt: last15Minutes,
-        },
-      )
+      const recentlyFailedActions = await ActionManager.fetchActions(models, null, {
+        status: ActionStatus.FAILED,
+        updatedAt: last15Minutes,
+      })
 
-      const recentlySuccessfulActions = await ActionManager.fetchActions(
-        models,
-        transaction,
-        {
-          status: ActionStatus.SUCCESS,
-          updatedAt: last15Minutes,
-        },
-      )
+      const recentlySuccessfulActions = await ActionManager.fetchActions(models, null, {
+        status: ActionStatus.SUCCESS,
+        updatedAt: last15Minutes,
+      })
 
       logger.trace('Recently attempted actions', {
         recentlySuccessfulActions,
@@ -234,7 +212,8 @@ export default {
         recentlySuccessfulActions,
       )
 
-      for (const action of actions) {
+      // Cast to NormalizedActionInput since we've already normalized protocolNetwork
+      for (const action of actions as NormalizedActionInput[]) {
         const result = await executeQueueOperation(
           logger,
           action,
@@ -369,28 +348,18 @@ export default {
     if (!actionManager) {
       throw Error('IndexerManagementClient must be in `network` mode to modify actions')
     }
-    const result: NetworkMapped<Action[]> = await actionManager.multiNetworks.map(
-      async (network: Network) => {
-        logger.debug(`Execute 'executeApprovedActions' mutation`, {
-          protocolNetwork: network.specification.networkIdentifier,
-        })
-        try {
-          return await actionManager.executeApprovedActions(network)
-        } catch (error) {
-          logger.error('Failed to execute approved actions for network', {
-            protocolNetwork: network.specification.networkIdentifier,
-            error,
-          })
-          return []
-        }
-      },
-    )
-    return Object.values(result).flat()
+    logger.debug(`Execute 'executeApprovedActions' mutation`)
+    try {
+      return await actionManager.executeApprovedActions()
+    } catch (error) {
+      logger.error('Failed to execute approved actions', { error })
+      return []
+    }
   },
 }
 
 // Helper function to assess equality among a enqueued and a proposed actions
-function compareActions(enqueued: Action, proposed: ActionInput): boolean {
+function compareActions(enqueued: Action, proposed: NormalizedActionInput): boolean {
   // actions are not the same if they target different protocol networks
   if (enqueued.protocolNetwork !== proposed.protocolNetwork) {
     return false

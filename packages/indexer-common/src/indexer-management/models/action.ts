@@ -35,6 +35,7 @@ export class Action extends Model<
   declare createdAt: CreationOptional<Date>
   declare updatedAt: CreationOptional<Date>
 
+  /** @deprecated LEGACY DEBT: Multi-network removed. See protocolNetwork field comment in defineActionModels. */
   declare protocolNetwork: string
 
   declare isLegacy: boolean
@@ -150,6 +151,10 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         allowNull: true,
         defaultValue: null,
       },
+      // LEGACY DEBT: Part of composite primary key for multi-network support.
+      // Multi-network has been removed but this field remains in the DB schema.
+      // Always populated with the single configured network. Can be removed in a future
+      // migration that changes the primary key structure.
       protocolNetwork: {
         type: DataTypes.STRING(50),
         primaryKey: true,

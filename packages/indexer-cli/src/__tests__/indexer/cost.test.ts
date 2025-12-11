@@ -4,7 +4,7 @@ import {
   connect,
   deleteFromAllTables,
   seedCostModels,
-  setupSingleNetwork,
+  setupNetwork,
 } from '../util'
 import path from 'path'
 
@@ -12,7 +12,7 @@ const baseDir = path.join(__dirname, '..')
 
 describe('Indexer cost tests', () => {
   describe('With indexer management server', () => {
-    beforeAll(setupSingleNetwork)
+    beforeAll(setupNetwork)
     afterAll(teardown)
     beforeEach(seedCostModels)
     afterEach(deleteFromAllTables)

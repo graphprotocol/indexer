@@ -711,7 +711,8 @@ describe.skip('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     const proposedAction = {
       status: ActionStatus.QUEUED,
@@ -722,7 +723,8 @@ describe.skip('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     await managementModels.Action.create(failedAction, {
       validate: true,
@@ -766,7 +768,8 @@ describe.skip('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     const proposedAction = {
       status: ActionStatus.QUEUED,
@@ -777,7 +780,8 @@ describe.skip('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     await managementModels.Action.create(successfulAction, {
       validate: true,
@@ -819,7 +823,8 @@ describe.skip('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     const queuedAllocateAction = {
       status: ActionStatus.QUEUED,
@@ -831,7 +836,8 @@ describe.skip('Actions', () => {
       reason: 'indexingRule',
       priority: 0,
       protocolNetwork: 'arbitrum-sepolia',
-    } as ActionInput
+      isLegacy: false,
+    }
 
     await managementModels.Action.create(queuedUnallocateAction, {
       validate: true,

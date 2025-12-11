@@ -29,8 +29,6 @@ import {
   GraphNode,
   Operator,
   validateProviderNetworkIdentifier,
-  MultiNetworks,
-  NetworkMapped,
   DeploymentManagementMode,
   SubgraphStatus,
   sequentialTimerMap,
@@ -40,14 +38,7 @@ import {
 import PQueue from 'p-queue'
 import pMap from 'p-map'
 import pFilter from 'p-filter'
-import zip from 'lodash.zip'
-import { AgentConfigs, NetworkAndOperator } from './types'
-
-type ActionReconciliationContext = [
-  AllocationDecision[],
-  number,
-  HorizonTransitionValue,
-]
+import { AgentConfigs } from './types'
 
 const deploymentInList = (
   list: SubgraphDeploymentID[],
@@ -128,65 +119,12 @@ export const convertSubgraphBasedRulesToDeploymentBased = (
   return rules
 }
 
-// Extracts the network identifier from a pair of matching Network and Operator objects.
-function networkAndOperatorIdentity({
-  network,
-  operator,
-}: NetworkAndOperator): string {
-  const networkId = network.specification.networkIdentifier
-  const operatorId = operator.specification.networkIdentifier
-  if (networkId !== operatorId) {
-    throw new Error(
-      `Network and Operator pairs have different network identifiers: ${networkId} != ${operatorId}`,
-    )
-  }
-  return networkId
-}
-
-// Helper function to produce a `MultiNetworks<NetworkAndOperator>` while validating its
-// inputs.
-function createMultiNetworks(
-  networks: Network[],
-  operators: Operator[],
-): MultiNetworks<NetworkAndOperator> {
-  // Validate that Networks and Operator arrays have even lengths and
-  // contain unique, matching network identifiers.
-  const visited = new Set()
-  const validInputs =
-    networks.length === operators.length &&
-    networks.every((network, index) => {
-      const sameIdentifier =
-        network.specification.networkIdentifier ===
-        operators[index].specification.networkIdentifier
-      if (!sameIdentifier) {
-        return false
-      }
-      if (visited.has(network.specification.networkIdentifier)) {
-        return false
-      }
-      visited.add(network.specification.networkIdentifier)
-      return true
-    })
-
-  if (!validInputs) {
-    throw new Error(
-      'Invalid Networks and Operator pairs used in Agent initialization',
-    )
-  }
-  // Note on undefineds: `lodash.zip` can return `undefined` if array lengths are
-  // uneven, but we have just checked that.
-  const networksAndOperators = zip(networks, operators).map(pair => {
-    const [network, operator] = pair
-    return { network: network!, operator: operator! }
-  })
-  return new MultiNetworks(networksAndOperators, networkAndOperatorIdentity)
-}
-
 export class Agent {
   logger: Logger
   metrics: Metrics
   graphNode: GraphNode
-  multiNetworks: MultiNetworks<NetworkAndOperator>
+  network: Network
+  operator: Operator
   indexerManagement: IndexerManagementClient
   offchainSubgraphs: SubgraphDeploymentID[]
   deploymentManagement: DeploymentManagementMode
@@ -197,10 +135,8 @@ export class Agent {
     this.metrics = configs.metrics
     this.graphNode = configs.graphNode
     this.indexerManagement = configs.indexerManagement
-    this.multiNetworks = createMultiNetworks(
-      configs.networks,
-      configs.operators,
-    )
+    this.network = configs.network
+    this.operator = configs.operator
     this.offchainSubgraphs = configs.offchainSubgraphs
     this.deploymentManagement = configs.deploymentManagement
     this.pollingInterval = configs.pollingInterval
@@ -226,24 +162,20 @@ export class Agent {
     // * Ensure NetworkSubgraph is indexing
     // * Register the Indexer in the Network
     // --------------------------------------------------------------------------------
-    await this.multiNetworks.map(
-      async ({ network, operator }: NetworkAndOperator) => {
-        try {
-          await operator.ensureGlobalIndexingRule()
-          await this.ensureAllSubgraphsIndexing(network)
-          await network.provision()
-          await network.register()
-        } catch (err) {
-          this.logger.critical(
-            `Failed to prepare indexer for ${network.specification.networkIdentifier}`,
-            {
-              error: err.message,
-            },
-          )
-          process.exit(1)
-        }
-      },
-    )
+    try {
+      await this.operator.ensureGlobalIndexingRule()
+      await this.ensureAllSubgraphsIndexing(this.network)
+      await this.network.provision()
+      await this.network.register()
+    } catch (err) {
+      this.logger.critical(
+        `Failed to prepare indexer for ${this.network.specification.networkIdentifier}`,
+        {
+          error: err.message,
+        },
+      )
+      process.exit(1)
+    }
 
     this.reconciliationLoop()
     return this
@@ -253,68 +185,65 @@ export class Agent {
     const requestIntervalSmall = this.pollingInterval
     const requestIntervalLarge = this.pollingInterval * 5
     const logger = this.logger.child({ component: 'ReconciliationLoop' })
-    const currentEpochNumber: Eventual<NetworkMapped<number>> =
+    const network = this.network
+    const operator = this.operator
+
+    const currentEpochNumber: Eventual<number> = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalLarge },
+      async () => {
+        logger.trace('Fetching current epoch number', {
+          protocolNetwork: network.specification.networkIdentifier,
+        })
+        return network.networkMonitor.currentEpochNumber()
+      },
+      {
+        onError: error =>
+          logger.warn(`Failed to fetch current epoch`, { error }),
+      },
+    )
+
+    const maxAllocationDuration: Eventual<HorizonTransitionValue> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalLarge },
-        async () =>
-          await this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching current epoch number', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.currentEpochNumber()
-          }),
-        {
-          onError: error =>
-            logger.warn(`Failed to fetch current epoch`, { error }),
-        },
-      )
-
-    const maxAllocationDuration: Eventual<
-      NetworkMapped<HorizonTransitionValue>
-    > = sequentialTimerMap(
-      { logger, milliseconds: requestIntervalLarge },
-      () =>
-        this.multiNetworks.map(({ network }) => {
+        () => {
           logger.trace('Fetching max allocation duration', {
             protocolNetwork: network.specification.networkIdentifier,
           })
           return network.networkMonitor.maxAllocationDuration()
-        }),
-      {
-        onError: error =>
-          logger.warn(`Failed to fetch max allocation duration`, { error }),
-      },
-    )
+        },
+        {
+          onError: error =>
+            logger.warn(`Failed to fetch max allocation duration`, { error }),
+        },
+      )
 
-    const indexingRules: Eventual<NetworkMapped<IndexingRuleAttributes[]>> =
+    const indexingRules: Eventual<IndexingRuleAttributes[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
         async () => {
-          return this.multiNetworks.map(async ({ network, operator }) => {
-            logger.trace('Fetching indexing rules', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            let rules = await operator.indexingRules(true)
-            const subgraphRuleIds = rules
-              .filter(
-                rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
-              )
-              .map(rule => rule.identifier!)
-            const subgraphsMatchingRules =
-              await network.networkMonitor.subgraphs(subgraphRuleIds)
-            if (subgraphsMatchingRules.length >= 1) {
-              const epochLength =
-                await network.contracts.EpochManager.epochLength()
-              const blockPeriod = 15
-              const bufferPeriod = Number(epochLength) * blockPeriod * 100 // 100 epochs
-              rules = convertSubgraphBasedRulesToDeploymentBased(
-                rules,
-                subgraphsMatchingRules,
-                bufferPeriod,
-              )
-            }
-            return rules
+          logger.trace('Fetching indexing rules', {
+            protocolNetwork: network.specification.networkIdentifier,
           })
+          let rules = await operator.indexingRules(true)
+          const subgraphRuleIds = rules
+            .filter(
+              rule => rule.identifierType == SubgraphIdentifierType.SUBGRAPH,
+            )
+            .map(rule => rule.identifier!)
+          const subgraphsMatchingRules =
+            await network.networkMonitor.subgraphs(subgraphRuleIds)
+          if (subgraphsMatchingRules.length >= 1) {
+            const epochLength =
+              await network.contracts.EpochManager.epochLength()
+            const blockPeriod = 15
+            const bufferPeriod = Number(epochLength) * blockPeriod * 100 // 100 epochs
+            rules = convertSubgraphBasedRulesToDeploymentBased(
+              rules,
+              subgraphsMatchingRules,
+              bufferPeriod,
+            )
+          }
+          return rules
         },
         {
           onError: error =>
@@ -351,16 +280,15 @@ export class Agent {
         },
       )
 
-    const networkDeployments: Eventual<NetworkMapped<SubgraphDeployment[]>> =
+    const networkDeployments: Eventual<SubgraphDeployment[]> =
       sequentialTimerMap(
         { logger, milliseconds: requestIntervalSmall },
-        async () =>
-          await this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching network deployments', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.subgraphDeployments()
-          }),
+        async () => {
+          logger.trace('Fetching network deployments', {
+            protocolNetwork: network.specification.networkIdentifier,
+          })
+          return network.networkMonitor.subgraphDeployments()
+        },
         {
           onError: error =>
             logger.warn(
@@ -370,52 +298,40 @@ export class Agent {
         },
       )
 
-    const networkDeploymentAllocationDecisions: Eventual<
-      NetworkMapped<AllocationDecision[]>
-    > = join({
-      networkDeployments,
-      indexingRules,
-    }).tryMap(
-      async ({ indexingRules, networkDeployments }) => {
-        return this.multiNetworks.mapNetworkMapped(
-          this.multiNetworks.zip(indexingRules, networkDeployments),
-          async (
-            { network }: NetworkAndOperator,
-            [indexingRules, networkDeployments]: [
-              IndexingRuleAttributes[],
-              SubgraphDeployment[],
-            ],
-          ) => {
-            // Skip evaluation entirely for networks in manual allocation mode
-            if (
-              network.specification.indexerOptions.allocationManagementMode ===
-              AllocationManagementMode.MANUAL
-            ) {
-              logger.trace(
-                `Skipping deployment evaluation since AllocationManagementMode = 'manual'`,
-                {
-                  protocolNetwork: network.specification.networkIdentifier,
-                },
-              )
-              return []
-            }
+    const networkDeploymentAllocationDecisions: Eventual<AllocationDecision[]> =
+      join({
+        networkDeployments,
+        indexingRules,
+      }).tryMap(
+        async ({ indexingRules, networkDeployments }) => {
+          // Skip evaluation entirely for networks in manual allocation mode
+          if (
+            network.specification.indexerOptions.allocationManagementMode ===
+            AllocationManagementMode.MANUAL
+          ) {
+            logger.trace(
+              `Skipping deployment evaluation since AllocationManagementMode = 'manual'`,
+              {
+                protocolNetwork: network.specification.networkIdentifier,
+              },
+            )
+            return []
+          }
 
-            // Identify subgraph deployments on the network that are worth picking up;
-            // these may overlap with the ones we're already indexing
-            logger.trace('Evaluating which deployments are worth allocating to')
-            return indexingRules.length === 0
-              ? []
-              : evaluateDeployments(logger, networkDeployments, indexingRules)
-          },
-        )
-      },
-      {
-        onError: error =>
-          logger.warn(`Failed to evaluate deployments, trying again later`, {
-            error,
-          }),
-      },
-    )
+          // Identify subgraph deployments on the network that are worth picking up;
+          // these may overlap with the ones we're already indexing
+          logger.trace('Evaluating which deployments are worth allocating to')
+          return indexingRules.length === 0
+            ? []
+            : evaluateDeployments(logger, networkDeployments, indexingRules)
+        },
+        {
+          onError: error =>
+            logger.warn(`Failed to evaluate deployments, trying again later`, {
+              error,
+            }),
+        },
+      )
 
     // let targetDeployments be an union of targetAllocations
     // and offchain subgraphs.
@@ -425,12 +341,14 @@ export class Agent {
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
         logger.trace('Resolving target deployments')
-        const targetDeploymentIDs: Set<SubgraphDeploymentID> =
-          consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
+        const targetDeploymentIDs: Set<SubgraphDeploymentID> = new Set(
+          networkDeploymentAllocationDecisions
+            .filter(decision => decision.toAllocate === true)
+            .map(decision => decision.deployment),
+        )
 
         // Add offchain subgraphs to the deployment list from rules
-        Object.values(indexingRules)
-          .flat()
+        indexingRules
           .filter(
             rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
           )
@@ -451,46 +369,13 @@ export class Agent {
       },
     )
 
-    const activeAllocations: Eventual<NetworkMapped<Allocation[]>> =
-      sequentialTimerMap(
-        { logger, milliseconds: requestIntervalSmall },
-        () =>
-          this.multiNetworks.map(({ network }) => {
-            logger.trace('Fetching active allocations', {
-              protocolNetwork: network.specification.networkIdentifier,
-            })
-            return network.networkMonitor.allocations(AllocationStatus.ACTIVE)
-          }),
-        {
-          onError: () =>
-            logger.warn(
-              `Failed to obtain active allocations, trying again later`,
-            ),
-        },
-      )
-
-    // `activeAllocations` is used to trigger this Eventual, but not really needed
-    // inside.
-    const recentlyClosedAllocations: Eventual<Allocation[]> = join({
-      activeAllocations,
-      currentEpochNumber,
-    }).tryMap(
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      async ({ activeAllocations: _, currentEpochNumber }) => {
-        const allocationsByNetwork = await this.multiNetworks.mapNetworkMapped(
-          currentEpochNumber,
-          async ({ network }, epochNumber): Promise<Allocation[]> => {
-            logger.trace('Fetching recently closed allocations', {
-              protocolNetwork: network.specification.networkIdentifier,
-              currentEpochNumber,
-            })
-            return network.networkMonitor.recentlyClosedAllocations(
-              epochNumber,
-              1,
-            )
-          },
-        )
-        return Object.values(allocationsByNetwork).flat()
+    const activeAllocations: Eventual<Allocation[]> = sequentialTimerMap(
+      { logger, milliseconds: requestIntervalSmall },
+      () => {
+        logger.trace('Fetching active allocations', {
+          protocolNetwork: network.specification.networkIdentifier,
+        })
+        return network.networkMonitor.allocations(AllocationStatus.ACTIVE)
       },
       {
         onError: () =>
@@ -500,26 +385,46 @@ export class Agent {
       },
     )
 
-    const disputableAllocations: Eventual<NetworkMapped<Allocation[]>> = join({
+    // `activeAllocations` is used to trigger this Eventual, but not really needed
+    // inside.
+    const recentlyClosedAllocations: Eventual<Allocation[]> = join({
+      activeAllocations,
+      currentEpochNumber,
+    }).tryMap(
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      async ({ activeAllocations: _, currentEpochNumber }) => {
+        logger.trace('Fetching recently closed allocations', {
+          protocolNetwork: network.specification.networkIdentifier,
+          currentEpochNumber,
+        })
+        return network.networkMonitor.recentlyClosedAllocations(
+          currentEpochNumber,
+          1,
+        )
+      },
+      {
+        onError: () =>
+          logger.warn(
+            `Failed to obtain active allocations, trying again later`,
+          ),
+      },
+    )
+
+    const disputableAllocations: Eventual<Allocation[]> = join({
       currentEpochNumber,
       activeDeployments,
     }).tryMap(
-      async ({ currentEpochNumber, activeDeployments }) =>
-        this.multiNetworks.mapNetworkMapped(
+      async ({ currentEpochNumber, activeDeployments }) => {
+        logger.trace('Fetching disputable allocations', {
+          protocolNetwork: network.specification.networkIdentifier,
           currentEpochNumber,
-          ({ network }: NetworkAndOperator, currentEpochNumber: number) => {
-            logger.trace('Fetching disputable allocations', {
-              protocolNetwork: network.specification.networkIdentifier,
-              currentEpochNumber,
-            })
-            return network.networkMonitor.disputableAllocations(
-              currentEpochNumber,
-              activeDeployments,
-              0,
-            )
-          },
-        ),
-
+        })
+        return network.networkMonitor.disputableAllocations(
+          currentEpochNumber,
+          activeDeployments,
+          0,
+        )
+      },
       {
         onError: () =>
           logger.warn(
@@ -554,31 +459,16 @@ export class Agent {
         })
 
         try {
-          const disputableEpochs = await this.multiNetworks.mapNetworkMapped(
-            currentEpochNumber,
-            async (
-              { network }: NetworkAndOperator,
-              currentEpochNumber: number,
-            ) =>
-              currentEpochNumber -
-              (network.specification.indexerOptions
-                .poiDisputableEpochs as number),
-          )
+          const disputableEpoch =
+            currentEpochNumber -
+            (network.specification.indexerOptions.poiDisputableEpochs as number)
 
           // Find disputable allocations
-          await this.multiNetworks.mapNetworkMapped(
-            this.multiNetworks.zip(disputableEpochs, disputableAllocations),
-            async (
-              { network, operator }: NetworkAndOperator,
-              [disputableEpoch, disputableAllocations]: [number, Allocation[]],
-            ): Promise<void> => {
-              await this.identifyPotentialDisputes(
-                disputableAllocations,
-                disputableEpoch,
-                operator,
-                network,
-              )
-            },
+          await this.identifyPotentialDisputes(
+            disputableAllocations,
+            disputableEpoch,
+            operator,
+            network,
           )
         } catch (err) {
           logger.warn(`Failed POI dispute monitoring`, { err })
@@ -586,7 +476,7 @@ export class Agent {
 
         const eligibleAllocations: Allocation[] = [
           ...recentlyClosedAllocations,
-          ...Object.values(activeAllocations).flat(),
+          ...activeAllocations,
         ]
 
         // Reconcile deployments
@@ -783,8 +673,6 @@ export class Agent {
     })
   }
 
-  // This function assumes that allocations and deployments passed to it have already
-  // been retrieved from multiple networks.
   async reconcileDeployments(
     activeDeployments: SubgraphDeploymentID[],
     targetDeployments: SubgraphDeploymentID[],
@@ -796,15 +684,13 @@ export class Agent {
     // Ensure the network subgraph deployment is _always_ indexed
     // ----------------------------------------------------------------------------------------
     let indexingNetworkSubgraph = false
-    await this.multiNetworks.map(async ({ network }) => {
-      if (network.networkSubgraph.deployment) {
-        const networkDeploymentID = network.networkSubgraph.deployment.id
-        if (!deploymentInList(targetDeployments, networkDeploymentID)) {
-          targetDeployments.push(networkDeploymentID)
-          indexingNetworkSubgraph = true
-        }
+    if (this.network.networkSubgraph.deployment) {
+      const networkDeploymentID = this.network.networkSubgraph.deployment.id
+      if (!deploymentInList(targetDeployments, networkDeploymentID)) {
+        targetDeployments.push(networkDeploymentID)
+        indexingNetworkSubgraph = true
       }
-    })
+    }
 
     // ----------------------------------------------------------------------------------------
     // Inspect Deployments and Networks
@@ -924,17 +810,9 @@ export class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          if (allocation.isLegacy) {
-            const onChainAllocation =
-              await network.contracts.LegacyStaking.getAllocation(allocation.id)
-            return onChainAllocation.closedAtEpoch == 0n
-          } else {
-            const onChainAllocation =
-              await network.contracts.SubgraphService.getAllocation(
-                allocation.id,
-              )
-            return onChainAllocation.closedAt == 0n
-          }
+          const onChainAllocation =
+            await network.contracts.SubgraphService.getAllocation(allocation.id)
+          return onChainAllocation.closedAt == 0n
         } catch (err) {
           this.logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
@@ -1051,115 +929,92 @@ export class Agent {
   }
 
   async reconcileActions(
-    networkDeploymentAllocationDecisions: NetworkMapped<AllocationDecision[]>,
-    epoch: NetworkMapped<number>,
-    maxAllocationDuration: NetworkMapped<HorizonTransitionValue>,
+    allocationDecisions: AllocationDecision[],
+    epoch: number,
+    maxAllocationDuration: HorizonTransitionValue,
   ): Promise<void> {
+    const network = this.network
+    const operator = this.operator
+
     // --------------------------------------------------------------------------------
     // Filter out networks set to `manual` allocation management mode, and ensure the
     // Network Subgraph is NEVER allocated towards
     // --------------------------------------------------------------------------------
-    const validatedAllocationDecisions =
-      await this.multiNetworks.mapNetworkMapped(
-        networkDeploymentAllocationDecisions,
-        async (
-          { network }: NetworkAndOperator,
-          allocationDecisions: AllocationDecision[],
-        ) => {
-          if (
-            network.specification.indexerOptions.allocationManagementMode ===
-            AllocationManagementMode.MANUAL
-          ) {
-            this.logger.trace(
-              `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
-              {
-                protocolNetwork: network.specification.networkIdentifier,
-                targetDeployments: allocationDecisions
-                  .filter(decision => decision.toAllocate)
-                  .map(decision => decision.deployment.ipfsHash),
-              },
-            )
-            return [] as AllocationDecision[]
-          }
-          const networkSubgraphDeployment = network.networkSubgraph.deployment
-          if (
-            networkSubgraphDeployment &&
-            !network.specification.indexerOptions.allocateOnNetworkSubgraph
-          ) {
-            const networkSubgraphIndex = allocationDecisions.findIndex(
-              decision =>
-                decision.deployment.bytes32 ==
-                networkSubgraphDeployment.id.bytes32,
-            )
-            if (networkSubgraphIndex >= 0) {
-              allocationDecisions[networkSubgraphIndex].toAllocate = false
-            }
-          }
-          return allocationDecisions
-        },
-      )
-
-    //----------------------------------------------------------------------------------------
-    // For every network, loop through all deployments and queue allocation actions if needed
-    //----------------------------------------------------------------------------------------
-    await this.multiNetworks.mapNetworkMapped(
-      this.multiNetworks.zip3(
-        validatedAllocationDecisions,
-        epoch,
-        maxAllocationDuration,
-      ),
-      async (
-        { network, operator }: NetworkAndOperator,
-        [
-          allocationDecisions,
-          epoch,
-          maxAllocationDuration,
-        ]: ActionReconciliationContext,
-      ) => {
-        // Do nothing if there are already approved actions in the queue awaiting execution
-        const approvedActions = await operator.fetchActions({
-          status: ActionStatus.APPROVED,
+    if (
+      network.specification.indexerOptions.allocationManagementMode ===
+      AllocationManagementMode.MANUAL
+    ) {
+      this.logger.trace(
+        `Skipping allocation reconciliation since AllocationManagementMode = 'manual'`,
+        {
           protocolNetwork: network.specification.networkIdentifier,
-        })
-        if (approvedActions.length > 0) {
-          this.logger.info(
-            `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
-            { protocolNetwork: network.specification.networkIdentifier },
-          )
-          return
-        }
-
-        // Accuracy check: re-fetch allocations to ensure that we have a fresh state since the
-        // start of the reconciliation loop. This means we don't use the allocations coming from
-        // the Eventual input.
-        const activeAllocations: Allocation[] =
-          await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
-
-        this.logger.trace(`Reconcile allocation actions`, {
-          protocolNetwork: network.specification.networkIdentifier,
-          epoch,
-          maxAllocationDuration,
           targetDeployments: allocationDecisions
             .filter(decision => decision.toAllocate)
             .map(decision => decision.deployment.ipfsHash),
-          activeAllocations: activeAllocations.map(allocation => ({
-            id: allocation.id,
-            deployment: allocation.subgraphDeployment.id.ipfsHash,
-            createdAtEpoch: allocation.createdAtEpoch,
-          })),
-        })
+        },
+      )
+      return
+    }
 
-        return pMap(allocationDecisions, async decision =>
-          this.reconcileDeploymentAllocationAction(
-            decision,
-            activeAllocations,
-            epoch,
-            maxAllocationDuration,
-            network,
-            operator,
-          ),
-        )
-      },
+    const networkSubgraphDeployment = network.networkSubgraph.deployment
+    if (
+      networkSubgraphDeployment &&
+      !network.specification.indexerOptions.allocateOnNetworkSubgraph
+    ) {
+      const networkSubgraphIndex = allocationDecisions.findIndex(
+        decision =>
+          decision.deployment.bytes32 == networkSubgraphDeployment.id.bytes32,
+      )
+      if (networkSubgraphIndex >= 0) {
+        allocationDecisions[networkSubgraphIndex].toAllocate = false
+      }
+    }
+
+    //----------------------------------------------------------------------------------------
+    // Loop through all deployments and queue allocation actions if needed
+    //----------------------------------------------------------------------------------------
+    // Do nothing if there are already approved actions in the queue awaiting execution
+    const approvedActions = await operator.fetchActions({
+      status: ActionStatus.APPROVED,
+      protocolNetwork: network.specification.networkIdentifier,
+    })
+    if (approvedActions.length > 0) {
+      this.logger.info(
+        `There are ${approvedActions.length} approved actions awaiting execution, will reconcile with the network once they are executed`,
+        { protocolNetwork: network.specification.networkIdentifier },
+      )
+      return
+    }
+
+    // Accuracy check: re-fetch allocations to ensure that we have a fresh state since the
+    // start of the reconciliation loop. This means we don't use the allocations coming from
+    // the Eventual input.
+    const activeAllocations: Allocation[] =
+      await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
+
+    this.logger.trace(`Reconcile allocation actions`, {
+      protocolNetwork: network.specification.networkIdentifier,
+      epoch,
+      maxAllocationDuration,
+      targetDeployments: allocationDecisions
+        .filter(decision => decision.toAllocate)
+        .map(decision => decision.deployment.ipfsHash),
+      activeAllocations: activeAllocations.map(allocation => ({
+        id: allocation.id,
+        deployment: allocation.subgraphDeployment.id.ipfsHash,
+        createdAtEpoch: allocation.createdAtEpoch,
+      })),
+    })
+
+    await pMap(allocationDecisions, async decision =>
+      this.reconcileDeploymentAllocationAction(
+        decision,
+        activeAllocations,
+        epoch,
+        maxAllocationDuration,
+        network,
+        operator,
+      ),
     )
   }
 
@@ -1215,19 +1070,4 @@ export class Agent {
       )
     }
   }
-}
-
-export interface AllocationDecisionInterface {
-  toAllocate: boolean
-  deployment: SubgraphDeploymentID
-}
-export function consolidateAllocationDecisions(
-  allocationDecisions: Record<string, AllocationDecisionInterface[]>,
-): Set<SubgraphDeploymentID> {
-  return new Set(
-    Object.values(allocationDecisions)
-      .flat()
-      .filter(decision => decision.toAllocate === true)
-      .map(decision => decision.deployment),
-  )
 }

@@ -126,3 +126,4 @@ tap-contracts.json
 config/config.yaml
 
 commit-changes.sh
+**/.claude

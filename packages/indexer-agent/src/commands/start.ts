@@ -19,7 +19,6 @@ import {
   GraphNode,
   indexerError,
   IndexerErrorCode,
-  MultiNetworks,
   Network,
   Operator,
   registerIndexerErrorMetrics,
@@ -622,10 +621,8 @@ export async function run(
   // --------------------------------------------------------------------------------
   // * Indexer Management (GraphQL) Server
   // --------------------------------------------------------------------------------
-  const multiNetworks = new MultiNetworks(
-    networks,
-    (n: Network) => n.specification.networkIdentifier,
-  )
+  // Single network mode: use the first (and only) network
+  const network = networks[0]
 
   const indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
@@ -638,7 +635,7 @@ export async function run(
         parallelAllocations: 1,
       },
     },
-    multiNetworks,
+    network,
   })
 
   // --------------------------------------------------------------------------------
@@ -661,9 +658,8 @@ export async function run(
 
   await createSyncingServer({
     logger,
-    networkSubgraphs: await multiNetworks.map(
-      async network => network.networkSubgraph,
-    ),
+    networkSubgraph: network.networkSubgraph,
+    networkIdentifier: network.specification.networkIdentifier,
     port: argv.syncingPort,
   })
   logger.info(`Successfully launched syncing server`)
@@ -671,10 +667,10 @@ export async function run(
   // --------------------------------------------------------------------------------
   // * Operator
   // --------------------------------------------------------------------------------
-  const operators: Operator[] = await pMap(
-    networkSpecifications,
-    async (spec: NetworkSpecification) =>
-      new Operator(logger, indexerManagementClient, spec),
+  const operator = new Operator(
+    logger,
+    indexerManagementClient,
+    network.specification,
   )
 
   // --------------------------------------------------------------------------------
@@ -684,9 +680,9 @@ export async function run(
     logger,
     metrics,
     graphNode,
-    operators,
+    operator,
     indexerManagement: indexerManagementClient,
-    networks,
+    network,
     deploymentManagement: argv.deploymentManagement,
     offchainSubgraphs: argv.offchainSubgraphs.map(
       (s: string) => new SubgraphDeploymentID(s),

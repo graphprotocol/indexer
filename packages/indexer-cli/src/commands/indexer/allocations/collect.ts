@@ -52,7 +52,7 @@ module.exports = {
 
     spinner.text = `Collecting receipts for allocation '${id}`
     try {
-      const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
+      const protocolNetwork = extractProtocolNetworkOption(parameters.options)
 
       if (!protocolNetwork) {
         throw new Error(

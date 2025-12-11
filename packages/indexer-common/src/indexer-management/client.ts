@@ -14,12 +14,7 @@ import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import provisionResolvers from './resolvers/provisions'
 import { GraphNode } from '../graph-node'
-import {
-  ActionManager,
-  MultiNetworks,
-  Network,
-  RulesManager,
-} from '@graphprotocol/indexer-common'
+import { ActionManager, Network, RulesManager } from '@graphprotocol/indexer-common'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -28,7 +23,7 @@ export interface IndexerManagementResolverContext {
   defaults: IndexerManagementDefaults
   actionManager: ActionManager | undefined
   rulesManager: RulesManager | undefined
-  multiNetworks: MultiNetworks<Network> | undefined
+  network: Network | undefined
 }
 
 const SCHEMA_SDL = gql`
@@ -157,7 +152,7 @@ const SCHEMA_SDL = gql`
     source: String!
     reason: String!
     priority: Int!
-    protocolNetwork: String!
+    protocolNetwork: String
     isLegacy: Boolean!
   }
 
@@ -226,7 +221,7 @@ const SCHEMA_SDL = gql`
 
   input POIDisputeIdentifier {
     allocationID: String!
-    protocolNetwork: String!
+    protocolNetwork: String
   }
 
   type POIDispute {
@@ -260,7 +255,7 @@ const SCHEMA_SDL = gql`
     previousEpochStartBlockNumber: Int!
     previousEpochReferenceProof: String
     status: String!
-    protocolNetwork: String!
+    protocolNetwork: String
   }
 
   type IndexingRule {
@@ -298,12 +293,12 @@ const SCHEMA_SDL = gql`
     decisionBasis: IndexingDecisionBasis
     requireSupported: Boolean
     safety: Boolean
-    protocolNetwork: String!
+    protocolNetwork: String
   }
 
   input IndexingRuleIdentifier {
     identifier: String!
-    protocolNetwork: String!
+    protocolNetwork: String
   }
 
   type GeoLocation {
@@ -445,9 +440,9 @@ const SCHEMA_SDL = gql`
       merged: Boolean! = false
     ): IndexingRule
     indexingRules(merged: Boolean! = false, protocolNetwork: String): [IndexingRule!]!
-    indexerRegistration(protocolNetwork: String!): [IndexerRegistration]!
+    indexerRegistration(protocolNetwork: String): [IndexerRegistration]!
     indexerDeployments: [IndexerDeployment]!
-    indexerAllocations(protocolNetwork: String!): [IndexerAllocation]!
+    indexerAllocations(protocolNetwork: String): [IndexerAllocation]!
     indexerEndpoints(protocolNetwork: String): [IndexerEndpoints!]!
 
     costModels(deployments: [String!]): [CostModel!]!
@@ -471,8 +466,8 @@ const SCHEMA_SDL = gql`
       first: Int
     ): [Action]!
 
-    provisions(protocolNetwork: String!): [Provision!]!
-    thawRequests(protocolNetwork: String!): [ThawRequest!]!
+    provisions(protocolNetwork: String): [Provision!]!
+    thawRequests(protocolNetwork: String): [ThawRequest!]!
   }
 
   type Mutation {
@@ -490,7 +485,7 @@ const SCHEMA_SDL = gql`
       deployment: String!
       amount: String!
       indexNode: String
-      protocolNetwork: String!
+      protocolNetwork: String
     ): CreateAllocationResult!
     closeAllocation(
       allocation: String!
@@ -498,7 +493,7 @@ const SCHEMA_SDL = gql`
       blockNumber: Int
       publicPOI: String
       force: Boolean
-      protocolNetwork: String!
+      protocolNetwork: String
     ): CloseAllocationResult!
     reallocateAllocation(
       allocation: String!
@@ -507,9 +502,9 @@ const SCHEMA_SDL = gql`
       publicPOI: String
       amount: String!
       force: Boolean
-      protocolNetwork: String!
+      protocolNetwork: String
     ): ReallocateAllocationResult!
-    submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
+    submitCollectReceiptsJob(allocation: String!, protocolNetwork: String): Boolean!
 
     updateAction(action: ActionInput!): Action!
     updateActions(filter: ActionFilter!, action: ActionUpdateInput!): [Action]!
@@ -519,9 +514,9 @@ const SCHEMA_SDL = gql`
     approveActions(actionIDs: [String!]!): [Action]!
     executeApprovedActions: [ActionResult!]!
 
-    addToProvision(protocolNetwork: String!, amount: String!): AddToProvisionResult!
-    thawFromProvision(protocolNetwork: String!, amount: String!): ThawFromProvisionResult!
-    removeFromProvision(protocolNetwork: String!): RemoveFromProvisionResult!
+    addToProvision(protocolNetwork: String, amount: String!): AddToProvisionResult!
+    thawFromProvision(protocolNetwork: String, amount: String!): ThawFromProvisionResult!
+    removeFromProvision(protocolNetwork: String): RemoveFromProvisionResult!
   }
 `
 
@@ -536,7 +531,7 @@ export interface IndexerManagementClientOptions {
   logger: Logger
   models: IndexerManagementModels
   graphNode: GraphNode
-  multiNetworks: MultiNetworks<Network> | undefined
+  network: Network | undefined
   defaults: IndexerManagementDefaults
 }
 
@@ -552,12 +547,10 @@ export class IndexerManagementClient extends Client {
   }
 }
 
-// TODO:L2: Put the IndexerManagementClient creation inside the Agent, and receive
-// MultiNetworks from it
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, graphNode, logger, defaults, multiNetworks } = options
+  const { models, graphNode, logger, defaults, network } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -569,12 +562,12 @@ export const createIndexerManagementClient = async (
     ...provisionResolvers,
   }
 
-  const actionManager = multiNetworks
-    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+  const actionManager = network
+    ? await ActionManager.create(network, logger, models, graphNode)
     : undefined
 
-  const rulesManager = multiNetworks
-    ? await RulesManager.create(multiNetworks, logger, models)
+  const rulesManager = network
+    ? await RulesManager.create(network, logger, models)
     : undefined
 
   const context: IndexerManagementResolverContext = {
@@ -582,7 +575,7 @@ export const createIndexerManagementClient = async (
     graphNode,
     defaults,
     logger: logger.child({ component: 'IndexerManagementClient' }),
-    multiNetworks,
+    network,
     actionManager,
     rulesManager,
   }

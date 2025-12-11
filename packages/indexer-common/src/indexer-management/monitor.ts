@@ -71,37 +71,24 @@ export class NetworkMonitor {
   // To simplify the agent logic, this function converts horizon allocation values, returning epoch values
   // regardless of the allocation type.
   async maxAllocationDuration(): Promise<HorizonTransitionValue> {
-    const isHorizon = await this.isHorizon()
+    // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
+    const BLOCK_IN_SECONDS = 12n
+    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+    const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
 
-    if (isHorizon) {
-      // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
-      const BLOCK_IN_SECONDS = 12n
-      const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
-      const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+    // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
+    // incurs in a severe penalty (missing out on indexing rewards)
+    const horizonDurationInSeconds = Number(
+      await this.contracts.SubgraphService.maxPOIStaleness(),
+    )
+    const horizonDurationInEpochs = Math.max(
+      1,
+      Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
+    )
 
-      // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
-      // incurs in a severe penalty (missing out on indexing rewards)
-      const horizonDurationInSeconds = Number(
-        await this.contracts.SubgraphService.maxPOIStaleness(),
-      )
-      const horizonDurationInEpochs = Math.max(
-        1,
-        Math.floor(horizonDurationInSeconds / epochLengthInSeconds) - 1,
-      )
-
-      return {
-        // Hardcoded to the latest known value. This is required to check for legacy allo expiration during the transition period.
-        // - Arbitrum One: 28
-        // - Arbitrum Sepolia: 8
-        // - Local Network: 4
-        legacy: 28,
-        horizon: horizonDurationInEpochs,
-      }
-    } else {
-      return {
-        legacy: Number(await this.contracts.LegacyStaking.maxAllocationEpochs()),
-        horizon: 0,
-      }
+    return {
+      legacy: 0,
+      horizon: horizonDurationInEpochs,
     }
   }
 
@@ -109,42 +96,27 @@ export class NetworkMonitor {
    * Returns the amount of free stake for the indexer.
    *
    * The free stake is the amount of tokens that the indexer can use to stake in
-   * new allocations.
-   *
-   * Horizon: It's calculated as the difference between the tokens
-   * available in the provision and the tokens already locked allocations.
-   *
-   * Legacy: It's given by the indexer's stake capacity.
+   * new allocations. It's calculated as the difference between the tokens
+   * available in the provision and the tokens already locked in allocations.
    *
    * @returns The amount of free stake for the indexer.
    */
   async freeStake(): Promise<HorizonTransitionValue<bigint, bigint>> {
-    const isHorizon = await this.isHorizon()
+    const address = this.indexerOptions.address
+    const dataService = this.contracts.SubgraphService.target.toString()
+    const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
+    const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
+      address,
+      dataService,
+      delegationRatio,
+    )
+    const lockedStake =
+      await this.contracts.SubgraphService.allocationProvisionTracker(address)
+    const freeStake = tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
 
-    if (isHorizon) {
-      const address = this.indexerOptions.address
-      const dataService = this.contracts.SubgraphService.target.toString()
-      const delegationRatio = await this.contracts.SubgraphService.getDelegationRatio()
-      const tokensAvailable = await this.contracts.HorizonStaking.getTokensAvailable(
-        address,
-        dataService,
-        delegationRatio,
-      )
-      const lockedStake =
-        await this.contracts.SubgraphService.allocationProvisionTracker(address)
-      const freeStake = tokensAvailable > lockedStake ? tokensAvailable - lockedStake : 0n
-
-      return {
-        legacy: 0n, // In horizon new legacy allocations cannot be created so we return 0
-        horizon: freeStake,
-      }
-    } else {
-      return {
-        legacy: await this.contracts.LegacyStaking.getIndexerCapacity(
-          this.indexerOptions.address,
-        ),
-        horizon: 0n,
-      }
+    return {
+      legacy: 0n,
+      horizon: freeStake,
     }
   }
 
@@ -1394,18 +1366,11 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
   }
 
   private async isOperator(operatorAddress: string, indexerAddress: string) {
-    if (await this.isHorizon()) {
-      return await this.contracts.HorizonStaking.isAuthorized(
-        indexerAddress,
-        this.contracts.SubgraphService.target,
-        operatorAddress,
-      )
-    } else {
-      return await this.contracts.LegacyStaking.isOperator(
-        operatorAddress,
-        indexerAddress,
-      )
-    }
+    return await this.contracts.HorizonStaking.isAuthorized(
+      indexerAddress,
+      this.contracts.SubgraphService.target,
+      operatorAddress,
+    )
   }
 
   // Returns a tuple of [POI, blockNumber]

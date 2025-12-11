@@ -4,7 +4,7 @@ import {
   teardown,
   deleteFromAllTables,
   seedIndexingRules,
-  setupMultiNetworks,
+  setupNetwork,
 } from '../util'
 import path from 'path'
 
@@ -12,7 +12,7 @@ const baseDir = path.join(__dirname, '..')
 
 describe('Indexer rules tests', () => {
   describe('With indexer management server', () => {
-    beforeAll(setupMultiNetworks)
+    beforeAll(setupNetwork)
     afterAll(teardown)
     beforeEach(seedIndexingRules)
     afterEach(deleteFromAllTables)
@@ -58,9 +58,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules start - no network',
+        'Indexer rules start - no identifier',
         ['indexer', 'rules', 'start'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -125,9 +125,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules prepare - no network',
+        'Indexer rules prepare - no identifier',
         ['indexer', 'rules', 'prepare'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -175,9 +175,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules stop - no network',
+        'Indexer rules stop - no identifier',
         ['indexer', 'rules', 'stop'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -225,9 +225,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules maybe - no network',
+        'Indexer rules maybe - no identifier',
         ['indexer', 'rules', 'maybe'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -275,9 +275,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules clear - no network',
+        'Indexer rules clear - no identifier',
         ['indexer', 'rules', 'clear'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -342,9 +342,9 @@ describe('Indexer rules tests', () => {
         },
       )
       cliTest(
-        'Indexer rules delete - no network',
+        'Indexer rules delete - no identifier',
         ['indexer', 'rules', 'delete'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,
@@ -520,7 +520,7 @@ describe('Indexer rules tests', () => {
       cliTest(
         'Indexer rules set - no args',
         ['indexer', 'rules', 'set'],
-        'references/indexer-rules-no-network',
+        'references/indexer-rules-no-identifier',
         {
           expectedExitCode: 1,
           cwd: baseDir,

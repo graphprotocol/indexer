@@ -18,7 +18,6 @@ import {
   specification,
   QueryFeeModels,
   defineQueryFeeModels,
-  MultiNetworks,
   loadTestYamlConfig,
 } from '@graphprotocol/indexer-common'
 import { Sequelize } from 'sequelize'
@@ -153,11 +152,6 @@ const setup = async () => {
     metrics,
   )
 
-  const multiNetworks = new MultiNetworks(
-    [network],
-    (n: Network) => n.specification.networkIdentifier,
-  )
-
   indexerManagementClient = await createIndexerManagementClient({
     models,
     graphNode,
@@ -168,7 +162,7 @@ const setup = async () => {
         parallelAllocations: 1,
       },
     },
-    multiNetworks,
+    network,
   })
 
   operator = new Operator(logger, indexerManagementClient, networkSpecification)

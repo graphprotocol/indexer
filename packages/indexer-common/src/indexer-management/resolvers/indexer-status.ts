@@ -4,13 +4,8 @@ import geohash from 'ngeohash'
 import gql from 'graphql-tag'
 import { IndexerManagementResolverContext } from '../client'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import {
-  indexerError,
-  IndexerErrorCode,
-  Network,
-  validateNetworkIdentifier,
-} from '@graphprotocol/indexer-common'
-import { extractNetwork } from './utils'
+import { indexerError, IndexerErrorCode, Network } from '@graphprotocol/indexer-common'
+import { getNetwork } from './utils'
 interface Test {
   test: (url: string) => string
   run: (url: string) => Promise<void>
@@ -62,56 +57,29 @@ const URL_VALIDATION_TEST: Test = {
 
 export default {
   indexerRegistration: async (
-    { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    {
+      protocolNetwork: unvalidatedProtocolNetwork,
+    }: { protocolNetwork: string | undefined },
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch indexer registration information',
-      )
-    }
-
-    const network = extractNetwork(unvalidatedProtocolNetwork, multiNetworks)
+    const network = getNetwork(context, unvalidatedProtocolNetwork)
     const protocolNetwork = network.specification.networkIdentifier
     const address = network.specification.indexerOptions.address
     const contracts = network.contracts
 
     const registrationInfo: RegistrationInfo[] = []
 
-    // Check if the indexer is registered in the legacy service registry
-    try {
-      const registered = await contracts.LegacyServiceRegistry.isRegistered(address)
-      if (registered) {
-        const service = await contracts.LegacyServiceRegistry.services(address)
-        registrationInfo.push({
-          address,
-          protocolNetwork,
-          url: service.url,
-          location: geohash.decode(service.geoHash),
-          registered,
-          isLegacy: true,
-          __typename: 'IndexerRegistration',
-        })
-      }
-    } catch (e) {
-      logger?.debug(
-        `Could not get legacy service registration for indexer. It's likely that the legacy protocol is not reachable.`,
-      )
-    }
-
-    if (await network.isHorizon.value()) {
-      const service = await contracts.SubgraphService.indexers(address)
-      if (service.url.length > 0) {
-        registrationInfo.push({
-          address,
-          protocolNetwork,
-          url: service.url,
-          location: geohash.decode(service.geoHash),
-          registered: true,
-          isLegacy: false,
-          __typename: 'IndexerRegistration',
-        })
-      }
+    const service = await contracts.SubgraphService.indexers(address)
+    if (service.url.length > 0) {
+      registrationInfo.push({
+        address,
+        protocolNetwork,
+        url: service.url,
+        location: geohash.decode(service.geoHash),
+        registered: true,
+        isLegacy: false,
+        __typename: 'IndexerRegistration',
+      })
     }
 
     if (registrationInfo.length === 0) {
@@ -141,16 +109,11 @@ export default {
   },
 
   indexerAllocations: async (
-    { protocolNetwork }: { protocolNetwork: string },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    { protocolNetwork: providedProtocolNetwork }: { protocolNetwork: string | undefined },
+    context: IndexerManagementResolverContext,
   ): Promise<object | null> => {
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch indexer allocations',
-      )
-    }
-
-    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const { logger } = context
+    const network = getNetwork(context, providedProtocolNetwork)
     const address = network.specification.indexerOptions.address
 
     try {
@@ -218,59 +181,23 @@ export default {
 
   indexerEndpoints: async (
     { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string | null },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    context: IndexerManagementResolverContext,
   ): Promise<Endpoints[] | null> => {
-    if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch indexer endpoints',
-      )
-    }
+    const { logger } = context
     const endpoints: Endpoints[] = []
-    let networkIdentifier: string | null = null
 
-    // Validate protocol network
+    // Get the network - uses context network if not provided
+    const network = getNetwork(context, unvalidatedProtocolNetwork)
     try {
-      if (unvalidatedProtocolNetwork) {
-        networkIdentifier = validateNetworkIdentifier(unvalidatedProtocolNetwork)
-      }
-    } catch (parseError) {
-      throw new Error(
-        `Invalid protocol network identifier: '${unvalidatedProtocolNetwork}'. Error: ${parseError}`,
-      )
+      const networkEndpoints = await endpointForNetwork(network)
+      endpoints.push(networkEndpoints)
+    } catch (err) {
+      // Ignore endpoints for this network
+      logger?.warn(`Failed to detect service endpoints for network`, {
+        err,
+        protocolNetwork: network.specification.networkIdentifier,
+      })
     }
-
-    await multiNetworks.map(async (network: Network) => {
-      // Skip if this query asks for another protocol network
-      if (
-        networkIdentifier &&
-        networkIdentifier !== network.specification.networkIdentifier
-      ) {
-        return
-      }
-      try {
-        // Always try to get legacy endpoints, but fail gracefully if they don't exist
-        try {
-          const networkEndpoints = await endpointForNetwork(network, false)
-          endpoints.push(networkEndpoints)
-        } catch (e) {
-          logger?.debug(
-            `Could not get legacy service endpoints for network. It's likely that the legacy protocol is not reachable.`,
-          )
-        }
-
-        // Only get horizon endpoints when horizon is enabled
-        if (await network.isHorizon.value()) {
-          const networkEndpoints = await endpointForNetwork(network, true)
-          endpoints.push(networkEndpoints)
-        }
-      } catch (err) {
-        // Ignore endpoints for this network
-        logger?.warn(`Failed to detect service endpoints for network`, {
-          err,
-          protocolNetwork: network.specification.networkIdentifier,
-        })
-      }
-    })
     return endpoints
   },
 }
@@ -329,16 +256,11 @@ function defaultEndpoints(protocolNetwork: string, isHorizon: boolean): Endpoint
   }
 }
 
-async function endpointForNetwork(
-  network: Network,
-  isHorizon: boolean,
-): Promise<Endpoints> {
+async function endpointForNetwork(network: Network): Promise<Endpoints> {
   const contracts = network.contracts
   const address = network.specification.indexerOptions.address
-  const endpoints = defaultEndpoints(network.specification.networkIdentifier, isHorizon)
-  const service = isHorizon
-    ? await contracts.SubgraphService.indexers(address)
-    : await contracts.LegacyServiceRegistry.services(address)
+  const endpoints = defaultEndpoints(network.specification.networkIdentifier, true)
+  const service = await contracts.SubgraphService.indexers(address)
   if (service) {
     {
       const { url, tests, ok } = await testURL(service.url, [

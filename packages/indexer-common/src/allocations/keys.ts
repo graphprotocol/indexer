@@ -90,19 +90,6 @@ export const uniqueAllocationID = (
   throw new Error(`Exhausted limit of 100 parallel allocations`)
 }
 
-export const legacyAllocationIdProof = (
-  signer: Signer,
-  indexerAddress: string,
-  allocationId: string,
-): Promise<string> => {
-  const messageHash = solidityPackedKeccak256(
-    ['address', 'address'],
-    [indexerAddress, allocationId],
-  )
-  const messageHashBytes = getBytes(messageHash)
-  return signer.signMessage(messageHashBytes)
-}
-
 export const EIP712_ALLOCATION_ID_PROOF_TYPES = {
   AllocationIdProof: [
     { name: 'indexer', type: 'address' },

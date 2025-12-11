@@ -1,10 +1,10 @@
-import { cliTest, setupMultiNetworks, teardown } from './util'
+import { cliTest, setupNetwork, teardown } from './util'
 import path from 'path'
 
 const baseDir = path.join(__dirname)
 
 describe('Indexer cli tests', () => {
-  beforeEach(setupMultiNetworks)
+  beforeEach(setupNetwork)
   afterEach(teardown)
 
   describe('General', () => {

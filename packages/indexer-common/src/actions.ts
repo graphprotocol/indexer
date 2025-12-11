@@ -53,7 +53,12 @@ export interface ActionInput {
   reason: string
   status: ActionStatus
   priority: number | undefined
-  protocolNetwork: string
+  /**
+   * @deprecated LEGACY DEBT: Part of composite primary key for multi-network support.
+   * Multi-network has been removed but this field remains in the DB schema.
+   * Optional in API - resolvers will use the context's single network if not provided.
+   */
+  protocolNetwork?: string
   isLegacy: boolean
 }
 

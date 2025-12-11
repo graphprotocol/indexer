@@ -18,7 +18,6 @@ import {
   IndexerManagementModels,
   IndexingDecisionBasis,
   loadTestYamlConfig,
-  MultiNetworks,
   Network,
   QueryFeeModels,
   specification,
@@ -33,7 +32,6 @@ import {
   parseGRT,
   SubgraphDeploymentID,
 } from '@graphprotocol/common-ts'
-import cloneDeep from 'lodash.clonedeep'
 
 const INDEXER_SAVE_CLI_TEST_OUTPUT: boolean =
   !!process.env.INDEXER_SAVE_CLI_TEST_OUTPUT &&
@@ -71,15 +69,7 @@ function stripAnsi(str: string): string {
   return str.replace(new RegExp(pattern, 'g'), '')
 }
 
-export const setupMultiNetworks = async () => {
-  return await setup(true)
-}
-
-export const setupSingleNetwork = async () => {
-  return await setup(false)
-}
-
-export const setup = async (multiNetworksEnabled: boolean) => {
+export const setupNetwork = async () => {
   logger = createLogger({
     name: 'Setup',
     async: false,
@@ -113,16 +103,6 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     metrics,
   )
 
-  const fakeMainnetNetwork = cloneDeep(network) as Network
-  fakeMainnetNetwork.specification.networkIdentifier = 'eip155:1'
-
-  const multiNetworks = multiNetworksEnabled
-    ? new MultiNetworks(
-        [network, fakeMainnetNetwork],
-        (n: Network) => n.specification.networkIdentifier,
-      )
-    : new MultiNetworks([network], (n: Network) => n.specification.networkIdentifier)
-
   const defaults: IndexerManagementDefaults = {
     globalIndexingRule: {
       allocationAmount: parseGRT('100'),
@@ -137,7 +117,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     graphNode,
     logger,
     defaults,
-    multiNetworks,
+    network,
   })
 
   server = await createIndexerManagementServer({

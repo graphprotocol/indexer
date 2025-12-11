@@ -7,20 +7,13 @@ import {
   Operator,
 } from '@graphprotocol/indexer-common'
 
-// Represents a pair of Network and Operator instances belonging to the same protocol
-// network. Used when mapping over multiple protocol networks.
-export type NetworkAndOperator = {
-  network: Network
-  operator: Operator
-}
-
 export interface AgentConfigs {
   logger: Logger
   metrics: Metrics
   graphNode: GraphNode
-  operators: Operator[]
+  operator: Operator
   indexerManagement: IndexerManagementClient
-  networks: Network[]
+  network: Network
   deploymentManagement: DeploymentManagementMode
   offchainSubgraphs: SubgraphDeploymentID[]
   pollingInterval: number
