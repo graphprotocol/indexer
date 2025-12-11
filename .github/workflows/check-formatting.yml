@@ -10,11 +10,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-      - name: Set up Node.js v20
-        uses: actions/setup-node@v2.1.5
+        uses: actions/checkout@v4
+      - name: Set up Node.js v24
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Build and Format
         run: yarn
       - name: Check Formatting
