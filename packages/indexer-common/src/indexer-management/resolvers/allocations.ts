@@ -1080,12 +1080,7 @@ export default {
         force,
       })
 
-      const result = await closeAllocation(
-        allocationData,
-        poiData,
-        network,
-        logger,
-      )
+      const result = await closeAllocation(allocationData, poiData, network, logger)
       const txHash = result.txHash
       const rewardsAssigned = result.rewardsAssigned
 

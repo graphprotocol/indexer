@@ -1041,11 +1041,9 @@ export class AllocationManager {
         encodeStopServiceData(params.allocationID),
       ])
 
-    const tx =
-      await this.network.contracts.SubgraphService.multicall.populateTransaction([
-        collectCallData,
-        stopServiceCallData,
-      ])
+    const tx = await this.network.contracts.SubgraphService.multicall.populateTransaction(
+      [collectCallData, stopServiceCallData],
+    )
     return {
       protocolNetwork: params.protocolNetwork,
       actionID: params.actionID,
@@ -1269,7 +1267,9 @@ export class AllocationManager {
           rewardsAssigned = rewardsEventLogs.tokensIndexerRewards
         }
 
-        subgraphDeploymentID = new SubgraphDeploymentID(closeEventLogs.subgraphDeploymentId)
+        subgraphDeploymentID = new SubgraphDeploymentID(
+          closeEventLogs.subgraphDeploymentId,
+        )
       }
 
       const createEventLogs = this.network.transactionManager.findEvent(
@@ -1584,7 +1584,9 @@ export class AllocationManager {
       throw indexerError(
         IndexerErrorCode.IE013,
         `Unfeasible action batch: Approved action batch GRT balance is ` +
-          `${formatGRT(batchDelta)} but available stake equals ${formatGRT(indexerFreeStake.horizon)}.`,
+          `${formatGRT(batchDelta)} but available stake equals ${formatGRT(
+            indexerFreeStake.horizon,
+          )}.`,
       )
     }
 
