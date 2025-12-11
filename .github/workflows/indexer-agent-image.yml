@@ -41,10 +41,10 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Set up Node.js v20
+      - name: Set up Node.js v24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Build and push Indexer Agent image
         id: docker_build
         uses: docker/build-push-action@v6
