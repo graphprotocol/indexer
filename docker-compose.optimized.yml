@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  indexer-agent-optimized:
+    image: indexer-agent-optimized:latest
+    container_name: indexer-agent-opt
+    restart: unless-stopped
+
+    # Environment configuration
+    env_file:
+      - indexer-agent-optimized.env
+
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4'
+        reservations:
+          memory: 4G
+          cpus: '2'
+
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+    # Ports (adjust based on your configuration)
+    ports:
+      - "18000:8000"  # Management API
+      - "18001:8001"  # Vector event server
+      - "18002:8002"  # Syncing port
+      - "19090:9090"  # Metrics port (if configured)
+
+    # Volumes for persistent data
+    volumes:
+      - ./data:/opt/data
+      - ./logs:/opt/logs
+
+    # Network configuration
+    networks:
+      - indexer-network
+
+networks:
+  indexer-network:
+    driver: bridge
+
+# Optional monitoring stack
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: indexer-prometheus
+    ports:
+      - "19090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+    networks:
+      - indexer-network
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: indexer-grafana
+    ports:
+      - "13000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    networks:
+      - indexer-network
+    profiles:
+      - monitoring
+
+volumes:
+  grafana-storage:
