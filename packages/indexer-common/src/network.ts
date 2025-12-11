@@ -596,11 +596,7 @@ export class Network {
     await pRetry(
       async () => {
         try {
-          if (await this.isHorizon.value()) {
-            await this._register(logger, geoHash, url)
-          } else {
-            await this._registerLegacy(logger, geoHash, url)
-          }
+          await this._register(logger, geoHash, url)
         } catch (error) {
           const err = indexerError(IndexerErrorCode.IE012, error)
           logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE012], {
@@ -699,80 +695,6 @@ export class Network {
 
     logger.info(`Successfully registered indexer`)
   }
-
-  private async _registerLegacy(
-    logger: Logger,
-    geoHash: string,
-    url: string,
-  ): Promise<void> {
-    logger.info(`Register indexer`, {
-      url,
-      geoCoordinates: this.specification.indexerOptions.geoCoordinates,
-      geoHash,
-    })
-
-    // Register the indexer (only if it hasn't been registered yet or
-    // if its URL/geohash is different from what is registered on chain)
-    const isRegistered = await this.contracts.LegacyServiceRegistry.isRegistered(
-      this.specification.indexerOptions.address,
-    )
-    if (isRegistered) {
-      const service = await this.contracts.LegacyServiceRegistry.services(
-        this.specification.indexerOptions.address,
-      )
-      if (service.url === url && service.geoHash === geoHash) {
-        logger.debug('Indexer already registered', {
-          address: this.specification.indexerOptions.address,
-          serviceRegistry: this.contracts.LegacyServiceRegistry.target,
-          service,
-        })
-        if (await this.transactionManager.isOperator.value()) {
-          logger.info(`Indexer already registered, operator status already granted`)
-        } else {
-          logger.info(`Indexer already registered, operator status not yet granted`)
-        }
-        return
-      }
-    }
-    const receipt = await this.transactionManager.executeTransaction(
-      () =>
-        this.contracts.LegacyServiceRegistry.registerFor.estimateGas(
-          this.specification.indexerOptions.address,
-          this.specification.indexerOptions.url,
-          geoHash,
-        ),
-      (gasLimit) =>
-        this.contracts.LegacyServiceRegistry.registerFor(
-          this.specification.indexerOptions.address,
-          this.specification.indexerOptions.url,
-          geoHash,
-          {
-            gasLimit,
-          },
-        ),
-      logger.child({ function: 'serviceRegistry.registerFor' }),
-    )
-    if (receipt === 'paused' || receipt === 'unauthorized') {
-      return
-    }
-    const events = receipt.logs
-    const event = events.find((event) =>
-      event.topics.includes(
-        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-          .topicHash,
-      ),
-    )
-    logger.info('Event', {
-      event,
-      events,
-      topicHash:
-        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-          .topicHash,
-    })
-    assert.ok(event)
-
-    logger.info(`Successfully registered indexer (Legacy registration)`)
-  }
 }
 
 async function connectWallet(
@@ -849,15 +771,6 @@ async function connectToProtocolContracts(
     'SubgraphService',
   ]
 
-  // Before horizon we need the LegacyServiceRegistry contract as well
-  const isHorizon = await contracts.HorizonStaking.getMaxThawingPeriod()
-    .then((maxThawingPeriod) => maxThawingPeriod > 0)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .catch((_) => false)
-  if (!isHorizon) {
-    requiredContracts.push('LegacyServiceRegistry')
-  }
-
   const missingContracts = requiredContracts.filter(
     (contract) => !(contract in contracts),
   )
@@ -869,7 +782,6 @@ async function connectToProtocolContracts(
     process.exit(1)
   }
 
-  // Only list contracts that are used by the indexer
   logger.info(`Successfully connected to Horizon contracts`, {
     epochManager: contracts.EpochManager.target,
     rewardsManager: contracts.RewardsManager.target,
@@ -878,9 +790,6 @@ async function connectToProtocolContracts(
     graphPaymentsEscrow: contracts.PaymentsEscrow.target,
   })
   logger.info(`Successfully connected to Subgraph Service contracts`, {
-    ...(isHorizon
-      ? {}
-      : { legacyServiceRegistry: contracts.LegacyServiceRegistry.target }),
     subgraphService: contracts.SubgraphService.target,
   })
   return contracts

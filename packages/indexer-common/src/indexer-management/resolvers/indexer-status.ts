@@ -63,7 +63,7 @@ const URL_VALIDATION_TEST: Test = {
 export default {
   indexerRegistration: async (
     { protocolNetwork: unvalidatedProtocolNetwork }: { protocolNetwork: string },
-    { multiNetworks, logger }: IndexerManagementResolverContext,
+    { multiNetworks }: IndexerManagementResolverContext,
   ): Promise<object | null> => {
     if (!multiNetworks) {
       throw Error(
@@ -78,40 +78,17 @@ export default {
 
     const registrationInfo: RegistrationInfo[] = []
 
-    // Check if the indexer is registered in the legacy service registry
-    try {
-      const registered = await contracts.LegacyServiceRegistry.isRegistered(address)
-      if (registered) {
-        const service = await contracts.LegacyServiceRegistry.services(address)
-        registrationInfo.push({
-          address,
-          protocolNetwork,
-          url: service.url,
-          location: geohash.decode(service.geoHash),
-          registered,
-          isLegacy: true,
-          __typename: 'IndexerRegistration',
-        })
-      }
-    } catch (e) {
-      logger?.debug(
-        `Could not get legacy service registration for indexer. It's likely that the legacy protocol is not reachable.`,
-      )
-    }
-
-    if (await network.isHorizon.value()) {
-      const service = await contracts.SubgraphService.indexers(address)
-      if (service.url.length > 0) {
-        registrationInfo.push({
-          address,
-          protocolNetwork,
-          url: service.url,
-          location: geohash.decode(service.geoHash),
-          registered: true,
-          isLegacy: false,
-          __typename: 'IndexerRegistration',
-        })
-      }
+    const service = await contracts.SubgraphService.indexers(address)
+    if (service.url.length > 0) {
+      registrationInfo.push({
+        address,
+        protocolNetwork,
+        url: service.url,
+        location: geohash.decode(service.geoHash),
+        registered: true,
+        isLegacy: false,
+        __typename: 'IndexerRegistration',
+      })
     }
 
     if (registrationInfo.length === 0) {
@@ -248,21 +225,8 @@ export default {
         return
       }
       try {
-        // Always try to get legacy endpoints, but fail gracefully if they don't exist
-        try {
-          const networkEndpoints = await endpointForNetwork(network, false)
-          endpoints.push(networkEndpoints)
-        } catch (e) {
-          logger?.debug(
-            `Could not get legacy service endpoints for network. It's likely that the legacy protocol is not reachable.`,
-          )
-        }
-
-        // Only get horizon endpoints when horizon is enabled
-        if (await network.isHorizon.value()) {
-          const networkEndpoints = await endpointForNetwork(network, true)
-          endpoints.push(networkEndpoints)
-        }
+        const networkEndpoints = await endpointForNetwork(network)
+        endpoints.push(networkEndpoints)
       } catch (err) {
         // Ignore endpoints for this network
         logger?.warn(`Failed to detect service endpoints for network`, {
@@ -329,16 +293,11 @@ function defaultEndpoints(protocolNetwork: string, isHorizon: boolean): Endpoint
   }
 }
 
-async function endpointForNetwork(
-  network: Network,
-  isHorizon: boolean,
-): Promise<Endpoints> {
+async function endpointForNetwork(network: Network): Promise<Endpoints> {
   const contracts = network.contracts
   const address = network.specification.indexerOptions.address
-  const endpoints = defaultEndpoints(network.specification.networkIdentifier, isHorizon)
-  const service = isHorizon
-    ? await contracts.SubgraphService.indexers(address)
-    : await contracts.LegacyServiceRegistry.services(address)
+  const endpoints = defaultEndpoints(network.specification.networkIdentifier, true)
+  const service = await contracts.SubgraphService.indexers(address)
   if (service) {
     {
       const { url, tests, ok } = await testURL(service.url, [

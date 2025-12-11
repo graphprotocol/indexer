@@ -924,17 +924,9 @@ export class Agent {
       expiredAllocations,
       async (allocation: Allocation) => {
         try {
-          if (allocation.isLegacy) {
-            const onChainAllocation =
-              await network.contracts.LegacyStaking.getAllocation(allocation.id)
-            return onChainAllocation.closedAtEpoch == 0n
-          } else {
-            const onChainAllocation =
-              await network.contracts.SubgraphService.getAllocation(
-                allocation.id,
-              )
-            return onChainAllocation.closedAt == 0n
-          }
+          const onChainAllocation =
+            await network.contracts.SubgraphService.getAllocation(allocation.id)
+          return onChainAllocation.closedAt == 0n
         } catch (err) {
           this.logger.warn(
             `Failed to cross-check allocation state with contracts; assuming it needs to be closed`,
