@@ -3,7 +3,7 @@
 
 import pMap from 'p-map'
 import gql from 'graphql-tag'
-import { ethers, hexlify, ZeroAddress } from 'ethers'
+import { ethers, hexlify, TransactionReceipt, ZeroAddress } from 'ethers'
 
 import {
   Address,
@@ -735,6 +735,15 @@ async function closeHorizonAllocation(
     throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
   }
 
+  // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
+  // and we should NOT call stopService to avoid "AllocationClosed" revert
+  const isOverAllocated = await contracts.SubgraphService.isOverAllocated(address)
+
+  logger.debug('Checking over-allocation status for close allocation', {
+    allocationId: allocation.id,
+    isOverAllocated,
+  })
+
   const encodedPOIMetadata = encodePOIMetadata(
     poiData.blockNumber,
     poiData.publicPOI,
@@ -748,28 +757,54 @@ async function closeHorizonAllocation(
     encodedPOIMetadata,
   )
 
-  const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
-    'collect',
-    [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
-  )
-  const closeAllocationData = encodeStopServiceData(allocation.id)
-  const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
-    'stopService',
-    [address, closeAllocationData],
-  )
+  let receipt: TransactionReceipt | 'paused' | 'unauthorized'
 
-  const receipt = await transactionManager.executeTransaction(
-    async () =>
-      contracts.SubgraphService.multicall.estimateGas([
-        collectCallData,
-        stopServiceCallData,
-      ]),
-    async (gasLimit) =>
-      contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], {
-        gasLimit,
-      }),
-    logger,
-  )
+  if (isOverAllocated) {
+    logger.info(
+      'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
+      { allocationId: allocation.id },
+    )
+    receipt = await transactionManager.executeTransaction(
+      async () =>
+        contracts.SubgraphService.collect.estimateGas(
+          address,
+          PaymentTypes.IndexingRewards,
+          collectIndexingRewardsData,
+        ),
+      async (gasLimit) =>
+        contracts.SubgraphService.collect(
+          address,
+          PaymentTypes.IndexingRewards,
+          collectIndexingRewardsData,
+          { gasLimit },
+        ),
+      logger,
+    )
+  } else {
+    // Normal path: multicall collect + stopService
+    const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
+      'collect',
+      [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
+    )
+    const closeAllocationData = encodeStopServiceData(allocation.id)
+    const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
+      'stopService',
+      [address, closeAllocationData],
+    )
+
+    receipt = await transactionManager.executeTransaction(
+      async () =>
+        contracts.SubgraphService.multicall.estimateGas([
+          collectCallData,
+          stopServiceCallData,
+        ]),
+      async (gasLimit) =>
+        contracts.SubgraphService.multicall([collectCallData, stopServiceCallData], {
+          gasLimit,
+        }),
+      logger,
+    )
+  }
 
   if (receipt === 'paused' || receipt === 'unauthorized') {
     throw indexerError(
@@ -802,10 +837,10 @@ async function closeHorizonAllocation(
   }
 
   const closeAllocationEventLogs = transactionManager.findEvent(
-    'ServiceStopped',
+    'AllocationClosed',
     contracts.SubgraphService.interface,
-    'serviceProvider',
-    address,
+    'allocationId',
+    allocation.id,
     receipt,
     logger,
   )

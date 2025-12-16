@@ -1123,7 +1123,16 @@ export class AllocationManager {
         ...tx,
       }
     } else {
-      // Horizon: Need to multicall collect and stopService
+      // Horizon: Need to collect indexing rewards and stop service
+      // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
+      // and we should NOT call stopService to avoid "AllocationClosed" revert
+      const isOverAllocated =
+        await this.network.contracts.SubgraphService.isOverAllocated(params.indexer)
+
+      logger.debug('Checking over-allocation status for unallocate', {
+        allocationID: params.allocationID,
+        isOverAllocated,
+      })
 
       // collect
       const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
@@ -1137,29 +1146,48 @@ export class AllocationManager {
           0,
         ),
       )
-      const collectCallData =
-        this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
-          params.indexer,
-          PaymentTypes.IndexingRewards,
-          collectIndexingRewardsData,
-        ])
 
-      // stopService
-      const stopServiceCallData =
-        this.network.contracts.SubgraphService.interface.encodeFunctionData(
-          'stopService',
-          [params.indexer, encodeStopServiceData(params.allocationID)],
+      if (isOverAllocated) {
+        logger.info(
+          'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
+          { allocationID: params.allocationID },
         )
+        const tx =
+          await this.network.contracts.SubgraphService.collect.populateTransaction(
+            params.indexer,
+            PaymentTypes.IndexingRewards,
+            collectIndexingRewardsData,
+          )
+        return {
+          protocolNetwork: params.protocolNetwork,
+          actionID: params.actionID,
+          ...tx,
+        }
+      } else {
+        // Normal path: multicall collect + stopService
+        const collectCallData =
+          this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
+            params.indexer,
+            PaymentTypes.IndexingRewards,
+            collectIndexingRewardsData,
+          ])
 
-      const tx =
-        await this.network.contracts.SubgraphService.multicall.populateTransaction([
-          collectCallData,
-          stopServiceCallData,
-        ])
-      return {
-        protocolNetwork: params.protocolNetwork,
-        actionID: params.actionID,
-        ...tx,
+        const stopServiceCallData =
+          this.network.contracts.SubgraphService.interface.encodeFunctionData(
+            'stopService',
+            [params.indexer, encodeStopServiceData(params.allocationID)],
+          )
+
+        const tx =
+          await this.network.contracts.SubgraphService.multicall.populateTransaction([
+            collectCallData,
+            stopServiceCallData,
+          ])
+        return {
+          protocolNetwork: params.protocolNetwork,
+          actionID: params.actionID,
+          ...tx,
+        }
       }
     }
   }
