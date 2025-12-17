@@ -1231,3 +1231,34 @@ export function consolidateAllocationDecisions(
       .map(decision => decision.deployment),
   )
 }
+
+/**
+ * Resolves the set of target deployments that should be synced by graph-node.
+ * This combines:
+ * 1. Deployments from allocation decisions (where toAllocate=true)
+ * 2. Deployments with OFFCHAIN decision basis from rules
+ * 3. Deployments from --offchain-subgraphs startup args
+ */
+export function resolveTargetDeployments(
+  networkDeploymentAllocationDecisions: Record<string, AllocationDecisionInterface[]>,
+  indexingRules: Record<string, IndexingRuleAttributes[]>,
+  offchainSubgraphs: SubgraphDeploymentID[],
+): Set<SubgraphDeploymentID> {
+  const targetDeploymentIDs: Set<SubgraphDeploymentID> =
+    consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
+
+  // Add offchain subgraphs to the deployment list from rules
+  Object.values(indexingRules)
+    .flat()
+    .filter(rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN)
+    .forEach(rule => {
+      targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
+    })
+
+  // From startup args
+  offchainSubgraphs.forEach(deployment => {
+    targetDeploymentIDs.add(deployment)
+  })
+
+  return targetDeploymentIDs
+}
