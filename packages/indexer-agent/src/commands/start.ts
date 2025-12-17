@@ -126,11 +126,11 @@ export const start = {
             // Environment variable: split by pipe delimiter
             return value
               .split('|')
-              .map((m) => m.trim())
-              .filter((m) => m.length > 0)
+              .map(m => m.trim())
+              .filter(m => m.length > 0)
           }
           // CLI: already an array
-          return value.filter((m) => m.length > 0)
+          return value.filter(m => m.length > 0)
         },
       })
       .option('indexer-address', {

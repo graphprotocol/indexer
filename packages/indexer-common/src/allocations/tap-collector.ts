@@ -723,10 +723,16 @@ export class TapCollector {
     )
   }
 
-  private getAllocationSigner(allocation: Allocation): { signer: ReturnType<typeof allocationSigner>; isLegacy: boolean } {
+  private getAllocationSigner(allocation: Allocation): {
+    signer: ReturnType<typeof allocationSigner>
+    isLegacy: boolean
+  } {
     // Try current wallet first
     try {
-      return { signer: allocationSigner(this.transactionManager.wallet, allocation), isLegacy: false }
+      return {
+        signer: allocationSigner(this.transactionManager.wallet, allocation),
+        isLegacy: false,
+      }
     } catch {
       // Current wallet doesn't match, try legacy mnemonics
     }
@@ -744,7 +750,7 @@ export class TapCollector {
 
     throw new Error(
       `[TAPv1] No mnemonic found that can sign for allocation ${allocation.id}. ` +
-      `Tried current operator wallet and ${this.legacyMnemonics.length} legacy mnemonic(s).`,
+        `Tried current operator wallet and ${this.legacyMnemonics.length} legacy mnemonic(s).`,
     )
   }
 
