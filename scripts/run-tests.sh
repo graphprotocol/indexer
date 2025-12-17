@@ -40,4 +40,4 @@ POSTGRES_TEST_DATABASE=indexer_tests \
 POSTGRES_TEST_USERNAME=testuser \
 POSTGRES_TEST_PASSWORD=testpass \
 NODE_OPTIONS="--dns-result-order=ipv4first" \
-yarn test:ci
+${TEST_CMD:-yarn test:ci}
