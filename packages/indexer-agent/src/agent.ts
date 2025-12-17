@@ -1226,7 +1226,7 @@ export function consolidateAllocationDecisions(
  * Resolves the set of target deployments that should be synced by graph-node.
  * This combines:
  * 1. Deployments from allocation decisions (where toAllocate=true)
- * 2. Deployments with OFFCHAIN decision basis from rules
+ * 2. Deployments with OFFCHAIN and ALWAYS decision basis from rules
  * 3. Deployments from --offchain-subgraphs startup args
  */
 export function resolveTargetDeployments(
