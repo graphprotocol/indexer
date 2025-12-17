@@ -1,6 +1,7 @@
 import {
   convertSubgraphBasedRulesToDeploymentBased,
   consolidateAllocationDecisions,
+  resolveTargetDeployments,
 } from '../agent'
 import {
   INDEXING_RULE_GLOBAL,
@@ -206,5 +207,114 @@ describe('consolidateAllocationDecisions function', () => {
     expect(result).toContain(c)
     expect(result).toContain(b)
     expect(result).not.toContain(a)
+  })
+})
+
+describe('resolveTargetDeployments function', () => {
+  const alwaysDeployment = new SubgraphDeploymentID(
+    'QmXZiV6S13ha6QXq4dmaM3TB4CHcDxBMvGexSNu9Kc28EH',
+  )
+  const offchainDeployment = new SubgraphDeploymentID(
+    'QmRKs2ZfuwvmZA3QAWmCqrGUjV9pxtBUDP3wuc6iVGnjA2',
+  )
+  const allocationDeployment = new SubgraphDeploymentID(
+    'QmULAfA3eS5yojxeSR2KmbyuiwCGYPjymsFcpa6uYsu6CJ',
+  )
+  const offchainArgDeployment = new SubgraphDeploymentID(
+    'QmWmyoMoctfbAaiEs2G46gpeUmhqFRDW6KWo64y5r581Vz',
+  )
+
+  it('includes OFFCHAIN rules when allocationDecisions is empty (manual mode)', () => {
+    const rules = {
+      'eip155:42161': [
+        {
+          identifier: offchainDeployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        } as IndexingRuleAttributes,
+      ],
+    }
+
+    const result = resolveTargetDeployments({}, rules, [])
+
+    expect(result.size).toBe(1)
+    expect([...result].map(d => d.ipfsHash)).toContain(offchainDeployment.ipfsHash)
+  })
+
+  it('includes offchainSubgraphs from startup args', () => {
+    const result = resolveTargetDeployments({}, {}, [offchainArgDeployment])
+
+    expect(result.size).toBe(1)
+    expect([...result].map(d => d.ipfsHash)).toContain(offchainArgDeployment.ipfsHash)
+  })
+
+  it('includes deployments from allocationDecisions', () => {
+    const allocationDecisions = {
+      'eip155:42161': [
+        { deployment: allocationDeployment, toAllocate: true },
+      ],
+    }
+
+    const result = resolveTargetDeployments(allocationDecisions, {}, [])
+
+    expect(result.size).toBe(1)
+    expect(result).toContain(allocationDeployment)
+  })
+
+  /**
+   * BUG TEST: In manual allocation mode, networkDeploymentAllocationDecisions is empty
+   * because evaluateDeployments is skipped. This means decisionBasis: ALWAYS rules
+   * are not included in targetDeployments, causing those subgraphs to be paused.
+   *
+   * This test should FAIL with the current buggy code and PASS after the fix.
+   */
+  it('includes ALWAYS rules when allocationDecisions is empty (manual mode)', () => {
+    const rules = {
+      'eip155:42161': [
+        {
+          identifier: alwaysDeployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+      ],
+    }
+
+    // In manual mode, allocationDecisions is empty because evaluateDeployments is skipped
+    const result = resolveTargetDeployments({}, rules, [])
+
+    // ALWAYS rules should still be included in targetDeployments
+    expect(result.size).toBe(1)
+    expect([...result].map(d => d.ipfsHash)).toContain(alwaysDeployment.ipfsHash)
+  })
+
+  it('combines all sources correctly', () => {
+    const allocationDecisions = {
+      'eip155:42161': [
+        { deployment: allocationDeployment, toAllocate: true },
+      ],
+    }
+    const rules = {
+      'eip155:42161': [
+        {
+          identifier: offchainDeployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        } as IndexingRuleAttributes,
+        {
+          identifier: alwaysDeployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+      ],
+    }
+
+    const result = resolveTargetDeployments(allocationDecisions, rules, [offchainArgDeployment])
+
+    // Should include: allocationDeployment, offchainDeployment, alwaysDeployment, offchainArgDeployment
+    expect(result.size).toBe(4)
+    expect(result).toContain(allocationDeployment)
+    expect([...result].map(d => d.ipfsHash)).toContain(offchainDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(alwaysDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(offchainArgDeployment.ipfsHash)
   })
 })
