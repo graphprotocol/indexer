@@ -428,11 +428,16 @@ export class Agent {
         const targetDeploymentIDs: Set<SubgraphDeploymentID> =
           consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
 
-        // Add offchain subgraphs to the deployment list from rules
+        // Add offchain and always subgraphs to the deployment list from rules.
+        // ALWAYS rules must be handled here because in manual allocation mode,
+        // evaluateDeployments is skipped, so ALWAYS rules would otherwise not
+        // be included in targetDeployments.
         Object.values(indexingRules)
           .flat()
           .filter(
-            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+            rule =>
+              rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN ||
+              rule?.decisionBasis === IndexingDecisionBasis.ALWAYS,
           )
           .forEach(rule => {
             targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
@@ -1247,10 +1252,17 @@ export function resolveTargetDeployments(
   const targetDeploymentIDs: Set<SubgraphDeploymentID> =
     consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
 
-  // Add offchain subgraphs to the deployment list from rules
+  // Add offchain and always subgraphs to the deployment list from rules.
+  // ALWAYS rules must be handled here because in manual allocation mode,
+  // evaluateDeployments is skipped, so ALWAYS rules would otherwise not
+  // be included in targetDeployments.
   Object.values(indexingRules)
     .flat()
-    .filter(rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN)
+    .filter(
+      rule =>
+        rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN ||
+        rule?.decisionBasis === IndexingDecisionBasis.ALWAYS,
+    )
     .forEach(rule => {
       targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
     })
