@@ -425,23 +425,13 @@ export class Agent {
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
         logger.trace('Resolving target deployments')
-        const targetDeploymentIDs: Set<SubgraphDeploymentID> =
-          consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
-
-        // Add offchain subgraphs to the deployment list from rules
-        Object.values(indexingRules)
-          .flat()
-          .filter(
-            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
-          )
-          .forEach(rule => {
-            targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
-          })
-        // From startup args
-        this.offchainSubgraphs.forEach(deployment => {
-          targetDeploymentIDs.add(deployment)
-        })
-        return [...targetDeploymentIDs]
+        return [
+          ...resolveTargetDeployments(
+            networkDeploymentAllocationDecisions,
+            indexingRules,
+            this.offchainSubgraphs,
+          ),
+        ]
       },
       {
         onError: error =>
@@ -1230,4 +1220,45 @@ export function consolidateAllocationDecisions(
       .filter(decision => decision.toAllocate === true)
       .map(decision => decision.deployment),
   )
+}
+
+/**
+ * Resolves the set of target deployments that should be synced by graph-node.
+ * This combines:
+ * 1. Deployments from allocation decisions (where toAllocate=true)
+ * 2. Deployments with OFFCHAIN and ALWAYS decision basis from rules
+ * 3. Deployments from --offchain-subgraphs startup args
+ */
+export function resolveTargetDeployments(
+  networkDeploymentAllocationDecisions: Record<
+    string,
+    AllocationDecisionInterface[]
+  >,
+  indexingRules: Record<string, IndexingRuleAttributes[]>,
+  offchainSubgraphs: SubgraphDeploymentID[],
+): Set<SubgraphDeploymentID> {
+  const targetDeploymentIDs: Set<SubgraphDeploymentID> =
+    consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
+
+  // Add offchain and always subgraphs to the deployment list from rules.
+  // ALWAYS rules must be handled here because in manual allocation mode,
+  // evaluateDeployments is skipped, so ALWAYS rules would otherwise not
+  // be included in targetDeployments.
+  Object.values(indexingRules)
+    .flat()
+    .filter(
+      rule =>
+        rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN ||
+        rule?.decisionBasis === IndexingDecisionBasis.ALWAYS,
+    )
+    .forEach(rule => {
+      targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
+    })
+
+  // From startup args
+  offchainSubgraphs.forEach(deployment => {
+    targetDeploymentIDs.add(deployment)
+  })
+
+  return targetDeploymentIDs
 }
