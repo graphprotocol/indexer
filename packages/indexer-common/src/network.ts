@@ -316,6 +316,7 @@ export class Network {
         networkSpecification: specification,
         tapSubgraph,
         networkSubgraph,
+        legacyMnemonics: specification.indexerOptions.legacyMnemonics,
       })
     } else {
       logger.info(`RAV process not initiated. 

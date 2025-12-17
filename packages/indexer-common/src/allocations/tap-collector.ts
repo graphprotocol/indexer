@@ -27,6 +27,7 @@ import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
 import gql from 'graphql-tag'
 import { getEscrowAccounts } from './escrow-accounts'
+import { HDNodeWallet, Wallet } from 'ethers'
 
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
@@ -52,6 +53,7 @@ interface TapCollectorOptions {
   networkSpecification: spec.NetworkSpecification
   tapSubgraph: SubgraphClient
   networkSubgraph: SubgraphClient
+  legacyMnemonics: string[]
 }
 
 interface ValidRavs {
@@ -109,6 +111,7 @@ export class TapCollector {
   declare networkSubgraph: SubgraphClient
   declare finalityTime: number
   declare indexerAddress: Address
+  declare legacyMnemonics: string[]
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -123,6 +126,7 @@ export class TapCollector {
     networkSpecification,
     tapSubgraph,
     networkSubgraph,
+    legacyMnemonics,
   }: TapCollectorOptions): TapCollector {
     const collector = new TapCollector()
     collector.logger = logger.child({ component: 'TapCollector' })
@@ -137,6 +141,7 @@ export class TapCollector {
     collector.protocolNetwork = networkSpecification.networkIdentifier
     collector.tapSubgraph = tapSubgraph
     collector.networkSubgraph = networkSubgraph
+    collector.legacyMnemonics = legacyMnemonics
 
     const { voucherRedemptionThreshold, finalityTime, address } =
       networkSpecification.indexerOptions
@@ -144,7 +149,13 @@ export class TapCollector {
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
 
-    collector.logger.info(`[TAPv1] RAV processing is initiated`)
+    if (legacyMnemonics.length > 0) {
+      collector.logger.info(
+        `[TAPv1] RAV processing is initiated with ${legacyMnemonics.length} legacy mnemonic(s) for old allocation support`,
+      )
+    } else {
+      collector.logger.info(`[TAPv1] RAV processing is initiated`)
+    }
     collector.startRAVProcessing()
     return collector
   }
@@ -712,6 +723,37 @@ export class TapCollector {
     )
   }
 
+  private getAllocationSigner(allocation: Allocation): {
+    signer: ReturnType<typeof allocationSigner>
+    isLegacy: boolean
+  } {
+    // Try current wallet first
+    try {
+      return {
+        signer: allocationSigner(this.transactionManager.wallet, allocation),
+        isLegacy: false,
+      }
+    } catch {
+      // Current wallet doesn't match, try legacy mnemonics
+    }
+
+    // Try legacy mnemonics
+    for (const mnemonic of this.legacyMnemonics) {
+      try {
+        const legacyWallet = Wallet.fromPhrase(mnemonic) as HDNodeWallet
+        return { signer: allocationSigner(legacyWallet, allocation), isLegacy: true }
+      } catch {
+        // This mnemonic doesn't match either, try next
+        continue
+      }
+    }
+
+    throw new Error(
+      `[TAPv1] No mnemonic found that can sign for allocation ${allocation.id}. ` +
+        `Tried current operator wallet and ${this.legacyMnemonics.length} legacy mnemonic(s).`,
+    )
+  }
+
   public async redeemRav(
     logger: Logger,
     allocation: Allocation,
@@ -722,8 +764,13 @@ export class TapCollector {
 
     const escrow = this.tapContracts
 
+    const { signer, isLegacy } = this.getAllocationSigner(allocation)
+    if (isLegacy) {
+      logger.info(`[TAPv1] Using legacy mnemonic to sign for allocation ${allocation.id}`)
+    }
+
     const proof = await tapAllocationIdProof(
-      allocationSigner(this.transactionManager.wallet, allocation),
+      signer,
       parseInt(this.protocolNetwork.split(':')[1]),
       sender,
       toAddress(rav.allocationId.toString()),
@@ -732,6 +779,7 @@ export class TapCollector {
     this.logger.debug(`[TAPv1] Computed allocationIdProof`, {
       allocationId: rav.allocationId,
       proof,
+      isLegacySigner: isLegacy,
     })
     // Submit the signed RAV on chain
     const txReceipt = await this.transactionManager.executeTransaction(

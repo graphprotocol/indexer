@@ -170,6 +170,7 @@ const setup = () => {
 
       networkSubgraph,
       tapSubgraph,
+      legacyMnemonics: [],
     })
   }
 }

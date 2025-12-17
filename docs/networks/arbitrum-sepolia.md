@@ -50,6 +50,7 @@ testnet (for now) are Mainnet subgraphs. This means:
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of testnet indexer                                                                                     |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of testnet indexer infrastructure                                                                       |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for testnet operator                                                                                  |
+| `INDEXER_AGENT_LEGACY_MNEMONICS`            | `--legacy-mnemonics`            | Legacy operator mnemonics for collecting TAPv1 RAVs after operator rotation (pipe-separated)                            |
 | `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway.testnet.thegraph.com/`                                                                        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmU1cnG7azpYU3BMBZaHR36kVo5YB3fMjJwxKtwa6L5GFK`                                                                        |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_ENDPOINT`   | `--network-subgraph-endpoint`   | `https://gateway.network.thegraph.com/api/[api-key]/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV` |

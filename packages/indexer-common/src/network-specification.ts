@@ -69,6 +69,7 @@ export const IndexerOptions = z
       })
       .default(0),
     finalityTime: positiveNumber().default(3600),
+    legacyMnemonics: z.array(z.string()).default([]),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
