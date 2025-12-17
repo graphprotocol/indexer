@@ -425,28 +425,13 @@ export class Agent {
     }).tryMap(
       async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
         logger.trace('Resolving target deployments')
-        const targetDeploymentIDs: Set<SubgraphDeploymentID> =
-          consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
-
-        // Add offchain and always subgraphs to the deployment list from rules.
-        // ALWAYS rules must be handled here because in manual allocation mode,
-        // evaluateDeployments is skipped, so ALWAYS rules would otherwise not
-        // be included in targetDeployments.
-        Object.values(indexingRules)
-          .flat()
-          .filter(
-            rule =>
-              rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN ||
-              rule?.decisionBasis === IndexingDecisionBasis.ALWAYS,
-          )
-          .forEach(rule => {
-            targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
-          })
-        // From startup args
-        this.offchainSubgraphs.forEach(deployment => {
-          targetDeploymentIDs.add(deployment)
-        })
-        return [...targetDeploymentIDs]
+        return [
+          ...resolveTargetDeployments(
+            networkDeploymentAllocationDecisions,
+            indexingRules,
+            this.offchainSubgraphs,
+          ),
+        ]
       },
       {
         onError: error =>
