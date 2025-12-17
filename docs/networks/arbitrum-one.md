@@ -44,6 +44,7 @@ All network contracts can be found in
 | `INDEXER_AGENT_INDEXER_ADDRESS`             | `--indexer-address`             | Ethereum address of mainnet indexer                                                                                       |
 | `INDEXER_AGENT_INDEXER_GEO_COORDINATES`     | `--indexer-geo-coordinates`     | Geo coordinates of mainnet indexer infrastructure                                                                         |
 | `INDEXER_AGENT_MNEMONIC`                    | `--mnemonic`                    | Ethereum mnemonic for mainnet operator                                                                                    |
+| `INDEXER_AGENT_LEGACY_MNEMONICS`            | `--legacy-mnemonics`            | Legacy operator mnemonics for collecting TAPv1 RAVs after operator rotation (pipe-separated)                              |
 | `INDEXER_AGENT_GATEWAY_ENDPOINT`            | `--gateway-endpoint`            | `https://gateway-arbitrum.network.thegraph.com/`                                                                          |
 | `INDEXER_AGENT_GAS_PRICE_MAX`               | `--gas-price-max`               | `50`                                                                                                                      |
 | `INDEXER_AGENT_NETWORK_SUBGRAPH_DEPLOYMENT` | `--network-subgraph-deployment` | `QmU5tKrP7YNpm69iUdC3YuQWfJmdye1AHJLLc5pRC4dQBv`  |

@@ -112,6 +112,27 @@ export const start = {
         required: true,
         group: 'Ethereum',
       })
+      .option('legacy-mnemonics', {
+        description:
+          'Legacy operator mnemonics for collecting TAPv1 RAVs from previous operators. ' +
+          'Via CLI: use multiple --legacy-mnemonics flags. ' +
+          'Via env var: separate mnemonics with | (pipe character).',
+        type: 'string',
+        array: true,
+        default: [],
+        group: 'Ethereum',
+        coerce: (value: string | string[]): string[] => {
+          if (typeof value === 'string') {
+            // Environment variable: split by pipe delimiter
+            return value
+              .split('|')
+              .map((m) => m.trim())
+              .filter((m) => m.length > 0)
+          }
+          // CLI: already an array
+          return value.filter((m) => m.length > 0)
+        },
+      })
       .option('indexer-address', {
         description: 'Ethereum address of the indexer',
         type: 'string',
@@ -391,6 +412,7 @@ export async function createNetworkSpecification(
     register: argv.register,
     maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
+    legacyMnemonics: argv.legacyMnemonics,
   }
 
   const transactionMonitoring = {
