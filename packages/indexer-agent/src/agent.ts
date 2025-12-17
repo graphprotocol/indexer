@@ -417,26 +417,33 @@ export class Agent {
       },
     )
 
-    // let targetDeployments be an union of targetAllocations
-    // and offchain subgraphs.
+    // Compute target deployments directly from rules.
+    // This is decoupled from allocation decisions to support deployment management
+    // even when allocation management is in manual mode.
     const targetDeployments: Eventual<SubgraphDeploymentID[]> = join({
       indexingRules,
-      networkDeploymentAllocationDecisions,
     }).tryMap(
-      async ({ indexingRules, networkDeploymentAllocationDecisions }) => {
-        logger.trace('Resolving target deployments')
-        const targetDeploymentIDs: Set<SubgraphDeploymentID> =
-          consolidateAllocationDecisions(networkDeploymentAllocationDecisions)
+      async ({ indexingRules }) => {
+        logger.trace('Resolving target deployments from indexing rules')
+        const targetDeploymentIDs: Set<SubgraphDeploymentID> = new Set()
 
-        // Add offchain subgraphs to the deployment list from rules
+        // Add deployments from rules with decisionBasis ALWAYS or OFFCHAIN
+        // These are the deployments that should be indexed regardless of allocation mode
         Object.values(indexingRules)
           .flat()
           .filter(
-            rule => rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+            rule =>
+              rule?.decisionBasis === IndexingDecisionBasis.ALWAYS ||
+              rule?.decisionBasis === IndexingDecisionBasis.OFFCHAIN,
+          )
+          .filter(
+            rule =>
+              rule?.identifierType === SubgraphIdentifierType.DEPLOYMENT,
           )
           .forEach(rule => {
             targetDeploymentIDs.add(new SubgraphDeploymentID(rule.identifier))
           })
+
         // From startup args
         this.offchainSubgraphs.forEach(deployment => {
           targetDeploymentIDs.add(deployment)
