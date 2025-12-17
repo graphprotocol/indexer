@@ -238,21 +238,23 @@ describe('resolveTargetDeployments function', () => {
     const result = resolveTargetDeployments({}, rules, [])
 
     expect(result.size).toBe(1)
-    expect([...result].map(d => d.ipfsHash)).toContain(offchainDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      offchainDeployment.ipfsHash,
+    )
   })
 
   it('includes offchainSubgraphs from startup args', () => {
     const result = resolveTargetDeployments({}, {}, [offchainArgDeployment])
 
     expect(result.size).toBe(1)
-    expect([...result].map(d => d.ipfsHash)).toContain(offchainArgDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      offchainArgDeployment.ipfsHash,
+    )
   })
 
   it('includes deployments from allocationDecisions', () => {
     const allocationDecisions = {
-      'eip155:42161': [
-        { deployment: allocationDeployment, toAllocate: true },
-      ],
+      'eip155:42161': [{ deployment: allocationDeployment, toAllocate: true }],
     }
 
     const result = resolveTargetDeployments(allocationDecisions, {}, [])
@@ -284,14 +286,14 @@ describe('resolveTargetDeployments function', () => {
 
     // ALWAYS rules should still be included in targetDeployments
     expect(result.size).toBe(1)
-    expect([...result].map(d => d.ipfsHash)).toContain(alwaysDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      alwaysDeployment.ipfsHash,
+    )
   })
 
   it('combines all sources correctly', () => {
     const allocationDecisions = {
-      'eip155:42161': [
-        { deployment: allocationDeployment, toAllocate: true },
-      ],
+      'eip155:42161': [{ deployment: allocationDeployment, toAllocate: true }],
     }
     const rules = {
       'eip155:42161': [
@@ -308,13 +310,21 @@ describe('resolveTargetDeployments function', () => {
       ],
     }
 
-    const result = resolveTargetDeployments(allocationDecisions, rules, [offchainArgDeployment])
+    const result = resolveTargetDeployments(allocationDecisions, rules, [
+      offchainArgDeployment,
+    ])
 
     // Should include: allocationDeployment, offchainDeployment, alwaysDeployment, offchainArgDeployment
     expect(result.size).toBe(4)
     expect(result).toContain(allocationDeployment)
-    expect([...result].map(d => d.ipfsHash)).toContain(offchainDeployment.ipfsHash)
-    expect([...result].map(d => d.ipfsHash)).toContain(alwaysDeployment.ipfsHash)
-    expect([...result].map(d => d.ipfsHash)).toContain(offchainArgDeployment.ipfsHash)
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      offchainDeployment.ipfsHash,
+    )
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      alwaysDeployment.ipfsHash,
+    )
+    expect([...result].map(d => d.ipfsHash)).toContain(
+      offchainArgDeployment.ipfsHash,
+    )
   })
 })

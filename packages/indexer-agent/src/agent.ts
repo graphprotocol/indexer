@@ -1245,7 +1245,10 @@ export function consolidateAllocationDecisions(
  * 3. Deployments from --offchain-subgraphs startup args
  */
 export function resolveTargetDeployments(
-  networkDeploymentAllocationDecisions: Record<string, AllocationDecisionInterface[]>,
+  networkDeploymentAllocationDecisions: Record<
+    string,
+    AllocationDecisionInterface[]
+  >,
   indexingRules: Record<string, IndexingRuleAttributes[]>,
   offchainSubgraphs: SubgraphDeploymentID[],
 ): Set<SubgraphDeploymentID> {
