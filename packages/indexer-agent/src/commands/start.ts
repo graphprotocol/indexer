@@ -69,6 +69,7 @@ export const start = {
           'Time (in seconds) after which transactions will be resubmitted with a higher gas price',
         type: 'number',
         default: 240,
+        coerce: x => x * 10 ** 3,
         group: 'Ethereum',
       })
       .option('gas-increase-factor', {
@@ -82,6 +83,7 @@ export const start = {
         description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
         default: 100,
+        coerce: x => x * 10 ** 9,
         deprecated: true,
         group: 'Ethereum',
       })
@@ -90,6 +92,7 @@ export const start = {
           'The maximum base fee per gas (gwei) to use for transactions, for legacy transactions this will be treated as the max gas price',
         type: 'number',
         required: false,
+        coerce: x => x * 10 ** 9,
         group: 'Ethereum',
       })
       .option('transaction-attempts', {
@@ -419,7 +422,7 @@ export async function createNetworkSpecification(
     gasIncreaseTimeout: argv.gasIncreaseTimeout,
     gasIncreaseFactor: argv.gasIncreaseFactor,
     gasPriceMax: argv.gasPriceMax,
-    baseFeePerGasMax: argv.baseFeeGasMax,
+    baseFeePerGasMax: argv.baseFeePerGasMax,
     maxTransactionAttempts: argv.maxTransactionAttempts,
     confirmationBlocks: argv.confirmationBlocks,
   }
@@ -751,13 +754,13 @@ export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   if (gasIncreaseTimeout < advisedGasIncreaseTimeout) {
     logger.warn(
       `Gas increase timeout is set to less than ${
-        gasIncreaseTimeout / 1000
+        advisedGasIncreaseTimeout / 1000
       } seconds. This may lead to high gas usage`,
-      { gasIncreaseTimeout: gasIncreaseTimeout / 1000.0 },
+      { gasIncreaseTimeout: gasIncreaseTimeout },
     )
   }
 
-  if (gasIncreaseFactor > advisedGasIncreaseTimeout) {
+  if (gasIncreaseFactor > advisedGasIncreaseFactor) {
     logger.warn(
       `Gas increase factor is set to > ${advisedGasIncreaseFactor}. ` +
         'This may lead to high gas usage',
