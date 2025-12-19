@@ -348,6 +348,12 @@ export const start = {
         default: 1,
         group: 'Indexer Infrastructure',
       })
+      .option('auto-allocation-max-batch-size', {
+        description: `Maximum number of allocation transactions inside a batch for auto allocation management. Limits the number of actions processed per batch to prevent multicall failures when there are many allocations. Remaining actions will be processed in subsequent batches.`,
+        type: 'number',
+        required: false,
+        group: 'Indexer Infrastructure',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -408,6 +414,7 @@ export async function createNetworkSpecification(
     voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
     allocationManagementMode: argv.allocationManagement,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+    autoAllocationMaxBatchSize: argv.autoAllocationMaxBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
     maxProvisionInitialSize: argv.maxProvisionInitialSize,

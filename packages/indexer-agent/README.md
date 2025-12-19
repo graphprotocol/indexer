@@ -50,6 +50,13 @@ Indexer Infrastructure
                                     inside a batch for auto allocation
                                     management. No obvious upperbound, with
                                     default of 1           [number] [default: 1]
+  --auto-allocation-max-batch-size  Maximum number of allocation transactions
+                                    inside a batch for auto allocation
+                                    management. Limits the number of actions
+                                    processed per batch to prevent multicall
+                                    failures when there are many allocations.
+                                    Remaining actions will be processed in
+                                    subsequent batches.                [number]
 
 Postgres
   --postgres-host        Postgres host                       [string] [required]
