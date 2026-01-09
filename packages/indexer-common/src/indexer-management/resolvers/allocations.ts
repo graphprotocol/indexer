@@ -37,8 +37,6 @@ import {
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 import {
-  encodeCollectIndexingRewardsData,
-  encodePOIMetadata,
   encodeStartServiceData,
   encodeStopServiceData,
   PaymentTypes,
@@ -841,47 +839,30 @@ async function closeHorizonAllocation(
     isOverAllocated,
   })
 
-  const encodedPOIMetadata = encodePOIMetadata(
-    poiData.blockNumber,
-    poiData.publicPOI,
-    poiData.indexingStatus,
-    0,
-    0,
-  )
-  const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
-    allocation.id,
-    poiData.poi,
-    encodedPOIMetadata,
-  )
+  const collectData = encodeCollectData(allocation.id, poiData)
 
   let receipt: TransactionReceipt | 'paused' | 'unauthorized'
+  let rewardsAssigned: bigint
 
   if (isOverAllocated) {
+    // Reuse shared collect logic - allocation will auto-close
     logger.info(
       'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
       { allocationId: allocation.id },
     )
-    receipt = await transactionManager.executeTransaction(
-      async () =>
-        contracts.SubgraphService.collect.estimateGas(
-          address,
-          PaymentTypes.IndexingRewards,
-          collectIndexingRewardsData,
-        ),
-      async (gasLimit) =>
-        contracts.SubgraphService.collect(
-          address,
-          PaymentTypes.IndexingRewards,
-          collectIndexingRewardsData,
-          { gasLimit },
-        ),
+    const result = await executeCollectTransaction(
+      network,
+      allocation.id,
+      collectData,
       logger,
     )
+    receipt = result.receipt
+    rewardsAssigned = result.rewardsCollected
   } else {
     // Normal path: multicall collect + stopService
     const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
       'collect',
-      [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
+      [address, PaymentTypes.IndexingRewards, collectData],
     )
     const closeAllocationData = encodeStopServiceData(allocation.id)
     const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
@@ -901,34 +882,33 @@ async function closeHorizonAllocation(
         }),
       logger,
     )
-  }
 
-  if (receipt === 'paused' || receipt === 'unauthorized') {
-    throw indexerError(
-      IndexerErrorCode.IE062,
-      `Allocation '${allocation.id}' could not be closed: ${receipt}`,
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Allocation '${allocation.id}' could not be closed: ${receipt}`,
+      )
+    }
+
+    const collectEventLogs = transactionManager.findEvent(
+      'ServicePaymentCollected',
+      contracts.SubgraphService.interface,
+      'serviceProvider',
+      address,
+      receipt,
+      logger,
     )
+
+    if (!collectEventLogs) {
+      throw indexerError(
+        IndexerErrorCode.IE015,
+        `Collecting indexing rewards for allocation '${allocation.id}' failed`,
+      )
+    }
+
+    rewardsAssigned = collectEventLogs.tokens ?? 0n
   }
 
-  const collectIndexingRewardsEventLogs = transactionManager.findEvent(
-    'ServicePaymentCollected',
-    contracts.SubgraphService.interface,
-    'serviceProvider',
-    address,
-    receipt,
-    logger,
-  )
-
-  if (!collectIndexingRewardsEventLogs) {
-    throw indexerError(
-      IndexerErrorCode.IE015,
-      `Collecting indexing rewards for allocation '${allocation.id}' failed`,
-    )
-  }
-
-  const rewardsAssigned = collectIndexingRewardsEventLogs
-    ? collectIndexingRewardsEventLogs.tokens
-    : 0n
   if (rewardsAssigned === 0n) {
     logger.warn('No rewards were distributed upon closing the allocation')
   }
@@ -1312,18 +1292,7 @@ async function reallocateHorizonAllocation(
     epoch: currentEpoch.toString(),
   })
 
-  const encodedPOIMetadata = encodePOIMetadata(
-    poiData.blockNumber,
-    poiData.publicPOI,
-    poiData.indexingStatus,
-    0,
-    0,
-  )
-  const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
-    allocation.id,
-    poiData.poi,
-    encodedPOIMetadata,
-  )
+  const collectIndexingRewardsData = encodeCollectData(allocation.id, poiData)
   const closeAllocationData = ethers.AbiCoder.defaultAbiCoder().encode(
     ['address'],
     [allocation.id],
