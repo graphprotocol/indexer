@@ -29,7 +29,9 @@ import {
   resolveChainId,
   SubgraphDeployment,
   getTestProvider,
+  IndexingStatusCode,
 } from '@graphprotocol/indexer-common'
+import { encodeCollectData } from '../allocations'
 import { mockLogger, mockProvider } from '../../__tests__/subgraph.test'
 import { hexlify, Provider } from 'ethers'
 import {
@@ -293,7 +295,52 @@ describe('Actions', () => {
       }),
     ).resolves.toHaveLength(1)
   })
+
+  test('Insert and fetch COLLECT action', async () => {
+    const action = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.COLLECT,
+      deploymentID: 'QmQ44hgrWWt3Qf2X9XEX2fPyTbmQbChxwNm5c1t4mhKpGt',
+      allocationID: '0x1234567890123456789012345678901234567890',
+      force: false,
+      source: 'indexerAgent',
+      reason: 'test',
+      priority: 0,
+      protocolNetwork: 'eip155:421614',
+      isLegacy: false,
+    }
+    await models.Action.upsert(action)
+    await expect(
+      ActionManager.fetchActions(models, null, { type: ActionType.COLLECT }),
+    ).resolves.toHaveLength(1)
+  })
+
+  test('Generate where options for COLLECT', () => {
+    const filter = {
+      status: ActionStatus.QUEUED,
+      type: ActionType.COLLECT,
+    }
+    expect(actionFilterToWhereOptions(filter)).toEqual({
+      [Op.and]: [{ status: 'queued' }, { type: 'collect' }],
+    })
+  })
 })
+
+describe('Encoding', () => {
+  test('encodeCollectData encodes POI data correctly', () => {
+    const allocationId = '0x1234567890123456789012345678901234567890'
+    const poiData = {
+      poi: '0x' + 'ab'.repeat(32),
+      publicPOI: '0x' + 'cd'.repeat(32),
+      blockNumber: 12345,
+      indexingStatus: IndexingStatusCode.Healthy,
+    }
+    const result = encodeCollectData(allocationId, poiData)
+    expect(result).toMatch(/^0x/)
+    expect(result.length).toBeGreaterThan(2)
+  })
+})
+
 describe('Types', () => {
   test('Fail to resolve chain id', () => {
     expect(() => resolveChainId('arbitrum')).toThrow(
