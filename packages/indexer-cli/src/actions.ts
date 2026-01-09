@@ -186,6 +186,7 @@ export async function validateActionInput(
       break
     case ActionType.COLLECT:
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
+      break
   }
 
   return await validateRequiredParams(
