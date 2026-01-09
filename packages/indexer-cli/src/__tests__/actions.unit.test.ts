@@ -47,6 +47,9 @@ describe('buildActionInput', () => {
     const zeroPOI = '0x' + '00'.repeat(32)
     expect(result.poi).toBe(zeroPOI)
     expect(result.publicPOI).toBe(zeroPOI)
+    expect(result.force).toBe(false)
+    expect(result.allocationID).toBe('0xallocationId')
+    expect(result.poiBlockNumber).toBeUndefined()
   })
 })
 
