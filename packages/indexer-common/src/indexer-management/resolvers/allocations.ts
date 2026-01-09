@@ -17,7 +17,6 @@ import {
   Allocation,
   AllocationStatus,
   CloseAllocationResult,
-  CollectAllocationResult,
   CreateAllocationResult,
   encodeCollectData,
   epochElapsedBlocks,
@@ -1949,84 +1948,80 @@ export default {
       blockNumber,
       publicPOI,
       force,
+      protocolNetwork,
     }: {
       allocation: string
-      poi: string | null | undefined
-      blockNumber: number | null | undefined
-      publicPOI: string | null | undefined
+      poi: string | undefined
+      blockNumber: string | undefined
+      publicPOI: string | undefined
       force: boolean
+      protocolNetwork: string
     },
-    { logger: parentLogger, models, multiNetworks }: IndexerManagementResolverContext,
-  ): Promise<CollectAllocationResult> => {
-    const allocationData = await models.Allocation.findOne({
-      where: { id: allocation },
+    { logger, multiNetworks }: IndexerManagementResolverContext,
+  ): Promise<{
+    actionID: number
+    type: string
+    transactionID: string | undefined
+    allocation: string
+    indexingRewardsCollected: string
+    protocolNetwork: string
+  }> => {
+    logger = logger.child({
+      component: 'collectAllocationResolver',
     })
 
-    if (!allocationData) {
-      throw Error(`Allocation '${allocation}' not found`)
+    logger.info('Collecting indexing rewards (without closing)', {
+      allocation: allocation,
+      poi: poi || 'none provided',
+      force,
+    })
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to collect allocations',
+      )
     }
 
-    const network = extractNetwork(
-      multiNetworks,
-      allocationData.protocolNetwork,
-      parentLogger,
-    )
-    const protocolNetwork = network.specification.networkIdentifier
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const allocationData = await networkMonitor.allocation(allocation)
 
-    const logger = parentLogger.child({
-      component: 'collectAllocation',
-      function: 'collectAllocation',
-      allocation: allocation,
-      poi: poi,
-      force: force,
-      protocolNetwork,
-    })
+    // Collect without closing only works for Horizon allocations
+    if (allocationData.isLegacy) {
+      throw new Error(
+        'Cannot collect rewards without closing for legacy allocations. Use closeAllocation instead.',
+      )
+    }
 
     try {
-      logger.info(`Collecting indexing rewards (without closing)`, {
-        allocation: allocation,
-        poi: poi,
-        force: force,
-      })
-
-      const allocationEntity = await network.networkMonitor.allocation(allocation)
-
-      // COLLECT only works for Horizon allocations
-      if (allocationEntity.isLegacy) {
-        throw indexerError(
-          IndexerErrorCode.IE061,
-          `Cannot collect rewards without closing for legacy allocations. Use unallocate instead.`,
-        )
-      }
-
-      const poiData = await network.networkMonitor.resolvePOI(
-        allocationEntity,
-        poi ?? undefined,
-        publicPOI ?? undefined,
-        blockNumber ?? undefined,
+      logger.debug('Resolving POI')
+      const poiData = await networkMonitor.resolvePOI(
+        allocationData,
+        poi,
+        publicPOI,
+        blockNumber === undefined ? undefined : Number(blockNumber),
         force,
       )
-
-      const { txHash, rewardsCollected } = await collectHorizonRewards(
-        allocationEntity,
-        poiData,
-        network,
-        logger,
-      )
-
-      logger.info(`Successfully collected indexing rewards`, {
-        allocation: allocation,
-        transactionHash: txHash,
-        rewardsCollected: formatGRT(rewardsCollected),
+      logger.debug('POI resolved', {
+        userProvidedPOI: poi,
+        userProvidedPublicPOI: publicPOI,
+        userProvidedBlockNumber: blockNumber,
+        poi: poiData.poi,
+        publicPOI: poiData.publicPOI,
+        blockNumber: poiData.blockNumber,
+        force,
       })
+
+      // Use shared helper to collect rewards
+      const result = await collectHorizonRewards(allocationData, poiData, network, logger)
 
       return {
         actionID: 0,
         type: 'collect',
-        transactionID: txHash,
+        transactionID: result.txHash,
         allocation: allocation,
-        indexingRewardsCollected: formatGRT(rewardsCollected),
-        protocolNetwork,
+        indexingRewardsCollected: formatGRT(result.rewardsCollected),
+        protocolNetwork: network.specification.networkIdentifier,
       }
     } catch (error) {
       const parsedError = tryParseCustomError(error)
