@@ -27,6 +27,42 @@ export interface GenericActionInputParams {
   param6: string | undefined
 }
 
+interface NormalizedPOIParams {
+  poi: string | undefined
+  publicPOI: string | undefined
+  poiBlockNumber: number | undefined
+}
+
+/**
+ * Normalizes POI-related parameters for action inputs.
+ * Converts '0' or '0x0' to proper zero-filled bytes and parses block number.
+ */
+function normalizePOIParams(
+  poi: string | undefined,
+  publicPOI: string | undefined,
+  blockNumber: string | undefined,
+): NormalizedPOIParams {
+  const zeroPOI = hexlify(new Uint8Array(32).fill(0))
+
+  let normalizedPoi = poi
+  if (normalizedPoi === '0' || normalizedPoi === '0x0') {
+    normalizedPoi = zeroPOI
+  }
+
+  let normalizedPublicPoi = publicPOI
+  if (normalizedPublicPoi === '0' || normalizedPublicPoi === '0x0') {
+    normalizedPublicPoi = zeroPOI
+  }
+
+  const poiBlockNumber = blockNumber !== undefined ? Number(blockNumber) : undefined
+
+  return {
+    poi: normalizedPoi,
+    publicPOI: normalizedPublicPoi,
+    poiBlockNumber,
+  }
+}
+
 // Make separate functions for each action type parsing from generic?
 export async function buildActionInput(
   type: ActionType,
@@ -57,24 +93,17 @@ export async function buildActionInput(
         isLegacy,
       }
     case ActionType.UNALLOCATE: {
-      let poi = actionParams.param2
-      if (poi == '0' || poi == '0x0') {
-        poi = hexlify(new Uint8Array(32).fill(0))
-      }
-      let publicPOI = actionParams.param5
-      if (publicPOI == '0' || publicPOI == '0x0') {
-        publicPOI = hexlify(new Uint8Array(32).fill(0))
-      }
-      let poiBlockNumber: number | undefined = undefined
-      if (actionParams.param4 !== undefined) {
-        poiBlockNumber = Number(actionParams.param4)
-      }
+      const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
+        actionParams.param2,
+        actionParams.param5,
+        actionParams.param4,
+      )
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
-        poi: poi,
-        publicPOI: publicPOI,
-        poiBlockNumber: poiBlockNumber,
+        poi,
+        publicPOI,
+        poiBlockNumber,
         force: actionParams.param3 === 'true',
         type,
         source,
@@ -86,25 +115,18 @@ export async function buildActionInput(
       }
     }
     case ActionType.REALLOCATE: {
-      let poi = actionParams.param3
-      if (poi == '0' || poi == '0x0') {
-        poi = hexlify(new Uint8Array(32).fill(0))
-      }
-      let publicPOI = actionParams.param6
-      if (publicPOI == '0' || publicPOI == '0x0') {
-        publicPOI = hexlify(new Uint8Array(32).fill(0))
-      }
-      let poiBlockNumber: number | undefined = undefined
-      if (actionParams.param5 !== undefined) {
-        poiBlockNumber = Number(actionParams.param5)
-      }
+      const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
+        actionParams.param3,
+        actionParams.param6,
+        actionParams.param5,
+      )
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
         amount: actionParams.param2?.toString(),
-        poi: poi,
-        publicPOI: publicPOI,
-        poiBlockNumber: poiBlockNumber,
+        poi,
+        publicPOI,
+        poiBlockNumber,
         force: actionParams.param4 === 'true',
         type,
         source,
@@ -117,24 +139,17 @@ export async function buildActionInput(
     }
     case ActionType.COLLECT: {
       // collect <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
-      let poi = actionParams.param2
-      if (poi == '0' || poi == '0x0') {
-        poi = hexlify(new Uint8Array(32).fill(0))
-      }
-      let publicPOI = actionParams.param5
-      if (publicPOI == '0' || publicPOI == '0x0') {
-        publicPOI = hexlify(new Uint8Array(32).fill(0))
-      }
-      let poiBlockNumber: number | undefined = undefined
-      if (actionParams.param4 !== undefined) {
-        poiBlockNumber = Number(actionParams.param4)
-      }
+      const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
+        actionParams.param2,
+        actionParams.param5,
+        actionParams.param4,
+      )
       return {
         deploymentID: actionParams.targetDeployment,
         allocationID: actionParams.param1,
-        poi: poi,
-        publicPOI: publicPOI,
-        poiBlockNumber: poiBlockNumber,
+        poi,
+        publicPOI,
+        poiBlockNumber,
         force: actionParams.param3 === 'true',
         type,
         source,
