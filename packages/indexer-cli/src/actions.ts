@@ -54,7 +54,13 @@ function normalizePOIParams(
     normalizedPublicPoi = zeroPOI
   }
 
-  const poiBlockNumber = blockNumber !== undefined ? Number(blockNumber) : undefined
+  let poiBlockNumber: number | undefined = undefined
+  if (blockNumber !== undefined) {
+    poiBlockNumber = parseInt(blockNumber, 10)
+    if (isNaN(poiBlockNumber)) {
+      throw new Error(`Invalid block number: ${blockNumber}`)
+    }
+  }
 
   return {
     poi: normalizedPoi,

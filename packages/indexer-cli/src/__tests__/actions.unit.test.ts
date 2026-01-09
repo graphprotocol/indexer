@@ -68,6 +68,28 @@ describe('validateActionInput', () => {
     ).resolves.not.toThrow()
   })
 
+  test('rejects COLLECT with invalid block number', async () => {
+    await expect(
+      buildActionInput(
+        ActionType.COLLECT,
+        {
+          targetDeployment: 'QmTest123',
+          param1: '0xallocationId',
+          param2: undefined,
+          param3: undefined,
+          param4: 'not-a-number', // invalid blockNumber
+          param5: undefined,
+          param6: undefined,
+        },
+        'test',
+        'test',
+        ActionStatus.QUEUED,
+        0,
+        'arbitrum-sepolia',
+      ),
+    ).rejects.toThrow('Invalid block number: not-a-number')
+  })
+
   test('rejects COLLECT missing allocationID', async () => {
     await expect(
       validateActionInput(ActionType.COLLECT, {
