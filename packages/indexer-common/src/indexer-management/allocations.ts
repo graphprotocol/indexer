@@ -29,6 +29,7 @@ import {
   preprocessRules,
   Network,
   ReallocateAllocationResult,
+  CollectAllocationResult,
   SubgraphIdentifierType,
   SubgraphStatus,
   uniqueAllocationID,
@@ -88,6 +89,14 @@ export interface UnallocateTransactionParams {
   protocolNetwork: string
 }
 
+export interface CollectTransactionParams {
+  allocationID: string
+  poi: POIData
+  indexer: string
+  actionID: number
+  protocolNetwork: string
+}
+
 export interface ReallocateTransactionParams {
   closingAllocationID: string
   poi: POIData
@@ -124,6 +133,21 @@ export type ActionTransactionRequest = TransactionRequest & {
 export type TransactionResult =
   | (TransactionReceipt | 'paused' | 'unauthorized')[]
   | ActionFailure[]
+
+/**
+ * Encodes collect indexing rewards data for Horizon allocations.
+ * Shared helper used by collect and unallocate operations.
+ */
+export function encodeCollectData(allocationId: string, poiData: POIData): string {
+  const encodedPOIMetadata = encodePOIMetadata(
+    poiData.blockNumber,
+    poiData.publicPOI,
+    poiData.indexingStatus,
+    0,
+    0,
+  )
+  return encodeCollectIndexingRewardsData(allocationId, poiData.poi, encodedPOIMetadata)
+}
 
 export class AllocationManager {
   constructor(
@@ -535,6 +559,19 @@ export class AllocationManager {
           action.allocationID!,
           receipts,
         )
+      case ActionType.COLLECT:
+        if (receipts.length !== 1) {
+          this.logger.error('Invalid number of receipts for collect action', {
+            receipts,
+          })
+          throw new Error('Invalid number of receipts for collect action')
+        }
+        return await this.confirmCollect(
+          action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          action.allocationID!,
+          receipts[0],
+        )
     }
   }
 
@@ -606,6 +643,19 @@ export class AllocationManager {
             action.poi === null ? undefined : action.poi,
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             parseGRT(action.amount!),
+            action.force === null ? false : action.force,
+            action.poiBlockNumber === null ? undefined : action.poiBlockNumber,
+            action.publicPOI === null ? undefined : action.publicPOI,
+            action.id,
+            action.protocolNetwork,
+          )
+        case ActionType.COLLECT:
+          return await this.prepareCollect(
+            logger,
+            context,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            action.allocationID!,
+            action.poi === null ? undefined : action.poi,
             action.force === null ? false : action.force,
             action.poiBlockNumber === null ? undefined : action.poiBlockNumber,
             action.publicPOI === null ? undefined : action.publicPOI,
@@ -947,8 +997,29 @@ export class AllocationManager {
       publicPOI: publicPOI || 'none provided',
       poiBlockNumber: poiBlockNumber || 'none provided',
     })
+
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
+    // For Horizon allocations, reuse prepareCollectParams logic
+    if (!allocation.isLegacy) {
+      const collectParams = await this.prepareCollectParams(
+        logger,
+        context,
+        allocationID,
+        poi,
+        force,
+        poiBlockNumber,
+        publicPOI,
+        actionID,
+        protocolNetwork,
+      )
+      return {
+        ...collectParams,
+        isLegacy: false,
+      }
+    }
+
+    // Legacy allocation path
     const poiData = await this.network.networkMonitor.resolvePOI(
       allocation,
       poi,
@@ -957,21 +1028,12 @@ export class AllocationManager {
       force,
     )
 
-    // Double-check whether the allocation is still active on chain, to
-    // avoid unnecessary transactions.
-    if (allocation.isLegacy) {
-      const state = await this.network.contracts.HorizonStaking.getAllocationState(
-        allocation.id,
-      )
-      if (state !== 1n) {
-        throw indexerError(IndexerErrorCode.IE065)
-      }
-    } else {
-      const allocation =
-        await this.network.contracts.SubgraphService.getAllocation(allocationID)
-      if (allocation.closedAt !== 0n) {
-        throw indexerError(IndexerErrorCode.IE065)
-      }
+    // Double-check whether the legacy allocation is still active on chain
+    const state = await this.network.contracts.HorizonStaking.getAllocationState(
+      allocation.id,
+    )
+    if (state !== 1n) {
+      throw indexerError(IndexerErrorCode.IE065)
     }
 
     return {
@@ -979,7 +1041,7 @@ export class AllocationManager {
       actionID,
       allocationID: allocation.id,
       poi: poiData,
-      isLegacy: allocation.isLegacy,
+      isLegacy: true,
       indexer: allocation.indexer,
     }
   }
@@ -1122,73 +1184,51 @@ export class AllocationManager {
         actionID: params.actionID,
         ...tx,
       }
-    } else {
-      // Horizon: Need to collect indexing rewards and stop service
-      // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
-      // and we should NOT call stopService to avoid "AllocationClosed" revert
-      const isOverAllocated =
-        await this.network.contracts.SubgraphService.isOverAllocated(params.indexer)
+    }
 
-      logger.debug('Checking over-allocation status for unallocate', {
-        allocationID: params.allocationID,
-        isOverAllocated,
-      })
+    // Horizon: Need to collect indexing rewards and stop service
+    // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
+    // and we should NOT call stopService to avoid "AllocationClosed" revert
+    const isOverAllocated = await this.network.contracts.SubgraphService.isOverAllocated(
+      params.indexer,
+    )
 
-      // collect
-      const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
-        params.allocationID,
-        params.poi.poi,
-        encodePOIMetadata(
-          params.poi.blockNumber,
-          params.poi.publicPOI,
-          params.poi.indexingStatus,
-          0,
-          0,
-        ),
+    logger.debug('Checking over-allocation status for unallocate', {
+      allocationID: params.allocationID,
+      isOverAllocated,
+    })
+
+    if (isOverAllocated) {
+      // Reuse populateCollectTransaction - collect will auto-close the allocation
+      logger.info(
+        'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
+        { allocationID: params.allocationID },
       )
+      return await this.populateCollectTransaction(logger, params)
+    }
 
-      if (isOverAllocated) {
-        logger.info(
-          'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
-          { allocationID: params.allocationID },
-        )
-        const tx =
-          await this.network.contracts.SubgraphService.collect.populateTransaction(
-            params.indexer,
-            PaymentTypes.IndexingRewards,
-            collectIndexingRewardsData,
-          )
-        return {
-          protocolNetwork: params.protocolNetwork,
-          actionID: params.actionID,
-          ...tx,
-        }
-      } else {
-        // Normal path: multicall collect + stopService
-        const collectCallData =
-          this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
-            params.indexer,
-            PaymentTypes.IndexingRewards,
-            collectIndexingRewardsData,
-          ])
+    // Normal path: multicall collect + stopService
+    const collectData = encodeCollectData(params.allocationID, params.poi)
+    const collectCallData =
+      this.network.contracts.SubgraphService.interface.encodeFunctionData('collect', [
+        params.indexer,
+        PaymentTypes.IndexingRewards,
+        collectData,
+      ])
 
-        const stopServiceCallData =
-          this.network.contracts.SubgraphService.interface.encodeFunctionData(
-            'stopService',
-            [params.indexer, encodeStopServiceData(params.allocationID)],
-          )
+    const stopServiceCallData =
+      this.network.contracts.SubgraphService.interface.encodeFunctionData('stopService', [
+        params.indexer,
+        encodeStopServiceData(params.allocationID),
+      ])
 
-        const tx =
-          await this.network.contracts.SubgraphService.multicall.populateTransaction([
-            collectCallData,
-            stopServiceCallData,
-          ])
-        return {
-          protocolNetwork: params.protocolNetwork,
-          actionID: params.actionID,
-          ...tx,
-        }
-      }
+    const tx = await this.network.contracts.SubgraphService.multicall.populateTransaction(
+      [collectCallData, stopServiceCallData],
+    )
+    return {
+      protocolNetwork: params.protocolNetwork,
+      actionID: params.actionID,
+      ...tx,
     }
   }
 
@@ -1215,6 +1255,162 @@ export class AllocationManager {
       protocolNetwork,
     )
     return await this.populateUnallocateTransaction(logger, params)
+  }
+
+  // ---- COLLECT (rewards only, no close) ----
+
+  async prepareCollectParams(
+    logger: Logger,
+    context: TransactionPreparationContext,
+    allocationID: string,
+    poi: string | undefined,
+    force: boolean,
+    poiBlockNumber: number | undefined,
+    publicPOI: string | undefined,
+    actionID: number,
+    protocolNetwork: string,
+  ): Promise<CollectTransactionParams> {
+    logger.info('Preparing to collect indexing rewards (without closing)', {
+      allocationID: allocationID,
+      poi: poi || 'none provided',
+      publicPOI: publicPOI || 'none provided',
+      poiBlockNumber: poiBlockNumber || 'none provided',
+    })
+
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
+
+    // Collect without closing only works for Horizon allocations
+    if (allocation.isLegacy) {
+      throw indexerError(
+        IndexerErrorCode.IE061,
+        `Cannot collect rewards without closing for legacy allocations. Use unallocate instead.`,
+      )
+    }
+
+    const poiData = await this.network.networkMonitor.resolvePOI(
+      allocation,
+      poi,
+      publicPOI,
+      poiBlockNumber,
+      force,
+    )
+
+    // Double-check whether the allocation is still active on chain
+    const allocationData =
+      await this.network.contracts.SubgraphService.getAllocation(allocationID)
+    if (allocationData.closedAt !== 0n) {
+      throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+    }
+
+    return {
+      protocolNetwork,
+      actionID,
+      allocationID: allocation.id,
+      poi: poiData,
+      indexer: allocation.indexer,
+    }
+  }
+
+  async populateCollectTransaction(
+    logger: Logger,
+    params: CollectTransactionParams,
+  ): Promise<ActionTransactionRequest> {
+    logger.debug(`Populating collect transaction (rewards only)`, {
+      allocationID: params.allocationID,
+      poiData: params.poi,
+    })
+
+    // Collect indexing rewards without closing the allocation
+    const collectData = encodeCollectData(params.allocationID, params.poi)
+
+    const tx = await this.network.contracts.SubgraphService.collect.populateTransaction(
+      params.indexer,
+      PaymentTypes.IndexingRewards,
+      collectData,
+    )
+
+    return {
+      protocolNetwork: params.protocolNetwork,
+      actionID: params.actionID,
+      ...tx,
+    }
+  }
+
+  async prepareCollect(
+    logger: Logger,
+    context: TransactionPreparationContext,
+    allocationID: string,
+    poi: string | undefined,
+    force: boolean,
+    poiBlockNumber: number | undefined,
+    publicPOI: string | undefined,
+    actionID: number,
+    protocolNetwork: string,
+  ): Promise<ActionTransactionRequest> {
+    const params = await this.prepareCollectParams(
+      logger,
+      context,
+      allocationID,
+      poi,
+      force,
+      poiBlockNumber,
+      publicPOI,
+      actionID,
+      protocolNetwork,
+    )
+    return await this.populateCollectTransaction(logger, params)
+  }
+
+  async confirmCollect(
+    actionID: number,
+    allocationID: string,
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
+  ): Promise<CollectAllocationResult> {
+    const logger = this.logger.child({ action: actionID })
+
+    logger.info(`Confirming collect transaction (rewards only)`, {
+      allocationID,
+    })
+
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Collect for allocation '${allocationID}' failed: ${receipt}`,
+      )
+    }
+
+    const collectEventLogs = this.network.transactionManager.findEvent(
+      'ServicePaymentCollected',
+      this.network.contracts.SubgraphService.interface,
+      'serviceProvider',
+      this.network.specification.indexerOptions.address,
+      receipt,
+      this.logger,
+    )
+
+    if (!collectEventLogs) {
+      throw indexerError(
+        IndexerErrorCode.IE015,
+        `Collect transaction was never successfully mined`,
+      )
+    }
+
+    const rewardsCollected = collectEventLogs.tokens ?? 0n
+
+    logger.info(`Successfully collected indexing rewards`, {
+      allocation: allocationID,
+      indexingRewards: formatGRT(rewardsCollected),
+      transaction: receipt.hash,
+    })
+
+    return {
+      actionID,
+      type: 'collect',
+      transactionID: receipt.hash,
+      allocation: allocationID,
+      indexingRewardsCollected: formatGRT(rewardsCollected),
+      protocolNetwork: this.network.specification.networkIdentifier,
+    }
   }
 
   async prepareReallocateParams(

@@ -49,6 +49,15 @@ export interface ReallocateAllocationResult {
   protocolNetwork: string
 }
 
+export interface CollectAllocationResult {
+  actionID: number
+  type: 'collect'
+  transactionID: string | undefined
+  allocation: string
+  indexingRewardsCollected: string
+  protocolNetwork: string
+}
+
 export interface ActionExecutionResult {
   actionID: number
   success: boolean
@@ -95,6 +104,7 @@ export type AllocationResult =
   | CreateAllocationResult
   | CloseAllocationResult
   | ReallocateAllocationResult
+  | CollectAllocationResult
   | ActionFailure
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

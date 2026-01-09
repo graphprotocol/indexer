@@ -17,7 +17,9 @@ import {
   Allocation,
   AllocationStatus,
   CloseAllocationResult,
+  CollectAllocationResult,
   CreateAllocationResult,
+  encodeCollectData,
   epochElapsedBlocks,
   horizonAllocationIdProof,
   HorizonTransitionValue,
@@ -715,6 +717,101 @@ async function closeLegacyAllocation(
   })
 
   return { txHash: receipt.hash, rewardsAssigned }
+}
+
+/**
+ * Execute collect transaction and extract rewards - shared helper for collect and close
+ */
+async function executeCollectTransaction(
+  network: Network,
+  allocationId: string,
+  collectData: string,
+  logger: Logger,
+): Promise<{ receipt: TransactionReceipt; rewardsCollected: bigint }> {
+  const contracts = network.contracts
+  const transactionManager = network.transactionManager
+  const address = network.specification.indexerOptions.address
+
+  const receipt = await transactionManager.executeTransaction(
+    async () =>
+      contracts.SubgraphService.collect.estimateGas(
+        address,
+        PaymentTypes.IndexingRewards,
+        collectData,
+      ),
+    async (gasLimit) =>
+      contracts.SubgraphService.collect(
+        address,
+        PaymentTypes.IndexingRewards,
+        collectData,
+        { gasLimit },
+      ),
+    logger,
+  )
+
+  if (receipt === 'paused' || receipt === 'unauthorized') {
+    throw indexerError(
+      IndexerErrorCode.IE062,
+      `Collect for allocation '${allocationId}' failed: ${receipt}`,
+    )
+  }
+
+  const collectEventLogs = transactionManager.findEvent(
+    'ServicePaymentCollected',
+    contracts.SubgraphService.interface,
+    'serviceProvider',
+    address,
+    receipt,
+    logger,
+  )
+
+  if (!collectEventLogs) {
+    throw indexerError(
+      IndexerErrorCode.IE015,
+      `Collect transaction was never successfully mined`,
+    )
+  }
+
+  const rewardsCollected = collectEventLogs.tokens ?? 0n
+
+  return { receipt, rewardsCollected }
+}
+
+/**
+ * Collect indexing rewards without closing the allocation (Horizon only)
+ */
+async function collectHorizonRewards(
+  allocation: Allocation,
+  poiData: POIData,
+  network: Network,
+  logger: Logger,
+): Promise<{ txHash: string; rewardsCollected: bigint }> {
+  const contracts = network.contracts
+  const address = network.specification.indexerOptions.address
+
+  // Double-check whether the allocation is still active on chain
+  const allocationState = await contracts.SubgraphService.getAllocation(allocation.id)
+  if (allocationState.closedAt !== 0n) {
+    throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+  }
+
+  const collectData = encodeCollectData(allocation.id, poiData)
+  const { receipt, rewardsCollected } = await executeCollectTransaction(
+    network,
+    allocation.id,
+    collectData,
+    logger,
+  )
+
+  logger.info(`Successfully collected indexing rewards`, {
+    allocation: allocation.id,
+    indexer: address,
+    poi: poiData.poi,
+    transaction: receipt.hash,
+    indexingRewards: formatGRT(rewardsCollected),
+  })
+
+  return { txHash: receipt.hash, rewardsCollected }
 }
 
 async function closeHorizonAllocation(
@@ -1872,6 +1969,99 @@ export default {
     } catch (error) {
       const parsedError = tryParseCustomError(error)
       logger.error('Failed to reallocate', { error: parsedError })
+      throw parsedError
+    }
+  },
+
+  collectAllocation: async (
+    {
+      allocation,
+      poi,
+      blockNumber,
+      publicPOI,
+      force,
+    }: {
+      allocation: string
+      poi: string | null | undefined
+      blockNumber: number | null | undefined
+      publicPOI: string | null | undefined
+      force: boolean
+    },
+    { logger: parentLogger, models, multiNetworks }: IndexerManagementResolverContext,
+  ): Promise<CollectAllocationResult> => {
+    const allocationData = await models.Allocation.findOne({
+      where: { id: allocation },
+    })
+
+    if (!allocationData) {
+      throw Error(`Allocation '${allocation}' not found`)
+    }
+
+    const network = extractNetwork(
+      multiNetworks,
+      allocationData.protocolNetwork,
+      parentLogger,
+    )
+    const protocolNetwork = network.specification.networkIdentifier
+
+    const logger = parentLogger.child({
+      component: 'collectAllocation',
+      function: 'collectAllocation',
+      allocation: allocation,
+      poi: poi,
+      force: force,
+      protocolNetwork,
+    })
+
+    try {
+      logger.info(`Collecting indexing rewards (without closing)`, {
+        allocation: allocation,
+        poi: poi,
+        force: force,
+      })
+
+      const allocationEntity = await network.networkMonitor.allocation(allocation)
+
+      // COLLECT only works for Horizon allocations
+      if (allocationEntity.isLegacy) {
+        throw indexerError(
+          IndexerErrorCode.IE061,
+          `Cannot collect rewards without closing for legacy allocations. Use unallocate instead.`,
+        )
+      }
+
+      const poiData = await network.networkMonitor.resolvePOI(
+        allocationEntity,
+        poi ?? undefined,
+        publicPOI ?? undefined,
+        blockNumber ?? undefined,
+        force,
+      )
+
+      const { txHash, rewardsCollected } = await collectHorizonRewards(
+        allocationEntity,
+        poiData,
+        network,
+        logger,
+      )
+
+      logger.info(`Successfully collected indexing rewards`, {
+        allocation: allocation,
+        transactionHash: txHash,
+        rewardsCollected: formatGRT(rewardsCollected),
+      })
+
+      return {
+        actionID: 0,
+        type: 'collect',
+        transactionID: txHash,
+        allocation: allocation,
+        indexingRewardsCollected: formatGRT(rewardsCollected),
+        protocolNetwork,
+      }
+    } catch (error) {
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to collect indexing rewards', { error: parsedError })
       throw parsedError
     }
   },

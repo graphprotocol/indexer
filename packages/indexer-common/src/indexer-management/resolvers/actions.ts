@@ -416,5 +416,7 @@ function compareActions(enqueued: Action, proposed: ActionInput): boolean {
       return poi && force
     case ActionType.REALLOCATE:
       return amount && poi && force
+    case ActionType.COLLECT:
+      return poi && force
   }
 }

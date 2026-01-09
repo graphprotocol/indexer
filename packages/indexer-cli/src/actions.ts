@@ -115,6 +115,36 @@ export async function buildActionInput(
         isLegacy,
       }
     }
+    case ActionType.COLLECT: {
+      // collect <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
+      let poi = actionParams.param2
+      if (poi == '0' || poi == '0x0') {
+        poi = hexlify(new Uint8Array(32).fill(0))
+      }
+      let publicPOI = actionParams.param5
+      if (publicPOI == '0' || publicPOI == '0x0') {
+        publicPOI = hexlify(new Uint8Array(32).fill(0))
+      }
+      let poiBlockNumber: number | undefined = undefined
+      if (actionParams.param4 !== undefined) {
+        poiBlockNumber = Number(actionParams.param4)
+      }
+      return {
+        deploymentID: actionParams.targetDeployment,
+        allocationID: actionParams.param1,
+        poi: poi,
+        publicPOI: publicPOI,
+        poiBlockNumber: poiBlockNumber,
+        force: actionParams.param3 === 'true',
+        type,
+        source,
+        reason,
+        status,
+        priority,
+        protocolNetwork,
+        isLegacy,
+      }
+    }
   }
 }
 
@@ -132,6 +162,9 @@ export async function validateActionInput(
       break
     case ActionType.REALLOCATE:
       requiredFields = requiredFields.concat(['targetDeployment', 'param1', 'param2'])
+      break
+    case ActionType.COLLECT:
+      requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
   }
 
   return await validateRequiredParams(

@@ -66,6 +66,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
           ActionType.ALLOCATE,
           ActionType.UNALLOCATE,
           ActionType.REALLOCATE,
+          ActionType.COLLECT,
         ),
         allowNull: false,
         validate: {
@@ -199,6 +200,13 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
               ) {
                 throw new Error(
                   `ActionType.REALLOCATE action must have required params: ['deploymentID','allocationID', 'amount]`,
+                )
+              }
+              break
+            case ActionType.COLLECT:
+              if (this.deploymentID === null || this.allocationID === null) {
+                throw new Error(
+                  `ActionType.COLLECT action must have required params: ['deploymentID','allocationID']`,
                 )
               }
           }
