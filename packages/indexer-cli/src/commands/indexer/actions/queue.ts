@@ -24,7 +24,10 @@ ${chalk.bold(
 )} [options] unallocate <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
 ${chalk.bold(
   'graph indexer actions queue',
-)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <blockNumber> <publicPOI> 
+)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <blockNumber> <publicPOI>
+${chalk.bold(
+  'graph indexer actions queue',
+)} [options] collect <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
 
 ${chalk.dim('Options:')}
 

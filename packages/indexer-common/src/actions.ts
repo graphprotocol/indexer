@@ -227,6 +227,7 @@ export enum ActionType {
   ALLOCATE = 'allocate',
   UNALLOCATE = 'unallocate',
   REALLOCATE = 'reallocate',
+  COLLECT = 'collect',
 }
 
 export enum ActionStatus {

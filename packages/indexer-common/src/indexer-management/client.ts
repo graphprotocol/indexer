@@ -106,6 +106,15 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
+  type CollectAllocationResult {
+    actionID: Int!
+    type: String!
+    transactionID: String
+    allocation: String!
+    indexingRewardsCollected: String!
+    protocolNetwork: String!
+  }
+
   enum ActionStatus {
     queued
     approved
@@ -120,6 +129,7 @@ const SCHEMA_SDL = gql`
     allocate
     unallocate
     reallocate
+    collect
   }
 
   type Action {
@@ -509,6 +519,14 @@ const SCHEMA_SDL = gql`
       force: Boolean
       protocolNetwork: String!
     ): ReallocateAllocationResult!
+    collectAllocation(
+      allocation: String!
+      poi: String
+      blockNumber: Int
+      publicPOI: String
+      force: Boolean
+      protocolNetwork: String!
+    ): CollectAllocationResult!
     submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
 
     updateAction(action: ActionInput!): Action!
