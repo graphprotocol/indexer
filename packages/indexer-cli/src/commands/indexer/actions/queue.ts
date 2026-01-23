@@ -15,16 +15,14 @@ import {
 } from '@graphprotocol/indexer-common'
 
 const HELP = `
-${chalk.bold(
-  'graph indexer actions queue',
-)} [options] <ActionType> <targetDeployment> <param1> <param2> <param3> <param4> <param5> <param6>
-${chalk.bold('graph indexer actions queue')} [options] allocate <deploymentID> <amount>
-${chalk.bold(
-  'graph indexer actions queue',
-)} [options] unallocate <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
-${chalk.bold(
-  'graph indexer actions queue',
-)} [options] reallocate <deploymentID> <allocationID> <amount> <poi> <force> <blockNumber> <publicPOI> 
+${chalk.bold('graph indexer actions queue')} [options] <ActionType> ...
+
+${chalk.dim('Action Types:')}
+
+  allocate <deploymentID> <amount>
+  unallocate <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
+  reallocate <deploymentID> <allocationID> <amount> [poi] [force] [blockNumber] [publicPOI]
+  present_poi <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
 
 ${chalk.dim('Options:')}
 
@@ -35,7 +33,10 @@ ${chalk.dim('Options:')}
   -r, --reason <STRING>         Specify the reason for the action to be taken
   -p, --priority <INT>          Define a priority order for the action
 
-  For action type specific options, see the help for the specific action type.
+${chalk.dim('Notes:')}
+
+  POI parameters are optional - the system auto-resolves POI from the indexer's state.
+  Use [force]=true to submit with a zero POI if auto-resolution fails.
 `
 
 module.exports = {
