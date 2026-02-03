@@ -2,7 +2,7 @@
 
 The Graph Network's testnet is on Arbitrum Sepolia, and network information can be found at https://testnet.thegraph.com/explorer/network.
 
-> See [networks/testnet.md](/networks/testnet.md) for the latest releases & configuration information.
+> See [Arbitrum Sepolia configuration](./networks/arbitrum-sepolia.md) for the latest releases & configuration information.
 
 ### Registration / Funding (GRT)
 

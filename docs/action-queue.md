@@ -12,7 +12,7 @@ The action execution worker will only grab items from the action queue to execut
 - `oversight`: The indexer-agent will add run its reconciliation loop to make allocation decisions and when actions are identified it will queue them. These actions will then require approval before they can be executed.
 
 ## Actions CLI
-The indexer-cli provides an `actions` module for manually working with the action queue. It uses the #Graphql API hosted by the indexer management server to interact with the actions queue.
+The indexer-cli provides an `actions` module for manually working with the action queue. It uses the GraphQL API hosted by the indexer management server to interact with the actions queue.
 
 ```bash
 Manage indexer actions
