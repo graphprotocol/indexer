@@ -309,7 +309,7 @@ graph/index node or nodes.
 Typical reasons that can cause this:
 
 - The indexer agent fails to connect to the graph/index node or nodes.
-- The subgraph deployment is for a network (e.g. Ropsten) that is not
+- The subgraph deployment is for a network that is not
   supported by the graph/index node or nodes.
 
 **Solution**

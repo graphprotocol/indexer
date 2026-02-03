@@ -83,12 +83,12 @@ variable "indexer_address" {
 
 variable "ethereum_chain_name" {
   type        = string
-  description = "Name of the Ethereum network (mainnet for mainnet, rinkeby for testnet)"
+  description = "Name of the Ethereum network (e.g. mainnet, arbitrum-one, arbitrum-sepolia)"
 }
 
 variable "ethereum_chain_id" {
   type        = number
-  description = "Numeric chain ID of the Ethereum network (1 for mainnet, 4 for testnet)"
+  description = "Numeric chain ID of the Ethereum network (e.g. 1 for mainnet, 42161 for Arbitrum One)"
 }
 
 variable "ethereum_provider" {

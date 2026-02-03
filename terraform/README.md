@@ -116,12 +116,12 @@ indexer_mnemonic = "<operator Ethereum mnemonic>"
 indexer_address = "<indexer Ethereum address>"
 
 ethereum_chain_name = "mainnet"
-# testnet: ethereum_chain_name = "rinkeby"
+# testnet: ethereum_chain_name = "arbitrum-sepolia"
 
-ethereum_chain_id = 1
-# testnet: ethereum_chain_id = 4
+ethereum_chain_id = 42161
+# testnet: ethereum_chain_id = 421614
 
-ethereum_provider = "<mainnet or rinkeby Ethereum node/provider>"
+ethereum_provider = "<Arbitrum One or Arbitrum Sepolia node/provider>"
 
 network_subgraph_endpoint = "https://gateway.network.thegraph.com/network"
 # testnet: network_subgraph_endpoint = "https://gateway.testnet.thegraph.com/network"
