@@ -462,7 +462,7 @@ export async function createNetworkSpecification(
         {
           problem:
             'A low subgraph freshness threshold might cause the Agent to discard too many subgraph queries in fast-paced networks.',
-          hint: `Increase the 'subgraph-max-block-distance' parameter to a value that accomodates for block and indexing speeds.`,
+          hint: `Increase the 'subgraph-max-block-distance' parameter to a value that accommodates for block and indexing speeds.`,
           configuredValue: subgraphs.maxBlockDistance,
         },
       )
@@ -476,7 +476,7 @@ export async function createNetworkSpecification(
         {
           problem:
             'A short subgraph freshness wait time might be insufficient for the subgraph to sync with fast-paced networks.',
-          hint: `Increase the 'subgraph-freshness-sleep-milliseconds' parameter to a value that accomodates for block and indexing speeds.`,
+          hint: `Increase the 'subgraph-freshness-sleep-milliseconds' parameter to a value that accommodates for block and indexing speeds.`,
           configuredValue: subgraphs.freshnessSleepMilliseconds,
         },
       )
