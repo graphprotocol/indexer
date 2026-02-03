@@ -492,7 +492,7 @@ describe.skip('Monitor: CI', () => {
     await expect(subgraphs.length).toEqual(106)
   })
 
-  //TODO: Setup constrained subraphDeployments query that works both against graph-node and the gateway
+  //TODO: Setup constrained subgraphDeployments query that works both against graph-node and the gateway
 
   // test('Fetch subgraph deployments (constrained)', async () => {
   //   const deployments = await networkMonitor.subgraphDeployments(59022843)
