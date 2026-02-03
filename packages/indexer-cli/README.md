@@ -176,7 +176,7 @@ outputs. In order to create new reference files it is recommended to use the fol
 
 - Install `strip-ansi` to strip ansi color codes from CLI command stdout and stderr output
   - `npm install --global strip-ansi-cli`
-- Produce reference output file by piping command output through stip-ansi before saving to file
+- Produce reference output file by piping command output through strip-ansi before saving to file
   - Ex: `./bin/graph-indexer indexer rules get | strip-ansi | src/__tests__/references/indexer-rules-command-no-args.stdout`
 
 # Copyright
