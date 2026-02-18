@@ -546,22 +546,9 @@ describe('DipsCollector', () => {
       client.CollectPayment = jest.fn().mockResolvedValue({
         version: 1,
         status: CollectPaymentStatus.ACCEPT,
-        tapReceipt: Buffer.from('1234', 'hex'),
+        receiptId: 'test-receipt-id-123',
+        amount: '1000',
       })
-      dipsCollector.gatewayDipsServiceMessagesCodec.decodeTapReceipt = jest
-        .fn()
-        .mockImplementation(() => {
-          logger.info('MOCK Decoding TAP receipt')
-          return {
-            allocation_id: toAddress(testAllocationId),
-            signer_address: toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
-            signature: Buffer.from('1234', 'hex'),
-            timestamp_ns: 1234567890,
-            nonce: 1,
-            value: '1000',
-          }
-        })
-      // escrowSenderGetter has been removed from DipsCollector
 
       await dipsCollector.tryCollectPayment(agreement)
 
@@ -571,16 +558,15 @@ describe('DipsCollector', () => {
       })
       expect(agreement.last_payment_collected_at).not.toBeNull()
 
-      const receipt = await queryFeeModels.scalarTapReceipts.findOne({
+      const receipt = await managementModels.DipsReceipt.findOne({
         where: {
-          allocation_id: testAllocationId,
+          agreement_id: agreement.id,
         },
       })
       expect(receipt).not.toBeNull()
-      expect(receipt?.signer_address).toBe(
-        toAddress('0xabcd56df41234949a75a6693c77834c00b8abbbb'),
-      )
-      expect(receipt?.value).toBe('1000')
+      expect(receipt?.id).toBe('test-receipt-id-123')
+      expect(receipt?.amount).toBe('1000')
+      expect(receipt?.status).toBe('PENDING')
     })
   })
 })
