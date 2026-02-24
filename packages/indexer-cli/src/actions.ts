@@ -144,7 +144,7 @@ export async function buildActionInput(
       }
     }
     case ActionType.PRESENT_POI: {
-      // present_poi <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
+      // present-poi <deploymentID> <allocationID> <poi> <force> <blockNumber> <publicPOI>
       const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
         actionParams.param2,
         actionParams.param5,
@@ -196,15 +196,17 @@ export async function validateActionInput(
 }
 
 export function validateActionType(input: string): ActionType {
+  // Normalize hyphens to underscores (CLI uses present-poi, enum key is PRESENT_POI)
+  const normalized = input.replace(/-/g, '_')
   const validVariants = Object.keys(ActionType).map(variant =>
     variant.toLocaleLowerCase(),
   )
-  if (!validVariants.includes(input.toLocaleLowerCase())) {
+  if (!validVariants.includes(normalized.toLocaleLowerCase())) {
     throw Error(
       `Invalid 'ActionType' "${input}", must be one of ['${validVariants.join(`', '`)}']`,
     )
   }
-  return ActionType[input.toUpperCase() as keyof typeof ActionType]
+  return ActionType[normalized.toUpperCase() as keyof typeof ActionType]
 }
 
 export function validateActionStatus(input: string): ActionStatus {

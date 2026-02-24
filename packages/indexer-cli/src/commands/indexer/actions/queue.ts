@@ -22,7 +22,7 @@ ${chalk.dim('Action Types:')}
   allocate <deploymentID> <amount>
   unallocate <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
   reallocate <deploymentID> <allocationID> <amount> [poi] [force] [blockNumber] [publicPOI]
-  present_poi <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
+  present-poi <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
 
 ${chalk.dim('Options:')}
 
