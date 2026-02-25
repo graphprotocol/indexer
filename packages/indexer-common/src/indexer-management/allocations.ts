@@ -973,14 +973,9 @@ export class AllocationManager {
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
-    if (allocation.isLegacy) {
-      const state = await this.network.contracts.HorizonStaking.getAllocationState(
-        allocation.id,
-      )
-      if (state !== 1n) {
-        throw indexerError(IndexerErrorCode.IE065)
-      }
-    } else {
+    // TODO: Remove legacy allocation path — getAllocationState no longer exists
+    // in HorizonStaking. Legacy allocations now live in SubgraphService.
+    if (!allocation.isLegacy) {
       const allocation =
         await this.network.contracts.SubgraphService.getAllocation(allocationID)
       if (allocation.closedAt !== 0n) {
@@ -1134,17 +1129,23 @@ export class AllocationManager {
       poiData: params.poi,
     })
 
+    // TODO: Remove legacy allocation path — closeAllocation no longer exists
+    // in HorizonStaking. Legacy allocations now live in SubgraphService.
     if (params.isLegacy) {
-      const tx =
-        await this.network.contracts.HorizonStaking.closeAllocation.populateTransaction(
-          params.allocationID,
-          params.poi.poi,
-        )
-      return {
-        protocolNetwork: params.protocolNetwork,
-        actionID: params.actionID,
-        ...tx,
-      }
+      // const tx =
+      //   await this.network.contracts.HorizonStaking.closeAllocation.populateTransaction(
+      //     params.allocationID,
+      //     params.poi.poi,
+      //   )
+      // return {
+      //   protocolNetwork: params.protocolNetwork,
+      //   actionID: params.actionID,
+      //   ...tx,
+      // }
+      throw indexerError(
+        IndexerErrorCode.IE065,
+        'Legacy allocation close is no longer supported',
+      )
     } else {
       // Horizon: Need to collect indexing rewards and stop service
       // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
@@ -1298,17 +1299,19 @@ export class AllocationManager {
 
     // Double-check whether the allocation is still active on chain, to
     // avoid unnecessary transactions.
+    // TODO: Remove legacy allocation path — getAllocationState no longer exists
+    // in HorizonStaking. Legacy allocations now live in SubgraphService.
     if (allocation.isLegacy) {
-      const state = await this.network.contracts.HorizonStaking.getAllocationState(
-        allocation.id,
-      )
-      if (state !== 1n) {
-        logger.warn(`Allocation has already been closed`)
-        throw indexerError(
-          IndexerErrorCode.IE065,
-          `Legacy allocation has already been closed`,
-        )
-      }
+      // const state = await this.network.contracts.HorizonStaking.getAllocationState(
+      //   allocation.id,
+      // )
+      // if (state !== 1n) {
+      //   logger.warn(`Allocation has already been closed`)
+      //   throw indexerError(
+      //     IndexerErrorCode.IE065,
+      //     `Legacy allocation has already been closed`,
+      //   )
+      // }
     } else {
       const allocationData =
         await this.network.contracts.SubgraphService.getAllocation(allocationID)
@@ -1360,18 +1363,20 @@ export class AllocationManager {
         })
         throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
       }
+    // TODO: Remove legacy allocation path — getAllocationState no longer exists
+    // in HorizonStaking. Legacy allocations now live in SubgraphService.
     } else {
-      const newAllocationState =
-        await this.network.contracts.HorizonStaking.getAllocationState(newAllocationId)
-      if (newAllocationState !== 0n) {
-        logger.warn(`Skipping allocation as it already exists onchain (legacy)`, {
-          indexer: this.network.specification.indexerOptions.address,
-          allocation: newAllocationId,
-          newAllocationState,
-          isHorizon,
-        })
-        throw indexerError(IndexerErrorCode.IE066, 'Legacy AllocationID already exists')
-      }
+      // const newAllocationState =
+      //   await this.network.contracts.HorizonStaking.getAllocationState(newAllocationId)
+      // if (newAllocationState !== 0n) {
+      //   logger.warn(`Skipping allocation as it already exists onchain (legacy)`, {
+      //     indexer: this.network.specification.indexerOptions.address,
+      //     allocation: newAllocationId,
+      //     newAllocationState,
+      //     isHorizon,
+      //   })
+      //   throw indexerError(IndexerErrorCode.IE066, 'Legacy AllocationID already exists')
+      // }
     }
 
     logger.debug('Generating new allocation ID proof', {

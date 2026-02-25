@@ -590,10 +590,17 @@
   dependencies:
     "@bufbuild/protobuf" "^2.2.3"
 
-"@graphprotocol/interfaces@^0.6.4":
-  version "0.6.4"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.6.4.tgz#b7aa58219c62cae19a6746a794648d473374a308"
-  integrity sha512-Gpm3FR9aFgg8ChV7hkU64+97dpi9N4y0cVCh/8z/nUOG7JSzz1fkpYjP1Ql16EUZKKvHzBjor9qsV9asxQUF6Q==
+"@graphprotocol/interfaces@^0.7.0-dips.0":
+  version "0.7.0-dips.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/interfaces/-/interfaces-0.7.0-dips.0.tgz#0b325ad8e02051c51418c301b294dbb97110ca39"
+  integrity sha512-H82KvrO5OvFapKJQOkmYY/IPINz3ytwbg6D4G0VevIs01+SP30yE8nlJxLGDifnHC8ETNZN6B3iCz/DpiW77wQ==
+
+"@graphprotocol/issuance@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/issuance/-/issuance-1.0.0.tgz#f3b5a723e4f42cd0d8a8ad0fae9ef5773f48954c"
+  integrity sha512-PX7vSndgo+SUfGnQWzkZQOd4dwVtMFo4dMjIVaHx1qS2H0yLwzgyulcD9iaD8HaVFwQ1jUlGnKBV1AKP61qgeA==
+  dependencies:
+    "@noble/hashes" "^1.8.0"
 
 "@graphprotocol/pino-sentry-simple@0.7.1":
   version "0.7.1"
@@ -605,16 +612,17 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/toolshed@1.1.1":
-  version "1.1.1"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.1.1.tgz#eb57f20a70ed415f1a601d49b4e2fb3cad1929b3"
-  integrity sha512-55XP4k+XqfXTlBzO2wbK54Ll1IFE4pI/KUrAoD6Y4tb5sXOMn77qUxdk09DccfNZpFs761/l0C7SGbpIoP1Rzg==
+"@graphprotocol/toolshed@1.2.0-dips.0":
+  version "1.2.0-dips.0"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.2.0-dips.0.tgz#b4855b0ceec6370d919c74d8fa56dbd3053b40f4"
+  integrity sha512-QAaZtc0XT2sC/e1T5DTat51FaZiH8UrzVnDS4II/YUsV0zIVjTfCwWvbBLn684FEC9bXfIDVnh7D7tB6vy4tOw==
   dependencies:
     "@graphprotocol/address-book" "^1.1.0"
-    "@graphprotocol/interfaces" "^0.6.4"
+    "@graphprotocol/interfaces" "^0.7.0-dips.0"
+    "@graphprotocol/issuance" "^1.0.0"
     "@nomicfoundation/hardhat-ethers" "^3.1.0"
     debug "^4.4.0"
-    ethers "^6.15.0"
+    ethers "^6.16.0"
     glob "^11.0.1"
     hardhat "^2.26.0"
     json5 "^2.2.3"
@@ -1652,6 +1660,11 @@
   version "1.7.2"
   resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.7.2.tgz#d53c65a21658fb02f3303e7ee3ba89d6754c64b4"
   integrity sha512-biZ0NUSxyjLLqo6KxEJ1b+C2NAx0wtDoFvCaXHGgUkeHzf3Xc1xKumFKREuT7f7DARNZ/slvYUwFG6B0f2b6hQ==
+
+"@noble/hashes@^1.8.0":
+  version "1.8.0"
+  resolved "https://registry.yarnpkg.com/@noble/hashes/-/hashes-1.8.0.tgz#cee43d801fcef9644b11b8194857695acd5f815a"
+  integrity sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A==
 
 "@noble/secp256k1@1.7.1":
   version "1.7.1"
@@ -5353,7 +5366,7 @@ ethereum-cryptography@^2.2.1:
     "@scure/bip32" "1.4.0"
     "@scure/bip39" "1.3.0"
 
-ethers@6.13.7, ethers@^6.15.0:
+ethers@6.13.7, ethers@^6.16.0:
   version "6.13.7"
   resolved "https://registry.yarnpkg.com/ethers/-/ethers-6.13.7.tgz#7457fcb32413b441a3ee6e9f4cd63bf782de6226"
   integrity sha512-qbaJ0uIrjh+huP1Lad2f2QtzW5dcqSVjIzVH6yWB4dKoMuj2WqYz5aMeeQTCNpAKgTJBM5J9vcc2cYJ23UAimQ==
