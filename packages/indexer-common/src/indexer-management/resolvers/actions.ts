@@ -418,5 +418,7 @@ function compareActions(enqueued: Action, proposed: ActionInput): boolean {
       return amount && poi && force
     case ActionType.PRESENT_POI:
       return poi && force
+    case ActionType.RESIZE:
+      return amount
   }
 }

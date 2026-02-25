@@ -67,6 +67,7 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
           ActionType.UNALLOCATE,
           ActionType.REALLOCATE,
           ActionType.PRESENT_POI,
+          ActionType.RESIZE,
         ),
         allowNull: false,
         validate: {
@@ -207,6 +208,17 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
               if (this.deploymentID === null || this.allocationID === null) {
                 throw new Error(
                   `ActionType.PRESENT_POI action must have required params: ['deploymentID','allocationID']`,
+                )
+              }
+              break
+            case ActionType.RESIZE:
+              if (
+                this.deploymentID === null ||
+                this.allocationID === null ||
+                this.amount === null
+              ) {
+                throw new Error(
+                  `ActionType.RESIZE action must have required params: ['deploymentID','allocationID', 'amount']`,
                 )
               }
               break

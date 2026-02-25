@@ -115,6 +115,16 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
+  type ResizeAllocationResult {
+    actionID: Int!
+    type: String!
+    transactionID: String
+    allocation: String!
+    previousAmount: String!
+    newAmount: String!
+    protocolNetwork: String!
+  }
+
   enum ActionStatus {
     queued
     approved
@@ -130,6 +140,7 @@ const SCHEMA_SDL = gql`
     unallocate
     reallocate
     present_poi
+    resize
   }
 
   type Action {
@@ -527,6 +538,11 @@ const SCHEMA_SDL = gql`
       force: Boolean
       protocolNetwork: String!
     ): PresentPOIResult!
+    resizeAllocation(
+      allocation: String!
+      amount: String!
+      protocolNetwork: String!
+    ): ResizeAllocationResult!
     submitCollectReceiptsJob(allocation: String!, protocolNetwork: String!): Boolean!
 
     updateAction(action: ActionInput!): Action!

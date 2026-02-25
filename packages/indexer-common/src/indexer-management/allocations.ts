@@ -30,6 +30,7 @@ import {
   Network,
   ReallocateAllocationResult,
   PresentPOIResult,
+  ResizeAllocationResult,
   SubgraphIdentifierType,
   SubgraphStatus,
   uniqueAllocationID,
@@ -92,6 +93,14 @@ export interface UnallocateTransactionParams {
 export interface PresentPOITransactionParams {
   allocationID: string
   poi: POIData
+  indexer: string
+  actionID: number
+  protocolNetwork: string
+}
+
+export interface ResizeTransactionParams {
+  allocationID: string
+  newAmount: bigint
   indexer: string
   actionID: number
   protocolNetwork: string
@@ -572,6 +581,21 @@ export class AllocationManager {
           action.allocationID!,
           receipts[0],
         )
+      case ActionType.RESIZE:
+        if (receipts.length !== 1) {
+          this.logger.error('Invalid number of receipts for resize action', {
+            receipts,
+          })
+          throw new Error('Invalid number of receipts for resize action')
+        }
+        return await this.confirmResize(
+          action.id,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          action.allocationID!,
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          action.amount!,
+          receipts[0],
+        )
     }
   }
 
@@ -659,6 +683,16 @@ export class AllocationManager {
             action.force === null ? false : action.force,
             action.poiBlockNumber === null ? undefined : action.poiBlockNumber,
             action.publicPOI === null ? undefined : action.publicPOI,
+            action.id,
+            action.protocolNetwork,
+          )
+        case ActionType.RESIZE:
+          return await this.prepareResize(
+            logger,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            action.allocationID!,
+            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+            parseGRT(action.amount!),
             action.id,
             action.protocolNetwork,
           )
@@ -1413,6 +1447,154 @@ export class AllocationManager {
     }
   }
 
+  // ---- RESIZE (change allocation stake without closing) ----
+
+  async prepareResizeParams(
+    logger: Logger,
+    allocationID: string,
+    newAmount: bigint,
+    actionID: number,
+    protocolNetwork: string,
+  ): Promise<ResizeTransactionParams> {
+    logger.info('Preparing to resize allocation', {
+      allocationID,
+      newAmount: newAmount.toString(),
+    })
+
+    // Validate the allocation is still active on chain
+    const allocationData =
+      await this.network.contracts.SubgraphService.getAllocation(allocationID)
+    if (allocationData.closedAt !== 0n) {
+      throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+    }
+
+    // Validate amount is positive
+    if (newAmount <= 0n) {
+      throw indexerError(
+        IndexerErrorCode.IE061,
+        `Invalid resize amount: ${newAmount.toString()}. Amount must be positive.`,
+      )
+    }
+
+    return {
+      protocolNetwork,
+      actionID,
+      allocationID,
+      newAmount,
+      indexer: allocationData.indexer,
+    }
+  }
+
+  async populateResizeTransaction(
+    logger: Logger,
+    params: ResizeTransactionParams,
+  ): Promise<ActionTransactionRequest> {
+    logger.debug('Populating resize allocation transaction', {
+      allocationID: params.allocationID,
+      newAmount: params.newAmount.toString(),
+    })
+
+    try {
+      // Call SubgraphService.resizeAllocation(indexer, allocationId, tokens)
+      const tx =
+        await this.network.contracts.SubgraphService.resizeAllocation.populateTransaction(
+          params.indexer,
+          params.allocationID,
+          params.newAmount,
+        )
+
+      return {
+        protocolNetwork: params.protocolNetwork,
+        actionID: params.actionID,
+        ...tx,
+      }
+    } catch (error) {
+      logger.error('Failed to populate resize transaction', {
+        allocationID: params.allocationID,
+        newAmount: params.newAmount.toString(),
+        error,
+      })
+      throw indexerError(
+        IndexerErrorCode.IE087,
+        `Failed to prepare resize transaction for allocation '${params.allocationID}': ${error}`,
+      )
+    }
+  }
+
+  async prepareResize(
+    logger: Logger,
+    allocationID: string,
+    newAmount: bigint,
+    actionID: number,
+    protocolNetwork: string,
+  ): Promise<ActionTransactionRequest> {
+    const params = await this.prepareResizeParams(
+      logger,
+      allocationID,
+      newAmount,
+      actionID,
+      protocolNetwork,
+    )
+    return await this.populateResizeTransaction(logger, params)
+  }
+
+  async confirmResize(
+    actionID: number,
+    allocationID: string,
+    newAmount: string,
+    receipt: TransactionReceipt | 'paused' | 'unauthorized',
+  ): Promise<ResizeAllocationResult> {
+    const logger = this.logger.child({ action: actionID })
+
+    logger.info('Confirming resize allocation transaction', {
+      allocationID,
+    })
+
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Resize allocation '${allocationID}' failed: ${receipt}`,
+      )
+    }
+
+    // Look for AllocationResized event from SubgraphService
+    const resizeEventLogs = this.network.transactionManager.findEvent(
+      'AllocationResized',
+      this.network.contracts.SubgraphService.interface,
+      'allocationId',
+      allocationID,
+      receipt,
+      this.logger,
+    )
+
+    if (!resizeEventLogs) {
+      throw indexerError(
+        IndexerErrorCode.IE015,
+        'Resize allocation transaction was never successfully mined',
+      )
+    }
+
+    const previousAmount = resizeEventLogs.oldTokens ?? 0n
+    const actualNewAmount = resizeEventLogs.newTokens ?? 0n
+
+    logger.info('Successfully resized allocation', {
+      allocation: allocationID,
+      previousAmount: formatGRT(previousAmount),
+      newAmount: formatGRT(actualNewAmount),
+      transaction: receipt.hash,
+    })
+
+    return {
+      actionID,
+      type: 'resize',
+      transactionID: receipt.hash,
+      allocation: allocationID,
+      previousAmount: formatGRT(previousAmount),
+      newAmount: formatGRT(actualNewAmount),
+      protocolNetwork: this.network.specification.networkIdentifier,
+    }
+  }
+
   async prepareReallocateParams(
     logger: Logger,
     context: TransactionPreparationContext,
@@ -2043,38 +2225,49 @@ export class AllocationManager {
     // We intentionally don't check if the allocation is active now because it will be checked
     // later, when we prepare the transaction.
 
-    if (action.type === ActionType.UNALLOCATE || action.type === ActionType.REALLOCATE) {
+    if (
+      action.type === ActionType.UNALLOCATE ||
+      action.type === ActionType.REALLOCATE ||
+      action.type === ActionType.RESIZE
+    ) {
       // Ensure this Action have a valid allocationID
       if (action.allocationID === null || action.allocationID === undefined) {
         throw Error(
-          `SHOULD BE UNREACHABLE: Unallocate or Reallocate action must have an allocationID field: ${action}`,
+          `SHOULD BE UNREACHABLE: Unallocate, Reallocate, or Resize action must have an allocationID field: ${action}`,
         )
       }
 
       // Fetch the allocation on chain to inspect its amount
       const allocation = await this.network.networkMonitor.allocation(action.allocationID)
 
-      // Accrue rewards, except for zeroed POI
-      const isHorizon = await this.network.isHorizon.value()
-      const zeroHexString = hexlify(new Uint8Array(32).fill(0))
-      if (action.poi === zeroHexString) {
-        rewards = 0n
-      } else {
-        if (isHorizon) {
-          rewards = await this.network.contracts.RewardsManager.getRewards(
-            this.network.contracts.HorizonStaking.target,
-            action.allocationID,
-          )
+      // RESIZE doesn't close the allocation, so no rewards are collected
+      if (action.type !== ActionType.RESIZE) {
+        // Accrue rewards, except for zeroed POI
+        const isHorizon = await this.network.isHorizon.value()
+        const zeroHexString = hexlify(new Uint8Array(32).fill(0))
+        if (action.poi === zeroHexString) {
+          rewards = 0n
         } else {
-          rewards = await this.network.contracts.LegacyRewardsManager.getRewards(
-            action.allocationID,
-          )
+          if (isHorizon) {
+            rewards = await this.network.contracts.RewardsManager.getRewards(
+              this.network.contracts.HorizonStaking.target,
+              action.allocationID,
+            )
+          } else {
+            rewards = await this.network.contracts.LegacyRewardsManager.getRewards(
+              action.allocationID,
+            )
+          }
         }
       }
 
       unallocates = unallocates + allocation.allocatedTokens
     }
 
+    // Calculate stake delta: positive means net allocation, negative means net release.
+    // For RESIZE: balance = newAmount - currentAmount (negative when downsizing).
+    // For UNALLOCATE: balance = 0 - currentAmount - rewards (always negative).
+    // For REALLOCATE: balance = newAmount - currentAmount - rewards.
     const balance = allocates - unallocates - rewards
     return {
       action,

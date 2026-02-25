@@ -58,6 +58,16 @@ export interface PresentPOIResult {
   protocolNetwork: string
 }
 
+export interface ResizeAllocationResult {
+  actionID: number
+  type: 'resize'
+  transactionID: string | undefined
+  allocation: string
+  previousAmount: string
+  newAmount: string
+  protocolNetwork: string
+}
+
 export interface ActionExecutionResult {
   actionID: number
   success: boolean
@@ -105,6 +115,7 @@ export type AllocationResult =
   | CloseAllocationResult
   | ReallocateAllocationResult
   | PresentPOIResult
+  | ResizeAllocationResult
   | ActionFailure
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

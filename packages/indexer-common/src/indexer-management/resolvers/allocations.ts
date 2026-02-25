@@ -2027,4 +2027,146 @@ export default {
       throw parsedError
     }
   },
+
+  resizeAllocation: async (
+    {
+      allocation,
+      amount,
+      protocolNetwork,
+    }: {
+      allocation: string
+      amount: string
+      protocolNetwork: string
+    },
+    { logger, multiNetworks }: IndexerManagementResolverContext,
+  ): Promise<{
+    actionID: number
+    type: string
+    transactionID: string | undefined
+    allocation: string
+    previousAmount: string
+    newAmount: string
+    protocolNetwork: string
+  }> => {
+    logger = logger.child({
+      component: 'resizeAllocationResolver',
+    })
+
+    logger.info('Resizing allocation', {
+      allocation,
+      newAmount: amount,
+    })
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to resize allocation',
+      )
+    }
+
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const allocationData = await networkMonitor.allocation(allocation)
+
+    try {
+      const newAmount = parseGRT(amount)
+      const result = await resizeHorizonAllocation(
+        allocationData,
+        newAmount,
+        network,
+        logger,
+      )
+
+      return {
+        actionID: 0,
+        type: 'resize',
+        transactionID: result.txHash,
+        allocation: allocation,
+        previousAmount: formatGRT(result.previousAmount),
+        newAmount: formatGRT(result.actualNewAmount),
+        protocolNetwork: network.specification.networkIdentifier,
+      }
+    } catch (error) {
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to resize allocation', { error: parsedError })
+      throw parsedError
+    }
+  },
+}
+
+// Helper function to execute a resize allocation transaction on Horizon.
+// Follows the same pattern as presentHorizonPOI and closeHorizonAllocation.
+async function resizeHorizonAllocation(
+  allocation: Allocation,
+  newAmount: bigint,
+  network: Network,
+  logger: Logger,
+): Promise<{ txHash: string; previousAmount: bigint; actualNewAmount: bigint }> {
+  const contracts = network.contracts
+  const transactionManager = network.transactionManager
+
+  // Validate the allocation is still active on chain
+  const onChainAllocation = await contracts.SubgraphService.getAllocation(allocation.id)
+  if (onChainAllocation.closedAt !== 0n) {
+    throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+  }
+
+  const previousAmount = onChainAllocation.tokens
+
+  logger.debug('Executing resize allocation transaction', {
+    allocationID: allocation.id,
+    previousAmount: formatGRT(previousAmount),
+    newAmount: formatGRT(newAmount),
+  })
+
+  const receipt = await transactionManager.executeTransaction(
+    async () =>
+      contracts.SubgraphService.resizeAllocation.estimateGas(
+        allocation.indexer,
+        allocation.id,
+        newAmount,
+      ),
+    async (gasLimit) =>
+      contracts.SubgraphService.resizeAllocation(
+        allocation.indexer,
+        allocation.id,
+        newAmount,
+        { gasLimit },
+      ),
+    logger,
+  )
+
+  if (receipt === 'paused' || receipt === 'unauthorized') {
+    throw indexerError(
+      IndexerErrorCode.IE062,
+      `Resize allocation '${allocation.id}' failed: ${receipt}`,
+    )
+  }
+
+  // Parse AllocationResized event to get actual values
+  const resizeEventLogs = transactionManager.findEvent(
+    'AllocationResized',
+    contracts.SubgraphService.interface,
+    'allocationId',
+    allocation.id,
+    receipt,
+    logger,
+  )
+
+  if (!resizeEventLogs) {
+    throw indexerError(
+      IndexerErrorCode.IE015,
+      'Resize allocation transaction was never successfully mined',
+    )
+  }
+
+  const actualNewAmount = resizeEventLogs.newTokens ?? newAmount
+
+  logger.info('Successfully resized allocation', {
+    allocation: allocation.id,
+    previousAmount: formatGRT(previousAmount),
+    newAmount: formatGRT(actualNewAmount),
+    transaction: receipt.hash,
+  })
+
+  return { txHash: receipt.hash, previousAmount, actualNewAmount }
 }

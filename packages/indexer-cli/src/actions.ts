@@ -166,6 +166,21 @@ export async function buildActionInput(
         isLegacy,
       }
     }
+    case ActionType.RESIZE: {
+      // resize <deploymentID> <allocationID> <amount>
+      return {
+        deploymentID: actionParams.targetDeployment,
+        allocationID: actionParams.param1,
+        amount: actionParams.param2?.toString(),
+        type,
+        source,
+        reason,
+        status,
+        priority,
+        protocolNetwork,
+        isLegacy,
+      }
+    }
   }
 }
 
@@ -186,6 +201,9 @@ export async function validateActionInput(
       break
     case ActionType.PRESENT_POI:
       requiredFields = requiredFields.concat(['targetDeployment', 'param1'])
+      break
+    case ActionType.RESIZE:
+      requiredFields = requiredFields.concat(['targetDeployment', 'param1', 'param2'])
       break
   }
 
