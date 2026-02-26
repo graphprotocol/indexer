@@ -1363,8 +1363,8 @@ export class AllocationManager {
         })
         throw indexerError(IndexerErrorCode.IE066, 'AllocationID already exists')
       }
-    // TODO: Remove legacy allocation path — getAllocationState no longer exists
-    // in HorizonStaking. Legacy allocations now live in SubgraphService.
+      // TODO: Remove legacy allocation path — getAllocationState no longer exists
+      // in HorizonStaking. Legacy allocations now live in SubgraphService.
     } else {
       // const newAllocationState =
       //   await this.network.contracts.HorizonStaking.getAllocationState(newAllocationId)
