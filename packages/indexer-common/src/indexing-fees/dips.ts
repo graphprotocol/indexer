@@ -30,6 +30,8 @@ import {
   GatewayDipsServiceClientImpl,
 } from '@graphprotocol/dips-proto/generated/gateway'
 import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
+import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
+import { PendingRcaConsumer } from './pending-rca-consumer'
 import { NetworkSpecification } from '../network-specification'
 import { BaseWallet } from 'ethers'
 
@@ -46,19 +48,28 @@ const normalizeAddressForDB = (address: string) => {
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
   declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
+  declare pendingRcaConsumer: PendingRcaConsumer | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private network: Network,
     private parent: AllocationManager | null,
+    pendingRcaModel?: typeof PendingRcaProposal,
   ) {
-    if (!this.network.specification.indexerOptions.dipperEndpoint) {
-      throw new Error('dipperEndpoint is not set')
+    // gRPC client — still needed for tryCancelAgreement() and DipsCollector
+    if (this.network.specification.indexerOptions.dipperEndpoint) {
+      this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
+        this.network.specification.indexerOptions.dipperEndpoint,
+      )
+      this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
     }
-    this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
-      this.network.specification.indexerOptions.dipperEndpoint,
-    )
-    this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
+
+    // Pending RCA consumer — new data source for ensureAgreementRules()
+    if (pendingRcaModel) {
+      this.pendingRcaConsumer = new PendingRcaConsumer(this.logger, pendingRcaModel)
+    } else {
+      this.pendingRcaConsumer = null
+    }
   }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
@@ -121,6 +132,81 @@ export class DipsManager {
       )
       return
     }
+
+    // Use PendingRcaConsumer if available, otherwise fall back to old IndexingAgreement model
+    if (this.pendingRcaConsumer) {
+      await this.ensureAgreementRulesFromRca()
+    } else {
+      await this.ensureAgreementRulesFromLegacy()
+    }
+  }
+
+  private async ensureAgreementRulesFromRca() {
+    const proposals = await this.pendingRcaConsumer!.getPendingProposals()
+    this.logger.debug(
+      `Ensuring indexing rules for ${proposals.length} pending RCA proposal${
+        proposals.length === 1 ? '' : 's'
+      }`,
+    )
+
+    for (const proposal of proposals) {
+      const subgraphDeploymentID = proposal.subgraphDeploymentId
+      this.logger.info(
+        `Checking if indexing rule exists for proposal ${
+          proposal.id
+        }, deployment ${subgraphDeploymentID.toString()}`,
+      )
+
+      const ruleExists = await this.parent!.matchingRuleExists(
+        this.logger,
+        subgraphDeploymentID,
+      )
+
+      const allDeploymentRules = await this.models.IndexingRule.findAll({
+        where: {
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        },
+      })
+      const blocklistedRule = allDeploymentRules.find(
+        (rule) =>
+          new SubgraphDeploymentID(rule.identifier).bytes32 ===
+            subgraphDeploymentID.bytes32 &&
+          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      )
+
+      if (blocklistedRule) {
+        this.logger.info(
+          `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
+        )
+        await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
+      } else if (!ruleExists) {
+        this.logger.info(
+          `Creating indexing rule for proposal ${
+            proposal.id
+          }, deployment ${subgraphDeploymentID.toString()}`,
+        )
+        const indexingRule = {
+          identifier: subgraphDeploymentID.ipfsHash,
+          allocationAmount: formatGRT(
+            this.network.specification.indexerOptions.dipsAllocationAmount,
+          ),
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+          protocolNetwork: this.network.specification.networkIdentifier,
+          autoRenewal: true,
+          allocationLifetime: Math.max(
+            Number(proposal.minSecondsPerCollection),
+            Number(proposal.maxSecondsPerCollection),
+          ),
+          requireSupported: false,
+        } as Partial<IndexingRuleAttributes>
+
+        await upsertIndexingRule(this.logger, this.models, indexingRule)
+      }
+    }
+  }
+
+  private async ensureAgreementRulesFromLegacy() {
     // Get all the indexing agreements that are not cancelled
     const indexingAgreements = await this.models.IndexingAgreement.findAll({
       where: {
@@ -144,7 +230,7 @@ export class DipsManager {
         }, deployment ${subgraphDeploymentID.toString()}`,
       )
       // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
-      const ruleExists = await this.parent.matchingRuleExists(
+      const ruleExists = await this.parent!.matchingRuleExists(
         this.logger,
         subgraphDeploymentID,
       )

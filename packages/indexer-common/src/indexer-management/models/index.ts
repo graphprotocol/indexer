@@ -11,6 +11,7 @@ export * from './indexing-rule'
 export * from './poi-dispute'
 export * from './action'
 export * from './indexing-agreement'
+export * from './pending-rca-proposal'
 
 export type IndexerManagementModels = IndexingRuleModels &
   CostModelModels &
