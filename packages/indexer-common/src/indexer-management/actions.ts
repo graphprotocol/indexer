@@ -24,6 +24,7 @@ import {
 import { Order, Transaction } from 'sequelize'
 import { Eventual, join, Logger } from '@graphprotocol/common-ts'
 import groupBy from 'lodash.groupby'
+import { PendingRcaProposal } from './models/pending-rca-proposal'
 
 export class ActionManager {
   declare multiNetworks: MultiNetworks<Network>
@@ -38,6 +39,7 @@ export class ActionManager {
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
+    pendingRcaModel?: typeof PendingRcaProposal,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
     actionManager.multiNetworks = multiNetworks
@@ -52,6 +54,7 @@ export class ActionManager {
         models,
         graphNode,
         network,
+        pendingRcaModel,
       )
     })
 
