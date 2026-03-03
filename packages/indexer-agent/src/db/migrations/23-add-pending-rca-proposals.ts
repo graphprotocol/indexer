@@ -16,7 +16,9 @@ export async function up({ context }: Context): Promise<void> {
   const tables = await queryInterface.showAllTables()
 
   if (tables.includes('pending_rca_proposals')) {
-    logger.debug('pending_rca_proposals already exists, migration not necessary')
+    logger.debug(
+      'pending_rca_proposals already exists, migration not necessary',
+    )
     return
   }
 
@@ -52,9 +54,13 @@ export async function up({ context }: Context): Promise<void> {
     },
   })
 
-  await queryInterface.addIndex('pending_rca_proposals', ['status', 'created_at'], {
-    name: 'idx_pending_rca_status',
-  })
+  await queryInterface.addIndex(
+    'pending_rca_proposals',
+    ['status', 'created_at'],
+    {
+      name: 'idx_pending_rca_status',
+    },
+  )
 
   await queryInterface.sequelize.query(
     'CREATE INDEX idx_pending_rca_created ON pending_rca_proposals(created_at DESC)',
