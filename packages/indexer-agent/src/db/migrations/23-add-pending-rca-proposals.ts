@@ -62,9 +62,10 @@ export async function up({ context }: Context): Promise<void> {
     },
   )
 
-  await queryInterface.sequelize.query(
-    'CREATE INDEX idx_pending_rca_created ON pending_rca_proposals(created_at DESC)',
-  )
+  await queryInterface.addIndex('pending_rca_proposals', {
+    name: 'idx_pending_rca_created',
+    fields: [{ name: 'created_at', order: 'DESC' }],
+  })
 
   logger.info('Migration completed')
 }
