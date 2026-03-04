@@ -716,6 +716,11 @@ export class Agent {
               if (!operator.dipsManager) {
                 throw new Error('DipsManager is not available')
               }
+
+              await operator.dipsManager.acceptPendingProposals(
+                activeAllocations,
+              )
+
               this.logger.debug(
                 `Matching agreement allocations for network ${network.specification.networkIdentifier}`,
               )
