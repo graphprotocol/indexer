@@ -280,6 +280,13 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
+      .option('rav-collection-max-batch-size', {
+        description:
+          'Maximum number of RAVs to collect in a single multicall transaction',
+        type: 'number',
+        default: 50,
+        group: 'Query Fees',
+      })
       .option('horizon-address-book', {
         description: 'Graph Horizon contracts address book file path',
         type: 'string',
@@ -406,6 +413,7 @@ export async function createNetworkSpecification(
     voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+    ravCollectionMaxBatchSize: argv.ravCollectionMaxBatchSize,
     allocationManagementMode: argv.allocationManagement,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
