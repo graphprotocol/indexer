@@ -67,11 +67,7 @@ export interface RavWithAllocation {
   payer: string
 }
 
-interface ValidatedRav {
-  rav: ReceiptAggregateVoucherV2
-  signedRav: SignedRAVv2
-  allocation: Allocation
-  payer: string
+interface CollectableRav extends RavWithAllocation {
   encodedCallData: string
 }
 
@@ -759,18 +755,16 @@ export class GraphTallyCollector {
     const validationResults = await Promise.all(
       escrowApprovedRavs.map(async (ravWithAllocation) => {
         const { rav, allocation, payer } = ravWithAllocation
-        const signedRav = rav
-        const result = await this.validateRavForCollection(signedRav)
-        return { rav: ravWithAllocation.rav, signedRav, allocation, payer, ...result }
+        const result = await this.validateRavForCollection(rav)
+        return { rav, allocation, payer, ...result }
       }),
     )
 
     // 4. Filter to valid RAVs only
-    const validRavs: ValidatedRav[] = validationResults
+    const validRavs: CollectableRav[] = validationResults
       .filter((r) => r.valid && r.encodedCallData)
       .map((r) => ({
-        rav: r.rav as unknown as ReceiptAggregateVoucherV2,
-        signedRav: r.signedRav,
+        rav: r.rav,
         allocation: r.allocation,
         payer: r.payer,
         encodedCallData: r.encodedCallData!,
@@ -782,13 +776,13 @@ export class GraphTallyCollector {
       logger.warn('[TAPv2] Some RAVs failed on-chain validation', {
         invalidCount: invalidRavs.length,
         errors: invalidRavs.map((r) => ({
-          collectionId: r.signedRav.rav.collectionId,
+          collectionId: r.rav.rav.collectionId,
           error: r.error,
         })),
       })
       for (const invalid of invalidRavs) {
         this.metrics.ravRedeemsInvalid.inc({
-          collection: invalid.signedRav.rav.collectionId,
+          collection: invalid.rav.rav.collectionId,
         })
       }
     }
@@ -892,14 +886,14 @@ export class GraphTallyCollector {
   /**
    * Redeems a batch of RAVs using multicall
    */
-  private async redeemRavBatch(logger: Logger, batch: ValidatedRav[]): Promise<void> {
+  private async redeemRavBatch(logger: Logger, batch: CollectableRav[]): Promise<void> {
     if (batch.length === 0) {
       return
     }
 
     logger.info('[TAPv2] Redeeming RAV batch via multicall', {
       batchSize: batch.length,
-      collectionIds: batch.map((r) => r.signedRav.rav.collectionId),
+      collectionIds: batch.map((r) => r.rav.rav.collectionId),
     })
 
     // Build multicall data array
@@ -919,8 +913,8 @@ export class GraphTallyCollector {
 
       if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
         logger.warn('[TAPv2] Batch redemption returned invalid state', { txReceipt })
-        for (const { signedRav } of batch) {
-          this.metrics.ravRedeemsInvalid.inc({ collection: signedRav.rav.collectionId })
+        for (const { rav } of batch) {
+          this.metrics.ravRedeemsInvalid.inc({ collection: rav.rav.collectionId })
         }
         return
       }
@@ -929,35 +923,34 @@ export class GraphTallyCollector {
       const collectedByCollection = this.parsePaymentCollectedEvents(txReceipt)
 
       // Mark each RAV as redeemed and update metrics
-      for (const { signedRav } of batch) {
-        const { rav } = signedRav
-        const tokensCollected = collectedByCollection.get(rav.collectionId.toLowerCase())
+      for (const { rav } of batch) {
+        const tokensCollected = collectedByCollection.get(rav.rav.collectionId.toLowerCase())
 
         if (tokensCollected !== undefined) {
           this.metrics.ravCollectedFees.set(
-            { collection: rav.collectionId },
+            { collection: rav.rav.collectionId },
             parseFloat(tokensCollected.toString()),
           )
 
           try {
-            await this.markRavAsRedeemed(rav.collectionId, rav.payer)
+            await this.markRavAsRedeemed(rav.rav.collectionId, rav.rav.payer)
             logger.debug('[TAPv2] RAV marked as redeemed', {
-              collectionId: rav.collectionId,
-              payer: rav.payer,
+              collectionId: rav.rav.collectionId,
+              payer: rav.rav.payer,
               tokensCollected: formatGRT(tokensCollected),
             })
           } catch (err) {
             logger.warn('[TAPv2] Failed to mark RAV as redeemed in database', {
-              collectionId: rav.collectionId,
-              payer: rav.payer,
-              err,
+              collectionId: rav.rav.collectionId,
+              payer: rav.rav.payer,
+              err,  
             })
           }
 
-          this.metrics.ravRedeemsSuccess.inc({ collection: rav.collectionId })
+          this.metrics.ravRedeemsSuccess.inc({ collection: rav.rav.collectionId })
         } else {
           logger.warn('[TAPv2] PaymentCollected event not found for RAV in batch', {
-            collectionId: rav.collectionId,
+            collectionId: rav.rav.collectionId,
           })
         }
       }
@@ -971,8 +964,8 @@ export class GraphTallyCollector {
         batchSize: batch.length,
         err: indexerError(IndexerErrorCode.IE055, err),
       })
-      for (const { signedRav } of batch) {
-        this.metrics.ravRedeemsFailed.inc({ collection: signedRav.rav.collectionId })
+      for (const { rav } of batch) {
+        this.metrics.ravRedeemsFailed.inc({ collection: rav.rav.collectionId })
       }
     } finally {
       stopTimer()
