@@ -924,7 +924,9 @@ export class GraphTallyCollector {
 
       // Mark each RAV as redeemed and update metrics
       for (const { rav } of batch) {
-        const tokensCollected = collectedByCollection.get(rav.rav.collectionId.toLowerCase())
+        const tokensCollected = collectedByCollection.get(
+          rav.rav.collectionId.toLowerCase(),
+        )
 
         if (tokensCollected !== undefined) {
           this.metrics.ravCollectedFees.set(
@@ -943,7 +945,7 @@ export class GraphTallyCollector {
             logger.warn('[TAPv2] Failed to mark RAV as redeemed in database', {
               collectionId: rav.rav.collectionId,
               payer: rav.rav.payer,
-              err,  
+              err,
             })
           }
 
