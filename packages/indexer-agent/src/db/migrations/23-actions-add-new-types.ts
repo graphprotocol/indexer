@@ -25,13 +25,13 @@ export async function up({ context }: Context): Promise<void> {
   const typeColumn = table.type
   if (typeColumn) {
     logger.debug(`'type' column exists with type = ${typeColumn.type}`)
-    logger.info(`Update 'type' column to support variant 'resize' type`)
+    logger.info(`Update 'type' column to support 'presentPoi' and 'resize' types`)
     await queryInterface.changeColumn('Actions', 'type', {
       type: DataTypes.ENUM(
         'allocate',
         'unallocate',
         'reallocate',
-        'present_poi',
+        'presentPoi',
         'resize',
       ),
       allowNull: false,
@@ -43,7 +43,7 @@ export async function up({ context }: Context): Promise<void> {
 export async function down({ context }: Context): Promise<void> {
   const { logger } = context
   logger.info(
-    `No 'down' migration needed since the 'up' migration simply added a new type 'resize'`,
+    `No 'down' migration needed since the 'up' migration simply added new types 'presentPoi' and 'resize'`,
   )
   return
 }

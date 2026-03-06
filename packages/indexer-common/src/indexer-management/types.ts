@@ -51,7 +51,7 @@ export interface ReallocateAllocationResult {
 
 export interface PresentPOIResult {
   actionID: number
-  type: 'present_poi'
+  type: 'presentPoi'
   transactionID: string | undefined
   allocation: string
   indexingRewardsCollected: string

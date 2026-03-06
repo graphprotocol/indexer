@@ -717,7 +717,7 @@ async function closeLegacyAllocation(
 }
 
 /**
- * Execute collect transaction and extract rewards - shared helper for collect and close
+ * Execute collect transaction for indexing rewards
  */
 async function executeCollectTransaction(
   network: Network,
@@ -749,7 +749,7 @@ async function executeCollectTransaction(
   if (receipt === 'paused' || receipt === 'unauthorized') {
     throw indexerError(
       IndexerErrorCode.IE062,
-      `Collect for allocation '${allocationId}' failed: ${receipt}`,
+      `Collect indexing rewards for allocation '${allocationId}' failed: ${receipt}`,
     )
   }
 
@@ -764,8 +764,8 @@ async function executeCollectTransaction(
 
   if (!collectEventLogs) {
     throw indexerError(
-      IndexerErrorCode.IE015,
-      `Collect transaction was never successfully mined`,
+      IndexerErrorCode.IE089,
+      `Transaction was never successfully mined`,
     )
   }
 
@@ -2015,7 +2015,7 @@ export default {
 
       return {
         actionID: 0,
-        type: 'present_poi',
+        type: 'presentPoi',
         transactionID: result.txHash,
         allocation: allocation,
         indexingRewardsCollected: formatGRT(result.rewardsCollected),

@@ -238,7 +238,7 @@ export enum ActionType {
   ALLOCATE = 'allocate',
   UNALLOCATE = 'unallocate',
   REALLOCATE = 'reallocate',
-  PRESENT_POI = 'present_poi',
+  PRESENT_POI = 'presentPoi',
   RESIZE = 'resize',
 }
 

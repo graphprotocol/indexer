@@ -214,7 +214,7 @@ export async function validateActionInput(
 }
 
 export function validateActionType(input: string): ActionType {
-  // Normalize hyphens to underscores (CLI uses present-poi, enum key is PRESENT_POI)
+  // Normalize hyphens to underscores to match enum keys (e.g., 'present-poi' -> 'present_poi' -> 'PRESENT_POI')
   const normalized = input.replace(/-/g, '_')
   const validVariants = Object.keys(ActionType).map(variant =>
     variant.toLocaleLowerCase(),

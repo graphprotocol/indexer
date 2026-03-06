@@ -1439,7 +1439,7 @@ export class AllocationManager {
 
     return {
       actionID,
-      type: 'present_poi',
+      type: 'presentPoi',
       transactionID: receipt.hash,
       allocation: allocationID,
       indexingRewardsCollected: formatGRT(rewardsCollected),
