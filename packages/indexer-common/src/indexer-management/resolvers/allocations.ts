@@ -1984,10 +1984,10 @@ export default {
     const networkMonitor = network.networkMonitor
     const allocationData = await networkMonitor.allocation(allocation)
 
-    // Present POI without closing only works for Horizon allocations
+    // Present POI only works for Horizon allocations
     if (allocationData.isLegacy) {
       throw new Error(
-        'Cannot present POI (collect rewards) without closing for legacy allocations. Use closeAllocation instead.',
+        'Cannot present POI for legacy allocations.',
       )
     }
 
@@ -2010,7 +2010,6 @@ export default {
         force,
       })
 
-      // Use shared helper to present POI and collect rewards
       const result = await presentHorizonPOI(allocationData, poiData, network, logger)
 
       return {
