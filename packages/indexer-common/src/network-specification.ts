@@ -74,6 +74,7 @@ export const IndexerOptions = z
     dipperEndpoint: z.string().url().optional(),
     dipsAllocationAmount: GRT().default(1),
     dipsEpochsMargin: positiveNumber().default(1),
+    dipsCollectionSlippage: positiveNumber().default(5),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>

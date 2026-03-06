@@ -369,6 +369,13 @@ export const start = {
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
+      .option('dips-collection-slippage', {
+        description: 'Slippage tolerance (%) for DIPs collection. Protects against escrow drain.',
+        type: 'number',
+        default: 5,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -441,6 +448,7 @@ export async function createNetworkSpecification(
     dipperEndpoint: argv.dipperEndpoint,
     dipsAllocationAmount: argv.dipsAllocationAmount,
     dipsEpochsMargin: argv.dipsEpochsMargin,
+    dipsCollectionSlippage: argv.dipsCollectionSlippage,
   }
 
   const transactionMonitoring = {

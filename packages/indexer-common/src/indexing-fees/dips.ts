@@ -35,9 +35,13 @@ import { PendingRcaConsumer } from './pending-rca-consumer'
 import { DecodedRcaProposal } from './types'
 import { tryParseCustomError } from '../utils'
 import { uniqueAllocationID, horizonAllocationIdProof } from '../allocations/keys'
-import { encodeStartServiceData } from '@graphprotocol/toolshed'
+import { encodeStartServiceData, PaymentTypes } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
-import { BaseWallet } from 'ethers'
+import { AbiCoder, BaseWallet } from 'ethers'
+import {
+  fetchCollectableAgreements,
+  SubgraphIndexingAgreement,
+} from './agreement-monitor'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
@@ -57,6 +61,7 @@ export class DipsManager {
     private logger: Logger,
     private models: IndexerManagementModels,
     private network: Network,
+    private graphNode: GraphNode,
     private parent: AllocationManager | null,
     pendingRcaModel?: typeof PendingRcaProposal,
   ) {
@@ -407,6 +412,146 @@ export class DipsManager {
     } catch (error) {
       await this.handleAcceptError(consumer, proposal, error)
     }
+  }
+
+  async collectAgreementPayments(): Promise<void> {
+    const logger = this.logger.child({ function: 'collectAgreementPayments' })
+    const indexerAddress = this.network.specification.indexerOptions.address
+
+    const agreements = await fetchCollectableAgreements(
+      this.network.networkSubgraph,
+      indexerAddress,
+    )
+
+    if (agreements.length === 0) {
+      logger.debug('No collectable agreements found')
+      return
+    }
+
+    logger.info(`Found ${agreements.length} agreement(s) to check for collection`)
+
+    for (const agreement of agreements) {
+      try {
+        await this.tryCollectAgreement(agreement, logger)
+      } catch (err) {
+        if (this.isDeterministicError(err)) {
+          const parsedError = tryParseCustomError(err)
+          logger.warn('Deterministic error collecting agreement, skipping', {
+            agreementId: agreement.id,
+            error: parsedError,
+          })
+        } else {
+          logger.warn('Transient error collecting agreement, will retry', {
+            agreementId: agreement.id,
+            error: err,
+          })
+        }
+      }
+    }
+  }
+
+  private async tryCollectAgreement(
+    agreement: SubgraphIndexingAgreement,
+    logger: Logger,
+  ): Promise<void> {
+    const agreementData = await this.network.contracts.RecurringCollector.getAgreement(
+      agreement.id,
+    )
+
+    const [isCollectable, collectionSeconds, reason] =
+      await this.network.contracts.RecurringCollector.getCollectionInfo(agreementData)
+
+    if (!isCollectable) {
+      logger.debug('Agreement not collectable', {
+        agreementId: agreement.id,
+        reason: Number(reason),
+      })
+      return
+    }
+
+    const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
+    const entityCounts = await this.graphNode.entityCount([deploymentId])
+    const entities = entityCounts[0]
+
+    const blockNumber = await this.network.networkProvider.getBlockNumber()
+    const recentBlock = blockNumber - 10
+    const networkAlias = this.network.specification.networkIdentifier.split(':')[0]
+    const blockHash = await this.graphNode.blockHashFromNumber(
+      networkAlias,
+      recentBlock,
+    )
+    const poi = await this.graphNode.proofOfIndexing(
+      deploymentId,
+      { number: recentBlock, hash: blockHash },
+      this.network.specification.indexerOptions.address,
+    )
+
+    if (!poi) {
+      logger.warn('Could not get POI for agreement, skipping', {
+        agreementId: agreement.id,
+        deployment: deploymentId.ipfsHash,
+      })
+      return
+    }
+
+    const tokensPerSecond = BigInt(agreement.tokensPerSecond)
+    const tokensPerEntityPerSecond = BigInt(agreement.tokensPerEntityPerSecond)
+    const expected =
+      collectionSeconds * tokensPerSecond +
+      collectionSeconds * BigInt(entities) * tokensPerEntityPerSecond
+    const slippagePct = BigInt(
+      this.network.specification.indexerOptions.dipsCollectionSlippage,
+    )
+    const maxSlippage = (expected * (100n - slippagePct)) / 100n
+
+    const abiCoder = AbiCoder.defaultAbiCoder()
+
+    const collectData = abiCoder.encode(
+      ['uint256', 'bytes32', 'uint256', 'bytes', 'uint256'],
+      [entities, poi, recentBlock, '0x', maxSlippage],
+    )
+
+    const data = abiCoder.encode(
+      ['bytes16', 'bytes'],
+      [agreement.id, collectData],
+    )
+
+    const indexerAddress = this.network.specification.indexerOptions.address
+    const receipt = await this.network.transactionManager.executeTransaction(
+      async () =>
+        this.network.contracts.SubgraphService.collect.estimateGas(
+          indexerAddress,
+          PaymentTypes.IndexingFee,
+          data,
+        ),
+      async (gasLimit) =>
+        this.network.contracts.SubgraphService.collect(
+          indexerAddress,
+          PaymentTypes.IndexingFee,
+          data,
+          { gasLimit },
+        ),
+      logger.child({
+        function: 'SubgraphService.collect',
+        agreementId: agreement.id,
+      }),
+    )
+
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      logger.warn('Cannot collect: network paused or unauthorized', {
+        agreementId: agreement.id,
+        result: receipt,
+      })
+      return
+    }
+
+    logger.info('Successfully collected indexing fees', {
+      agreementId: agreement.id,
+      txHash: receipt.hash,
+      deployment: deploymentId.ipfsHash,
+      collectionSeconds: collectionSeconds.toString(),
+      entities,
+    })
   }
 
   private async handleAcceptError(
