@@ -1584,6 +1584,27 @@ export class AllocationManager {
       transaction: receipt.hash,
     })
 
+    const allocation = await this.network.networkMonitor.allocation(allocationID)
+    const subgraphDeploymentID = new SubgraphDeploymentID(
+      allocation.subgraphDeployment.id.ipfsHash,
+    )
+
+    // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
+    if (!(await this.matchingRuleExists(logger, subgraphDeploymentID))) {
+      logger.debug(
+        `No matching indexing rule found; updating indexing rules so indexer-agent will now manage the active allocation`,
+      )
+      const indexingRule = {
+        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        allocationAmount: formatGRT(actualNewAmount),
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork: this.network.specification.networkIdentifier,
+      } as Partial<IndexingRuleAttributes>
+
+      await upsertIndexingRule(logger, this.models, indexingRule)
+    }
+
     return {
       actionID,
       type: 'resize',

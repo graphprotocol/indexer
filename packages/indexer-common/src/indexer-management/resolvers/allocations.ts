@@ -2038,7 +2038,7 @@ export default {
       amount: string
       protocolNetwork: string
     },
-    { logger, multiNetworks }: IndexerManagementResolverContext,
+    { logger, models, multiNetworks }: IndexerManagementResolverContext,
   ): Promise<{
     actionID: number
     type: string
@@ -2075,6 +2075,26 @@ export default {
         network,
         logger,
       )
+
+      logger.debug(
+        `Updating indexing rules, so indexer-agent will now manage the active allocation`,
+      )
+      const indexingRule = {
+        identifier: allocationData.subgraphDeployment.id.ipfsHash,
+        allocationAmount: formatGRT(result.actualNewAmount),
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork,
+      } as Partial<IndexingRuleAttributes>
+
+      await models.IndexingRule.upsert(indexingRule)
+
+      const updatedRule = await models.IndexingRule.findOne({
+        where: { identifier: indexingRule.identifier },
+      })
+      logger.debug(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
+        rule: updatedRule,
+      })
 
       return {
         actionID: 0,
