@@ -139,7 +139,7 @@ const SCHEMA_SDL = gql`
     allocate
     unallocate
     reallocate
-    presentPoi
+    presentPOI
     resize
   }
 

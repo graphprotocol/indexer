@@ -47,6 +47,12 @@ Local usage from source
 # Queue unallocate action (closeAllocation())
 ./bin/graph-indexer indexer actions queue unallocate QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 0x4a58d33e27d3acbaecc92c15101fbc82f47c2ae
 
+# Queue present-poi action (collect indexing rewards without closing - Horizon only)
+./bin/graph-indexer indexer actions queue present-poi QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 0x4a58d33e27d3acbaecc92c15101fbc82f47c2ae5
+
+# Queue resize action (change allocation stake without closing - Horizon only)
+./bin/graph-indexer indexer actions queue resize QmeqJ6hsdyk9dVbo1tvRgAxWrVS3rkERiEMsxzPShKLco6 0x4a58d33e27d3acbaecc92c15101fbc82f47c2ae5 75000
+
 # Update all queued reallocate actions, setting force=true and poi=0x0...
 ./bin/graph-indexer indexer actions update --status queued --type reallocate force true poi 0
 
@@ -112,7 +118,23 @@ type Query {
     - amount
 - optional action params:
     - poi
-    - force (forces using the provided POI even if it doesn’t match what the graph-node provides)
+    - force (forces using the provided POI even if it doesn't match what the graph-node provides)
+
+`PresentPOI` - collect indexing rewards by presenting a POI without closing the allocation (Horizon only)
+- required action params:
+    - allocationID
+    - deploymentID
+- optional action params:
+    - poi
+    - force (forces using the provided POI even if it doesn't match what the graph-node provides)
+    - blockNumber
+    - publicPOI
+
+`Resize` - change the allocated stake amount without closing the allocation (Horizon only)
+- required action params:
+    - allocationID
+    - deploymentID
+    - amount
 
 ## How to send actions to the queue?
 The queueActions mutation provides an interface for sending an array of actions (ActionInput) to the queue. It is recommended that actions are sent to the queue with status = queued, so the indexer will need to approve the actions before they will be executed by the indexer management server.
@@ -201,7 +223,8 @@ enum ActionType {
     allocate
     unallocate
     reallocate
-    collect
+    presentPOI
+    resize
 } 
 
 enum ActionParams {

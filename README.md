@@ -248,14 +248,16 @@ Manage indexer configuration
   indexer allocations collect        Collect receipts for an allocation
   indexer allocations create         Create an allocation
   indexer allocations get            List one or more allocations
+  indexer allocations present-poi    Present POI and collect rewards without closing (Horizon)
   indexer allocations reallocate     Reallocate to subgraph deployment
+  indexer allocations resize         Resize allocation stake without closing (Horizon)
   indexer actions                    Manage indexer actions
   indexer actions approve            Approve an action item
   indexer actions cancel             Cancel an item in the queue
   indexer actions delete             Delete one or many actions in the queue
   indexer actions execute            Execute approved items in the action queue
   indexer actions get                List one or more actions
-  indexer actions queue              Queue an action item
+  indexer actions queue              Queue an action item (allocate, unallocate, reallocate, present-poi, resize)
   indexer actions update             Update one or more actions
 ```
 

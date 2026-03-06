@@ -192,7 +192,7 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE086: 'Indexer not registered in the Subgraph Service',
   IE087: 'Failed to resize allocation',
   IE088: 'Failed to present POI',
-  IE089: 'Failed to collect indexing rewards'
+  IE089: 'Failed to collect indexing rewards',
 }
 
 export type IndexerErrorCause = unknown

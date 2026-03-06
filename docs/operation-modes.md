@@ -115,6 +115,8 @@ Rules are primarily managed through:
 | **ALLOCATE** | Creates rule with `decisionBasis: ALWAYS` if no matching rule exists |
 | **UNALLOCATE** | **Always** sets rule to `decisionBasis: NEVER` |
 | **REALLOCATE** | Creates rule with `decisionBasis: ALWAYS` if no matching rule exists |
+| **PRESENT_POI** | No rule modification (Horizon only) |
+| **RESIZE** | Creates rule with `decisionBasis: ALWAYS` if no matching rule exists (Horizon only) |
 
 This means:
 - After unallocating, you must manually change the rule back to `ALWAYS` or `RULES` if you want to allocate again

@@ -321,7 +321,7 @@ describe('Actions', () => {
       type: ActionType.PRESENT_POI,
     }
     expect(actionFilterToWhereOptions(filter)).toEqual({
-      [Op.and]: [{ status: 'queued' }, { type: 'presentPoi' }],
+      [Op.and]: [{ status: 'queued' }, { type: 'presentPOI' }],
     })
   })
 })

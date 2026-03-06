@@ -763,10 +763,7 @@ async function executeCollectTransaction(
   )
 
   if (!collectEventLogs) {
-    throw indexerError(
-      IndexerErrorCode.IE089,
-      `Transaction was never successfully mined`,
-    )
+    throw indexerError(IndexerErrorCode.IE089, `Transaction was never successfully mined`)
   }
 
   const rewardsCollected = collectEventLogs.tokens ?? 0n
@@ -1986,9 +1983,7 @@ export default {
 
     // Present POI only works for Horizon allocations
     if (allocationData.isLegacy) {
-      throw new Error(
-        'Cannot present POI for legacy allocations.',
-      )
+      throw new Error('Cannot present POI for legacy allocations.')
     }
 
     try {
@@ -2014,7 +2009,7 @@ export default {
 
       return {
         actionID: 0,
-        type: 'presentPoi',
+        type: 'presentPOI',
         transactionID: result.txHash,
         allocation: allocation,
         indexingRewardsCollected: formatGRT(result.rewardsCollected),
