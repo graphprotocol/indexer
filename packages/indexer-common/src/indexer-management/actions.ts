@@ -323,7 +323,7 @@ export class ActionManager {
                 status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
                 protocolNetwork,
               },
-              order: [['priority', 'ASC']],
+              order: [['priority', 'ASC'], ['id', 'ASC']],
               transaction,
               lock: transaction.LOCK.UPDATE,
             })
