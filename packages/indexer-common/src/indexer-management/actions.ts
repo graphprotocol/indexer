@@ -323,7 +323,10 @@ export class ActionManager {
                 status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
                 protocolNetwork,
               },
-              order: [['priority', 'ASC'], ['id', 'ASC']],
+              order: [
+                ['priority', 'ASC'],
+                ['id', 'ASC'],
+              ],
               transaction,
               lock: transaction.LOCK.UPDATE,
             })
@@ -364,7 +367,9 @@ export class ActionManager {
           actionsToExecute = approvedAndDeployingActions.slice(0, maxBatchSize)
           logger.info(
             `Limiting batch size to ${maxBatchSize} actions (${approvedAndDeployingActions.length} total approved). ` +
-              `Remaining ${approvedAndDeployingActions.length - maxBatchSize} actions will be processed in subsequent batches.`,
+              `Remaining ${
+                approvedAndDeployingActions.length - maxBatchSize
+              } actions will be processed in subsequent batches.`,
             {
               totalApproved: approvedAndDeployingActions.length,
               maxBatchSize,
