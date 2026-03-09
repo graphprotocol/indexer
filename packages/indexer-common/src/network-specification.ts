@@ -61,6 +61,7 @@ export const IndexerOptions = z
       .default('auto')
       .transform((x) => x as AllocationManagementMode),
     autoAllocationMinBatchSize: positiveNumber().default(1),
+    autoAllocationMaxBatchSize: positiveNumber().optional(),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
     maxProvisionInitialSize: GRT()

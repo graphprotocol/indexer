@@ -323,7 +323,10 @@ export class ActionManager {
                 status: [ActionStatus.APPROVED, ActionStatus.DEPLOYING],
                 protocolNetwork,
               },
-              order: [['priority', 'ASC']],
+              order: [
+                ['priority', 'ASC'],
+                ['id', 'ASC'],
+              ],
               transaction,
               lock: transaction.LOCK.UPDATE,
             })
@@ -355,13 +358,29 @@ export class ActionManager {
           logger.error('Failed to query approved actions for network', { error })
           return []
         }
-        // mark all approved actions as DEPLOYING, this serves as a lock on other processing of them
-        await this.markActions(
-          approvedAndDeployingActions,
-          transaction,
-          ActionStatus.DEPLOYING,
-        )
-        return approvedAndDeployingActions
+
+        // Limit batch size to prevent multicall failures when there are many allocations
+        const maxBatchSize =
+          network.specification.indexerOptions.autoAllocationMaxBatchSize
+        let actionsToExecute = approvedAndDeployingActions
+        if (maxBatchSize && approvedAndDeployingActions.length > maxBatchSize) {
+          actionsToExecute = approvedAndDeployingActions.slice(0, maxBatchSize)
+          logger.info(
+            `Limiting batch size to ${maxBatchSize} actions (${approvedAndDeployingActions.length} total approved). ` +
+              `Remaining ${
+                approvedAndDeployingActions.length - maxBatchSize
+              } actions will be processed in subsequent batches.`,
+            {
+              totalApproved: approvedAndDeployingActions.length,
+              maxBatchSize,
+              actionsInThisBatch: actionsToExecute.length,
+            },
+          )
+        }
+
+        // mark actions to execute as DEPLOYING, this serves as a lock on other processing of them
+        await this.markActions(actionsToExecute, transaction, ActionStatus.DEPLOYING)
+        return actionsToExecute
       },
     )
 
