@@ -22,14 +22,14 @@ Manage indexer configuration
   indexer cost get                   Get cost models for one or all subgraphs                         
   indexer cost delete                Remove one or many cost models                                   
   indexer cost                       Manage costing for subgraphs                                     
-  indexer connect                    Connect to indexer management API
-  indexer allocations resize         Resize allocation stake without closing (Horizon)
-  indexer allocations reallocate     Reallocate to subgraph deployment
-  indexer allocations present-poi    Present POI and collect rewards without closing (Horizon)
-  indexer allocations get            List one or more allocations
-  indexer allocations create         Create an allocation
-  indexer allocations collect        Collect receipts for an allocation
-  indexer allocations close          Close an allocation
+  indexer connect                    Connect to indexer management API                                
+  indexer allocations resize         Resize allocation stake without closing (Horizon)                
+  indexer allocations reallocate     Reallocate to subgraph deployment                                
+  indexer allocations present-poi    Present POI and collect rewards without closing (Horizon)        
+  indexer allocations get            List one or more allocations                                     
+  indexer allocations create         Create an allocation                                             
+  indexer allocations collect        Collect receipts for an allocation                               
+  indexer allocations close          Close an allocation                                              
   indexer allocations                Manage indexer allocations                                       
   indexer actions update             Update one or more actions                                       
   indexer actions queue              Queue an action item                                             
