@@ -21,6 +21,7 @@ import {
   invalidReallocateAction,
   invalidUnallocateAction,
   queuedAllocateAction,
+  queuedResizeAction,
   testNetworkSpecification,
 } from './util'
 import { Sequelize } from 'sequelize'
@@ -125,10 +126,20 @@ describe.skip('Allocation Manager', () => {
     amount: '10000',
     allocationID,
   }
+  const resizeAction = {
+    ...queuedResizeAction,
+    amount: '20000', // resizing from 10000 to 20000
+    allocationID,
+  }
 
   // eslint-disable-next-line @typescript-eslint/ban-ts-comment
   // @ts-ignore: Mocking the Action type for this test
-  const actions = [queuedAllocateAction, unallocateAction, reallocateAction] as Action[]
+  const actions = [
+    queuedAllocateAction,
+    unallocateAction,
+    reallocateAction,
+    resizeAction,
+  ] as Action[]
 
   test('stakeUsageSummary() correctly calculates token balances for array of actions', async () => {
     const balances = await Promise.all(
@@ -138,6 +149,7 @@ describe.skip('Allocation Manager', () => {
     const allocate = balances[0]
     const unallocate = balances[1]
     const reallocate = balances[2]
+    const resize = balances[3]
 
     // Allocate test action
     expect(allocate.action.type).toBe(ActionType.ALLOCATE)
@@ -161,6 +173,14 @@ describe.skip('Allocation Manager', () => {
     expect(reallocate.rewards).toBe(0n)
     expect(reallocate.unallocates).toStrictEqual(parseGRT('10000'))
     expect(reallocate.balance).toStrictEqual(parseGRT('0'))
+
+    // Resize test action: resizing from 10000 to 20000 should require 10000 additional stake
+    // balance = allocates (newAmount) - unallocates (currentAmount) - rewards (0)
+    expect(resize.action.type).toBe(ActionType.RESIZE)
+    expect(resize.allocates).toStrictEqual(parseGRT('20000'))
+    expect(resize.rewards).toBe(0n) // RESIZE doesn't collect rewards
+    expect(resize.unallocates).toStrictEqual(parseGRT('10000'))
+    expect(resize.balance).toStrictEqual(parseGRT('10000')) // delta: 20000 - 10000 = 10000
   })
 
   test('validateActionBatchFeasibility() validates and correctly sorts actions based on net token balance', async () => {

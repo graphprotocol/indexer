@@ -97,6 +97,9 @@ export enum IndexerErrorCode {
   IE084 = 'IE084',
   IE085 = 'IE085',
   IE086 = 'IE086',
+  IE087 = 'IE087',
+  IE088 = 'IE088',
+  IE089 = 'IE089',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -187,6 +190,9 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE084: 'Could not resolve POI block number',
   IE085: 'Could not resolve public POI',
   IE086: 'Indexer not registered in the Subgraph Service',
+  IE087: 'Failed to resize allocation',
+  IE088: 'Failed to present POI',
+  IE089: 'Failed to collect indexing rewards',
 }
 
 export type IndexerErrorCause = unknown

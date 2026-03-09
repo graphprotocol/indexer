@@ -134,3 +134,16 @@ export const invalidReallocateAction = {
   priority: 0,
   protocolNetwork: 'arbitrum-sepolia',
 } as ActionInput
+
+export const queuedResizeAction = {
+  status: ActionStatus.QUEUED,
+  type: ActionType.RESIZE,
+  deploymentID: subgraphDeployment1,
+  allocationID: '0x8f63930129e585c69482b56390a09b6b176f4a4c',
+  amount: '20000',
+  force: false,
+  source: 'indexerAgent',
+  reason: 'indexingRule',
+  priority: 0,
+  protocolNetwork: 'arbitrum-sepolia',
+} as ActionInput

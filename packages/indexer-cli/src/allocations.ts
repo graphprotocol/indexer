@@ -8,7 +8,9 @@ import gql from 'graphql-tag'
 import {
   CloseAllocationResult,
   CreateAllocationResult,
+  PresentPOIResult,
   ReallocateAllocationResult,
+  ResizeAllocationResult,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 
@@ -367,4 +369,97 @@ export const submitCollectReceiptsJob = async (
   if (result.error) {
     throw result.error
   }
+}
+
+export const presentPOI = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  poi: string | undefined,
+  blockNumber: number | undefined,
+  publicPOI: string | undefined,
+  force: boolean,
+  protocolNetwork: string,
+): Promise<PresentPOIResult> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation presentPOI(
+          $allocation: String!
+          $poi: String
+          $blockNumber: Int
+          $publicPOI: String
+          $force: Boolean
+          $protocolNetwork: String!
+        ) {
+          presentPOI(
+            allocation: $allocation
+            poi: $poi
+            blockNumber: $blockNumber
+            publicPOI: $publicPOI
+            force: $force
+            protocolNetwork: $protocolNetwork
+          ) {
+            allocation
+            indexingRewardsCollected
+            protocolNetwork
+          }
+        }
+      `,
+      {
+        allocation: allocationID,
+        poi,
+        blockNumber,
+        publicPOI,
+        force,
+        protocolNetwork,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.presentPOI
+}
+
+export const resizeAllocation = async (
+  client: IndexerManagementClient,
+  allocationID: string,
+  amount: bigint,
+  protocolNetwork: string,
+): Promise<ResizeAllocationResult> => {
+  const result = await client
+    .mutation(
+      gql`
+        mutation resizeAllocation(
+          $allocation: String!
+          $amount: String!
+          $protocolNetwork: String!
+        ) {
+          resizeAllocation(
+            allocation: $allocation
+            amount: $amount
+            protocolNetwork: $protocolNetwork
+          ) {
+            allocation
+            previousAmount
+            newAmount
+            protocolNetwork
+          }
+        }
+      `,
+      {
+        allocation: allocationID,
+        amount: amount.toString(),
+        protocolNetwork,
+      },
+    )
+    .toPromise()
+
+  if (result.error) {
+    throw result.error
+  }
+
+  return result.data.resizeAllocation
 }

@@ -94,6 +94,13 @@ export const isValidActionInput = (
           'publicPOI' in variableToCheck &&
           'poiBlockNumber' in variableToCheck
       }
+      break
+    case ActionType.RESIZE:
+      hasActionParams =
+        'deploymentID' in variableToCheck &&
+        'allocationID' in variableToCheck &&
+        'amount' in variableToCheck
+      break
   }
   return (
     hasActionParams &&
@@ -157,8 +164,12 @@ export const validateActionInputs = async (
       )
     }
 
-    // Unallocate & reallocate actions must target an active allocationID
-    if ([ActionType.UNALLOCATE, ActionType.REALLOCATE].includes(action.type)) {
+    // Unallocate, reallocate, and resize actions must target an active allocationID
+    if (
+      [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE].includes(
+        action.type,
+      )
+    ) {
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const allocation = await networkMonitor.allocation(action.allocationID!)
@@ -227,6 +238,8 @@ export enum ActionType {
   ALLOCATE = 'allocate',
   UNALLOCATE = 'unallocate',
   REALLOCATE = 'reallocate',
+  PRESENT_POI = 'presentPOI',
+  RESIZE = 'resize',
 }
 
 export enum ActionStatus {
