@@ -61,7 +61,7 @@ module.exports = {
       return
     }
 
-    const [id, poi, unformattedBlockNumber, publicPOI] = parameters.array || []
+    const [id, unformattedPoi, unformattedBlockNumber, unformattedPublicPOI] = parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
@@ -70,6 +70,9 @@ module.exports = {
       return
     }
 
+    let poi: string | undefined
+    let blockNumber: number | undefined
+    let publicPOI: string | undefined
     try {
       const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)
 
@@ -79,8 +82,11 @@ module.exports = {
         )
       }
 
-      validatePOI(poi)
-      validatePOI(publicPOI)
+      poi = validatePOI(unformattedPoi)
+      publicPOI = validatePOI(unformattedPublicPOI)
+      blockNumber =
+        unformattedBlockNumber === undefined ? undefined : Number(unformattedBlockNumber)
+
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
 
@@ -89,7 +95,7 @@ module.exports = {
         client,
         id,
         poi,
-        unformattedBlockNumber ? Number(unformattedBlockNumber) : undefined,
+        blockNumber,
         publicPOI,
         toForce,
         protocolNetwork,
