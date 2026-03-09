@@ -18,6 +18,7 @@ import {
   parseGraphQLAllocation,
   sequentialTimerMap,
   ReceiptAggregateVoucherV2,
+  chunk,
 } from '..'
 import pReduce from 'p-reduce'
 import { SubgraphClient, QueryResult } from '../subgraph-client'
@@ -28,7 +29,7 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 import { encodeCollectQueryFeesData, PaymentTypes } from '@graphprotocol/toolshed'
-import { dataSlice, hexlify, zeroPadValue } from 'ethers'
+import { dataSlice, hexlify, zeroPadValue, TransactionReceipt } from 'ethers'
 
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
@@ -64,6 +65,10 @@ export interface RavWithAllocation {
   rav: SignedRAVv2
   allocation: Allocation
   payer: string
+}
+
+interface CollectableRav extends RavWithAllocation {
+  encodedCallData: string
 }
 
 export interface SubgraphResponse {
@@ -109,6 +114,7 @@ export class GraphTallyCollector {
   declare networkSubgraph: SubgraphClient
   declare finalityTime: number
   declare indexerAddress: Address
+  declare ravCollectionMaxBatchSize: number
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -136,11 +142,16 @@ export class GraphTallyCollector {
     collector.protocolNetwork = networkSpecification.networkIdentifier
     collector.networkSubgraph = networkSubgraph
 
-    const { voucherRedemptionThreshold, finalityTime, address } =
-      networkSpecification.indexerOptions
+    const {
+      voucherRedemptionThreshold,
+      finalityTime,
+      address,
+      ravCollectionMaxBatchSize,
+    } = networkSpecification.indexerOptions
     collector.ravRedemptionThreshold = voucherRedemptionThreshold
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
+    collector.ravCollectionMaxBatchSize = ravCollectionMaxBatchSize
 
     collector.logger.info(`[TAPv2] RAV processing is initiated`)
     collector.startRAVProcessing()
@@ -669,10 +680,12 @@ export class GraphTallyCollector {
       ravsToSubmit: signedRavs.length,
     })
 
-    logger.info(`[TAPv2] Submit last RAVs on chain individually`, {
-      signedRavs,
+    logger.info(`[TAPv2] Submit RAVs on chain via batched multicall`, {
+      totalRavs: signedRavs.length,
+      batchSize: this.ravCollectionMaxBatchSize,
     })
 
+    // 1. Get escrow balances
     const escrowAccounts = await getEscrowAccounts(
       this.logger,
       this.networkSubgraph,
@@ -680,71 +693,285 @@ export class GraphTallyCollector {
       this.contracts.GraphTallyCollector.target.toString(),
     )
 
-    // Redeem RAV one-by-one as no plual version available
-    const tokensCollectedPerAllocation: {
-      allocationId: string
-      tokensCollected: bigint
-    }[] = []
+    // 2. Pre-filter RAVs by escrow balance
+    //    Track reserved balance per payer to prevent race conditions or over-collecting attempts
+    const reservedBalancePerPayer = new Map<string, bigint>()
+    const escrowApprovedRavs: RavWithAllocation[] = []
 
-    for (const { rav: signedRav, allocation, payer } of signedRavs) {
+    for (const ravWithAllocation of signedRavs) {
+      const { rav: signedRav, payer } = ravWithAllocation
       const { rav } = signedRav
 
-      // verify escrow balances
       const ravValue = BigInt(rav.valueAggregate.toString())
       const tokensAlreadyCollected = escrowAccounts.getTokensCollectedForReceiver(
         payer,
         rav.collectionId,
       )
       const payerBalance = escrowAccounts.getBalanceForPayer(payer)
+      const alreadyReserved = reservedBalancePerPayer.get(payer.toLowerCase()) ?? 0n
 
-      // In horizon the RAV value is monotonically increasing. To calculate the actual outstanding amount we need to subtract the tokens already collected.
-      const tokensToCollect = ravValue - tokensAlreadyCollected
-      if (payerBalance < tokensToCollect) {
-        this.logger.warn(
-          '[TAPv2] RAV was not sent to the blockchain \
-          because its value aggregate is lower than escrow balance.',
-          {
-            rav,
-            payer,
-            payerBalance,
-          },
-        )
-        continue
-      }
-
-      const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
-        collection: rav.collectionId,
-      })
-
-      try {
-        // subtract from the escrow account
-        // THIS IS A MUT OPERATION
-        const actualTokensCollected = await this.redeemRav(logger, signedRav)
-        if (!actualTokensCollected) {
-          throw new Error(`[TAPv2] Failed to redeem RAV: no tokens collected`)
-        }
-        this.logger.debug(`[TAPv2] RAV redeemed successfully`, {
-          rav,
-          actualTokensCollected,
-        })
-        tokensCollectedPerAllocation.push({
-          allocationId: allocation.id,
-          tokensCollected: actualTokensCollected,
-        })
-        escrowAccounts.updateBalances(payer, rav.collectionId, actualTokensCollected)
-      } catch (err) {
-        this.metrics.ravRedeemsFailed.inc({ collection: rav.collectionId })
-        logger.info(`[TAPv2] Failed to redeem RAV`, {
-          err: indexerError(IndexerErrorCode.IE055, err),
+      // Skip this RAV if nothing to collect (already fully collected or data inconsistency)
+      const tokensToCollect = ravValue - tokensAlreadyCollected // In horizon the RAV value is monotonically increasing
+      if (tokensToCollect <= 0n) {
+        logger.debug('[TAPv2] Skipping RAV: nothing to collect', {
+          collectionId: rav.collectionId,
+          ravValue: formatGRT(ravValue),
+          tokensAlreadyCollected: formatGRT(tokensAlreadyCollected),
         })
         continue
       }
-      stopTimer()
+
+      // Skip this RAV if the available balance is less than the tokens to collect. Next RAV might be for less tokens so we keep looping.
+      const availableBalance = payerBalance - alreadyReserved
+      if (availableBalance < tokensToCollect) {
+        logger.warn('[TAPv2] Skipping RAV: insufficient escrow balance', {
+          collectionId: rav.collectionId,
+          payer,
+          payerBalance: formatGRT(payerBalance),
+          alreadyReserved: formatGRT(alreadyReserved),
+          availableBalance: formatGRT(availableBalance),
+          tokensToCollect: formatGRT(tokensToCollect),
+        })
+        continue
+      }
+
+      // Reserve this amount for the RAV
+      reservedBalancePerPayer.set(payer.toLowerCase(), alreadyReserved + tokensToCollect)
+      escrowApprovedRavs.push(ravWithAllocation)
     }
 
-    signedRavs.map((signedRav) =>
-      this.metrics.ravRedeemsSuccess.inc({ collection: signedRav.rav.rav.collectionId }),
+    if (escrowApprovedRavs.length === 0) {
+      logger.debug('[TAPv2] No RAVs passed escrow balance check')
+      return
+    }
+
+    logger.info('[TAPv2] RAVs passed escrow balance check', {
+      approved: escrowApprovedRavs.length,
+      skipped: signedRavs.length - escrowApprovedRavs.length,
+    })
+
+    // 3. Validate on-chain via estimateGas
+    //    This catches issues like: already redeemed, invalid signature or any on-chain validation error.
+    const validationResults = await Promise.all(
+      escrowApprovedRavs.map(async (ravWithAllocation) => {
+        const { rav, allocation, payer } = ravWithAllocation
+        const result = await this.validateRavForCollection(rav)
+        return { rav, allocation, payer, ...result }
+      }),
     )
+
+    // 4. Filter to valid RAVs only
+    const validRavs: CollectableRav[] = validationResults
+      .filter((r) => r.valid && r.encodedCallData)
+      .map((r) => ({
+        rav: r.rav,
+        allocation: r.allocation,
+        payer: r.payer,
+        encodedCallData: r.encodedCallData!,
+      }))
+
+    // Log invalid RAVs
+    const invalidRavs = validationResults.filter((r) => !r.valid)
+    if (invalidRavs.length > 0) {
+      logger.warn('[TAPv2] Some RAVs failed on-chain validation', {
+        invalidCount: invalidRavs.length,
+        errors: invalidRavs.map((r) => ({
+          collectionId: r.rav.rav.collectionId,
+          error: r.error,
+        })),
+      })
+      for (const invalid of invalidRavs) {
+        this.metrics.ravRedeemsInvalid.inc({
+          collection: invalid.rav.rav.collectionId,
+        })
+      }
+    }
+
+    if (validRavs.length === 0) {
+      logger.debug('[TAPv2] No RAVs passed on-chain validation')
+      return
+    }
+
+    logger.info('[TAPv2] Submitting RAVs in batches', {
+      totalValid: validRavs.length,
+      batchSize: this.ravCollectionMaxBatchSize,
+      batchCount: Math.ceil(validRavs.length / this.ravCollectionMaxBatchSize),
+    })
+
+    // 5. Chunk into batches of ravCollectionMaxBatchSize
+    const batches = chunk(validRavs, this.ravCollectionMaxBatchSize)
+
+    // 6. Process each batch
+    for (let i = 0; i < batches.length; i++) {
+      const batch = batches[i]
+      logger.info(`[TAPv2] Processing batch ${i + 1}/${batches.length}`, {
+        batchSize: batch.length,
+      })
+      await this.redeemRavBatch(logger, batch)
+    }
+  }
+
+  /**
+   * Encodes a collect() call for use in multicall
+   */
+  private encodeCollectCall(signedRav: SignedRAVv2): string {
+    const { rav, signature } = signedRav
+    const encodedData = encodeCollectQueryFeesData(rav, hexlify(signature), 0n)
+
+    return this.contracts.SubgraphService.interface.encodeFunctionData('collect', [
+      rav.serviceProvider,
+      PaymentTypes.QueryFee,
+      encodedData,
+    ])
+  }
+
+  /**
+   * Validates a single RAV "on-chain" by calling estimateGas on the collect function.
+   * This catches issues like: already redeemed, invalid signature or any on-chain validation error.
+   */
+  private async validateRavForCollection(
+    signedRav: SignedRAVv2,
+  ): Promise<{ valid: boolean; encodedCallData?: string; error?: string }> {
+    const { rav, signature } = signedRav
+    const encodedData = encodeCollectQueryFeesData(rav, hexlify(signature), 0n)
+
+    try {
+      await this.contracts.SubgraphService.collect.estimateGas(
+        rav.serviceProvider,
+        PaymentTypes.QueryFee,
+        encodedData,
+      )
+
+      // If estimateGas succeeds, encode the full call for multicall
+      const encodedCallData = this.encodeCollectCall(signedRav)
+      return { valid: true, encodedCallData }
+    } catch (err) {
+      return {
+        valid: false,
+        error: err instanceof Error ? err.message : String(err),
+      }
+    }
+  }
+
+  /**
+   * Parses PaymentCollected events from a transaction receipt.
+   * Returns a map of collectionId -> tokens collected.
+   */
+  private parsePaymentCollectedEvents(
+    txReceipt: TransactionReceipt,
+  ): Map<string, bigint> {
+    const contractInterface = this.contracts.GraphTallyCollector.interface
+    const event = contractInterface.getEvent('PaymentCollected')
+    const collectorAddress = this.contracts.GraphTallyCollector.target
+      .toString()
+      .toLowerCase()
+
+    const collectedByCollection = new Map<string, bigint>()
+
+    for (const log of txReceipt.logs) {
+      if (
+        log.address.toLowerCase() === collectorAddress &&
+        log.topics[0] === event.topicHash
+      ) {
+        const decoded = contractInterface.decodeEventLog(event, log.data, log.topics)
+        const collectionId = decoded.collectionId.toString().toLowerCase()
+        const tokens = BigInt(decoded.tokens)
+        collectedByCollection.set(collectionId, tokens)
+      }
+    }
+
+    return collectedByCollection
+  }
+
+  /**
+   * Redeems a batch of RAVs using multicall
+   */
+  private async redeemRavBatch(logger: Logger, batch: CollectableRav[]): Promise<void> {
+    if (batch.length === 0) {
+      return
+    }
+
+    logger.info('[TAPv2] Redeeming RAV batch via multicall', {
+      batchSize: batch.length,
+      collectionIds: batch.map((r) => r.rav.rav.collectionId),
+    })
+
+    // Build multicall data array
+    const callData = batch.map((r) => r.encodedCallData)
+
+    const stopTimer = this.metrics.ravsRedeemDuration.startTimer({
+      collection: 'batch',
+    })
+
+    try {
+      // Execute multicall with estimateGas
+      const txReceipt = await this.transactionManager.executeTransaction(
+        () => this.contracts.SubgraphService.multicall.estimateGas(callData),
+        (gasLimit) => this.contracts.SubgraphService.multicall(callData, { gasLimit }),
+        logger.child({ function: 'multicall-collect' }),
+      )
+
+      if (txReceipt === 'paused' || txReceipt === 'unauthorized') {
+        logger.warn('[TAPv2] Batch redemption returned invalid state', { txReceipt })
+        for (const { rav } of batch) {
+          this.metrics.ravRedeemsInvalid.inc({ collection: rav.rav.collectionId })
+        }
+        return
+      }
+
+      // Parse all PaymentCollected events from receipt
+      const collectedByCollection = this.parsePaymentCollectedEvents(txReceipt)
+
+      // Mark each RAV as redeemed and update metrics
+      for (const { rav } of batch) {
+        const tokensCollected = collectedByCollection.get(
+          rav.rav.collectionId.toLowerCase(),
+        )
+
+        if (tokensCollected !== undefined) {
+          this.metrics.ravCollectedFees.set(
+            { collection: rav.rav.collectionId },
+            parseFloat(tokensCollected.toString()),
+          )
+
+          try {
+            await this.markRavAsRedeemed(rav.rav.collectionId, rav.rav.payer)
+            logger.debug('[TAPv2] RAV marked as redeemed', {
+              collectionId: rav.rav.collectionId,
+              payer: rav.rav.payer,
+              tokensCollected: formatGRT(tokensCollected),
+            })
+          } catch (err) {
+            logger.warn('[TAPv2] Failed to mark RAV as redeemed in database', {
+              collectionId: rav.rav.collectionId,
+              payer: rav.rav.payer,
+              err,
+            })
+          }
+
+          this.metrics.ravRedeemsSuccess.inc({ collection: rav.rav.collectionId })
+        } else {
+          logger.warn('[TAPv2] PaymentCollected event not found for RAV in batch', {
+            collectionId: rav.rav.collectionId,
+          })
+        }
+      }
+
+      logger.info('[TAPv2] Batch redemption completed', {
+        batchSize: batch.length,
+        eventsFound: collectedByCollection.size,
+      })
+    } catch (err) {
+      logger.error('[TAPv2] Batch redemption failed', {
+        batchSize: batch.length,
+        err: indexerError(IndexerErrorCode.IE055, err),
+      })
+      for (const { rav } of batch) {
+        this.metrics.ravRedeemsFailed.inc({ collection: rav.rav.collectionId })
+      }
+    } finally {
+      stopTimer()
+    }
   }
 
   public async redeemRav(
