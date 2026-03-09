@@ -3,399 +3,185 @@
 ![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
-**NOTE: THIS PROJECT IS BETA SOFTWARE.**
+This repository contains the indexer agent and CLI for participating in The Graph Network as an indexer.
 
-## The Graph Network vs. Testnet
+## Components
 
-For configuration details for The Graph Network and the testnet, see the
-[Mainnet and Testnet Configuration docs](./docs/networks.md).
+| Package | Description |
+|---------|-------------|
+| **[indexer-agent](./packages/indexer-agent)** | Autonomous agent that manages allocations, collects query fees, and submits proofs of indexing |
+| **[indexer-cli](./packages/indexer-cli)** | CLI for managing indexer operations (`graph indexer ...`) |
+| **[indexer-common](./packages/indexer-common)** | Shared library used by agent and CLI |
 
-## Horizon Support
+## Documentation
 
-The indexer agent now supports Graph Horizon, the next-generation architecture for The Graph Protocol. Horizon introduces provision management, improved allocation management, enhanced payment processing via TAP v2, and support for the new set of protocol contracts. The indexer automatically detects Horizon-enabled networks and manages the transition seamlessly.
+| Topic | Description |
+|-------|-------------|
+| [Network Configuration](./docs/networks.md) | Mainnet and testnet setup |
+| [Operation Modes](./docs/operation-modes.md) | AUTO, OVERSIGHT, and MANUAL modes |
+| [Allocation Management](./docs/allocation-management/) | How to manage allocations (rules, action queue, direct commands) |
+| [Provision Management](./docs/provision-management.md) | Managing stake provisions (Horizon) |
 
-## Running from NPM packages
+## Quick Start
 
-The indexer service, agent and CLI can be installed as NPM packages, using
+### Installation
 
 ```sh
 npm install -g @graphprotocol/indexer-agent
 
-# Indexer CLI is a plugin for Graph CLI, so both need to be installed:
+# CLI is a plugin for graph-cli
 npm install -g @graphprotocol/graph-cli
 npm install -g @graphprotocol/indexer-cli
 ```
 
-After that, they can be run with the following commands:
+### Running
 
 ```sh
-# Indexer agent
-graph-indexer-agent start ...
+# Start the agent
+graph-indexer-agent start \
+  --network-provider <ethereum-rpc> \
+  --graph-node-query-endpoint <graph-node-url>/subgraphs \
+  --graph-node-status-endpoint <graph-node-url>/graphql \
+  --graph-node-admin-endpoint <graph-node-url>/deploy \
+  --mnemonic <operator-mnemonic> \
+  --indexer-address <indexer-address> \
+  --postgres-host <postgres-host> \
+  --postgres-database <database-name> \
+  --network-subgraph-endpoint <network-subgraph-url> \
+  --epoch-subgraph-endpoint <epoch-subgraph-url> \
+  --gateway-endpoint <gateway-url> \
+  --public-indexer-url <public-url>
 
-# Indexer CLI
-graph indexer ...
+# Use the CLI
+graph indexer rules set global decisionBasis always allocationAmount 1000
+graph indexer allocations get --network arbitrum-one
+graph indexer actions get all
 ```
 
-## Usage
-
-### Indexer agent
-
-```sh
-$ graph-indexer-agent start --help
-
-Start the agent
-
-Indexer Infrastructure
-  --indexer-management-port         Port to serve the indexer management API at
-                                                        [number] [default: 8000]
-  --metrics-port                    Port to serve Prometheus metrics at
-                                                        [number] [default: 7300]
-  --syncing-port                    Port to serve the network subgraph and other
-                                    syncing data for indexer service at
-                                                        [number] [default: 8002]
-  --log-level                       Log level        [string] [default: "debug"]
-  --polling-interval                Polling interval for data collection
-                                                      [number] [default: 120000]
-  --ipfs-endpoint                   IPFS endpoint for querying manifests.
-              [string] [required] [default: "https://ipfs.network.thegraph.com"]
-  --enable-auto-graft               Automatically deploy and sync graft
-                                    dependencies for subgraphs
-                                                      [boolean] [default: false]
-  --graph-node-query-endpoint       Graph Node endpoint for querying subgraphs
-                                                             [string] [required]
-  --graph-node-status-endpoint      Graph Node endpoint for indexing statuses
-                                    etc.                     [string] [required]
-  --graph-node-admin-endpoint       Graph Node endpoint for applying and
-                                    updating subgraph deployments
-                                                             [string] [required]
-  --enable-auto-migration-support   Auto migrate allocations from L1 to L2
-                                    (multi-network mode must be enabled)
-                                                      [boolean] [default: false]
-  --deployment-management           Subgraph deployments management mode
-                                   [choices: "auto", "manual"] [default: "auto"]
-  --public-indexer-url              Indexer endpoint for receiving requests from
-                                    the network              [string] [required]
-  --indexer-geo-coordinates         Coordinates describing the Indexer's
-                                    location using latitude and longitude
-                                  [string] [default: ["31.780715","-41.179504"]]
-  --restake-rewards                 Restake claimed indexer rewards, if set to
-                                    'false' rewards will be returned to the
-                                    wallet             [boolean] [default: true]
-  --allocation-management           Indexer agent allocation management
-                                    automation mode (auto|manual)
-                                                      [string] [default: "auto"]
-  --auto-allocation-min-batch-size  Minimum number of allocation transactions
-                                    inside a batch for auto allocation
-                                    management. No obvious upperbound, with
-                                    default of 1           [number] [default: 1]
-
-Postgres
-  --postgres-host        Postgres host                       [string] [required]
-  --postgres-port        Postgres port                  [number] [default: 5432]
-  --postgres-username    Postgres username        [string] [default: "postgres"]
-  --postgres-password    Postgres password                [string] [default: ""]
-  --postgres-sslenabled  Postgres SSL Enabled       [boolean] [default: "false"]
-  --postgres-database    Postgres database name              [string] [required]
-  --postgres-pool-size   Postgres maximum connection pool size
-                                                          [number] [default: 50]
-
-Ethereum
-  --network-provider, --ethereum  Ethereum node or provider URL
-                                                             [string] [required]
-  --ethereum-polling-interval     Polling interval for the Ethereum provider
-                                  (ms)                  [number] [default: 4000]
-  --gas-increase-timeout          Time (in seconds) after which transactions
-                                  will be resubmitted with a higher gas price
-                                                         [number] [default: 240]
-  --gas-increase-factor           Factor by which gas prices are increased when
-                                  resubmitting transactions
-                                                         [number] [default: 1.2]
-  --gas-price-max                 The maximum gas price (gwei) to use for
-                                  transactions
-                                            [deprecated] [number] [default: 100]
-  --base-fee-per-gas-max          The maximum base fee per gas (gwei) to use for
-                                  transactions, for legacy transactions this
-                                  will be treated as the max gas price  [number]
-  --transaction-attempts          The maximum number of transaction attempts
-                                  (Use 0 for unlimited)    [number] [default: 0]
-  --confirmation-blocks           The number of blocks to wait for a transaction
-                                  to be confirmed          [number] [default: 3]
-  --mnemonic                      Mnemonic for the operator wallet
-                                                             [string] [required]
-  --indexer-address               Ethereum address of the indexer
-                                                             [string] [required]
-  --payments-destination          Address where payments are sent to. If not
-                                  provided payments will be restaked.   [string]
-
-Network Subgraph
-  --network-subgraph-deployment   Network subgraph deployment (for local
-                                  hosting)                              [string]
-  --network-subgraph-endpoint     Endpoint to query the network subgraph from
-                                                                        [string]
-  --allocate-on-network-subgraph  Whether to allocate to the network subgraph
-                                                      [boolean] [default: false]
-  --epoch-subgraph-deployment     Epoch subgraph deployment (for local hosting)
-                                                                        [string]
-
-TAP Subgraph
-  --tap-subgraph-deployment  TAP subgraph deployment (for local hosting)[string]
-  --tap-subgraph-endpoint    Endpoint to query the tap subgraph from    [string]
-
-Protocol
-  --epoch-subgraph-endpoint                Endpoint to query the epoch block
-                                           oracle subgraph from
-                                                             [string] [required]
-  --subgraph-max-block-distance            How many blocks subgraphs are allowed
-                                           to stay behind chain head
-                                                        [number] [default: 1000]
-  --subgraph-freshness-sleep-milliseconds  How long to wait before retrying
-                                           subgraph query if it is not fresh
-                                                        [number] [default: 5000]
-  --default-allocation-amount              Default amount of GRT to allocate to
-                                           a subgraph deployment
-                                                        [number] [default: 0.01]
-  --register                               Whether to register the indexer on
-                                           chain       [boolean] [default: true]
-  --max-provision-initial-size             The maximum number of tokens for the
-                                           initial Subgraph Service provision
-                                                           [number] [default: 0]
-
-Query Fees
-  --rebate-claim-threshold                  Minimum value of rebate for a single
-                                            allocation (in GRT) in order for it
-                                            to be included in a batch rebate
-                                            claim on-chain [number] [default: 1]
-  --rebate-claim-batch-threshold            Minimum total value of all rebates
-                                            in an batch (in GRT) before the
-                                            batch is claimed on-chain
-                                                           [number] [default: 5]
-  --rebate-claim-max-batch-size             Maximum number of rebates inside a
-                                            batch. Upper bound is constrained by
-                                            available system memory, and by the
-                                            block gas limit
-                                                         [number] [default: 100]
-  --voucher-redemption-threshold            Minimum value of rebate for a single
-                                            allocation (in GRT) in order for it
-                                            to be included in a batch rebate
-                                            claim on-chain [number] [default: 1]
-  --voucher-redemption-batch-threshold      Minimum total value of all rebates
-                                            in an batch (in GRT) before the
-                                            batch is claimed on-chain
-                                                           [number] [default: 5]
-  --voucher-redemption-max-batch-size       Maximum number of rebates inside a
-                                            batch. Upper bound is constrained by
-                                            available system memory, and by the
-                                            block gas limit
-                                                         [number] [default: 100]
-  --gateway-endpoint,                       Gateway endpoint base URL
-  --collect-receipts-endpoint                                [string] [required]
-
-Disputes
-  --poi-disputable-epochs   The number of epochs in the past to look for
-                            potential POI disputes         [number] [default: 1]
-  --poi-dispute-monitoring  Monitor the network for potential POI disputes
-                                                      [boolean] [default: false]
-
-Options:
-  --version                        Show version number                 [boolean]
-  --help                           Show help                           [boolean]
-  --offchain-subgraphs             Subgraphs to index that are not on chain
-                                   (comma-separated)       [array] [default: []]
-  --horizon-address-book           Graph Horizon contracts address book file
-                                   path                                 [string]
-  --subgraph-service-address-book  Subgraph Service contracts address book file
-                                   path                                 [string]
-  --tap-address-book               TAP contracts address book file path [string]
-  --chain-finalize-time            The time in seconds that the chain finalizes
-                                   blocks               [number] [default: 3600]
-```
-
-### Indexer CLI
-
-Since indexer CLI is a plugin for `@graphprotocol/graph-cli`, once installed it is invoked
-simply by running `graph indexer`.
-
-```sh
-$ graph indexer --help
-Manage indexer configuration
-
-  indexer                            Manage indexer configuration
-  indexer status                     Check the status of an indexer
-  indexer rules                      Configure indexing rules
-  indexer rules clear (reset)        Clear one or more indexing rules
-  indexer rules delete               Remove one or many indexing rules
-  indexer rules get                  Get one or more indexing rules
-  indexer rules maybe                Index a deployment based on rules
-  indexer rules prepare (offchain)   Offchain index a deployment (and start indexing it if necessary)
-  indexer rules set                  Set one or more indexing rules
-  indexer rules start (always)       Always index a deployment (and start indexing it if necessary)
-  indexer rules stop (never)         Never index a deployment (and stop indexing it if necessary)
-  indexer provision                  Manage indexer's provision
-  indexer provision add              Add stake to the indexer's provision
-  indexer provision get              List indexer provision details
-  indexer provision list-thaw        List thaw requests for the indexer's provision
-  indexer provision remove           Remove thawed stake from the indexer's provision
-  indexer provision thaw             Thaw stake from the indexer's provision
-  indexer disputes                   Configure allocation POI monitoring
-  indexer disputes get               Cross-check POIs submitted in the network
-  indexer cost                       Manage costing for subgraphs
-  indexer cost set model             Update a cost model
-  indexer cost delete                Remove one or many cost models
-  indexer cost get                   Get cost models for one or all subgraphs
-  indexer connect                    Connect to indexer management API
-  indexer allocations                Manage indexer allocations
-  indexer allocations close          Close an allocation
-  indexer allocations collect        Collect receipts for an allocation
-  indexer allocations create         Create an allocation
-  indexer allocations get            List one or more allocations
-  indexer allocations present-poi    Present POI and collect rewards without closing (Horizon)
-  indexer allocations reallocate     Reallocate to subgraph deployment
-  indexer allocations resize         Resize allocation stake without closing (Horizon)
-  indexer actions                    Manage indexer actions
-  indexer actions approve            Approve an action item
-  indexer actions cancel             Cancel an item in the queue
-  indexer actions delete             Delete one or many actions in the queue
-  indexer actions execute            Execute approved items in the action queue
-  indexer actions get                List one or more actions
-  indexer actions queue              Queue an action item (allocate, unallocate, reallocate, present-poi, resize)
-  indexer actions update             Update one or more actions
-```
-
-## Running from source
-
-Run the following at the root of this repository to install dependencies and
-build the packages:
-
-```sh
-yarn
-```
-
-After this, the agent can be run with:
-
-```sh
-# Indexer agent
-cd packages/indexer-agent
-./bin/graph-indexer-agent start ...
-```
-
-## Docker images
-
-The easiest way to run the indexer agent is by using Docker. Docker
-images can either be pulled via
+### Docker
 
 ```sh
 docker pull ghcr.io/graphprotocol/indexer-agent:latest
+docker run -p 8000:8000 indexer-agent:latest start ...
 ```
 
-or built locally with
+## Development
+
+### Building from Source
 
 ```sh
-# Indexer agent
-docker build \
-  -f Dockerfile.indexer-agent \
-  -t indexer-agent:latest \
-  .
+yarn              # Install dependencies
+yarn bootstrap    # Bootstrap packages
+yarn compile      # Compile TypeScript
 ```
 
-After this, the indexer agent can be run as follows:
+### Running Tests
 
-1. Indexer Agent
-
-   ```sh
-   docker run -p 18000:8000 -it indexer-agent:latest ...
-   ```
-
-   This starts the indexer agent and serves the so-called indexer management API
-   on the host at port 18000.
-
-## Terraform & Kubernetes
-
-The [terraform/](./terraform/) and [k8s/](./k8s) directories provide a
-complete example setup for running an indexer on the Google Cloud Kubernetes
-Engine (GKE). This setup was also used as the reference setup in the Mission
-Control testnet and can be a good starting point for those looking to run the
-indexer in a virtualized environment.
-
-Check out the [terraform README](./terraform/README.md) for details on how to
-get started.
-
-## Releasing
-
-This repository is managed using [Lerna](https://lerna.js.org/) and [Yarn
-workspaces](https://classic.yarnpkg.com/en/docs/workspaces/).
-
-[chan](https://github.com/geut/chan/tree/master/packages/chan) is
-used to maintain the following changelogs:
-
-- [indexer-agent](packages/indexer-agent/CHANGELOG.md)
-- [indexer-cli](packages/indexer-cli/CHANGELOG.md)
-- [indexer-common](packages/indexer-common/CHANGELOG.md)
-
-Creating a new release involves the following steps:
-
-1. Update all changelogs:
-
-   ```sh
-   pushd packages/indexer-agent
-   chan added ...
-   chan fixed ...
-   chan changed ...
-   popd
-
-   pushd packages/indexer-cli
-   ...
-   popd
-
-   pushd packages/indexer-common
-   ...
-   popd
-
-   ```
-
-2. Publish the release. This includes committing the changelogs, tagging the
-   new version and publishing packages on npmjs.com.
-
-   ```sh
-   yarn release <version>
-   ```
-
-## Running tests locally
-
-To run the tests locally, you'll need:
-1. Docker installed and running
-2. Node.js and Yarn
-3. An Arbitrum Sepolia testnet RPC provider (e.g., Infura, Alchemy)
-4. An API key from The Graph Studio for querying subgraphs
-
-### Setup
-
-1. Create a `.env` file in the root directory with your credentials. You can copy the example file as a template:
 ```sh
-cp .env.example .env
-```
-
-Then edit `.env` with your credentials:
-```plaintext
-# Your Arbitrum Sepolia testnet RPC endpoint
-INDEXER_TEST_JRPC_PROVIDER_URL=https://sepolia.infura.io/v3/your-project-id
-
-# Your API key from The Graph Studio (https://thegraph.com/studio/)
-INDEXER_TEST_API_KEY=your-graph-api-key-here
-```
-
-2. Run the tests:
-```sh
+# Create .env with test credentials (see .env.example)
 bash scripts/run-tests.sh
 ```
 
-The script will:
-- Start a PostgreSQL container with the required test configuration
-- Load your credentials from the `.env` file
-- Run the test suite
-- Clean up the PostgreSQL container when done
+### Project Structure
 
-# Copyright
+```
+packages/
+├── indexer-agent/     # Main agent
+├── indexer-cli/       # CLI tool
+└── indexer-common/    # Shared library
+docs/                  # Documentation
+k8s/                   # Kubernetes configs
+terraform/             # GKE deployment
+```
 
-Copyright &copy; 2020-2021 The Graph Foundation
+## CLI Reference
+
+<details>
+<summary>Indexer Agent options</summary>
+
+```
+graph-indexer-agent start --help
+
+Indexer Infrastructure
+  --indexer-management-port         Port for management API [default: 8000]
+  --metrics-port                    Port for Prometheus metrics [default: 7300]
+  --allocation-management           Mode: auto|manual|oversight [default: auto]
+  --polling-interval                Polling interval in ms [default: 120000]
+
+Ethereum
+  --network-provider                Ethereum RPC URL [required]
+  --mnemonic                        Operator wallet mnemonic [required]
+  --indexer-address                 Indexer address [required]
+
+Postgres
+  --postgres-host                   Database host [required]
+  --postgres-database               Database name [required]
+
+Network Subgraph
+  --network-subgraph-endpoint       Network subgraph URL
+  --epoch-subgraph-endpoint         Epoch subgraph URL [required]
+
+See --help for all options.
+```
+
+</details>
+
+<details>
+<summary>Indexer CLI commands</summary>
+
+```
+graph indexer --help
+
+indexer status                     Check indexer status
+indexer connect                    Connect to management API
+
+indexer rules                      Manage indexing rules
+indexer rules set                  Set indexing rules
+indexer rules get                  Get indexing rules
+indexer rules start                Always index a deployment
+indexer rules stop                 Never index a deployment
+
+indexer allocations                Manage allocations
+indexer allocations get            List allocations
+indexer allocations create         Create allocation
+indexer allocations close          Close allocation
+indexer allocations reallocate     Reallocate
+indexer allocations present-poi    Present POI (Horizon)
+indexer allocations resize         Resize allocation (Horizon)
+
+indexer actions                    Manage action queue
+indexer actions get                List actions
+indexer actions queue              Queue an action
+indexer actions approve            Approve actions
+indexer actions execute            Execute approved actions
+
+indexer provision                  Manage provisions (Horizon)
+indexer cost                       Manage cost models
+indexer disputes                   Monitor POI disputes
+```
+
+</details>
+
+## Infrastructure Deployment
+
+For production deployments, see:
+- [Terraform setup for GKE](./terraform/README.md)
+- [Kubernetes configurations](./k8s/)
+
+## Releasing
+
+This repository uses [Lerna](https://lerna.js.org/) with Yarn workspaces.
+
+```sh
+# Update changelogs with chan
+pushd packages/indexer-agent && chan added "..." && popd
+
+# Publish release
+yarn release <version>
+```
+
+## License
+
+Copyright &copy; 2020-2026 The Graph Foundation
 
 Licensed under the [MIT license](LICENSE).

@@ -142,7 +142,9 @@ graph indexer allocations resize 0x1234...abcd 20000 --network arbitrum-one
 
 ### Collect Query Fees
 
-Trigger query fee collection for an allocation:
+Trigger TAP (Timeline Aggregation Protocol) receipt collection for an allocation. This is a separate operation from allocation management - it triggers the collection of query fee receipts, not an allocation action.
+
+**Note:** Unlike other commands on this page, `collect` cannot be queued via the action queue. It always executes immediately.
 
 ```bash
 graph indexer allocations collect <allocation-id> --network <network>

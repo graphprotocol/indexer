@@ -336,7 +336,7 @@ export const start = {
       })
       .option('allocation-management', {
         description:
-          'Indexer agent allocation management automation mode (auto|manual) ',
+          'Indexer agent allocation management automation mode (auto|manual|oversight)',
         type: 'string',
         required: false,
         default: 'auto',

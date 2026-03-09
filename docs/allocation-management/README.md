@@ -68,6 +68,5 @@ When allocation actions execute, via manually queuing actions or running direct 
 | `reallocate` | Sets `decisionBasis: ALWAYS` |
 | `resize` | Sets `decisionBasis: ALWAYS` |
 | `present-poi` | No change |
-| `collect` | No change |
 
 This prevents the agent from fighting your manual changes in AUTO/OVERSIGHT mode.
