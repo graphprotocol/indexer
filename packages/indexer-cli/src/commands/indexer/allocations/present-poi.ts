@@ -61,7 +61,8 @@ module.exports = {
       return
     }
 
-    const [id, unformattedPoi, unformattedBlockNumber, unformattedPublicPOI] = parameters.array || []
+    const [id, unformattedPoi, unformattedBlockNumber, unformattedPublicPOI] =
+      parameters.array || []
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
