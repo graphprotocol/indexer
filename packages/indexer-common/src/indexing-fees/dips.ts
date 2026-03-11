@@ -37,7 +37,7 @@ import { tryParseCustomError } from '../utils'
 import { uniqueAllocationID, horizonAllocationIdProof } from '../allocations/keys'
 import { encodeStartServiceData } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
-import { BaseWallet } from 'ethers'
+import { BaseWallet, Signer } from 'ethers'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
@@ -145,6 +145,38 @@ export class DipsManager {
     }
   }
 
+  private async getDipsAllocationAmount(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<{ amount: bigint; isDenied: boolean }> {
+    const isDenied = await this.network.contracts.RewardsManager.isDenied(
+      subgraphDeploymentId.bytes32,
+    )
+
+    if (isDenied) {
+      return {
+        amount: BigInt(this.network.specification.indexerOptions.dipsAllocationAmount),
+        isDenied,
+      }
+    }
+
+    // Rewarded subgraph: use rule's allocationAmount or defaultAllocationAmount
+    const rule = await this.models.IndexingRule.findOne({
+      where: {
+        identifier: subgraphDeploymentId.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+
+    if (rule?.allocationAmount) {
+      return { amount: BigInt(rule.allocationAmount), isDenied }
+    }
+
+    return {
+      amount: BigInt(this.network.specification.indexerOptions.defaultAllocationAmount),
+      isDenied,
+    }
+  }
+
   private async ensureAgreementRulesFromRca() {
     const proposals = await this.pendingRcaConsumer!.getPendingProposals()
     this.logger.debug(
@@ -189,11 +221,10 @@ export class DipsManager {
             proposal.id
           }, deployment ${subgraphDeploymentID.toString()}`,
         )
+        const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
         const indexingRule = {
           identifier: subgraphDeploymentID.ipfsHash,
-          allocationAmount: formatGRT(
-            this.network.specification.indexerOptions.dipsAllocationAmount,
-          ),
+          allocationAmount: formatGRT(amount),
           identifierType: SubgraphIdentifierType.DEPLOYMENT,
           decisionBasis: IndexingDecisionBasis.DIPS,
           protocolNetwork: this.network.specification.networkIdentifier,
@@ -328,21 +359,46 @@ export class DipsManager {
     try {
       const currentEpoch = await this.network.contracts.EpochManager.currentEpoch()
 
-      const { allocationSigner, allocationId } = uniqueAllocationID(
-        this.network.transactionManager.wallet.mnemonic!.phrase,
-        Number(currentEpoch),
-        proposal.subgraphDeploymentId,
-        activeAllocations.map((a) => a.id),
-      )
+      // Include both active and on-chain (closed) allocation IDs to avoid collisions
+      const excludeIds = activeAllocations.map((a) => a.id)
+      let allocationSigner: Signer | undefined
+      let allocationId: Address | undefined
 
-      // Verify allocation doesn't already exist on-chain
-      const onchainAllocation =
-        await this.network.contracts.SubgraphService.getAllocation(allocationId)
-      if (onchainAllocation.createdAt !== 0n) {
-        this.logger.warn('Generated allocation ID already exists on-chain, skipping', {
-          proposalId: proposal.id,
-          allocationId,
-        })
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const result = uniqueAllocationID(
+          this.network.transactionManager.wallet.mnemonic!.phrase,
+          Number(currentEpoch),
+          proposal.subgraphDeploymentId,
+          excludeIds,
+        )
+
+        // Verify allocation doesn't already exist on-chain (e.g. closed allocations)
+        const onchainAllocation =
+          await this.network.contracts.SubgraphService.getAllocation(
+            result.allocationId,
+          )
+        if (onchainAllocation.createdAt === 0n) {
+          allocationSigner = result.allocationSigner
+          allocationId = result.allocationId
+          break
+        }
+
+        this.logger.debug(
+          'Generated allocation ID already exists on-chain, trying next',
+          {
+            proposalId: proposal.id,
+            allocationId: result.allocationId,
+            attempt,
+          },
+        )
+        excludeIds.push(result.allocationId)
+      }
+
+      if (!allocationSigner || !allocationId) {
+        this.logger.warn(
+          'Could not generate unique allocation ID after 10 attempts',
+          { proposalId: proposal.id },
+        )
         return
       }
 
@@ -357,10 +413,18 @@ export class DipsManager {
       )
 
       // Build startService calldata
-      const amount = this.network.specification.indexerOptions.dipsAllocationAmount
+      const { amount, isDenied } = await this.getDipsAllocationAmount(
+        proposal.subgraphDeploymentId,
+      )
+      this.logger.info('Determined allocation amount for DIPS agreement', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        amount: amount.toString(),
+        isDenied,
+      })
       const encodedStartData = encodeStartServiceData(
         proposal.subgraphDeploymentId.bytes32,
-        BigInt(amount),
+        amount,
         allocationId,
         proof,
       )
