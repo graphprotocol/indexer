@@ -15,6 +15,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   indexerError,
@@ -670,6 +671,9 @@ export async function run(
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 
+  // Define after sync so Sequelize won't try to create/alter this indexer-rs-owned table
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
+
   // --------------------------------------------------------------------------------
   // * Networks
   // --------------------------------------------------------------------------------
@@ -710,6 +714,7 @@ export async function run(
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   // --------------------------------------------------------------------------------
