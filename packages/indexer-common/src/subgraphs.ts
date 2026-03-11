@@ -151,6 +151,7 @@ export enum ActivationCriteria {
   NEVER = 'never',
   OFFCHAIN = 'offchain',
   INVALID_ALLOCATION_AMOUNT = 'invalid_allocation_amount',
+  DIPS = 'dips',
 }
 
 interface RuleMatch {
@@ -276,6 +277,14 @@ export function isDeploymentWorthAllocatingTowards(
         deployment.protocolNetwork,
       )
 
+    case IndexingDecisionBasis.DIPS:
+      return new AllocationDecision(
+        deployment.id,
+        deploymentRule,
+        true,
+        ActivationCriteria.DIPS,
+        deployment.protocolNetwork,
+      )
     case IndexingDecisionBasis.ALWAYS:
       return new AllocationDecision(
         deployment.id,
