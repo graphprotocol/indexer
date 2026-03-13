@@ -503,12 +503,10 @@ export class DipsManager {
     consumer: PendingRcaConsumer,
     proposal: DecodedRcaProposal,
   ): Promise<void> {
-    const remainingProposals = await consumer.getPendingProposals()
-    const otherProposalsForDeployment = remainingProposals.filter(
-      (p) =>
-        p.id !== proposal.id &&
-        p.subgraphDeploymentId.bytes32 === proposal.subgraphDeploymentId.bytes32,
-    )
+    const otherProposalsForDeployment =
+      await consumer.getPendingProposalsForDeployment(
+        proposal.subgraphDeploymentId.bytes32,
+      )
 
     if (otherProposalsForDeployment.length === 0) {
       const rule = await this.models.IndexingRule.findOne({

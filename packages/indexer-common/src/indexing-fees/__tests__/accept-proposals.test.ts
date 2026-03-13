@@ -66,9 +66,36 @@ function createMockProposal(
   }
 }
 
+function createMockAllocation(
+  deploymentBytes32: string = TEST_DEPLOYMENT_BYTES32,
+): Allocation {
+  return {
+    id: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    status: AllocationStatus.ACTIVE,
+    isLegacy: false,
+    subgraphDeployment: {
+      id: new SubgraphDeploymentID(deploymentBytes32),
+    },
+    indexer: '0x5555555555555555555555555555555555555555',
+    allocatedTokens: 1000000000000000000n,
+    createdAt: 0,
+    createdAtEpoch: 100,
+    createdAtBlockHash: '0x',
+    closedAt: 0,
+    closedAtEpoch: 0,
+    closedAtEpochStartBlockHash: undefined,
+    previousEpochStartBlockHash: undefined,
+    closedAtBlockHash: '0x',
+    poi: undefined,
+    queryFeeRebates: 0n,
+    queryFeesCollected: 0n,
+  } as Allocation
+}
+
 function createMockConsumer(proposals: DecodedRcaProposal[] = []) {
   return {
     getPendingProposals: jest.fn().mockResolvedValue(proposals),
+    getPendingProposalsForDeployment: jest.fn().mockResolvedValue([]),
     markAccepted: jest.fn().mockResolvedValue(undefined),
     markRejected: jest.fn().mockResolvedValue(undefined),
   } as unknown as PendingRcaConsumer
@@ -171,11 +198,8 @@ describe('DipsManager.acceptPendingProposals', () => {
       deadline: BigInt(Math.floor(Date.now() / 1000) - 100),
     })
     const consumer = createMockConsumer([proposal])
-    // After rejection, getPendingProposals returns empty (no other proposals)
-    consumer.getPendingProposals = jest
-      .fn()
-      .mockResolvedValueOnce([proposal]) // first call in acceptPendingProposals
-      .mockResolvedValueOnce([]) // second call in cleanupDipsRule
+    // After rejection, no other proposals for this deployment
+    ;(consumer.getPendingProposalsForDeployment as jest.Mock).mockResolvedValue([])
     const mockRule = { id: 42 }
     const models = createMockModels()
     ;(models.IndexingRule.findOne as jest.Mock).mockResolvedValue(mockRule)
@@ -194,10 +218,10 @@ describe('DipsManager.acceptPendingProposals', () => {
     })
     const otherProposal = createMockProposal({ id: 'proposal-2' })
     const consumer = createMockConsumer([proposal])
-    consumer.getPendingProposals = jest
-      .fn()
-      .mockResolvedValueOnce([proposal])
-      .mockResolvedValueOnce([otherProposal]) // another proposal for same deployment
+    // Another proposal exists for same deployment
+    ;(consumer.getPendingProposalsForDeployment as jest.Mock).mockResolvedValue([
+      otherProposal,
+    ])
     const models = createMockModels()
     const network = createMockNetwork()
     const dm = createDipsManager(network, models, consumer)
@@ -229,32 +253,6 @@ describe('DipsManager.acceptPendingProposals', () => {
   })
 
   describe('with existing allocation', () => {
-    function createMockAllocation(
-      deploymentBytes32: string = TEST_DEPLOYMENT_BYTES32,
-    ): Allocation {
-      return {
-        id: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        status: AllocationStatus.ACTIVE,
-        isLegacy: false,
-        subgraphDeployment: {
-          id: new SubgraphDeploymentID(deploymentBytes32),
-        },
-        indexer: '0x5555555555555555555555555555555555555555',
-        allocatedTokens: 1000000000000000000n,
-        createdAt: 0,
-        createdAtEpoch: 100,
-        createdAtBlockHash: '0x',
-        closedAt: 0,
-        closedAtEpoch: 0,
-        closedAtEpochStartBlockHash: undefined,
-        previousEpochStartBlockHash: undefined,
-        closedAtBlockHash: '0x',
-        poi: undefined,
-        queryFeeRebates: 0n,
-        queryFeesCollected: 0n,
-      } as Allocation
-    }
-
     test('accepts proposal on-chain and marks accepted', async () => {
       const proposal = createMockProposal()
       const allocation = createMockAllocation()
@@ -413,39 +411,12 @@ describe('DipsManager.acceptPendingProposals', () => {
   })
 
   describe('error handling', () => {
-    function createMockAllocation(): Allocation {
-      return {
-        id: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        status: AllocationStatus.ACTIVE,
-        isLegacy: false,
-        subgraphDeployment: {
-          id: new SubgraphDeploymentID(TEST_DEPLOYMENT_BYTES32),
-        },
-        indexer: '0x5555555555555555555555555555555555555555',
-        allocatedTokens: 1000000000000000000n,
-        createdAt: 0,
-        createdAtEpoch: 100,
-        createdAtBlockHash: '0x',
-        closedAt: 0,
-        closedAtEpoch: 0,
-        closedAtEpochStartBlockHash: undefined,
-        previousEpochStartBlockHash: undefined,
-        closedAtBlockHash: '0x',
-        poi: undefined,
-        queryFeeRebates: 0n,
-        queryFeesCollected: 0n,
-      } as Allocation
-    }
-
     test('rejects proposal on deterministic CALL_EXCEPTION error', async () => {
       const proposal = createMockProposal()
       const allocation = createMockAllocation()
       const consumer = createMockConsumer([proposal])
       // After rejection, no remaining proposals for cleanup
-      consumer.getPendingProposals = jest
-        .fn()
-        .mockResolvedValueOnce([proposal])
-        .mockResolvedValueOnce([])
+      ;(consumer.getPendingProposalsForDeployment as jest.Mock).mockResolvedValue([])
       const models = createMockModels()
       const network = createMockNetwork()
       ;(network.transactionManager.executeTransaction as jest.Mock).mockRejectedValue({
