@@ -31,6 +31,13 @@ export class PendingRcaConsumer {
     return decoded
   }
 
+  async getPendingProposalsForDeployment(
+    deploymentBytes32: string,
+  ): Promise<DecodedRcaProposal[]> {
+    const all = await this.getPendingProposals()
+    return all.filter((p) => p.subgraphDeploymentId.bytes32 === deploymentBytes32)
+  }
+
   async markAccepted(id: string): Promise<void> {
     await this.model.update({ status: 'accepted' }, { where: { id } })
   }
