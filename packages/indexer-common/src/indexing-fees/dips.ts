@@ -374,9 +374,7 @@ export class DipsManager {
 
         // Verify allocation doesn't already exist on-chain (e.g. closed allocations)
         const onchainAllocation =
-          await this.network.contracts.SubgraphService.getAllocation(
-            result.allocationId,
-          )
+          await this.network.contracts.SubgraphService.getAllocation(result.allocationId)
         if (onchainAllocation.createdAt === 0n) {
           allocationSigner = result.allocationSigner
           allocationId = result.allocationId
@@ -395,10 +393,9 @@ export class DipsManager {
       }
 
       if (!allocationSigner || !allocationId) {
-        this.logger.warn(
-          'Could not generate unique allocation ID after 10 attempts',
-          { proposalId: proposal.id },
-        )
+        this.logger.warn('Could not generate unique allocation ID after 10 attempts', {
+          proposalId: proposal.id,
+        })
         return
       }
 
@@ -503,10 +500,9 @@ export class DipsManager {
     consumer: PendingRcaConsumer,
     proposal: DecodedRcaProposal,
   ): Promise<void> {
-    const otherProposalsForDeployment =
-      await consumer.getPendingProposalsForDeployment(
-        proposal.subgraphDeploymentId.bytes32,
-      )
+    const otherProposalsForDeployment = await consumer.getPendingProposalsForDeployment(
+      proposal.subgraphDeploymentId.bytes32,
+    )
 
     if (otherProposalsForDeployment.length === 0) {
       const rule = await this.models.IndexingRule.findOne({
