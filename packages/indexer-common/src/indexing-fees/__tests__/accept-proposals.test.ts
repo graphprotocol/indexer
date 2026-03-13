@@ -108,6 +108,9 @@ function createMockNetwork() {
       EpochManager: {
         currentEpoch: jest.fn().mockResolvedValue(100n),
       },
+      RewardsManager: {
+        isDenied: jest.fn().mockResolvedValue(false),
+      },
     },
     transactionManager: {
       executeTransaction: jest.fn(),
@@ -124,7 +127,8 @@ function createMockNetwork() {
       indexerOptions: {
         address: '0x5555555555555555555555555555555555555555',
         enableDips: true,
-        dipsAllocationAmount: 1000000000000000000n,
+        dipsAllocationAmount: 0n,
+        defaultAllocationAmount: 10000000000000000000n, // 10 GRT
       },
       networkIdentifier: 'eip155:1337',
     },
@@ -513,6 +517,106 @@ describe('DipsManager.acceptPendingProposals', () => {
 
       // Second proposal should still be processed and accepted
       expect(consumer.markAccepted).toHaveBeenCalledWith('ok-1')
+    })
+  })
+
+  describe('allocation amount selection', () => {
+    test('uses defaultAllocationAmount for rewarded (not denied) subgraph', async () => {
+      const proposal = createMockProposal()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.contracts.RewardsManager.isDenied as unknown as jest.Mock
+      ).mockResolvedValue(false)
+      const mockReceipt = { hash: '0x', status: 1 }
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue(
+        mockReceipt,
+      )
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([])
+
+      // Should check isDenied
+      expect(network.contracts.RewardsManager.isDenied).toHaveBeenCalledWith(
+        proposal.subgraphDeploymentId.bytes32,
+      )
+      // startService should be called (new allocation path)
+      expect(
+        network.contracts.SubgraphService.startService.populateTransaction,
+      ).toHaveBeenCalled()
+    })
+
+    test('uses dipsAllocationAmount (0) for denied subgraph', async () => {
+      const proposal = createMockProposal()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.contracts.RewardsManager.isDenied as unknown as jest.Mock
+      ).mockResolvedValue(true)
+      const mockReceipt = { hash: '0x', status: 1 }
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue(
+        mockReceipt,
+      )
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([])
+
+      expect(network.contracts.RewardsManager.isDenied).toHaveBeenCalledWith(
+        proposal.subgraphDeploymentId.bytes32,
+      )
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
+
+    test('uses per-deployment rule amount for rewarded subgraph with existing rule', async () => {
+      const proposal = createMockProposal()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const ruleAmount = 5000000000000000000n // 5 GRT
+      ;(models.IndexingRule.findOne as jest.Mock).mockResolvedValue({
+        allocationAmount: ruleAmount.toString(),
+      })
+      const network = createMockNetwork()
+      ;(
+        network.contracts.RewardsManager.isDenied as unknown as jest.Mock
+      ).mockResolvedValue(false)
+      const mockReceipt = { hash: '0x', status: 1 }
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue(
+        mockReceipt,
+      )
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([])
+
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
+
+    test('uses custom dipsAllocationAmount for denied subgraph with override', async () => {
+      const proposal = createMockProposal()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      // Override dipsAllocationAmount to non-zero
+      ;(
+        network.specification.indexerOptions as { dipsAllocationAmount: bigint }
+      ).dipsAllocationAmount = 1000000000000000000n // 1 GRT
+      ;(
+        network.contracts.RewardsManager.isDenied as unknown as jest.Mock
+      ).mockResolvedValue(true)
+      const mockReceipt = { hash: '0x', status: 1 }
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue(
+        mockReceipt,
+      )
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([])
+
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
   })
 })
