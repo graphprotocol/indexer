@@ -18,6 +18,7 @@ import {
   AllocationStatus,
   CloseAllocationResult,
   CreateAllocationResult,
+  encodeCollectData,
   epochElapsedBlocks,
   horizonAllocationIdProof,
   HorizonTransitionValue,
@@ -35,8 +36,6 @@ import {
   uniqueAllocationID,
 } from '@graphprotocol/indexer-common'
 import {
-  encodeCollectIndexingRewardsData,
-  encodePOIMetadata,
   encodeStartServiceData,
   encodeStopServiceData,
   PaymentTypes,
@@ -717,6 +716,98 @@ async function closeLegacyAllocation(
   return { txHash: receipt.hash, rewardsAssigned }
 }
 
+/**
+ * Execute collect transaction for indexing rewards
+ */
+async function executeCollectTransaction(
+  network: Network,
+  allocationId: string,
+  collectData: string,
+  logger: Logger,
+): Promise<{ receipt: TransactionReceipt; rewardsCollected: bigint }> {
+  const contracts = network.contracts
+  const transactionManager = network.transactionManager
+  const address = network.specification.indexerOptions.address
+
+  const receipt = await transactionManager.executeTransaction(
+    async () =>
+      contracts.SubgraphService.collect.estimateGas(
+        address,
+        PaymentTypes.IndexingRewards,
+        collectData,
+      ),
+    async (gasLimit) =>
+      contracts.SubgraphService.collect(
+        address,
+        PaymentTypes.IndexingRewards,
+        collectData,
+        { gasLimit },
+      ),
+    logger,
+  )
+
+  if (receipt === 'paused' || receipt === 'unauthorized') {
+    throw indexerError(
+      IndexerErrorCode.IE062,
+      `Collect indexing rewards for allocation '${allocationId}' failed: ${receipt}`,
+    )
+  }
+
+  const collectEventLogs = transactionManager.findEvent(
+    'ServicePaymentCollected',
+    contracts.SubgraphService.interface,
+    'serviceProvider',
+    address,
+    receipt,
+    logger,
+  )
+
+  if (!collectEventLogs) {
+    throw indexerError(IndexerErrorCode.IE089, `Transaction was never successfully mined`)
+  }
+
+  const rewardsCollected = collectEventLogs.tokens ?? 0n
+
+  return { receipt, rewardsCollected }
+}
+
+/**
+ * Present POI and collect indexing rewards without closing the allocation (Horizon only)
+ */
+async function presentHorizonPOI(
+  allocation: Allocation,
+  poiData: POIData,
+  network: Network,
+  logger: Logger,
+): Promise<{ txHash: string; rewardsCollected: bigint }> {
+  const contracts = network.contracts
+  const address = network.specification.indexerOptions.address
+
+  // Double-check whether the allocation is still active on chain
+  const allocationState = await contracts.SubgraphService.getAllocation(allocation.id)
+  if (allocationState.closedAt !== 0n) {
+    throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+  }
+
+  const collectData = encodeCollectData(allocation.id, poiData)
+  const { receipt, rewardsCollected } = await executeCollectTransaction(
+    network,
+    allocation.id,
+    collectData,
+    logger,
+  )
+
+  logger.info(`Successfully presented POI and collected indexing rewards`, {
+    allocation: allocation.id,
+    indexer: address,
+    poi: poiData.poi,
+    transaction: receipt.hash,
+    indexingRewards: formatGRT(rewardsCollected),
+  })
+
+  return { txHash: receipt.hash, rewardsCollected }
+}
+
 async function closeHorizonAllocation(
   allocation: Allocation,
   poiData: POIData,
@@ -744,47 +835,30 @@ async function closeHorizonAllocation(
     isOverAllocated,
   })
 
-  const encodedPOIMetadata = encodePOIMetadata(
-    poiData.blockNumber,
-    poiData.publicPOI,
-    poiData.indexingStatus,
-    0,
-    0,
-  )
-  const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
-    allocation.id,
-    poiData.poi,
-    encodedPOIMetadata,
-  )
+  const collectData = encodeCollectData(allocation.id, poiData)
 
   let receipt: TransactionReceipt | 'paused' | 'unauthorized'
+  let rewardsAssigned: bigint
 
   if (isOverAllocated) {
+    // Reuse shared collect logic - allocation will auto-close
     logger.info(
       'Indexer is over-allocated, using collect-only transaction (allocation will auto-close)',
       { allocationId: allocation.id },
     )
-    receipt = await transactionManager.executeTransaction(
-      async () =>
-        contracts.SubgraphService.collect.estimateGas(
-          address,
-          PaymentTypes.IndexingRewards,
-          collectIndexingRewardsData,
-        ),
-      async (gasLimit) =>
-        contracts.SubgraphService.collect(
-          address,
-          PaymentTypes.IndexingRewards,
-          collectIndexingRewardsData,
-          { gasLimit },
-        ),
+    const result = await executeCollectTransaction(
+      network,
+      allocation.id,
+      collectData,
       logger,
     )
+    receipt = result.receipt
+    rewardsAssigned = result.rewardsCollected
   } else {
     // Normal path: multicall collect + stopService
     const collectCallData = contracts.SubgraphService.interface.encodeFunctionData(
       'collect',
-      [address, PaymentTypes.IndexingRewards, collectIndexingRewardsData],
+      [address, PaymentTypes.IndexingRewards, collectData],
     )
     const closeAllocationData = encodeStopServiceData(allocation.id)
     const stopServiceCallData = contracts.SubgraphService.interface.encodeFunctionData(
@@ -804,34 +878,33 @@ async function closeHorizonAllocation(
         }),
       logger,
     )
-  }
 
-  if (receipt === 'paused' || receipt === 'unauthorized') {
-    throw indexerError(
-      IndexerErrorCode.IE062,
-      `Allocation '${allocation.id}' could not be closed: ${receipt}`,
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      throw indexerError(
+        IndexerErrorCode.IE062,
+        `Allocation '${allocation.id}' could not be closed: ${receipt}`,
+      )
+    }
+
+    const collectEventLogs = transactionManager.findEvent(
+      'ServicePaymentCollected',
+      contracts.SubgraphService.interface,
+      'serviceProvider',
+      address,
+      receipt,
+      logger,
     )
+
+    if (!collectEventLogs) {
+      throw indexerError(
+        IndexerErrorCode.IE015,
+        `Collecting indexing rewards for allocation '${allocation.id}' failed`,
+      )
+    }
+
+    rewardsAssigned = collectEventLogs.tokens ?? 0n
   }
 
-  const collectIndexingRewardsEventLogs = transactionManager.findEvent(
-    'ServicePaymentCollected',
-    contracts.SubgraphService.interface,
-    'serviceProvider',
-    address,
-    receipt,
-    logger,
-  )
-
-  if (!collectIndexingRewardsEventLogs) {
-    throw indexerError(
-      IndexerErrorCode.IE015,
-      `Collecting indexing rewards for allocation '${allocation.id}' failed`,
-    )
-  }
-
-  const rewardsAssigned = collectIndexingRewardsEventLogs
-    ? collectIndexingRewardsEventLogs.tokens
-    : 0n
   if (rewardsAssigned === 0n) {
     logger.warn('No rewards were distributed upon closing the allocation')
   }
@@ -1215,18 +1288,7 @@ async function reallocateHorizonAllocation(
     epoch: currentEpoch.toString(),
   })
 
-  const encodedPOIMetadata = encodePOIMetadata(
-    poiData.blockNumber,
-    poiData.publicPOI,
-    poiData.indexingStatus,
-    0,
-    0,
-  )
-  const collectIndexingRewardsData = encodeCollectIndexingRewardsData(
-    allocation.id,
-    poiData.poi,
-    encodedPOIMetadata,
-  )
+  const collectIndexingRewardsData = encodeCollectData(allocation.id, poiData)
   const closeAllocationData = ethers.AbiCoder.defaultAbiCoder().encode(
     ['address'],
     [allocation.id],
@@ -1467,7 +1529,13 @@ export default {
       amount: string
       protocolNetwork: string
     },
-    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
+    {
+      multiNetworks,
+      graphNode,
+      logger,
+      models,
+      actionManager,
+    }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', {
       deployment,
@@ -1564,6 +1632,16 @@ export default {
 
       await models.IndexingRule.upsert(indexingRule)
 
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          deployment,
+          null,
+          toAddress(allocationId),
+        )
+      }
+
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: indexingRule.identifier },
@@ -1608,7 +1686,7 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    { logger, models, multiNetworks }: IndexerManagementResolverContext,
+    { logger, models, multiNetworks, actionManager }: IndexerManagementResolverContext,
   ): Promise<CloseAllocationResult> => {
     logger.debug('Execute closeAllocation() mutation', {
       allocationID: allocation,
@@ -1684,6 +1762,17 @@ export default {
 
       await models.IndexingRule.upsert(offchainIndexingRule)
 
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryCancelAgreement(allocation)
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          allocationData.subgraphDeployment.id.toString(),
+          toAddress(allocation),
+          null,
+        )
+      }
+
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: offchainIndexingRule.identifier },
@@ -1727,7 +1816,13 @@ export default {
       force: boolean
       protocolNetwork: string
     },
-    { logger, models, multiNetworks, graphNode }: IndexerManagementResolverContext,
+    {
+      logger,
+      models,
+      multiNetworks,
+      graphNode,
+      actionManager,
+    }: IndexerManagementResolverContext,
   ): Promise<ReallocateAllocationResult> => {
     logger = logger.child({
       component: 'reallocateAllocationResolver',
@@ -1850,6 +1945,16 @@ export default {
 
       await models.IndexingRule.upsert(indexingRule)
 
+      const allocationManager =
+        actionManager?.allocationManagers[network.specification.networkIdentifier]
+      if (allocationManager?.dipsManager) {
+        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
+          allocationData.subgraphDeployment.id.toString(),
+          toAddress(allocation),
+          toAddress(newAllocationId),
+        )
+      }
+
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: indexingRule.identifier },
@@ -1875,4 +1980,250 @@ export default {
       throw parsedError
     }
   },
+
+  presentPOI: async (
+    {
+      allocation,
+      poi,
+      blockNumber,
+      publicPOI,
+      force,
+      protocolNetwork,
+    }: {
+      allocation: string
+      poi: string | undefined
+      blockNumber: string | undefined
+      publicPOI: string | undefined
+      force: boolean
+      protocolNetwork: string
+    },
+    { logger, multiNetworks }: IndexerManagementResolverContext,
+  ): Promise<{
+    actionID: number
+    type: string
+    transactionID: string | undefined
+    allocation: string
+    indexingRewardsCollected: string
+    protocolNetwork: string
+  }> => {
+    logger = logger.child({
+      component: 'presentPOIResolver',
+    })
+
+    logger.info('Presenting POI (collecting indexing rewards without closing)', {
+      allocation: allocation,
+      poi: poi || 'none provided',
+      force,
+    })
+
+    if (!multiNetworks) {
+      throw Error('IndexerManagementClient must be in `network` mode to present POI')
+    }
+
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const allocationData = await networkMonitor.allocation(allocation)
+
+    // Present POI only works for Horizon allocations
+    if (allocationData.isLegacy) {
+      throw new Error('Cannot present POI for legacy allocations.')
+    }
+
+    try {
+      logger.debug('Resolving POI')
+      const poiData = await networkMonitor.resolvePOI(
+        allocationData,
+        poi,
+        publicPOI,
+        blockNumber === undefined ? undefined : Number(blockNumber),
+        force,
+      )
+      logger.debug('POI resolved', {
+        userProvidedPOI: poi,
+        userProvidedPublicPOI: publicPOI,
+        userProvidedBlockNumber: blockNumber,
+        poi: poiData.poi,
+        publicPOI: poiData.publicPOI,
+        blockNumber: poiData.blockNumber,
+        force,
+      })
+
+      const result = await presentHorizonPOI(allocationData, poiData, network, logger)
+
+      return {
+        actionID: 0,
+        type: 'presentPOI',
+        transactionID: result.txHash,
+        allocation: allocation,
+        indexingRewardsCollected: formatGRT(result.rewardsCollected),
+        protocolNetwork: network.specification.networkIdentifier,
+      }
+    } catch (error) {
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to present POI', { error: parsedError })
+      throw parsedError
+    }
+  },
+
+  resizeAllocation: async (
+    {
+      allocation,
+      amount,
+      protocolNetwork,
+    }: {
+      allocation: string
+      amount: string
+      protocolNetwork: string
+    },
+    { logger, models, multiNetworks }: IndexerManagementResolverContext,
+  ): Promise<{
+    actionID: number
+    type: string
+    transactionID: string | undefined
+    allocation: string
+    previousAmount: string
+    newAmount: string
+    protocolNetwork: string
+  }> => {
+    logger = logger.child({
+      component: 'resizeAllocationResolver',
+    })
+
+    logger.info('Resizing allocation', {
+      allocation,
+      newAmount: amount,
+    })
+
+    if (!multiNetworks) {
+      throw Error(
+        'IndexerManagementClient must be in `network` mode to resize allocation',
+      )
+    }
+
+    const network = extractNetwork(protocolNetwork, multiNetworks)
+    const networkMonitor = network.networkMonitor
+    const allocationData = await networkMonitor.allocation(allocation)
+
+    try {
+      const newAmount = parseGRT(amount)
+      const result = await resizeHorizonAllocation(
+        allocationData,
+        newAmount,
+        network,
+        logger,
+      )
+
+      logger.debug(
+        `Updating indexing rules, so indexer-agent will now manage the active allocation`,
+      )
+      const indexingRule = {
+        identifier: allocationData.subgraphDeployment.id.ipfsHash,
+        allocationAmount: formatGRT(result.actualNewAmount),
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+        protocolNetwork,
+      } as Partial<IndexingRuleAttributes>
+
+      await models.IndexingRule.upsert(indexingRule)
+
+      const updatedRule = await models.IndexingRule.findOne({
+        where: { identifier: indexingRule.identifier },
+      })
+      logger.debug(`DecisionBasis.ALWAYS rule merged into indexing rules`, {
+        rule: updatedRule,
+      })
+
+      return {
+        actionID: 0,
+        type: 'resize',
+        transactionID: result.txHash,
+        allocation: allocation,
+        previousAmount: formatGRT(result.previousAmount),
+        newAmount: formatGRT(result.actualNewAmount),
+        protocolNetwork: network.specification.networkIdentifier,
+      }
+    } catch (error) {
+      const parsedError = tryParseCustomError(error)
+      logger.error('Failed to resize allocation', { error: parsedError })
+      throw parsedError
+    }
+  },
+}
+
+// Helper function to execute a resize allocation transaction on Horizon.
+// Follows the same pattern as presentHorizonPOI and closeHorizonAllocation.
+async function resizeHorizonAllocation(
+  allocation: Allocation,
+  newAmount: bigint,
+  network: Network,
+  logger: Logger,
+): Promise<{ txHash: string; previousAmount: bigint; actualNewAmount: bigint }> {
+  const contracts = network.contracts
+  const transactionManager = network.transactionManager
+
+  // Validate the allocation is still active on chain
+  const onChainAllocation = await contracts.SubgraphService.getAllocation(allocation.id)
+  if (onChainAllocation.closedAt !== 0n) {
+    throw indexerError(IndexerErrorCode.IE065, 'Allocation has already been closed')
+  }
+
+  const previousAmount = onChainAllocation.tokens
+
+  logger.debug('Executing resize allocation transaction', {
+    allocationID: allocation.id,
+    previousAmount: formatGRT(previousAmount),
+    newAmount: formatGRT(newAmount),
+  })
+
+  const receipt = await transactionManager.executeTransaction(
+    async () =>
+      contracts.SubgraphService.resizeAllocation.estimateGas(
+        allocation.indexer,
+        allocation.id,
+        newAmount,
+      ),
+    async (gasLimit) =>
+      contracts.SubgraphService.resizeAllocation(
+        allocation.indexer,
+        allocation.id,
+        newAmount,
+        { gasLimit },
+      ),
+    logger,
+  )
+
+  if (receipt === 'paused' || receipt === 'unauthorized') {
+    throw indexerError(
+      IndexerErrorCode.IE062,
+      `Resize allocation '${allocation.id}' failed: ${receipt}`,
+    )
+  }
+
+  // Parse AllocationResized event to get actual values
+  const resizeEventLogs = transactionManager.findEvent(
+    'AllocationResized',
+    contracts.SubgraphService.interface,
+    'allocationId',
+    allocation.id,
+    receipt,
+    logger,
+  )
+
+  if (!resizeEventLogs) {
+    throw indexerError(
+      IndexerErrorCode.IE015,
+      'Resize allocation transaction was never successfully mined',
+    )
+  }
+
+  const actualNewAmount = resizeEventLogs.newTokens ?? newAmount
+
+  logger.info('Successfully resized allocation', {
+    allocation: allocation.id,
+    previousAmount: formatGRT(previousAmount),
+    newAmount: formatGRT(actualNewAmount),
+    transaction: receipt.hash,
+  })
+
+  return { txHash: receipt.hash, previousAmount, actualNewAmount }
 }

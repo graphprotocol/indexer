@@ -1,20 +1,52 @@
 # Indexer Agent Operation Modes
 
-This document explains the internal workings of the indexer agent, focusing on allocation management, the reconciliation loop, and how indexing rules interact with allocation actions.
+The indexer agent can automatically manage your allocations through a **reconciliation loop** - a background process that continuously monitors the network and adjusts your allocations based on your indexing rules.
 
-## Allocation Management Modes
+The **operation mode** controls whether and how this reconciliation loop runs.
 
-The agent supports three allocation management modes, configured via `--allocation-management`:
+## Operation Modes
 
-| Mode | Behavior |
-|------|----------|
-| **AUTO** (default) | Allocation decisions are automatically approved and executed |
-| **MANUAL** | Reconciliation is completely skipped; all actions must be manually created via CLI |
-| **OVERSIGHT** | Actions are queued but require manual approval before execution |
+Configure the mode via `--allocation-management` or `INDEXER_AGENT_ALLOCATION_MANAGEMENT`:
 
-## The Reconciliation Loop
+| Mode | Reconciliation Loop | Behavior | Best For |
+|------|---------------------|----------|----------|
+| **AUTO** (default) | Runs | Agent decides, auto-approves, executes | Hands-off operation |
+| **OVERSIGHT** | Runs | Agent decides, queues for your approval | Review before execution |
+| **MANUAL** | Skipped | You manage allocations via CLI | Full manual control, 3rd party tools |
 
-The reconciliation loop runs continuously with two polling intervals:
+For information on how to manage allocations (rules, action queue, direct commands), see the [Allocation Management](./allocation-management/README.md) guide.
+
+---
+
+## What is the Reconciliation Loop?
+
+The reconciliation loop is the agent's core automation mechanism. It periodically:
+
+1. **Evaluates** which deployments you *should* be allocated to (based on your indexing rules)
+2. **Compares** that desired state against your actual on-chain allocations
+3. **Queues actions** to reconcile the difference (allocate, unallocate, reallocate)
+
+```
+┌─────────────────────┐     ┌──────────────────────────┐     ┌─────────────┐
+│ Deployment          │ --> │ Allocation               │ --> │ Action      │
+│ Evaluation          │     │ Reconciliation           │     │ Executor    │
+│                     │     │                          │     │             │
+│ "What SHOULD we     │     │ "What do we need to DO   │     │ Execute     │
+│  allocate to?"      │     │  to match desired state?"│     │ on-chain    │
+└─────────────────────┘     └──────────────────────────┘     └─────────────┘
+```
+
+In **AUTO** mode, actions are auto-approved and execute immediately.
+In **OVERSIGHT** mode, actions are queued for your approval first.
+In **MANUAL** mode, the loop doesn't run at all - you queue actions yourself.
+
+---
+
+## Reconciliation Loop Details
+
+### Polling Intervals
+
+The loop runs on two intervals:
 
 - **Small interval**: `pollingInterval` - for frequently changing data
 - **Large interval**: `pollingInterval * 5` - for stable data
@@ -23,118 +55,58 @@ The reconciliation loop runs continuously with two polling intervals:
 
 The loop fetches and maintains:
 
-1. **Current epoch number** (large interval)
-2. **Max allocation duration** (large interval)
-3. **Indexing rules** (small interval)
-4. **Active deployments on Graph Node** (large interval, AUTO mode only)
-5. **Network deployments** (small interval)
-6. **Active allocations** (small interval)
-7. **Recently closed allocations** (small interval)
+| Data | Interval |
+|------|----------|
+| Current epoch number | Large |
+| Max allocation duration | Large |
+| Indexing rules | Small |
+| Active deployments on Graph Node | Large (AUTO mode only) |
+| Network deployments | Small |
+| Active allocations | Small |
+| Recently closed allocations | Small |
 
-### Two-Phase Process
+### Phase 1: Deployment Evaluation
 
-The reconciliation consists of two distinct phases:
+Determines which deployments you *should* be allocated to:
 
-#### Phase 1: Deployment Evaluation
+- Fetches all deployments from the network subgraph
+- Matches each against your indexing rules (deployment-specific or global)
+- Outputs `toAllocate: true/false` for each deployment
 
-**What it does**: Determines which deployments the indexer *should* be allocated to based on indexing rules.
-
-- Takes all network deployments from the network subgraph
-- Matches each deployment against indexing rules (deployment-specific or global)
-- Outputs allocation decisions with `toAllocate: true/false` for each deployment
-
-**When it runs**: Every `pollingInterval * 5`, but **only in AUTO/OVERSIGHT mode**. Skipped entirely in MANUAL mode.
-
-**Decision basis options**:
+**Decision basis options** (from your rules):
 - `always` - allocate
 - `never` - don't allocate
-- `offchain` - index but don't allocate
+- `offchain` - index locally but don't allocate on-chain
 - `rules` - evaluate against thresholds (`minStake`, `minSignal`, `minAverageQueryFees`)
 
-#### Phase 2: Allocation Reconciliation
+### Phase 2: Allocation Reconciliation
 
-**What it does**: Compares desired state (from deployment evaluation) against actual on-chain state and queues actions to resolve differences.
+Compares desired state against actual allocations and queues actions:
 
 | Condition | Action Queued |
 |-----------|---------------|
-| `toAllocate=true` + no active allocation | ALLOCATE |
-| `toAllocate=false` + active allocation exists | UNALLOCATE |
-| `toAllocate=true` + allocation expiring | REALLOCATE |
+| Should allocate + no active allocation | ALLOCATE |
+| Shouldn't allocate + has active allocation | UNALLOCATE |
+| Should allocate + allocation expiring | REALLOCATE |
 
 **Expiration check**: `currentEpoch >= createdAtEpoch + allocationLifetime`
 
-**When it runs**: After deployment evaluation, **only in AUTO/OVERSIGHT mode**. Skipped in MANUAL mode.
-
-### Visual Flow
-
-```
-AUTO/OVERSIGHT MODE:
-┌─────────────────────┐     ┌──────────────────────────┐     ┌─────────────┐
-│ Deployment          │ --> │ Allocation               │ --> │ Action      │
-│ Evaluation          │     │ Reconciliation           │     │ Executor    │
-│                     │     │                          │     │             │
-│ "What SHOULD we     │     │ "What do we need to DO   │     │ Execute     │
-│  allocate to?"      │     │  to match desired state?"│     │ on-chain    │
-└─────────────────────┘     └──────────────────────────┘     └─────────────┘
-
-MANUAL MODE:
-┌─────────────────────┐     ┌──────────────────────────┐     ┌─────────────┐
-│ Deployment          │     │ Allocation               │     │ Action      │
-│ Evaluation          │     │ Reconciliation           │     │ Executor    │
-│                     │     │                          │     │             │
-│ SKIPPED             │     │ SKIPPED                  │     │ Still runs! │
-└─────────────────────┘     └──────────────────────────┘     └─────────────┘
-                                                                   ^
-                                                                   |
-                                                          Manual CLI actions
-                                                          (graph indexer actions queue)
-```
-
-## Indexing Rules
-
-### Purpose
-
-Rules serve two purposes:
-
-1. **Allocation decisions** (AUTO/OVERSIGHT only): Determine whether to allocate via `decisionBasis` and threshold fields
-2. **Deployment management** (ALL modes): Control what to index on Graph Node, provide defaults for manual actions
-
-### Management
-
-Rules are primarily managed through:
-
-- **CLI**: `graph indexer rules set/delete/clear/get`
-- **GraphQL API**: Direct mutations to the indexer management server
-
-### Automatic Rule Modifications
-
-**Important**: Allocation actions automatically modify rules to maintain consistency:
-
-| Action | Rule Modification |
-|--------|------------------|
-| **ALLOCATE** | Creates rule with `decisionBasis: ALWAYS` if no matching rule exists |
-| **UNALLOCATE** | **Always** sets rule to `decisionBasis: NEVER` |
-| **REALLOCATE** | Creates rule with `decisionBasis: ALWAYS` if no matching rule exists |
-
-This means:
-- After unallocating, you must manually change the rule back to `ALWAYS` or `RULES` if you want to allocate again
-- The agent won't fight against manual allocation actions (it creates rules to match)
+---
 
 ## Safety Mechanisms
 
-The agent includes several safety features:
+The agent includes safety features to prevent problematic allocations:
 
-1. **Health check**: Won't allocate to deployments with "failed" health status if rule has `safety=true`
-2. **Zero POI safety**: Won't reallocate if previous allocation closed with zero POI and safety is enabled
-3. **Approved actions check**: Skips reconciliation if there are already pending approved actions (prevents conflicts)
+1. **Health check**: Won't allocate to deployments with "failed" health status (if `safety=true` in rule)
+2. **Zero POI safety**: Won't reallocate if previous allocation closed with zero POI
+3. **Approved actions check**: Skips reconciliation if pending approved actions exist (prevents conflicts)
 4. **Network subgraph protection**: Never auto-allocated unless explicitly enabled via `--allocate-on-network-subgraph`
 
-## Action Execution
+---
 
-Actions flow through the action queue regardless of mode:
+## Related Documentation
 
-1. **AUTO mode**: Actions are queued with `APPROVED` status and executed automatically
-2. **OVERSIGHT mode**: Actions are queued with `QUEUED` status, require manual approval
-3. **MANUAL mode**: No automatic actions; user queues actions via CLI with desired status
-
-The action executor runs in all modes - in MANUAL mode it simply has no auto-generated actions to process.
+- [Allocation Management Overview](./allocation-management/README.md) - How to manage allocations
+- [Indexing Rules](./allocation-management/rules.md) - Configure what the agent should allocate to
+- [Action Queue](./allocation-management/action-queue.md) - Queue, approve, and execute allocation actions
+- [Direct Commands](./allocation-management/direct.md) - Execute allocation operations immediately

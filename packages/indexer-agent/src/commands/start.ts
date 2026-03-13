@@ -15,6 +15,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   indexerError,
@@ -280,6 +281,20 @@ export const start = {
         default: 100,
         group: 'Query Fees',
       })
+      .option('rav-collection-max-batch-size', {
+        description:
+          'Maximum number of RAVs to collect in a single multicall transaction',
+        type: 'number',
+        default: 50,
+        group: 'Query Fees',
+      })
+      .option('rav-collection-interval', {
+        description:
+          'Minimum time in seconds between periodic RAV collections per active allocation',
+        type: 'number',
+        default: 14400,
+        group: 'Query Fees',
+      })
       .option('horizon-address-book', {
         description: 'Graph Horizon contracts address book file path',
         type: 'string',
@@ -336,7 +351,7 @@ export const start = {
       })
       .option('allocation-management', {
         description:
-          'Indexer agent allocation management automation mode (auto|manual) ',
+          'Indexer agent allocation management automation mode (auto|manual|oversight)',
         type: 'string',
         required: false,
         default: 'auto',
@@ -347,6 +362,32 @@ export const start = {
         type: 'number',
         default: 1,
         group: 'Indexer Infrastructure',
+      })
+      .option('auto-allocation-max-batch-size', {
+        description: `Maximum number of allocation transactions inside a batch for auto allocation management. Limits the number of actions processed per batch to prevent multicall failures when there are many allocations. Remaining actions will be processed in subsequent batches.`,
+        type: 'number',
+        required: false,
+        group: 'Indexer Infrastructure',
+      })
+      .option('enable-dips', {
+        description: 'Whether to enable Indexing Fees (DIPs)',
+        type: 'boolean',
+        default: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dipper-endpoint', {
+        description: 'Gateway endpoint for DIPs receipts',
+        type: 'string',
+        array: false,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-allocation-amount', {
+        description: 'Amount of GRT to allocate for DIPs',
+        type: 'number',
+        default: 1,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
       })
       .check(argv => {
         if (
@@ -374,6 +415,9 @@ export const start = {
           argv['rebate-claim-max-batch-size'] <= 0
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        if (argv['enable-dips'] && !argv['dipper-endpoint']) {
+          return 'Invalid --dipper-endpoint provided. Must be provided when --enable-dips is true.'
         }
         return true
       })
@@ -406,13 +450,20 @@ export async function createNetworkSpecification(
     voucherRedemptionThreshold: argv.voucherRedemptionThreshold,
     voucherRedemptionBatchThreshold: argv.voucherRedemptionBatchThreshold,
     voucherRedemptionMaxBatchSize: argv.voucherRedemptionMaxBatchSize,
+    ravCollectionMaxBatchSize: argv.ravCollectionMaxBatchSize,
     allocationManagementMode: argv.allocationManagement,
     autoAllocationMinBatchSize: argv.autoAllocationMinBatchSize,
+    autoAllocationMaxBatchSize: argv.autoAllocationMaxBatchSize,
     allocateOnNetworkSubgraph: argv.allocateOnNetworkSubgraph,
     register: argv.register,
     maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
     legacyMnemonics: argv.legacyMnemonics,
+    enableDips: argv.enableDips,
+    dipperEndpoint: argv.dipperEndpoint,
+    dipsAllocationAmount: argv.dipsAllocationAmount,
+    ravCollectionInterval: argv.ravCollectionInterval,
+    dipsEpochsMargin: argv.dipsEpochsMargin,
   }
 
   const transactionMonitoring = {
@@ -628,6 +679,9 @@ export async function run(
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 
+  // Define after sync so Sequelize won't try to create/alter this indexer-rs-owned table
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
+
   // --------------------------------------------------------------------------------
   // * Networks
   // --------------------------------------------------------------------------------
@@ -638,7 +692,14 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+      Network.create(
+        logger,
+        spec,
+        managementModels,
+        queryFeeModels,
+        graphNode,
+        metrics,
+      ),
   )
 
   // --------------------------------------------------------------------------------
@@ -661,6 +722,7 @@ export async function run(
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   // --------------------------------------------------------------------------------

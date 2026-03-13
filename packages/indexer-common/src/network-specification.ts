@@ -56,11 +56,13 @@ export const IndexerOptions = z
     voucherRedemptionThreshold: GRT().default(1),
     voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
+    ravCollectionMaxBatchSize: positiveNumber().default(50),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
       .default('auto')
       .transform((x) => x as AllocationManagementMode),
     autoAllocationMinBatchSize: positiveNumber().default(1),
+    autoAllocationMaxBatchSize: positiveNumber().optional(),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
     maxProvisionInitialSize: GRT()
@@ -70,6 +72,11 @@ export const IndexerOptions = z
       .default(0),
     finalityTime: positiveNumber().default(3600),
     legacyMnemonics: z.array(z.string()).default([]),
+    enableDips: z.boolean().default(false),
+    dipperEndpoint: z.string().url().optional(),
+    dipsAllocationAmount: GRT().default(0),
+    ravCollectionInterval: positiveNumber().default(14400),
+    dipsEpochsMargin: positiveNumber().default(1),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>

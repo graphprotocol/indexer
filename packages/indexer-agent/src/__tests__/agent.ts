@@ -1,9 +1,14 @@
 import {
+  Agent,
   convertSubgraphBasedRulesToDeploymentBased,
   consolidateAllocationDecisions,
   resolveTargetDeployments,
 } from '../agent'
 import {
+  ActivationCriteria,
+  Allocation,
+  AllocationDecision,
+  AllocationStatus,
   INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
@@ -325,6 +330,138 @@ describe('resolveTargetDeployments function', () => {
     )
     expect([...result].map(d => d.ipfsHash)).toContain(
       offchainArgDeployment.ipfsHash,
+    )
+  })
+})
+
+describe('reconcileDeploymentAllocationAction', () => {
+  const deployment = new SubgraphDeploymentID(
+    'QmXZiV6S13ha6QXq4dmaM3TB4CHcDxBMvGexSNu9Kc28EH',
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockLogger: any = {
+    child: jest.fn().mockReturnThis(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn(),
+    trace: jest.fn(),
+  }
+
+  const activeAllocations: Allocation[] = [
+    {
+      id: '0x0000000000000000000000000000000000000001',
+      status: AllocationStatus.ACTIVE,
+      isLegacy: false,
+      subgraphDeployment: {
+        id: deployment,
+        ipfsHash: deployment.ipfsHash,
+      },
+      indexer: '0x0000000000000000000000000000000000000000',
+      allocatedTokens: BigInt(1000),
+      createdAt: 0,
+      createdAtEpoch: 1,
+      createdAtBlockHash: '0x0',
+      closedAt: 0,
+      closedAtEpoch: 0,
+      closedAtEpochStartBlockHash: undefined,
+      previousEpochStartBlockHash: undefined,
+      closedAtBlockHash: '0x0',
+      poi: undefined,
+      queryFeeRebates: undefined,
+      queryFeesCollected: undefined,
+    } as unknown as Allocation,
+  ]
+
+  const decision = new AllocationDecision(
+    deployment,
+    {
+      identifier: deployment.ipfsHash,
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      allocationAmount: '1000',
+      decisionBasis: IndexingDecisionBasis.RULES,
+    } as IndexingRuleAttributes,
+    true,
+    ActivationCriteria.SIGNAL_THRESHOLD,
+    'eip155:42161',
+  )
+
+  function createAgent() {
+    const agent = Object.create(Agent.prototype)
+    agent.logger = mockLogger
+    agent.graphNode = {
+      indexingStatus: jest.fn().mockResolvedValue([
+        {
+          subgraphDeployment: { ipfsHash: deployment.ipfsHash },
+          health: 'healthy',
+        },
+      ]),
+    }
+    agent.identifyExpiringAllocations = jest
+      .fn()
+      .mockResolvedValue([activeAllocations[0]])
+    return agent
+  }
+
+  function createOperator() {
+    return {
+      closeEligibleAllocations: jest.fn(),
+      createAllocation: jest.fn(),
+      refreshExpiredAllocations: jest.fn(),
+    }
+  }
+
+  function createNetwork(isHorizon: boolean) {
+    return {
+      isHorizon: { value: jest.fn().mockResolvedValue(isHorizon) },
+      specification: { networkIdentifier: 'eip155:42161' },
+      networkMonitor: {
+        closedAllocations: jest.fn().mockResolvedValue([]),
+      },
+    }
+  }
+
+  it('should not call refreshExpiredAllocations for Horizon allocations', async () => {
+    const agent = createAgent()
+    const operator = createOperator()
+    const network = createNetwork(true)
+
+    await agent.reconcileDeploymentAllocationAction(
+      decision,
+      activeAllocations,
+      10,
+      { value: jest.fn().mockResolvedValue(28) },
+      network,
+      operator,
+      false,
+    )
+
+    expect(operator.refreshExpiredAllocations).not.toHaveBeenCalled()
+    expect(agent.identifyExpiringAllocations).not.toHaveBeenCalled()
+  })
+
+  it('should call refreshExpiredAllocations for legacy allocations', async () => {
+    const agent = createAgent()
+    const operator = createOperator()
+    const network = createNetwork(false)
+
+    await agent.reconcileDeploymentAllocationAction(
+      decision,
+      activeAllocations,
+      10,
+      { value: jest.fn().mockResolvedValue(28) },
+      network,
+      operator,
+      false,
+    )
+
+    expect(agent.identifyExpiringAllocations).toHaveBeenCalled()
+    expect(operator.refreshExpiredAllocations).toHaveBeenCalledWith(
+      expect.anything(),
+      decision,
+      [activeAllocations[0]],
+      false,
     )
   })
 })

@@ -57,6 +57,27 @@ export class NetworkMonitor {
     private epochSubgraph: SubgraphClient,
   ) {}
 
+  async hasActiveDipsAgreement(allocationId: string): Promise<boolean> {
+    try {
+      const result = await this.networkSubgraph.checkedQuery(
+        gql`
+          query indexingAgreements($allocationId: Bytes!) {
+            indexingAgreements(
+              where: { allocationId: $allocationId, state_not: 0 }
+              first: 1
+            ) {
+              id
+            }
+          }
+        `,
+        { allocationId: allocationId.toLowerCase() },
+      )
+      return (result.data?.indexingAgreements?.length ?? 0) > 0
+    } catch {
+      return false
+    }
+  }
+
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
   }
@@ -647,7 +668,7 @@ export class NetworkMonitor {
     return subgraphs
   }
 
-  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment | undefined> {
+  async subgraphDeployment(ipfsHash: string): Promise<SubgraphDeployment> {
     try {
       const result = await this.networkSubgraph.checkedQuery(
         gql`
@@ -684,7 +705,14 @@ export class NetworkMonitor {
         this.logger.warn(
           `SubgraphDeployment with ipfsHash = ${ipfsHash} not found on chain`,
         )
-        return undefined
+        return {
+          id: new SubgraphDeploymentID(ipfsHash),
+          deniedAt: 1, // We assume the deployment won't be eligible for rewards if it's not found
+          stakedTokens: 0n,
+          signalledTokens: 0n,
+          queryFeesAmount: 0n,
+          protocolNetwork: this.networkCAIPID,
+        }
       }
 
       return parseGraphQLSubgraphDeployment(

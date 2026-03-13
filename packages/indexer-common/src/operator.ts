@@ -16,6 +16,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  DipsManager,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { hexlify } from 'ethers'
@@ -80,6 +81,13 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+  }
+
+  get dipsManager(): DipsManager | null {
+    const network = this.specification.networkIdentifier
+    const allocationManager =
+      this.indexerManagement.actionManager?.allocationManagers[network]
+    return allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
@@ -260,16 +268,26 @@ export class Operator {
     return result.data.actions
   }
 
-  async queueAction(action: ActionItem): Promise<Action[]> {
+  async queueAction(action: ActionItem, forceAction: boolean = false): Promise<Action[]> {
     let status = ActionStatus.QUEUED
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
-        throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        }
+        break
       case AllocationManagementMode.AUTO:
         status = ActionStatus.APPROVED
         break
       case AllocationManagementMode.OVERSIGHT:
-        status = ActionStatus.QUEUED
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          status = ActionStatus.QUEUED
+        }
+        break
     }
 
     const actionInput = {
@@ -346,6 +364,7 @@ export class Operator {
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
     isHorizon: boolean,
+    forceAction: boolean = false,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
@@ -375,16 +394,19 @@ export class Operator {
     }
 
     // Send AllocateAction to the queue - isLegacy value depends on the horizon upgrade
-    await this.queueAction({
-      params: {
-        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-        amount: formatGRT(desiredAllocationAmount),
+    await this.queueAction(
+      {
+        params: {
+          deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+          amount: formatGRT(desiredAllocationAmount),
+        },
+        type: ActionType.ALLOCATE,
+        reason: deploymentAllocationDecision.reasonString(),
+        protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+        isLegacy: !isHorizon,
       },
-      type: ActionType.ALLOCATE,
-      reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-      isLegacy: !isHorizon,
-    })
+      forceAction,
+    )
 
     return
   }
@@ -393,6 +415,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocations.length > 0) {
@@ -409,18 +432,21 @@ export class Operator {
         activeDeploymentAllocations,
         async (allocation) => {
           // Send unallocate action to the queue - isLegacy value depends on the allocation being closed
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              poi: undefined,
-              force: false,
-            },
-            type: ActionType.UNALLOCATE,
-            reason: deploymentAllocationDecision.reasonString(),
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-            isLegacy: allocation.isLegacy,
-          } as ActionItem)
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                poi: undefined,
+                force: false,
+              },
+              type: ActionType.UNALLOCATE,
+              reason: deploymentAllocationDecision.reasonString(),
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+              isLegacy: allocation.isLegacy,
+            } as ActionItem,
+            forceAction,
+          )
         },
         { concurrency: 1 },
       )
@@ -431,6 +457,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     expiredAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
       logger.info(`Reallocating expired allocations`, {
@@ -448,17 +475,20 @@ export class Operator {
       await pMap(
         expiredAllocations,
         async (allocation) => {
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              amount: formatGRT(desiredAllocationAmount),
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                amount: formatGRT(desiredAllocationAmount),
+              },
+              type: ActionType.REALLOCATE,
+              reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+              isLegacy: allocation.isLegacy,
             },
-            type: ActionType.REALLOCATE,
-            reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-            isLegacy: allocation.isLegacy,
-          })
+            forceAction,
+          )
         },
         {
           stopOnError: false,
@@ -589,6 +619,79 @@ export class Operator {
         err,
       })
       throw err
+    }
+  }
+
+  // Schedule presentPOI for non-altruistic Horizon allocations approaching staleness.
+  // Altruistic allocations (0 tokens) are immune to staleness and don't need this.
+  async presentPOIForActiveAllocations(
+    logger: Logger,
+    activeAllocations: Allocation[],
+    network: {
+      isHorizon: { value: () => Promise<boolean> }
+      contracts: {
+        SubgraphService: {
+          maxPOIStaleness: () => Promise<bigint>
+          getAllocation: (
+            id: string,
+          ) => Promise<{ lastPOIPresentedAt: bigint; createdAt: bigint }>
+        }
+      }
+      specification: { networkIdentifier: string }
+    },
+  ): Promise<void> {
+    if (!(await network.isHorizon.value())) return
+
+    const maxPOIStaleness = await network.contracts.SubgraphService.maxPOIStaleness()
+    const threshold = (maxPOIStaleness * 3n) / 4n
+    const now = BigInt(Math.floor(Date.now() / 1000))
+
+    for (const allocation of activeAllocations) {
+      if (allocation.isLegacy) continue
+      if (allocation.allocatedTokens === 0n) continue
+
+      let lastPresented: bigint
+      try {
+        const onChainAllocation = await network.contracts.SubgraphService.getAllocation(
+          allocation.id,
+        )
+        lastPresented = onChainAllocation.lastPOIPresentedAt
+        if (lastPresented === 0n) {
+          lastPresented = onChainAllocation.createdAt
+        }
+      } catch (err) {
+        logger.warn('Failed to fetch on-chain allocation state for presentPOI check', {
+          allocationId: allocation.id,
+          err,
+        })
+        continue
+      }
+
+      const elapsed = now - lastPresented
+      if (elapsed < threshold) continue
+
+      logger.info('Scheduling presentPOI for Horizon allocation', {
+        allocationId: allocation.id,
+        deployment: allocation.subgraphDeployment.id.ipfsHash,
+        elapsed: elapsed.toString(),
+        threshold: threshold.toString(),
+        maxPOIStaleness: maxPOIStaleness.toString(),
+      })
+
+      await this.queueAction(
+        {
+          params: {
+            allocationID: allocation.id,
+            deploymentID: allocation.subgraphDeployment.id.ipfsHash,
+            poi: undefined,
+          },
+          type: ActionType.PRESENT_POI,
+          reason: 'presentPOI:staleness-prevention',
+          protocolNetwork: network.specification.networkIdentifier,
+          isLegacy: false,
+        },
+        false,
+      )
     }
   }
 }
