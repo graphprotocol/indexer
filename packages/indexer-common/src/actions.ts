@@ -101,6 +101,10 @@ export const isValidActionInput = (
         'allocationID' in variableToCheck &&
         'amount' in variableToCheck
       break
+    case ActionType.PRESENT_POI:
+      hasActionParams =
+        'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
+      break
   }
   return (
     hasActionParams &&
@@ -164,6 +168,7 @@ export const validateActionInputs = async (
       )
     }
 
+    // TODO: remove REALLOCATE flow — replaced by PRESENT_POI + RESIZE for Horizon allocations
     // Unallocate, reallocate, and resize actions must target an active allocationID
     if (
       [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE].includes(
@@ -184,6 +189,26 @@ export const validateActionInputs = async (
         throw new Error(
           `Allocation specified (${action.allocationID}) is not associated with the deployment specified (${action.deploymentID})`,
         )
+      }
+
+      // Check for active DIPS agreement on UNALLOCATE
+      if (action.type === ActionType.UNALLOCATE && action.allocationID) {
+        const hasAgreement = await networkMonitor.hasActiveDipsAgreement(
+          action.allocationID,
+        )
+        if (hasAgreement && !action.force) {
+          throw new Error(
+            `Allocation ${action.allocationID} has an active DIPS agreement. ` +
+              `Closing this allocation will cancel the agreement on-chain. ` +
+              `Use force=true to proceed anyway.`,
+          )
+        }
+        if (hasAgreement && action.force) {
+          logger.warn('Force-closing allocation with active DIPS agreement', {
+            allocationId: action.allocationID,
+            actionType: action.type,
+          })
+        }
       }
     }
   }

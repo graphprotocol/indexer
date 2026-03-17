@@ -1130,22 +1130,32 @@ export class Agent {
               forceAction,
             )
           } else {
-            // Refresh any expiring allocations
-            const expiringAllocations = await this.identifyExpiringAllocations(
-              logger,
-              activeDeploymentAllocations,
-              deploymentAllocationDecision,
-              epoch,
-              maxAllocationDuration,
-              network,
-            )
-            if (expiringAllocations.length > 0) {
-              await operator.refreshExpiredAllocations(
+            const expiringAllocations =
+              await this.identifyExpiringAllocations(
                 logger,
+                activeDeploymentAllocations,
                 deploymentAllocationDecision,
-                expiringAllocations,
-                forceAction,
+                epoch,
+                maxAllocationDuration,
+                network,
               )
+            if (expiringAllocations.length > 0) {
+              if (isHorizon) {
+                // Horizon allocations don't need the close/reopen cycle.
+                // Indexing rewards are collected via presentPOI instead.
+                await operator.presentPOIForAllocations(
+                  logger,
+                  expiringAllocations,
+                  network,
+                )
+              } else {
+                await operator.refreshExpiredAllocations(
+                  logger,
+                  deploymentAllocationDecision,
+                  expiringAllocations,
+                  forceAction,
+                )
+              }
             }
           }
         }
