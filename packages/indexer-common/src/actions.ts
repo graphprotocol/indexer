@@ -101,6 +101,18 @@ export const isValidActionInput = (
         'allocationID' in variableToCheck &&
         'amount' in variableToCheck
       break
+    case ActionType.PRESENT_POI:
+      hasActionParams =
+        'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
+
+      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
+        hasActionParams =
+          hasActionParams &&
+          'poi' in variableToCheck &&
+          'publicPOI' in variableToCheck &&
+          'poiBlockNumber' in variableToCheck
+      }
+      break
   }
   return (
     hasActionParams &&
@@ -164,9 +176,9 @@ export const validateActionInputs = async (
       )
     }
 
-    // Unallocate, reallocate, and resize actions must target an active allocationID
+    // Unallocate, reallocate, resize, and presentPOI actions must target an active allocationID
     if (
-      [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE].includes(
+      [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE, ActionType.PRESENT_POI].includes(
         action.type,
       )
     ) {
