@@ -288,6 +288,20 @@ export const start = {
         default: 50,
         group: 'Query Fees',
       })
+      .option('rav-collection-interval', {
+        description:
+          'Minimum time in seconds between periodic RAV collections per active allocation',
+        type: 'number',
+        default: 14400,
+        group: 'Query Fees',
+      })
+      .option('rav-check-interval', {
+        description:
+          'How often the RAV processing loop runs, in seconds',
+        type: 'number',
+        default: 900,
+        group: 'Query Fees',
+      })
       .option('horizon-address-book', {
         description: 'Graph Horizon contracts address book file path',
         type: 'string',
@@ -455,6 +469,8 @@ export async function createNetworkSpecification(
     enableDips: argv.enableDips,
     dipperEndpoint: argv.dipperEndpoint,
     dipsAllocationAmount: argv.dipsAllocationAmount,
+    ravCollectionInterval: argv.ravCollectionInterval,
+    ravCheckInterval: argv.ravCheckInterval,
     dipsEpochsMargin: argv.dipsEpochsMargin,
   }
 

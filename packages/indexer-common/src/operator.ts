@@ -621,4 +621,37 @@ export class Operator {
       throw err
     }
   }
+
+  // Schedule presentPOI for expiring Horizon allocations to collect indexing
+  // rewards and reset staleness. Replaces the legacy close/reopen (REALLOCATE) cycle.
+  // Expiration is determined by allocationLifetime from indexing rules.
+  async presentPOIForAllocations(
+    logger: Logger,
+    expiringAllocations: Allocation[],
+    network: {
+      specification: { networkIdentifier: string }
+    },
+  ): Promise<void> {
+    for (const allocation of expiringAllocations) {
+      logger.info('Scheduling presentPOI for Horizon allocation', {
+        allocationId: allocation.id,
+        deployment: allocation.subgraphDeployment.id.ipfsHash,
+      })
+
+      await this.queueAction(
+        {
+          params: {
+            allocationID: allocation.id,
+            deploymentID: allocation.subgraphDeployment.id.ipfsHash,
+            poi: undefined,
+          },
+          type: ActionType.PRESENT_POI,
+          reason: 'presentPOI:staleness-prevention',
+          protocolNetwork: network.specification.networkIdentifier,
+          isLegacy: false,
+        },
+        false,
+      )
+    }
+  }
 }
