@@ -1,5 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { GraphTallyCollector } from '../allocations/graph-tally-collector'
 import { createLogger, createMetrics, mutable } from '@graphprotocol/common-ts'
+import { register } from 'prom-client'
 
 // We need to test the helpers directly. Since they're private,
 // we test them through the public interface or use type casting.
@@ -66,7 +68,6 @@ describe('GraphTallyCollector - Periodic RAV Collection', () => {
   afterEach(async () => {
     jest.restoreAllMocks()
     // cleanup prom-client metrics to avoid "already registered" errors
-    const { register } = require('prom-client')
     register.clear()
   })
 
