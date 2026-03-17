@@ -178,9 +178,12 @@ export const validateActionInputs = async (
 
     // Unallocate, reallocate, resize, and presentPOI actions must target an active allocationID
     if (
-      [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE, ActionType.PRESENT_POI].includes(
-        action.type,
-      )
+      [
+        ActionType.UNALLOCATE,
+        ActionType.REALLOCATE,
+        ActionType.RESIZE,
+        ActionType.PRESENT_POI,
+      ].includes(action.type)
     ) {
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
