@@ -32,6 +32,8 @@ import {
   invalidReallocateAction,
   invalidUnallocateAction,
   queuedAllocateAction,
+  queuedResizeAction,
+  queuedPresentPOIAction,
   subgraphDeployment1,
   subgraphDeployment2,
   subgraphDeployment3,
@@ -870,5 +872,39 @@ describe.skip('Actions', () => {
         })
         .toPromise(),
     ).resolves.toHaveProperty('data.updateActions', updatedExpecteds)
+  })
+
+  test('Queue and retrieve resize action', async () => {
+    const inputAction = queuedResizeAction
+    const expected = await actionInputToExpected(inputAction, 1)
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', [expected])
+
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: { status: ActionStatus.QUEUED, type: ActionType.RESIZE },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.actions', [expected])
+  })
+
+  test('Queue and retrieve presentPOI action', async () => {
+    const inputAction = queuedPresentPOIAction
+    const expected = await actionInputToExpected(inputAction, 1)
+
+    await expect(
+      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
+    ).resolves.toHaveProperty('data.queueActions', [expected])
+
+    await expect(
+      client
+        .query(ACTIONS_QUERY, {
+          filter: { status: ActionStatus.QUEUED, type: ActionType.PRESENT_POI },
+        })
+        .toPromise(),
+    ).resolves.toHaveProperty('data.actions', [expected])
   })
 })
