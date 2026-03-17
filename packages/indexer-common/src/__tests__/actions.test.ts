@@ -138,6 +138,32 @@ describe('Action Validation', () => {
       } as ActionInput
 
       expect(isValidActionInput(missingDeploymentID)).toBe(false)
+
+      // With POI provided, must also have publicPOI and poiBlockNumber
+      const withPoiButMissingPublicPOI = {
+        ...baseAction,
+        type: ActionType.PRESENT_POI,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'ab'.repeat(32),
+        isLegacy: false,
+      }
+
+      expect(isValidActionInput(withPoiButMissingPublicPOI)).toBe(false)
+
+      // With all POI fields provided
+      const withAllPoiFields = {
+        ...baseAction,
+        type: ActionType.PRESENT_POI,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'ab'.repeat(32),
+        publicPOI: '0x' + 'cd'.repeat(32),
+        poiBlockNumber: 12345,
+        isLegacy: false,
+      }
+
+      expect(isValidActionInput(withAllPoiFields)).toBe(true)
     })
 
     test('validates common required fields (source, reason, status, priority)', () => {
