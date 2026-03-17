@@ -57,6 +57,7 @@ export const IndexerOptions = z
     voucherRedemptionBatchThreshold: GRT().default(5),
     voucherRedemptionMaxBatchSize: positiveNumber().default(100),
     ravCollectionMaxBatchSize: positiveNumber().default(50),
+    ravCheckInterval: positiveNumber().default(900),
     allocationManagementMode: z
       .enum(ALLOCATION_MANAGEMENT_MODE)
       .default('auto')
@@ -75,6 +76,7 @@ export const IndexerOptions = z
     enableDips: z.boolean().default(false),
     dipperEndpoint: z.string().url().optional(),
     dipsAllocationAmount: GRT().default(0),
+    ravCollectionInterval: positiveNumber().default(14400),
     dipsEpochsMargin: positiveNumber().default(1),
   })
   .strict()
