@@ -42,7 +42,7 @@ function encodeTestPayload(overrides?: {
     [
       {
         subgraphDeploymentId: TEST_DEPLOYMENT_BYTES32,
-        version: 1n,
+        version: 0n,
         terms: termsEncoded,
       },
     ],
