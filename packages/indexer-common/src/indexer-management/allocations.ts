@@ -177,6 +177,7 @@ export class AllocationManager {
         this,
         this.pendingRcaModel,
       )
+      this.dipsManager.startProposalAcceptanceLoop()
     }
   }
 
@@ -2314,7 +2315,7 @@ export class AllocationManager {
         } else {
           if (isHorizon) {
             rewards = await this.network.contracts.RewardsManager.getRewards(
-              this.network.contracts.HorizonStaking.target,
+              this.network.contracts.SubgraphService.target,
               action.allocationID,
             )
           } else {

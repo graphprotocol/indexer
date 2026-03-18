@@ -717,9 +717,8 @@ export class Agent {
                 throw new Error('DipsManager is not available')
               }
 
-              await operator.dipsManager.acceptPendingProposals(
-                activeAllocations,
-              )
+              // Proposal acceptance is handled by the dedicated fast loop
+              // (startProposalAcceptanceLoop), not the reconciliation cycle.
 
               this.logger.debug(
                 `Matching agreement allocations for network ${network.specification.networkIdentifier}`,
