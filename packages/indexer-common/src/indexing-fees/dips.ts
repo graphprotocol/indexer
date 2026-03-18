@@ -9,6 +9,7 @@ import {
   ActionStatus,
   Allocation,
   AllocationManager,
+  AllocationStatus,
   DipsReceiptStatus,
   GraphNode,
   IndexerManagementModels,
@@ -45,6 +46,7 @@ import {
 import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
+const DIPS_ACCEPTANCE_INTERVAL = 5_000
 
 const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
@@ -745,9 +747,20 @@ export class DipsManager {
   ): Promise<void> {
     if (this.isDeterministicError(error)) {
       const parsedError = tryParseCustomError(error)
+      const callException = error as {
+        reason?: string
+        data?: string
+        message?: string
+        transaction?: { to?: string; data?: string }
+      }
       this.logger.warn('Rejecting proposal: deterministic contract error', {
         proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
         error: parsedError,
+        revertReason: callException.reason ?? null,
+        revertData: callException.data ?? null,
+        errorMessage: callException.message ?? null,
+        contractTarget: callException.transaction?.to ?? null,
       })
       await consumer.markRejected(proposal.id, String(parsedError))
       await this.cleanupDipsRule(consumer, proposal)
@@ -1015,6 +1028,51 @@ export class DipsManager {
         )
       }
     }
+  }
+
+  startProposalAcceptanceLoop() {
+    if (!this.pendingRcaConsumer) {
+      this.logger.debug('No pending RCA consumer configured, skipping acceptance loop')
+      return
+    }
+    const consumer = this.pendingRcaConsumer
+
+    sequentialTimerMap(
+      {
+        logger: this.logger,
+        milliseconds: DIPS_ACCEPTANCE_INTERVAL,
+      },
+      async () => {
+        const proposals = await consumer.getPendingProposals()
+        if (proposals.length === 0) {
+          return
+        }
+
+        this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
+          count: proposals.length,
+        })
+
+        const activeAllocations = await this.network.networkMonitor.allocations(
+          AllocationStatus.ACTIVE,
+        )
+
+        for (const proposal of proposals) {
+          try {
+            await this.processProposal(consumer, proposal, activeAllocations)
+          } catch (error) {
+            this.logger.error('Unexpected error processing proposal', {
+              proposalId: proposal.id,
+              error,
+            })
+          }
+        }
+      },
+      {
+        onError: (err) => {
+          this.logger.error('Failed to process pending RCA proposals', { err })
+        },
+      },
+    )
   }
 }
 
