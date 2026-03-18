@@ -7,6 +7,8 @@ import {
 import {
   Allocation,
   AllocationManager,
+  AllocationStatus,
+  DipsReceiptStatus,
   GraphNode,
   IndexerManagementModels,
   IndexingDecisionBasis,
@@ -17,6 +19,7 @@ import {
 } from '@graphprotocol/indexer-common'
 
 import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
+import { OfferMonitor } from './offer-monitor'
 import { PendingRcaConsumer } from './pending-rca-consumer'
 import { DecodedRcaProposal } from './types'
 import { tryParseCustomError } from '../utils'
@@ -29,12 +32,18 @@ import {
 } from './agreement-monitor'
 import { CollectionTracker } from './collection-tracker'
 
+const DIPS_ACCEPTANCE_INTERVAL = 5_000
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
 const RECENT_BLOCK_OFFSET = 10
+// When the offer hasn't landed on-chain yet, keep retrying until the RCA
+// deadline is within this window. Inside the window, give up cleanly so
+// reassessment can pick a replacement before the deadline lapses.
+const OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS = 30n
 
 export class DipsManager {
   declare pendingRcaConsumer: PendingRcaConsumer
   declare collectionTracker: CollectionTracker
+  declare offerMonitor: OfferMonitor | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
@@ -44,6 +53,13 @@ export class DipsManager {
     pendingRcaModel: typeof PendingRcaProposal,
   ) {
     this.pendingRcaConsumer = new PendingRcaConsumer(this.logger, pendingRcaModel)
+
+    // Null when no indexing-payments-subgraph is configured; processProposal
+    // skips the offer-existence gate in that case.
+    this.offerMonitor = this.network.indexingPaymentsSubgraph
+      ? new OfferMonitor(this.logger, this.network.indexingPaymentsSubgraph)
+      : null
+
     this.collectionTracker = new CollectionTracker(
       this.network.specification.indexerOptions.dipsCollectionTarget,
     )
@@ -275,6 +291,75 @@ export class DipsManager {
       await this.cleanupDipsRule(consumer, proposal)
       return
     }
+
+    // Create the dips rule eagerly here rather than leaving it to the reconcile
+    // loop: the accept tx can confirm and clear the pending row before the next
+    // reconcile tick, which would leave the rule uncreated and graph-node never
+    // told to deploy the subgraph.
+    const allDeploymentRules = await this.models.IndexingRule.findAll({
+      where: { identifierType: SubgraphIdentifierType.DEPLOYMENT },
+    })
+    const blocklisted = allDeploymentRules.find((r) =>
+      this.isOnChainOptOutRule(r, proposal.subgraphDeploymentId),
+    )
+    if (blocklisted) {
+      this.logger.info(
+        `Blocklisted deployment ${proposal.subgraphDeploymentId.toString()}, rejecting proposal ${
+          proposal.id
+        }`,
+      )
+      await consumer.markRejected(proposal.id, 'deployment blocklisted')
+      return
+    }
+    await this.upsertDipsRuleFor(proposal.subgraphDeploymentId, {
+      allocationLifetime: Math.max(
+        Number(proposal.minSecondsPerCollection),
+        Number(proposal.maxSecondsPerCollection),
+      ),
+    })
+
+    // Gate accept on the on-chain offer existing. If dipper's offer() tx was
+    // evicted (nonce collision, gas spike), rcaOffers is empty and
+    // acceptIndexingAgreement reverts with RecurringCollectorInvalidSigner —
+    // a transient state, retry next tick. Inside the safety margin, give up
+    // so reassessment can pick a replacement before the deadline lapses.
+    if (this.offerMonitor) {
+      const offerOnChain = await this.offerMonitor.offerExists(proposal.id)
+      if (!offerOnChain) {
+        if (proposal.deadline > now + OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS) {
+          this.logger.debug(
+            'Offer not yet on-chain, waiting for next acceptance-loop tick',
+            {
+              proposalId: proposal.id,
+              deadline: proposal.deadline.toString(),
+              now: now.toString(),
+            },
+          )
+          return
+        }
+        this.logger.warn(
+          'Offer never landed on-chain within the RCA deadline, rejecting proposal',
+          {
+            proposalId: proposal.id,
+            deadline: proposal.deadline.toString(),
+            now: now.toString(),
+          },
+        )
+        await consumer.markRejected(proposal.id, 'offer_never_landed')
+        await this.cleanupDipsRule(consumer, proposal)
+        return
+      }
+    }
+
+    // Deploy the subgraph to graph-node before the accept multicall creates the
+    // allocation on-chain. The main reconcile loop reads `graph_node.indexingStatus`
+    // for the deployment; if graph-node has never been told to deploy it,
+    // indexingStatus is undefined and `failsHealthCheck` triggers a spurious
+    // unallocate of the allocation we just created. `ensure` is idempotent.
+    await this.graphNode.ensure(
+      `indexer-agent/${proposal.subgraphDeploymentId.ipfsHash.slice(-10)}`,
+      proposal.subgraphDeploymentId,
+    )
 
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
@@ -571,82 +656,89 @@ export class DipsManager {
 
   async collectAgreementPayments(): Promise<void> {
     const logger = this.logger.child({ function: 'collectAgreementPayments' })
-    const indexerAddress = this.network.specification.indexerOptions.address
+    try {
+      const indexerAddress = this.network.specification.indexerOptions.address
 
-    if (!this.network.indexingPaymentsSubgraph) {
-      logger.warn(
-        'Indexing payments subgraph not configured, skipping agreement collection',
+      if (!this.network.indexingPaymentsSubgraph) {
+        logger.warn(
+          'Indexing payments subgraph not configured, skipping agreement collection',
+        )
+        return
+      }
+      const agreements = await fetchCollectableAgreements(
+        this.network.indexingPaymentsSubgraph,
+        indexerAddress,
       )
-      return
-    }
-    const agreements = await fetchCollectableAgreements(
-      this.network.indexingPaymentsSubgraph,
-      indexerAddress,
-    )
 
-    if (agreements.length === 0) {
-      logger.debug('No collectable agreements found')
-      return
-    }
+      if (agreements.length === 0) {
+        logger.debug('No collectable agreements found')
+        return
+      }
 
-    // Cancel any agreements whose deployments are blocklisted
-    await this.cancelBlocklistedAgreements(agreements)
+      // Cancel any agreements whose deployments are blocklisted
+      await this.cancelBlocklistedAgreements(agreements)
 
-    // Use chain timestamp for consistency with contract timing and subgraph data
-    const blockNumber = await this.network.networkProvider.getBlockNumber()
-    const block = await this.network.networkProvider.getBlock(blockNumber)
-    const nowSeconds = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
+      // Use chain timestamp for consistency with contract timing and subgraph data
+      const blockNumber = await this.network.networkProvider.getBlockNumber()
+      const block = await this.network.networkProvider.getBlock(blockNumber)
+      const nowSeconds = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
 
-    // Sync tracker state from subgraph data
-    for (const agreement of agreements) {
-      this.collectionTracker.track(agreement.id, {
-        lastCollectedAt: Number(agreement.lastCollectionAt),
-        minSecondsPerCollection: agreement.minSecondsPerCollection,
-        maxSecondsPerCollection: agreement.maxSecondsPerCollection,
-      })
-    }
-
-    const readyIds = this.collectionTracker.getReadyAgreements(nowSeconds)
-    if (readyIds.length === 0) {
-      logger.debug('No agreements ready for collection', {
-        total: agreements.length,
-      })
-      return
-    }
-
-    logger.info(
-      `${readyIds.length} of ${agreements.length} agreement(s) ready for collection`,
-    )
-
-    const readyAgreements = agreements.filter((a) => readyIds.includes(a.id))
-
-    for (const agreement of readyAgreements) {
-      try {
-        const result = await this.tryCollectAgreement(agreement, blockNumber, logger)
-        if (result === 'collected') {
-          this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
-          this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
-        }
-        // 'paused' / 'unauthorized' are pre-flight checks; no on-chain attempt was
-        // made, so don't bump the tracker. Next tick will retry immediately.
-      } catch (err) {
-        const isDeterministic = this.isDeterministicError(err)
-        const errorDetail = isDeterministic
-          ? tryParseCustomError(err)
-          : err instanceof Error
-          ? err.message
-          : String(err)
-        // Throttle the retry so we don't hammer the chain on every poll cycle.
-        // Deterministic errors during collection are typically recoverable
-        // (subgraph sync, allocation reconcile, provision changes), so we
-        // don't auto-cancel; we just slow down.
-        this.collectionTracker.markAttempted(agreement.id, nowSeconds)
-        logger.warn('Failed to collect agreement, will retry after throttle', {
-          agreementId: agreement.id,
-          error: errorDetail,
-          deterministic: isDeterministic,
+      // Sync tracker state from subgraph data
+      for (const agreement of agreements) {
+        this.collectionTracker.track(agreement.id, {
+          lastCollectedAt: Number(agreement.lastCollectionAt),
+          minSecondsPerCollection: agreement.minSecondsPerCollection,
+          maxSecondsPerCollection: agreement.maxSecondsPerCollection,
         })
       }
+
+      const readyIds = this.collectionTracker.getReadyAgreements(nowSeconds)
+      if (readyIds.length === 0) {
+        logger.debug('No agreements ready for collection', {
+          total: agreements.length,
+        })
+        return
+      }
+
+      logger.info(
+        `${readyIds.length} of ${agreements.length} agreement(s) ready for collection`,
+      )
+
+      const readyAgreements = agreements.filter((a) => readyIds.includes(a.id))
+
+      for (const agreement of readyAgreements) {
+        try {
+          const result = await this.tryCollectAgreement(agreement, blockNumber, logger)
+          if (result === 'collected') {
+            this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
+            this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+          }
+          // 'paused' / 'unauthorized' are pre-flight checks; no on-chain attempt was
+          // made, so don't bump the tracker. Next tick will retry immediately.
+        } catch (err) {
+          const isDeterministic = this.isDeterministicError(err)
+          const errorDetail = isDeterministic
+            ? tryParseCustomError(err)
+            : err instanceof Error
+            ? err.message
+            : String(err)
+          // Throttle the retry so we don't hammer the chain on every poll cycle.
+          // Deterministic errors during collection are typically recoverable
+          // (subgraph sync, allocation reconcile, provision changes), so we
+          // don't auto-cancel; we just slow down.
+          this.collectionTracker.markAttempted(agreement.id, nowSeconds)
+          logger.warn('Failed to collect agreement, will retry after throttle', {
+            agreementId: agreement.id,
+            error: errorDetail,
+            deterministic: isDeterministic,
+          })
+        }
+      }
+    } catch (err) {
+      // Catch outer fetch failures (subgraph query, RPC getBlockNumber/getBlock,
+      // cancelBlocklistedAgreements) so a transient failure skips this tick rather
+      // than aborting the entire reconcile cycle for every network.
+      logger.warn('Skipping DIPs collection tick due to fetch failure', { err })
     }
   }
 
@@ -767,9 +859,20 @@ export class DipsManager {
   ): Promise<void> {
     if (this.isDeterministicError(error)) {
       const parsedError = tryParseCustomError(error)
+      const callException = error as {
+        reason?: string
+        data?: string
+        message?: string
+        transaction?: { to?: string; data?: string }
+      }
       this.logger.warn('Rejecting proposal: deterministic contract error', {
         proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
         error: parsedError,
+        revertReason: callException.reason ?? null,
+        revertData: callException.data ?? null,
+        errorMessage: callException.message ?? null,
+        contractTarget: callException.transaction?.to ?? null,
       })
       await consumer.markRejected(proposal.id, String(parsedError))
       await this.cleanupDipsRule(consumer, proposal)
@@ -826,5 +929,49 @@ export class DipsManager {
   async getActiveDipsDeployments(): Promise<SubgraphDeploymentID[]> {
     const { deployments } = await this.getDipsTargetDeployments()
     return deployments
+  }
+  startProposalAcceptanceLoop() {
+    if (!this.pendingRcaConsumer) {
+      this.logger.debug('No pending RCA consumer configured, skipping acceptance loop')
+      return
+    }
+    const consumer = this.pendingRcaConsumer
+
+    sequentialTimerMap(
+      {
+        logger: this.logger,
+        milliseconds: DIPS_ACCEPTANCE_INTERVAL,
+      },
+      async () => {
+        const proposals = await consumer.getPendingProposals()
+        if (proposals.length === 0) {
+          return
+        }
+
+        this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
+          count: proposals.length,
+        })
+
+        const activeAllocations = await this.network.networkMonitor.allocations(
+          AllocationStatus.ACTIVE,
+        )
+
+        for (const proposal of proposals) {
+          try {
+            await this.processProposal(consumer, proposal, activeAllocations)
+          } catch (error) {
+            this.logger.error('Unexpected error processing proposal', {
+              proposalId: proposal.id,
+              error,
+            })
+          }
+        }
+      },
+      {
+        onError: (err) => {
+          this.logger.error('Failed to process pending RCA proposals', { err })
+        },
+      },
+    )
   }
 }

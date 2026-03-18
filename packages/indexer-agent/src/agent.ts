@@ -713,10 +713,11 @@ export class Agent {
           activeAllocations,
           async ({ network, operator }, activeAllocations: Allocation[]) => {
             if (network.specification.indexerOptions.enableDips) {
-              await operator.dipsManager!.acceptPendingProposals(
-                activeAllocations,
-              )
-              await operator.dipsManager!.collectAgreementPayments()
+              if (!operator.dipsManager) {
+                throw new Error('DipsManager is not available')
+              }
+
+              await operator.dipsManager.collectAgreementPayments()
             }
           },
         )
