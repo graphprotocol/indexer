@@ -887,3 +887,328 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 **Solution**
 
 Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `sepolia`, `gnosis`) and is on or after version 0.28.0.
+
+## IE072
+
+**Summary**
+
+Failed to execute batch tx (contract: staking).
+
+**Description**
+
+The indexer agent failed to execute a batch transaction against the staking
+contract. This can occur when multiple allocation operations (such as allocate,
+close, or reallocate) are batched into a single transaction and the transaction
+reverts.
+
+**Solution**
+
+Check the transaction error details in the logs. Common causes include
+insufficient gas, contract state changes between submission and execution,
+or issues with one of the individual operations in the batch. Ensure the
+indexer has sufficient ETH for gas and that the staking contract is accessible.
+
+## IE073
+
+**Summary**
+
+Failed to query subgraph features from indexing statuses endpoint.
+
+**Description**
+
+The indexer agent was unable to retrieve subgraph feature information from the
+graph node's indexing statuses API. This information is used to determine
+subgraph capabilities and requirements.
+
+**Solution**
+
+Ensure the graph/index node is reachable and its indexing status API is
+responsive. Check network connectivity between the indexer agent and the
+graph node.
+
+## IE074
+
+**Summary**
+
+Failed to deploy subgraph: network not supported.
+
+**Description**
+
+The indexer agent attempted to deploy a subgraph that indexes a network not
+configured on the graph/index node.
+
+**Solution**
+
+Add the required network's RPC endpoint to the graph node configuration,
+or add an indexing rule to ignore subgraphs on unsupported networks.
+
+See also: [#IE020](#ie020), [#IE026](#ie026).
+
+## IE075
+
+**Summary**
+
+Failed to connect to network contracts.
+
+**Description**
+
+The indexer agent was unable to establish a connection to the Graph protocol
+network contracts (e.g. staking, rewards, service registry). This prevents
+the agent from performing on-chain operations.
+
+**Solution**
+
+Verify that the Ethereum RPC endpoint configured via `INDEXER_AGENT_ETHEREUM`
+or `--ethereum` is reachable and responsive. Check that the network contracts
+are deployed at the expected addresses for the configured network.
+
+## IE076
+
+**Summary**
+
+Failed to resume subgraph deployment.
+
+**Description**
+
+The indexer agent was unable to resume indexing a subgraph deployment that was
+previously paused or stopped.
+
+**Solution**
+
+Check the graph node logs for details on why the deployment could not be
+resumed. Ensure the graph node is healthy and has sufficient resources.
+You may need to remove and re-deploy the subgraph.
+
+## IE077
+
+**Summary**
+
+Failed to allocate: subgraph not healthily syncing.
+
+**Description**
+
+The indexer agent attempted to create an allocation for a subgraph deployment
+that is not in a healthy syncing state. The agent requires the subgraph to be
+syncing properly before allocating stake to it.
+
+**Solution**
+
+Check the subgraph deployment's indexing status and health on the graph node.
+If the subgraph has failed, try removing and re-deploying it. If the subgraph
+is still syncing but is behind, wait for it to catch up. You can also set
+`requireSunny: false` in your indexing rules to bypass this check if needed.
+
+## IE078
+
+**Summary**
+
+No provision found.
+
+**Description**
+
+The indexer agent could not find a provision for the indexer on the Graph
+Horizon staking contract. Provisions are required under Graph Horizon to
+allocate stake to subgraph deployments.
+
+**Solution**
+
+Create a provision for the Subgraph Service through the Graph Horizon staking
+contract. Ensure you have sufficient GRT staked and that the provision is
+created for the correct verifier (Subgraph Service contract address).
+
+## IE079
+
+**Summary**
+
+Failed to add stake to provision: Invalid stake amount provided.
+
+**Solution**
+
+Ensure the stake amount is a valid positive number. The amount must not exceed
+your available (un-provisioned) stake. Check your current stake and provision
+balances.
+
+## IE080
+
+**Summary**
+
+Failed to add stake to provision: stake not added on chain.
+
+**Description**
+
+The transaction to add stake to the indexer's provision was submitted but could
+not be confirmed on chain.
+
+**Solution**
+
+Check the transaction status on a block explorer. Ensure the indexer has
+sufficient ETH for gas and that the staking contract is not paused. Verify
+that the provision exists and the indexer is authorized to modify it.
+
+## IE081
+
+**Summary**
+
+Multiple provisions found.
+
+**Description**
+
+The indexer agent detected more than one provision for the indexer, which
+creates ambiguity about which provision to use for allocation operations.
+
+**Solution**
+
+Review your provisions on the Graph Horizon staking contract. The indexer
+agent expects a single provision for the Subgraph Service. If you have
+multiple provisions, consolidate them or ensure the agent is configured to
+use the correct one.
+
+## IE082
+
+**Summary**
+
+Graph Horizon protocol not detected.
+
+**Description**
+
+The indexer agent could not detect the Graph Horizon protocol contracts on the
+configured network. This may occur when running a version of the indexer agent
+that expects Graph Horizon on a network that has not yet migrated.
+
+**Solution**
+
+Verify that the configured network supports Graph Horizon. If the network has
+not yet migrated to Graph Horizon, use an older version of the indexer agent
+that supports the legacy protocol. Check the network contract addresses in
+your configuration.
+
+## IE083
+
+**Summary**
+
+Failed to thaw stake from provision.
+
+**Description**
+
+The indexer agent was unable to initiate the thawing process for stake in a
+provision. Thawing is required before stake can be removed from a provision
+under Graph Horizon.
+
+**Solution**
+
+Check the transaction error in the logs. Ensure the provision has sufficient
+stake to thaw and that the indexer is authorized to perform this operation.
+Note that stake currently allocated cannot be thawed until allocations are
+closed.
+
+## IE084
+
+**Summary**
+
+Could not resolve POI block number.
+
+**Description**
+
+The indexer agent was unable to determine the block number to use for
+generating a Proof of Indexing (POI). This is needed when closing or
+resizing allocations.
+
+**Solution**
+
+Ensure the epoch subgraph (if configured) is synced and accessible. Check
+that the graph node has access to the required chain's RPC endpoint and has
+synced to the necessary block. See also: [#IE069](#ie069), [#IE070](#ie070).
+
+## IE085
+
+**Summary**
+
+Could not resolve public POI.
+
+**Description**
+
+The indexer agent was unable to retrieve or compute a public Proof of Indexing
+for the specified subgraph deployment at the required block.
+
+**Solution**
+
+Check that the subgraph is synced past the required block number. Ensure the
+graph node's indexing status API is accessible. If the subgraph is behind,
+wait for it to sync. You may force close with a zero POI if you are willing
+to forfeit indexing rewards: `graph indexer actions queue unallocate <deployment-id> <allocation-id> 0 true`.
+
+See also: [#IE067](#ie067).
+
+## IE086
+
+**Summary**
+
+Indexer not registered in the Subgraph Service.
+
+**Description**
+
+The indexer address is not registered in the Graph Horizon Subgraph Service
+contract. Registration is required to create allocations and serve queries
+under Graph Horizon.
+
+**Solution**
+
+Register the indexer in the Subgraph Service contract. This can be done
+through the Graph Explorer or directly via the contract. Ensure you are
+registering with the correct indexer address.
+
+## IE087
+
+**Summary**
+
+Failed to resize allocation.
+
+**Description**
+
+The indexer agent was unable to resize an existing allocation. Under Graph
+Horizon, allocations can be resized (increased or decreased) without closing
+and reopening them.
+
+**Solution**
+
+Check the transaction error in the logs. Ensure the indexer has sufficient
+provisioned stake if increasing the allocation. Verify that the allocation
+is still active and the indexer is authorized to modify it.
+
+## IE088
+
+**Summary**
+
+Failed to present POI.
+
+**Description**
+
+The indexer agent was unable to submit a Proof of Indexing to the protocol.
+Under Graph Horizon, POIs are presented periodically to demonstrate ongoing
+indexing work.
+
+**Solution**
+
+Check the transaction error in the logs. Ensure the subgraph deployment is
+synced to the required block and the graph node can generate a valid POI.
+Verify that the allocation is active and the indexer has sufficient ETH for
+gas.
+
+## IE089
+
+**Summary**
+
+Failed to collect indexing rewards.
+
+**Description**
+
+The indexer agent was unable to collect indexing rewards for a closed
+allocation. This can occur if the rewards contract is inaccessible, the
+allocation is not eligible for rewards, or the transaction fails.
+
+**Solution**
+
+Check the transaction error in the logs. Ensure the allocation was closed
+with a valid POI (not a zero POI, which forfeits rewards). Verify the
+rewards contract is accessible and the indexer has sufficient ETH for gas.
+If the allocation was closed with a zero POI, rewards cannot be collected.
