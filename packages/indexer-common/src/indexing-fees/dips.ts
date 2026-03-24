@@ -552,21 +552,6 @@ export class DipsManager {
     blockNumber: number,
     logger: Logger,
   ): Promise<void> {
-    const agreementData = await this.network.contracts.RecurringCollector.getAgreement(
-      agreement.id,
-    )
-
-    const [isCollectable, collectionSeconds, reason] =
-      await this.network.contracts.RecurringCollector.getCollectionInfo(agreementData)
-
-    if (!isCollectable) {
-      logger.debug('Agreement not collectable', {
-        agreementId: agreement.id,
-        reason: Number(reason),
-      })
-      return
-    }
-
     const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
     const entityCounts = await this.graphNode.entityCount([deploymentId])
     const entities = entityCounts[0]
@@ -632,7 +617,6 @@ export class DipsManager {
       agreementId: agreement.id,
       txHash: receipt.hash,
       deployment: deploymentId.ipfsHash,
-      collectionSeconds: collectionSeconds.toString(),
       entities,
     })
   }
