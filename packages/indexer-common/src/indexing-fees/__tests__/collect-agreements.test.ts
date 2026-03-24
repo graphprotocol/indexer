@@ -14,16 +14,10 @@ const logger = {
 const mockQuery = jest.fn()
 const mockNetworkSubgraph = { query: mockQuery } as any
 
-const mockGetCollectionInfo = jest.fn()
 const mockCollectEstimateGas = jest.fn()
 const mockCollect = jest.fn()
-const mockGetAgreement = jest.fn()
 
 const mockContracts = {
-  RecurringCollector: {
-    getCollectionInfo: mockGetCollectionInfo,
-    getAgreement: mockGetAgreement,
-  },
   SubgraphService: {
     collect: Object.assign(mockCollect, {
       estimateGas: mockCollectEstimateGas,
@@ -40,6 +34,7 @@ const mockGraphNode = {
   entityCount: jest.fn(),
   proofOfIndexing: jest.fn(),
   blockHashFromNumber: jest.fn(),
+  subgraphFeatures: jest.fn().mockResolvedValue({ network: 'mainnet' }),
 } as any
 
 const mockNetwork = {
@@ -86,24 +81,6 @@ function makeReadyAgreement(id = '0x00000000000000000000000000000001') {
   }
 }
 
-function makeAgreementData() {
-  return {
-    dataService: '0x0000',
-    payer: '0x0000',
-    serviceProvider: '0x0000',
-    acceptedAt: 1000n,
-    lastCollectionAt: 0n,
-    endsAt: 9999999999n,
-    maxInitialTokens: 1000000n,
-    maxOngoingTokensPerSecond: 100n,
-    minSecondsPerCollection: 3600,
-    maxSecondsPerCollection: 86400,
-    updateNonce: 0,
-    canceledAt: 0n,
-    state: 1,
-  }
-}
-
 describe('DipsManager.collectAgreementPayments', () => {
   beforeEach(() => {
     jest.clearAllMocks()
@@ -132,32 +109,14 @@ describe('DipsManager.collectAgreementPayments', () => {
     const dm = createDipsManager()
     await dm.collectAgreementPayments()
 
-    // Should not even call getAgreement since tracker skips it
-    expect(mockGetAgreement).not.toHaveBeenCalled()
     expect(mockExecuteTransaction).not.toHaveBeenCalled()
   })
 
-  test('skips agreement when getCollectionInfo says not collectable', async () => {
+  test('collects payment when agreement is ready', async () => {
     mockQuery.mockResolvedValueOnce({
       data: { indexingAgreements: [makeReadyAgreement()] },
     })
 
-    mockGetAgreement.mockResolvedValueOnce(makeAgreementData())
-    mockGetCollectionInfo.mockResolvedValueOnce([false, 0n, 1])
-
-    const dm = createDipsManager()
-    await dm.collectAgreementPayments()
-
-    expect(mockExecuteTransaction).not.toHaveBeenCalled()
-  })
-
-  test('collects payment when agreement is ready and collectable', async () => {
-    mockQuery.mockResolvedValueOnce({
-      data: { indexingAgreements: [makeReadyAgreement()] },
-    })
-
-    mockGetAgreement.mockResolvedValueOnce(makeAgreementData())
-    mockGetCollectionInfo.mockResolvedValueOnce([true, 7200n, 0])
     mockGraphNode.entityCount.mockResolvedValueOnce([500])
     mockGraphNode.blockHashFromNumber.mockResolvedValueOnce('0x' + 'ab'.repeat(32))
     mockGraphNode.proofOfIndexing.mockResolvedValueOnce('0x' + 'cd'.repeat(32))
@@ -174,8 +133,6 @@ describe('DipsManager.collectAgreementPayments', () => {
       .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
       .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
 
-    mockGetAgreement.mockResolvedValue(makeAgreementData())
-    mockGetCollectionInfo.mockResolvedValue([true, 7200n, 0])
     mockGraphNode.entityCount.mockResolvedValue([500])
     mockGraphNode.blockHashFromNumber.mockResolvedValue('0x' + 'ab'.repeat(32))
     mockGraphNode.proofOfIndexing.mockResolvedValue('0x' + 'cd'.repeat(32))
@@ -198,8 +155,6 @@ describe('DipsManager.collectAgreementPayments', () => {
       data: { indexingAgreements: [makeReadyAgreement()] },
     })
 
-    mockGetAgreement.mockResolvedValueOnce(makeAgreementData())
-    mockGetCollectionInfo.mockResolvedValueOnce([true, 7200n, 0])
     mockGraphNode.entityCount.mockResolvedValueOnce([500])
     mockGraphNode.blockHashFromNumber.mockResolvedValueOnce('0x' + 'ab'.repeat(32))
     mockGraphNode.proofOfIndexing.mockResolvedValueOnce(null) // POI unavailable
@@ -218,8 +173,6 @@ describe('DipsManager.collectAgreementPayments', () => {
       data: { indexingAgreements: [makeReadyAgreement()] },
     })
 
-    mockGetAgreement.mockResolvedValueOnce(makeAgreementData())
-    mockGetCollectionInfo.mockResolvedValueOnce([true, 7200n, 0])
     mockGraphNode.entityCount.mockResolvedValueOnce([500])
     mockGraphNode.blockHashFromNumber.mockResolvedValueOnce('0x' + 'ab'.repeat(32))
     mockGraphNode.proofOfIndexing.mockResolvedValueOnce('0x' + 'cd'.repeat(32))
