@@ -552,8 +552,9 @@ export class DipsManager {
     blockNumber: number,
     logger: Logger,
   ): Promise<void> {
-    const agreementData =
-      await this.network.contracts.RecurringCollector.getAgreement(agreement.id)
+    const agreementData = await this.network.contracts.RecurringCollector.getAgreement(
+      agreement.id,
+    )
 
     const [isCollectable, collectionSeconds, reason] =
       await this.network.contracts.RecurringCollector.getCollectionInfo(agreementData)
@@ -571,12 +572,8 @@ export class DipsManager {
     const entities = entityCounts[0]
 
     const recentBlock = blockNumber - 10
-    const { network: networkAlias } =
-      await this.graphNode.subgraphFeatures(deploymentId)
-    const blockHash = await this.graphNode.blockHashFromNumber(
-      networkAlias!,
-      recentBlock,
-    )
+    const { network: networkAlias } = await this.graphNode.subgraphFeatures(deploymentId)
+    const blockHash = await this.graphNode.blockHashFromNumber(networkAlias!, recentBlock)
     const poi = await this.graphNode.proofOfIndexing(
       deploymentId,
       { number: recentBlock, hash: blockHash },

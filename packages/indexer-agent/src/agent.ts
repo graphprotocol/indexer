@@ -1132,15 +1132,14 @@ export class Agent {
               forceAction,
             )
           } else {
-            const expiringAllocations =
-              await this.identifyExpiringAllocations(
-                logger,
-                activeDeploymentAllocations,
-                deploymentAllocationDecision,
-                epoch,
-                maxAllocationDuration,
-                network,
-              )
+            const expiringAllocations = await this.identifyExpiringAllocations(
+              logger,
+              activeDeploymentAllocations,
+              deploymentAllocationDecision,
+              epoch,
+              maxAllocationDuration,
+              network,
+            )
             if (expiringAllocations.length > 0) {
               if (isHorizon) {
                 // Horizon allocations don't need the close/reopen cycle.
