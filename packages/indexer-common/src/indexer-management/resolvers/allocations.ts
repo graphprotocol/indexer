@@ -1762,17 +1762,6 @@ export default {
 
       await models.IndexingRule.upsert(offchainIndexingRule)
 
-      const allocationManager =
-        actionManager?.allocationManagers[network.specification.networkIdentifier]
-      if (allocationManager?.dipsManager) {
-        await allocationManager.dipsManager.tryCancelAgreement(allocation)
-        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
-          allocationData.subgraphDeployment.id.toString(),
-          toAddress(allocation),
-          null,
-        )
-      }
-
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({
         where: { identifier: offchainIndexingRule.identifier },
