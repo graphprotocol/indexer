@@ -6,6 +6,7 @@ import { createIndexerManagementClient } from '../../../client'
 import {
   requireProtocolNetworkOption,
   printObjectOrArray,
+  getRawPositionalArgs,
 } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
 import {
@@ -67,7 +68,7 @@ module.exports = {
     }
 
     const [type, targetDeployment, param1, param2, param3, param4, param5, param6] =
-      parameters.array || []
+      getRawPositionalArgs(parameters.array || [])
 
     let actionInputParams: ActionInput
     try {

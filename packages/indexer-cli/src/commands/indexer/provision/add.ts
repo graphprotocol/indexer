@@ -3,7 +3,10 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
-import { extractProtocolNetworkOption } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  getRawPositionalArgs,
+} from '../../../command-helpers'
 import gql from 'graphql-tag'
 import { IndexerProvision, printIndexerProvisions } from '../../../provisions'
 
@@ -35,7 +38,7 @@ module.exports = {
       return
     }
 
-    const [amount] = parameters.array || []
+    const [amount] = getRawPositionalArgs(parameters.array || [])
 
     try {
       if (!amount) {

@@ -4,7 +4,10 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { submitCollectReceiptsJob } from '../../../allocations'
-import { extractProtocolNetworkOption } from '../../../command-helpers'
+import {
+  extractProtocolNetworkOption,
+  getRawPositionalArgs,
+} from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold('graph indexer allocations collect')} [options] <network> <id>
@@ -41,7 +44,7 @@ module.exports = {
       return
     }
 
-    const [id] = parameters.array || []
+    const [id] = getRawPositionalArgs(parameters.array || [])
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
