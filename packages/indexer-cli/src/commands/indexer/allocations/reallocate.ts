@@ -8,6 +8,7 @@ import {
   extractProtocolNetworkOption,
   printObjectOrArray,
   validatePOI,
+  getRawPositionalArgs,
 } from '../../../command-helpers'
 
 const HELP = `
@@ -57,8 +58,9 @@ module.exports = {
       return
     }
 
-    // eslint-disable-next-line prefer-const
-    let [id, amount, poi, unformattedBlockNumber, publicPOI] = parameters.array || []
+    const [id, amount, poi, unformattedBlockNumber, publicPOI] = getRawPositionalArgs(
+      parameters.array || [],
+    )
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)
