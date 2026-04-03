@@ -39,6 +39,7 @@ import { encodeStartServiceData, PaymentTypes } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
 import { AbiCoder, BaseWallet, MaxUint256, Signer } from 'ethers'
 import {
+  AgreementState,
   fetchCollectableAgreements,
   SubgraphIndexingAgreement,
 } from './agreement-monitor'
@@ -481,6 +482,99 @@ export class DipsManager {
     }
   }
 
+  async cancelAgreement(
+    agreementId: string,
+    agreement: SubgraphIndexingAgreement,
+  ): Promise<boolean> {
+    const logger = this.logger.child({
+      function: 'cancelAgreement',
+      agreementId,
+    })
+
+    // Step 1: Cancel on-chain
+    const indexerAddress = this.network.specification.indexerOptions.address
+    try {
+      const receipt = await this.network.transactionManager.executeTransaction(
+        async () =>
+          this.network.contracts.SubgraphService.cancelIndexingAgreement.estimateGas(
+            indexerAddress,
+            agreementId,
+          ),
+        async (gasLimit) =>
+          this.network.contracts.SubgraphService.cancelIndexingAgreement(
+            indexerAddress,
+            agreementId,
+            { gasLimit },
+          ),
+        logger.child({ function: 'SubgraphService.cancelIndexingAgreement' }),
+      )
+
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        logger.warn('Cannot cancel: network paused or unauthorized')
+        return false
+      }
+
+      logger.info('Successfully cancelled agreement on-chain', {
+        txHash: receipt.hash,
+      })
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      logger.error('Failed to cancel agreement on-chain', { error: errorMsg })
+      return false
+    }
+
+    // Step 2: Best-effort final collection
+    try {
+      const blockNumber = await this.network.networkProvider.getBlockNumber()
+      await this.tryCollectAgreement(agreement, blockNumber, logger)
+      logger.info('Final collection succeeded after cancel')
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      logger.warn('Final collection after cancel failed, fees may be lost', {
+        error: errorMsg,
+      })
+    }
+
+    // Step 3: Cleanup
+    this.collectionTracker.remove(agreementId)
+
+    return true
+  }
+
+  async cancelBlocklistedAgreements(
+    agreements: SubgraphIndexingAgreement[],
+  ): Promise<void> {
+    const logger = this.logger.child({
+      function: 'cancelBlocklistedAgreements',
+    })
+
+    const allDeploymentRules = await this.models.IndexingRule.findAll({
+      where: {
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+
+    for (const agreement of agreements) {
+      const subgraphDeploymentID = new SubgraphDeploymentID(
+        agreement.subgraphDeploymentId,
+      )
+      const blocklistedRule = allDeploymentRules.find(
+        (rule) =>
+          new SubgraphDeploymentID(rule.identifier).bytes32 ===
+            subgraphDeploymentID.bytes32 &&
+          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      )
+
+      if (blocklistedRule) {
+        logger.info('Cancelling blocklisted agreement', {
+          agreementId: agreement.id,
+          deployment: subgraphDeploymentID.display,
+        })
+        await this.cancelAgreement(agreement.id, agreement)
+      }
+    }
+  }
+
   async collectAgreementPayments(): Promise<void> {
     const logger = this.logger.child({ function: 'collectAgreementPayments' })
     const indexerAddress = this.network.specification.indexerOptions.address
@@ -494,6 +588,9 @@ export class DipsManager {
       logger.debug('No collectable agreements found')
       return
     }
+
+    // Cancel any agreements whose deployments are blocklisted
+    await this.cancelBlocklistedAgreements(agreements)
 
     // Use chain timestamp for consistency with contract timing and subgraph data
     const blockNumber = await this.network.networkProvider.getBlockNumber()
@@ -527,6 +624,7 @@ export class DipsManager {
       try {
         await this.tryCollectAgreement(agreement, blockNumber, logger)
         this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
+        this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
       } catch (err) {
         if (this.isDeterministicError(err)) {
           const parsedError = tryParseCustomError(err)
@@ -545,6 +643,26 @@ export class DipsManager {
         }
       }
     }
+  }
+
+  cleanupFinishedAgreement(
+    agreement: SubgraphIndexingAgreement,
+    nowSeconds: number,
+    logger: Logger,
+  ): boolean {
+    const isCancelledByPayer = agreement.state === AgreementState.CANCELLED_BY_PAYER
+    const isExpired =
+      Number(agreement.endsAt) > 0 && Number(agreement.endsAt) < nowSeconds
+
+    if (isCancelledByPayer || isExpired) {
+      logger.info('Agreement finished, removing from collection tracker', {
+        agreementId: agreement.id,
+        reason: isCancelledByPayer ? 'payer-cancelled' : 'expired',
+      })
+      this.collectionTracker.remove(agreement.id)
+      return true
+    }
+    return false
   }
 
   private async tryCollectAgreement(
