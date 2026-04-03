@@ -296,8 +296,7 @@ export const start = {
         group: 'Query Fees',
       })
       .option('rav-check-interval', {
-        description:
-          'How often the RAV processing loop runs, in seconds',
+        description: 'How often the RAV processing loop runs, in seconds',
         type: 'number',
         default: 900,
         group: 'Query Fees',
@@ -396,6 +395,15 @@ export const start = {
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
+      .option('dips-collection-target', {
+        description:
+          'Target collection point within the agreement window as a percentage (1-90). ' +
+          'Lower values collect sooner (safer), higher values collect later (fewer txs).',
+        type: 'number',
+        default: 50,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -472,6 +480,7 @@ export async function createNetworkSpecification(
     ravCollectionInterval: argv.ravCollectionInterval,
     ravCheckInterval: argv.ravCheckInterval,
     dipsEpochsMargin: argv.dipsEpochsMargin,
+    dipsCollectionTarget: argv.dipsCollectionTarget,
   }
 
   const transactionMonitoring = {

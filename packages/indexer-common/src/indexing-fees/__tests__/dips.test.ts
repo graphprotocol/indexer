@@ -175,7 +175,13 @@ describe('DipsManager', () => {
 
   describe('initialization', () => {
     test('creates DipsManager when dipperEndpoint is configured', () => {
-      const dipsManager = new DipsManager(logger, managementModels, network, null)
+      const dipsManager = new DipsManager(
+        logger,
+        managementModels,
+        network,
+        graphNode,
+        null,
+      )
       expect(dipsManager).toBeDefined()
     })
 
@@ -201,6 +207,7 @@ describe('DipsManager', () => {
         logger,
         managementModels,
         networkWithoutDipper,
+        graphNode,
         null,
       )
       expect(dipsManager).toBeDefined()
@@ -225,7 +232,13 @@ describe('DipsManager', () => {
         network,
       )
 
-      dipsManager = new DipsManager(logger, managementModels, network, allocationManager)
+      dipsManager = new DipsManager(
+        logger,
+        managementModels,
+        network,
+        graphNode,
+        allocationManager,
+      )
 
       // Create a test agreement
       await managementModels.IndexingAgreement.create({

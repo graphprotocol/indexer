@@ -35,9 +35,14 @@ import { PendingRcaConsumer } from './pending-rca-consumer'
 import { DecodedRcaProposal } from './types'
 import { tryParseCustomError } from '../utils'
 import { uniqueAllocationID, horizonAllocationIdProof } from '../allocations/keys'
-import { encodeStartServiceData } from '@graphprotocol/toolshed'
+import { encodeStartServiceData, PaymentTypes } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
-import { BaseWallet, Signer } from 'ethers'
+import { AbiCoder, BaseWallet, MaxUint256, Signer } from 'ethers'
+import {
+  fetchCollectableAgreements,
+  SubgraphIndexingAgreement,
+} from './agreement-monitor'
+import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
@@ -53,10 +58,12 @@ export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
   declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
   declare pendingRcaConsumer: PendingRcaConsumer | null
+  declare collectionTracker: CollectionTracker
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private network: Network,
+    private graphNode: GraphNode,
     private parent: AllocationManager | null,
     pendingRcaModel?: typeof PendingRcaProposal,
   ) {
@@ -74,6 +81,10 @@ export class DipsManager {
     } else {
       this.pendingRcaConsumer = null
     }
+
+    this.collectionTracker = new CollectionTracker(
+      this.network.specification.indexerOptions.dipsCollectionTarget,
+    )
   }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
@@ -468,6 +479,146 @@ export class DipsManager {
     } catch (error) {
       await this.handleAcceptError(consumer, proposal, error)
     }
+  }
+
+  async collectAgreementPayments(): Promise<void> {
+    const logger = this.logger.child({ function: 'collectAgreementPayments' })
+    const indexerAddress = this.network.specification.indexerOptions.address
+
+    const agreements = await fetchCollectableAgreements(
+      this.network.networkSubgraph,
+      indexerAddress,
+    )
+
+    if (agreements.length === 0) {
+      logger.debug('No collectable agreements found')
+      return
+    }
+
+    // Use chain timestamp for consistency with contract timing and subgraph data
+    const blockNumber = await this.network.networkProvider.getBlockNumber()
+    const block = await this.network.networkProvider.getBlock(blockNumber)
+    const nowSeconds = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
+
+    // Sync tracker state from subgraph data
+    for (const agreement of agreements) {
+      this.collectionTracker.track(agreement.id, {
+        lastCollectedAt: Number(agreement.lastCollectionAt),
+        minSecondsPerCollection: agreement.minSecondsPerCollection,
+        maxSecondsPerCollection: agreement.maxSecondsPerCollection,
+      })
+    }
+
+    const readyIds = this.collectionTracker.getReadyAgreements(nowSeconds)
+    if (readyIds.length === 0) {
+      logger.debug('No agreements ready for collection', {
+        total: agreements.length,
+      })
+      return
+    }
+
+    logger.info(
+      `${readyIds.length} of ${agreements.length} agreement(s) ready for collection`,
+    )
+
+    const readyAgreements = agreements.filter((a) => readyIds.includes(a.id))
+
+    for (const agreement of readyAgreements) {
+      try {
+        await this.tryCollectAgreement(agreement, blockNumber, logger)
+        this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
+      } catch (err) {
+        if (this.isDeterministicError(err)) {
+          const parsedError = tryParseCustomError(err)
+          logger.warn('Deterministic error collecting agreement, skipping', {
+            agreementId: agreement.id,
+            error: parsedError,
+          })
+        } else {
+          const errorMsg = err instanceof Error ? err.message : String(err)
+          const errorStack = err instanceof Error ? err.stack : undefined
+          logger.warn('Transient error collecting agreement, will retry', {
+            agreementId: agreement.id,
+            error: errorMsg,
+            stack: errorStack,
+          })
+        }
+      }
+    }
+  }
+
+  private async tryCollectAgreement(
+    agreement: SubgraphIndexingAgreement,
+    blockNumber: number,
+    logger: Logger,
+  ): Promise<void> {
+    const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
+    const entityCounts = await this.graphNode.entityCount([deploymentId])
+    const entities = entityCounts[0]
+
+    const recentBlock = blockNumber - 10
+    const { network: networkAlias } = await this.graphNode.subgraphFeatures(deploymentId)
+    const blockHash = await this.graphNode.blockHashFromNumber(networkAlias!, recentBlock)
+    const poi = await this.graphNode.proofOfIndexing(
+      deploymentId,
+      { number: recentBlock, hash: blockHash },
+      this.network.specification.indexerOptions.address,
+    )
+
+    if (!poi) {
+      logger.warn('Could not get POI for agreement, using zero POI', {
+        agreementId: agreement.id,
+        deployment: deploymentId.ipfsHash,
+      })
+    }
+
+    const effectivePoi =
+      poi || '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+    const abiCoder = AbiCoder.defaultAbiCoder()
+
+    const collectData = abiCoder.encode(
+      ['(uint256,bytes32,uint256,bytes,uint256)'],
+      [[entities, effectivePoi, recentBlock, '0x', MaxUint256]],
+    )
+
+    const data = abiCoder.encode(['bytes16', 'bytes'], [agreement.id, collectData])
+
+    const indexerAddress = this.network.specification.indexerOptions.address
+    const receipt = await this.network.transactionManager.executeTransaction(
+      async () =>
+        this.network.contracts.SubgraphService.collect.estimateGas(
+          indexerAddress,
+          PaymentTypes.IndexingFee,
+          data,
+        ),
+      async (gasLimit) =>
+        this.network.contracts.SubgraphService.collect(
+          indexerAddress,
+          PaymentTypes.IndexingFee,
+          data,
+          { gasLimit },
+        ),
+      logger.child({
+        function: 'SubgraphService.collect',
+        agreementId: agreement.id,
+      }),
+    )
+
+    if (receipt === 'paused' || receipt === 'unauthorized') {
+      logger.warn('Cannot collect: network paused or unauthorized', {
+        agreementId: agreement.id,
+        result: receipt,
+      })
+      return
+    }
+
+    logger.info('Successfully collected indexing fees', {
+      agreementId: agreement.id,
+      txHash: receipt.hash,
+      deployment: deploymentId.ipfsHash,
+      entities,
+    })
   }
 
   private async handleAcceptError(

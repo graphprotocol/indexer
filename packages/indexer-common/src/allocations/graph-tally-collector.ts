@@ -423,11 +423,16 @@ export class GraphTallyCollector {
             const allocationId = collectionIdToAllocationId(rav.rav.rav.collectionId)
             const isActive = await this.isActiveAllocation(allocationId)
             if (isActive && !this.isCooldownExpired(rav.rav.rav.collectionId)) {
-              this.logger.trace('[TAPv2] Skipping active allocation RAV: cooldown not expired', {
-                collectionId: rav.rav.rav.collectionId,
-                lastCollectedAt: this.lastCollectedAt.get(rav.rav.rav.collectionId.toLowerCase()),
-                ravCollectionInterval: this.ravCollectionInterval,
-              })
+              this.logger.trace(
+                '[TAPv2] Skipping active allocation RAV: cooldown not expired',
+                {
+                  collectionId: rav.rav.rav.collectionId,
+                  lastCollectedAt: this.lastCollectedAt.get(
+                    rav.rav.rav.collectionId.toLowerCase(),
+                  ),
+                  ravCollectionInterval: this.ravCollectionInterval,
+                },
+              )
               results.belowThreshold.push(rav)
               return results
             }
