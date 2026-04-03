@@ -1,6 +1,6 @@
 # Graph Protocol Indexer Components
 
-![CI](https://github.com/graphprotocol/indexer/workflows/CI/badge.svg)
+[![CI](https://github.com/graphprotocol/indexer/actions/workflows/ci.yml/badge.svg)](https://github.com/graphprotocol/indexer/actions/workflows/ci.yml)
 [![Docker Image: Indexer Agent](https://github.com/graphprotocol/indexer/workflows/Indexer%20Agent%20Image/badge.svg)](https://github.com/orgs/graphprotocol/packages/container/package/indexer-agent)
 
 This repository contains the indexer agent and CLI for participating in The Graph Network as an indexer.
