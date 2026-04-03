@@ -37,7 +37,7 @@ import { tryParseCustomError } from '../utils'
 import { uniqueAllocationID, horizonAllocationIdProof } from '../allocations/keys'
 import { encodeStartServiceData, PaymentTypes } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
-import { AbiCoder, BaseWallet, Signer } from 'ethers'
+import { AbiCoder, BaseWallet, MaxUint256, Signer } from 'ethers'
 import {
   fetchCollectableAgreements,
   SubgraphIndexingAgreement,
@@ -578,8 +578,8 @@ export class DipsManager {
     const abiCoder = AbiCoder.defaultAbiCoder()
 
     const collectData = abiCoder.encode(
-      ['uint256', 'bytes32', 'uint256', 'bytes', 'uint256'],
-      [entities, effectivePoi, recentBlock, '0x', 0],
+      ['(uint256,bytes32,uint256,bytes,uint256)'],
+      [[entities, effectivePoi, recentBlock, '0x', MaxUint256]],
     )
 
     const data = abiCoder.encode(['bytes16', 'bytes'], [agreement.id, collectData])
