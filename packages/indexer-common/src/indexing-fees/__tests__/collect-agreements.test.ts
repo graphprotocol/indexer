@@ -55,7 +55,11 @@ const mockNetwork = {
   },
 } as any
 
-const mockModels = {} as any
+const mockModels = {
+  IndexingRule: {
+    findAll: jest.fn().mockResolvedValue([]),
+  },
+} as any
 
 function createDipsManager(): DipsManager {
   return new DipsManager(logger, mockModels, mockNetwork, mockGraphNode, null)

@@ -1214,15 +1214,6 @@ export class AllocationManager {
 
     await upsertIndexingRule(logger, this.models, neverIndexingRule)
 
-    if (this.dipsManager) {
-      await this.dipsManager.tryCancelAgreement(allocationID)
-      await this.dipsManager.tryUpdateAgreementAllocation(
-        allocation.subgraphDeployment.id.toString(),
-        toAddress(allocationID),
-        null,
-      )
-    }
-
     return {
       actionID,
       type: 'unallocate',
@@ -2314,8 +2305,10 @@ export class AllocationManager {
           rewards = 0n
         } else {
           if (isHorizon) {
+            // NOTE: SubgraphService is the rewards issuer, not HorizonStaking.
+            // This fix should be cherry-picked to main independently.
             rewards = await this.network.contracts.RewardsManager.getRewards(
-              this.network.contracts.HorizonStaking.target,
+              this.network.contracts.SubgraphService.target,
               action.allocationID,
             )
           } else {

@@ -17,6 +17,8 @@ import {
   IndexerManagementClient,
   MultiNetworks,
 } from '@graphprotocol/indexer-common'
+import { AgreementState } from '../agreement-monitor'
+import type { SubgraphIndexingAgreement } from '../agreement-monitor'
 import {
   connectDatabase,
   createLogger,
@@ -30,6 +32,16 @@ import {
 import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
+
+// Mock gRPC client to prevent real connections to fake test endpoints (causes
+// "socket hang up" on Node 22 due to eager DNS resolution in @grpc/grpc-js)
+jest.mock('../gateway-dips-service-client', () => ({
+  ...jest.requireActual('../gateway-dips-service-client'),
+  createGatewayDipsServiceClient: jest.fn().mockReturnValue({
+    request: jest.fn(),
+  }),
+  createRpc: jest.fn().mockReturnValue({ request: jest.fn() }),
+}))
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -457,6 +469,215 @@ describe('DipsManager', () => {
 
       expect(deployments).toHaveLength(1)
       expect(deployments[0].ipfsHash).toBe(testDeploymentId)
+    })
+
+    describe('cancelAgreement', () => {
+      const mockAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 1, // Accepted
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      beforeEach(() => {
+        // Track the agreement so we can verify cleanup
+        dipsManager.collectionTracker.track(mockAgreement.id, {
+          lastCollectedAt: 0,
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 300,
+        })
+      })
+
+      test('successful cancel + final collect attempt', async () => {
+        const mockReceipt = { hash: '0xcancel123' }
+        const mockCollectReceipt = { hash: '0xcollect456' }
+
+        // Mock cancel transaction
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockReceipt) // cancel
+          .mockResolvedValueOnce(mockCollectReceipt) // collect
+
+        // Mock block number and graph node methods for collect
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(true)
+        // executeTransaction called twice: once for cancel, once for collect
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(2)
+        // Tracker should be cleaned up (untracked = ready)
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
+        ).toBe(true)
+      })
+
+      test('cancel fails returns false, no collect attempted', async () => {
+        // Mock cancel transaction failure
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('cancel tx reverted'))
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(false)
+        // executeTransaction called only once (for cancel)
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+      })
+
+      test('cancel succeeds but collect fails returns true, tracker still cleaned up', async () => {
+        const mockReceipt = { hash: '0xcancel123' }
+
+        // Mock cancel succeeds
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockReceipt) // cancel succeeds
+          .mockRejectedValueOnce(new Error('collect failed')) // collect fails
+
+        // Mock block number and graph node methods
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
+
+        expect(result).toBe(true)
+        // Tracker should be cleaned up even though collect failed
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
+        ).toBe(true)
+      })
+    })
+
+    describe('cleanupFinishedAgreement', () => {
+      const baseAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 1,
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      beforeEach(() => {
+        dipsManager.collectionTracker.track(baseAgreement.id, {
+          lastCollectedAt: 0,
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 300,
+        })
+      })
+
+      test('removes payer-cancelled agreement from tracker after collection', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const agreement = { ...baseAgreement, state: AgreementState.CANCELLED_BY_PAYER }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, 1000, logger)
+
+        expect(result).toBe(true)
+        expect(removeSpy).toHaveBeenCalledWith(agreement.id)
+      })
+
+      test('removes expired agreement from tracker after collection', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const nowSeconds = 2000
+        const agreement = { ...baseAgreement, state: 1, endsAt: '1000' }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+
+        expect(result).toBe(true)
+        expect(removeSpy).toHaveBeenCalledWith(agreement.id)
+      })
+
+      test('does not remove active agreement from tracker', () => {
+        const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
+        const nowSeconds = 1000
+        const agreement = { ...baseAgreement, state: 1, endsAt: '9999999999' }
+
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+
+        expect(result).toBe(false)
+        expect(removeSpy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('cancelBlocklistedAgreements', () => {
+      const mockAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 1,
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      test('cancels agreements with NEVER rule for their deployment', async () => {
+        // Create a NEVER rule for the test deployment
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).toHaveBeenCalledTimes(1)
+        expect(cancelSpy).toHaveBeenCalledWith(mockAgreement.id, mockAgreement)
+      })
+
+      test('does not cancel agreements without NEVER rule', async () => {
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).not.toHaveBeenCalled()
+      })
     })
   })
 })

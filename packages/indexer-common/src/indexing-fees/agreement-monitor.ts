@@ -1,6 +1,11 @@
 import gql from 'graphql-tag'
 import { SubgraphClient } from '../subgraph-client'
 
+export enum AgreementState {
+  ACCEPTED = 1, // Active agreement (ACCEPTED flag set)
+  CANCELLED_BY_PAYER = 3, // Payer-cancelled (ACCEPTED | NOTICE_GIVEN)
+}
+
 export interface SubgraphIndexingAgreement {
   id: string
   allocationId: string
@@ -20,7 +25,7 @@ export interface SubgraphIndexingAgreement {
 const INDEXING_AGREEMENTS_QUERY = gql`
   query indexingAgreements($indexer: String!, $lastId: String!) {
     indexingAgreements(
-      where: { serviceProvider: $indexer, state_in: [1, 3], id_gt: $lastId }
+      where: { serviceProvider: $indexer, state_in: [1, 3], id_gt: $lastId } # ACCEPTED, CANCELLED_BY_PAYER
       orderBy: id
       orderDirection: asc
       first: 1000
