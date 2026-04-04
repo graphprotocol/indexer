@@ -33,6 +33,16 @@ import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
 import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
 
+// Mock gRPC client to prevent real connections to fake test endpoints (causes
+// "socket hang up" on Node 22 due to eager DNS resolution in @grpc/grpc-js)
+jest.mock('../gateway-dips-service-client', () => ({
+  ...jest.requireActual('../gateway-dips-service-client'),
+  createGatewayDipsServiceClient: jest.fn().mockReturnValue({
+    request: jest.fn(),
+  }),
+  createRpc: jest.fn().mockReturnValue({ request: jest.fn() }),
+}))
+
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __DATABASE__: any
