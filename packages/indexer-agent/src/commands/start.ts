@@ -296,8 +296,7 @@ export const start = {
         group: 'Query Fees',
       })
       .option('rav-check-interval', {
-        description:
-          'How often the RAV processing loop runs, in seconds',
+        description: 'How often the RAV processing loop runs, in seconds',
         type: 'number',
         default: 900,
         group: 'Query Fees',
