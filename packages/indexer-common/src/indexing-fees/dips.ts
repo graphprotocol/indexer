@@ -30,8 +30,14 @@ import {
   GatewayDipsServiceClientImpl,
 } from '@graphprotocol/dips-proto/generated/gateway'
 import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
+import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
+import { PendingRcaConsumer } from './pending-rca-consumer'
+import { DecodedRcaProposal } from './types'
+import { tryParseCustomError } from '../utils'
+import { uniqueAllocationID, horizonAllocationIdProof } from '../allocations/keys'
+import { encodeStartServiceData } from '@graphprotocol/toolshed'
 import { NetworkSpecification } from '../network-specification'
-import { BaseWallet } from 'ethers'
+import { BaseWallet, Signer } from 'ethers'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 
@@ -46,19 +52,28 @@ const normalizeAddressForDB = (address: string) => {
 export class DipsManager {
   declare gatewayDipsServiceClient: GatewayDipsServiceClientImpl
   declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
+  declare pendingRcaConsumer: PendingRcaConsumer | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
     private network: Network,
     private parent: AllocationManager | null,
+    pendingRcaModel?: typeof PendingRcaProposal,
   ) {
-    if (!this.network.specification.indexerOptions.dipperEndpoint) {
-      throw new Error('dipperEndpoint is not set')
+    // gRPC client — still needed for tryCancelAgreement() and DipsCollector
+    if (this.network.specification.indexerOptions.dipperEndpoint) {
+      this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
+        this.network.specification.indexerOptions.dipperEndpoint,
+      )
+      this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
     }
-    this.gatewayDipsServiceClient = createGatewayDipsServiceClient(
-      this.network.specification.indexerOptions.dipperEndpoint,
-    )
-    this.gatewayDipsServiceMessagesCodec = new GatewayDipsServiceMessagesCodec()
+
+    // Pending RCA consumer — new data source for ensureAgreementRules()
+    if (pendingRcaModel) {
+      this.pendingRcaConsumer = new PendingRcaConsumer(this.logger, pendingRcaModel)
+    } else {
+      this.pendingRcaConsumer = null
+    }
   }
   // Cancel an agreement associated to an allocation if it exists
   async tryCancelAgreement(allocationId: string) {
@@ -121,6 +136,393 @@ export class DipsManager {
       )
       return
     }
+
+    // Use PendingRcaConsumer if available, otherwise fall back to old IndexingAgreement model
+    if (this.pendingRcaConsumer) {
+      await this.ensureAgreementRulesFromRca()
+    } else {
+      await this.ensureAgreementRulesFromLegacy()
+    }
+  }
+
+  private async getDipsAllocationAmount(
+    subgraphDeploymentId: SubgraphDeploymentID,
+  ): Promise<{ amount: bigint; isDenied: boolean }> {
+    const isDenied = await this.network.contracts.RewardsManager.isDenied(
+      subgraphDeploymentId.bytes32,
+    )
+
+    if (isDenied) {
+      return {
+        amount: BigInt(this.network.specification.indexerOptions.dipsAllocationAmount),
+        isDenied,
+      }
+    }
+
+    // Rewarded subgraph: use rule's allocationAmount or defaultAllocationAmount
+    const rule = await this.models.IndexingRule.findOne({
+      where: {
+        identifier: subgraphDeploymentId.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+
+    if (rule?.allocationAmount) {
+      return { amount: BigInt(rule.allocationAmount), isDenied }
+    }
+
+    return {
+      amount: BigInt(this.network.specification.indexerOptions.defaultAllocationAmount),
+      isDenied,
+    }
+  }
+
+  private async ensureAgreementRulesFromRca() {
+    const proposals = await this.pendingRcaConsumer!.getPendingProposals()
+    this.logger.debug(
+      `Ensuring indexing rules for ${proposals.length} pending RCA proposal${
+        proposals.length === 1 ? '' : 's'
+      }`,
+    )
+
+    for (const proposal of proposals) {
+      const subgraphDeploymentID = proposal.subgraphDeploymentId
+      this.logger.info(
+        `Checking if indexing rule exists for proposal ${
+          proposal.id
+        }, deployment ${subgraphDeploymentID.toString()}`,
+      )
+
+      const ruleExists = await this.parent!.matchingRuleExists(
+        this.logger,
+        subgraphDeploymentID,
+      )
+
+      const allDeploymentRules = await this.models.IndexingRule.findAll({
+        where: {
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        },
+      })
+      const blocklistedRule = allDeploymentRules.find(
+        (rule) =>
+          new SubgraphDeploymentID(rule.identifier).bytes32 ===
+            subgraphDeploymentID.bytes32 &&
+          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      )
+
+      if (blocklistedRule) {
+        this.logger.info(
+          `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
+        )
+        await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
+      } else if (!ruleExists) {
+        this.logger.info(
+          `Creating indexing rule for proposal ${
+            proposal.id
+          }, deployment ${subgraphDeploymentID.toString()}`,
+        )
+        const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
+        const indexingRule = {
+          identifier: subgraphDeploymentID.ipfsHash,
+          allocationAmount: formatGRT(amount),
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+          protocolNetwork: this.network.specification.networkIdentifier,
+          autoRenewal: true,
+          allocationLifetime: Math.max(
+            Number(proposal.minSecondsPerCollection),
+            Number(proposal.maxSecondsPerCollection),
+          ),
+          requireSupported: false,
+        } as Partial<IndexingRuleAttributes>
+
+        await upsertIndexingRule(this.logger, this.models, indexingRule)
+      }
+    }
+  }
+
+  async acceptPendingProposals(activeAllocations: Allocation[]): Promise<void> {
+    if (!this.pendingRcaConsumer) {
+      return
+    }
+    const consumer = this.pendingRcaConsumer
+
+    const proposals = await consumer.getPendingProposals()
+    if (proposals.length === 0) {
+      return
+    }
+
+    this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
+      count: proposals.length,
+    })
+
+    for (const proposal of proposals) {
+      try {
+        await this.processProposal(consumer, proposal, activeAllocations)
+      } catch (error) {
+        this.logger.error('Unexpected error processing proposal', {
+          proposalId: proposal.id,
+          error,
+        })
+      }
+    }
+  }
+
+  private async processProposal(
+    consumer: PendingRcaConsumer,
+    proposal: DecodedRcaProposal,
+    activeAllocations: Allocation[],
+  ): Promise<void> {
+    const now = BigInt(Math.floor(Date.now() / 1000))
+
+    if (proposal.deadline <= now) {
+      this.logger.info('Rejecting proposal: deadline expired', {
+        proposalId: proposal.id,
+        deadline: proposal.deadline.toString(),
+        now: now.toString(),
+      })
+      await consumer.markRejected(proposal.id, 'deadline_expired')
+      await this.cleanupDipsRule(consumer, proposal)
+      return
+    }
+
+    const allocation = activeAllocations.find(
+      (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
+    )
+
+    if (allocation) {
+      await this.acceptWithExistingAllocation(consumer, proposal, allocation)
+    } else {
+      await this.acceptWithNewAllocation(consumer, proposal, activeAllocations)
+    }
+  }
+
+  private async acceptWithExistingAllocation(
+    consumer: PendingRcaConsumer,
+    proposal: DecodedRcaProposal,
+    allocation: Allocation,
+  ): Promise<void> {
+    this.logger.info('Accepting proposal with existing allocation', {
+      proposalId: proposal.id,
+      allocationId: allocation.id,
+      deployment: proposal.subgraphDeploymentId.ipfsHash,
+    })
+
+    try {
+      const receipt = await this.network.transactionManager.executeTransaction(
+        async () =>
+          this.network.contracts.SubgraphService.acceptIndexingAgreement.estimateGas(
+            allocation.id,
+            proposal.signedRca,
+          ),
+        async (gasLimit) =>
+          this.network.contracts.SubgraphService.acceptIndexingAgreement(
+            allocation.id,
+            proposal.signedRca,
+            { gasLimit },
+          ),
+        this.logger.child({
+          function: 'SubgraphService.acceptIndexingAgreement',
+          proposalId: proposal.id,
+        }),
+      )
+
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        this.logger.warn(
+          'Skipping proposal acceptance: network is paused or unauthorized',
+          { proposalId: proposal.id, status: receipt },
+        )
+        return
+      }
+
+      await consumer.markAccepted(proposal.id)
+      this.logger.info('Proposal accepted on-chain', {
+        proposalId: proposal.id,
+        allocationId: allocation.id,
+        txHash: receipt.hash,
+      })
+    } catch (error) {
+      await this.handleAcceptError(consumer, proposal, error)
+    }
+  }
+
+  private async acceptWithNewAllocation(
+    consumer: PendingRcaConsumer,
+    proposal: DecodedRcaProposal,
+    activeAllocations: Allocation[],
+  ): Promise<void> {
+    this.logger.info('Accepting proposal with new allocation (multicall)', {
+      proposalId: proposal.id,
+      deployment: proposal.subgraphDeploymentId.ipfsHash,
+    })
+
+    try {
+      const currentEpoch = await this.network.contracts.EpochManager.currentEpoch()
+
+      // Include both active and on-chain (closed) allocation IDs to avoid collisions
+      const excludeIds = activeAllocations.map((a) => a.id)
+      let allocationSigner: Signer | undefined
+      let allocationId: Address | undefined
+
+      for (let attempt = 0; attempt < 10; attempt++) {
+        const result = uniqueAllocationID(
+          this.network.transactionManager.wallet.mnemonic!.phrase,
+          Number(currentEpoch),
+          proposal.subgraphDeploymentId,
+          excludeIds,
+        )
+
+        // Verify allocation doesn't already exist on-chain (e.g. closed allocations)
+        const onchainAllocation =
+          await this.network.contracts.SubgraphService.getAllocation(result.allocationId)
+        if (onchainAllocation.createdAt === 0n) {
+          allocationSigner = result.allocationSigner
+          allocationId = result.allocationId
+          break
+        }
+
+        this.logger.debug(
+          'Generated allocation ID already exists on-chain, trying next',
+          {
+            proposalId: proposal.id,
+            allocationId: result.allocationId,
+            attempt,
+          },
+        )
+        excludeIds.push(result.allocationId)
+      }
+
+      if (!allocationSigner || !allocationId) {
+        this.logger.warn('Could not generate unique allocation ID after 10 attempts', {
+          proposalId: proposal.id,
+        })
+        return
+      }
+
+      // Generate allocation proof
+      const chainId = Number(this.network.specification.networkIdentifier.split(':')[1])
+      const proof = await horizonAllocationIdProof(
+        allocationSigner,
+        chainId,
+        this.network.specification.indexerOptions.address,
+        allocationId,
+        this.network.contracts.SubgraphService.target.toString(),
+      )
+
+      // Build startService calldata
+      const { amount, isDenied } = await this.getDipsAllocationAmount(
+        proposal.subgraphDeploymentId,
+      )
+      this.logger.info('Determined allocation amount for DIPS agreement', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        amount: amount.toString(),
+        isDenied,
+      })
+      const encodedStartData = encodeStartServiceData(
+        proposal.subgraphDeploymentId.bytes32,
+        amount,
+        allocationId,
+        proof,
+      )
+      const startServiceTx =
+        await this.network.contracts.SubgraphService.startService.populateTransaction(
+          this.network.specification.indexerOptions.address,
+          encodedStartData,
+        )
+
+      // Build acceptIndexingAgreement calldata
+      const acceptTx =
+        await this.network.contracts.SubgraphService.acceptIndexingAgreement.populateTransaction(
+          allocationId,
+          proposal.signedRca,
+        )
+
+      // Atomic multicall
+      const calldata = [startServiceTx.data!, acceptTx.data!]
+      const receipt = await this.network.transactionManager.executeTransaction(
+        async () =>
+          this.network.contracts.SubgraphService.multicall.estimateGas(calldata),
+        async (gasLimit) =>
+          this.network.contracts.SubgraphService.multicall(calldata, { gasLimit }),
+        this.logger.child({
+          function: 'SubgraphService.multicall(startService+acceptIndexingAgreement)',
+          proposalId: proposal.id,
+        }),
+      )
+
+      if (receipt === 'paused' || receipt === 'unauthorized') {
+        this.logger.warn(
+          'Skipping proposal acceptance: network is paused or unauthorized',
+          { proposalId: proposal.id, status: receipt },
+        )
+        return
+      }
+
+      await consumer.markAccepted(proposal.id)
+      this.logger.info('Proposal accepted on-chain with new allocation', {
+        proposalId: proposal.id,
+        allocationId,
+        txHash: receipt.hash,
+      })
+    } catch (error) {
+      await this.handleAcceptError(consumer, proposal, error)
+    }
+  }
+
+  private async handleAcceptError(
+    consumer: PendingRcaConsumer,
+    proposal: DecodedRcaProposal,
+    error: unknown,
+  ): Promise<void> {
+    if (this.isDeterministicError(error)) {
+      const parsedError = tryParseCustomError(error)
+      this.logger.warn('Rejecting proposal: deterministic contract error', {
+        proposalId: proposal.id,
+        error: parsedError,
+      })
+      await consumer.markRejected(proposal.id, String(parsedError))
+      await this.cleanupDipsRule(consumer, proposal)
+    } else {
+      this.logger.warn('Transient error accepting proposal, will retry', {
+        proposalId: proposal.id,
+        error,
+      })
+    }
+  }
+
+  private isDeterministicError(error: unknown): boolean {
+    const typedError = error as { code?: string }
+    return typedError?.code === 'CALL_EXCEPTION'
+  }
+
+  private async cleanupDipsRule(
+    consumer: PendingRcaConsumer,
+    proposal: DecodedRcaProposal,
+  ): Promise<void> {
+    const otherProposalsForDeployment = await consumer.getPendingProposalsForDeployment(
+      proposal.subgraphDeploymentId.bytes32,
+    )
+
+    if (otherProposalsForDeployment.length === 0) {
+      const rule = await this.models.IndexingRule.findOne({
+        where: {
+          identifier: proposal.subgraphDeploymentId.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      if (rule) {
+        await this.models.IndexingRule.destroy({ where: { id: rule.id } })
+        this.logger.info('Removed DIPS indexing rule after rejection', {
+          proposalId: proposal.id,
+          deployment: proposal.subgraphDeploymentId.ipfsHash,
+        })
+      }
+    }
+  }
+
+  private async ensureAgreementRulesFromLegacy() {
     // Get all the indexing agreements that are not cancelled
     const indexingAgreements = await this.models.IndexingAgreement.findAll({
       where: {
@@ -144,7 +546,7 @@ export class DipsManager {
         }, deployment ${subgraphDeploymentID.toString()}`,
       )
       // If there is not yet an indexingRule that deems this deployment worth allocating to, make one
-      const ruleExists = await this.parent.matchingRuleExists(
+      const ruleExists = await this.parent!.matchingRuleExists(
         this.logger,
         subgraphDeploymentID,
       )

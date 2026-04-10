@@ -47,6 +47,7 @@ import {
   encodeStopServiceData,
   PaymentTypes,
 } from '@graphprotocol/toolshed'
+import { PendingRcaProposal } from './models/pending-rca-proposal'
 import {
   encodeCollectIndexingRewardsData,
   encodePOIMetadata,
@@ -166,9 +167,16 @@ export class AllocationManager {
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
+    private pendingRcaModel?: typeof PendingRcaProposal,
   ) {
     if (this.network.specification.indexerOptions.dipperEndpoint) {
-      this.dipsManager = new DipsManager(this.logger, this.models, this.network, this)
+      this.dipsManager = new DipsManager(
+        this.logger,
+        this.models,
+        this.network,
+        this,
+        this.pendingRcaModel,
+      )
     }
   }
 

@@ -179,7 +179,7 @@ describe('DipsManager', () => {
       expect(dipsManager).toBeDefined()
     })
 
-    test('throws error when dipperEndpoint is not configured', async () => {
+    test('creates DipsManager without gRPC client when dipperEndpoint is not configured', async () => {
       const specWithoutDipper = {
         ...testNetworkSpecification,
         indexerOptions: {
@@ -197,9 +197,14 @@ describe('DipsManager', () => {
         graphNode,
         metrics,
       )
-      expect(
-        () => new DipsManager(logger, managementModels, networkWithoutDipper, null),
-      ).toThrow('dipperEndpoint is not set')
+      const dipsManager = new DipsManager(
+        logger,
+        managementModels,
+        networkWithoutDipper,
+        null,
+      )
+      expect(dipsManager).toBeDefined()
+      expect(dipsManager.gatewayDipsServiceClient).toBeUndefined()
     })
   })
 

@@ -74,7 +74,7 @@ export const IndexerOptions = z
     legacyMnemonics: z.array(z.string()).default([]),
     enableDips: z.boolean().default(false),
     dipperEndpoint: z.string().url().optional(),
-    dipsAllocationAmount: GRT().default(1),
+    dipsAllocationAmount: GRT().default(0),
     dipsEpochsMargin: positiveNumber().default(1),
   })
   .strict()
