@@ -20,6 +20,7 @@ import {
   Network,
   RulesManager,
 } from '@graphprotocol/indexer-common'
+import { PendingRcaProposal } from './models/pending-rca-proposal'
 
 export interface IndexerManagementResolverContext {
   models: IndexerManagementModels
@@ -44,6 +45,7 @@ const SCHEMA_SDL = gql`
     never
     always
     offchain
+    dips
   }
 
   enum IdentifierType {
@@ -572,9 +574,12 @@ export interface IndexerManagementClientOptions {
   graphNode: GraphNode
   multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
+  actionManager?: ActionManager | undefined
+  pendingRcaModel?: typeof PendingRcaProposal
 }
 
 export class IndexerManagementClient extends Client {
+  declare actionManager: ActionManager | undefined
   private logger?: Logger
   private models: IndexerManagementModels
 
@@ -583,6 +588,7 @@ export class IndexerManagementClient extends Client {
 
     this.logger = options.logger
     this.models = options.models
+    this.actionManager = options.actionManager
   }
 }
 
@@ -591,7 +597,7 @@ export class IndexerManagementClient extends Client {
 export const createIndexerManagementClient = async (
   options: IndexerManagementClientOptions,
 ): Promise<IndexerManagementClient> => {
-  const { models, graphNode, logger, defaults, multiNetworks } = options
+  const { models, graphNode, logger, defaults, multiNetworks, pendingRcaModel } = options
   const schema = buildSchema(print(SCHEMA_SDL))
   const resolvers = {
     ...indexingRuleResolvers,
@@ -604,7 +610,13 @@ export const createIndexerManagementClient = async (
   }
 
   const actionManager = multiNetworks
-    ? await ActionManager.create(multiNetworks, logger, models, graphNode)
+    ? await ActionManager.create(
+        multiNetworks,
+        logger,
+        models,
+        graphNode,
+        pendingRcaModel,
+      )
     : undefined
 
   const rulesManager = multiNetworks
@@ -627,5 +639,8 @@ export const createIndexerManagementClient = async (
     context,
   })
 
-  return new IndexerManagementClient({ url: 'no-op', exchanges: [exchange] }, options)
+  return new IndexerManagementClient(
+    { url: 'no-op', exchanges: [exchange] },
+    { ...options, actionManager },
+  )
 }

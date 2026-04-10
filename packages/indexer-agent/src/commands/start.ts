@@ -15,6 +15,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   indexerError,
@@ -361,6 +362,26 @@ export const start = {
         required: false,
         group: 'Indexer Infrastructure',
       })
+      .option('enable-dips', {
+        description: 'Whether to enable Indexing Fees (DIPs)',
+        type: 'boolean',
+        default: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dipper-endpoint', {
+        description: 'Gateway endpoint for DIPs receipts',
+        type: 'string',
+        array: false,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('dips-allocation-amount', {
+        description: 'Amount of GRT to allocate for DIPs',
+        type: 'number',
+        default: 1,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -387,6 +408,9 @@ export const start = {
           argv['rebate-claim-max-batch-size'] <= 0
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        if (argv['enable-dips'] && !argv['dipper-endpoint']) {
+          return 'Invalid --dipper-endpoint provided. Must be provided when --enable-dips is true.'
         }
         return true
       })
@@ -428,6 +452,10 @@ export async function createNetworkSpecification(
     maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
     legacyMnemonics: argv.legacyMnemonics,
+    enableDips: argv.enableDips,
+    dipperEndpoint: argv.dipperEndpoint,
+    dipsAllocationAmount: argv.dipsAllocationAmount,
+    dipsEpochsMargin: argv.dipsEpochsMargin,
   }
 
   const transactionMonitoring = {
@@ -643,6 +671,9 @@ export async function run(
   await sequelize.sync()
   logger.info(`Successfully synced database models`)
 
+  // Define after sync so Sequelize won't try to create/alter this indexer-rs-owned table
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
+
   // --------------------------------------------------------------------------------
   // * Networks
   // --------------------------------------------------------------------------------
@@ -653,7 +684,14 @@ export async function run(
   const networks: Network[] = await pMap(
     networkSpecifications,
     async (spec: NetworkSpecification) =>
-      Network.create(logger, spec, queryFeeModels, graphNode, metrics),
+      Network.create(
+        logger,
+        spec,
+        managementModels,
+        queryFeeModels,
+        graphNode,
+        metrics,
+      ),
   )
 
   // --------------------------------------------------------------------------------
@@ -676,6 +714,7 @@ export async function run(
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   // --------------------------------------------------------------------------------

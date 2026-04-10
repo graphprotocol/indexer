@@ -16,6 +16,7 @@ import {
   specification as spec,
   Action,
   POIDisputeAttributes,
+  DipsManager,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { hexlify } from 'ethers'
@@ -80,6 +81,13 @@ export class Operator {
     })
     this.indexerManagement = indexerManagement
     this.specification = specification
+  }
+
+  get dipsManager(): DipsManager | null {
+    const network = this.specification.networkIdentifier
+    const allocationManager =
+      this.indexerManagement.actionManager?.allocationManagers[network]
+    return allocationManager?.dipsManager ?? null
   }
 
   // --------------------------------------------------------------------------------
@@ -260,16 +268,26 @@ export class Operator {
     return result.data.actions
   }
 
-  async queueAction(action: ActionItem): Promise<Action[]> {
+  async queueAction(action: ActionItem, forceAction: boolean = false): Promise<Action[]> {
     let status = ActionStatus.QUEUED
     switch (this.specification.indexerOptions.allocationManagementMode) {
       case AllocationManagementMode.MANUAL:
-        throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          throw Error(`Cannot queue actions when AllocationManagementMode = 'MANUAL'`)
+        }
+        break
       case AllocationManagementMode.AUTO:
         status = ActionStatus.APPROVED
         break
       case AllocationManagementMode.OVERSIGHT:
-        status = ActionStatus.QUEUED
+        if (forceAction) {
+          status = ActionStatus.APPROVED
+        } else {
+          status = ActionStatus.QUEUED
+        }
+        break
     }
 
     const actionInput = {
@@ -346,6 +364,7 @@ export class Operator {
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
     isHorizon: boolean,
+    forceAction: boolean = false,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
       ?.allocationAmount
@@ -375,16 +394,19 @@ export class Operator {
     }
 
     // Send AllocateAction to the queue - isLegacy value depends on the horizon upgrade
-    await this.queueAction({
-      params: {
-        deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-        amount: formatGRT(desiredAllocationAmount),
+    await this.queueAction(
+      {
+        params: {
+          deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+          amount: formatGRT(desiredAllocationAmount),
+        },
+        type: ActionType.ALLOCATE,
+        reason: deploymentAllocationDecision.reasonString(),
+        protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+        isLegacy: !isHorizon,
       },
-      type: ActionType.ALLOCATE,
-      reason: deploymentAllocationDecision.reasonString(),
-      protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-      isLegacy: !isHorizon,
-    })
+      forceAction,
+    )
 
     return
   }
@@ -393,6 +415,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     activeDeploymentAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     // Make sure to close all active allocations on the way out
     if (activeDeploymentAllocations.length > 0) {
@@ -409,18 +432,21 @@ export class Operator {
         activeDeploymentAllocations,
         async (allocation) => {
           // Send unallocate action to the queue - isLegacy value depends on the allocation being closed
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              poi: undefined,
-              force: false,
-            },
-            type: ActionType.UNALLOCATE,
-            reason: deploymentAllocationDecision.reasonString(),
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-            isLegacy: allocation.isLegacy,
-          } as ActionItem)
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                poi: undefined,
+                force: false,
+              },
+              type: ActionType.UNALLOCATE,
+              reason: deploymentAllocationDecision.reasonString(),
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+              isLegacy: allocation.isLegacy,
+            } as ActionItem,
+            forceAction,
+          )
         },
         { concurrency: 1 },
       )
@@ -431,6 +457,7 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     expiredAllocations: Allocation[],
+    forceAction: boolean = false,
   ): Promise<void> {
     if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
       logger.info(`Reallocating expired allocations`, {
@@ -448,17 +475,20 @@ export class Operator {
       await pMap(
         expiredAllocations,
         async (allocation) => {
-          await this.queueAction({
-            params: {
-              allocationID: allocation.id,
-              deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-              amount: formatGRT(desiredAllocationAmount),
+          await this.queueAction(
+            {
+              params: {
+                allocationID: allocation.id,
+                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
+                amount: formatGRT(desiredAllocationAmount),
+              },
+              type: ActionType.REALLOCATE,
+              reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
+              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
+              isLegacy: allocation.isLegacy,
             },
-            type: ActionType.REALLOCATE,
-            reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-            protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-            isLegacy: allocation.isLegacy,
-          })
+            forceAction,
+          )
         },
         {
           stopOnError: false,
