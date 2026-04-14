@@ -99,10 +99,11 @@ export async function buildActionInput(
         isLegacy,
       }
     case ActionType.UNALLOCATE: {
+      // unallocate <deploymentID> <allocationID> [poi] [force] [blockNumber] [publicPOI]
       const { poi, publicPOI, poiBlockNumber } = normalizePOIParams(
-        actionParams.param2,
+        actionParams.param3,
+        actionParams.param6,
         actionParams.param5,
-        actionParams.param4,
       )
       return {
         deploymentID: actionParams.targetDeployment,
@@ -110,7 +111,7 @@ export async function buildActionInput(
         poi,
         publicPOI,
         poiBlockNumber,
-        force: actionParams.param3 === 'true',
+        force: actionParams.param4 === 'true',
         type,
         source,
         reason,
