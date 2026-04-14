@@ -28,6 +28,7 @@
 
 import { table, getBorderCharacters } from 'table'
 import wrapAnsi from 'wrap-ansi'
+import yargsParse from 'yargs-parser'
 
 export enum OutputFormat {
   Table = 'table',
@@ -62,6 +63,27 @@ export const fixParameters = (
   } else {
     return parameters.array
   }
+}
+
+/**
+ * Re-parses process.argv with number parsing disabled to recover positional
+ * arguments as strings. gluegun uses yargs-parser internally and converts hex
+ * strings (e.g. 0x0, 0x...0010) to numbers before our commands see them,
+ * making the conversion irreversible. Re-parsing with 'parse-numbers: false'
+ * and taking the last N positionals (N = parametersArray.length) restores
+ * the original strings, since gluegun strips the subcommand prefix from
+ * parameters.array but our re-parse includes it.
+ */
+export function getRawPositionalArgs(parametersArray: unknown[]): string[] {
+  const raw = yargsParse(process.argv.slice(2), {
+    configuration: { 'parse-numbers': false },
+  })
+  // raw._ includes the full subcommand path (e.g. ['indexer', 'allocations', 'close', ...])
+  // while parameters.array has already had the command path stripped by gluegun.
+  // Taking the last N elements (N = parameters.array.length) removes the command path
+  // and gives us only the user-provided positional arguments.
+  const positionals = raw._ as string[]
+  return positionals.slice(positionals.length - parametersArray.length)
 }
 
 export const formatData = (
