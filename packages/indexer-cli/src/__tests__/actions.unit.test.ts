@@ -49,7 +49,7 @@ describe('buildActionInput', () => {
     expect(result.publicPOI).toBe(zeroPOI)
     expect(result.force).toBe(false)
     expect(result.allocationID).toBe('0xallocationId')
-    expect(result.poiBlockNumber).toBeUndefined()
+    expect(result.poiBlockNumber).toBe(0)
   })
 })
 

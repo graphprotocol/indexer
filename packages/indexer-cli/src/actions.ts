@@ -50,11 +50,11 @@ function normalizePOIParams(
   }
 
   let normalizedPublicPoi = publicPOI
-  if (normalizedPublicPoi === '0' || normalizedPublicPoi === '0x0') {
+  if (!publicPOI || normalizedPublicPoi === '0' || normalizedPublicPoi === '0x0') {
     normalizedPublicPoi = zeroPOI
   }
 
-  let poiBlockNumber: number | undefined = undefined
+  let poiBlockNumber = 0
   if (blockNumber !== undefined) {
     poiBlockNumber = parseInt(blockNumber, 10)
     if (isNaN(poiBlockNumber)) {
@@ -65,7 +65,7 @@ function normalizePOIParams(
   return {
     poi: normalizedPoi,
     publicPOI: normalizedPublicPoi,
-    poiBlockNumber,
+    poiBlockNumber: poiBlockNumber,
   }
 }
 

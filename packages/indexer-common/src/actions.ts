@@ -74,11 +74,7 @@ export const isValidActionInput = (
         'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
 
       if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
+        hasActionParams = hasActionParams && 'poi' in variableToCheck
       }
       break
     case ActionType.REALLOCATE:
@@ -88,11 +84,7 @@ export const isValidActionInput = (
         'amount' in variableToCheck
 
       if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
+        hasActionParams = hasActionParams && 'poi' in variableToCheck
       }
       break
     case ActionType.RESIZE:
@@ -106,11 +98,7 @@ export const isValidActionInput = (
         'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
 
       if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
+        hasActionParams = hasActionParams && 'poi' in variableToCheck
       }
       break
   }

@@ -139,7 +139,7 @@ describe('Action Validation', () => {
 
       expect(isValidActionInput(missingDeploymentID)).toBe(false)
 
-      // With POI provided, must also have publicPOI and poiBlockNumber
+      // With POI provided (publicPOI and poiBlockNumber are optional)
       const withPoiButMissingPublicPOI = {
         ...baseAction,
         type: ActionType.PRESENT_POI,
@@ -149,7 +149,7 @@ describe('Action Validation', () => {
         isLegacy: false,
       }
 
-      expect(isValidActionInput(withPoiButMissingPublicPOI)).toBe(false)
+      expect(isValidActionInput(withPoiButMissingPublicPOI)).toBe(true)
 
       // With all POI fields provided
       const withAllPoiFields = {
