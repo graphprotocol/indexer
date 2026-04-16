@@ -55,6 +55,7 @@ import {
   BigNumberish,
   BytesLike,
   ContractTransaction,
+  ContractTransactionResponse,
   hexlify,
   Result,
   TransactionReceipt,
@@ -73,7 +74,7 @@ const KNOWN_CONTRACT_ERROR_SELECTORS = new Set([
 
 function isGasExhaustionError(error: unknown): boolean {
   if (!(error instanceof Error)) return false
-  const err = error as Record<string, unknown>
+  const err = error as unknown as Record<string, unknown>
   if (err['code'] === 'CALL_EXCEPTION' && err['action'] === 'estimateGas') {
     const data = err['data']
     if (
