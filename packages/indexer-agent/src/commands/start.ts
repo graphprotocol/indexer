@@ -78,6 +78,14 @@ export const start = {
         default: 1.2,
         group: 'Ethereum',
       })
+      .option('gas-limit-multiplier', {
+        description:
+          'Multiplier applied to estimateGas results when computing transaction gas limits. ' +
+          'Must be greater than 1.0. Default: 1.5',
+        type: 'number',
+        default: 1.5,
+        group: 'Ethereum',
+      })
       .option('gas-price-max', {
         description: 'The maximum gas price (gwei) to use for transactions',
         type: 'number',
@@ -356,9 +364,9 @@ export const start = {
         group: 'Indexer Infrastructure',
       })
       .option('auto-allocation-max-batch-size', {
-        description: `Maximum number of allocation transactions inside a batch for auto allocation management. Limits the number of actions processed per batch to prevent multicall failures when there are many allocations. Remaining actions will be processed in subsequent batches.`,
+        description: `Maximum number of allocation transactions inside a batch. Upper bound is constrained by the block gas limit. Remaining actions will be processed in subsequent batches.`,
         type: 'number',
-        required: false,
+        default: 50,
         group: 'Indexer Infrastructure',
       })
       .check(argv => {
@@ -382,11 +390,20 @@ export const start = {
         if (argv['gas-increase-factor'] <= 1.0) {
           return 'Invalid --gas-increase-factor provided. Must be > 1.0'
         }
+        if (argv['gas-limit-multiplier'] <= 1.0) {
+          return 'Invalid --gas-limit-multiplier provided. Must be > 1.0'
+        }
         if (
           !Number.isInteger(argv['rebate-claim-max-batch-size']) ||
           argv['rebate-claim-max-batch-size'] <= 0
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
+        }
+        if (
+          !Number.isInteger(argv['auto-allocation-max-batch-size']) ||
+          argv['auto-allocation-max-batch-size'] <= 0
+        ) {
+          return 'Invalid --auto-allocation-max-batch-size provided. Must be > 0 and an integer.'
         }
         return true
       })
@@ -433,6 +450,7 @@ export async function createNetworkSpecification(
   const transactionMonitoring = {
     gasIncreaseTimeout: argv.gasIncreaseTimeout,
     gasIncreaseFactor: argv.gasIncreaseFactor,
+    gasLimitMultiplier: argv.gasLimitMultiplier,
     gasPriceMax: argv.gasPriceMax,
     baseFeePerGasMax: argv.baseFeeGasMax,
     maxTransactionAttempts: argv.maxTransactionAttempts,
