@@ -326,12 +326,14 @@ export class DipsManager {
         async () =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement.estimateGas(
             allocation.id,
-            proposal.signedRca,
+            proposal.signedRca.rca,
+            proposal.signedRca.signature,
           ),
         async (gasLimit) =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement(
             allocation.id,
-            proposal.signedRca,
+            proposal.signedRca.rca,
+            proposal.signedRca.signature,
             { gasLimit },
           ),
         this.logger.child({
@@ -448,7 +450,8 @@ export class DipsManager {
       const acceptTx =
         await this.network.contracts.SubgraphService.acceptIndexingAgreement.populateTransaction(
           allocationId,
-          proposal.signedRca,
+          proposal.signedRca.rca,
+          proposal.signedRca.signature,
         )
 
       // Atomic multicall

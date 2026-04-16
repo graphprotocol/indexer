@@ -5,7 +5,7 @@ import { PendingRcaProposal } from '../../indexer-management/models/pending-rca-
 
 // ABI tuple types matching toolshed's recurring-collector.js
 const RCA_TUPLE =
-  'tuple(uint64 deadline, uint64 endsAt, address payer, address dataService, address serviceProvider, uint256 maxInitialTokens, uint256 maxOngoingTokensPerSecond, uint32 minSecondsPerCollection, uint32 maxSecondsPerCollection, uint256 nonce, bytes metadata)'
+  'tuple(uint64 deadline, uint64 endsAt, address payer, address dataService, address serviceProvider, uint256 maxInitialTokens, uint256 maxOngoingTokensPerSecond, uint32 minSecondsPerCollection, uint32 maxSecondsPerCollection, uint16 conditions, uint256 nonce, bytes metadata)'
 const SIGNED_RCA_TUPLE = `tuple(${RCA_TUPLE} rca, bytes signature)`
 const ACCEPT_METADATA_TUPLE =
   'tuple(bytes32 subgraphDeploymentId, uint8 version, bytes terms)'
@@ -62,6 +62,7 @@ function encodeTestPayload(overrides?: {
           maxOngoingTokensPerSecond: 100n,
           minSecondsPerCollection: overrides?.minSecondsPerCollection ?? 3600,
           maxSecondsPerCollection: overrides?.maxSecondsPerCollection ?? 86400,
+          conditions: 0n,
           nonce: 42n,
           metadata: metadataEncoded,
         },
