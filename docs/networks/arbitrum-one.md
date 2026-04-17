@@ -9,8 +9,8 @@ Network information can be found at https://thegraph.com/explorer?chain=arbitrum
 | contracts          | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/contracts)](https://github.com/graphprotocol/contracts/releases)          |
 | indexer-agent      | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)           |
 | indexer-cli        | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer)](https://github.com/graphprotocol/indexer/releases)            |
-| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-v1.4.0)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
-| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-v1.8.0)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
+| indexer-service-rs | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-service-rs-v2.0.2)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-service-rs) |
+| indexer-tap-agent  | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/indexer-rs?filter=indexer-tap-agent-v2.0.2)](https://github.com/graphprotocol/indexer-rs/releases?q=indexer-tap-agent) |
 | graph-node         | [![GitHub Release](https://img.shields.io/github/v/release/graphprotocol/graph-node)](https://github.com/graphprotocol/graph-node/releases)         |
 
 ## Network Parameters
