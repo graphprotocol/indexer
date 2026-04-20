@@ -50,14 +50,18 @@ function normalizePOIParams(
   }
 
   let normalizedPublicPoi = publicPOI
-  if (!publicPOI || normalizedPublicPoi === '0' || normalizedPublicPoi === '0x0') {
+  if (
+    publicPOI !== undefined ||
+    normalizedPublicPoi === '0' ||
+    normalizedPublicPoi === '0x0'
+  ) {
     normalizedPublicPoi = zeroPOI
   }
 
-  let poiBlockNumber = 0
-  if (blockNumber !== undefined) {
-    poiBlockNumber = parseInt(blockNumber, 10)
-    if (isNaN(poiBlockNumber)) {
+  let normalizedBlockNumber: number | undefined = 0
+  if (blockNumber !== undefined && blockNumber !== '0') {
+    normalizedBlockNumber = parseInt(blockNumber, 10)
+    if (isNaN(normalizedBlockNumber)) {
       throw new Error(`Invalid block number: ${blockNumber}`)
     }
   }
@@ -65,7 +69,7 @@ function normalizePOIParams(
   return {
     poi: normalizedPoi,
     publicPOI: normalizedPublicPoi,
-    poiBlockNumber: poiBlockNumber,
+    poiBlockNumber: normalizedBlockNumber,
   }
 }
 
