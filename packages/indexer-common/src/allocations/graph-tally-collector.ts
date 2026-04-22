@@ -31,9 +31,6 @@ import {
 import { encodeCollectQueryFeesData, PaymentTypes } from '@graphprotocol/toolshed'
 import { dataSlice, hexlify, zeroPadValue, TransactionReceipt } from 'ethers'
 
-// every 15 minutes
-const RAV_CHECK_INTERVAL_MS = 900_000
-
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
@@ -115,6 +112,9 @@ export class GraphTallyCollector {
   declare finalityTime: number
   declare indexerAddress: Address
   declare ravCollectionMaxBatchSize: number
+  declare ravCollectionInterval: number
+  declare ravCheckIntervalMs: number
+  private lastCollectedAt: Map<string, number> = new Map()
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- Private constructor to prevent direct instantiation
   private constructor() {}
@@ -147,15 +147,32 @@ export class GraphTallyCollector {
       finalityTime,
       address,
       ravCollectionMaxBatchSize,
+      ravCollectionInterval,
+      ravCheckInterval,
     } = networkSpecification.indexerOptions
     collector.ravRedemptionThreshold = voucherRedemptionThreshold
     collector.finalityTime = finalityTime
     collector.indexerAddress = address
     collector.ravCollectionMaxBatchSize = ravCollectionMaxBatchSize
+    collector.ravCollectionInterval = ravCollectionInterval
+    collector.ravCheckIntervalMs = ravCheckInterval * 1000
 
     collector.logger.info(`[TAPv2] RAV processing is initiated`)
     collector.startRAVProcessing()
     return collector
+  }
+
+  private async isActiveAllocation(allocationId: string): Promise<boolean> {
+    const activeAllocations = await this.allocations.value()
+    return activeAllocations.some(
+      (a) => a.id.toLowerCase() === allocationId.toLowerCase(),
+    )
+  }
+
+  private isCooldownExpired(collectionId: string): boolean {
+    const lastCollected = this.lastCollectedAt.get(collectionId.toLowerCase())
+    if (lastCollected === undefined) return true
+    return Date.now() - lastCollected >= this.ravCollectionInterval * 1000
   }
 
   startRAVProcessing() {
@@ -211,7 +228,7 @@ export class GraphTallyCollector {
     return sequentialTimerMap(
       {
         logger: this.logger,
-        milliseconds: RAV_CHECK_INTERVAL_MS,
+        milliseconds: this.ravCheckIntervalMs,
       },
       async () => {
         let ravs = await this.pendingRAVs()
@@ -399,9 +416,28 @@ export class GraphTallyCollector {
             })
             if (belowThreshold) {
               results.belowThreshold.push(rav)
-            } else {
-              results.eligible.push(rav)
+              return results
             }
+
+            // For active allocations, also check cooldown
+            const allocationId = collectionIdToAllocationId(rav.rav.rav.collectionId)
+            const isActive = await this.isActiveAllocation(allocationId)
+            if (isActive && !this.isCooldownExpired(rav.rav.rav.collectionId)) {
+              this.logger.trace(
+                '[TAPv2] Skipping active allocation RAV: cooldown not expired',
+                {
+                  collectionId: rav.rav.rav.collectionId,
+                  lastCollectedAt: this.lastCollectedAt.get(
+                    rav.rav.rav.collectionId.toLowerCase(),
+                  ),
+                  ravCollectionInterval: this.ravCollectionInterval,
+                },
+              )
+              results.belowThreshold.push(rav)
+              return results
+            }
+
+            results.eligible.push(rav)
             return results
           },
           { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
@@ -414,11 +450,10 @@ export class GraphTallyCollector {
     )
   }
 
-  // redeem only if last is true
-  // Later can add order and limit
+  // Fetch all non-finalized RAVs (both active and closed allocations)
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
     return await this.models.receiptAggregateVouchersV2.findAll({
-      where: { last: true, final: false },
+      where: { final: false },
       limit: 100,
     })
   }
@@ -472,7 +507,7 @@ export class GraphTallyCollector {
     await this.markRavsAsFinal(blockTimestampSecs)
 
     return await this.models.receiptAggregateVouchersV2.findAll({
-      where: { redeemedAt: null, final: false, last: true },
+      where: { final: false },
     })
   }
 
@@ -934,19 +969,34 @@ export class GraphTallyCollector {
             parseFloat(tokensCollected.toString()),
           )
 
-          try {
-            await this.markRavAsRedeemed(rav.rav.collectionId, rav.rav.payer)
-            logger.debug('[TAPv2] RAV marked as redeemed', {
+          const allocationId = collectionIdToAllocationId(rav.rav.collectionId)
+          const isActive = await this.isActiveAllocation(allocationId)
+
+          if (isActive) {
+            // Active allocation: update cooldown, don't mark as redeemed
+            this.lastCollectedAt.set(rav.rav.collectionId.toLowerCase(), Date.now())
+            logger.debug('[TAPv2] Active allocation RAV collected, cooldown updated', {
               collectionId: rav.rav.collectionId,
               payer: rav.rav.payer,
               tokensCollected: formatGRT(tokensCollected),
             })
-          } catch (err) {
-            logger.warn('[TAPv2] Failed to mark RAV as redeemed in database', {
-              collectionId: rav.rav.collectionId,
-              payer: rav.rav.payer,
-              err,
-            })
+          } else {
+            // Closed allocation: mark as redeemed
+            this.lastCollectedAt.delete(rav.rav.collectionId.toLowerCase())
+            try {
+              await this.markRavAsRedeemed(rav.rav.collectionId, rav.rav.payer)
+              logger.debug('[TAPv2] RAV marked as redeemed', {
+                collectionId: rav.rav.collectionId,
+                payer: rav.rav.payer,
+                tokensCollected: formatGRT(tokensCollected),
+              })
+            } catch (err) {
+              logger.warn('[TAPv2] Failed to mark RAV as redeemed in database', {
+                collectionId: rav.rav.collectionId,
+                payer: rav.rav.payer,
+                err,
+              })
+            }
           }
 
           this.metrics.ravRedeemsSuccess.inc({ collection: rav.rav.collectionId })
@@ -1034,18 +1084,26 @@ export class GraphTallyCollector {
       parseFloat(actualTokensCollected.toString()),
     )
 
-    try {
-      await this.markRavAsRedeemed(rav.collectionId, rav.payer)
+    const allocationId = collectionIdToAllocationId(rav.collectionId)
+    const isActive = await this.isActiveAllocation(allocationId)
+
+    if (isActive) {
+      this.lastCollectedAt.set(rav.collectionId.toLowerCase(), Date.now())
       logger.info(
-        `[TAPv2] Updated receipt aggregate vouchers v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
+        `[TAPv2] Active allocation RAV collected, cooldown updated for collection ${rav.collectionId}`,
       )
-    } catch (err) {
-      logger.warn(
-        `[TAPv2] Failed to update receipt aggregate voucher v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
-        {
-          err,
-        },
-      )
+    } else {
+      try {
+        await this.markRavAsRedeemed(rav.collectionId, rav.payer)
+        logger.info(
+          `[TAPv2] Updated receipt aggregate vouchers v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
+        )
+      } catch (err) {
+        logger.warn(
+          `[TAPv2] Failed to update receipt aggregate voucher v2 table with redeemed_at for collection ${rav.collectionId} and payer ${rav.payer}`,
+          { err },
+        )
+      }
     }
 
     return actualTokensCollected

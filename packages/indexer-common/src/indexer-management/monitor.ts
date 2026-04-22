@@ -57,6 +57,27 @@ export class NetworkMonitor {
     private epochSubgraph: SubgraphClient,
   ) {}
 
+  async hasActiveDipsAgreement(allocationId: string): Promise<boolean> {
+    try {
+      const result = await this.networkSubgraph.checkedQuery(
+        gql`
+          query indexingAgreements($allocationId: Bytes!) {
+            indexingAgreements(
+              where: { allocationId: $allocationId, state_not: 0 }
+              first: 1
+            ) {
+              id
+            }
+          }
+        `,
+        { allocationId: allocationId.toLowerCase() },
+      )
+      return (result.data?.indexingAgreements?.length ?? 0) > 0
+    } catch {
+      return false
+    }
+  }
+
   poiDisputeMonitoringEnabled(): boolean {
     return this.indexerOptions.poiDisputeMonitoring
   }
