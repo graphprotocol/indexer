@@ -178,6 +178,7 @@ export class AllocationManager {
         this,
         this.pendingRcaModel,
       )
+      this.dipsManager.startProposalAcceptanceLoop()
     }
   }
 

@@ -9,6 +9,7 @@ import {
   ActionStatus,
   Allocation,
   AllocationManager,
+  AllocationStatus,
   DipsReceiptStatus,
   GraphNode,
   IndexerManagementModels,
@@ -45,6 +46,7 @@ import {
 import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
+const DIPS_ACCEPTANCE_INTERVAL = 5_000
 
 const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
@@ -197,59 +199,70 @@ export class DipsManager {
     )
 
     for (const proposal of proposals) {
-      const subgraphDeploymentID = proposal.subgraphDeploymentId
+      await this.ensureDipsRuleForProposal(proposal)
+    }
+  }
+
+  private async ensureDipsRuleForProposal(
+    proposal: DecodedRcaProposal,
+  ): Promise<boolean> {
+    const subgraphDeploymentID = proposal.subgraphDeploymentId
+    this.logger.info(
+      `Checking if indexing rule exists for proposal ${
+        proposal.id
+      }, deployment ${subgraphDeploymentID.toString()}`,
+    )
+
+    const ruleExists = await this.parent!.matchingRuleExists(
+      this.logger,
+      subgraphDeploymentID,
+    )
+
+    const allDeploymentRules = await this.models.IndexingRule.findAll({
+      where: {
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+    const blocklistedRule = allDeploymentRules.find(
+      (rule) =>
+        new SubgraphDeploymentID(rule.identifier).bytes32 ===
+          subgraphDeploymentID.bytes32 &&
+        rule.decisionBasis === IndexingDecisionBasis.NEVER,
+    )
+
+    if (blocklistedRule) {
       this.logger.info(
-        `Checking if indexing rule exists for proposal ${
+        `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
+      )
+      await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
+      return false
+    }
+
+    if (!ruleExists) {
+      this.logger.info(
+        `Creating indexing rule for proposal ${
           proposal.id
         }, deployment ${subgraphDeploymentID.toString()}`,
       )
+      const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
+      const indexingRule = {
+        identifier: subgraphDeploymentID.ipfsHash,
+        allocationAmount: formatGRT(amount),
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: this.network.specification.networkIdentifier,
+        autoRenewal: true,
+        allocationLifetime: Math.max(
+          Number(proposal.minSecondsPerCollection),
+          Number(proposal.maxSecondsPerCollection),
+        ),
+        requireSupported: false,
+      } as Partial<IndexingRuleAttributes>
 
-      const ruleExists = await this.parent!.matchingRuleExists(
-        this.logger,
-        subgraphDeploymentID,
-      )
-
-      const allDeploymentRules = await this.models.IndexingRule.findAll({
-        where: {
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        },
-      })
-      const blocklistedRule = allDeploymentRules.find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 ===
-            subgraphDeploymentID.bytes32 &&
-          rule.decisionBasis === IndexingDecisionBasis.NEVER,
-      )
-
-      if (blocklistedRule) {
-        this.logger.info(
-          `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
-        )
-        await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
-      } else if (!ruleExists) {
-        this.logger.info(
-          `Creating indexing rule for proposal ${
-            proposal.id
-          }, deployment ${subgraphDeploymentID.toString()}`,
-        )
-        const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
-        const indexingRule = {
-          identifier: subgraphDeploymentID.ipfsHash,
-          allocationAmount: formatGRT(amount),
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-          decisionBasis: IndexingDecisionBasis.DIPS,
-          protocolNetwork: this.network.specification.networkIdentifier,
-          autoRenewal: true,
-          allocationLifetime: Math.max(
-            Number(proposal.minSecondsPerCollection),
-            Number(proposal.maxSecondsPerCollection),
-          ),
-          requireSupported: false,
-        } as Partial<IndexingRuleAttributes>
-
-        await upsertIndexingRule(this.logger, this.models, indexingRule)
-      }
+      await upsertIndexingRule(this.logger, this.models, indexingRule)
     }
+
+    return true
   }
 
   async acceptPendingProposals(activeAllocations: Allocation[]): Promise<void> {
@@ -297,6 +310,15 @@ export class DipsManager {
       return
     }
 
+    // Create the dips rule eagerly here rather than leaving it to the reconcile
+    // loop: the accept tx can confirm and clear the pending row before the next
+    // reconcile tick, which would leave the rule uncreated and graph-node never
+    // told to deploy the subgraph.
+    const shouldProceed = await this.ensureDipsRuleForProposal(proposal)
+    if (!shouldProceed) {
+      return
+    }
+
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
     )
@@ -324,12 +346,14 @@ export class DipsManager {
         async () =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement.estimateGas(
             allocation.id,
-            proposal.signedRca,
+            proposal.signedRca.rca,
+            proposal.signedRca.signature,
           ),
         async (gasLimit) =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement(
             allocation.id,
-            proposal.signedRca,
+            proposal.signedRca.rca,
+            proposal.signedRca.signature,
             { gasLimit },
           ),
         this.logger.child({
@@ -446,7 +470,8 @@ export class DipsManager {
       const acceptTx =
         await this.network.contracts.SubgraphService.acceptIndexingAgreement.populateTransaction(
           allocationId,
-          proposal.signedRca,
+          proposal.signedRca.rca,
+          proposal.signedRca.signature,
         )
 
       // Atomic multicall
@@ -745,9 +770,20 @@ export class DipsManager {
   ): Promise<void> {
     if (this.isDeterministicError(error)) {
       const parsedError = tryParseCustomError(error)
+      const callException = error as {
+        reason?: string
+        data?: string
+        message?: string
+        transaction?: { to?: string; data?: string }
+      }
       this.logger.warn('Rejecting proposal: deterministic contract error', {
         proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
         error: parsedError,
+        revertReason: callException.reason ?? null,
+        revertData: callException.data ?? null,
+        errorMessage: callException.message ?? null,
+        contractTarget: callException.transaction?.to ?? null,
       })
       await consumer.markRejected(proposal.id, String(parsedError))
       await this.cleanupDipsRule(consumer, proposal)
@@ -1015,6 +1051,51 @@ export class DipsManager {
         )
       }
     }
+  }
+
+  startProposalAcceptanceLoop() {
+    if (!this.pendingRcaConsumer) {
+      this.logger.debug('No pending RCA consumer configured, skipping acceptance loop')
+      return
+    }
+    const consumer = this.pendingRcaConsumer
+
+    sequentialTimerMap(
+      {
+        logger: this.logger,
+        milliseconds: DIPS_ACCEPTANCE_INTERVAL,
+      },
+      async () => {
+        const proposals = await consumer.getPendingProposals()
+        if (proposals.length === 0) {
+          return
+        }
+
+        this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
+          count: proposals.length,
+        })
+
+        const activeAllocations = await this.network.networkMonitor.allocations(
+          AllocationStatus.ACTIVE,
+        )
+
+        for (const proposal of proposals) {
+          try {
+            await this.processProposal(consumer, proposal, activeAllocations)
+          } catch (error) {
+            this.logger.error('Unexpected error processing proposal', {
+              proposalId: proposal.id,
+              error,
+            })
+          }
+        }
+      },
+      {
+        onError: (err) => {
+          this.logger.error('Failed to process pending RCA proposals', { err })
+        },
+      },
+    )
   }
 }
 
