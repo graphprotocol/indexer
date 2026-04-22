@@ -61,6 +61,7 @@ export class Network {
   tapCollector: TapCollector | undefined
   graphTallyCollector: GraphTallyCollector | undefined
   dipsCollector: DipsCollector | undefined
+  indexingPaymentsSubgraph: SubgraphClient | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
@@ -84,6 +85,7 @@ export class Network {
     queryFeeModels: QueryFeeModels,
     managementModels: IndexerManagementModels,
     dipsCollector: DipsCollector | undefined,
+    indexingPaymentsSubgraph: SubgraphClient | undefined,
   ) {
     this.logger = logger
     this.contracts = contracts
@@ -101,6 +103,7 @@ export class Network {
     this.queryFeeModels = queryFeeModels
     this.managementModels = managementModels
     this.dipsCollector = dipsCollector
+    this.indexingPaymentsSubgraph = indexingPaymentsSubgraph
   }
 
   static async create(
@@ -184,6 +187,40 @@ export class Network {
             : undefined,
         endpoint: specification.subgraphs.tapSubgraph!.url,
         subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
+      })
+    }
+
+    // * -----------------------------------------------------------------------
+    // * Indexing Payments Subgraph
+    // * -----------------------------------------------------------------------
+    let indexingPaymentsSubgraph: SubgraphClient | undefined = undefined
+    if (specification.subgraphs.indexingPaymentsSubgraph) {
+      const indexingPaymentsSubgraphDeploymentId =
+        specification.subgraphs.indexingPaymentsSubgraph.deployment
+          ? new SubgraphDeploymentID(
+              specification.subgraphs.indexingPaymentsSubgraph.deployment,
+            )
+          : undefined
+      const indexingPaymentsFreshnessChecker = new SubgraphFreshnessChecker(
+        'IndexingPayments Subgraph',
+        networkProvider,
+        specification.subgraphs.maxBlockDistance,
+        specification.subgraphs.freshnessSleepMilliseconds,
+        logger.child({ component: 'FreshnessChecker' }),
+        Infinity,
+      )
+      indexingPaymentsSubgraph = await SubgraphClient.create({
+        name: 'IndexingPaymentsSubgraph',
+        logger,
+        deployment:
+          indexingPaymentsSubgraphDeploymentId !== undefined
+            ? {
+                graphNode,
+                deployment: indexingPaymentsSubgraphDeploymentId,
+              }
+            : undefined,
+        endpoint: specification.subgraphs.indexingPaymentsSubgraph!.url,
+        subgraphFreshnessChecker: indexingPaymentsFreshnessChecker,
       })
     }
 
@@ -389,6 +426,7 @@ export class Network {
       queryFeeModels,
       managementModels,
       dipsCollector,
+      indexingPaymentsSubgraph,
     )
   }
 

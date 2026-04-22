@@ -578,8 +578,14 @@ export class DipsManager {
     const logger = this.logger.child({ function: 'collectAgreementPayments' })
     const indexerAddress = this.network.specification.indexerOptions.address
 
+    if (!this.network.indexingPaymentsSubgraph) {
+      logger.warn(
+        'Indexing payments subgraph not configured, skipping agreement collection',
+      )
+      return
+    }
     const agreements = await fetchCollectableAgreements(
-      this.network.networkSubgraph,
+      this.network.indexingPaymentsSubgraph,
       indexerAddress,
     )
 
@@ -649,7 +655,7 @@ export class DipsManager {
     nowSeconds: number,
     logger: Logger,
   ): boolean {
-    const isCancelledByPayer = agreement.state === 3
+    const isCancelledByPayer = agreement.state === 'CanceledByPayer'
     const isExpired =
       Number(agreement.endsAt) > 0 && Number(agreement.endsAt) < nowSeconds
 

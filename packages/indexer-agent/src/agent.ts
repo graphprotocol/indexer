@@ -55,6 +55,16 @@ const deploymentInList = (
 ): boolean =>
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
+export function addIndexingPaymentsSubgraphToTarget(
+  enableDips: boolean,
+  deployment: SubgraphDeploymentID | undefined,
+  targetDeployments: SubgraphDeploymentID[],
+): void {
+  if (!enableDips || !deployment) return
+  if (deploymentInList(targetDeployments, deployment)) return
+  targetDeployments.push(deployment)
+}
+
 const deploymentRuleInList = (
   list: IndexingRuleAttributes[],
   deployment: SubgraphDeploymentID,
@@ -904,6 +914,17 @@ export class Agent {
           indexingNetworkSubgraph = true
         }
       }
+    })
+
+    // ----------------------------------------------------------------------------------------
+    // Ensure the indexing-payments subgraph is always indexed when DIPS is enabled
+    // ----------------------------------------------------------------------------------------
+    await this.multiNetworks.map(async ({ network }) => {
+      addIndexingPaymentsSubgraphToTarget(
+        network.specification.indexerOptions.enableDips,
+        network.indexingPaymentsSubgraph?.deployment?.id,
+        targetDeployments,
+      )
     })
 
     // ----------------------------------------------------------------------------------------
