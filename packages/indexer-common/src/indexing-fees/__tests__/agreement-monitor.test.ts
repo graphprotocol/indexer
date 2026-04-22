@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any,@typescript-eslint/no-unused-vars */
-import {
-  fetchCollectableAgreements,
-  SubgraphIndexingAgreement,
-} from '../agreement-monitor'
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { fetchCollectableAgreements } from '../agreement-monitor'
 
 const mockQuery = jest.fn()
 const mockNetworkSubgraph = { query: mockQuery } as any
@@ -22,7 +19,7 @@ describe('fetchCollectableAgreements', () => {
             id: '0x00000000000000000000000000000001',
             allocationId: '0xaaaa',
             subgraphDeploymentId: '0xbbbb',
-            state: 1,
+            state: 'Accepted',
             lastCollectionAt: '1000',
             endsAt: '9999999999',
             maxInitialTokens: '1000000',
@@ -41,7 +38,7 @@ describe('fetchCollectableAgreements', () => {
 
     expect(result).toHaveLength(1)
     expect(result[0].id).toBe('0x00000000000000000000000000000001')
-    expect(result[0].state).toBe(1)
+    expect(result[0].state).toBe('Accepted')
     expect(mockQuery).toHaveBeenCalledTimes(1)
   })
 
@@ -61,7 +58,7 @@ describe('fetchCollectableAgreements', () => {
       id: `0x${i.toString(16).padStart(32, '0')}`,
       allocationId: '0xaaaa',
       subgraphDeploymentId: '0xbbbb',
-      state: 1,
+      state: 'Accepted',
       lastCollectionAt: '1000',
       endsAt: '9999999999',
       maxInitialTokens: '1000000',
@@ -78,7 +75,7 @@ describe('fetchCollectableAgreements', () => {
         id: '0x' + 'f'.repeat(32),
         allocationId: '0xaaaa',
         subgraphDeploymentId: '0xbbbb',
-        state: 1,
+        state: 'Accepted',
         lastCollectionAt: '1000',
         endsAt: '9999999999',
         maxInitialTokens: '1000000',

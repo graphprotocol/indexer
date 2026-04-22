@@ -465,7 +465,7 @@ describe('DipsManager', () => {
         id: '0x123e4567e89b12d3a456426614174000',
         allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
         subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
-        state: 1, // Accepted
+        state: 'Accepted',
         lastCollectionAt: '0',
         endsAt: '9999999999',
         maxInitialTokens: '1000',
@@ -499,22 +499,15 @@ describe('DipsManager', () => {
         // Mock block number and graph node methods for collect
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest
-          .fn()
-          .mockResolvedValue({ network: 'mainnet' })
-        graphNode.blockHashFromNumber = jest
-          .fn()
-          .mockResolvedValue('0xblockhash')
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
           .mockResolvedValue(
             '0x0000000000000000000000000000000000000000000000000000000000000001',
           )
 
-        const result = await dipsManager.cancelAgreement(
-          mockAgreement.id,
-          mockAgreement,
-        )
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(true)
         // executeTransaction called twice: once for cancel, once for collect
@@ -531,10 +524,7 @@ describe('DipsManager', () => {
           .fn()
           .mockRejectedValueOnce(new Error('cancel tx reverted'))
 
-        const result = await dipsManager.cancelAgreement(
-          mockAgreement.id,
-          mockAgreement,
-        )
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(false)
         // executeTransaction called only once (for cancel)
@@ -553,22 +543,15 @@ describe('DipsManager', () => {
         // Mock block number and graph node methods
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
         graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-        graphNode.subgraphFeatures = jest
-          .fn()
-          .mockResolvedValue({ network: 'mainnet' })
-        graphNode.blockHashFromNumber = jest
-          .fn()
-          .mockResolvedValue('0xblockhash')
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
         graphNode.proofOfIndexing = jest
           .fn()
           .mockResolvedValue(
             '0x0000000000000000000000000000000000000000000000000000000000000001',
           )
 
-        const result = await dipsManager.cancelAgreement(
-          mockAgreement.id,
-          mockAgreement,
-        )
+        const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(true)
         // Tracker should be cleaned up even though collect failed
@@ -583,7 +566,7 @@ describe('DipsManager', () => {
         id: '0x123e4567e89b12d3a456426614174000',
         allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
         subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
-        state: 1,
+        state: 'Accepted',
         lastCollectionAt: '0',
         endsAt: '9999999999',
         maxInitialTokens: '1000',
@@ -605,7 +588,7 @@ describe('DipsManager', () => {
 
       test('removes payer-cancelled agreement from tracker after collection', () => {
         const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
-        const agreement = { ...baseAgreement, state: 3 }
+        const agreement = { ...baseAgreement, state: 'CanceledByPayer' as const }
 
         const result = dipsManager.cleanupFinishedAgreement(agreement, 1000, logger)
 
@@ -616,13 +599,9 @@ describe('DipsManager', () => {
       test('removes expired agreement from tracker after collection', () => {
         const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
         const nowSeconds = 2000
-        const agreement = { ...baseAgreement, state: 1, endsAt: '1000' }
+        const agreement = { ...baseAgreement, state: 'Accepted' as const, endsAt: '1000' }
 
-        const result = dipsManager.cleanupFinishedAgreement(
-          agreement,
-          nowSeconds,
-          logger,
-        )
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
 
         expect(result).toBe(true)
         expect(removeSpy).toHaveBeenCalledWith(agreement.id)
@@ -631,13 +610,13 @@ describe('DipsManager', () => {
       test('does not remove active agreement from tracker', () => {
         const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
         const nowSeconds = 1000
-        const agreement = { ...baseAgreement, state: 1, endsAt: '9999999999' }
+        const agreement = {
+          ...baseAgreement,
+          state: 'Accepted' as const,
+          endsAt: '9999999999',
+        }
 
-        const result = dipsManager.cleanupFinishedAgreement(
-          agreement,
-          nowSeconds,
-          logger,
-        )
+        const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
 
         expect(result).toBe(false)
         expect(removeSpy).not.toHaveBeenCalled()
@@ -649,7 +628,7 @@ describe('DipsManager', () => {
         id: '0x123e4567e89b12d3a456426614174000',
         allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
         subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
-        state: 1,
+        state: 'Accepted',
         lastCollectionAt: '0',
         endsAt: '9999999999',
         maxInitialTokens: '1000',

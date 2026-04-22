@@ -1,5 +1,6 @@
 import {
   Agent,
+  addIndexingPaymentsSubgraphToTarget,
   convertSubgraphBasedRulesToDeploymentBased,
   consolidateAllocationDecisions,
   resolveTargetDeployments,
@@ -470,5 +471,109 @@ describe('reconcileDeploymentAllocationAction', () => {
       false,
     )
     expect(operator.presentPOIForAllocations).not.toHaveBeenCalled()
+  })
+})
+
+describe('addIndexingPaymentsSubgraphToTarget function', () => {
+  const paymentsDeployment = new SubgraphDeploymentID(
+    'QmddSbatCN1XmufoBm1bBwPx4L3FtuMAMHUNNBSPzrgL2a',
+  )
+
+  it('pushes the deployment when enableDips is true and deployment is defined', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(true, paymentsDeployment, target)
+    expect(target.map(d => d.bytes32)).toContain(paymentsDeployment.bytes32)
+  })
+
+  it('does nothing when enableDips is false', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(false, paymentsDeployment, target)
+    expect(target).toHaveLength(0)
+  })
+
+  it('does nothing when deployment is undefined', () => {
+    const target: SubgraphDeploymentID[] = []
+    addIndexingPaymentsSubgraphToTarget(true, undefined, target)
+    expect(target).toHaveLength(0)
+  })
+
+  it('does not duplicate an already-present deployment', () => {
+    const target: SubgraphDeploymentID[] = [paymentsDeployment]
+    addIndexingPaymentsSubgraphToTarget(true, paymentsDeployment, target)
+    expect(target).toHaveLength(1)
+  })
+})
+
+describe('reconcileDeployments indexing-payments carve-out wiring', () => {
+  const paymentsDeployment = new SubgraphDeploymentID(
+    'QmddSbatCN1XmufoBm1bBwPx4L3FtuMAMHUNNBSPzrgL2a',
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mockLogger: any = {
+    child: jest.fn().mockReturnThis(),
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    trace: jest.fn(),
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function createAgentUnderTest(network: any) {
+    const agent = Object.create(Agent.prototype)
+    agent.logger = mockLogger
+    agent.offchainSubgraphs = []
+    agent.multiNetworks = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map: async (fn: any) => Promise.all([fn({ network })]),
+    }
+    agent.graphNode = {
+      subgraphDeploymentsAssignments: jest.fn().mockResolvedValue([]),
+      ensure: jest.fn().mockResolvedValue(undefined),
+      pause: jest.fn().mockResolvedValue(undefined),
+    }
+    return agent
+  }
+
+  it('schedules the indexing-payments deployment for indexing when DIPS is enabled', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: true } },
+      indexingPaymentsSubgraph: { deployment: { id: paymentsDeployment } },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    const ensureCalls = agent.graphNode.ensure.mock.calls
+    const ensuredDeployments = ensureCalls.map(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (call: any[]) => (call[1] as SubgraphDeploymentID).bytes32,
+    )
+    expect(ensuredDeployments).toContain(paymentsDeployment.bytes32)
+  })
+
+  it('does not schedule the indexing-payments deployment when DIPS is disabled', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: false } },
+      indexingPaymentsSubgraph: { deployment: { id: paymentsDeployment } },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    expect(agent.graphNode.ensure).not.toHaveBeenCalled()
+  })
+
+  it('does not schedule the indexing-payments deployment when deployment is undefined', async () => {
+    const agent = createAgentUnderTest({
+      networkSubgraph: { deployment: undefined },
+      specification: { indexerOptions: { enableDips: true } },
+      indexingPaymentsSubgraph: { deployment: undefined },
+    })
+
+    await agent.reconcileDeployments([], [], [])
+
+    expect(agent.graphNode.ensure).not.toHaveBeenCalled()
   })
 })
