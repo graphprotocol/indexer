@@ -4,9 +4,12 @@ import { PendingRcaConsumer } from '../pending-rca-consumer'
 import { DecodedRcaProposal } from '../types'
 import {
   Allocation,
+  AllocationManager,
   AllocationStatus,
   IndexerManagementModels,
+  IndexingDecisionBasis,
   Network,
+  SubgraphIdentifierType,
 } from '@graphprotocol/indexer-common'
 
 let logger: Logger
@@ -108,8 +111,15 @@ function createMockModels() {
       findOne: jest.fn().mockResolvedValue(null),
       findAll: jest.fn().mockResolvedValue([]),
       destroy: jest.fn().mockResolvedValue(1),
+      upsert: jest.fn().mockResolvedValue([{ id: 1 }, true]),
     },
   } as unknown as IndexerManagementModels
+}
+
+function createMockParent() {
+  return {
+    matchingRuleExists: jest.fn().mockResolvedValue(false),
+  } as unknown as AllocationManager
 }
 
 function createMockNetwork() {
@@ -168,9 +178,10 @@ function createDipsManager(
   network: Network,
   models: IndexerManagementModels,
   consumer: PendingRcaConsumer,
+  parent: AllocationManager = createMockParent(),
 ): DipsManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dm = new DipsManager(logger, models, network, {} as any, null)
+  const dm = new DipsManager(logger, models, network, {} as any, parent)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dm as any).pendingRcaConsumer = consumer
   return dm
@@ -590,6 +601,84 @@ describe('DipsManager.acceptPendingProposals', () => {
 
       await dm.acceptPendingProposals([])
 
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
+  })
+
+  describe('rule creation ordering (race condition fix)', () => {
+    test('upserts the DIPS indexing rule before broadcasting acceptIndexingAgreement', async () => {
+      const proposal = createMockProposal()
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      const upsertOrder = (models.IndexingRule.upsert as jest.Mock).mock
+        .invocationCallOrder[0]
+      const executeOrder = (network.transactionManager.executeTransaction as jest.Mock)
+        .mock.invocationCallOrder[0]
+
+      expect(upsertOrder).toBeDefined()
+      expect(executeOrder).toBeDefined()
+      expect(upsertOrder).toBeLessThan(executeOrder)
+    })
+
+    test('skips rule upsert and rejects proposal when deployment is blocklisted', async () => {
+      const proposal = createMockProposal()
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      ;(consumer.getPendingProposalsForDeployment as jest.Mock).mockResolvedValue([])
+      const models = createMockModels()
+      ;(models.IndexingRule.findAll as jest.Mock).mockResolvedValue([
+        {
+          identifier: proposal.subgraphDeploymentId.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+        },
+      ])
+      const network = createMockNetwork()
+
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(consumer.markRejected).toHaveBeenCalledWith(
+        proposal.id,
+        'deployment blocklisted',
+      )
+      expect(models.IndexingRule.upsert).not.toHaveBeenCalled()
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+    })
+
+    test('skips rule upsert when parent reports a matching rule already exists', async () => {
+      const proposal = createMockProposal()
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+
+      const parent = {
+        matchingRuleExists: jest.fn().mockResolvedValue(true),
+      } as unknown as AllocationManager
+
+      const dm = createDipsManager(network, models, consumer, parent)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(models.IndexingRule.upsert).not.toHaveBeenCalled()
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
       expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
   })
