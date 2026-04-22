@@ -139,8 +139,8 @@ describe('Action Validation', () => {
 
       expect(isValidActionInput(missingDeploymentID)).toBe(false)
 
-      // With POI provided (publicPOI and poiBlockNumber are optional)
-      const withPoiButMissingPublicPOI = {
+      // With non-zero POI provided, publicPOI and poiBlockNumber are required
+      const withNonZeroPoiButMissingPublicPOI = {
         ...baseAction,
         type: ActionType.PRESENT_POI,
         deploymentID: 'Qmtest',
@@ -149,7 +149,19 @@ describe('Action Validation', () => {
         isLegacy: false,
       }
 
-      expect(isValidActionInput(withPoiButMissingPublicPOI)).toBe(true)
+      expect(isValidActionInput(withNonZeroPoiButMissingPublicPOI)).toBe(false)
+
+      // With zero POI, publicPOI and poiBlockNumber are optional
+      const withZeroPoi = {
+        ...baseAction,
+        type: ActionType.PRESENT_POI,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + '00'.repeat(32),
+        isLegacy: false,
+      }
+
+      expect(isValidActionInput(withZeroPoi)).toBe(true)
 
       // With all POI fields provided
       const withAllPoiFields = {
