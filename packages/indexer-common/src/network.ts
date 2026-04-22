@@ -195,12 +195,12 @@ export class Network {
     // * -----------------------------------------------------------------------
     let indexingPaymentsSubgraph: SubgraphClient | undefined = undefined
     if (specification.subgraphs.indexingPaymentsSubgraph) {
-      const indexingPaymentsSubgraphDeploymentId =
-        specification.subgraphs.indexingPaymentsSubgraph.deployment
-          ? new SubgraphDeploymentID(
-              specification.subgraphs.indexingPaymentsSubgraph.deployment,
-            )
-          : undefined
+      const indexingPaymentsSubgraphDeploymentId = specification.subgraphs
+        .indexingPaymentsSubgraph.deployment
+        ? new SubgraphDeploymentID(
+            specification.subgraphs.indexingPaymentsSubgraph.deployment,
+          )
+        : undefined
       const indexingPaymentsFreshnessChecker = new SubgraphFreshnessChecker(
         'IndexingPayments Subgraph',
         networkProvider,

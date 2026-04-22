@@ -610,7 +610,11 @@ describe('DipsManager', () => {
       test('does not remove active agreement from tracker', () => {
         const removeSpy = jest.spyOn(dipsManager.collectionTracker, 'remove')
         const nowSeconds = 1000
-        const agreement = { ...baseAgreement, state: 'Accepted' as const, endsAt: '9999999999' }
+        const agreement = {
+          ...baseAgreement,
+          state: 'Accepted' as const,
+          endsAt: '9999999999',
+        }
 
         const result = dipsManager.cleanupFinishedAgreement(agreement, nowSeconds, logger)
 
