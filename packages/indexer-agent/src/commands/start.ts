@@ -206,8 +206,7 @@ export const start = {
         group: 'Indexing Fees ("DIPs")',
       })
       .option('indexing-payments-subgraph-endpoint', {
-        description:
-          'Endpoint to query the indexing payments subgraph from',
+        description: 'Endpoint to query the indexing payments subgraph from',
         array: false,
         type: 'string',
         group: 'Indexing Fees ("DIPs")',

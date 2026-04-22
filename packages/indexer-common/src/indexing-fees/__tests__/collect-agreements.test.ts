@@ -68,7 +68,9 @@ function createDipsManager(): DipsManager {
 }
 
 // Helper: agreement that was last collected long ago (ready to collect)
-function makeReadyAgreement(id = '0x00000000000000000000000000000001'): SubgraphIndexingAgreement {
+function makeReadyAgreement(
+  id = '0x00000000000000000000000000000001',
+): SubgraphIndexingAgreement {
   return {
     id,
     allocationId: '0xaaaa',
