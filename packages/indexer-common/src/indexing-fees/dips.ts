@@ -197,59 +197,81 @@ export class DipsManager {
     )
 
     for (const proposal of proposals) {
-      const subgraphDeploymentID = proposal.subgraphDeploymentId
+      await this.ensureDipsRuleForProposal(proposal)
+    }
+  }
+
+  // Upsert the dips indexing rule for a proposal's deployment, or reject the
+  // proposal if the deployment is blocklisted. Returns true when the caller
+  // should continue processing the proposal, false when it was rejected.
+  //
+  // Shared between the reconcile loop (ensureAgreementRulesFromRca) and the
+  // fast accept loop (processProposal). The accept path calls this eagerly
+  // before acceptIndexingAgreement broadcasts, closing the race where the
+  // accept receipt clears the pending_rca_proposals row before the next
+  // 15s reconcile tick — without this, graph-node never gets told to deploy
+  // the subgraph and the agent spins on unallocate attempts for the newly
+  // created DIPs allocation.
+  private async ensureDipsRuleForProposal(
+    proposal: DecodedRcaProposal,
+  ): Promise<boolean> {
+    const subgraphDeploymentID = proposal.subgraphDeploymentId
+    this.logger.info(
+      `Checking if indexing rule exists for proposal ${
+        proposal.id
+      }, deployment ${subgraphDeploymentID.toString()}`,
+    )
+
+    const ruleExists = await this.parent!.matchingRuleExists(
+      this.logger,
+      subgraphDeploymentID,
+    )
+
+    const allDeploymentRules = await this.models.IndexingRule.findAll({
+      where: {
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+    const blocklistedRule = allDeploymentRules.find(
+      (rule) =>
+        new SubgraphDeploymentID(rule.identifier).bytes32 ===
+          subgraphDeploymentID.bytes32 &&
+        rule.decisionBasis === IndexingDecisionBasis.NEVER,
+    )
+
+    if (blocklistedRule) {
       this.logger.info(
-        `Checking if indexing rule exists for proposal ${
+        `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
+      )
+      await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
+      return false
+    }
+
+    if (!ruleExists) {
+      this.logger.info(
+        `Creating indexing rule for proposal ${
           proposal.id
         }, deployment ${subgraphDeploymentID.toString()}`,
       )
+      const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
+      const indexingRule = {
+        identifier: subgraphDeploymentID.ipfsHash,
+        allocationAmount: formatGRT(amount),
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: this.network.specification.networkIdentifier,
+        autoRenewal: true,
+        allocationLifetime: Math.max(
+          Number(proposal.minSecondsPerCollection),
+          Number(proposal.maxSecondsPerCollection),
+        ),
+        requireSupported: false,
+      } as Partial<IndexingRuleAttributes>
 
-      const ruleExists = await this.parent!.matchingRuleExists(
-        this.logger,
-        subgraphDeploymentID,
-      )
-
-      const allDeploymentRules = await this.models.IndexingRule.findAll({
-        where: {
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        },
-      })
-      const blocklistedRule = allDeploymentRules.find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 ===
-            subgraphDeploymentID.bytes32 &&
-          rule.decisionBasis === IndexingDecisionBasis.NEVER,
-      )
-
-      if (blocklistedRule) {
-        this.logger.info(
-          `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
-        )
-        await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
-      } else if (!ruleExists) {
-        this.logger.info(
-          `Creating indexing rule for proposal ${
-            proposal.id
-          }, deployment ${subgraphDeploymentID.toString()}`,
-        )
-        const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
-        const indexingRule = {
-          identifier: subgraphDeploymentID.ipfsHash,
-          allocationAmount: formatGRT(amount),
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-          decisionBasis: IndexingDecisionBasis.DIPS,
-          protocolNetwork: this.network.specification.networkIdentifier,
-          autoRenewal: true,
-          allocationLifetime: Math.max(
-            Number(proposal.minSecondsPerCollection),
-            Number(proposal.maxSecondsPerCollection),
-          ),
-          requireSupported: false,
-        } as Partial<IndexingRuleAttributes>
-
-        await upsertIndexingRule(this.logger, this.models, indexingRule)
-      }
+      await upsertIndexingRule(this.logger, this.models, indexingRule)
     }
+
+    return true
   }
 
   async acceptPendingProposals(activeAllocations: Allocation[]): Promise<void> {
@@ -294,6 +316,11 @@ export class DipsManager {
       })
       await consumer.markRejected(proposal.id, 'deadline_expired')
       await this.cleanupDipsRule(consumer, proposal)
+      return
+    }
+
+    const shouldProceed = await this.ensureDipsRuleForProposal(proposal)
+    if (!shouldProceed) {
       return
     }
 
