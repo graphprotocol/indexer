@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Logger } from '@graphprotocol/common-ts'
 import { DipsManager } from '../dips'
+import type { SubgraphIndexingAgreement } from '../agreement-monitor'
 
 const logger = {
   child: jest.fn().mockReturnThis(),
@@ -40,6 +41,7 @@ const mockGraphNode = {
 const mockNetwork = {
   contracts: mockContracts,
   networkSubgraph: mockNetworkSubgraph,
+  indexingPaymentsSubgraph: mockNetworkSubgraph,
   transactionManager: mockTransactionManager,
   specification: {
     indexerOptions: {
@@ -66,13 +68,13 @@ function createDipsManager(): DipsManager {
 }
 
 // Helper: agreement that was last collected long ago (ready to collect)
-function makeReadyAgreement(id = '0x00000000000000000000000000000001') {
+function makeReadyAgreement(id = '0x00000000000000000000000000000001'): SubgraphIndexingAgreement {
   return {
     id,
     allocationId: '0xaaaa',
     subgraphDeploymentId:
       '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
-    state: 1,
+    state: 'Accepted',
     lastCollectionAt: '0', // never collected → always ready
     endsAt: '9999999999',
     maxInitialTokens: '1000000',

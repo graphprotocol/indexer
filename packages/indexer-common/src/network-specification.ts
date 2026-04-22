@@ -153,6 +153,7 @@ export const ProtocolSubgraphs = z
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
     tapSubgraph: OptionalSubgraph,
+    indexingPaymentsSubgraph: OptionalSubgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
