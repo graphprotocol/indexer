@@ -982,6 +982,7 @@ export class GraphTallyCollector {
             })
           } else {
             // Closed allocation: mark as redeemed
+            this.lastCollectedAt.delete(rav.rav.collectionId.toLowerCase())
             try {
               await this.markRavAsRedeemed(rav.rav.collectionId, rav.rav.payer)
               logger.debug('[TAPv2] RAV marked as redeemed', {
