@@ -27,7 +27,9 @@ export async function up({ context }: Context): Promise<void> {
   )
   logger.info(`Created index ${INDEX_NAME}`)
 
-  logger.info(`Creating composite index ${INDEX_NAME_TEXT} on tap_horizon_receipts`)
+  logger.info(
+    `Creating composite index ${INDEX_NAME_TEXT} on tap_horizon_receipts`,
+  )
   await queryInterface.sequelize.query(`
     CREATE INDEX CONCURRENTLY ${INDEX_NAME_TEXT}
     ON tap_horizon_receipts (CAST(collection_id AS TEXT), id)
