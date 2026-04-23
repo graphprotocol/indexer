@@ -27,6 +27,8 @@ export async function up({ context }: Context): Promise<void> {
   )
   logger.info(`Created index ${INDEX_NAME}`)
 
+  // This index can be removed if the indexer is running indexer-service v2.1.1
+  // TODO: once there is sufficient indexer coverage remove it
   logger.info(
     `Creating composite index ${INDEX_NAME_TEXT} on tap_horizon_receipts`,
   )
