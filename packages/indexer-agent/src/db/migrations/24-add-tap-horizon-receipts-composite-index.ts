@@ -10,7 +10,7 @@ interface Context {
   context: MigrationContext
 }
 
-const INDEX_NAME = 'tap_horizon_receipts_aggregation_idx'
+const INDEX_NAME = 'tap_horizon_receipts_collection_id'
 
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
@@ -18,14 +18,7 @@ export async function up({ context }: Context): Promise<void> {
   logger.info(`Creating composite index ${INDEX_NAME} on tap_horizon_receipts`)
   await queryInterface.addIndex(
     'tap_horizon_receipts',
-    [
-      'collection_id',
-      'service_provider',
-      'payer',
-      'data_service',
-      'signer_address',
-      'timestamp_ns',
-    ],
+    ['collection_id', 'id'],
     {
       name: INDEX_NAME,
       concurrently: true,
