@@ -1207,6 +1207,34 @@ async function reallocateHorizonAllocation(
     epoch: currentEpoch.toString(),
   })
 
+  // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
+  // and new allocations won't be able to be created until the condition is cleared.
+  // In this case indexer should manually remediate the issue.
+  const isOverAllocated = await contracts.SubgraphService.isOverAllocated(address)
+
+  logger.debug('Checking over-allocation status for reallocate allocation', {
+    allocationId: allocation.id,
+    isOverAllocated,
+  })
+
+  if (isOverAllocated) {
+    const allocatedTokens =
+      await contracts.SubgraphService.allocationProvisionTracker(address)
+    const delegationRatio = await contracts.SubgraphService.getDelegationRatio()
+    const tokensAvailable = await contracts.HorizonStaking.getTokensAvailable(
+      address,
+      contracts.SubgraphService.target,
+      delegationRatio,
+    )
+    const overallocatedAmount = allocatedTokens - tokensAvailable
+    throw indexerError(
+      IndexerErrorCode.IE090,
+      `Overallocated by ${formatGRT(
+        overallocatedAmount,
+      )} GRT, please manually unallocate that amount.`,
+    )
+  }
+
   // Identify how many GRT the indexer has staked
   const freeStake = (await network.networkMonitor.freeStake()).horizon
 
