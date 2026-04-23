@@ -2123,6 +2123,39 @@ export class AllocationManager {
         }
       }
     } else {
+      // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
+      // and new allocations won't be able to be created until the condition is cleared.
+      // In this case indexer should manually remediate the issue.
+      const isOverAllocated =
+        await this.network.contracts.SubgraphService.isOverAllocated(params.indexer)
+
+      logger.debug('Checking over-allocation status for reallocate allocation', {
+        allocationId: params.closingAllocationID,
+        isOverAllocated,
+      })
+
+      if (isOverAllocated) {
+        const allocatedTokens =
+          await this.network.contracts.SubgraphService.allocationProvisionTracker(
+            params.indexer,
+          )
+        const delegationRatio =
+          await this.network.contracts.SubgraphService.getDelegationRatio()
+        const tokensAvailable =
+          await this.network.contracts.HorizonStaking.getTokensAvailable(
+            params.indexer,
+            this.network.contracts.SubgraphService.target,
+            delegationRatio,
+          )
+        const overallocatedAmount = allocatedTokens - tokensAvailable
+        throw indexerError(
+          IndexerErrorCode.IE090,
+          `Overallocated by ${formatGRT(
+            overallocatedAmount,
+          )} GRT, please manually unallocate that amount.`,
+        )
+      }
+
       // Horizon: Need to multicall collect and stopService
 
       // collect
