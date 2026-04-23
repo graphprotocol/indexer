@@ -57,6 +57,26 @@ export interface ActionInput {
   isLegacy: boolean
 }
 
+const ZERO_POI = '0x0000000000000000000000000000000000000000000000000000000000000000'
+
+// Validates POI-related fields for non-legacy actions.
+// When POI is zero, publicPOI and poiBlockNumber are optional.
+// When POI is non-zero, all three fields are required.
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const hasValidPOIParams = (variableToCheck: any): boolean => {
+  if (variableToCheck.isLegacy || variableToCheck.poi === undefined) {
+    return true
+  }
+  if (variableToCheck.poi === ZERO_POI) {
+    return 'poi' in variableToCheck
+  }
+  return (
+    'poi' in variableToCheck &&
+    'publicPOI' in variableToCheck &&
+    'poiBlockNumber' in variableToCheck
+  )
+}
+
 export const isValidActionInput = (
   /* eslint-disable @typescript-eslint/no-explicit-any */
   variableToCheck: any,
@@ -71,29 +91,16 @@ export const isValidActionInput = (
       break
     case ActionType.UNALLOCATE:
       hasActionParams =
-        'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
-
-      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
-      }
+        'deploymentID' in variableToCheck &&
+        'allocationID' in variableToCheck &&
+        hasValidPOIParams(variableToCheck)
       break
     case ActionType.REALLOCATE:
       hasActionParams =
         'deploymentID' in variableToCheck &&
         'allocationID' in variableToCheck &&
-        'amount' in variableToCheck
-
-      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
-      }
+        'amount' in variableToCheck &&
+        hasValidPOIParams(variableToCheck)
       break
     case ActionType.RESIZE:
       hasActionParams =
@@ -103,15 +110,9 @@ export const isValidActionInput = (
       break
     case ActionType.PRESENT_POI:
       hasActionParams =
-        'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
-
-      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
-      }
+        'deploymentID' in variableToCheck &&
+        'allocationID' in variableToCheck &&
+        hasValidPOIParams(variableToCheck)
       break
   }
   return (
