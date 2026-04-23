@@ -11,6 +11,7 @@ interface Context {
 }
 
 const INDEX_NAME = 'tap_horizon_receipts_collection_id'
+const INDEX_NAME_TEXT = 'tap_horizon_receipts_collection_text_id'
 
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
@@ -25,6 +26,13 @@ export async function up({ context }: Context): Promise<void> {
     },
   )
   logger.info(`Created index ${INDEX_NAME}`)
+
+  logger.info(`Creating composite index ${INDEX_NAME_TEXT} on tap_horizon_receipts`)
+  await queryInterface.sequelize.query(`
+    CREATE INDEX CONCURRENTLY ${INDEX_NAME_TEXT}
+    ON tap_horizon_receipts (CAST(collection_id AS TEXT), id)
+  `)
+  logger.info(`Created index ${INDEX_NAME_TEXT}`)
 }
 
 export async function down({ context }: Context): Promise<void> {
@@ -32,4 +40,7 @@ export async function down({ context }: Context): Promise<void> {
 
   logger.info(`Dropping index ${INDEX_NAME}`)
   await queryInterface.removeIndex('tap_horizon_receipts', INDEX_NAME)
+
+  logger.info(`Dropping index ${INDEX_NAME_TEXT}`)
+  await queryInterface.removeIndex('tap_horizon_receipts', INDEX_NAME_TEXT)
 }
