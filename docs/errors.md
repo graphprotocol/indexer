@@ -887,3 +887,183 @@ This is a sub-error of `IE069`. It is reported when the indexer agent doesn't ha
 **Solution**
 
 Please provide a `epoch-subgraph-endpoint` and make sure graph node has consistent network configurations (`mainnet`, `sepolia`, `gnosis`) and is on or after version 0.28.0.
+
+## IE072
+
+**Summary**
+
+Failed to execute batch tx (contract: staking)
+
+**Solution**
+
+TODO
+
+## IE073
+
+**Summary**
+
+Failed to query subgraph features from indexing statuses endpoint
+
+**Solution**
+
+TODO
+
+## IE074
+
+**Summary**
+
+Failed to deploy subgraph: network not supported
+
+**Solution**
+
+TODO
+
+## IE075
+
+**Summary**
+
+Failed to connect to network contracts
+
+**Solution**
+
+TODO
+
+## IE076
+
+**Summary**
+
+Failed to resume subgraph deployment
+
+**Solution**
+
+TODO
+
+## IE077
+
+**Summary**
+
+Failed to allocate: subgraph not healthily syncing
+
+**Solution**
+
+TODO
+
+## IE078
+
+**Summary**
+
+No provision found
+
+**Solution**
+
+TODO
+
+## IE079
+
+**Summary**
+
+Failed to add stake to provision: Invalid stake amount provided
+
+**Solution**
+
+TODO
+
+## IE080
+
+**Summary**
+
+Failed to add stake to provision: stake not added on chain
+
+**Solution**
+
+TODO
+
+## IE081
+
+**Summary**
+
+Multiple provisions found
+
+**Solution**
+
+TODO
+
+## IE082
+
+**Summary**
+
+Graph Horizon protocol not detected
+
+**Solution**
+
+TODO
+
+## IE083
+
+**Summary**
+
+Failed to thaw stake from provision
+
+**Solution**
+
+TODO
+
+## IE084
+
+**Summary**
+
+Could not resolve POI block number
+
+**Solution**
+
+TODO
+
+## IE085
+
+**Summary**
+
+Could not resolve public POI
+
+**Solution**
+
+TODO
+
+## IE086
+
+**Summary**
+
+Indexer not registered in the Subgraph Service
+
+**Solution**
+
+TODO
+
+## IE087
+
+**Summary**
+
+Failed to resize allocation
+
+**Solution**
+
+TODO
+
+## IE088
+
+**Summary**
+
+Failed to present POI
+
+**Solution**
+
+TODO
+
+## IE089
+
+**Summary**
+
+Failed to collect indexing rewards
+
+**Solution**
+
+TODO
