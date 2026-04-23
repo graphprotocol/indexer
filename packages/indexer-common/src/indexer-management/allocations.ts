@@ -55,6 +55,7 @@ import {
   BigNumberish,
   BytesLike,
   ContractTransaction,
+  ContractTransactionResponse,
   hexlify,
   Result,
   TransactionReceipt,
@@ -64,6 +65,32 @@ import {
 
 import pMap from 'p-map'
 import { tryParseCustomError } from '../utils'
+
+// Known contract error selectors that indicate a logic failure, not gas exhaustion.
+// These must NOT trigger batch bisection.
+const KNOWN_CONTRACT_ERROR_SELECTORS = new Set([
+  '0xd6bda275', // SubgraphServiceInvalidPaymentType(uint8)
+])
+
+function isGasExhaustionError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false
+  const err = error as unknown as Record<string, unknown>
+  if (err['code'] === 'CALL_EXCEPTION' && err['action'] === 'estimateGas') {
+    const data = err['data']
+    if (
+      typeof data === 'string' &&
+      data.length >= 10 &&
+      KNOWN_CONTRACT_ERROR_SELECTORS.has(data.slice(0, 10))
+    ) {
+      return false
+    }
+    return err['reason'] == null
+  }
+  return (
+    error.message.includes('gas required exceeds allowance') ||
+    error.message.includes('exceeds block gas limit')
+  )
+}
 
 export interface TransactionPreparationContext {
   activeAllocations: Allocation[]
@@ -234,9 +261,10 @@ export class AllocationManager {
     )
 
     // -- STAKING CONTRACT --
-    const callDataStakingContract = stakingTransactions
-      .filter((tx: TransactionRequest) => !!tx.data)
-      .map((tx) => tx.data as string)
+    const eligibleStakingTxs = stakingTransactions.filter(
+      (tx: TransactionRequest) => !!tx.data,
+    )
+    const callDataStakingContract = eligibleStakingTxs.map((tx) => tx.data as string)
 
     logger.debug('Found staking contract transactions', {
       count: callDataStakingContract.length,
@@ -246,46 +274,24 @@ export class AllocationManager {
     })
 
     if (callDataStakingContract.length > 0) {
-      try {
-        const stakingTransactionResult =
-          await this.network.transactionManager.executeTransaction(
-            async () =>
-              this.network.contracts.HorizonStaking.multicall.estimateGas(
-                callDataStakingContract,
-              ),
-            async (gasLimit) =>
-              this.network.contracts.HorizonStaking.multicall(callDataStakingContract, {
-                gasLimit,
-              }),
-            this.logger.child({
-              actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
-              function: 'staking.multicall',
-            }),
-          )
-
-        this.processActionResults(
-          actionResults,
-          stakingTransactions,
-          stakingTransactionResult,
-        )
-      } catch (error) {
-        const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute staking contract transaction', {
-          error: parsedError,
-        })
-        this.processActionResults(actionResults, stakingTransactions, {
-          failureReason: `Failed to execute staking contract transaction: ${
-            typeof parsedError === 'string' ? parsedError : error.message
-          }`,
-        })
-      }
+      await this.executeMulticallWithBisection(
+        callDataStakingContract,
+        eligibleStakingTxs,
+        actionResults,
+        this.logger.child({
+          actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
+          function: 'staking.multicall',
+        }),
+        (data) => this.network.contracts.HorizonStaking.multicall.estimateGas(data),
+        (data, gasLimit) => this.network.contracts.HorizonStaking.multicall(data, { gasLimit }),
+      )
     }
 
     // -- SUBGRAPH SERVICE --
-    const callDataSubgraphService = subgraphServiceTransactions
-      // Reallocate of a legacy allocation during the transition period can result in
-      // a staking and subgraph service transaction in the same batch. If the staking tx failed we
-      // should not execute the subgraph service tx.
+    // Reallocate of a legacy allocation during the transition period can result in
+    // a staking and subgraph service transaction in the same batch. If the staking tx failed we
+    // should not execute the subgraph service tx.
+    const eligibleSubgraphServiceTxs = subgraphServiceTransactions
       .filter((tx: ActionTransactionRequest) => {
         const actionStakingTransaction = actionResults.find(
           (result) => result.actionID === tx.actionID,
@@ -296,7 +302,7 @@ export class AllocationManager {
         )
       })
       .filter((tx: TransactionRequest) => !!tx.data)
-      .map((tx) => tx.data as string)
+    const callDataSubgraphService = eligibleSubgraphServiceTxs.map((tx) => tx.data as string)
     logger.debug('Found subgraph service transactions', {
       count: callDataSubgraphService.length,
     })
@@ -305,39 +311,17 @@ export class AllocationManager {
     })
 
     if (callDataSubgraphService.length > 0) {
-      try {
-        const subgraphServiceTransactionResult =
-          await this.network.transactionManager.executeTransaction(
-            async () =>
-              this.network.contracts.SubgraphService.multicall.estimateGas(
-                callDataSubgraphService,
-              ),
-            async (gasLimit) =>
-              this.network.contracts.SubgraphService.multicall(callDataSubgraphService, {
-                gasLimit,
-              }),
-            this.logger.child({
-              actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
-              function: 'subgraphService.multicall',
-            }),
-          )
-
-        this.processActionResults(
-          actionResults,
-          subgraphServiceTransactions,
-          subgraphServiceTransactionResult,
-        )
-      } catch (error) {
-        const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute subgraph service transaction', {
-          error: parsedError,
-        })
-        this.processActionResults(actionResults, subgraphServiceTransactions, {
-          failureReason: `Failed to execute subgraph service transaction: ${
-            typeof parsedError === 'string' ? parsedError : error.message
-          }`,
-        })
-      }
+      await this.executeMulticallWithBisection(
+        callDataSubgraphService,
+        eligibleSubgraphServiceTxs,
+        actionResults,
+        this.logger.child({
+          actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
+          function: 'subgraphService.multicall',
+        }),
+        (data) => this.network.contracts.SubgraphService.multicall.estimateGas(data),
+        (data, gasLimit) => this.network.contracts.SubgraphService.multicall(data, { gasLimit }),
+      )
     }
 
     // sanity check that all actions have a result
@@ -351,6 +335,55 @@ export class AllocationManager {
     }
 
     return actionResults
+  }
+
+  private async executeMulticallWithBisection(
+    callData: string[],
+    txs: ActionTransactionRequest[],
+    actionResults: ExecuteActionResult[],
+    logger: Logger,
+    estimateFn: (callData: string[]) => Promise<bigint>,
+    submitFn: (callData: string[], gasLimit: BigNumberish) => Promise<ContractTransactionResponse>,
+  ): Promise<void> {
+    try {
+      const result = await this.network.transactionManager.executeTransaction(
+        () => estimateFn(callData),
+        (gasLimit) => submitFn(callData, gasLimit),
+        logger,
+      )
+      this.processActionResults(actionResults, txs, result)
+    } catch (error) {
+      if (isGasExhaustionError(error) && callData.length > 1) {
+        const mid = Math.floor(callData.length / 2)
+        logger.warn(`Multicall gas estimation failed for batch of ${callData.length}, bisecting`, {
+          batchSize: callData.length,
+        })
+        await this.executeMulticallWithBisection(
+          callData.slice(0, mid),
+          txs.slice(0, mid),
+          actionResults,
+          logger,
+          estimateFn,
+          submitFn,
+        )
+        await this.executeMulticallWithBisection(
+          callData.slice(mid),
+          txs.slice(mid),
+          actionResults,
+          logger,
+          estimateFn,
+          submitFn,
+        )
+      } else {
+        const parsedError = tryParseCustomError(error)
+        logger.error('Failed to execute multicall transaction', { error: parsedError })
+        this.processActionResults(actionResults, txs, {
+          failureReason: `Failed to execute multicall transaction: ${
+            typeof parsedError === 'string' ? parsedError : (error as Error).message
+          }`,
+        })
+      }
+    }
   }
 
   /**
