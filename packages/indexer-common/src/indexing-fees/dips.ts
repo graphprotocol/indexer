@@ -319,6 +319,16 @@ export class DipsManager {
       return
     }
 
+    // Deploy the subgraph to graph-node before the accept multicall creates the
+    // allocation on-chain. The main reconcile loop reads `graph_node.indexingStatus`
+    // for the deployment; if graph-node has never been told to deploy it,
+    // indexingStatus is undefined and `failsHealthCheck` triggers a spurious
+    // unallocate of the allocation we just created. `ensure` is idempotent.
+    await this.graphNode.ensure(
+      `indexer-agent/${proposal.subgraphDeploymentId.ipfsHash.slice(-10)}`,
+      proposal.subgraphDeploymentId,
+    )
+
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
     )
