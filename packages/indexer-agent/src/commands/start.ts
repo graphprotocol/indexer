@@ -198,6 +198,19 @@ export const start = {
         type: 'string',
         group: 'TAP Subgraph',
       })
+      .option('indexing-payments-subgraph-deployment', {
+        description: 'Indexing-payments subgraph deployment (for local hosting)',
+        array: false,
+        type: 'string',
+        group: 'Indexing Payments Subgraph',
+      })
+      .option('indexing-payments-subgraph-endpoint', {
+        description:
+          'Endpoint to query the indexing-payments subgraph from. Used by the DIPs accept path to verify dipper has stored an on-chain offer before calling acceptIndexingAgreement.',
+        array: false,
+        type: 'string',
+        group: 'Indexing Payments Subgraph',
+      })
       .option('allocate-on-network-subgraph', {
         description: 'Whether to allocate to the network subgraph',
         type: 'boolean',
@@ -506,6 +519,10 @@ export async function createNetworkSpecification(
     tapSubgraph: {
       deployment: argv.tapSubgraphDeployment,
       url: argv.tapSubgraphEndpoint,
+    },
+    indexingPaymentsSubgraph: {
+      deployment: argv.indexingPaymentsSubgraphDeployment,
+      url: argv.indexingPaymentsSubgraphEndpoint,
     },
   }
 

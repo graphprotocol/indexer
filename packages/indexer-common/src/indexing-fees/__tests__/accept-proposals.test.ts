@@ -179,12 +179,17 @@ function createDipsManager(
   models: IndexerManagementModels,
   consumer: PendingRcaConsumer,
   parent: AllocationManager = createMockParent(),
+  offerMonitor?: { offerExists: jest.Mock },
 ): DipsManager {
   const graphNode = { ensure: jest.fn().mockResolvedValue(undefined) }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dm = new DipsManager(logger, models, network, graphNode as any, parent)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dm as any).pendingRcaConsumer = consumer
+  if (offerMonitor !== undefined) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(dm as any).offerMonitor = offerMonitor
+  }
   return dm
 }
 
@@ -679,6 +684,73 @@ describe('DipsManager.acceptPendingProposals', () => {
       await dm.acceptPendingProposals([allocation])
 
       expect(models.IndexingRule.upsert).not.toHaveBeenCalled()
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
+  })
+
+  describe('offer-existence gate', () => {
+    test('stays pending when offer absent and deadline > now + safety margin', async () => {
+      const proposal = createMockProposal({
+        // 5 minutes from now — well beyond the 30s safety margin
+        deadline: BigInt(Math.floor(Date.now() / 1000) + 300),
+      })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      const offerMonitor = { offerExists: jest.fn().mockResolvedValue(false) }
+
+      const dm = createDipsManager(network, models, consumer, undefined, offerMonitor)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(offerMonitor.offerExists).toHaveBeenCalledWith(proposal.id)
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+      expect(consumer.markRejected).not.toHaveBeenCalled()
+      expect(consumer.markAccepted).not.toHaveBeenCalled()
+    })
+
+    test('marks rejected when offer absent and deadline within safety margin', async () => {
+      const proposal = createMockProposal({
+        // 10 seconds from now — inside the 30s safety margin
+        deadline: BigInt(Math.floor(Date.now() / 1000) + 10),
+      })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      const offerMonitor = { offerExists: jest.fn().mockResolvedValue(false) }
+
+      const dm = createDipsManager(network, models, consumer, undefined, offerMonitor)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(offerMonitor.offerExists).toHaveBeenCalledWith(proposal.id)
+      expect(consumer.markRejected).toHaveBeenCalledWith(
+        proposal.id,
+        'offer_never_landed',
+      )
+      expect(network.transactionManager.executeTransaction).not.toHaveBeenCalled()
+    })
+
+    test('proceeds to acceptIndexingAgreement when offer is present', async () => {
+      const proposal = createMockProposal()
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtxhash',
+        status: 1,
+      })
+      const offerMonitor = { offerExists: jest.fn().mockResolvedValue(true) }
+
+      const dm = createDipsManager(network, models, consumer, undefined, offerMonitor)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(offerMonitor.offerExists).toHaveBeenCalledWith(proposal.id)
       expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
       expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
