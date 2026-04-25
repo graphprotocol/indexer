@@ -32,6 +32,7 @@ import {
 } from '@graphprotocol/dips-proto/generated/gateway'
 import { IndexingAgreement } from '../indexer-management/models/indexing-agreement'
 import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
+import { OfferMonitor } from './offer-monitor'
 import { PendingRcaConsumer } from './pending-rca-consumer'
 import { DecodedRcaProposal } from './types'
 import { tryParseCustomError } from '../utils'
@@ -61,6 +62,7 @@ export class DipsManager {
   declare gatewayDipsServiceMessagesCodec: GatewayDipsServiceMessagesCodec
   declare pendingRcaConsumer: PendingRcaConsumer | null
   declare collectionTracker: CollectionTracker
+  declare offerMonitor: OfferMonitor | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
@@ -83,6 +85,13 @@ export class DipsManager {
     } else {
       this.pendingRcaConsumer = null
     }
+
+    // Offer existence gate — requires the indexing-payments-subgraph to be
+    // configured. When null (operator didn't wire it up), processProposal
+    // skips the gate and falls back to the previous "try and see" behaviour.
+    this.offerMonitor = this.network.indexingPaymentsSubgraph
+      ? new OfferMonitor(this.logger, this.network.indexingPaymentsSubgraph)
+      : null
 
     this.collectionTracker = new CollectionTracker(
       this.network.specification.indexerOptions.dipsCollectionTarget,
@@ -317,6 +326,47 @@ export class DipsManager {
     const shouldProceed = await this.ensureDipsRuleForProposal(proposal)
     if (!shouldProceed) {
       return
+    }
+
+    // Gate on the on-chain offer having landed. If dipper's offer() tx was
+    // evicted from the mempool (colliding nonce, gas spike), the contract's
+    // rcaOffers mapping is empty and acceptIndexingAgreement reverts with
+    // RecurringCollectorInvalidSigner. Before the gate, handleAcceptError
+    // treated that revert as a permanent deterministic failure; now we
+    // stay pending and retry on the next acceptance-loop tick. When the
+    // proposal's deadline is close (within safety margin), stop waiting
+    // and fail deterministically so reassessment can pick a replacement.
+    //
+    // offerMonitor is null when the indexing-payments-subgraph isn't
+    // configured, in which case we preserve the prior behaviour (try and
+    // fail on the revert).
+    if (this.offerMonitor) {
+      const offerOnChain = await this.offerMonitor.offerExists(proposal.id)
+      if (!offerOnChain) {
+        const safetyMarginSeconds = 30n
+        if (proposal.deadline > now + safetyMarginSeconds) {
+          this.logger.debug(
+            'Offer not yet on-chain, waiting for next acceptance-loop tick',
+            {
+              proposalId: proposal.id,
+              deadline: proposal.deadline.toString(),
+              now: now.toString(),
+            },
+          )
+          return
+        }
+        this.logger.warn(
+          'Offer never landed on-chain within the RCA deadline, rejecting proposal',
+          {
+            proposalId: proposal.id,
+            deadline: proposal.deadline.toString(),
+            now: now.toString(),
+          },
+        )
+        await consumer.markRejected(proposal.id, 'offer_never_landed')
+        await this.cleanupDipsRule(consumer, proposal)
+        return
+      }
     }
 
     // Deploy the subgraph to graph-node before the accept multicall creates the

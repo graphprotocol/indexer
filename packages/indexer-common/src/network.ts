@@ -52,6 +52,7 @@ import { DipsCollector } from './indexing-fees/dips'
 export class Network {
   logger: Logger
   networkSubgraph: SubgraphClient
+  indexingPaymentsSubgraph: SubgraphClient | undefined
   contracts: GraphHorizonContracts & SubgraphServiceContracts
   wallet: HDNodeWallet
   networkProvider: JsonRpcProvider
@@ -72,6 +73,7 @@ export class Network {
     contracts: GraphHorizonContracts & SubgraphServiceContracts,
     wallet: HDNodeWallet,
     networkSubgraph: SubgraphClient,
+    indexingPaymentsSubgraph: SubgraphClient | undefined,
     networkProvider: JsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
@@ -89,6 +91,7 @@ export class Network {
     this.contracts = contracts
     this.wallet = wallet
     this.networkSubgraph = networkSubgraph
+    this.indexingPaymentsSubgraph = indexingPaymentsSubgraph
     this.networkProvider = networkProvider
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
@@ -184,6 +187,38 @@ export class Network {
             : undefined,
         endpoint: specification.subgraphs.tapSubgraph!.url,
         subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
+      })
+    }
+
+    const indexingPaymentsSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
+      'Indexing Payments Subgraph',
+      networkProvider,
+      specification.subgraphs.maxBlockDistance,
+      specification.subgraphs.freshnessSleepMilliseconds,
+      logger.child({ component: 'FreshnessChecker' }),
+      Infinity,
+    )
+
+    let indexingPaymentsSubgraph: SubgraphClient | undefined = undefined
+    if (specification.subgraphs.indexingPaymentsSubgraph) {
+      const indexingPaymentsSubgraphDeploymentId = specification.subgraphs
+        .indexingPaymentsSubgraph.deployment
+        ? new SubgraphDeploymentID(
+            specification.subgraphs.indexingPaymentsSubgraph.deployment,
+          )
+        : undefined
+      indexingPaymentsSubgraph = await SubgraphClient.create({
+        name: 'IndexingPaymentsSubgraph',
+        logger,
+        deployment:
+          indexingPaymentsSubgraphDeploymentId !== undefined
+            ? {
+                graphNode,
+                deployment: indexingPaymentsSubgraphDeploymentId,
+              }
+            : undefined,
+        endpoint: specification.subgraphs.indexingPaymentsSubgraph!.url,
+        subgraphFreshnessChecker: indexingPaymentsSubgraphFreshnessChecker,
       })
     }
 
@@ -377,6 +412,7 @@ export class Network {
       contracts,
       wallet,
       networkSubgraph,
+      indexingPaymentsSubgraph,
       networkProvider,
       transactionManager,
       networkMonitor,

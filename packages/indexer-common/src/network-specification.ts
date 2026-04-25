@@ -153,6 +153,11 @@ export const ProtocolSubgraphs = z
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
     tapSubgraph: OptionalSubgraph,
+    // Source of truth for on-chain RCA offers. The DIPs accept path
+    // queries this before calling acceptIndexingAgreement so the
+    // contract's rcaOffers check doesn't revert on a race where the
+    // offer tx hasn't landed yet.
+    indexingPaymentsSubgraph: OptionalSubgraph,
   })
   .strict()
   // TODO: Ensure the `url` property is always defined until Epoch Subgraph
