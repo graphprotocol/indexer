@@ -180,8 +180,9 @@ function createDipsManager(
   consumer: PendingRcaConsumer,
   parent: AllocationManager = createMockParent(),
 ): DipsManager {
+  const graphNode = { ensure: jest.fn().mockResolvedValue(undefined) }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dm = new DipsManager(logger, models, network, {} as any, parent)
+  const dm = new DipsManager(logger, models, network, graphNode as any, parent)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dm as any).pendingRcaConsumer = consumer
   return dm
