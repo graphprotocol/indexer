@@ -661,77 +661,84 @@ export class DipsManager {
 
   async collectAgreementPayments(): Promise<void> {
     const logger = this.logger.child({ function: 'collectAgreementPayments' })
-    const indexerAddress = this.network.specification.indexerOptions.address
+    try {
+      const indexerAddress = this.network.specification.indexerOptions.address
 
-    if (!this.network.indexingPaymentsSubgraph) {
-      logger.warn(
-        'Indexing payments subgraph not configured, skipping agreement collection',
+      if (!this.network.indexingPaymentsSubgraph) {
+        logger.warn(
+          'Indexing payments subgraph not configured, skipping agreement collection',
+        )
+        return
+      }
+      const agreements = await fetchCollectableAgreements(
+        this.network.indexingPaymentsSubgraph,
+        indexerAddress,
       )
-      return
-    }
-    const agreements = await fetchCollectableAgreements(
-      this.network.indexingPaymentsSubgraph,
-      indexerAddress,
-    )
 
-    if (agreements.length === 0) {
-      logger.debug('No collectable agreements found')
-      return
-    }
+      if (agreements.length === 0) {
+        logger.debug('No collectable agreements found')
+        return
+      }
 
-    // Cancel any agreements whose deployments are blocklisted
-    await this.cancelBlocklistedAgreements(agreements)
+      // Cancel any agreements whose deployments are blocklisted
+      await this.cancelBlocklistedAgreements(agreements)
 
-    // Use chain timestamp for consistency with contract timing and subgraph data
-    const blockNumber = await this.network.networkProvider.getBlockNumber()
-    const block = await this.network.networkProvider.getBlock(blockNumber)
-    const nowSeconds = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
+      // Use chain timestamp for consistency with contract timing and subgraph data
+      const blockNumber = await this.network.networkProvider.getBlockNumber()
+      const block = await this.network.networkProvider.getBlock(blockNumber)
+      const nowSeconds = block ? Number(block.timestamp) : Math.floor(Date.now() / 1000)
 
-    // Sync tracker state from subgraph data
-    for (const agreement of agreements) {
-      this.collectionTracker.track(agreement.id, {
-        lastCollectedAt: Number(agreement.lastCollectionAt),
-        minSecondsPerCollection: agreement.minSecondsPerCollection,
-        maxSecondsPerCollection: agreement.maxSecondsPerCollection,
-      })
-    }
+      // Sync tracker state from subgraph data
+      for (const agreement of agreements) {
+        this.collectionTracker.track(agreement.id, {
+          lastCollectedAt: Number(agreement.lastCollectionAt),
+          minSecondsPerCollection: agreement.minSecondsPerCollection,
+          maxSecondsPerCollection: agreement.maxSecondsPerCollection,
+        })
+      }
 
-    const readyIds = this.collectionTracker.getReadyAgreements(nowSeconds)
-    if (readyIds.length === 0) {
-      logger.debug('No agreements ready for collection', {
-        total: agreements.length,
-      })
-      return
-    }
+      const readyIds = this.collectionTracker.getReadyAgreements(nowSeconds)
+      if (readyIds.length === 0) {
+        logger.debug('No agreements ready for collection', {
+          total: agreements.length,
+        })
+        return
+      }
 
-    logger.info(
-      `${readyIds.length} of ${agreements.length} agreement(s) ready for collection`,
-    )
+      logger.info(
+        `${readyIds.length} of ${agreements.length} agreement(s) ready for collection`,
+      )
 
-    const readyAgreements = agreements.filter((a) => readyIds.includes(a.id))
+      const readyAgreements = agreements.filter((a) => readyIds.includes(a.id))
 
-    for (const agreement of readyAgreements) {
-      try {
-        await this.tryCollectAgreement(agreement, blockNumber, logger)
-        this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
-        this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
-      } catch (err) {
-        if (this.isDeterministicError(err)) {
-          const parsedError = tryParseCustomError(err)
-          logger.warn('Deterministic error collecting agreement, skipping', {
-            agreementId: agreement.id,
-            error: parsedError,
-          })
-        } else {
-          const errorMsg = err instanceof Error ? err.message : String(err)
-          const errorStack = err instanceof Error ? err.stack : undefined
-          logger.warn('Transient error collecting agreement, will retry', {
-            agreementId: agreement.id,
-            error: errorMsg,
-            stack: errorStack,
-          })
+      for (const agreement of readyAgreements) {
+        try {
+          await this.tryCollectAgreement(agreement, blockNumber, logger)
+          this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
+          this.cleanupFinishedAgreement(agreement, nowSeconds, logger)
+        } catch (err) {
+          if (this.isDeterministicError(err)) {
+            const parsedError = tryParseCustomError(err)
+            logger.warn('Deterministic error collecting agreement, skipping', {
+              agreementId: agreement.id,
+              error: parsedError,
+            })
+          } else {
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            const errorStack = err instanceof Error ? err.stack : undefined
+            logger.warn('Transient error collecting agreement, will retry', {
+              agreementId: agreement.id,
+              error: errorMsg,
+              stack: errorStack,
+            })
+          }
         }
       }
+    } catch (err) {
+      // Catch outer fetch failures (subgraph query, RPC getBlockNumber/getBlock,
+      // cancelBlocklistedAgreements) so a transient failure skips this tick rather
+      // than aborting the entire reconcile cycle for every network.
+      logger.warn('Skipping DIPs collection tick due to fetch failure', { err })
     }
   }
 
@@ -1019,75 +1026,20 @@ export class DipsManager {
     )
   }
   async matchAgreementAllocations(allocations: Allocation[]) {
-    const indexingAgreements = await this.models.IndexingAgreement.findAll({
-      where: {
-        cancelled_at: null,
-      },
-    })
-    for (const agreement of indexingAgreements) {
-      this.logger.trace(`Matching active agreement ${agreement.id}`)
-      const allocation = allocations.find(
-        (allocation) =>
-          allocation.subgraphDeployment.id.bytes32 ===
-          new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
-      )
-      const actions = await this.models.Action.findAll({
+    const logger = this.logger.child({ function: 'matchAgreementAllocations' })
+    try {
+      const indexingAgreements = await this.models.IndexingAgreement.findAll({
         where: {
-          deploymentID: agreement.subgraph_deployment_id,
-          status: {
-            [Op.or]: [
-              ActionStatus.PENDING,
-              ActionStatus.QUEUED,
-              ActionStatus.APPROVED,
-              ActionStatus.DEPLOYING,
-            ],
-          },
+          cancelled_at: null,
         },
       })
-      this.logger.trace(`Found ${actions.length} actions for agreement ${agreement.id}`)
-      if (allocation && actions.length === 0) {
-        const currentAllocationId =
-          agreement.current_allocation_id != null
-            ? toAddress(agreement.current_allocation_id)
-            : null
-        this.logger.trace(
-          `Current allocation id for agreement ${agreement.id} is ${currentAllocationId}`,
-          {
-            currentAllocationId,
-            allocation,
-          },
+      for (const agreement of indexingAgreements) {
+        this.logger.trace(`Matching active agreement ${agreement.id}`)
+        const allocation = allocations.find(
+          (allocation) =>
+            allocation.subgraphDeployment.id.bytes32 ===
+            new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
         )
-        if (currentAllocationId !== allocation.id) {
-          this.logger.warn(
-            `Found mismatched allocation for agreement ${agreement.id}, updating from ${currentAllocationId} to ${allocation.id}`,
-          )
-          await this.tryUpdateAgreementAllocation(
-            agreement.subgraph_deployment_id,
-            currentAllocationId,
-            allocation.id,
-          )
-        }
-      }
-    }
-    // Now we find the cancelled agreements and check if their allocation is still active
-    const cancelledAgreements = await this.models.IndexingAgreement.findAll({
-      where: {
-        cancelled_at: {
-          [Op.ne]: null,
-        },
-        current_allocation_id: {
-          [Op.ne]: null,
-        },
-      },
-    })
-    for (const agreement of cancelledAgreements) {
-      this.logger.trace(`Matching cancelled agreement ${agreement.id}`)
-      const allocation = allocations.find(
-        (allocation) =>
-          allocation.subgraphDeployment.id.bytes32 ===
-          new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
-      )
-      if (allocation == null && agreement.current_allocation_id != null) {
         const actions = await this.models.Action.findAll({
           where: {
             deploymentID: agreement.subgraph_deployment_id,
@@ -1101,21 +1053,83 @@ export class DipsManager {
             },
           },
         })
-        if (actions.length > 0) {
-          this.logger.warn(
-            `Found active actions for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}, skipping matching allocation`,
+        this.logger.trace(`Found ${actions.length} actions for agreement ${agreement.id}`)
+        if (allocation && actions.length === 0) {
+          const currentAllocationId =
+            agreement.current_allocation_id != null
+              ? toAddress(agreement.current_allocation_id)
+              : null
+          this.logger.trace(
+            `Current allocation id for agreement ${agreement.id} is ${currentAllocationId}`,
+            {
+              currentAllocationId,
+              allocation,
+            },
           )
-          continue
+          if (currentAllocationId !== allocation.id) {
+            this.logger.warn(
+              `Found mismatched allocation for agreement ${agreement.id}, updating from ${currentAllocationId} to ${allocation.id}`,
+            )
+            await this.tryUpdateAgreementAllocation(
+              agreement.subgraph_deployment_id,
+              currentAllocationId,
+              allocation.id,
+            )
+          }
         }
-        this.logger.info(
-          `Updating last allocation id for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
-        )
-        await this.tryUpdateAgreementAllocation(
-          agreement.subgraph_deployment_id,
-          toAddress(agreement.current_allocation_id),
-          null,
-        )
       }
+      // Now we find the cancelled agreements and check if their allocation is still active
+      const cancelledAgreements = await this.models.IndexingAgreement.findAll({
+        where: {
+          cancelled_at: {
+            [Op.ne]: null,
+          },
+          current_allocation_id: {
+            [Op.ne]: null,
+          },
+        },
+      })
+      for (const agreement of cancelledAgreements) {
+        this.logger.trace(`Matching cancelled agreement ${agreement.id}`)
+        const allocation = allocations.find(
+          (allocation) =>
+            allocation.subgraphDeployment.id.bytes32 ===
+            new SubgraphDeploymentID(agreement.subgraph_deployment_id).bytes32,
+        )
+        if (allocation == null && agreement.current_allocation_id != null) {
+          const actions = await this.models.Action.findAll({
+            where: {
+              deploymentID: agreement.subgraph_deployment_id,
+              status: {
+                [Op.or]: [
+                  ActionStatus.PENDING,
+                  ActionStatus.QUEUED,
+                  ActionStatus.APPROVED,
+                  ActionStatus.DEPLOYING,
+                ],
+              },
+            },
+          })
+          if (actions.length > 0) {
+            this.logger.warn(
+              `Found active actions for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}, skipping matching allocation`,
+            )
+            continue
+          }
+          this.logger.info(
+            `Updating last allocation id for cancelled agreement ${agreement.id}, deployment ${agreement.subgraph_deployment_id}`,
+          )
+          await this.tryUpdateAgreementAllocation(
+            agreement.subgraph_deployment_id,
+            toAddress(agreement.current_allocation_id),
+            null,
+          )
+        }
+      }
+    } catch (err) {
+      // Catch DB fetch / per-iteration failures so a transient issue skips this
+      // tick rather than aborting the entire reconcile cycle for every network.
+      logger.warn('Skipping DIPs allocation match tick due to failure', { err })
     }
   }
 
