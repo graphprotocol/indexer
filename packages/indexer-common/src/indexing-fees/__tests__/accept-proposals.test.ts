@@ -754,5 +754,28 @@ describe('DipsManager.acceptPendingProposals', () => {
       expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
       expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
+
+    test('bypasses gate when indexingPaymentsSubgraph is not configured', async () => {
+      const proposal = createMockProposal()
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtxhash',
+        status: 1,
+      })
+
+      // No offerMonitor passed — DipsManager constructor sets it to null
+      // because createMockNetwork() does not define indexingPaymentsSubgraph.
+      const dm = createDipsManager(network, models, consumer)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      expect((dm as any).offerMonitor).toBeNull()
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
+    })
   })
 })

@@ -48,6 +48,10 @@ import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 const DIPS_ACCEPTANCE_INTERVAL = 5_000
+// When the offer hasn't landed on-chain yet, keep retrying until the RCA
+// deadline is within this window. Inside the window, give up cleanly so
+// reassessment can pick a replacement before the deadline lapses.
+const OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS = 30n
 
 const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
@@ -343,8 +347,7 @@ export class DipsManager {
     if (this.offerMonitor) {
       const offerOnChain = await this.offerMonitor.offerExists(proposal.id)
       if (!offerOnChain) {
-        const safetyMarginSeconds = 30n
-        if (proposal.deadline > now + safetyMarginSeconds) {
+        if (proposal.deadline > now + OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS) {
           this.logger.debug(
             'Offer not yet on-chain, waiting for next acceptance-loop tick',
             {
