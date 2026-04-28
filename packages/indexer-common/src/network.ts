@@ -294,6 +294,7 @@ export class Network {
       networkSubgraph,
       networkProvider,
       epochSubgraph,
+      indexingPaymentsSubgraph,
     )
 
     // * -----------------------------------------------------------------------

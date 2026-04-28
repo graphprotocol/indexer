@@ -1349,6 +1349,17 @@ export class Agent {
         network.specification.networkIdentifier,
       )
     }
+    // Indexing payments subgraph (DIPS)
+    if (
+      network.specification.indexerOptions.enableDips &&
+      network.specification.subgraphs.indexingPaymentsSubgraph?.deployment !==
+        undefined
+    ) {
+      await this.ensureSubgraphIndexing(
+        network.specification.subgraphs.indexingPaymentsSubgraph.deployment,
+        network.specification.networkIdentifier,
+      )
+    }
   }
 }
 

@@ -55,27 +55,31 @@ export class NetworkMonitor {
     private networkSubgraph: SubgraphClient,
     private ethereum: Provider,
     private epochSubgraph: SubgraphClient,
+    private indexingPaymentsSubgraph?: SubgraphClient,
   ) {}
 
   async hasActiveDipsAgreement(allocationId: string): Promise<boolean> {
-    try {
-      const result = await this.networkSubgraph.checkedQuery(
-        gql`
-          query indexingAgreements($allocationId: Bytes!) {
-            indexingAgreements(
-              where: { allocationId: $allocationId, state_not: 0 }
-              first: 1
-            ) {
-              id
-            }
-          }
-        `,
-        { allocationId: allocationId.toLowerCase() },
-      )
-      return (result.data?.indexingAgreements?.length ?? 0) > 0
-    } catch {
+    // No DIPS subgraph configured → no agreement can exist
+    if (!this.indexingPaymentsSubgraph) {
       return false
     }
+    const result = await this.indexingPaymentsSubgraph.checkedQuery(
+      gql`
+        query indexingAgreements($allocationId: Bytes!) {
+          indexingAgreements(
+            where: {
+              allocationId: $allocationId
+              state_in: [Accepted, CanceledByPayer]
+            }
+            first: 1
+          ) {
+            id
+          }
+        }
+      `,
+      { allocationId: allocationId.toLowerCase() },
+    )
+    return (result.data?.indexingAgreements?.length ?? 0) > 0
   }
 
   poiDisputeMonitoringEnabled(): boolean {
