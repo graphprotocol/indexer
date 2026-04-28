@@ -55,6 +55,16 @@ const deploymentInList = (
 ): boolean =>
   list.find(item => item.bytes32 === deployment.bytes32) !== undefined
 
+export function addIndexingPaymentsSubgraphToTarget(
+  enableDips: boolean,
+  deployment: SubgraphDeploymentID | undefined,
+  targetDeployments: SubgraphDeploymentID[],
+): void {
+  if (!enableDips || !deployment) return
+  if (deploymentInList(targetDeployments, deployment)) return
+  targetDeployments.push(deployment)
+}
+
 const deploymentRuleInList = (
   list: IndexingRuleAttributes[],
   deployment: SubgraphDeploymentID,
@@ -907,6 +917,17 @@ export class Agent {
     })
 
     // ----------------------------------------------------------------------------------------
+    // Ensure the indexing-payments subgraph is always indexed when DIPS is enabled
+    // ----------------------------------------------------------------------------------------
+    await this.multiNetworks.map(async ({ network }) => {
+      addIndexingPaymentsSubgraphToTarget(
+        network.specification.indexerOptions.enableDips,
+        network.indexingPaymentsSubgraph?.deployment?.id,
+        targetDeployments,
+      )
+    })
+
+    // ----------------------------------------------------------------------------------------
     // Inspect Deployments and Networks
     // ----------------------------------------------------------------------------------------
     // Ensure all subgraphs in offchain subgraphs list are _always_ indexed
@@ -1325,6 +1346,17 @@ export class Agent {
     if (network.specification.subgraphs.tapSubgraph?.deployment !== undefined) {
       await this.ensureSubgraphIndexing(
         network.specification.subgraphs.tapSubgraph.deployment,
+        network.specification.networkIdentifier,
+      )
+    }
+    // Indexing payments subgraph (DIPS)
+    if (
+      network.specification.indexerOptions.enableDips &&
+      network.specification.subgraphs.indexingPaymentsSubgraph?.deployment !==
+        undefined
+    ) {
+      await this.ensureSubgraphIndexing(
+        network.specification.subgraphs.indexingPaymentsSubgraph.deployment,
         network.specification.networkIdentifier,
       )
     }

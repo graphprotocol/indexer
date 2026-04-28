@@ -198,6 +198,19 @@ export const start = {
         type: 'string',
         group: 'TAP Subgraph',
       })
+      .option('indexing-payments-subgraph-deployment', {
+        description:
+          'Indexing payments subgraph deployment (for local hosting)',
+        array: false,
+        type: 'string',
+        group: 'Indexing Fees ("DIPs")',
+      })
+      .option('indexing-payments-subgraph-endpoint', {
+        description: 'Endpoint to query the indexing payments subgraph from',
+        array: false,
+        type: 'string',
+        group: 'Indexing Fees ("DIPs")',
+      })
       .option('allocate-on-network-subgraph', {
         description: 'Whether to allocate to the network subgraph',
         type: 'boolean',
@@ -434,6 +447,13 @@ export const start = {
         if (argv['enable-dips'] && !argv['dipper-endpoint']) {
           return 'Invalid --dipper-endpoint provided. Must be provided when --enable-dips is true.'
         }
+        if (
+          argv['enable-dips'] &&
+          !argv['indexing-payments-subgraph-endpoint'] &&
+          !argv['indexing-payments-subgraph-deployment']
+        ) {
+          return 'At least one of --indexing-payments-subgraph-endpoint and --indexing-payments-subgraph-deployment must be provided when --enable-dips is true.'
+        }
         return true
       })
   },
@@ -506,6 +526,10 @@ export async function createNetworkSpecification(
     tapSubgraph: {
       deployment: argv.tapSubgraphDeployment,
       url: argv.tapSubgraphEndpoint,
+    },
+    indexingPaymentsSubgraph: {
+      deployment: argv.indexingPaymentsSubgraphDeployment,
+      url: argv.indexingPaymentsSubgraphEndpoint,
     },
   }
 
