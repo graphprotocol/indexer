@@ -174,6 +174,7 @@ export class AllocationManager {
         this.logger,
         this.models,
         this.network,
+        this.graphNode,
         this,
         this.pendingRcaModel,
       )

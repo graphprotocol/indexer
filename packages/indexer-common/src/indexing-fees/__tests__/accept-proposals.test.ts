@@ -168,7 +168,8 @@ function createDipsManager(
   models: IndexerManagementModels,
   consumer: PendingRcaConsumer,
 ): DipsManager {
-  const dm = new DipsManager(logger, models, network, null)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dm = new DipsManager(logger, models, network, {} as any, null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dm as any).pendingRcaConsumer = consumer
   return dm
@@ -246,7 +247,8 @@ describe('DipsManager.acceptPendingProposals', () => {
   test('returns early when pendingRcaConsumer is null', async () => {
     const models = createMockModels()
     const network = createMockNetwork()
-    const dm = new DipsManager(logger, models, network, null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dm = new DipsManager(logger, models, network, {} as any, null)
 
     // Should not throw
     await dm.acceptPendingProposals([])

@@ -727,6 +727,8 @@ export class Agent {
               await operator.dipsManager.matchAgreementAllocations(
                 activeAllocations,
               )
+
+              await operator.dipsManager.collectAgreementPayments()
             }
           },
         )
