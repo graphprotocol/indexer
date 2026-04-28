@@ -67,10 +67,7 @@ export class NetworkMonitor {
       gql`
         query indexingAgreements($allocationId: Bytes!) {
           indexingAgreements(
-            where: {
-              allocationId: $allocationId
-              state_in: [Accepted, CanceledByPayer]
-            }
+            where: { allocationId: $allocationId, state_in: [Accepted, CanceledByPayer] }
             first: 1
           ) {
             id
