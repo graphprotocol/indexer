@@ -185,4 +185,104 @@ describe('DipsManager.collectAgreementPayments', () => {
 
     expect(logger.warn).toHaveBeenCalled()
   })
+
+  test('does not update tracker when network is paused', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+
+    mockGraphNode.entityCount.mockResolvedValue([500])
+    mockGraphNode.blockHashFromNumber.mockResolvedValue('0x' + 'ab'.repeat(32))
+    mockGraphNode.proofOfIndexing.mockResolvedValue('0x' + 'cd'.repeat(32))
+    mockExecuteTransaction.mockResolvedValue('paused')
+
+    const dm = createDipsManager()
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+
+    // Tracker was NOT updated → second call should still attempt collection
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(2)
+  })
+
+  test('does not update tracker when not authorized as operator', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+
+    mockGraphNode.entityCount.mockResolvedValue([500])
+    mockGraphNode.blockHashFromNumber.mockResolvedValue('0x' + 'ab'.repeat(32))
+    mockGraphNode.proofOfIndexing.mockResolvedValue('0x' + 'cd'.repeat(32))
+    mockExecuteTransaction.mockResolvedValue('unauthorized')
+
+    const dm = createDipsManager()
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(2)
+  })
+
+  test('throttles retry after deterministic failure', async () => {
+    const baseTimestamp = 2000000
+    mockNetwork.networkProvider.getBlock = jest
+      .fn()
+      .mockResolvedValueOnce({ timestamp: baseTimestamp })
+      .mockResolvedValueOnce({ timestamp: baseTimestamp + 100 })
+      .mockResolvedValueOnce({ timestamp: baseTimestamp + 901 })
+
+    mockQuery
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+
+    mockGraphNode.entityCount.mockResolvedValue([500])
+    mockGraphNode.blockHashFromNumber.mockResolvedValue('0x' + 'ab'.repeat(32))
+    mockGraphNode.proofOfIndexing.mockResolvedValue('0x' + 'cd'.repeat(32))
+    mockExecuteTransaction
+      .mockRejectedValueOnce(
+        Object.assign(new Error('revert'), { code: 'CALL_EXCEPTION' }),
+      )
+      .mockResolvedValueOnce({ hash: '0xtxhash', status: 1 })
+
+    const dm = createDipsManager()
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+
+    // Within throttle window — should NOT retry
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+
+    // Past throttle window — should retry
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(2)
+  })
+
+  test('throttles retry after transient failure', async () => {
+    const baseTimestamp = 2000000
+    mockNetwork.networkProvider.getBlock = jest
+      .fn()
+      .mockResolvedValueOnce({ timestamp: baseTimestamp })
+      .mockResolvedValueOnce({ timestamp: baseTimestamp + 100 })
+
+    mockQuery
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+      .mockResolvedValueOnce({ data: { indexingAgreements: [makeReadyAgreement()] } })
+
+    mockGraphNode.entityCount.mockResolvedValue([500])
+    mockGraphNode.blockHashFromNumber.mockResolvedValue('0x' + 'ab'.repeat(32))
+    mockGraphNode.proofOfIndexing.mockResolvedValue('0x' + 'cd'.repeat(32))
+    mockExecuteTransaction.mockRejectedValueOnce(new Error('network timeout'))
+
+    const dm = createDipsManager()
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+
+    await dm.collectAgreementPayments()
+    expect(mockExecuteTransaction).toHaveBeenCalledTimes(1)
+  })
 })

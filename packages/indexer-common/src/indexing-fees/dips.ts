@@ -45,6 +45,8 @@ import {
 import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
+// POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
+const RECENT_BLOCK_OFFSET = 10
 
 const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
@@ -525,24 +527,29 @@ export class DipsManager {
 
     for (const agreement of readyAgreements) {
       try {
-        await this.tryCollectAgreement(agreement, blockNumber, logger)
-        this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
-      } catch (err) {
-        if (this.isDeterministicError(err)) {
-          const parsedError = tryParseCustomError(err)
-          logger.warn('Deterministic error collecting agreement, skipping', {
-            agreementId: agreement.id,
-            error: parsedError,
-          })
-        } else {
-          const errorMsg = err instanceof Error ? err.message : String(err)
-          const errorStack = err instanceof Error ? err.stack : undefined
-          logger.warn('Transient error collecting agreement, will retry', {
-            agreementId: agreement.id,
-            error: errorMsg,
-            stack: errorStack,
-          })
+        const result = await this.tryCollectAgreement(agreement, blockNumber, logger)
+        if (result === 'collected') {
+          this.collectionTracker.updateAfterCollection(agreement.id, nowSeconds)
         }
+        // 'paused' / 'unauthorized' are pre-flight checks; no on-chain attempt was
+        // made, so don't bump the tracker. Next tick will retry immediately.
+      } catch (err) {
+        const isDeterministic = this.isDeterministicError(err)
+        const errorDetail = isDeterministic
+          ? tryParseCustomError(err)
+          : err instanceof Error
+          ? err.message
+          : String(err)
+        // Throttle the retry so we don't hammer the chain on every poll cycle.
+        // Deterministic errors during collection are typically recoverable
+        // (subgraph sync, allocation reconcile, provision changes), so we
+        // don't auto-cancel; we just slow down.
+        this.collectionTracker.markAttempted(agreement.id, nowSeconds)
+        logger.warn('Failed to collect agreement, will retry after throttle', {
+          agreementId: agreement.id,
+          error: errorDetail,
+          deterministic: isDeterministic,
+        })
       }
     }
   }
@@ -551,12 +558,12 @@ export class DipsManager {
     agreement: SubgraphIndexingAgreement,
     blockNumber: number,
     logger: Logger,
-  ): Promise<void> {
+  ): Promise<'collected' | 'paused' | 'unauthorized'> {
     const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
     const entityCounts = await this.graphNode.entityCount([deploymentId])
     const entities = entityCounts[0]
 
-    const recentBlock = blockNumber - 10
+    const recentBlock = blockNumber - RECENT_BLOCK_OFFSET
     const { network: networkAlias } = await this.graphNode.subgraphFeatures(deploymentId)
     const blockHash = await this.graphNode.blockHashFromNumber(networkAlias!, recentBlock)
     const poi = await this.graphNode.proofOfIndexing(
@@ -610,7 +617,7 @@ export class DipsManager {
         agreementId: agreement.id,
         result: receipt,
       })
-      return
+      return receipt
     }
 
     logger.info('Successfully collected indexing fees', {
@@ -619,6 +626,7 @@ export class DipsManager {
       deployment: deploymentId.ipfsHash,
       entities,
     })
+    return 'collected'
   }
 
   private async handleAcceptError(
