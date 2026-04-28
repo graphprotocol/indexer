@@ -1214,15 +1214,6 @@ export class AllocationManager {
 
     await upsertIndexingRule(logger, this.models, neverIndexingRule)
 
-    if (this.dipsManager) {
-      await this.dipsManager.tryCancelAgreement(allocationID)
-      await this.dipsManager.tryUpdateAgreementAllocation(
-        allocation.subgraphDeployment.id.toString(),
-        toAddress(allocationID),
-        null,
-      )
-    }
-
     return {
       actionID,
       type: 'unallocate',
