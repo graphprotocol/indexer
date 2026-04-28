@@ -216,11 +216,8 @@ export class DipsManager {
           identifierType: SubgraphIdentifierType.DEPLOYMENT,
         },
       })
-      const blocklistedRule = allDeploymentRules.find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 ===
-            subgraphDeploymentID.bytes32 &&
-          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      const blocklistedRule = allDeploymentRules.find((rule) =>
+        this.isOnChainOptOutRule(rule, subgraphDeploymentID),
       )
 
       if (blocklistedRule) {
@@ -559,11 +556,8 @@ export class DipsManager {
       const subgraphDeploymentID = new SubgraphDeploymentID(
         agreement.subgraphDeploymentId,
       )
-      const blocklistedRule = allDeploymentRules.find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 ===
-            subgraphDeploymentID.bytes32 &&
-          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      const blocklistedRule = allDeploymentRules.find((rule) =>
+        this.isOnChainOptOutRule(rule, subgraphDeploymentID),
       )
 
       if (blocklistedRule) {
@@ -772,6 +766,17 @@ export class DipsManager {
     return typedError?.code === 'CALL_EXCEPTION'
   }
 
+  private isOnChainOptOutRule(
+    rule: IndexingRuleAttributes,
+    deploymentId: SubgraphDeploymentID,
+  ): boolean {
+    return (
+      new SubgraphDeploymentID(rule.identifier).bytes32 === deploymentId.bytes32 &&
+      (rule.decisionBasis === IndexingDecisionBasis.NEVER ||
+        rule.decisionBasis === IndexingDecisionBasis.OFFCHAIN)
+    )
+  }
+
   private async cleanupDipsRule(
     consumer: PendingRcaConsumer,
     proposal: DecodedRcaProposal,
@@ -832,11 +837,8 @@ export class DipsManager {
           identifierType: SubgraphIdentifierType.DEPLOYMENT,
         },
       })
-      const blocklistedRule = allDeploymentRules.find(
-        (rule) =>
-          new SubgraphDeploymentID(rule.identifier).bytes32 ===
-            subgraphDeploymentID.bytes32 &&
-          rule.decisionBasis === IndexingDecisionBasis.NEVER,
+      const blocklistedRule = allDeploymentRules.find((rule) =>
+        this.isOnChainOptOutRule(rule, subgraphDeploymentID),
       )
       if (blocklistedRule) {
         this.logger.info(

@@ -683,7 +683,28 @@ describe('DipsManager', () => {
         expect(cancelSpy).toHaveBeenCalledWith(mockAgreement.id, mockAgreement)
       })
 
-      test('does not cancel agreements without NEVER rule', async () => {
+      test('cancels agreements with OFFCHAIN rule for their deployment', async () => {
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).toHaveBeenCalledTimes(1)
+        expect(cancelSpy).toHaveBeenCalledWith(mockAgreement.id, mockAgreement)
+      })
+
+      test('does not cancel agreements without NEVER or OFFCHAIN rule', async () => {
         const cancelSpy = jest
           .spyOn(dipsManager, 'cancelAgreement')
           .mockResolvedValue(true)
