@@ -107,4 +107,76 @@ describe('CollectionTracker', () => {
       expect(tracker.isReadyForCollection('0x01', NOW)).toBe(false)
     })
   })
+
+  describe('retry throttle', () => {
+    test('markAttempted blocks getReadyAgreements within throttle window', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      expect(tracker.getReadyAgreements(NOW)).toEqual(['0x01'])
+
+      tracker.markAttempted('0x01', NOW)
+      expect(tracker.getReadyAgreements(NOW + 100)).toEqual([])
+      expect(tracker.getReadyAgreements(NOW + 899)).toEqual([])
+    })
+
+    test('markAttempted releases agreement after throttle window', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+
+      expect(tracker.getReadyAgreements(NOW + 901)).toEqual(['0x01'])
+    })
+
+    test('isReadyForCollection respects throttle', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+
+      expect(tracker.isReadyForCollection('0x01', NOW + 100)).toBe(false)
+      expect(tracker.isReadyForCollection('0x01', NOW + 901)).toBe(true)
+    })
+
+    test('updateAfterCollection clears lastAttemptedAt', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+      expect(tracker.getReadyAgreements(NOW + 100)).toEqual([])
+
+      tracker.updateAfterCollection('0x01', NOW + 50)
+      // After success, throttle is cleared. minSecondsPerCollection (3600) now governs.
+      // 100 seconds elapsed → not ready by min-collection time, not by throttle.
+      expect(tracker.getReadyAgreements(NOW + 50 + 100)).toEqual([])
+      // 50000 seconds elapsed → past target, throttle is cleared.
+      expect(tracker.getReadyAgreements(NOW + 50 + 50000)).toEqual(['0x01'])
+    })
+
+    test('track from subgraph preserves lastAttemptedAt when lastCollectedAt unchanged', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+
+      // Re-track with same lastCollectedAt (subgraph hasn't caught up)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      expect(tracker.getReadyAgreements(NOW + 100)).toEqual([])
+    })
+
+    test('track from subgraph clears lastAttemptedAt when lastCollectedAt advances', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT, 900)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+
+      // Subgraph shows a newer collection (e.g. via different path)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 100 }))
+      // Throttle cleared — but minSecondsPerCollection (3600) still blocks
+      expect(tracker.getReadyAgreements(NOW + 100)).toEqual([])
+    })
+
+    test('default throttle is 15 minutes when not specified', () => {
+      const tracker = new CollectionTracker(DEFAULT_TARGET_PCT)
+      tracker.track('0x01', makeState({ lastCollectedAt: NOW - 50000 }))
+      tracker.markAttempted('0x01', NOW)
+      expect(tracker.getReadyAgreements(NOW + 14 * 60)).toEqual([])
+      expect(tracker.getReadyAgreements(NOW + 15 * 60 + 1)).toEqual(['0x01'])
+    })
+  })
 })
