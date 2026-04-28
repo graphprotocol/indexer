@@ -1,11 +1,17 @@
 import gql from 'graphql-tag'
 import { SubgraphClient } from '../subgraph-client'
 
+export type AgreementState =
+  | 'NotAccepted'
+  | 'Accepted'
+  | 'CanceledByServiceProvider'
+  | 'CanceledByPayer'
+
 export interface SubgraphIndexingAgreement {
   id: string
   allocationId: string
   subgraphDeploymentId: string
-  state: number
+  state: AgreementState
   lastCollectionAt: string
   endsAt: string
   maxInitialTokens: string
@@ -20,7 +26,7 @@ export interface SubgraphIndexingAgreement {
 const INDEXING_AGREEMENTS_QUERY = gql`
   query indexingAgreements($indexer: String!, $lastId: String!) {
     indexingAgreements(
-      where: { serviceProvider: $indexer, state_in: [1, 3], id_gt: $lastId }
+      where: { indexer: $indexer, state_in: [Accepted, CanceledByPayer], id_gt: $lastId }
       orderBy: id
       orderDirection: asc
       first: 1000
@@ -43,14 +49,14 @@ const INDEXING_AGREEMENTS_QUERY = gql`
 `
 
 export async function fetchCollectableAgreements(
-  networkSubgraph: SubgraphClient,
+  subgraphClient: SubgraphClient,
   indexerAddress: string,
 ): Promise<SubgraphIndexingAgreement[]> {
   const all: SubgraphIndexingAgreement[] = []
   let lastId = ''
 
   for (;;) {
-    const result = await networkSubgraph.query(INDEXING_AGREEMENTS_QUERY, {
+    const result = await subgraphClient.query(INDEXING_AGREEMENTS_QUERY, {
       indexer: indexerAddress.toLowerCase(),
       lastId,
     })
