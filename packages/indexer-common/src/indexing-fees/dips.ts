@@ -57,6 +57,9 @@ const uuidToHex = (uuid: string) => {
   return `0x${uuid.replace(/-/g, '')}`
 }
 
+const elapsedMs = (start: bigint): number =>
+  Number(process.hrtime.bigint() - start) / 1_000_000
+
 const normalizeAddressForDB = (address: string) => {
   return toAddress(address).toLowerCase().replace('0x', '')
 }
@@ -311,6 +314,17 @@ export class DipsManager {
     activeAllocations: Allocation[],
   ): Promise<void> {
     const now = BigInt(Math.floor(Date.now() / 1000))
+    const t0 = process.hrtime.bigint()
+    const phases: Record<string, number> = {}
+    const logSummary = (outcome: string) => {
+      this.logger.info('processProposal completed', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        outcome,
+        phases,
+        totalMs: elapsedMs(t0),
+      })
+    }
 
     if (proposal.deadline <= now) {
       this.logger.info('Rejecting proposal: deadline expired', {
@@ -320,6 +334,7 @@ export class DipsManager {
       })
       await consumer.markRejected(proposal.id, 'deadline_expired')
       await this.cleanupDipsRule(consumer, proposal)
+      logSummary('rejected_deadline_expired')
       return
     }
 
@@ -327,8 +342,11 @@ export class DipsManager {
     // loop: the accept tx can confirm and clear the pending row before the next
     // reconcile tick, which would leave the rule uncreated and graph-node never
     // told to deploy the subgraph.
+    const tRule = process.hrtime.bigint()
     const shouldProceed = await this.ensureDipsRuleForProposal(proposal)
+    phases.ruleMs = elapsedMs(tRule)
     if (!shouldProceed) {
+      logSummary('rejected_blocklisted')
       return
     }
 
@@ -345,7 +363,9 @@ export class DipsManager {
     // configured, in which case we preserve the prior behaviour (try and
     // fail on the revert).
     if (this.offerMonitor) {
+      const tOffer = process.hrtime.bigint()
       const offerOnChain = await this.offerMonitor.offerExists(proposal.id)
+      phases.offerMs = elapsedMs(tOffer)
       if (!offerOnChain) {
         if (proposal.deadline > now + OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS) {
           this.logger.debug(
@@ -356,6 +376,7 @@ export class DipsManager {
               now: now.toString(),
             },
           )
+          logSummary('waiting_for_offer')
           return
         }
         this.logger.warn(
@@ -368,6 +389,7 @@ export class DipsManager {
         )
         await consumer.markRejected(proposal.id, 'offer_never_landed')
         await this.cleanupDipsRule(consumer, proposal)
+        logSummary('rejected_offer_never_landed')
         return
       }
     }
@@ -377,20 +399,31 @@ export class DipsManager {
     // for the deployment; if graph-node has never been told to deploy it,
     // indexingStatus is undefined and `failsHealthCheck` triggers a spurious
     // unallocate of the allocation we just created. `ensure` is idempotent.
+    const tEnsure = process.hrtime.bigint()
     await this.graphNode.ensure(
       `indexer-agent/${proposal.subgraphDeploymentId.ipfsHash.slice(-10)}`,
       proposal.subgraphDeploymentId,
     )
+    phases.ensureMs = elapsedMs(tEnsure)
 
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
     )
 
+    const tAccept = process.hrtime.bigint()
     if (allocation) {
       await this.acceptWithExistingAllocation(consumer, proposal, allocation)
     } else {
       await this.acceptWithNewAllocation(consumer, proposal, activeAllocations)
     }
+    phases.acceptMs = elapsedMs(tAccept)
+    // Outcome is neutral here because acceptWithExistingAllocation /
+    // acceptWithNewAllocation handle their own errors internally via
+    // handleAcceptError (never rethrow). The "Proposal accepted on-chain",
+    // "Rejecting proposal: deterministic contract error", and "Transient
+    // error accepting proposal, will retry" log lines emitted from inside
+    // those paths disambiguate what actually happened.
+    logSummary('accept_attempted')
   }
 
   private async acceptWithExistingAllocation(
