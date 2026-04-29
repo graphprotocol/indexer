@@ -20,6 +20,7 @@ import {
   SubgraphIdentifierType,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
+import pMap from 'p-map'
 import { Op } from 'sequelize'
 
 import {
@@ -48,6 +49,15 @@ import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 const DIPS_ACCEPTANCE_INTERVAL = 5_000
+// Cap on how many proposals one accept-loop tick will work on in parallel.
+// processProposal is mostly chain-bound (offer-existence query, accept tx,
+// receipt wait), and each proposal targets a different agreementId so there
+// is no shared mutable state across them. The wallet's nonce queue inside
+// transactionManager.executeTransaction handles ordering of submissions;
+// nonce collisions retry transparently. Kept small enough that one bad
+// in-flight call doesn't head-of-line everything else but large enough to
+// remove the per-tick serial bottleneck observed at 50-request scale.
+const DIPS_ACCEPT_CONCURRENCY = 4
 // When the offer hasn't landed on-chain yet, keep retrying until the RCA
 // deadline is within this window. Inside the window, give up cleanly so
 // reassessment can pick a replacement before the deadline lapses.
@@ -1247,22 +1257,32 @@ export class DipsManager {
 
         this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
           count: proposals.length,
+          concurrency: DIPS_ACCEPT_CONCURRENCY,
         })
 
         const activeAllocations = await this.network.networkMonitor.allocations(
           AllocationStatus.ACTIVE,
         )
 
-        for (const proposal of proposals) {
-          try {
-            await this.processProposal(consumer, proposal, activeAllocations)
-          } catch (error) {
-            this.logger.error('Unexpected error processing proposal', {
-              proposalId: proposal.id,
-              error,
-            })
-          }
-        }
+        // Run up to DIPS_ACCEPT_CONCURRENCY proposals in parallel. Each
+        // processProposal call targets a distinct agreementId and has no
+        // shared mutable state with the others. Per-proposal failures are
+        // already isolated by handleAcceptError; the explicit try/catch
+        // here defends against any unexpected throw escaping that.
+        await pMap(
+          proposals,
+          async (proposal) => {
+            try {
+              await this.processProposal(consumer, proposal, activeAllocations)
+            } catch (error) {
+              this.logger.error('Unexpected error processing proposal', {
+                proposalId: proposal.id,
+                error,
+              })
+            }
+          },
+          { concurrency: DIPS_ACCEPT_CONCURRENCY, stopOnError: false },
+        )
       },
       {
         onError: (err) => {
