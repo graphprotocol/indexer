@@ -254,6 +254,37 @@ export class DipsManager {
       return false
     }
 
+    // Deploy the subgraph to graph-node before the accept multicall creates
+    // the allocation on-chain. The main reconcile loop reads
+    // `graph_node.indexingStatus` for the deployment; if graph-node has
+    // never been told to deploy it, indexingStatus is undefined and
+    // `failsHealthCheck` triggers a spurious unallocate of the allocation
+    // we just created. `ensure` is idempotent.
+    //
+    // Calling ensure here (once per proposal) rather than inside
+    // processProposal (once per pending RCA tick) means the cold-deploy
+    // cost is paid at most once per (deployment, proposal) — and across
+    // multiple candidates on the same deployment, graph-node naturally
+    // dedupes the deploy. At 50-request scale this is the difference
+    // between paying the cold-deploy cost ~25 times per indexer (per
+    // pending tick) and paying it once per deployment.
+    try {
+      await this.graphNode.ensure(
+        `indexer-agent/${subgraphDeploymentID.ipfsHash.slice(-10)}`,
+        subgraphDeploymentID,
+      )
+    } catch (err) {
+      this.logger.warn(
+        'graphNode.ensure failed, leaving proposal pending for retry',
+        {
+          proposalId: proposal.id,
+          deployment: subgraphDeploymentID.toString(),
+          err,
+        },
+      )
+      return false
+    }
+
     if (!ruleExists) {
       this.logger.info(
         `Creating indexing rule for proposal ${
@@ -394,17 +425,9 @@ export class DipsManager {
       }
     }
 
-    // Deploy the subgraph to graph-node before the accept multicall creates the
-    // allocation on-chain. The main reconcile loop reads `graph_node.indexingStatus`
-    // for the deployment; if graph-node has never been told to deploy it,
-    // indexingStatus is undefined and `failsHealthCheck` triggers a spurious
-    // unallocate of the allocation we just created. `ensure` is idempotent.
-    const tEnsure = process.hrtime.bigint()
-    await this.graphNode.ensure(
-      `indexer-agent/${proposal.subgraphDeploymentId.ipfsHash.slice(-10)}`,
-      proposal.subgraphDeploymentId,
-    )
-    phases.ensureMs = elapsedMs(tEnsure)
+    // graphNode.ensure used to live here; it now runs once per proposal
+    // inside ensureDipsRuleForProposal so the cold-deploy cost is paid at
+    // rule-creation time rather than for every accept-loop tick.
 
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
