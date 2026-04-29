@@ -185,4 +185,3 @@ describe('DipsManager.sweepDipsAllocations', () => {
     expect(destroy).not.toHaveBeenCalled()
   })
 })
-
