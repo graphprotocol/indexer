@@ -877,6 +877,27 @@ export class DipsManager {
     proposal: DecodedRcaProposal,
     error: unknown,
   ): Promise<void> {
+    // ABI-level mismatches (wrong function fragment, wrong argument shape)
+    // are deterministic — retrying for the full RCA deadline only burns the
+    // budget without ever succeeding. Mark rejected immediately so dipper
+    // reassessment can pick a working candidate. See BUG-015 for the
+    // failure-mode this guards against (NPM-published @graphprotocol/interfaces
+    // ABI lagging the audit-branch contract signature).
+    const abiMismatchReason = this.classifyAbiMismatch(error)
+    if (abiMismatchReason !== null) {
+      const callException = error as { code?: string; message?: string }
+      this.logger.warn('Rejecting proposal: ABI mismatch (non-recoverable)', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        reason: abiMismatchReason,
+        ethersCode: callException.code ?? null,
+        errorMessage: callException.message ?? null,
+      })
+      await consumer.markRejected(proposal.id, abiMismatchReason)
+      await this.cleanupDipsRule(consumer, proposal)
+      return
+    }
+
     if (this.isDeterministicError(error)) {
       const parsedError = tryParseCustomError(error)
       const callException = error as {
@@ -902,6 +923,20 @@ export class DipsManager {
         error,
       })
     }
+  }
+
+  private classifyAbiMismatch(error: unknown): string | null {
+    const typedError = error as { code?: string; operation?: string }
+    if (
+      typedError?.code === 'UNSUPPORTED_OPERATION' &&
+      typedError?.operation === 'fragment'
+    ) {
+      return 'abi_fragment_mismatch'
+    }
+    if (typedError?.code === 'INVALID_ARGUMENT') {
+      return 'abi_invalid_argument'
+    }
+    return null
   }
 
   private isDeterministicError(error: unknown): boolean {
