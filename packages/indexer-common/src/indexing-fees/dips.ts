@@ -17,6 +17,7 @@ import {
   SubgraphIdentifierType,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
+import pMap from 'p-map'
 
 import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
 import { OfferMonitor } from './offer-monitor'
@@ -35,10 +36,17 @@ import { CollectionTracker } from './collection-tracker'
 const DIPS_ACCEPTANCE_INTERVAL = 5_000
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
 const RECENT_BLOCK_OFFSET = 10
+// Per-tick parallelism cap. Proposals target distinct agreementIds and the
+// wallet's nonce queue serialises submissions, so concurrent processProposal
+// calls are safe; small enough that a stuck call doesn't head-of-line others.
+const DIPS_ACCEPT_CONCURRENCY = 4
 // When the offer hasn't landed on-chain yet, keep retrying until the RCA
 // deadline is within this window. Inside the window, give up cleanly so
 // reassessment can pick a replacement before the deadline lapses.
 const OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS = 30n
+
+const elapsedMs = (start: bigint): number =>
+  Number(process.hrtime.bigint() - start) / 1_000_000
 
 export class DipsManager {
   declare pendingRcaConsumer: PendingRcaConsumer
@@ -155,6 +163,15 @@ export class DipsManager {
     if (ruleExists) {
       return
     }
+
+    // Deploy must precede the on-chain allocation: reconcile reads
+    // graph_node.indexingStatus, and an undefined status triggers
+    // failsHealthCheck → spurious unallocate. Idempotent; graph-node
+    // dedupes redundant calls across proposals sharing a deployment.
+    await this.graphNode.ensure(
+      `indexer-agent/${deploymentId.ipfsHash.slice(-10)}`,
+      deploymentId,
+    )
 
     const { amount } = await this.getDipsAllocationAmount(deploymentId)
     this.logger.info(
@@ -280,6 +297,17 @@ export class DipsManager {
     activeAllocations: Allocation[],
   ): Promise<void> {
     const now = BigInt(Math.floor(Date.now() / 1000))
+    const t0 = process.hrtime.bigint()
+    const phases: Record<string, number> = {}
+    const logSummary = (outcome: string) => {
+      this.logger.info('processProposal completed', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        outcome,
+        phases,
+        totalMs: elapsedMs(t0),
+      })
+    }
 
     if (proposal.deadline <= now) {
       this.logger.info('Rejecting proposal: deadline expired', {
@@ -289,6 +317,7 @@ export class DipsManager {
       })
       await consumer.markRejected(proposal.id, 'deadline_expired')
       await this.cleanupDipsRule(consumer, proposal)
+      logSummary('rejected_deadline_expired')
       return
     }
 
@@ -296,6 +325,7 @@ export class DipsManager {
     // loop: the accept tx can confirm and clear the pending row before the next
     // reconcile tick, which would leave the rule uncreated and graph-node never
     // told to deploy the subgraph.
+    const tRule = process.hrtime.bigint()
     const allDeploymentRules = await this.models.IndexingRule.findAll({
       where: { identifierType: SubgraphIdentifierType.DEPLOYMENT },
     })
@@ -309,6 +339,8 @@ export class DipsManager {
         }`,
       )
       await consumer.markRejected(proposal.id, 'deployment blocklisted')
+      phases.ruleMs = elapsedMs(tRule)
+      logSummary('rejected_blocklisted')
       return
     }
     await this.upsertDipsRuleFor(proposal.subgraphDeploymentId, {
@@ -317,6 +349,7 @@ export class DipsManager {
         Number(proposal.maxSecondsPerCollection),
       ),
     })
+    phases.ruleMs = elapsedMs(tRule)
 
     // Gate accept on the on-chain offer existing. If dipper's offer() tx was
     // evicted (nonce collision, gas spike), rcaOffers is empty and
@@ -324,7 +357,9 @@ export class DipsManager {
     // a transient state, retry next tick. Inside the safety margin, give up
     // so reassessment can pick a replacement before the deadline lapses.
     if (this.offerMonitor) {
+      const tOffer = process.hrtime.bigint()
       const offerOnChain = await this.offerMonitor.offerExists(proposal.id)
+      phases.offerMs = elapsedMs(tOffer)
       if (!offerOnChain) {
         if (proposal.deadline > now + OFFER_GATE_DEADLINE_SAFETY_MARGIN_SECONDS) {
           this.logger.debug(
@@ -335,6 +370,7 @@ export class DipsManager {
               now: now.toString(),
             },
           )
+          logSummary('waiting_for_offer')
           return
         }
         this.logger.warn(
@@ -347,29 +383,25 @@ export class DipsManager {
         )
         await consumer.markRejected(proposal.id, 'offer_never_landed')
         await this.cleanupDipsRule(consumer, proposal)
+        logSummary('rejected_offer_never_landed')
         return
       }
     }
-
-    // Deploy the subgraph to graph-node before the accept multicall creates the
-    // allocation on-chain. The main reconcile loop reads `graph_node.indexingStatus`
-    // for the deployment; if graph-node has never been told to deploy it,
-    // indexingStatus is undefined and `failsHealthCheck` triggers a spurious
-    // unallocate of the allocation we just created. `ensure` is idempotent.
-    await this.graphNode.ensure(
-      `indexer-agent/${proposal.subgraphDeploymentId.ipfsHash.slice(-10)}`,
-      proposal.subgraphDeploymentId,
-    )
 
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
     )
 
+    const tAccept = process.hrtime.bigint()
     if (allocation) {
       await this.acceptWithExistingAllocation(consumer, proposal, allocation)
     } else {
       await this.acceptWithNewAllocation(consumer, proposal, activeAllocations)
     }
+    phases.acceptMs = elapsedMs(tAccept)
+    // The accept helpers swallow errors via handleAcceptError; per-outcome
+    // log lines from inside them tell the actual story.
+    logSummary('accept_attempted')
   }
 
   private async acceptWithExistingAllocation(
@@ -857,6 +889,24 @@ export class DipsManager {
     proposal: DecodedRcaProposal,
     error: unknown,
   ): Promise<void> {
+    // ABI-level mismatches are deterministic; retrying for the full RCA
+    // deadline only burns the budget. Mark rejected immediately so dipper
+    // reassessment can pick a working candidate.
+    const abiMismatchReason = this.classifyAbiMismatch(error)
+    if (abiMismatchReason !== null) {
+      const callException = error as { code?: string; message?: string }
+      this.logger.warn('Rejecting proposal: ABI mismatch (non-recoverable)', {
+        proposalId: proposal.id,
+        deployment: proposal.subgraphDeploymentId.ipfsHash,
+        reason: abiMismatchReason,
+        ethersCode: callException.code ?? null,
+        errorMessage: callException.message ?? null,
+      })
+      await consumer.markRejected(proposal.id, abiMismatchReason)
+      await this.cleanupDipsRule(consumer, proposal)
+      return
+    }
+
     if (this.isDeterministicError(error)) {
       const parsedError = tryParseCustomError(error)
       const callException = error as {
@@ -882,6 +932,20 @@ export class DipsManager {
         error,
       })
     }
+  }
+
+  private classifyAbiMismatch(error: unknown): string | null {
+    const typedError = error as { code?: string; operation?: string }
+    if (
+      typedError?.code === 'UNSUPPORTED_OPERATION' &&
+      typedError?.operation === 'fragment'
+    ) {
+      return 'abi_fragment_mismatch'
+    }
+    if (typedError?.code === 'INVALID_ARGUMENT') {
+      return 'abi_invalid_argument'
+    }
+    return null
   }
 
   private isDeterministicError(error: unknown): boolean {
@@ -950,22 +1014,32 @@ export class DipsManager {
 
         this.logger.info('Processing pending RCA proposals for on-chain acceptance', {
           count: proposals.length,
+          concurrency: DIPS_ACCEPT_CONCURRENCY,
         })
 
         const activeAllocations = await this.network.networkMonitor.allocations(
           AllocationStatus.ACTIVE,
         )
 
-        for (const proposal of proposals) {
-          try {
-            await this.processProposal(consumer, proposal, activeAllocations)
-          } catch (error) {
-            this.logger.error('Unexpected error processing proposal', {
-              proposalId: proposal.id,
-              error,
-            })
-          }
-        }
+        // Run up to DIPS_ACCEPT_CONCURRENCY proposals in parallel. Each
+        // processProposal call targets a distinct agreementId and has no
+        // shared mutable state with the others. Per-proposal failures are
+        // already isolated by handleAcceptError; the explicit try/catch
+        // here defends against any unexpected throw escaping that.
+        await pMap(
+          proposals,
+          async (proposal) => {
+            try {
+              await this.processProposal(consumer, proposal, activeAllocations)
+            } catch (error) {
+              this.logger.error('Unexpected error processing proposal', {
+                proposalId: proposal.id,
+                error,
+              })
+            }
+          },
+          { concurrency: DIPS_ACCEPT_CONCURRENCY, stopOnError: false },
+        )
       },
       {
         onError: (err) => {
