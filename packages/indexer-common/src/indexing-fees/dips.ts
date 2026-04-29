@@ -20,6 +20,7 @@ import {
   SubgraphIdentifierType,
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
+import gql from 'graphql-tag'
 import pMap from 'p-map'
 import { Op } from 'sequelize'
 
@@ -49,6 +50,12 @@ import { CollectionTracker } from './collection-tracker'
 
 const DIPS_COLLECTION_INTERVAL = 60_000
 const DIPS_ACCEPTANCE_INTERVAL = 5_000
+const DIPS_SWEEP_INTERVAL = 60_000
+// If the indexing-payments-subgraph is more than this many seconds behind
+// wall-clock, treat its data as unreliable and skip the sweep this tick.
+// Normal indexing lag should never approach this; anything older indicates
+// the subgraph is broken / paused / disconnected.
+const DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS = 300
 // Cap on how many proposals one accept-loop tick will work on in parallel.
 // processProposal is mostly chain-bound (offer-existence query, accept tx,
 // receipt wait), and each proposal targets a different agreementId so there
@@ -1287,6 +1294,172 @@ export class DipsManager {
       {
         onError: (err) => {
           this.logger.error('Failed to process pending RCA proposals', { err })
+        },
+      },
+    )
+  }
+
+  /**
+   * Query the indexing-payments-subgraph for the agent's accepted agreements
+   * and the subgraph's current chain timestamp. Used by the allocation
+   * sweep to verify that each `dips`-basis indexing rule has a paying
+   * agreement backing it.
+   */
+  async fetchAcceptedAgreementsForSelf(): Promise<{
+    deployments: Set<string>
+    blockTimestamp: number | null
+  }> {
+    if (!this.network.indexingPaymentsSubgraph) {
+      return { deployments: new Set(), blockTimestamp: null }
+    }
+    const indexer =
+      this.network.specification.indexerOptions.address.toLowerCase()
+    const result = await this.network.indexingPaymentsSubgraph.query(
+      gql`
+        query selfAgreements($indexer: String!) {
+          _meta {
+            block {
+              timestamp
+            }
+          }
+          indexingAgreements(
+            where: { indexer: $indexer, state: Accepted }
+            first: 1000
+          ) {
+            id
+            subgraphDeploymentId
+          }
+        }
+      `,
+      { indexer },
+    )
+    if (result.error) {
+      throw new Error(`indexing-payments query failed: ${result.error}`)
+    }
+    const data = result.data ?? {}
+    const deployments = new Set<string>(
+      (data.indexingAgreements ?? []).map(
+        (a: { subgraphDeploymentId: string }) =>
+          a.subgraphDeploymentId.toLowerCase(),
+      ),
+    )
+    const blockTimestamp = data._meta?.block?.timestamp ?? null
+    return { deployments, blockTimestamp }
+  }
+
+  /**
+   * Reconcile local `dips`-basis indexing rules against the
+   * indexing-payments-subgraph. Each rule represents a deployment the
+   * agent allocated to as part of a DIPs agreement. If the subgraph
+   * cannot confirm an Accepted agreement for that deployment, the rule
+   * is stale (the agent is allocated without payment, e.g. because
+   * dipper marked the agreement Expired or the original on-chain accept
+   * never linked back). The rule is deleted; the agent's normal
+   * reconciliation closes the allocation through its existing path.
+   *
+   * The subgraph block timestamp is checked first: if the subgraph is
+   * far behind wall-clock, the sweep is skipped this tick so we never
+   * disable rules based on stale data.
+   */
+  async sweepDipsAllocations(): Promise<void> {
+    if (!this.network.indexingPaymentsSubgraph) {
+      return
+    }
+    const logger = this.logger.child({ function: 'sweepDipsAllocations' })
+
+    let acceptedDeployments: Set<string>
+    let blockTimestamp: number | null
+    try {
+      const result = await this.fetchAcceptedAgreementsForSelf()
+      acceptedDeployments = result.deployments
+      blockTimestamp = result.blockTimestamp
+    } catch (err) {
+      logger.warn('Skipping DIPs allocation sweep: subgraph query failed', {
+        err,
+      })
+      return
+    }
+
+    if (blockTimestamp === null) {
+      logger.warn(
+        'Skipping DIPs allocation sweep: indexing-payments subgraph returned no _meta timestamp',
+      )
+      return
+    }
+
+    const nowSeconds = Math.floor(Date.now() / 1000)
+    const lag = nowSeconds - Number(blockTimestamp)
+    if (lag > DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS) {
+      logger.warn(
+        'Skipping DIPs allocation sweep: indexing-payments subgraph is stale',
+        {
+          subgraphTimestamp: blockTimestamp,
+          nowSeconds,
+          lagSeconds: lag,
+          thresholdSeconds: DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS,
+        },
+      )
+      return
+    }
+
+    const dipsRules = await this.models.IndexingRule.findAll({
+      where: {
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      },
+    })
+
+    let removed = 0
+    for (const rule of dipsRules) {
+      const deploymentBytes32 = new SubgraphDeploymentID(rule.identifier).bytes32
+      const deploymentLower = deploymentBytes32.toLowerCase()
+      if (acceptedDeployments.has(deploymentLower)) {
+        continue
+      }
+      logger.warn(
+        'Removing DIPs indexing rule with no backing agreement in indexing-payments-subgraph',
+        {
+          deployment: rule.identifier,
+          subgraphTimestamp: blockTimestamp,
+        },
+      )
+      await this.models.IndexingRule.destroy({ where: { id: rule.id } })
+      removed += 1
+    }
+
+    if (removed > 0) {
+      logger.info('DIPs allocation sweep removed stale rules', {
+        removed,
+        rulesChecked: dipsRules.length,
+        acceptedAgreements: acceptedDeployments.size,
+      })
+    } else {
+      logger.debug('DIPs allocation sweep: all dips rules backed', {
+        rulesChecked: dipsRules.length,
+        acceptedAgreements: acceptedDeployments.size,
+      })
+    }
+  }
+
+  startAllocationSweepLoop() {
+    if (!this.network.indexingPaymentsSubgraph) {
+      this.logger.debug(
+        'No indexing-payments-subgraph configured, skipping DIPs allocation sweep loop',
+      )
+      return
+    }
+
+    sequentialTimerMap(
+      {
+        logger: this.logger,
+        milliseconds: DIPS_SWEEP_INTERVAL,
+      },
+      async () => {
+        await this.sweepDipsAllocations()
+      },
+      {
+        onError: (err) => {
+          this.logger.error('DIPs allocation sweep tick failed', { err })
         },
       },
     )
