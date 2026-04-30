@@ -731,13 +731,6 @@ export class Agent {
                 activeAllocations,
               )
 
-              this.logger.debug(
-                `Matching agreement allocations for network ${network.specification.networkIdentifier}`,
-              )
-              await operator.dipsManager.matchAgreementAllocations(
-                activeAllocations,
-              )
-
               await operator.dipsManager.collectAgreementPayments()
             }
           },
