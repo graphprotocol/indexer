@@ -149,13 +149,158 @@ export class DipsManager {
       )
       return
     }
-
-    // Use PendingRcaConsumer if available, otherwise fall back to old IndexingAgreement model
-    if (this.pendingRcaConsumer) {
-      await this.ensureAgreementRulesFromRca()
-    } else {
-      await this.ensureAgreementRulesFromLegacy()
+    if (!this.pendingRcaConsumer) {
+      throw new Error(
+        'DipsManager.ensureAgreementRules requires pendingRcaConsumer (pendingRcaModel must be wired)',
+      )
     }
+
+    const { fromPendingProposals, fromActiveAgreements, deployments } =
+      await this.getDipsTargetDeployments()
+
+    this.logger.debug(
+      `Ensuring DIPS indexing rules: ${fromPendingProposals.length} pending, ` +
+        `${fromActiveAgreements.length} active accepted, ${deployments.length} unique deployments`,
+    )
+
+    const allDeploymentRules = await this.models.IndexingRule.findAll({
+      where: { identifierType: SubgraphIdentifierType.DEPLOYMENT },
+    })
+
+    // Ensure a DIPS rule exists per target deployment
+    for (const proposal of fromPendingProposals) {
+      const deploymentId = proposal.subgraphDeploymentId
+      const blocklisted = allDeploymentRules.find((r) =>
+        this.isOnChainOptOutRule(r, deploymentId),
+      )
+      if (blocklisted) {
+        this.logger.info(
+          `Blocklisted deployment ${deploymentId.toString()}, rejecting proposal ${
+            proposal.id
+          }`,
+        )
+        await this.pendingRcaConsumer.markRejected(proposal.id, 'deployment blocklisted')
+        continue
+      }
+      await this.upsertDipsRuleFor(deploymentId, {
+        allocationLifetime: Math.max(
+          Number(proposal.minSecondsPerCollection),
+          Number(proposal.maxSecondsPerCollection),
+        ),
+      })
+    }
+
+    for (const agreement of fromActiveAgreements) {
+      const deploymentId = new SubgraphDeploymentID(agreement.subgraphDeploymentId)
+      const blocklisted = allDeploymentRules.find((r) =>
+        this.isOnChainOptOutRule(r, deploymentId),
+      )
+      if (blocklisted) {
+        // Cannot undo on-chain acceptance via a local rule; cancelBlocklistedAgreements
+        // (in collectAgreementPayments) handles the on-chain cancel separately.
+        this.logger.debug(
+          `Blocklisted accepted agreement ${agreement.id}; rule creation skipped`,
+        )
+        continue
+      }
+      await this.upsertDipsRuleFor(deploymentId, {
+        allocationLifetime: Math.max(
+          Number(agreement.minSecondsPerCollection),
+          Number(agreement.maxSecondsPerCollection),
+        ),
+      })
+    }
+
+    // Drop DIPS rules whose deployment is no longer in the target set.
+    const targetSet = new Set(deployments.map((d) => d.bytes32))
+    const dipsRules = await this.models.IndexingRule.findAll({
+      where: {
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+      },
+    })
+    for (const rule of dipsRules) {
+      const ruleDeploymentId = new SubgraphDeploymentID(rule.identifier)
+      if (!targetSet.has(ruleDeploymentId.bytes32)) {
+        this.logger.info(
+          `Removing stale DIPS indexing rule for deployment ${ruleDeploymentId.toString()}`,
+        )
+        await this.models.IndexingRule.destroy({ where: { id: rule.id } })
+      }
+    }
+  }
+
+  private async upsertDipsRuleFor(
+    deploymentId: SubgraphDeploymentID,
+    opts: { allocationLifetime: number },
+  ): Promise<void> {
+    const ruleExists = await this.parent!.matchingRuleExists(this.logger, deploymentId)
+    if (ruleExists) {
+      return
+    }
+
+    const { amount } = await this.getDipsAllocationAmount(deploymentId)
+    this.logger.info(
+      `Creating DIPS indexing rule for deployment ${deploymentId.toString()}`,
+    )
+    await upsertIndexingRule(this.logger, this.models, {
+      identifier: deploymentId.ipfsHash,
+      allocationAmount: formatGRT(amount),
+      identifierType: SubgraphIdentifierType.DEPLOYMENT,
+      decisionBasis: IndexingDecisionBasis.DIPS,
+      protocolNetwork: this.network.specification.networkIdentifier,
+      autoRenewal: true,
+      allocationLifetime: opts.allocationLifetime,
+      requireSupported: false,
+    } as Partial<IndexingRuleAttributes>)
+  }
+
+  private async getDipsTargetDeployments(): Promise<{
+    fromPendingProposals: DecodedRcaProposal[]
+    fromActiveAgreements: SubgraphIndexingAgreement[]
+    deployments: SubgraphDeploymentID[]
+  }> {
+    const fromPendingProposals = this.pendingRcaConsumer
+      ? await this.pendingRcaConsumer.getPendingProposals()
+      : []
+
+    let fromActiveAgreements: SubgraphIndexingAgreement[] = []
+    if (this.network.indexingPaymentsSubgraph) {
+      const indexerAddress = this.network.specification.indexerOptions.address
+      const all = await fetchCollectableAgreements(
+        this.network.indexingPaymentsSubgraph,
+        indexerAddress,
+      )
+      const nowSeconds = Math.floor(Date.now() / 1000)
+      fromActiveAgreements = all.filter(
+        (a) =>
+          a.state === 'Accepted' &&
+          (Number(a.endsAt) === 0 || Number(a.endsAt) > nowSeconds),
+      )
+    } else {
+      this.logger.warn(
+        'Indexing payments subgraph not configured; only pending proposals will drive DIPS rules',
+      )
+    }
+
+    const seen = new Set<string>()
+    const deployments: SubgraphDeploymentID[] = []
+    for (const p of fromPendingProposals) {
+      const key = p.subgraphDeploymentId.bytes32
+      if (!seen.has(key)) {
+        seen.add(key)
+        deployments.push(p.subgraphDeploymentId)
+      }
+    }
+    for (const a of fromActiveAgreements) {
+      const id = new SubgraphDeploymentID(a.subgraphDeploymentId)
+      if (!seen.has(id.bytes32)) {
+        seen.add(id.bytes32)
+        deployments.push(id)
+      }
+    }
+
+    return { fromPendingProposals, fromActiveAgreements, deployments }
   }
 
   private async getDipsAllocationAmount(
@@ -187,67 +332,6 @@ export class DipsManager {
     return {
       amount: BigInt(this.network.specification.indexerOptions.defaultAllocationAmount),
       isDenied,
-    }
-  }
-
-  private async ensureAgreementRulesFromRca() {
-    const proposals = await this.pendingRcaConsumer!.getPendingProposals()
-    this.logger.debug(
-      `Ensuring indexing rules for ${proposals.length} pending RCA proposal${
-        proposals.length === 1 ? '' : 's'
-      }`,
-    )
-
-    for (const proposal of proposals) {
-      const subgraphDeploymentID = proposal.subgraphDeploymentId
-      this.logger.info(
-        `Checking if indexing rule exists for proposal ${
-          proposal.id
-        }, deployment ${subgraphDeploymentID.toString()}`,
-      )
-
-      const ruleExists = await this.parent!.matchingRuleExists(
-        this.logger,
-        subgraphDeploymentID,
-      )
-
-      const allDeploymentRules = await this.models.IndexingRule.findAll({
-        where: {
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        },
-      })
-      const blocklistedRule = allDeploymentRules.find((rule) =>
-        this.isOnChainOptOutRule(rule, subgraphDeploymentID),
-      )
-
-      if (blocklistedRule) {
-        this.logger.info(
-          `Blocklisted deployment ${subgraphDeploymentID.toString()}, rejecting proposal`,
-        )
-        await this.pendingRcaConsumer!.markRejected(proposal.id, 'deployment blocklisted')
-      } else if (!ruleExists) {
-        this.logger.info(
-          `Creating indexing rule for proposal ${
-            proposal.id
-          }, deployment ${subgraphDeploymentID.toString()}`,
-        )
-        const { amount } = await this.getDipsAllocationAmount(subgraphDeploymentID)
-        const indexingRule = {
-          identifier: subgraphDeploymentID.ipfsHash,
-          allocationAmount: formatGRT(amount),
-          identifierType: SubgraphIdentifierType.DEPLOYMENT,
-          decisionBasis: IndexingDecisionBasis.DIPS,
-          protocolNetwork: this.network.specification.networkIdentifier,
-          autoRenewal: true,
-          allocationLifetime: Math.max(
-            Number(proposal.minSecondsPerCollection),
-            Number(proposal.maxSecondsPerCollection),
-          ),
-          requireSupported: false,
-        } as Partial<IndexingRuleAttributes>
-
-        await upsertIndexingRule(this.logger, this.models, indexingRule)
-      }
     }
   }
 
@@ -922,15 +1006,14 @@ export class DipsManager {
     }
   }
   async getActiveDipsDeployments(): Promise<SubgraphDeploymentID[]> {
-    // Get all the indexing agreements that are not cancelled
-    const indexingAgreements = await this.models.IndexingAgreement.findAll({
-      where: {
-        cancelled_at: null,
-      },
-    })
-    return indexingAgreements.map(
-      (agreement) => new SubgraphDeploymentID(agreement.subgraph_deployment_id),
-    )
+    if (!this.pendingRcaConsumer) {
+      this.logger.warn(
+        'getActiveDipsDeployments called without pendingRcaConsumer; returning empty set',
+      )
+      return []
+    }
+    const { deployments } = await this.getDipsTargetDeployments()
+    return deployments
   }
   async matchAgreementAllocations(allocations: Allocation[]) {
     const indexingAgreements = await this.models.IndexingAgreement.findAll({
