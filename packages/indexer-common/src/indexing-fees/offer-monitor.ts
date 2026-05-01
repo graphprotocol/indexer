@@ -43,18 +43,18 @@ export class OfferMonitor {
         id: toBytes16Id(agreementId),
       })
       if (result.error) {
-        this.logger.debug(
-          'Offer existence check failed (will retry on next tick)',
-          { agreementId, err: result.error },
-        )
+        this.logger.debug('Offer existence check failed (will retry on next tick)', {
+          agreementId,
+          err: result.error,
+        })
         return false
       }
       return Boolean(result.data?.offer)
     } catch (err) {
-      this.logger.debug(
-        'Offer existence check threw (will retry on next tick)',
-        { agreementId, err },
-      )
+      this.logger.debug('Offer existence check threw (will retry on next tick)', {
+        agreementId,
+        err,
+      })
       return false
     }
   }

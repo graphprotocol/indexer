@@ -1,6 +1,7 @@
 name: Indexer Agent Image
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main

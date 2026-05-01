@@ -1069,8 +1069,7 @@ export class DipsManager {
     if (!this.network.indexingPaymentsSubgraph) {
       return { deployments: new Set(), blockTimestamp: null }
     }
-    const indexer =
-      this.network.specification.indexerOptions.address.toLowerCase()
+    const indexer = this.network.specification.indexerOptions.address.toLowerCase()
     const result = await this.network.indexingPaymentsSubgraph.query(
       gql`
         query selfAgreements($indexer: String!) {
@@ -1079,10 +1078,7 @@ export class DipsManager {
               timestamp
             }
           }
-          indexingAgreements(
-            where: { indexer: $indexer, state: Accepted }
-            first: 1000
-          ) {
+          indexingAgreements(where: { indexer: $indexer, state: Accepted }, first: 1000) {
             id
             subgraphDeploymentId
           }
@@ -1095,9 +1091,8 @@ export class DipsManager {
     }
     const data = result.data ?? {}
     const deployments = new Set<string>(
-      (data.indexingAgreements ?? []).map(
-        (a: { subgraphDeploymentId: string }) =>
-          a.subgraphDeploymentId.toLowerCase(),
+      (data.indexingAgreements ?? []).map((a: { subgraphDeploymentId: string }) =>
+        a.subgraphDeploymentId.toLowerCase(),
       ),
     )
     const blockTimestamp = data._meta?.block?.timestamp ?? null
@@ -1147,15 +1142,12 @@ export class DipsManager {
     const nowSeconds = Math.floor(Date.now() / 1000)
     const lag = nowSeconds - Number(blockTimestamp)
     if (lag > DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS) {
-      logger.warn(
-        'Skipping DIPs allocation sweep: indexing-payments subgraph is stale',
-        {
-          subgraphTimestamp: blockTimestamp,
-          nowSeconds,
-          lagSeconds: lag,
-          thresholdSeconds: DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS,
-        },
-      )
+      logger.warn('Skipping DIPs allocation sweep: indexing-payments subgraph is stale', {
+        subgraphTimestamp: blockTimestamp,
+        nowSeconds,
+        lagSeconds: lag,
+        thresholdSeconds: DIPS_SWEEP_STALENESS_THRESHOLD_SECONDS,
+      })
       return
     }
 

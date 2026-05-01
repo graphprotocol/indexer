@@ -13,9 +13,7 @@ describe('OfferMonitor', () => {
     const subgraph = { query } as never
     const monitor = new OfferMonitor(logger, subgraph)
 
-    const exists = await monitor.offerExists(
-      'bea99452-e465-e9d9-8a79-2356edcc7e92',
-    )
+    const exists = await monitor.offerExists('bea99452-e465-e9d9-8a79-2356edcc7e92')
 
     expect(exists).toBe(true)
     expect(query).toHaveBeenCalledTimes(1)
@@ -41,23 +39,17 @@ describe('OfferMonitor', () => {
     const subgraph = { query } as never
     const monitor = new OfferMonitor(logger, subgraph)
 
-    const exists = await monitor.offerExists(
-      'bea99452-e465-e9d9-8a79-2356edcc7e92',
-    )
+    const exists = await monitor.offerExists('bea99452-e465-e9d9-8a79-2356edcc7e92')
 
     expect(exists).toBe(false)
   })
 
   it('treats subgraph errors as transient (not yet on-chain)', async () => {
-    const query = jest
-      .fn()
-      .mockResolvedValue({ error: new Error('subgraph hiccup') })
+    const query = jest.fn().mockResolvedValue({ error: new Error('subgraph hiccup') })
     const subgraph = { query } as never
     const monitor = new OfferMonitor(logger, subgraph)
 
-    const exists = await monitor.offerExists(
-      'bea99452-e465-e9d9-8a79-2356edcc7e92',
-    )
+    const exists = await monitor.offerExists('bea99452-e465-e9d9-8a79-2356edcc7e92')
 
     expect(exists).toBe(false)
   })
