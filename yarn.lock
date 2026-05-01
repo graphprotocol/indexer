@@ -612,10 +612,10 @@
     split2 "^3.1.1"
     through2 "^3.0.1"
 
-"@graphprotocol/toolshed@1.2.1-dips.1":
-  version "1.2.1-dips.1"
-  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.2.1-dips.1.tgz#ec4ccac30734ca359d11ee7c9ee1f9cf50e0208d"
-  integrity sha512-Uh78GLIRHVwr8fWlM9J+8QxDCr+BMXa0nTaNx7tEr+m04e+j8sDX0J1QgSVacq0veaq4j8HackqNm0W6kbD7Iw==
+"@graphprotocol/toolshed@1.2.1-dips.2":
+  version "1.2.1-dips.2"
+  resolved "https://registry.yarnpkg.com/@graphprotocol/toolshed/-/toolshed-1.2.1-dips.2.tgz#0772e76888141c9235a66dda5204c99ef877e8ca"
+  integrity sha512-LO7SANPH2HLe01M+D60MuYESqxlq7bywzegHpiLqCz94JEI7q/iDG15SUr2Hwr42mreJ+1fD5U03ASQbo5ZpUQ==
   dependencies:
     "@graphprotocol/address-book" "^1.2.0"
     "@graphprotocol/interfaces" "^0.7.1-dips.0"
