@@ -417,6 +417,15 @@ export const start = {
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
+      .option('dips-collection-slippage', {
+        description:
+          'Maximum tolerated slippage between expected and collected tokens, as a percentage of expected (0-100). ' +
+          'Slippage occurs when payer-side RCA caps narrow the data-service price; this is the indexer\'s stop-loss.',
+        type: 'number',
+        default: 1,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -501,6 +510,7 @@ export async function createNetworkSpecification(
     ravCheckInterval: argv.ravCheckInterval,
     dipsEpochsMargin: argv.dipsEpochsMargin,
     dipsCollectionTarget: argv.dipsCollectionTarget,
+    dipsCollectionSlippage: argv.dipsCollectionSlippage,
   }
 
   const transactionMonitoring = {

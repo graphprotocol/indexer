@@ -786,11 +786,26 @@ export class DipsManager {
     const effectivePoi =
       poi || '0x0000000000000000000000000000000000000000000000000000000000000000'
 
+    // Mirror SubgraphService._tokensToCollect to compute the data-service ask, then derive
+    // an absolute slippage cap as a percentage of that ask. Slippage = ask − payer-cap;
+    // dipsCollectionSlippage is the largest fraction of the ask we'll accept losing to
+    // the payer's RCA limits in a single collection.
+    const [, collectionSeconds] =
+      await this.network.contracts.RecurringCollector.getCollectionInfo(agreement.id)
+    const expectedTokens =
+      collectionSeconds *
+      (BigInt(agreement.tokensPerSecond) +
+        BigInt(agreement.tokensPerEntityPerSecond) * BigInt(entities))
+    const slippagePct = BigInt(
+      this.network.specification.indexerOptions.dipsCollectionSlippage,
+    )
+    const maxSlippage = (expectedTokens * slippagePct) / 100n
+
     const abiCoder = AbiCoder.defaultAbiCoder()
 
     const collectData = abiCoder.encode(
       ['tuple(uint256,bytes32,uint256,bytes,uint256)'],
-      [[entities, effectivePoi, recentBlock, '0x', 0]],
+      [[entities, effectivePoi, recentBlock, '0x', maxSlippage]],
     )
 
     const data = abiCoder.encode(['bytes16', 'bytes'], [agreement.id, collectData])
