@@ -450,10 +450,13 @@ export async function createNetworkSpecification(
       deployment: argv.epochSubgraphDeployment,
       url: argv.epochSubgraphEndpoint,
     },
-    tapSubgraph: {
-      deployment: argv.tapSubgraphDeployment,
-      url: argv.tapSubgraphEndpoint,
-    },
+    tapSubgraph:
+      argv.tapSubgraphDeployment || argv.tapSubgraphEndpoint
+        ? {
+            deployment: argv.tapSubgraphDeployment,
+            url: argv.tapSubgraphEndpoint,
+          }
+        : undefined,
   }
 
   const networkProvider = {
