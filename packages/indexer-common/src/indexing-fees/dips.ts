@@ -789,8 +789,8 @@ export class DipsManager {
     const abiCoder = AbiCoder.defaultAbiCoder()
 
     const collectData = abiCoder.encode(
-      ['uint256', 'bytes32', 'uint256', 'bytes', 'uint256'],
-      [entities, effectivePoi, recentBlock, '0x', 0],
+      ['tuple(uint256,bytes32,uint256,bytes,uint256)'],
+      [[entities, effectivePoi, recentBlock, '0x', 0]],
     )
 
     const data = abiCoder.encode(['bytes16', 'bytes'], [agreement.id, collectData])
