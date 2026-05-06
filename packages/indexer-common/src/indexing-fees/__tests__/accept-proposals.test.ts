@@ -43,6 +43,7 @@ function createMockProposal(
         maxOngoingTokensPerSecond: 100n,
         minSecondsPerCollection: 3600n,
         maxSecondsPerCollection: 86400n,
+        conditions: 0n,
         nonce: 42n,
         metadata: '0x',
       },
