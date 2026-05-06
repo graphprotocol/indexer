@@ -18,11 +18,16 @@ const mockNetworkSubgraph = { query: mockQuery } as any
 const mockCollectEstimateGas = jest.fn()
 const mockCollect = jest.fn()
 
+const mockGetCollectionInfo = jest.fn().mockResolvedValue([true, 1000n, 0])
+
 const mockContracts = {
   SubgraphService: {
     collect: Object.assign(mockCollect, {
       estimateGas: mockCollectEstimateGas,
     }),
+  },
+  RecurringCollector: {
+    getCollectionInfo: mockGetCollectionInfo,
   },
 } as any
 
@@ -48,6 +53,7 @@ const mockNetwork = {
       address: '0x1234567890abcdef1234567890abcdef12345678',
       dipperEndpoint: undefined,
       dipsCollectionTarget: 50,
+      dipsCollectionSlippage: 1,
     },
     networkIdentifier: 'eip155:421614',
   },

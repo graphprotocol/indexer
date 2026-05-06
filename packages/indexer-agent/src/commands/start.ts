@@ -420,7 +420,7 @@ export const start = {
       .option('dips-collection-slippage', {
         description:
           'Maximum tolerated slippage between expected and collected tokens, as a percentage of expected (0-100). ' +
-          'Slippage occurs when payer-side RCA caps narrow the data-service price; this is the indexer\'s stop-loss.',
+          "Slippage occurs when payer-side RCA caps narrow the data-service price; this is the indexer's stop-loss.",
         type: 'number',
         default: 1,
         required: false,
