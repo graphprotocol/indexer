@@ -79,6 +79,7 @@ export const IndexerOptions = z
     ravCollectionInterval: positiveNumber().default(14400),
     dipsEpochsMargin: positiveNumber().default(1),
     dipsCollectionTarget: positiveNumber().min(1).max(90).default(50),
+    dipsCollectionSlippage: positiveNumber().min(0).max(100).default(1),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
