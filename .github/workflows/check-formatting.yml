@@ -15,7 +15,11 @@ jobs:
         uses: actions/setup-node@v2.1.5
         with:
           node-version: 20
+      - name: Enable Corepack and set exact yarn version
+        run: |
+          corepack enable
+          yarn set version 1.22.22
       - name: Build and Format
-        run: yarn
+        run: yarn install --frozen-lockfile
       - name: Check Formatting
-        run: git diff --exit-code
+        run: git diff --exit-code -- ':!yarn.lock'
