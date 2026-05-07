@@ -3,7 +3,6 @@ import {
   Logger,
   parseGRT,
   SubgraphDeploymentID,
-  toAddress,
 } from '@graphprotocol/common-ts'
 import {
   Action,
@@ -167,7 +166,7 @@ export class AllocationManager {
     private network: Network,
     private pendingRcaModel?: typeof PendingRcaProposal,
   ) {
-    if (this.network.specification.indexerOptions.dipperEndpoint) {
+    if (this.network.specification.indexerOptions.enableDips) {
       this.dipsManager = new DipsManager(
         this.logger,
         this.models,
@@ -1651,10 +1650,7 @@ export class AllocationManager {
     // We intentionally don't check if the allocation is active now because it will be checked
     // later, when we prepare the transaction.
 
-    if (
-      action.type === ActionType.UNALLOCATE ||
-      action.type === ActionType.RESIZE
-    ) {
+    if (action.type === ActionType.UNALLOCATE || action.type === ActionType.RESIZE) {
       // Ensure this Action have a valid allocationID
       if (action.allocationID === null || action.allocationID === undefined) {
         throw Error(

@@ -822,7 +822,7 @@ export class DipsManager {
       }
     }
   }
-  
+
   async getActiveDipsDeployments(): Promise<SubgraphDeploymentID[]> {
     if (!this.pendingRcaConsumer) {
       this.logger.warn(

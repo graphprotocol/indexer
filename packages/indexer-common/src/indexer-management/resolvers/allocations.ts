@@ -1027,12 +1027,7 @@ export default {
       amount: string
       protocolNetwork: string
     },
-    {
-      multiNetworks,
-      graphNode,
-      logger,
-      models,
-    }: IndexerManagementResolverContext,
+    { multiNetworks, graphNode, logger, models }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', {
       deployment,

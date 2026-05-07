@@ -52,7 +52,6 @@ const networkSpecWithDips = {
   indexerOptions: {
     ...testNetworkSpecification.indexerOptions,
     enableDips: true,
-    dipperEndpoint: 'https://test-dipper-endpoint.xyz',
     dipsAllocationAmount: parseGRT('1.0'), // Amount of GRT to allocate for DIPs
     dipsEpochsMargin: 1, // Optional: Number of epochs margin for DIPs
   },
@@ -204,7 +203,6 @@ describe('DipsManager', () => {
         allocationManager,
         pendingRcaModel,
       )
-
     })
 
     test('creates DIPS indexing rule for a pending RCA proposal', async () => {

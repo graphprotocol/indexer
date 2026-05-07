@@ -51,7 +51,6 @@ const mockNetwork = {
   specification: {
     indexerOptions: {
       address: '0x1234567890abcdef1234567890abcdef12345678',
-      dipperEndpoint: undefined,
       dipsCollectionTarget: 50,
       dipsCollectionSlippage: 1,
     },

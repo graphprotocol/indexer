@@ -87,5 +87,4 @@ describe('validateActionInputs DIPS agreement protection', () => {
 
     expect(monitor.hasActiveDipsAgreement).not.toHaveBeenCalled()
   })
-
 })
