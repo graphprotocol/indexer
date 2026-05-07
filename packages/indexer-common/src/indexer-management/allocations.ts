@@ -164,7 +164,7 @@ export class AllocationManager {
     private models: IndexerManagementModels,
     private graphNode: GraphNode,
     private network: Network,
-    private pendingRcaModel?: typeof PendingRcaProposal,
+    private pendingRcaModel: typeof PendingRcaProposal,
   ) {
     if (this.network.specification.indexerOptions.enableDips) {
       this.dipsManager = new DipsManager(

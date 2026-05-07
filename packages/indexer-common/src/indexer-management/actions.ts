@@ -39,7 +39,7 @@ export class ActionManager {
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
-    pendingRcaModel?: typeof PendingRcaProposal,
+    pendingRcaModel: typeof PendingRcaProposal,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
     actionManager.multiNetworks = multiNetworks

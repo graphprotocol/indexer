@@ -33,7 +33,7 @@ import { CollectionTracker } from './collection-tracker'
 const RECENT_BLOCK_OFFSET = 10
 
 export class DipsManager {
-  declare pendingRcaConsumer: PendingRcaConsumer | null
+  declare pendingRcaConsumer: PendingRcaConsumer
   declare collectionTracker: CollectionTracker
   constructor(
     private logger: Logger,
@@ -41,15 +41,9 @@ export class DipsManager {
     private network: Network,
     private graphNode: GraphNode,
     private parent: AllocationManager | null,
-    pendingRcaModel?: typeof PendingRcaProposal,
+    pendingRcaModel: typeof PendingRcaProposal,
   ) {
-    // Pending RCA consumer — new data source for ensureAgreementRules()
-    if (pendingRcaModel) {
-      this.pendingRcaConsumer = new PendingRcaConsumer(this.logger, pendingRcaModel)
-    } else {
-      this.pendingRcaConsumer = null
-    }
-
+    this.pendingRcaConsumer = new PendingRcaConsumer(this.logger, pendingRcaModel)
     this.collectionTracker = new CollectionTracker(
       this.network.specification.indexerOptions.dipsCollectionTarget,
     )
@@ -60,11 +54,6 @@ export class DipsManager {
         'DipsManager has no parent AllocationManager, cannot ensure agreement rules',
       )
       return
-    }
-    if (!this.pendingRcaConsumer) {
-      throw new Error(
-        'DipsManager.ensureAgreementRules requires pendingRcaConsumer (pendingRcaModel must be wired)',
-      )
     }
 
     const { fromPendingProposals, fromActiveAgreements, deployments } =
@@ -172,9 +161,7 @@ export class DipsManager {
     fromActiveAgreements: SubgraphIndexingAgreement[]
     deployments: SubgraphDeploymentID[]
   }> {
-    const fromPendingProposals = this.pendingRcaConsumer
-      ? await this.pendingRcaConsumer.getPendingProposals()
-      : []
+    const fromPendingProposals = await this.pendingRcaConsumer.getPendingProposals()
 
     let fromActiveAgreements: SubgraphIndexingAgreement[] = []
     if (this.network.indexingPaymentsSubgraph) {
@@ -248,9 +235,6 @@ export class DipsManager {
   }
 
   async acceptPendingProposals(activeAllocations: Allocation[]): Promise<void> {
-    if (!this.pendingRcaConsumer) {
-      return
-    }
     const consumer = this.pendingRcaConsumer
 
     const proposals = await consumer.getPendingProposals()
@@ -824,12 +808,6 @@ export class DipsManager {
   }
 
   async getActiveDipsDeployments(): Promise<SubgraphDeploymentID[]> {
-    if (!this.pendingRcaConsumer) {
-      this.logger.warn(
-        'getActiveDipsDeployments called without pendingRcaConsumer; returning empty set',
-      )
-      return []
-    }
     const { deployments } = await this.getDipsTargetDeployments()
     return deployments
   }

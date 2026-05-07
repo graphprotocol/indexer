@@ -557,7 +557,7 @@ export interface IndexerManagementClientOptions {
   multiNetworks: MultiNetworks<Network> | undefined
   defaults: IndexerManagementDefaults
   actionManager?: ActionManager | undefined
-  pendingRcaModel?: typeof PendingRcaProposal
+  pendingRcaModel: typeof PendingRcaProposal
 }
 
 export class IndexerManagementClient extends Client {

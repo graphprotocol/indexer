@@ -69,7 +69,14 @@ const mockModels = {
 } as any
 
 function createDipsManager(): DipsManager {
-  return new DipsManager(logger, mockModels, mockNetwork, mockGraphNode, null)
+  return new DipsManager(
+    logger,
+    mockModels,
+    mockNetwork,
+    mockGraphNode,
+    null,
+    {} as any,
+  )
 }
 
 // Helper: agreement that was last collected long ago (ready to collect)

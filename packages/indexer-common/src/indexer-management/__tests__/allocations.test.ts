@@ -9,6 +9,7 @@ import {
   Network,
   QueryFeeModels,
 } from '@graphprotocol/indexer-common'
+import { definePendingRcaProposalModel } from '../models/pending-rca-proposal'
 import {
   connectDatabase,
   createLogger,
@@ -49,6 +50,7 @@ const setup = async () => {
   sequelize = await connectDatabase(__DATABASE__)
   managementModels = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
   sequelize = await sequelize.sync({ force: true })
 
   const graphNode = new GraphNode(
@@ -75,6 +77,7 @@ const setup = async () => {
     managementModels,
     graphNode,
     network,
+    pendingRcaModel,
   )
 }
 

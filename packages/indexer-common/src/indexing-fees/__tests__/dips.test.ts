@@ -129,6 +129,7 @@ const setup = async () => {
       },
     },
     multiNetworks,
+    pendingRcaModel,
   })
 
   operator = new Operator(logger, indexerManagementClient, networkSpecWithDips)

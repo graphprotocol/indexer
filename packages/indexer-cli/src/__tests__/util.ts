@@ -11,6 +11,7 @@ import {
   createIndexerManagementClient,
   createIndexerManagementServer,
   defineIndexerManagementModels,
+  definePendingRcaProposalModel,
   defineQueryFeeModels,
   GraphNode,
   IndexerManagementClient,
@@ -90,6 +91,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
   sequelize = await connectDatabase(__DATABASE__)
   models = defineIndexerManagementModels(sequelize)
   queryFeeModels = defineQueryFeeModels(sequelize)
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
   metrics = createMetrics()
   // Clearing the registry prevents duplicate metric registration in the default registry.
   metrics.registry.clear()
@@ -139,6 +141,7 @@ export const setup = async (multiNetworksEnabled: boolean) => {
     logger,
     defaults,
     multiNetworks,
+    pendingRcaModel,
   })
 
   server = await createIndexerManagementServer({
