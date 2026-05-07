@@ -26,11 +26,9 @@ import {
   Metrics,
   parseGRT,
   SubgraphDeploymentID,
-  toAddress,
 } from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
 import { testNetworkSpecification } from '../../indexer-management/__tests__/util'
-import { CollectPaymentStatus } from '@graphprotocol/dips-proto/generated/gateway'
 
 // Make global Jest variables available
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -163,9 +161,6 @@ const teardownEach = async () => {
   await managementModels.IndexingRule.truncate({ cascade: true })
   await managementModels.POIDispute.truncate({ cascade: true })
 
-  // Clear out indexing agreement model
-  await managementModels.IndexingAgreement.truncate({ cascade: true })
-
   await pendingRcaModel.truncate({ cascade: true })
 }
 
@@ -182,48 +177,6 @@ describe('DipsManager', () => {
   // We have been rate-limited on CI as this test uses RPC providers,
   // so we set its timeout to a higher value than usual.
   jest.setTimeout(30_000)
-
-  describe('initialization', () => {
-    test('creates DipsManager when dipperEndpoint is configured', () => {
-      const dipsManager = new DipsManager(
-        logger,
-        managementModels,
-        network,
-        graphNode,
-        null,
-      )
-      expect(dipsManager).toBeDefined()
-    })
-
-    test('creates DipsManager without gRPC client when dipperEndpoint is not configured', async () => {
-      const specWithoutDipper = {
-        ...testNetworkSpecification,
-        indexerOptions: {
-          ...testNetworkSpecification.indexerOptions,
-          dipperEndpoint: undefined,
-        },
-      }
-
-      metrics.registry.clear()
-      const networkWithoutDipper = await Network.create(
-        logger,
-        specWithoutDipper,
-        managementModels,
-        queryFeeModels,
-        graphNode,
-        metrics,
-      )
-      const dipsManager = new DipsManager(
-        logger,
-        managementModels,
-        networkWithoutDipper,
-        graphNode,
-        null,
-      )
-      expect(dipsManager).toBeDefined()
-      expect(dipsManager.gatewayDipsServiceClient).toBeUndefined()
-    })
-  })
 
   describe('agreement management', () => {
     let dipsManager: DipsManager
@@ -252,85 +205,6 @@ describe('DipsManager', () => {
         pendingRcaModel,
       )
 
-      // Create a test agreement
-      await managementModels.IndexingAgreement.create({
-        id: testAgreementId,
-        subgraph_deployment_id: testDeploymentId,
-        current_allocation_id: testAllocationId,
-        last_allocation_id: null,
-        last_payment_collected_at: null,
-        cancelled_at: null,
-        min_epochs_per_collection: BigInt(1),
-        max_epochs_per_collection: BigInt(5),
-        payer: '123456df40c29949a75a6693c77834c00b8a5678',
-        signature: Buffer.from('1234', 'hex'),
-        signed_payload: Buffer.from('5678', 'hex'),
-        protocol_network: 'arbitrum-sepolia',
-        chain_id: 'eip155:1',
-        base_price_per_epoch: '100',
-        price_per_entity: '1',
-        service: 'deadbedf40c29949a75a2293c11834c00b8a1234',
-        payee: '1212564f40c29949a75a3423c11834c00b8aaaaa',
-        deadline: new Date(Date.now() + 86400000), // 1 day from now
-        duration_epochs: BigInt(10),
-        max_initial_amount: '1000',
-        max_ongoing_amount_per_epoch: '100',
-        created_at: new Date(),
-        updated_at: new Date(),
-        signed_cancellation_payload: null,
-      })
-    })
-
-    test('cancels agreement when allocation is closed', async () => {
-      const client = dipsManager.gatewayDipsServiceClient
-
-      client.CancelAgreement = jest.fn().mockResolvedValue({})
-
-      await dipsManager.tryCancelAgreement(testAllocationId)
-
-      // Verify the client was called with correct parameters
-      expect((client.CancelAgreement as jest.Mock).mock.calls.length).toBe(1)
-      // TODO: Check the signed cancellation payload
-      expect((client.CancelAgreement as jest.Mock).mock.calls[0][0]).toEqual({
-        version: 1,
-        signedCancellation: expect.any(Uint8Array),
-      })
-
-      const agreement = await managementModels.IndexingAgreement.findOne({
-        where: { id: testAgreementId },
-      })
-      expect(agreement?.cancelled_at).toBeDefined()
-    })
-
-    test('handles errors when cancelling agreement', async () => {
-      const client = dipsManager.gatewayDipsServiceClient
-      client.CancelAgreement = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('Failed to cancel'))
-
-      await dipsManager.tryCancelAgreement(testAllocationId)
-
-      const agreement = await managementModels.IndexingAgreement.findOne({
-        where: { id: testAgreementId },
-      })
-      expect(agreement?.cancelled_at).toBeNull()
-    })
-
-    test('updates agreement allocation IDs during reallocation', async () => {
-      const newAllocationId = '5678bedf40c29945678a2293c15678c00b8a5678'
-
-      await dipsManager.tryUpdateAgreementAllocation(
-        testDeploymentId,
-        toAddress(testAllocationId),
-        toAddress(newAllocationId),
-      )
-
-      const agreement = await managementModels.IndexingAgreement.findOne({
-        where: { id: testAgreementId },
-      })
-      expect(agreement?.current_allocation_id).toBe(toAddress(newAllocationId))
-      expect(agreement?.last_allocation_id).toBe(toAddress(testAllocationId))
-      expect(agreement?.last_payment_collected_at).toBeNull()
     })
 
     test('creates DIPS indexing rule for a pending RCA proposal', async () => {

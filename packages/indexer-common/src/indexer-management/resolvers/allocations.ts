@@ -1032,7 +1032,6 @@ export default {
       graphNode,
       logger,
       models,
-      actionManager,
     }: IndexerManagementResolverContext,
   ): Promise<CreateAllocationResult> => {
     logger.debug('Execute createAllocation() mutation', {
@@ -1129,16 +1128,6 @@ export default {
       } as Partial<IndexingRuleAttributes>
 
       await models.IndexingRule.upsert(indexingRule)
-
-      const allocationManager =
-        actionManager?.allocationManagers[network.specification.networkIdentifier]
-      if (allocationManager?.dipsManager) {
-        await allocationManager.dipsManager.tryUpdateAgreementAllocation(
-          deployment,
-          null,
-          toAddress(allocationId),
-        )
-      }
 
       // Since upsert succeeded, we _must_ have a rule
       const updatedRule = await models.IndexingRule.findOne({

@@ -934,14 +934,6 @@ export class AllocationManager {
       await upsertIndexingRule(logger, this.models, indexingRule)
     }
 
-    if (this.dipsManager) {
-      await this.dipsManager.tryUpdateAgreementAllocation(
-        deployment,
-        null,
-        toAddress(createAllocationEventLogs.allocationID),
-      )
-    }
-
     return {
       actionID,
       type: 'allocate',
