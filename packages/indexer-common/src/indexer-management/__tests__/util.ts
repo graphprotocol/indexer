@@ -122,20 +122,6 @@ export const invalidUnallocateAction = {
   protocolNetwork: 'arbitrum-sepolia',
 } as ActionInput
 
-export const invalidReallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.REALLOCATE,
-  deploymentID: subgraphDeployment1,
-  allocationID: '0x000009a610d8b4fd4d1e020e22cc55a623fe7d2a',
-  poi: '0x0000000000000000000000000000000000000000000000000000000000000000',
-  amount: undefined,
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'arbitrum-sepolia',
-} as ActionInput
-
 export const queuedResizeAction = {
   status: ActionStatus.QUEUED,
   type: ActionType.RESIZE,

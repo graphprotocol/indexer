@@ -37,18 +37,6 @@ export interface CloseAllocationResult {
   protocolNetwork: string
 }
 
-export interface ReallocateAllocationResult {
-  actionID: number
-  type: 'reallocate'
-  transactionID: string | undefined
-  secondTransactionID?: string
-  closedAllocation: string
-  indexingRewardsCollected: string
-  createdAllocation: string
-  createdAllocationStake: string
-  protocolNetwork: string
-}
-
 export interface PresentPOIResult {
   actionID: number
   type: 'presentPOI'
@@ -113,7 +101,6 @@ export const isActionFailureArray = (
 export type AllocationResult =
   | CreateAllocationResult
   | CloseAllocationResult
-  | ReallocateAllocationResult
   | PresentPOIResult
   | ResizeAllocationResult
   | ActionFailure

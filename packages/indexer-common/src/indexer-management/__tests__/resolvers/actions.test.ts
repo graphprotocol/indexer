@@ -29,7 +29,6 @@ import { CombinedError } from '@urql/core'
 import { GraphQLError } from 'graphql'
 import {
   createTestManagementClient,
-  invalidReallocateAction,
   invalidUnallocateAction,
   queuedAllocateAction,
   subgraphDeployment1,
@@ -506,32 +505,6 @@ describe.skip('Actions', () => {
     await expect(
       client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [{}] }).toPromise(),
     ).resolves.toHaveProperty('error', expected)
-  })
-
-  test('Reject action with invalid params for action type', async () => {
-    const inputAction = invalidReallocateAction
-    const expected = { ...inputAction, protocolNetwork: 'eip155:421614' }
-    const fields = JSON.stringify(expected)
-    await expect(
-      client.mutation(QUEUE_ACTIONS_MUTATION, { actions: [inputAction] }).toPromise(),
-    ).resolves.toHaveProperty(
-      'error',
-      new CombinedError({
-        graphQLErrors: [
-          new GraphQLError(
-            `Failed to queue action: Invalid action input, actionInput: ${fields}`,
-          ),
-        ],
-      }),
-    )
-
-    await expect(
-      client
-        .query(ACTIONS_QUERY, {
-          filter: { status: ActionStatus.QUEUED, source: 'indexerAgent' },
-        })
-        .toPromise(),
-    ).resolves.toHaveProperty('data.actions', [])
   })
 
   test('Reject duplicate queued action from different source', async () => {

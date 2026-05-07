@@ -65,7 +65,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         type: DataTypes.ENUM(
           ActionType.ALLOCATE,
           ActionType.UNALLOCATE,
-          ActionType.REALLOCATE,
           ActionType.PRESENT_POI,
           ActionType.RESIZE,
         ),
@@ -190,17 +189,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
               if (this.deploymentID === null || this.allocationID === null) {
                 throw new Error(
                   `ActionType.UNALLOCATE action must have required params: ['deploymentID','allocationID']`,
-                )
-              }
-              break
-            case ActionType.REALLOCATE:
-              if (
-                this.deploymentID === null ||
-                this.allocationID === null ||
-                this.amount === null
-              ) {
-                throw new Error(
-                  `ActionType.REALLOCATE action must have required params: ['deploymentID','allocationID', 'amount]`,
                 )
               }
               break

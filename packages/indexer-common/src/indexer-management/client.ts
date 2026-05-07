@@ -100,14 +100,6 @@ const SCHEMA_SDL = gql`
     protocolNetwork: String!
   }
 
-  type ReallocateAllocationResult {
-    closedAllocation: String!
-    indexingRewardsCollected: String!
-    createdAllocation: String!
-    createdAllocationStake: String!
-    protocolNetwork: String!
-  }
-
   type PresentPOIResult {
     actionID: Int!
     type: String!
@@ -140,7 +132,6 @@ const SCHEMA_SDL = gql`
   enum ActionType {
     allocate
     unallocate
-    reallocate
     presentPOI
     resize
   }
@@ -523,15 +514,6 @@ const SCHEMA_SDL = gql`
       force: Boolean
       protocolNetwork: String!
     ): CloseAllocationResult!
-    reallocateAllocation(
-      allocation: String!
-      poi: String
-      blockNumber: Int
-      publicPOI: String
-      amount: String!
-      force: Boolean
-      protocolNetwork: String!
-    ): ReallocateAllocationResult!
     presentPOI(
       allocation: String!
       poi: String
