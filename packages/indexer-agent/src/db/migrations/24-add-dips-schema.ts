@@ -1,6 +1,5 @@
-import { Logger } from '@graphprotocol/common-ts'
-
-import { QueryInterface, DataTypes } from 'sequelize'
+import type { Logger } from '@graphprotocol/common-ts'
+import { DataTypes, type QueryInterface } from 'sequelize'
 
 interface MigrationContext {
   queryInterface: QueryInterface
@@ -14,17 +13,29 @@ interface Context {
 export async function up({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
 
-  const tables = await queryInterface.showAllTables()
-  logger.debug('Checking if pending_rca_proposals table exists', { tables })
-
-  if (tables.includes('pending_rca_proposals')) {
-    logger.debug(
-      'pending_rca_proposals already exists, migration not necessary',
+  // 1. Add 'dips' to the IndexingRules.decisionBasis enum.
+  // Skipped on fresh DBs — sequelize.sync() will create the enum already
+  // including 'dips' from the model definition. Existing prod DBs need this
+  // ALTER to add the value to a pre-existing enum type.
+  if (await queryInterface.tableExists('IndexingRules')) {
+    logger.info(`Adding 'dips' to enum_IndexingRules_decisionBasis`)
+    await queryInterface.sequelize.query(
+      `ALTER TYPE "enum_IndexingRules_decisionBasis" ADD VALUE 'dips'`,
     )
+  } else {
+    logger.debug(
+      'IndexingRules table does not exist; skipping decisionBasis enum migration',
+    )
+  }
+
+  // 2. Create pending_rca_proposals table.
+  const tables = await queryInterface.showAllTables()
+  if (tables.includes('pending_rca_proposals')) {
+    logger.debug('pending_rca_proposals already exists; skipping table creation')
     return
   }
 
-  logger.info('Create pending_rca_proposals')
+  logger.info('Creating pending_rca_proposals')
   await queryInterface.createTable('pending_rca_proposals', {
     id: {
       type: DataTypes.UUID,
@@ -57,9 +68,7 @@ export async function up({ context }: Context): Promise<void> {
   await queryInterface.addIndex(
     'pending_rca_proposals',
     ['status', 'created_at'],
-    {
-      name: 'idx_pending_rca_status',
-    },
+    { name: 'idx_pending_rca_status' },
   )
   await queryInterface.addIndex('pending_rca_proposals', {
     fields: [{ name: 'created_at', order: 'DESC' }],
@@ -69,6 +78,12 @@ export async function up({ context }: Context): Promise<void> {
 
 export async function down({ context }: Context): Promise<void> {
   const { queryInterface, logger } = context
-  logger.info('Drop pending_rca_proposals')
+
+  logger.info('Dropping pending_rca_proposals')
   await queryInterface.dropTable('pending_rca_proposals')
+
+  logger.info(`Removing 'dips' from enum_IndexingRules_decisionBasis`)
+  await queryInterface.sequelize.query(
+    `ALTER TYPE "enum_IndexingRules_decisionBasis" DROP VALUE 'dips'`,
+  )
 }
