@@ -9,7 +9,6 @@ import {
   SubgraphIdentifierType,
   IndexingDecisionBasis,
   AllocationManager,
-  DipsCollector,
   TapCollector,
   createIndexerManagementClient,
   Operator,
@@ -48,7 +47,6 @@ let queryFeeModels: QueryFeeModels
 let pendingRcaModel: ReturnType<typeof definePendingRcaProposalModel>
 let network: Network
 let multiNetworks: MultiNetworks<Network>
-let dipsCollector: DipsCollector
 let indexerManagementClient: IndexerManagementClient
 let operator: Operator
 const networkSpecWithDips = {
@@ -84,9 +82,6 @@ const setCollectableAgreements = (agreements: SubgraphIndexingAgreement[]) => {
 }
 
 jest.spyOn(TapCollector.prototype, 'startRAVProcessing').mockImplementation(() => {})
-const startCollectionLoop = jest
-  .spyOn(DipsCollector.prototype, 'startCollectionLoop')
-  .mockImplementation(() => {})
 jest.spyOn(ActionManager.prototype, 'monitorQueue').mockImplementation(async () => {})
 const setup = async () => {
   logger = createLogger({
@@ -126,7 +121,6 @@ const setup = async () => {
     (n: Network) => n.specification.networkIdentifier,
   )
 
-  dipsCollector = network.dipsCollector!
   indexerManagementClient = await createIndexerManagementClient({
     models: managementModels,
     graphNode,
@@ -936,134 +930,6 @@ describe('DipsManager', () => {
 
         expect(cancelSpy).not.toHaveBeenCalled()
       })
-    })
-  })
-})
-
-describe('DipsCollector', () => {
-  beforeAll(setup)
-  beforeEach(setupEach)
-  afterEach(teardownEach)
-  afterAll(teardownAll)
-
-  describe('initialization', () => {
-    test('creates DipsCollector when dipperEndpoint is configured', () => {
-      const dipsCollector = new DipsCollector(
-        logger,
-        managementModels,
-        networkSpecWithDips,
-        network.wallet,
-        graphNode,
-      )
-      expect(dipsCollector).toBeDefined()
-    })
-    test('starts payment collection loop', () => {
-      const dipsCollector = new DipsCollector(
-        logger,
-        managementModels,
-        networkSpecWithDips,
-        network.wallet,
-        graphNode,
-      )
-      expect(dipsCollector).toBeDefined()
-      expect(startCollectionLoop).toHaveBeenCalled()
-    })
-    test('throws error when dipperEndpoint is not configured', () => {
-      const specWithoutDipper = {
-        ...testNetworkSpecification,
-        indexerOptions: {
-          ...testNetworkSpecification.indexerOptions,
-          dipperEndpoint: undefined,
-        },
-      }
-      expect(
-        () =>
-          new DipsCollector(
-            logger,
-            managementModels,
-            specWithoutDipper,
-            network.wallet,
-            graphNode,
-          ),
-      ).toThrow('dipperEndpoint is not set')
-    })
-  })
-
-  describe('payment collection', () => {
-    const testDeploymentId = 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7'
-    const testAllocationId = 'abcd47df40c29949a75a6693c77834c00b8ad626'
-    const testAgreementId = '123e4567-e89b-12d3-a456-426614174000'
-
-    beforeEach(async () => {
-      // Clear mock calls between tests
-      jest.clearAllMocks()
-
-      // Create a test agreement
-      // Note last_allocation_id is set to the testAllocationId
-      // current_allocation_id is set to null so that we can collect payment
-      // (also last_payment_collected_at is set to null)
-      await managementModels.IndexingAgreement.create({
-        id: testAgreementId,
-        subgraph_deployment_id: testDeploymentId,
-        current_allocation_id: null,
-        last_allocation_id: testAllocationId,
-        last_payment_collected_at: null,
-        cancelled_at: null,
-        min_epochs_per_collection: BigInt(1),
-        max_epochs_per_collection: BigInt(5),
-        payer: '123456df40c29949a75a6693c77834c00b8a5678',
-        signature: Buffer.from('1234', 'hex'),
-        signed_payload: Buffer.from('5678', 'hex'),
-        protocol_network: 'arbitrum-sepolia',
-        chain_id: 'eip155:1',
-        base_price_per_epoch: '100',
-        price_per_entity: '1',
-        service: 'deadbedf40c29949a75a2293c11834c00b8a1234',
-        payee: '1212564f40c29949a75a3423c11834c00b8aaaaa',
-        deadline: new Date(Date.now() + 86400000), // 1 day from now
-        duration_epochs: BigInt(10),
-        max_initial_amount: '1000',
-        max_ongoing_amount_per_epoch: '100',
-        created_at: new Date(),
-        updated_at: new Date(),
-        signed_cancellation_payload: null,
-      })
-      graphNode.entityCount = jest.fn().mockResolvedValue([250000])
-    })
-    test('collects payment for a specific agreement', async () => {
-      const agreement = await managementModels.IndexingAgreement.findOne({
-        where: { id: testAgreementId },
-      })
-      if (!agreement) {
-        throw new Error('Agreement not found')
-      }
-
-      const client = dipsCollector.gatewayDipsServiceClient
-
-      client.CollectPayment = jest.fn().mockResolvedValue({
-        version: 1,
-        status: CollectPaymentStatus.ACCEPT,
-        receiptId: 'test-receipt-id-123',
-        amount: '1000',
-      })
-
-      await dipsCollector.tryCollectPayment(agreement)
-
-      expect(client.CollectPayment).toHaveBeenCalledWith({
-        version: 1,
-        signedCollection: expect.any(Uint8Array),
-      })
-      expect(agreement.last_payment_collected_at).not.toBeNull()
-
-      const receipt = await managementModels.DipsReceipt.findOne({
-        where: {
-          agreement_id: agreement.id,
-        },
-      })
-      expect(receipt).not.toBeNull()
-      expect(receipt?.id).toBe('test-receipt-id-123')
-      expect(receipt?.amount).toBe('1000')
-      expect(receipt?.status).toBe('PENDING')
     })
   })
 })
