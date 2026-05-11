@@ -31,7 +31,9 @@ export async function up({ context }: Context): Promise<void> {
   // 2. Create pending_rca_proposals table.
   const tables = await queryInterface.showAllTables()
   if (tables.includes('pending_rca_proposals')) {
-    logger.debug('pending_rca_proposals already exists; skipping table creation')
+    logger.debug(
+      'pending_rca_proposals already exists; skipping table creation',
+    )
     return
   }
 
