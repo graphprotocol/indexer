@@ -48,27 +48,6 @@ describe('Action Validation', () => {
       expect(isValidActionInput(missingAllocationID)).toBe(false)
     })
 
-    test('validates REALLOCATE action requires deploymentID, allocationID, and amount', () => {
-      const validReallocate: ActionInput = {
-        ...baseAction,
-        type: ActionType.REALLOCATE,
-        deploymentID: 'Qmtest',
-        allocationID: '0x1234567890123456789012345678901234567890',
-        amount: '20000',
-      } as ActionInput
-
-      expect(isValidActionInput(validReallocate)).toBe(true)
-
-      const missingAmount: ActionInput = {
-        ...baseAction,
-        type: ActionType.REALLOCATE,
-        deploymentID: 'Qmtest',
-        allocationID: '0x1234567890123456789012345678901234567890',
-      } as ActionInput
-
-      expect(isValidActionInput(missingAmount)).toBe(false)
-    })
-
     test('validates RESIZE action requires deploymentID, allocationID, and amount', () => {
       const validResize: ActionInput = {
         ...baseAction,

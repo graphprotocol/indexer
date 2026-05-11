@@ -394,13 +394,6 @@ export const start = {
         default: false,
         group: 'Indexing Fees ("DIPs")',
       })
-      .option('dipper-endpoint', {
-        description: 'Gateway endpoint for DIPs receipts',
-        type: 'string',
-        array: false,
-        required: false,
-        group: 'Indexing Fees ("DIPs")',
-      })
       .option('dips-allocation-amount', {
         description: 'Amount of GRT to allocate for DIPs',
         type: 'number',
@@ -453,9 +446,6 @@ export const start = {
         ) {
           return 'Invalid --rebate-claim-max-batch-size provided. Must be > 0 and an integer.'
         }
-        if (argv['enable-dips'] && !argv['dipper-endpoint']) {
-          return 'Invalid --dipper-endpoint provided. Must be provided when --enable-dips is true.'
-        }
         if (
           argv['enable-dips'] &&
           !argv['indexing-payments-subgraph-endpoint'] &&
@@ -504,7 +494,6 @@ export async function createNetworkSpecification(
     finalityTime: argv.chainFinalizeTime,
     legacyMnemonics: argv.legacyMnemonics,
     enableDips: argv.enableDips,
-    dipperEndpoint: argv.dipperEndpoint,
     dipsAllocationAmount: argv.dipsAllocationAmount,
     ravCollectionInterval: argv.ravCollectionInterval,
     ravCheckInterval: argv.ravCheckInterval,

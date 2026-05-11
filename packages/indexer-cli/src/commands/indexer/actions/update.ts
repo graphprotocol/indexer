@@ -24,7 +24,7 @@ ${chalk.dim('Options:')}
 
   -h, --help                                                                Show usage information
       --id          <actionID>                                                    Filter by actionID
-      --type        allocate|unallocate|reallocate                                Filter by type
+      --type        allocate|unallocate                                           Filter by type
       --status      queued|approved|deploying|pending|success|failed|canceled     Filter by status
       --source      <source>                                                      Filter by source
       --reason      <reason>                                                      Filter by reason string

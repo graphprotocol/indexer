@@ -74,7 +74,6 @@ export const IndexerOptions = z
     finalityTime: positiveNumber().default(3600),
     legacyMnemonics: z.array(z.string()).default([]),
     enableDips: z.boolean().default(false),
-    dipperEndpoint: z.string().url().optional(),
     dipsAllocationAmount: GRT().default(0),
     ravCollectionInterval: positiveNumber().default(14400),
     dipsEpochsMargin: positiveNumber().default(1),

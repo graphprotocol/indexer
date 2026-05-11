@@ -47,7 +47,6 @@ import { QueryFeeModels } from './query-fees'
 import { TapCollector } from './allocations/tap-collector'
 import { GraphTallyCollector } from './allocations/graph-tally-collector'
 import { encodeRegistrationData } from '@graphprotocol/toolshed'
-import { DipsCollector } from './indexing-fees/dips'
 
 export class Network {
   logger: Logger
@@ -60,7 +59,6 @@ export class Network {
 
   tapCollector: TapCollector | undefined
   graphTallyCollector: GraphTallyCollector | undefined
-  dipsCollector: DipsCollector | undefined
   indexingPaymentsSubgraph: SubgraphClient | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
@@ -84,7 +82,6 @@ export class Network {
     isHorizon: Eventual<boolean>,
     queryFeeModels: QueryFeeModels,
     managementModels: IndexerManagementModels,
-    dipsCollector: DipsCollector | undefined,
     indexingPaymentsSubgraph: SubgraphClient | undefined,
   ) {
     this.logger = logger
@@ -102,7 +99,6 @@ export class Network {
     this.isHorizon = isHorizon
     this.queryFeeModels = queryFeeModels
     this.managementModels = managementModels
-    this.dipsCollector = dipsCollector
     this.indexingPaymentsSubgraph = indexingPaymentsSubgraph
   }
 
@@ -354,7 +350,6 @@ export class Network {
     // * TAP Collector
     // --------------------------------------------------------------------------------
     let tapCollector: TapCollector | undefined = undefined
-    let dipsCollector: DipsCollector | undefined = undefined
     if (tapContracts && tapSubgraph) {
       tapCollector = TapCollector.create({
         logger,
@@ -368,18 +363,9 @@ export class Network {
         networkSubgraph,
         legacyMnemonics: specification.indexerOptions.legacyMnemonics,
       })
-      if (specification.indexerOptions.enableDips) {
-        dipsCollector = DipsCollector.create(
-          logger,
-          managementModels,
-          specification,
-          wallet,
-          graphNode,
-        )
-      }
     } else {
-      logger.info(`RAV (and DIPs) process not initiated. 
-        Tap Contracts: ${!!tapContracts}. 
+      logger.info(`RAV process not initiated.
+        Tap Contracts: ${!!tapContracts}.
         Tap Subgraph: ${!!tapSubgraph}.`)
     }
 
@@ -426,7 +412,6 @@ export class Network {
       isHorizon,
       queryFeeModels,
       managementModels,
-      dipsCollector,
       indexingPaymentsSubgraph,
     )
   }

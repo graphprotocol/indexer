@@ -39,7 +39,7 @@ export class ActionManager {
     logger: Logger,
     models: IndexerManagementModels,
     graphNode: GraphNode,
-    pendingRcaModel?: typeof PendingRcaProposal,
+    pendingRcaModel: typeof PendingRcaProposal,
   ): Promise<ActionManager> {
     const actionManager = new ActionManager()
     actionManager.multiNetworks = multiNetworks
@@ -316,10 +316,8 @@ export class ActionManager {
         try {
           // Execute already approved actions in the order of type and priority.
           // Unallocate actions are prioritized to free up stake that can be used
-          // in subsequent reallocate and allocate actions.
-          // Reallocate actions are prioritized before allocate as they are for
-          // existing syncing deployments with relatively smaller changes made.
-          const actionTypePriority = ['unallocate', 'reallocate', 'allocate']
+          // in subsequent allocate actions.
+          const actionTypePriority = ['unallocate', 'allocate']
           approvedAndDeployingActions = (
             await this.models.Action.findAll({
               where: {

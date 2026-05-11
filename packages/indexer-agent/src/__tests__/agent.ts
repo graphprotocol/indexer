@@ -409,7 +409,6 @@ describe('reconcileDeploymentAllocationAction', () => {
     return {
       closeEligibleAllocations: jest.fn(),
       createAllocation: jest.fn(),
-      refreshExpiredAllocations: jest.fn(),
       presentPOIForAllocations: jest.fn(),
     }
   }
@@ -424,7 +423,7 @@ describe('reconcileDeploymentAllocationAction', () => {
     }
   }
 
-  it('should call presentPOIForAllocations instead of refreshExpiredAllocations for Horizon allocations', async () => {
+  it('calls presentPOIForAllocations for expiring Horizon allocations', async () => {
     const agent = createAgent()
     const operator = createOperator()
     const network = createNetwork(true)
@@ -440,7 +439,6 @@ describe('reconcileDeploymentAllocationAction', () => {
     )
 
     expect(agent.identifyExpiringAllocations).toHaveBeenCalled()
-    expect(operator.refreshExpiredAllocations).not.toHaveBeenCalled()
     expect(operator.presentPOIForAllocations).toHaveBeenCalledWith(
       expect.anything(),
       [activeAllocations[0]],
@@ -448,7 +446,7 @@ describe('reconcileDeploymentAllocationAction', () => {
     )
   })
 
-  it('should call refreshExpiredAllocations for legacy allocations', async () => {
+  it('does nothing for expiring legacy allocations', async () => {
     const agent = createAgent()
     const operator = createOperator()
     const network = createNetwork(false)
@@ -463,13 +461,7 @@ describe('reconcileDeploymentAllocationAction', () => {
       false,
     )
 
-    expect(agent.identifyExpiringAllocations).toHaveBeenCalled()
-    expect(operator.refreshExpiredAllocations).toHaveBeenCalledWith(
-      expect.anything(),
-      decision,
-      [activeAllocations[0]],
-      false,
-    )
+    expect(agent.identifyExpiringAllocations).not.toHaveBeenCalled()
     expect(operator.presentPOIForAllocations).not.toHaveBeenCalled()
   })
 })

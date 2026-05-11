@@ -453,59 +453,6 @@ export class Operator {
     }
   }
 
-  async refreshExpiredAllocations(
-    logger: Logger,
-    deploymentAllocationDecision: AllocationDecision,
-    expiredAllocations: Allocation[],
-    forceAction: boolean = false,
-  ): Promise<void> {
-    if (deploymentAllocationDecision.ruleMatch.rule?.autoRenewal) {
-      logger.info(`Reallocating expired allocations`, {
-        number: expiredAllocations.length,
-        expiredAllocations: expiredAllocations.map((allocation) => allocation.id),
-      })
-
-      const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
-        ?.allocationAmount
-        ? BigInt(deploymentAllocationDecision.ruleMatch.rule.allocationAmount)
-        : this.specification.indexerOptions.defaultAllocationAmount
-
-      // Queue reallocate actions to be picked up by the worker
-      // isLegacy value depends on the allocation being reallocated, the switch to horizon is done by changing the allocation type elsewhere
-      await pMap(
-        expiredAllocations,
-        async (allocation) => {
-          await this.queueAction(
-            {
-              params: {
-                allocationID: allocation.id,
-                deploymentID: deploymentAllocationDecision.deployment.ipfsHash,
-                amount: formatGRT(desiredAllocationAmount),
-              },
-              type: ActionType.REALLOCATE,
-              reason: `${deploymentAllocationDecision.reasonString()}:allocationExpiring`, // Need to update to include 'ExpiringSoon'
-              protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-              isLegacy: allocation.isLegacy,
-            },
-            forceAction,
-          )
-        },
-        {
-          stopOnError: false,
-          concurrency: 1,
-        },
-      )
-    } else {
-      logger.info(
-        `Skipping reallocating expired allocation since the corresponding rule has 'autoRenewal' = False`,
-        {
-          number: expiredAllocations.length,
-          expiredAllocations: expiredAllocations.map((allocation) => allocation.id),
-        },
-      )
-    }
-    return
-  }
   // --------------------------------------------------------------------------------
   // POI Disputes
   // --------------------------------------------------------------------------------
@@ -623,8 +570,8 @@ export class Operator {
   }
 
   // Schedule presentPOI for expiring Horizon allocations to collect indexing
-  // rewards and reset staleness. Replaces the legacy close/reopen (REALLOCATE) cycle.
-  // Expiration is determined by allocationLifetime from indexing rules.
+  // rewards and reset staleness. Expiration is determined by allocationLifetime
+  // from indexing rules.
   async presentPOIForAllocations(
     logger: Logger,
     expiringAllocations: Allocation[],

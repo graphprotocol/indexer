@@ -87,21 +87,4 @@ describe('validateActionInputs DIPS agreement protection', () => {
 
     expect(monitor.hasActiveDipsAgreement).not.toHaveBeenCalled()
   })
-
-  it('should not check DIPS agreement for REALLOCATE actions', async () => {
-    const monitor = createMockNetworkMonitor(true)
-    const logger = createMockLogger()
-
-    const action: ActionInput = {
-      ...baseAction,
-      type: ActionType.REALLOCATE,
-      amount: '10000',
-    }
-
-    // REALLOCATE still validates but doesn't check DIPS agreements
-    // (REALLOCATE itself is deprecated and will be removed)
-    await expect(
-      validateActionInputs([action], monitor as any, logger as any),
-    ).resolves.not.toThrow()
-  })
 })

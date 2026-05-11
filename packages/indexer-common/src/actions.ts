@@ -81,20 +81,6 @@ export const isValidActionInput = (
           'poiBlockNumber' in variableToCheck
       }
       break
-    case ActionType.REALLOCATE:
-      hasActionParams =
-        'deploymentID' in variableToCheck &&
-        'allocationID' in variableToCheck &&
-        'amount' in variableToCheck
-
-      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
-        hasActionParams =
-          hasActionParams &&
-          'poi' in variableToCheck &&
-          'publicPOI' in variableToCheck &&
-          'poiBlockNumber' in variableToCheck
-      }
-      break
     case ActionType.RESIZE:
       hasActionParams =
         'deploymentID' in variableToCheck &&
@@ -168,13 +154,8 @@ export const validateActionInputs = async (
       )
     }
 
-    // TODO: remove REALLOCATE flow — replaced by PRESENT_POI + RESIZE for Horizon allocations
-    // Unallocate, reallocate, and resize actions must target an active allocationID
-    if (
-      [ActionType.UNALLOCATE, ActionType.REALLOCATE, ActionType.RESIZE].includes(
-        action.type,
-      )
-    ) {
+    // Unallocate and resize actions must target an active allocationID
+    if ([ActionType.UNALLOCATE, ActionType.RESIZE].includes(action.type)) {
       // allocationID must belong to active allocation
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const allocation = await networkMonitor.allocation(action.allocationID!)
@@ -262,7 +243,6 @@ export interface ActionResult {
 export enum ActionType {
   ALLOCATE = 'allocate',
   UNALLOCATE = 'unallocate',
-  REALLOCATE = 'reallocate',
   PRESENT_POI = 'presentPOI',
   RESIZE = 'resize',
 }

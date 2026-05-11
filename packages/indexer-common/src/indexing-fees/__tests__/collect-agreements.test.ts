@@ -51,7 +51,6 @@ const mockNetwork = {
   specification: {
     indexerOptions: {
       address: '0x1234567890abcdef1234567890abcdef12345678',
-      dipperEndpoint: undefined,
       dipsCollectionTarget: 50,
       dipsCollectionSlippage: 1,
     },
@@ -70,7 +69,7 @@ const mockModels = {
 } as any
 
 function createDipsManager(): DipsManager {
-  return new DipsManager(logger, mockModels, mockNetwork, mockGraphNode, null)
+  return new DipsManager(logger, mockModels, mockNetwork, mockGraphNode, null, {} as any)
 }
 
 // Helper: agreement that was last collected long ago (ready to collect)

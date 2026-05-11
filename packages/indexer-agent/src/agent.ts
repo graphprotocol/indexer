@@ -302,14 +302,10 @@ export class Agent {
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
             if (network.specification.indexerOptions.enableDips) {
-              // There should be a DipsManager in the operator
-              if (!operator.dipsManager) {
-                throw new Error('DipsManager is not available')
-              }
               logger.debug('Ensuring indexing rules for DIPs', {
                 protocolNetwork: network.specification.networkIdentifier,
               })
-              await operator.dipsManager.ensureAgreementRules()
+              await operator.dipsManager!.ensureAgreementRules()
             } else {
               logger.debug(
                 'DIPs is disabled, skipping indexing rule enforcement',
@@ -395,12 +391,9 @@ export class Agent {
           })
           const deployments = network.networkMonitor.subgraphDeployments()
           if (network.specification.indexerOptions.enableDips) {
-            if (!operator.dipsManager) {
-              throw new Error('DipsManager is not available')
-            }
             const resolvedDeployments = await deployments
             const dipsDeployments = await Promise.all(
-              (await operator.dipsManager.getActiveDipsDeployments()).map(
+              (await operator.dipsManager!.getActiveDipsDeployments()).map(
                 deployment =>
                   network.networkMonitor.subgraphDeployment(
                     deployment.ipfsHash,
@@ -668,11 +661,8 @@ export class Agent {
                 this.logger.warn(
                   `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
                 )
-                if (!operator.dipsManager) {
-                  throw new Error('DipsManager is not available')
-                }
                 const dipsDeployments =
-                  await operator.dipsManager.getActiveDipsDeployments()
+                  await operator.dipsManager!.getActiveDipsDeployments()
                 const newTargetDeployments = new Set([
                   ...activeDeployments,
                   ...dipsDeployments,
@@ -723,15 +713,10 @@ export class Agent {
           activeAllocations,
           async ({ network, operator }, activeAllocations: Allocation[]) => {
             if (network.specification.indexerOptions.enableDips) {
-              if (!operator.dipsManager) {
-                throw new Error('DipsManager is not available')
-              }
-
-              await operator.dipsManager.acceptPendingProposals(
+              await operator.dipsManager!.acceptPendingProposals(
                 activeAllocations,
               )
-
-              await operator.dipsManager.collectAgreementPayments()
+              await operator.dipsManager!.collectAgreementPayments()
             }
           },
         )
@@ -1145,7 +1130,7 @@ export class Agent {
               activeDeploymentAllocations,
               forceAction,
             )
-          } else {
+          } else if (isHorizon) {
             const expiringAllocations = await this.identifyExpiringAllocations(
               logger,
               activeDeploymentAllocations,
@@ -1155,22 +1140,11 @@ export class Agent {
               network,
             )
             if (expiringAllocations.length > 0) {
-              if (isHorizon) {
-                // Horizon allocations don't need the close/reopen cycle.
-                // Indexing rewards are collected via presentPOI instead.
-                await operator.presentPOIForAllocations(
-                  logger,
-                  expiringAllocations,
-                  network,
-                )
-              } else {
-                await operator.refreshExpiredAllocations(
-                  logger,
-                  deploymentAllocationDecision,
-                  expiringAllocations,
-                  forceAction,
-                )
-              }
+              await operator.presentPOIForAllocations(
+                logger,
+                expiringAllocations,
+                network,
+              )
             }
           }
         }

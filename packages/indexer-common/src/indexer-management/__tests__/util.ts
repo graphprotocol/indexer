@@ -13,6 +13,7 @@ import {
   Network,
   specification,
 } from '@graphprotocol/indexer-common'
+import { definePendingRcaProposalModel } from '../models/pending-rca-proposal'
 import { connectDatabase, Metrics, Logger, parseGRT } from '@graphprotocol/common-ts'
 
 const yamlObj = loadTestYamlConfig()
@@ -33,6 +34,7 @@ export const createTestManagementClient = async (
   let sequelize = await connectDatabase(databaseOptions)
   const queryFeeModels = defineQueryFeeModels(sequelize)
   const managementModels = defineIndexerManagementModels(sequelize)
+  const pendingRcaModel = definePendingRcaProposalModel(sequelize)
   sequelize = await sequelize.sync({ force: true })
   const statusEndpoint = 'http://127.0.0.1:8030/graphql'
   const graphNode = new GraphNode(
@@ -80,6 +82,7 @@ export const createTestManagementClient = async (
     logger,
     defaults,
     multiNetworks,
+    pendingRcaModel,
   })
 }
 
@@ -115,20 +118,6 @@ export const invalidUnallocateAction = {
   deploymentID: subgraphDeployment1,
   amount: undefined,
   poi: '0x0000000000000000000000000000000000000000000000000000000000000000',
-  force: false,
-  source: 'indexerAgent',
-  reason: 'indexingRule',
-  priority: 0,
-  protocolNetwork: 'arbitrum-sepolia',
-} as ActionInput
-
-export const invalidReallocateAction = {
-  status: ActionStatus.QUEUED,
-  type: ActionType.REALLOCATE,
-  deploymentID: subgraphDeployment1,
-  allocationID: '0x000009a610d8b4fd4d1e020e22cc55a623fe7d2a',
-  poi: '0x0000000000000000000000000000000000000000000000000000000000000000',
-  amount: undefined,
   force: false,
   source: 'indexerAgent',
   reason: 'indexingRule',
