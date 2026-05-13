@@ -8,7 +8,6 @@ import {
   Allocation,
   AllocationManager,
   AllocationStatus,
-  DipsReceiptStatus,
   GraphNode,
   IndexerManagementModels,
   IndexingDecisionBasis,
