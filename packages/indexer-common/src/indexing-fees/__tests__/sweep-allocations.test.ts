@@ -60,7 +60,14 @@ function createDipsManager(
   models: IndexerManagementModels,
 ): DipsManager {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return new DipsManager(logger, models, network, {} as any, {} as AllocationManager)
+  return new DipsManager(
+    logger,
+    models,
+    network,
+    {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    {} as AllocationManager,
+    {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  )
 }
 
 describe('DipsManager.sweepDipsAllocations', () => {

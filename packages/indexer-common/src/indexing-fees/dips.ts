@@ -32,6 +32,7 @@ import {
   SubgraphIndexingAgreement,
 } from './agreement-monitor'
 import { CollectionTracker } from './collection-tracker'
+import { sequentialTimerMap } from '../sequential-timer'
 
 const DIPS_ACCEPTANCE_INTERVAL = 5_000
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
