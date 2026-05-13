@@ -63,11 +63,16 @@ export class NetworkMonitor {
     if (!this.indexingPaymentsSubgraph) {
       return false
     }
+    // Only `Accepted` blocks unallocation. Once the agreement is canceled
+    // (by payer or by us), the on-chain agreement is already gone, so
+    // protecting the allocation only strands it. The agent's separate
+    // collectAgreementPayments loop handles any final collect on
+    // `CanceledByPayer` agreements independently of allocation lifetime.
     const result = await this.indexingPaymentsSubgraph.checkedQuery(
       gql`
         query indexingAgreements($allocationId: Bytes!) {
           indexingAgreements(
-            where: { allocationId: $allocationId, state_in: [Accepted, CanceledByPayer] }
+            where: { allocationId: $allocationId, state: Accepted }
             first: 1
           ) {
             id
