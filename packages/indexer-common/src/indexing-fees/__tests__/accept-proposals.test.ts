@@ -32,24 +32,7 @@ function createMockProposal(
     id: 'proposal-1',
     status: 'pending',
     createdAt: new Date(),
-    signedRca: {
-      rca: {
-        deadline: BigInt(Math.floor(Date.now() / 1000) + 3600),
-        endsAt: BigInt(Math.floor(Date.now() / 1000) + 86400),
-        payer: '0x1111111111111111111111111111111111111111',
-        dataService: '0x2222222222222222222222222222222222222222',
-        serviceProvider: '0x3333333333333333333333333333333333333333',
-        maxInitialTokens: 10000n,
-        maxOngoingTokensPerSecond: 100n,
-        minSecondsPerCollection: 3600n,
-        maxSecondsPerCollection: 86400n,
-        conditions: 0n,
-        nonce: 42n,
-        metadata: '0x',
-      },
-      signature: '0xaabbccdd',
-    },
-    signedPayload: new Uint8Array(),
+    agreementId: '0xabcd1234567890abcdef1234567890ab',
     payer: '0x1111111111111111111111111111111111111111',
     serviceProvider: '0x3333333333333333333333333333333333333333',
     dataService: '0x2222222222222222222222222222222222222222',
@@ -59,7 +42,9 @@ function createMockProposal(
     maxOngoingTokensPerSecond: 100n,
     minSecondsPerCollection: 3600n,
     maxSecondsPerCollection: 86400n,
+    conditions: 0n,
     nonce: 42n,
+    metadata: '0x',
     subgraphDeploymentId: deployment,
     tokensPerSecond: 1000n,
     tokensPerEntityPerSecond: 50n,
@@ -139,6 +124,14 @@ function createMockNetwork() {
       RewardsManager: {
         isDenied: jest.fn().mockResolvedValue(false),
       },
+      RecurringCollector: {
+        hashRCA: jest.fn().mockResolvedValue('0x' + 'aa'.repeat(32)),
+      },
+    },
+    indexingPaymentsSubgraph: {
+      query: jest.fn().mockResolvedValue({
+        data: { offer: { offerHash: '0x' + 'aa'.repeat(32) } },
+      }),
     },
     transactionManager: {
       executeTransaction: jest.fn(),
@@ -243,6 +236,66 @@ describe('DipsManager.acceptPendingProposals', () => {
 
     expect(consumer.markAccepted).not.toHaveBeenCalled()
     expect(consumer.markRejected).not.toHaveBeenCalled()
+  })
+
+  test('skips proposal when offer is not yet on subgraph (stays pending)', async () => {
+    const proposal = createMockProposal()
+    const consumer = createMockConsumer([proposal])
+    const models = createMockModels()
+    const network = createMockNetwork()
+    ;(network.indexingPaymentsSubgraph!.query as jest.Mock).mockResolvedValue({
+      data: { offer: null },
+    })
+    const dm = createDipsManager(network, models, consumer)
+
+    await dm.acceptPendingProposals([])
+
+    expect(consumer.markAccepted).not.toHaveBeenCalled()
+    expect(consumer.markRejected).not.toHaveBeenCalled()
+  })
+
+  test('rejects proposal on offer hash mismatch', async () => {
+    const proposal = createMockProposal()
+    const consumer = createMockConsumer([proposal])
+    const models = createMockModels()
+    const network = createMockNetwork()
+    ;(network.indexingPaymentsSubgraph!.query as jest.Mock).mockResolvedValue({
+      data: { offer: { offerHash: '0x' + 'cc'.repeat(32) } },
+    })
+    const dm = createDipsManager(network, models, consumer)
+
+    await dm.acceptPendingProposals([])
+
+    expect(consumer.markRejected).toHaveBeenCalledWith(proposal.id, 'offer_hash_mismatch')
+    expect(consumer.markAccepted).not.toHaveBeenCalled()
+  })
+
+  test('passes empty signature to acceptIndexingAgreement on present offer', async () => {
+    const proposal = createMockProposal()
+    const allocation = createMockAllocation(proposal.subgraphDeploymentId.bytes32)
+    const consumer = createMockConsumer([proposal])
+    const models = createMockModels()
+    const network = createMockNetwork()
+    ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+      hash: '0xtx',
+    })
+    const dm = createDipsManager(network, models, consumer)
+
+    await dm.acceptPendingProposals([allocation])
+
+    // The executeTransaction call passes an estimateGas thunk and a send thunk.
+    // Invoke the estimateGas thunk to verify acceptIndexingAgreement.estimateGas
+    // was called with the expected args (including the empty signature).
+    const calls = (network.transactionManager.executeTransaction as jest.Mock).mock.calls
+    expect(calls.length).toBeGreaterThan(0)
+    await calls[0][0]()
+    const estimateGasSpy = network.contracts.SubgraphService.acceptIndexingAgreement
+      .estimateGas as jest.Mock
+    expect(estimateGasSpy).toHaveBeenCalledWith(
+      allocation.id,
+      expect.objectContaining({ payer: proposal.payer }),
+      '0x',
+    )
   })
 
   describe('with existing allocation', () => {
