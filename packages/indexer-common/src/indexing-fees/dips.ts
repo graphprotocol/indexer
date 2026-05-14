@@ -463,6 +463,8 @@ export class DipsManager {
     }
   }
 
+  // Returns true once the final-collect step ran (whether we canceled on-chain
+  // or the payer already had); false only when our own on-chain cancel failed.
   async cancelAgreement(
     agreementId: string,
     agreement: SubgraphIndexingAgreement,
@@ -518,7 +520,8 @@ export class DipsManager {
       logger.info('Final collection succeeded after cancel')
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.warn('Final collection after cancel failed, fees may be lost', {
+      logger.error('Final collection after cancel failed, fees may be lost', {
+        deployment: agreement.subgraphDeploymentId,
         error: errorMsg,
       })
     }
@@ -544,7 +547,8 @@ export class DipsManager {
 
     for (const agreement of agreements) {
       // Already-canceled agreements need a final collect, not another cancel —
-      // the regular collection loop handles them.
+      // the regular collection loop handles them. cancelAgreement also guards
+      // this state internally as defense-in-depth.
       if (agreement.state === 'CanceledByPayer') {
         continue
       }
