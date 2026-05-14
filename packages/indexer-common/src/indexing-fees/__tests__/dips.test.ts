@@ -860,14 +860,19 @@ describe('DipsManager', () => {
         const cancelCallSpy = jest.fn()
         ;(
           dipsManager as unknown as {
-            network: { contracts: { SubgraphService: { cancelIndexingAgreement: jest.Mock } } }
+            network: {
+              contracts: { SubgraphService: { cancelIndexingAgreement: jest.Mock } }
+            }
           }
         ).network.contracts.SubgraphService = {
           cancelIndexingAgreement: cancelCallSpy,
         } as never
 
         const tryCollectSpy = jest
-          .spyOn(dipsManager as unknown as { tryCollectAgreement: jest.Mock }, 'tryCollectAgreement')
+          .spyOn(
+            dipsManager as unknown as { tryCollectAgreement: jest.Mock },
+            'tryCollectAgreement',
+          )
           .mockResolvedValue('collected')
 
         ;(
@@ -883,7 +888,10 @@ describe('DipsManager', () => {
           state: 'CanceledByPayer',
         }
 
-        const result = await dipsManager.cancelAgreement(canceledByPayer.id, canceledByPayer)
+        const result = await dipsManager.cancelAgreement(
+          canceledByPayer.id,
+          canceledByPayer,
+        )
 
         expect(cancelCallSpy).not.toHaveBeenCalled()
         expect(tryCollectSpy).toHaveBeenCalledTimes(1)
