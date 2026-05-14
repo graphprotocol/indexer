@@ -472,16 +472,12 @@ export class DipsManager {
       agreementId,
     })
 
-    // Step 1: Cancel on-chain — but only if the agreement is not already
-    // canceled. The payer can cancel via RecurringCollector before we get
-    // here (e.g., when Studio shrinks the indexer set), in which case
-    // re-canceling reverts with `InvalidAgreementState` and we'd lose the
-    // chance to collect for the period the indexer was active. Skip
-    // straight to Step 2 in that case.
+    // Step 1: Cancel on-chain (skipped if payer already canceled — a second
+    // cancel reverts on `InvalidAgreementState` and would skip the final collect).
     const indexerAddress = this.network.specification.indexerOptions.address
     if (agreement.state === 'CanceledByPayer') {
       logger.info(
-        'Agreement already canceled on-chain by payer; skipping cancel call, proceeding to final collection',
+        'Payer already canceled on-chain; skipping cancel, proceeding to final collection',
       )
     } else {
       try {
@@ -547,13 +543,8 @@ export class DipsManager {
     })
 
     for (const agreement of agreements) {
-      // Skip agreements the payer has already canceled on-chain. They no
-      // longer need a "cancel" — they need a final collect, which the
-      // regular collection loop handles. Routing them through
-      // cancelAgreement instead would attempt a redundant on-chain cancel
-      // (reverting on `InvalidAgreementState`) and never reach the
-      // best-effort collect step inside cancelAgreement, leaving the
-      // indexer unpaid for the active period.
+      // Already-canceled agreements need a final collect, not another cancel —
+      // the regular collection loop handles them.
       if (agreement.state === 'CanceledByPayer') {
         continue
       }
