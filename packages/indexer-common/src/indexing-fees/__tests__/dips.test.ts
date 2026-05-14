@@ -803,6 +803,92 @@ describe('DipsManager', () => {
 
         expect(cancelSpy).not.toHaveBeenCalled()
       })
+
+      test('skips CanceledByPayer agreements even when a NEVER rule exists', async () => {
+        // Reproduces the bug where the payer canceled on-chain first
+        // (via dipper) and the agent's own NEVER rule for the closed
+        // allocation would otherwise route the agreement back through
+        // cancelAgreement, which would attempt a redundant on-chain
+        // cancel and skip the final collection.
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        const canceledByPayer: SubgraphIndexingAgreement = {
+          ...mockAgreement,
+          state: 'CanceledByPayer',
+        }
+
+        await dipsManager.cancelBlocklistedAgreements([canceledByPayer])
+
+        expect(cancelSpy).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('cancelAgreement', () => {
+      const mockAgreement: SubgraphIndexingAgreement = {
+        id: '0x123e4567e89b12d3a456426614174000',
+        allocationId: '0xabcd47df40c29949a75a6693c77834c00b8ad626',
+        subgraphDeploymentId: 'QmTZ8ejXJxRo7vDBS4uwqBeGoxLSWbhaA7oXa1RvxunLy7',
+        state: 'Accepted',
+        lastCollectionAt: '0',
+        endsAt: '9999999999',
+        maxInitialTokens: '1000',
+        maxOngoingTokensPerSecond: '100',
+        tokensPerSecond: '10',
+        tokensPerEntityPerSecond: '1',
+        minSecondsPerCollection: 60,
+        maxSecondsPerCollection: 300,
+        canceledAt: '0',
+      }
+
+      test('skips on-chain cancel for CanceledByPayer agreements and still calls final collect', async () => {
+        // Defense-in-depth for the case where any caller passes an
+        // already-canceled agreement: skip the doomed on-chain cancel,
+        // proceed to the final collect so the indexer gets paid for the
+        // period the agreement was active.
+        const cancelCallSpy = jest.fn()
+        ;(
+          dipsManager as unknown as {
+            network: { contracts: { SubgraphService: { cancelIndexingAgreement: jest.Mock } } }
+          }
+        ).network.contracts.SubgraphService = {
+          cancelIndexingAgreement: cancelCallSpy,
+        } as never
+
+        const tryCollectSpy = jest
+          .spyOn(dipsManager as unknown as { tryCollectAgreement: jest.Mock }, 'tryCollectAgreement')
+          .mockResolvedValue('collected')
+
+        ;(
+          dipsManager as unknown as {
+            network: { networkProvider: { getBlockNumber: jest.Mock } }
+          }
+        ).network.networkProvider = {
+          getBlockNumber: jest.fn().mockResolvedValue(123),
+        } as never
+
+        const canceledByPayer: SubgraphIndexingAgreement = {
+          ...mockAgreement,
+          state: 'CanceledByPayer',
+        }
+
+        const result = await dipsManager.cancelAgreement(canceledByPayer.id, canceledByPayer)
+
+        expect(cancelCallSpy).not.toHaveBeenCalled()
+        expect(tryCollectSpy).toHaveBeenCalledTimes(1)
+        expect(result).toBe(true)
+      })
     })
   })
 })
