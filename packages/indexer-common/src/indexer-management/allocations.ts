@@ -167,6 +167,9 @@ export class AllocationManager {
     private pendingRcaModel: typeof PendingRcaProposal,
   ) {
     if (this.network.specification.indexerOptions.enableDips) {
+      // Construction is intentionally side-effect-free: the agent owns
+      // when the accept/sweep loops start so short-lived consumers (CLI,
+      // jest setups) don't leak background timers.
       this.dipsManager = new DipsManager(
         this.logger,
         this.models,
@@ -175,8 +178,6 @@ export class AllocationManager {
         this,
         this.pendingRcaModel,
       )
-      this.dipsManager.startProposalAcceptanceLoop()
-      this.dipsManager.startAllocationSweepLoop()
     }
   }
 
