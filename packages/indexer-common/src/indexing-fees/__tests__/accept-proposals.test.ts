@@ -183,8 +183,8 @@ function createDipsManager(
 ): DipsManager {
   const graphNode = { ensure: jest.fn().mockResolvedValue(undefined) }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dm = new DipsManager(logger, models, network, graphNode as any, parent, {} as any)  
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const dm = new DipsManager(logger, models, network, graphNode as any, parent, {} as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ;(dm as any).pendingRcaConsumer = consumer
   if (offerMonitor !== undefined) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
