@@ -28,6 +28,7 @@ import {
   SubgraphIndexingAgreement,
 } from './agreement-monitor'
 import { CollectionTracker } from './collection-tracker'
+import { OfferVerifier } from './offer-verifier'
 
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
 const RECENT_BLOCK_OFFSET = 10
@@ -35,6 +36,7 @@ const RECENT_BLOCK_OFFSET = 10
 export class DipsManager {
   declare pendingRcaConsumer: PendingRcaConsumer
   declare collectionTracker: CollectionTracker
+  declare offerVerifier: OfferVerifier | null
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
@@ -47,6 +49,9 @@ export class DipsManager {
     this.collectionTracker = new CollectionTracker(
       this.network.specification.indexerOptions.dipsCollectionTarget,
     )
+    this.offerVerifier = this.network.indexingPaymentsSubgraph
+      ? new OfferVerifier(this.network.indexingPaymentsSubgraph, this.logger)
+      : null
   }
   async ensureAgreementRules() {
     if (!this.parent) {
@@ -276,6 +281,52 @@ export class DipsManager {
       return
     }
 
+    if (!this.offerVerifier) {
+      this.logger.error(
+        'Indexing payments subgraph not configured; on-chain accept pre-flight cannot run. ' +
+          'Set indexingPaymentsSubgraph in the network specification. ' +
+          'Proposal remains pending until configuration is fixed.',
+        { proposalId: proposal.id, agreementId: proposal.agreementId },
+      )
+      return
+    }
+
+    const expectedHash = await this.computeRcaHash(proposal)
+    const offerResult = await this.offerVerifier.checkOffer(
+      proposal.agreementId,
+      expectedHash,
+    )
+
+    if (offerResult.status === 'not_yet') {
+      this.logger.debug('Offer not yet on subgraph; leaving proposal pending', {
+        proposalId: proposal.id,
+        agreementId: proposal.agreementId,
+      })
+      return
+    }
+
+    if (offerResult.status === 'unavailable') {
+      // OfferVerifier already logged at warn; just leave the row pending.
+      return
+    }
+
+    if (offerResult.status === 'hash_mismatch') {
+      this.logger.warn(
+        'Rejecting proposal: on-chain offerHash does not match local RCA hash',
+        {
+          proposalId: proposal.id,
+          agreementId: proposal.agreementId,
+          onChainHash: offerResult.onChainHash,
+          expectedHash,
+        },
+      )
+      await consumer.markRejected(proposal.id, 'offer_hash_mismatch')
+      await this.cleanupDipsRule(consumer, proposal)
+      return
+    }
+
+    // offerResult.status === 'present' — proceed to accept.
+
     const allocation = activeAllocations.find(
       (a) => a.subgraphDeployment.id.bytes32 === proposal.subgraphDeploymentId.bytes32,
     )
@@ -298,19 +349,21 @@ export class DipsManager {
       deployment: proposal.subgraphDeploymentId.ipfsHash,
     })
 
+    const rca = this.toContractRca(proposal)
+
     try {
       const receipt = await this.network.transactionManager.executeTransaction(
         async () =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement.estimateGas(
             allocation.id,
-            proposal.signedRca.rca,
-            proposal.signedRca.signature,
+            rca,
+            '0x',
           ),
         async (gasLimit) =>
           this.network.contracts.SubgraphService.acceptIndexingAgreement(
             allocation.id,
-            proposal.signedRca.rca,
-            proposal.signedRca.signature,
+            rca,
+            '0x',
             { gasLimit },
           ),
         this.logger.child({
@@ -424,11 +477,12 @@ export class DipsManager {
         )
 
       // Build acceptIndexingAgreement calldata
+      const rca = this.toContractRca(proposal)
       const acceptTx =
         await this.network.contracts.SubgraphService.acceptIndexingAgreement.populateTransaction(
           allocationId,
-          proposal.signedRca.rca,
-          proposal.signedRca.signature,
+          rca,
+          '0x',
         )
 
       // Atomic multicall
@@ -742,6 +796,27 @@ export class DipsManager {
       entities,
     })
     return 'collected'
+  }
+
+  private toContractRca(proposal: DecodedRcaProposal) {
+    return {
+      deadline: proposal.deadline,
+      endsAt: proposal.endsAt,
+      payer: proposal.payer,
+      dataService: proposal.dataService,
+      serviceProvider: proposal.serviceProvider,
+      maxInitialTokens: proposal.maxInitialTokens,
+      maxOngoingTokensPerSecond: proposal.maxOngoingTokensPerSecond,
+      minSecondsPerCollection: proposal.minSecondsPerCollection,
+      maxSecondsPerCollection: proposal.maxSecondsPerCollection,
+      conditions: proposal.conditions,
+      nonce: proposal.nonce,
+      metadata: proposal.metadata,
+    }
+  }
+
+  private async computeRcaHash(proposal: DecodedRcaProposal): Promise<string> {
+    return this.network.contracts.RecurringCollector.hashRCA(this.toContractRca(proposal))
   }
 
   private async handleAcceptError(

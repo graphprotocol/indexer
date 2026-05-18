@@ -19,7 +19,7 @@ const TEST_DATA_SERVICE = '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd'
 const TEST_SERVICE_PROVIDER = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef'
 const TEST_DEPLOYMENT_BYTES32 =
   '0x0100000000000000000000000000000000000000000000000000000000000000'
-const TEST_SIGNATURE = '0xaabbccdd'
+const TEST_SIGNATURE = '0x'
 
 function encodeTestPayload(overrides?: {
   deadline?: bigint
@@ -28,6 +28,7 @@ function encodeTestPayload(overrides?: {
   tokensPerEntityPerSecond?: bigint
   minSecondsPerCollection?: number
   maxSecondsPerCollection?: number
+  signature?: string
 }): Buffer {
   const tokensPerSecond = overrides?.tokensPerSecond ?? 1000n
   const tokensPerEntityPerSecond = overrides?.tokensPerEntityPerSecond ?? 50n
@@ -66,7 +67,7 @@ function encodeTestPayload(overrides?: {
           nonce: 42n,
           metadata: metadataEncoded,
         },
-        signature: TEST_SIGNATURE,
+        signature: overrides?.signature ?? TEST_SIGNATURE,
       },
     ],
   )
@@ -130,11 +131,16 @@ describe('PendingRcaConsumer', () => {
       expect(p.subgraphDeploymentId).toBeInstanceOf(SubgraphDeploymentID)
       expect(p.subgraphDeploymentId.bytes32).toBe(TEST_DEPLOYMENT_BYTES32)
 
-      expect(p.signedRca).toBeDefined()
-      expect(p.signedRca.rca.payer.toLowerCase()).toBe(TEST_PAYER.toLowerCase())
-      expect(p.signedRca.signature).toBe(TEST_SIGNATURE)
-
-      expect(p.signedPayload).toBeInstanceOf(Uint8Array)
+      // bytes16(keccak256(abi.encode(payer, dataService, serviceProvider, deadline, nonce)))
+      const expectedAgreementId = ethers
+        .keccak256(
+          ethers.AbiCoder.defaultAbiCoder().encode(
+            ['address', 'address', 'address', 'uint64', 'uint256'],
+            [TEST_PAYER, TEST_DATA_SERVICE, TEST_SERVICE_PROVIDER, 1700000000n, 42n],
+          ),
+        )
+        .slice(0, 34) // 0x + 32 hex chars = bytes16
+      expect(p.agreementId).toBe(expectedAgreementId.toLowerCase())
     })
 
     test('queries only pending rows', async () => {
@@ -212,6 +218,43 @@ describe('PendingRcaConsumer', () => {
       expect(proposals).toHaveLength(2)
       expect(proposals[0].tokensPerSecond).toBe(100n)
       expect(proposals[1].tokensPerSecond).toBe(200n)
+    })
+
+    test('rejects rows with non-empty signature (producer regression)', async () => {
+      const errorSpy = jest.fn()
+      const testLogger = {
+        ...logger,
+        error: errorSpy,
+        info: jest.fn(),
+        warn: jest.fn(),
+        child: () => testLogger,
+      } as unknown as Logger
+
+      const badPayload = encodeTestPayload({ signature: '0xdeadbeef' })
+
+      const model = createMockModel([
+        {
+          id: 'bad-sig-uuid',
+          signed_payload: badPayload,
+          version: 2,
+          status: 'pending',
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ])
+
+      const consumer = new PendingRcaConsumer(testLogger, model)
+      const proposals = await consumer.getPendingProposals()
+
+      expect(proposals).toHaveLength(0)
+      expect(model.update).toHaveBeenCalledWith(
+        { status: 'rejected' },
+        { where: { id: 'bad-sig-uuid' } },
+      )
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('non-empty signature'),
+        expect.any(Object),
+      )
     })
   })
 

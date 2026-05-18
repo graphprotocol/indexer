@@ -1,5 +1,4 @@
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
-import { SignedRCA } from '@graphprotocol/toolshed'
 
 export interface DecodedRcaProposal {
   // From DB row
@@ -7,9 +6,11 @@ export interface DecodedRcaProposal {
   status: string
   createdAt: Date
 
-  // Decoded from signed_payload (via toolshed)
-  signedRca: SignedRCA
-  signedPayload: Uint8Array
+  // Locally derived bytes16 on-chain agreement id (0x-prefixed lowercase).
+  // Derived from (payer, dataService, serviceProvider, deadline, nonce).
+  agreementId: string
+
+  // Decoded from signed_payload (via toolshed). Signature is required to be empty.
   payer: string
   serviceProvider: string
   dataService: string
@@ -19,7 +20,9 @@ export interface DecodedRcaProposal {
   maxOngoingTokensPerSecond: bigint
   minSecondsPerCollection: bigint
   maxSecondsPerCollection: bigint
+  conditions: bigint
   nonce: bigint
+  metadata: string
 
   // Decoded from metadata (via toolshed)
   subgraphDeploymentId: SubgraphDeploymentID
