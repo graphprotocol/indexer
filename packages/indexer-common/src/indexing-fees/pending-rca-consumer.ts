@@ -1,3 +1,4 @@
+import { ethers } from 'ethers'
 import { Logger, SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import {
   decodeSignedRCA,
@@ -21,7 +22,12 @@ export class PendingRcaConsumer {
     const decoded: DecodedRcaProposal[] = []
     for (const row of rows) {
       try {
-        decoded.push(this.decodeRow(row))
+        const proposal = await this.decodeRow(row)
+        if (proposal === null) {
+          // Decoder already marked the row rejected and logged
+          continue
+        }
+        decoded.push(proposal)
       } catch (error) {
         this.logger.warn(`Failed to decode pending RCA proposal ${row.id}, skipping`, {
           error,
@@ -49,21 +55,53 @@ export class PendingRcaConsumer {
     }
   }
 
-  private decodeRow(row: PendingRcaProposal): DecodedRcaProposal {
+  // Returns the decoded proposal, or null if the row was rejected here
+  // (non-empty signature — producer regression, marked rejected in the DB
+  // before returning).
+  //
+  // Decode failures from toolshed (malformed payload, bad metadata, etc.)
+  // propagate as throws; the caller skip-logs them, leaving the row pending
+  // for the next cycle.
+  private async decodeRow(row: PendingRcaProposal): Promise<DecodedRcaProposal | null> {
     const signedPayload = new Uint8Array(row.signed_payload)
     const signedRca = decodeSignedRCA(signedPayload)
-    const { rca } = signedRca
+    const { rca, signature } = signedRca
+
+    if (signature && signature !== '0x') {
+      const sigByteLength = Math.max(0, (signature.length - 2) / 2)
+      this.logger.error(
+        `Pending RCA proposal ${row.id} has non-empty signature (producer regression); rejecting`,
+        { id: row.id, signatureLength: sigByteLength },
+      )
+      try {
+        await this.markRejected(row.id, 'non_empty_signature')
+      } catch (err) {
+        this.logger.error('Failed to mark non-empty-signature proposal as rejected', {
+          id: row.id,
+          error: err instanceof Error ? err.message : String(err),
+        })
+      }
+      return null
+    }
 
     const metadata = decodeAcceptIndexingAgreementMetadata(rca.metadata)
     const terms = decodeIndexingAgreementTermsV1(metadata.terms)
+
+    const agreementId = deriveAgreementId(
+      rca.payer,
+      rca.dataService,
+      rca.serviceProvider,
+      rca.deadline,
+      rca.nonce,
+    )
 
     return {
       id: row.id,
       status: row.status,
       createdAt: row.created_at,
 
-      signedRca,
-      signedPayload,
+      agreementId,
+
       payer: rca.payer,
       serviceProvider: rca.serviceProvider,
       dataService: rca.dataService,
@@ -73,11 +111,33 @@ export class PendingRcaConsumer {
       maxOngoingTokensPerSecond: rca.maxOngoingTokensPerSecond,
       minSecondsPerCollection: rca.minSecondsPerCollection,
       maxSecondsPerCollection: rca.maxSecondsPerCollection,
+      conditions: rca.conditions,
       nonce: rca.nonce,
+      metadata: rca.metadata,
 
       subgraphDeploymentId: new SubgraphDeploymentID(metadata.subgraphDeploymentId),
       tokensPerSecond: terms.tokensPerSecond,
       tokensPerEntityPerSecond: terms.tokensPerEntityPerSecond,
     }
   }
+}
+
+// Derives the bytes16 on-chain agreement id from the RCA identity fields.
+//
+// Mirrors the contract: bytes16(keccak256(abi.encode(payer, dataService,
+// serviceProvider, deadline, nonce))).
+//
+// Returned as a lowercase 0x-prefixed 34-char hex string (0x + 32 hex chars).
+export function deriveAgreementId(
+  payer: string,
+  dataService: string,
+  serviceProvider: string,
+  deadline: bigint,
+  nonce: bigint,
+): string {
+  const encoded = ethers.AbiCoder.defaultAbiCoder().encode(
+    ['address', 'address', 'address', 'uint64', 'uint256'],
+    [payer, dataService, serviceProvider, deadline, nonce],
+  )
+  return ethers.keccak256(encoded).slice(0, 34).toLowerCase()
 }
