@@ -474,8 +474,7 @@ export class DipsManager {
       agreementId,
     })
 
-    // Step 1: Cancel on-chain (skipped if payer already canceled — a second
-    // cancel reverts on `InvalidAgreementState` and would skip the final collect).
+    // Step 1: Cancel on-chain (skipped if payer already canceled).
     const indexerAddress = this.network.specification.indexerOptions.address
     if (agreement.state === 'CanceledByPayer') {
       logger.info(
@@ -546,10 +545,10 @@ export class DipsManager {
     })
 
     for (const agreement of agreements) {
-      // Already-canceled agreements need a final collect, not another cancel —
-      // the regular collection loop handles them. cancelAgreement also guards
-      // this state internally as defense-in-depth.
-      if (agreement.state === 'CanceledByPayer') {
+      // Only act on actively-collectable agreements. Anything else is
+      // either pre-acceptance, already canceled, or otherwise terminal —
+      // the regular collection loop handles the final-collect step.
+      if (agreement.state !== 'Accepted') {
         continue
       }
       const subgraphDeploymentID = new SubgraphDeploymentID(
