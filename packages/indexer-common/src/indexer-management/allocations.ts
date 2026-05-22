@@ -9,7 +9,6 @@ import {
   ActionFailure,
   ActionType,
   Allocation,
-  legacyAllocationIdProof,
   AllocationResult,
   AllocationStatus,
   CloseAllocationResult,
@@ -54,7 +53,6 @@ import {
 import {
   BigNumberish,
   BytesLike,
-  ContractTransaction,
   hexlify,
   TransactionReceipt,
   TransactionRequest,
@@ -101,20 +99,6 @@ export interface ResizeTransactionParams {
   allocationID: string
   newAmount: bigint
   indexer: string
-  actionID: number
-  protocolNetwork: string
-}
-
-export interface ReallocateTransactionParams {
-  closingAllocationID: string
-  poi: POIData
-  indexer: string
-  subgraphDeploymentID: BytesLike
-  tokens: BigNumberish
-  newAllocationID: string
-  metadata: BytesLike
-  proof: BytesLike
-  closingAllocationIsLegacy: boolean
   actionID: number
   protocolNetwork: string
 }
@@ -236,8 +220,8 @@ export class AllocationManager {
       preparedTransactions: preparedTransactions,
     })
 
-    // We need to process both staking contract and subgraph service transactions separately as they cannot be multicalled together
-    // Only during horizon transition period we should have transactions for both contracts
+    // Staking and SubgraphService transactions cannot be multicalled together,
+    // so we partition by target contract and execute each batch independently.
     const stakingTransactions = preparedTransactions.filter(
       (tx: TransactionRequest) => tx.to === this.network.contracts.HorizonStaking.target,
     )
@@ -295,9 +279,8 @@ export class AllocationManager {
 
     // -- SUBGRAPH SERVICE --
     const callDataSubgraphService = subgraphServiceTransactions
-      // Reallocate of a legacy allocation during the transition period can result in
-      // a staking and subgraph service transaction in the same batch. If the staking tx failed we
-      // should not execute the subgraph service tx.
+      // If a per-action staking tx failed, skip its companion SubgraphService tx
+      // so we never leave the on-chain state half-applied for that action.
       .filter((tx: ActionTransactionRequest) => {
         const actionStakingTransaction = actionResults.find(
           (result) => result.actionID === tx.actionID,
@@ -794,27 +777,17 @@ export class AllocationManager {
 
     // Double-check whether the allocationID already exists on chain, to
     // avoid unnecessary transactions.
-    let allocationExistsSubgraphService = false
-    let allocationExistsStaking = false
-    const isHorizon = await this.network.isHorizon.value()
-    if (isHorizon) {
-      const allocation =
-        await this.network.contracts.SubgraphService.getAllocation(allocationId)
-      const legacyAllocation =
-        await this.network.contracts.SubgraphService.getLegacyAllocation(allocationId)
-      allocationExistsSubgraphService = allocation.createdAt !== 0n
-      allocationExistsStaking = legacyAllocation.indexer !== ZeroAddress
-    } else {
-      const state =
-        await this.network.contracts.LegacyStaking.getAllocationState(allocationId)
-      allocationExistsStaking = state !== 0n
-    }
+    const onChainAllocation =
+      await this.network.contracts.SubgraphService.getAllocation(allocationId)
+    const legacyAllocation =
+      await this.network.contracts.SubgraphService.getLegacyAllocation(allocationId)
+    const allocationExistsSubgraphService = onChainAllocation.createdAt !== 0n
+    const allocationExistsStaking = legacyAllocation.indexer !== ZeroAddress
 
     if (allocationExistsSubgraphService || allocationExistsStaking) {
       logger.debug(`Skipping allocation as it already exists onchain`, {
         indexer: this.network.specification.indexerOptions.address,
         allocation: allocationId,
-        isHorizon,
         allocationExistsSubgraphService,
         allocationExistsStaking,
       })
@@ -830,23 +803,16 @@ export class AllocationManager {
       indexerAddress: this.network.specification.indexerOptions.address,
     })
 
-    const proof = isHorizon
-      ? await horizonAllocationIdProof(
-          allocationSigner,
-          Number(this.network.specification.networkIdentifier.split(':')[1]),
-          this.network.specification.indexerOptions.address,
-          allocationId,
-          this.network.contracts.SubgraphService.target.toString(),
-        )
-      : await legacyAllocationIdProof(
-          allocationSigner,
-          this.network.specification.indexerOptions.address,
-          allocationId,
-        )
+    const proof = await horizonAllocationIdProof(
+      allocationSigner,
+      Number(this.network.specification.networkIdentifier.split(':')[1]),
+      this.network.specification.indexerOptions.address,
+      allocationId,
+      this.network.contracts.SubgraphService.target.toString(),
+    )
 
     logger.debug('Successfully generated allocation ID proof', {
       allocationIDProof: proof,
-      isLegacy: !isHorizon,
     })
 
     return {
@@ -866,12 +832,7 @@ export class AllocationManager {
     receipt: TransactionReceipt | 'paused' | 'unauthorized',
   ): Promise<CreateAllocationResult> {
     const logger = this.logger.child({ action: actionID })
-    const subgraphDeployment = new SubgraphDeploymentID(deployment)
-    const isLegacy =
-      (receipt as TransactionReceipt).to === this.network.contracts.HorizonStaking.target
-    logger.info(`Confirming allocation creation transaction`, {
-      isLegacy,
-    })
+    logger.info(`Confirming allocation creation transaction`)
     if (receipt === 'paused' || receipt === 'unauthorized') {
       throw indexerError(
         IndexerErrorCode.IE062,
@@ -882,23 +843,14 @@ export class AllocationManager {
       )
     }
 
-    const createAllocationEventLogs = isLegacy
-      ? this.network.transactionManager.findEvent(
-          'AllocationCreated',
-          this.network.contracts.LegacyStaking.interface,
-          'subgraphDeploymentID',
-          subgraphDeployment.bytes32,
-          receipt,
-          this.logger,
-        )
-      : this.network.transactionManager.findEvent(
-          'AllocationCreated',
-          this.network.contracts.SubgraphService.interface,
-          'indexer',
-          this.network.specification.indexerOptions.address,
-          receipt,
-          logger,
-        )
+    const createAllocationEventLogs = this.network.transactionManager.findEvent(
+      'AllocationCreated',
+      this.network.contracts.SubgraphService.interface,
+      'indexer',
+      this.network.specification.indexerOptions.address,
+      receipt,
+      logger,
+    )
 
     if (!createAllocationEventLogs) {
       throw indexerError(IndexerErrorCode.IE014, `Allocation was never mined`)
@@ -906,14 +858,9 @@ export class AllocationManager {
 
     logger.info(`Successfully allocated to subgraph deployment`, {
       amountGRT: formatGRT(createAllocationEventLogs.tokens),
-      allocation: isLegacy
-        ? createAllocationEventLogs.allocationID
-        : createAllocationEventLogs.allocationId,
+      allocation: createAllocationEventLogs.allocationId,
       deployment: createAllocationEventLogs.subgraphDeploymentID,
-      epoch: isLegacy
-        ? createAllocationEventLogs.epoch.toString()
-        : createAllocationEventLogs.currentEpoch.toString(),
-      isLegacy,
+      epoch: createAllocationEventLogs.currentEpoch.toString(),
     })
 
     const subgraphDeploymentID = new SubgraphDeploymentID(deployment)
@@ -938,9 +885,7 @@ export class AllocationManager {
       type: 'allocate',
       transactionID: receipt.hash,
       deployment: deployment,
-      allocation: isLegacy
-        ? createAllocationEventLogs.allocationID
-        : createAllocationEventLogs.allocationId,
+      allocation: createAllocationEventLogs.allocationId,
       allocatedTokens: amount,
       protocolNetwork: this.network.specification.networkIdentifier,
     }
@@ -954,7 +899,6 @@ export class AllocationManager {
     actionID: number,
     protocolNetwork: string,
   ): Promise<ActionTransactionRequest> {
-    const isHorizon = await this.network.isHorizon.value()
     const params = await this.prepareAllocateParams(logger, context, deployment, amount)
     logger.debug(`Populating allocation creation transaction`, {
       indexer: params.indexer,
@@ -962,41 +906,26 @@ export class AllocationManager {
       amount: formatGRT(params.tokens),
       allocation: params.allocationID,
       proof: params.proof,
-      isLegacy: !isHorizon,
     })
 
-    let populatedTransaction: ContractTransaction
-    if (isHorizon) {
-      // Fail automatically if the indexer is not registered
-      // This provides a better ux during the transition period
-      const registrationData = await this.network.contracts.SubgraphService.indexers(
-        params.indexer,
-      )
-      if (registrationData.url.length === 0) {
-        throw indexerError(IndexerErrorCode.IE086)
-      }
-      const encodedData = encodeStartServiceData(
-        params.subgraphDeploymentID.toString(),
-        BigInt(params.tokens),
-        params.allocationID,
-        params.proof.toString(),
-      )
-      populatedTransaction =
-        await this.network.contracts.SubgraphService.startService.populateTransaction(
-          params.indexer,
-          encodedData,
-        )
-    } else {
-      populatedTransaction =
-        await this.network.contracts.LegacyStaking.allocateFrom.populateTransaction(
-          params.indexer,
-          params.subgraphDeploymentID,
-          params.tokens,
-          params.allocationID,
-          params.metadata,
-          params.proof,
-        )
+    // Fail automatically if the indexer is not registered
+    const registrationData = await this.network.contracts.SubgraphService.indexers(
+      params.indexer,
+    )
+    if (registrationData.url.length === 0) {
+      throw indexerError(IndexerErrorCode.IE086)
     }
+    const encodedData = encodeStartServiceData(
+      params.subgraphDeploymentID.toString(),
+      BigInt(params.tokens),
+      params.allocationID,
+      params.proof.toString(),
+    )
+    const populatedTransaction =
+      await this.network.contracts.SubgraphService.startService.populateTransaction(
+        params.indexer,
+        encodedData,
+      )
     return {
       protocolNetwork,
       actionID,
@@ -1022,55 +951,20 @@ export class AllocationManager {
       poiBlockNumber: poiBlockNumber || 'none provided',
     })
 
-    const allocation = await this.network.networkMonitor.allocation(allocationID)
-
-    // For Horizon allocations, reuse preparePresentPOIParams logic
-    if (!allocation.isLegacy) {
-      const presentPOIParams = await this.preparePresentPOIParams(
-        logger,
-        context,
-        allocationID,
-        poi,
-        force,
-        poiBlockNumber,
-        publicPOI,
-        actionID,
-        protocolNetwork,
-      )
-      return {
-        ...presentPOIParams,
-        isLegacy: false,
-      }
-    }
-
-    // Legacy allocation path
-    const poiData = await this.network.networkMonitor.resolvePOI(
-      allocation,
+    const presentPOIParams = await this.preparePresentPOIParams(
+      logger,
+      context,
+      allocationID,
       poi,
-      publicPOI,
-      poiBlockNumber,
       force,
-    )
-
-    // Double-check whether the allocation is still active on chain, to
-    // avoid unnecessary transactions.
-    // TODO: Remove legacy allocation path — getAllocationState no longer exists
-    // in HorizonStaking. Legacy allocations now live in SubgraphService.
-    if (!allocation.isLegacy) {
-      const allocation =
-        await this.network.contracts.SubgraphService.getAllocation(allocationID)
-      if (allocation.closedAt !== 0n) {
-        throw indexerError(IndexerErrorCode.IE065)
-      }
-    }
-
-    return {
-      protocolNetwork,
+      poiBlockNumber,
+      publicPOI,
       actionID,
-      allocationID: allocation.id,
-      poi: poiData,
-      isLegacy: true,
-      indexer: allocation.indexer,
+      protocolNetwork,
+    )
+    return {
+      ...presentPOIParams,
+      isLegacy: false,
     }
   }
 
@@ -1080,13 +974,7 @@ export class AllocationManager {
     receipt: TransactionReceipt | 'paused' | 'unauthorized',
   ): Promise<CloseAllocationResult> {
     const logger = this.logger.child({ action: actionID })
-    const isLegacy =
-      (receipt as TransactionReceipt).to === this.network.contracts.HorizonStaking.target
-    const isHorizon = await this.network.isHorizon.value()
-
-    logger.info(`Confirming unallocate transaction`, {
-      isLegacy,
-    })
+    logger.info(`Confirming unallocate transaction`)
 
     if (receipt === 'paused' || receipt === 'unauthorized') {
       throw indexerError(
@@ -1095,23 +983,14 @@ export class AllocationManager {
       )
     }
 
-    const closeAllocationEventLogs = isLegacy
-      ? this.network.transactionManager.findEvent(
-          'AllocationClosed',
-          this.network.contracts.LegacyStaking.interface,
-          'allocationID',
-          allocationID,
-          receipt,
-          this.logger,
-        )
-      : this.network.transactionManager.findEvent(
-          'AllocationClosed',
-          this.network.contracts.SubgraphService.interface,
-          'allocationId',
-          allocationID,
-          receipt,
-          this.logger,
-        )
+    const closeAllocationEventLogs = this.network.transactionManager.findEvent(
+      'AllocationClosed',
+      this.network.contracts.SubgraphService.interface,
+      'allocationId',
+      allocationID,
+      receipt,
+      this.logger,
+    )
 
     if (!closeAllocationEventLogs) {
       throw indexerError(
@@ -1120,38 +999,23 @@ export class AllocationManager {
       )
     }
 
-    const rewardsEventLogs = isLegacy
-      ? this.network.transactionManager.findEvent(
-          isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
-          this.network.contracts.RewardsManager.interface,
-          'allocationID',
-          allocationID,
-          receipt,
-          this.logger,
-        )
-      : this.network.transactionManager.findEvent(
-          'IndexingRewardsCollected',
-          this.network.contracts.SubgraphService.interface,
-          'allocationId',
-          allocationID,
-          receipt,
-          this.logger,
-        )
+    const rewardsEventLogs = this.network.transactionManager.findEvent(
+      'IndexingRewardsCollected',
+      this.network.contracts.SubgraphService.interface,
+      'allocationId',
+      allocationID,
+      receipt,
+      this.logger,
+    )
 
-    const rewardsAssigned = rewardsEventLogs
-      ? isLegacy
-        ? rewardsEventLogs.amount
-        : rewardsEventLogs.tokensIndexerRewards
-      : 0
+    const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.tokensIndexerRewards : 0
 
     if (rewardsAssigned == 0) {
       logger.warn('No rewards were distributed upon closing the allocation')
     }
 
     const subgraphDeploymentID = new SubgraphDeploymentID(
-      isLegacy
-        ? closeAllocationEventLogs.subgraphDeploymentID
-        : closeAllocationEventLogs.subgraphDeploymentId,
+      closeAllocationEventLogs.subgraphDeploymentId,
     )
 
     logger.info(`Successfully closed allocation`, {
@@ -1201,16 +1065,7 @@ export class AllocationManager {
       poiData: params.poi,
     })
 
-    // TODO: Remove legacy allocation path — closeAllocation no longer exists
-    // in HorizonStaking. Legacy allocations now live in SubgraphService.
-    if (params.isLegacy) {
-      throw indexerError(
-        IndexerErrorCode.IE065,
-        'Legacy allocation close is no longer supported',
-      )
-    }
-
-    // Horizon: Need to collect indexing rewards and stop service
+    // Need to collect indexing rewards and stop service
     // Check if indexer is over-allocated - if so, collect() will auto-close the allocation
     // and we should NOT call stopService to avoid "AllocationClosed" revert
     const isOverAllocated = await this.network.contracts.SubgraphService.isOverAllocated(
@@ -1302,14 +1157,6 @@ export class AllocationManager {
     })
 
     const allocation = await this.network.networkMonitor.allocation(allocationID)
-
-    // Present POI without closing only works for Horizon allocations
-    if (allocation.isLegacy) {
-      throw indexerError(
-        IndexerErrorCode.IE061,
-        `Cannot present POI (collect rewards) without closing for legacy allocations. Use unallocate instead.`,
-      )
-    }
 
     const poiData = await this.network.networkMonitor.resolvePOI(
       allocation,
@@ -1664,21 +1511,14 @@ export class AllocationManager {
       // RESIZE doesn't close the allocation, so no rewards are collected
       if (action.type !== ActionType.RESIZE) {
         // Accrue rewards, except for zeroed POI
-        const isHorizon = await this.network.isHorizon.value()
         const zeroHexString = hexlify(new Uint8Array(32).fill(0))
         if (action.poi === zeroHexString) {
           rewards = 0n
         } else {
-          if (isHorizon) {
-            rewards = await this.network.contracts.RewardsManager.getRewards(
-              this.network.contracts.SubgraphService.target,
-              action.allocationID,
-            )
-          } else {
-            rewards = await this.network.contracts.LegacyRewardsManager.getRewards(
-              action.allocationID,
-            )
-          }
+          rewards = await this.network.contracts.RewardsManager.getRewards(
+            this.network.contracts.SubgraphService.target,
+            action.allocationID,
+          )
         }
       }
 
@@ -1708,21 +1548,14 @@ export class AllocationManager {
     const actionsBatchStakeUsageSummaries = await pMap(batch, async (action: Action) =>
       this.stakeUsageSummary(action),
     )
-    const batchDeltaLegacy = actionsBatchStakeUsageSummaries
-      .filter((summary: ActionStakeUsageSummary) => summary.action.isLegacy)
-      .map((summary: ActionStakeUsageSummary) => summary.balance)
-      .reduce((a: bigint, b: bigint) => a + b, 0n)
     const batchDelta = actionsBatchStakeUsageSummaries
-      .filter((summary: ActionStakeUsageSummary) => !summary.action.isLegacy)
       .map((summary: ActionStakeUsageSummary) => summary.balance)
       .reduce((a: bigint, b: bigint) => a + b, 0n)
 
-    const indexerNewBalance = indexerFreeStake.horizon - batchDelta
-    const indexerNewBalanceLegacy = indexerFreeStake.legacy - batchDeltaLegacy
+    const indexerNewBalance = indexerFreeStake - batchDelta
 
     logger.trace('Action batch stake usage summary', {
       indexerFreeStake: indexerFreeStake.toString(),
-      indexerFreeStakeLegacy: indexerFreeStake.legacy.toString(),
       actionsBatchStakeUsageSummaries: actionsBatchStakeUsageSummaries.map((summary) => {
         return {
           action: summary.action,
@@ -1733,22 +1566,16 @@ export class AllocationManager {
         }
       }),
       batchDelta: batchDelta.toString(),
-      batchDeltaLegacy: batchDeltaLegacy.toString(),
       indexerNewBalance: indexerNewBalance.toString(),
-      indexerNewBalanceLegacy: indexerNewBalanceLegacy.toString(),
     })
 
-    if (indexerNewBalance < 0n || indexerNewBalanceLegacy < 0n) {
-      {
-        throw indexerError(
-          IndexerErrorCode.IE013,
-          `Unfeasible action batch: Approved action batch GRT balance is ` +
-            `${formatGRT(batchDelta)} for horizon actions and ` +
-            `${formatGRT(batchDeltaLegacy)} for legacy actions ` +
-            `but available horizon stake equals ${formatGRT(indexerFreeStake.horizon)} ` +
-            `and legacy stake equals ${formatGRT(indexerFreeStake.legacy)}.`,
-        )
-      }
+    if (indexerNewBalance < 0n) {
+      throw indexerError(
+        IndexerErrorCode.IE013,
+        `Unfeasible action batch: Approved action batch GRT balance is ` +
+          `${formatGRT(batchDelta)} ` +
+          `but available stake equals ${formatGRT(indexerFreeStake)}.`,
+      )
     }
 
     /* Return actions sorted by GRT balance (ascending).

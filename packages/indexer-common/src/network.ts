@@ -13,10 +13,6 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 import {
-  connectContracts as connectTapContracts,
-  NetworkContracts as TapContracts,
-} from '@semiotic-labs/tap-contracts-bindings'
-import {
   FetchRequest,
   getAddress,
   HDNodeWallet,
@@ -44,7 +40,6 @@ import {
 import { resolveChainId } from './indexer-management'
 import { monitorEthBalance } from './utils'
 import { QueryFeeModels } from './query-fees'
-import { TapCollector } from './allocations/tap-collector'
 import { GraphTallyCollector } from './allocations/graph-tally-collector'
 import { encodeRegistrationData } from '@graphprotocol/toolshed'
 
@@ -57,13 +52,11 @@ export class Network {
   transactionManager: TransactionManager
   networkMonitor: NetworkMonitor
 
-  tapCollector: TapCollector | undefined
   graphTallyCollector: GraphTallyCollector | undefined
   indexingPaymentsSubgraph: SubgraphClient | undefined
   specification: spec.NetworkSpecification
   paused: Eventual<boolean>
   isOperator: Eventual<boolean>
-  isHorizon: Eventual<boolean>
   queryFeeModels: QueryFeeModels
   managementModels: IndexerManagementModels
   private constructor(
@@ -74,12 +67,10 @@ export class Network {
     networkProvider: JsonRpcProvider,
     transactionManager: TransactionManager,
     networkMonitor: NetworkMonitor,
-    tapCollector: TapCollector | undefined,
     graphTallyCollector: GraphTallyCollector | undefined,
     specification: spec.NetworkSpecification,
     paused: Eventual<boolean>,
     isOperator: Eventual<boolean>,
-    isHorizon: Eventual<boolean>,
     queryFeeModels: QueryFeeModels,
     managementModels: IndexerManagementModels,
     indexingPaymentsSubgraph: SubgraphClient | undefined,
@@ -91,12 +82,10 @@ export class Network {
     this.networkProvider = networkProvider
     this.transactionManager = transactionManager
     this.networkMonitor = networkMonitor
-    this.tapCollector = tapCollector
     this.graphTallyCollector = graphTallyCollector
     this.specification = specification
     this.paused = paused
     this.isOperator = isOperator
-    this.isHorizon = isHorizon
     this.queryFeeModels = queryFeeModels
     this.managementModels = managementModels
     this.indexingPaymentsSubgraph = indexingPaymentsSubgraph
@@ -157,35 +146,6 @@ export class Network {
           : undefined,
       subgraphFreshnessChecker: networkSubgraphFreshnessChecker,
     })
-    const tapSubgraphFreshnessChecker = new SubgraphFreshnessChecker(
-      'TAP Subgraph',
-      networkProvider,
-      specification.subgraphs.maxBlockDistance,
-      specification.subgraphs.freshnessSleepMilliseconds,
-      logger.child({ component: 'FreshnessChecker' }),
-      Infinity,
-    )
-
-    let tapSubgraph: SubgraphClient | undefined = undefined
-    if (specification.subgraphs.tapSubgraph) {
-      const tapSubgraphDeploymentId = specification.subgraphs.tapSubgraph.deployment
-        ? new SubgraphDeploymentID(specification.subgraphs.tapSubgraph.deployment)
-        : undefined
-      tapSubgraph = await SubgraphClient.create({
-        name: 'TapSubgraph',
-        logger,
-        deployment:
-          tapSubgraphDeploymentId !== undefined
-            ? {
-                graphNode,
-                deployment: tapSubgraphDeploymentId,
-              }
-            : undefined,
-        endpoint: specification.subgraphs.tapSubgraph!.url,
-        subgraphFreshnessChecker: tapSubgraphFreshnessChecker,
-      })
-    }
-
     // * -----------------------------------------------------------------------
     // * Indexing Payments Subgraph
     // * -----------------------------------------------------------------------
@@ -308,8 +268,6 @@ export class Network {
       wallet,
     )
 
-    const isHorizon = await networkMonitor.monitorIsHorizon(logger)
-
     const transactionManager = new TransactionManager(
       networkProvider,
       wallet,
@@ -319,25 +277,9 @@ export class Network {
     )
 
     // --------------------------------------------------------------------------------
-    // * Escrow contract
-    // --------------------------------------------------------------------------------
-    const networkIdentifier = await networkProvider.getNetwork()
-    let tapContracts: TapContracts | undefined = undefined
-    if (tapSubgraph) {
-      try {
-        tapContracts = await connectTapContracts(
-          wallet,
-          Number(networkIdentifier.chainId),
-          specification.tapAddressBook,
-        )
-      } catch (err) {
-        logger.error(`Failed to connect to tap contract bindings:`, { err })
-        throw err
-      }
-    }
-    // --------------------------------------------------------------------------------
     // * Allocation and allocation signers
     // --------------------------------------------------------------------------------
+    const networkIdentifier = await networkProvider.getNetwork()
     const allocations = monitorEligibleAllocations({
       indexer: toAddress(specification.indexerOptions.address),
       logger,
@@ -347,40 +289,10 @@ export class Network {
     })
 
     // --------------------------------------------------------------------------------
-    // * TAP Collector
-    // --------------------------------------------------------------------------------
-    let tapCollector: TapCollector | undefined = undefined
-    if (tapContracts && tapSubgraph) {
-      tapCollector = TapCollector.create({
-        logger,
-        metrics,
-        transactionManager: transactionManager,
-        models: queryFeeModels,
-        tapContracts,
-        allocations,
-        networkSpecification: specification,
-        tapSubgraph,
-        networkSubgraph,
-        legacyMnemonics: specification.indexerOptions.legacyMnemonics,
-      })
-    } else {
-      logger.info(`RAV process not initiated.
-        Tap Contracts: ${!!tapContracts}.
-        Tap Subgraph: ${!!tapSubgraph}.`)
-    }
-
-    // --------------------------------------------------------------------------------
     // * Graph Tally Collector
     // --------------------------------------------------------------------------------
     let graphTallyCollector: GraphTallyCollector | undefined = undefined
-    const isHorizonValue = await isHorizon.value()
-    logger.info(`Checking if RAV v2 process should be initiated`, {
-      contracts: !!contracts,
-      networkSubgraph: !!networkSubgraph,
-      isHorizon: isHorizonValue,
-      shouldInit: contracts && networkSubgraph && isHorizonValue,
-    })
-    if (contracts && networkSubgraph && isHorizonValue) {
+    if (contracts && networkSubgraph) {
       graphTallyCollector = GraphTallyCollector.create({
         logger,
         metrics,
@@ -404,12 +316,10 @@ export class Network {
       networkProvider,
       transactionManager,
       networkMonitor,
-      tapCollector,
       graphTallyCollector,
       specification,
       paused,
       isOperator,
-      isHorizon,
       queryFeeModels,
       managementModels,
       indexingPaymentsSubgraph,
@@ -516,11 +426,6 @@ export class Network {
         this.specification.indexerOptions.maxProvisionInitialSize,
       ),
     })
-
-    if (!(await this.isHorizon.value())) {
-      logger.info('Graph Horizon upgrade not detected, skipping provisioning.')
-      return
-    }
 
     const maxProvisionInitialSize =
       this.specification.indexerOptions.maxProvisionInitialSize
@@ -645,11 +550,7 @@ export class Network {
     await pRetry(
       async () => {
         try {
-          if (await this.isHorizon.value()) {
-            await this._register(logger, geoHash, url)
-          } else {
-            await this._registerLegacy(logger, geoHash, url)
-          }
+          await this._register(logger, geoHash, url)
         } catch (error) {
           const err = indexerError(IndexerErrorCode.IE012, error)
           logger.error(INDEXER_ERROR_MESSAGES[IndexerErrorCode.IE012], {
@@ -748,80 +649,6 @@ export class Network {
 
     logger.info(`Successfully registered indexer`)
   }
-
-  private async _registerLegacy(
-    logger: Logger,
-    geoHash: string,
-    url: string,
-  ): Promise<void> {
-    logger.info(`Register indexer`, {
-      url,
-      geoCoordinates: this.specification.indexerOptions.geoCoordinates,
-      geoHash,
-    })
-
-    // Register the indexer (only if it hasn't been registered yet or
-    // if its URL/geohash is different from what is registered on chain)
-    const isRegistered = await this.contracts.LegacyServiceRegistry.isRegistered(
-      this.specification.indexerOptions.address,
-    )
-    if (isRegistered) {
-      const service = await this.contracts.LegacyServiceRegistry.services(
-        this.specification.indexerOptions.address,
-      )
-      if (service.url === url && service.geoHash === geoHash) {
-        logger.debug('Indexer already registered', {
-          address: this.specification.indexerOptions.address,
-          serviceRegistry: this.contracts.LegacyServiceRegistry.target,
-          service,
-        })
-        if (await this.transactionManager.isOperator.value()) {
-          logger.info(`Indexer already registered, operator status already granted`)
-        } else {
-          logger.info(`Indexer already registered, operator status not yet granted`)
-        }
-        return
-      }
-    }
-    const receipt = await this.transactionManager.executeTransaction(
-      () =>
-        this.contracts.LegacyServiceRegistry.registerFor.estimateGas(
-          this.specification.indexerOptions.address,
-          this.specification.indexerOptions.url,
-          geoHash,
-        ),
-      (gasLimit) =>
-        this.contracts.LegacyServiceRegistry.registerFor(
-          this.specification.indexerOptions.address,
-          this.specification.indexerOptions.url,
-          geoHash,
-          {
-            gasLimit,
-          },
-        ),
-      logger.child({ function: 'serviceRegistry.registerFor' }),
-    )
-    if (receipt === 'paused' || receipt === 'unauthorized') {
-      return
-    }
-    const events = receipt.logs
-    const event = events.find((event) =>
-      event.topics.includes(
-        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-          .topicHash,
-      ),
-    )
-    logger.info('Event', {
-      event,
-      events,
-      topicHash:
-        this.contracts.LegacyServiceRegistry.interface.getEvent('ServiceRegistered')
-          .topicHash,
-    })
-    assert.ok(event)
-
-    logger.info(`Successfully registered indexer (Legacy registration)`)
-  }
 }
 
 async function connectWallet(
@@ -898,15 +725,6 @@ async function connectToProtocolContracts(
     'SubgraphService',
   ]
 
-  // Before horizon we need the LegacyServiceRegistry contract as well
-  const isHorizon = await contracts.HorizonStaking.getMaxThawingPeriod()
-    .then((maxThawingPeriod) => maxThawingPeriod > 0)
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    .catch((_) => false)
-  if (!isHorizon) {
-    requiredContracts.push('LegacyServiceRegistry')
-  }
-
   const missingContracts = requiredContracts.filter(
     (contract) => !(contract in contracts),
   )
@@ -927,9 +745,6 @@ async function connectToProtocolContracts(
     graphPaymentsEscrow: contracts.PaymentsEscrow.target,
   })
   logger.info(`Successfully connected to Subgraph Service contracts`, {
-    ...(isHorizon
-      ? {}
-      : { legacyServiceRegistry: contracts.LegacyServiceRegistry.target }),
     subgraphService: contracts.SubgraphService.target,
   })
   return contracts

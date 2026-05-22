@@ -32,7 +32,6 @@ const baseAction: ActionInput = {
   priority: 0,
   protocolNetwork: 'eip155:421614',
   force: false,
-  isLegacy: false,
 }
 
 describe('validateActionInputs DIPS agreement protection', () => {

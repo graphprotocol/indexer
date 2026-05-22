@@ -253,7 +253,6 @@ export class Operator {
               status
               failureReason
               protocolNetwork
-              isLegacy
             }
           }
         `,
@@ -298,7 +297,6 @@ export class Operator {
       reason: action.reason,
       priority: 0,
       protocolNetwork: action.protocolNetwork,
-      isLegacy: action.isLegacy,
     }
     this.logger.trace(`Queueing action input`, {
       actionInput,
@@ -316,7 +314,6 @@ export class Operator {
               priority
               status
               protocolNetwork
-              isLegacy
             }
           }
         `,
@@ -363,7 +360,6 @@ export class Operator {
     logger: Logger,
     deploymentAllocationDecision: AllocationDecision,
     mostRecentlyClosedAllocation: Allocation | undefined,
-    isHorizon: boolean,
     forceAction: boolean = false,
   ): Promise<void> {
     const desiredAllocationAmount = deploymentAllocationDecision.ruleMatch.rule
@@ -373,7 +369,6 @@ export class Operator {
 
     logger.info(`No active allocation for deployment, creating one now`, {
       allocationAmount: formatGRT(desiredAllocationAmount),
-      isHorizon,
     })
 
     // Skip allocating if the previous allocation for this deployment was closed with 0x00 POI but rules set to un-safe
@@ -393,7 +388,6 @@ export class Operator {
       return
     }
 
-    // Send AllocateAction to the queue - isLegacy value depends on the horizon upgrade
     await this.queueAction(
       {
         params: {
@@ -403,7 +397,6 @@ export class Operator {
         type: ActionType.ALLOCATE,
         reason: deploymentAllocationDecision.reasonString(),
         protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-        isLegacy: !isHorizon,
       },
       forceAction,
     )
@@ -431,7 +424,6 @@ export class Operator {
         // try the others again later
         activeDeploymentAllocations,
         async (allocation) => {
-          // Send unallocate action to the queue - isLegacy value depends on the allocation being closed
           await this.queueAction(
             {
               params: {
@@ -443,7 +435,6 @@ export class Operator {
               type: ActionType.UNALLOCATE,
               reason: deploymentAllocationDecision.reasonString(),
               protocolNetwork: deploymentAllocationDecision.protocolNetwork,
-              isLegacy: allocation.isLegacy,
             } as ActionItem,
             forceAction,
           )
@@ -595,7 +586,6 @@ export class Operator {
           type: ActionType.PRESENT_POI,
           reason: 'presentPOI:staleness-prevention',
           protocolNetwork: network.specification.networkIdentifier,
-          isLegacy: false,
         },
         false,
       )

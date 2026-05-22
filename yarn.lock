@@ -2252,15 +2252,6 @@
     "@noble/hashes" "~1.4.0"
     "@scure/base" "~1.1.6"
 
-"@semiotic-labs/tap-contracts-bindings@2.0.0":
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/@semiotic-labs/tap-contracts-bindings/-/tap-contracts-bindings-2.0.0.tgz#f0e348fef79e54f36e27502483c02267ebbcaec8"
-  integrity sha512-CPYsX3DSSPY98VMRDH4xoEZAiQSVVynXssWvbzcj4H1NRfc3O+T/jFxSUQG/1LCAnHanOEhoH9hevfjULGZSgg==
-  dependencies:
-    "@typechain/ethers-v6" "^0.5.1"
-    abitype "^0.10.3"
-    ethers "6.13.7"
-
 "@sentry/core@5.30.0":
   version "5.30.0"
   resolved "https://registry.yarnpkg.com/@sentry/core/-/core-5.30.0.tgz#6b203664f69e75106ee8b5a2fe1d717379b331f3"
@@ -2495,14 +2486,6 @@
   version "1.0.4"
   resolved "https://registry.yarnpkg.com/@tsconfig/node16/-/node16-1.0.4.tgz#0b92dcc0cc1c81f6f306a381f28e31b1a56536e9"
   integrity sha512-vxhUy4J8lyeyinH7Azl1pdd43GJhZH/tP2weN8TntQblOY+A0XbT8DJk1/oCPuOOyg/Ja757rG0CgHcWC8OfMA==
-
-"@typechain/ethers-v6@^0.5.1":
-  version "0.5.1"
-  resolved "https://registry.yarnpkg.com/@typechain/ethers-v6/-/ethers-v6-0.5.1.tgz#42fe214a19a8b687086c93189b301e2b878797ea"
-  integrity sha512-F+GklO8jBWlsaVV+9oHaPh5NJdd6rAKN4tklGfInX1Q7h0xPgVLP39Jl3eCulPB5qexI71ZFHwbljx4ZXNfouA==
-  dependencies:
-    lodash "^4.17.15"
-    ts-essentials "^7.0.1"
 
 "@types/argparse@1.0.38":
   version "1.0.38"
@@ -3111,11 +3094,6 @@ abbrev@1, abbrev@^1.0.0:
   version "1.1.1"
   resolved "https://registry.yarnpkg.com/abbrev/-/abbrev-1.1.1.tgz#f8f2c887ad10bf67f634f005b6987fed3179aac8"
   integrity sha512-nne9/IiQ/hzIhY6pdDnbBtz7DjPTKrY00P/zvPSm5pOFkl6xuGrGnXn/VtTNNfNtAfZ9/1RtehkszU9qcTii0Q==
-
-abitype@^0.10.3:
-  version "0.10.3"
-  resolved "https://registry.yarnpkg.com/abitype/-/abitype-0.10.3.tgz#27ce7a7cdb9a80ccd732a3f3cf1ce6ff05266fce"
-  integrity sha512-tRN+7XIa7J9xugdbRzFv/95ka5ivR/sRe01eiWvM0HWWjHuigSZEACgKa0sj4wGuekTDtghCx+5Izk/cOi78pQ==
 
 abstract-logging@^2.0.0:
   version "2.0.1"

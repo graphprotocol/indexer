@@ -100,11 +100,7 @@ export class ActionManager {
         // affectedAllocations are ordered by creation time so use index 0 for oldest allocation to check expiration
         const currentEpoch = await network.networkMonitor.currentEpochNumber()
         affectedAllocationExpiring =
-          currentEpoch >=
-          affectedAllocations[0].createdAtEpoch +
-            (affectedAllocations[0].isLegacy
-              ? maxAllocationDuration.legacy
-              : maxAllocationDuration.horizon)
+          currentEpoch >= affectedAllocations[0].createdAtEpoch + maxAllocationDuration
       }
 
       logger.debug(

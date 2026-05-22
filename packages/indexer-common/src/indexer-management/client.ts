@@ -155,7 +155,6 @@ const SCHEMA_SDL = gql`
     createdAt: BigInt!
     updatedAt: BigInt
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionInput {
@@ -172,7 +171,6 @@ const SCHEMA_SDL = gql`
     reason: String!
     priority: Int!
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionUpdateInput {
@@ -226,7 +224,6 @@ const SCHEMA_SDL = gql`
     failureReason: String
     priority: Int
     protocolNetwork: String!
-    isLegacy: Boolean!
   }
 
   input ActionFilter {
@@ -331,7 +328,6 @@ const SCHEMA_SDL = gql`
     address: String
     registered: Boolean!
     location: GeoLocation
-    isLegacy: Boolean!
   }
 
   type IndexingError {
@@ -382,7 +378,6 @@ const SCHEMA_SDL = gql`
     healthy: Boolean!
     protocolNetwork: String!
     tests: [IndexerEndpointTest!]!
-    isLegacy: Boolean!
   }
 
   type IndexerEndpoints {

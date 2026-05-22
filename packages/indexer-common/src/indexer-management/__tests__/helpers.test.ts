@@ -248,7 +248,6 @@ describe('Actions', () => {
       priority: 0,
       //  When writing directly to the database, `protocolNetwork` must be in the CAIP2-ID format.
       protocolNetwork: 'eip155:421614',
-      isLegacy: true,
     }
 
     await models.Action.upsert(action)
@@ -286,14 +285,6 @@ describe('Actions', () => {
         updatedAt: { [Op.lte]: literal("NOW() - INTERVAL '1d'") },
       }),
     ).resolves.toHaveLength(0)
-
-    await expect(
-      ActionManager.fetchActions(models, null, {
-        status: ActionStatus.FAILED,
-        type: ActionType.ALLOCATE,
-        isLegacy: true,
-      }),
-    ).resolves.toHaveLength(1)
   })
 
   test('Insert and fetch PRESENT_POI action', async () => {
@@ -307,7 +298,6 @@ describe('Actions', () => {
       reason: 'test',
       priority: 0,
       protocolNetwork: 'eip155:421614',
-      isLegacy: false,
     }
     await models.Action.upsert(action)
     await expect(
@@ -389,10 +379,9 @@ describe.skip('Monitor: local', () => {
   })
 
   test('Fetch maxAllocationDuration', async () => {
-    await expect(networkMonitor.maxAllocationDuration()).resolves.toMatchObject({
-      legacy: expect.any(Number),
-      horizon: expect.any(Number),
-    })
+    await expect(networkMonitor.maxAllocationDuration()).resolves.toEqual(
+      expect.any(Number),
+    )
   })
 
   test('Fetch network chain current epoch', async () => {

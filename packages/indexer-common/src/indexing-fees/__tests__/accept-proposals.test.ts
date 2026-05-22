@@ -153,7 +153,6 @@ function createMockNetwork() {
       },
       networkIdentifier: 'eip155:1337',
     },
-    isHorizon: { value: jest.fn().mockResolvedValue(true) },
   } as unknown as Network
 }
 
