@@ -3,7 +3,7 @@
 
 import pMap from 'p-map'
 import gql from 'graphql-tag'
-import { hexlify, TransactionReceipt, ZeroAddress } from 'ethers'
+import { TransactionReceipt, ZeroAddress } from 'ethers'
 
 import {
   Address,
@@ -21,13 +21,11 @@ import {
   encodeCollectData,
   epochElapsedBlocks,
   horizonAllocationIdProof,
-  HorizonTransitionValue,
   indexerError,
   IndexerErrorCode,
   IndexerManagementResolverContext,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
-  legacyAllocationIdProof,
   Network,
   POIData,
   SubgraphClient,
@@ -200,7 +198,7 @@ async function queryAllocations(
     currentEpoch: number
     currentEpochStartBlock: number
     currentEpochElapsedBlocks: number
-    maxAllocationDuration: HorizonTransitionValue
+    maxAllocationDuration: number
     blocksPerEpoch: number
     avgBlockTime: number
     protocolNetwork: string
@@ -280,10 +278,7 @@ async function queryAllocations(
     resultAllocations,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (allocation: any): Promise<AllocationInfo> => {
-      const maxAllocationDuration = allocation.isLegacy
-        ? context.maxAllocationDuration.legacy
-        : context.maxAllocationDuration.horizon
-      const deadlineEpoch = allocation.createdAtEpoch + maxAllocationDuration
+      const deadlineEpoch = allocation.createdAtEpoch + context.maxAllocationDuration
       const remainingBlocks =
         // blocks remaining in current epoch
         context.blocksPerEpoch -
@@ -316,163 +311,7 @@ async function queryAllocations(
   )
 }
 
-async function createLegacyAllocation(
-  network: Network,
-  graphNode: GraphNode,
-  allocationAmount: bigint,
-  logger: Logger,
-  subgraphDeployment: SubgraphDeploymentID,
-  currentEpoch: bigint,
-  activeAllocations: Allocation[],
-  protocolNetwork: string,
-): Promise<{ txHash: string; allocationId: Address }> {
-  const contracts = network.contracts
-  const transactionManager = network.transactionManager
-  const address = network.specification.indexerOptions.address
-
-  // Identify how many GRT the indexer has staked
-  const freeStake = await contracts.LegacyStaking.getIndexerCapacity(address)
-
-  // If there isn't enough left for allocating, abort
-  if (freeStake < allocationAmount) {
-    logger.error(
-      `Legacy allocation of ${formatGRT(
-        allocationAmount,
-      )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-        freeStake,
-      )} GRT`,
-    )
-    throw indexerError(
-      IndexerErrorCode.IE013,
-      `Legacy allocation of ${formatGRT(
-        allocationAmount,
-      )} GRT cancelled: indexer only has a free stake amount of ${formatGRT(
-        freeStake,
-      )} GRT`,
-    )
-  }
-
-  // Ensure subgraph is deployed before allocating
-  await graphNode.ensure(
-    `indexer-agent/${subgraphDeployment.ipfsHash.slice(-10)}`,
-    subgraphDeployment,
-  )
-
-  logger.debug('Obtain a unique legacy Allocation ID')
-
-  // Obtain a unique allocation ID
-  const recentlyClosedAllocations =
-    await network.networkMonitor.recentlyClosedAllocations(Number(currentEpoch), 2)
-  const activeAndRecentlyClosedAllocations: Allocation[] = [
-    ...recentlyClosedAllocations,
-    ...activeAllocations,
-  ]
-  const { allocationSigner, allocationId } = uniqueAllocationID(
-    transactionManager.wallet.mnemonic!.phrase,
-    Number(currentEpoch),
-    subgraphDeployment,
-    activeAndRecentlyClosedAllocations.map((allocation) => allocation.id),
-  )
-
-  // Double-check whether the allocationID already exists on chain, to
-  // avoid unnecessary transactions.
-  // Note: We're checking the allocation state here, which is defined as
-  //
-  //     enum AllocationState { Null, Active, Closed, Finalized }
-  //
-  // in the contracts.
-  const state = await contracts.LegacyStaking.getAllocationState(allocationId)
-  if (state !== 0n) {
-    logger.debug(`Skipping legacy allocation as it already exists onchain`, {
-      indexer: address,
-      allocation: allocationId,
-    })
-    throw indexerError(
-      IndexerErrorCode.IE066,
-      `Legacy allocation '${allocationId}' already exists onchain`,
-    )
-  }
-
-  logger.debug('Generating new legacy allocation ID proof', {
-    newAllocationSigner: allocationSigner,
-    newAllocationID: allocationId,
-    indexerAddress: address,
-  })
-
-  const proof = await legacyAllocationIdProof(allocationSigner, address, allocationId)
-
-  logger.debug('Successfully generated legacy allocation ID proof', {
-    allocationIDProof: proof,
-  })
-
-  logger.debug(`Sending legacy allocateFrom transaction`, {
-    indexer: address,
-    subgraphDeployment: subgraphDeployment.ipfsHash,
-    amount: formatGRT(allocationAmount),
-    allocation: allocationId,
-    proof,
-    protocolNetwork,
-  })
-
-  const receipt = await transactionManager.executeTransaction(
-    async () =>
-      contracts.LegacyStaking.allocateFrom.estimateGas(
-        address,
-        subgraphDeployment.bytes32,
-        allocationAmount,
-        allocationId,
-        hexlify(new Uint8Array(32).fill(0)),
-        proof,
-      ),
-    async (gasLimit) =>
-      contracts.LegacyStaking.allocateFrom(
-        address,
-        subgraphDeployment.bytes32,
-        allocationAmount,
-        allocationId,
-        hexlify(new Uint8Array(32).fill(0)),
-        proof,
-        { gasLimit },
-      ),
-    logger.child({ action: 'allocate' }),
-  )
-
-  if (receipt === 'paused' || receipt === 'unauthorized') {
-    throw indexerError(
-      IndexerErrorCode.IE062,
-      `Legacy allocation not created. ${
-        receipt === 'paused' ? 'Network paused' : 'Operator not authorized'
-      }`,
-    )
-  }
-
-  const createAllocationEventLogs = network.transactionManager.findEvent(
-    'AllocationCreated',
-    network.contracts.LegacyStaking.interface,
-    'subgraphDeploymentID',
-    subgraphDeployment.toString(),
-    receipt,
-    logger,
-  )
-
-  if (!createAllocationEventLogs) {
-    throw indexerError(
-      IndexerErrorCode.IE014,
-      `Legacy allocation create transaction was never mined`,
-    )
-  }
-
-  logger.info(`Successfully legacy allocated to subgraph deployment`, {
-    amountGRT: formatGRT(createAllocationEventLogs.tokens),
-    allocation: createAllocationEventLogs.allocationID,
-    epoch: createAllocationEventLogs.epoch.toString(),
-    transaction: receipt.hash,
-  })
-
-  return { txHash: receipt.hash, allocationId: createAllocationEventLogs.allocationID }
-}
-
-async function createHorizonAllocation(
+async function createAllocation(
   network: Network,
   graphNode: GraphNode,
   allocationAmount: bigint,
@@ -488,7 +327,7 @@ async function createHorizonAllocation(
   const dataService = contracts.SubgraphService.target.toString()
 
   // Identify how many GRT the indexer has staked
-  const freeStake = (await network.networkMonitor.freeStake()).horizon
+  const freeStake = await network.networkMonitor.freeStake()
 
   // If there isn't enough left for allocating, abort
   if (freeStake < allocationAmount) {
@@ -627,94 +466,6 @@ async function createHorizonAllocation(
   return { txHash: receipt.hash, allocationId }
 }
 
-async function closeLegacyAllocation(
-  allocation: Allocation,
-  poi: string,
-  network: Network,
-  logger: Logger,
-): Promise<{ txHash: string; rewardsAssigned: bigint }> {
-  const contracts = network.contracts
-  const transactionManager = network.transactionManager
-  const isHorizon = await network.isHorizon.value()
-
-  // Double-check whether the allocation is still active on chain, to
-  // avoid unnecessary transactions.
-  // Note: We're checking the allocation state here, which is defined as
-  //
-  //     enum AllocationState { Null, Active, Closed, Finalized }
-  //
-  // in the contracts.
-  const state = await contracts.LegacyStaking.getAllocationState(allocation.id)
-  if (state !== 1n) {
-    throw indexerError(
-      IndexerErrorCode.IE065,
-      'Legacy allocation has already been closed',
-    )
-  }
-
-  logger.debug('Sending legacy closeAllocation transaction')
-  const receipt = await transactionManager.executeTransaction(
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    () => contracts.LegacyStaking.closeAllocation.estimateGas(allocation.id, poi!),
-    (gasLimit) =>
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      contracts.LegacyStaking.closeAllocation(allocation.id, poi!, {
-        gasLimit,
-      }),
-    logger,
-  )
-
-  if (receipt === 'paused' || receipt === 'unauthorized') {
-    throw indexerError(
-      IndexerErrorCode.IE062,
-      `Legacy allocation '${allocation.id}' could not be closed: ${receipt}`,
-    )
-  }
-
-  const closeAllocationEventLogs = transactionManager.findEvent(
-    'AllocationClosed',
-    contracts.LegacyStaking.interface,
-    'allocationID',
-    allocation.id,
-    receipt,
-    logger,
-  )
-
-  if (!closeAllocationEventLogs) {
-    throw indexerError(
-      IndexerErrorCode.IE015,
-      `Legacy allocation close transaction was never successfully mined`,
-    )
-  }
-
-  const rewardsEventLogs = transactionManager.findEvent(
-    isHorizon ? 'HorizonRewardsAssigned' : 'RewardsAssigned',
-    contracts.RewardsManager.interface,
-    'allocationID',
-    allocation.id,
-    receipt,
-    logger,
-  )
-
-  const rewardsAssigned = rewardsEventLogs ? rewardsEventLogs.amount : 0
-  if (rewardsAssigned == 0) {
-    logger.warn('No rewards were distributed upon closing the legacy allocation')
-  }
-
-  logger.info(`Successfully closed legacy allocation`, {
-    deployment: closeAllocationEventLogs.subgraphDeploymentID,
-    allocation: closeAllocationEventLogs.allocationID,
-    indexer: closeAllocationEventLogs.indexer,
-    amountGRT: formatGRT(closeAllocationEventLogs.tokens),
-    poi: closeAllocationEventLogs.poi,
-    epoch: closeAllocationEventLogs.epoch.toString(),
-    transaction: receipt.hash,
-    indexingRewards: rewardsAssigned,
-  })
-
-  return { txHash: receipt.hash, rewardsAssigned }
-}
-
 /**
  * Execute collect transaction for indexing rewards
  */
@@ -807,7 +558,7 @@ async function presentHorizonPOI(
   return { txHash: receipt.hash, rewardsCollected }
 }
 
-async function closeHorizonAllocation(
+async function closeAllocation(
   allocation: Allocation,
   poiData: POIData,
   network: Network,
@@ -1073,43 +824,17 @@ export default {
 
     try {
       const currentEpoch = await network.contracts.EpochManager.currentEpoch()
-      const isHorizon = await network.isHorizon.value()
 
-      logger.debug('createAllocation: Checking allocation resolution path', {
-        isHorizon,
-      })
-
-      let txHash: string
-      let allocationId: Address
-      if (isHorizon) {
-        logger.debug('Creating horizon allocation')
-        const result = await createHorizonAllocation(
-          network,
-          graphNode,
-          allocationAmount,
-          logger,
-          subgraphDeployment,
-          currentEpoch,
-          activeAllocations,
-          protocolNetwork,
-        )
-        txHash = result.txHash
-        allocationId = result.allocationId
-      } else {
-        logger.debug('Creating legacy allocation')
-        const result = await createLegacyAllocation(
-          network,
-          graphNode,
-          allocationAmount,
-          logger,
-          subgraphDeployment,
-          currentEpoch,
-          activeAllocations,
-          protocolNetwork,
-        )
-        txHash = result.txHash
-        allocationId = result.allocationId
-      }
+      const { txHash, allocationId } = await createAllocation(
+        network,
+        graphNode,
+        allocationAmount,
+        logger,
+        subgraphDeployment,
+        currentEpoch,
+        activeAllocations,
+        protocolNetwork,
+      )
 
       logger.debug(
         `Updating indexing rules, so indexer-agent will now manage the active allocation`,
@@ -1190,8 +915,8 @@ export default {
       const poiData = await networkMonitor.resolvePOI(
         allocationData,
         poi,
-        allocationData.isLegacy ? undefined : publicPOI,
-        allocationData.isLegacy || blockNumber === null ? undefined : Number(blockNumber),
+        publicPOI,
+        blockNumber === null ? undefined : Number(blockNumber),
         force,
       )
       logger.debug('POI resolved', {
@@ -1204,33 +929,12 @@ export default {
         force,
       })
 
-      logger.debug('closeAllocation: Checking allocation resolution path', {
-        allocationIsLegacy: allocationData.isLegacy,
-      })
-
-      let txHash: string
-      let rewardsAssigned: bigint
-      if (allocationData.isLegacy) {
-        logger.debug('Closing legacy allocation')
-        const result = await closeLegacyAllocation(
-          allocationData,
-          poiData.poi,
-          network,
-          logger,
-        )
-        txHash = result.txHash
-        rewardsAssigned = result.rewardsAssigned
-      } else {
-        logger.debug('Closing horizon allocation')
-        const result = await closeHorizonAllocation(
-          allocationData,
-          poiData,
-          network,
-          logger,
-        )
-        txHash = result.txHash
-        rewardsAssigned = result.rewardsAssigned
-      }
+      const { txHash, rewardsAssigned } = await closeAllocation(
+        allocationData,
+        poiData,
+        network,
+        logger,
+      )
 
       logger.debug(
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't allocate to it`,
@@ -1311,11 +1015,6 @@ export default {
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const allocationData = await networkMonitor.allocation(allocation)
-
-    // Present POI only works for Horizon allocations
-    if (allocationData.isLegacy) {
-      throw new Error('Cannot present POI for legacy allocations.')
-    }
 
     try {
       logger.debug('Resolving POI')
@@ -1439,7 +1138,6 @@ export default {
 }
 
 // Helper function to execute a resize allocation transaction on Horizon.
-// Follows the same pattern as presentHorizonPOI and closeHorizonAllocation.
 async function resizeHorizonAllocation(
   allocation: Allocation,
   newAmount: bigint,

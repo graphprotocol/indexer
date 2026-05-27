@@ -127,7 +127,6 @@ module.exports = {
         'status',
         'source',
         'reason',
-        'isLegacy',
       ])
     } catch (error) {
       actionSpinner.fail(error.toString())

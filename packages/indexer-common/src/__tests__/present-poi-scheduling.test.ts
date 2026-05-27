@@ -73,7 +73,6 @@ describe('presentPOIForAllocations', () => {
         }),
         reason: 'presentPOI:staleness-prevention',
         protocolNetwork: 'eip155:421614',
-        isLegacy: false,
       }),
       false,
     )

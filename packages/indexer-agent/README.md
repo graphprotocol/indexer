@@ -106,10 +106,6 @@ Network Subgraph
   --epoch-subgraph-deployment     Epoch subgraph deployment (for local hosting)
                                                                         [string]
 
-TAP Subgraph
-  --tap-subgraph-deployment  TAP subgraph deployment                    [string]
-  --tap-subgraph-endpoint    Endpoint to query the tap subgraph from    [string]
-
 Protocol
   --epoch-subgraph-endpoint                Endpoint to query the epoch block
                                            oracle subgraph from
@@ -174,7 +170,6 @@ Options:
                                    path                                 [string]
   --subgraph-service-address-book  Subgraph Service contracts address book file
                                    path                                 [string]
-  --tap-address-book               TAP contracts address book file path [string]
   --chain-finalize-time            The time in seconds that the chain finalizes
                                    blocks               [number] [default: 3600]
 

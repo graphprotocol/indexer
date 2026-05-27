@@ -128,10 +128,6 @@ export default {
 
     const network = extractNetwork(protocolNetwork, multiNetworks)
 
-    if (!(await network.isHorizon.value())) {
-      throw indexerError(IndexerErrorCode.IE082)
-    }
-
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = network.contracts.SubgraphService.target.toString().toLowerCase()
     const idleStake = await network.contracts.HorizonStaking.getIdleStake(indexer)
@@ -206,10 +202,6 @@ export default {
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager
-
-    if (!(await network.isHorizon.value())) {
-      throw indexerError(IndexerErrorCode.IE082)
-    }
 
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = contracts.SubgraphService.target.toString().toLowerCase()
@@ -325,10 +317,6 @@ export default {
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager
-
-    if (!(await network.isHorizon.value())) {
-      throw indexerError(IndexerErrorCode.IE082)
-    }
 
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = contracts.SubgraphService.target.toString().toLowerCase()
@@ -464,10 +452,6 @@ export default {
 
     const network = extractNetwork(protocolNetwork, multiNetworks)
 
-    if (!(await network.isHorizon.value())) {
-      throw indexerError(IndexerErrorCode.IE082)
-    }
-
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = network.contracts.SubgraphService.target.toString().toLowerCase()
 
@@ -542,10 +526,6 @@ export default {
     const networkMonitor = network.networkMonitor
     const contracts = network.contracts
     const transactionManager = network.transactionManager
-
-    if (!(await network.isHorizon.value())) {
-      throw indexerError(IndexerErrorCode.IE082)
-    }
 
     const indexer = network.specification.indexerOptions.address.toLowerCase()
     const dataService = contracts.SubgraphService.target.toString().toLowerCase()

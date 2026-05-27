@@ -37,8 +37,6 @@ export class Action extends Model<
 
   declare protocolNetwork: string
 
-  declare isLegacy: boolean
-
   declare publicPOI: string | null
   declare poiBlockNumber: number | null
 
@@ -157,11 +155,6 @@ export const defineActionModels = (sequelize: Sequelize): ActionModels => {
         validate: {
           is: caip2IdRegex,
         },
-      },
-      isLegacy: {
-        type: DataTypes.BOOLEAN,
-        allowNull: false,
-        defaultValue: true,
       },
       publicPOI: {
         type: DataTypes.STRING,

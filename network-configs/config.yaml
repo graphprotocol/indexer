@@ -13,15 +13,8 @@ subgraphs:
     url: "https://gateway-arbitrum.network.thegraph.com/api/<api-key>/subgraphs/id/3xQHhMudr1oh69ut36G2mbzpYmYxwqCeU6wwqyCDCnqV"
   epochSubgraph:
     url: "http://test-url.xyz"
-  tapSubgraph:
-    url: "https://gateway-arbitrum.network.thegraph.com/api/<api-key>/subgraphs/id/7ubx365MiqBH5iUz6XWXWT8PTof5BVAyEzdb8m17RvbD"
 transactionMonitoring:
   gasIncreaseTimeout: 240000
   gasIncreaseFactor: 1.2
   baseFeePerGasMax: 100000000000
   maxTransactionAttempts: 0
-tapAddressBook:
-  "421614":
-    TAPVerifier: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"
-    AllocationIDTracker: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"
-    Escrow: "0xf56b5d582920E4527A818FBDd801C0D80A394CB8"

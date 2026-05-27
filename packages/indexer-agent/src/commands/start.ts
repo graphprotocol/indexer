@@ -33,7 +33,6 @@ import { injectCommonStartupOptions } from './common-options'
 import pMap from 'p-map'
 import { NetworkSpecification } from '@graphprotocol/indexer-common/dist/network-specification'
 import { displayZodParsingError } from '@graphprotocol/indexer-common'
-import { readFileSync } from 'fs'
 import { AgentConfigs } from '../types'
 
 // eslint-disable-next-line  @typescript-eslint/no-explicit-any
@@ -113,27 +112,6 @@ export const start = {
         required: true,
         group: 'Ethereum',
       })
-      .option('legacy-mnemonics', {
-        description:
-          'Legacy operator mnemonics for collecting TAPv1 RAVs from previous operators. ' +
-          'Via CLI: use multiple --legacy-mnemonics flags. ' +
-          'Via env var: separate mnemonics with | (pipe character).',
-        type: 'string',
-        array: true,
-        default: [],
-        group: 'Ethereum',
-        coerce: (value: string | string[]): string[] => {
-          if (typeof value === 'string') {
-            // Environment variable: split by pipe delimiter
-            return value
-              .split('|')
-              .map(m => m.trim())
-              .filter(m => m.length > 0)
-          }
-          // CLI: already an array
-          return value.filter(m => m.length > 0)
-        },
-      })
       .option('indexer-address', {
         description: 'Ethereum address of the indexer',
         type: 'string',
@@ -185,18 +163,6 @@ export const start = {
         array: false,
         type: 'string',
         group: 'Network Subgraph',
-      })
-      .option('tap-subgraph-deployment', {
-        description: 'TAP subgraph deployment (for local hosting)',
-        array: false,
-        type: 'string',
-        group: 'TAP Subgraph',
-      })
-      .option('tap-subgraph-endpoint', {
-        description: 'Endpoint to query the tap subgraph from',
-        array: false,
-        type: 'string',
-        group: 'TAP Subgraph',
       })
       .option('indexing-payments-subgraph-deployment', {
         description:
@@ -321,11 +287,6 @@ export const start = {
       })
       .option('subgraph-service-address-book', {
         description: 'Subgraph Service contracts address book file path',
-        type: 'string',
-        required: false,
-      })
-      .option('tap-address-book', {
-        description: 'TAP contracts address book file path',
         type: 'string',
         required: false,
       })
@@ -492,7 +453,6 @@ export async function createNetworkSpecification(
     register: argv.register,
     maxProvisionInitialSize: argv.maxProvisionInitialSize,
     finalityTime: argv.chainFinalizeTime,
-    legacyMnemonics: argv.legacyMnemonics,
     enableDips: argv.enableDips,
     dipsAllocationAmount: argv.dipsAllocationAmount,
     ravCollectionInterval: argv.ravCollectionInterval,
@@ -521,10 +481,6 @@ export async function createNetworkSpecification(
     epochSubgraph: {
       deployment: argv.epochSubgraphDeployment,
       url: argv.epochSubgraphEndpoint,
-    },
-    tapSubgraph: {
-      deployment: argv.tapSubgraphDeployment,
-      url: argv.tapSubgraphEndpoint,
     },
     indexingPaymentsSubgraph: {
       deployment: argv.indexingPaymentsSubgraphDeployment,
@@ -574,8 +530,6 @@ export async function createNetworkSpecification(
     }
   }
 
-  const tapAddressBook = loadFile(argv.tapAddressBook)
-
   try {
     const networkSpecification = spec.NetworkSpecification.parse({
       networkIdentifier,
@@ -586,7 +540,6 @@ export async function createNetworkSpecification(
       networkProvider,
       horizonAddressBook: argv.horizonAddressBook,
       subgraphServiceAddressBook: argv.subgraphServiceAddressBook,
-      tapAddressBook: tapAddressBook,
     })
     logger.trace('Network specification', {
       networkSpecification,
@@ -596,11 +549,6 @@ export async function createNetworkSpecification(
     displayZodParsingError(parsingError)
     process.exit(1)
   }
-}
-
-function loadFile(path: string | undefined): unknown | undefined {
-  const obj = path ? JSON.parse(readFileSync(path).toString()) : undefined
-  return obj
 }
 
 export async function run(

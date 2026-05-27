@@ -48,6 +48,42 @@ describe('Action Validation', () => {
       expect(isValidActionInput(missingAllocationID)).toBe(false)
     })
 
+    test('validates UNALLOCATE action with poi requires publicPOI and poiBlockNumber', () => {
+      const completePOI: ActionInput = {
+        ...baseAction,
+        type: ActionType.UNALLOCATE,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'aa'.repeat(32),
+        publicPOI: '0x' + 'bb'.repeat(32),
+        poiBlockNumber: 1234,
+      } as ActionInput
+
+      expect(isValidActionInput(completePOI)).toBe(true)
+
+      const missingPublicPOI: ActionInput = {
+        ...baseAction,
+        type: ActionType.UNALLOCATE,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'aa'.repeat(32),
+        poiBlockNumber: 1234,
+      } as ActionInput
+
+      expect(isValidActionInput(missingPublicPOI)).toBe(false)
+
+      const missingPoiBlockNumber: ActionInput = {
+        ...baseAction,
+        type: ActionType.UNALLOCATE,
+        deploymentID: 'Qmtest',
+        allocationID: '0x1234567890123456789012345678901234567890',
+        poi: '0x' + 'aa'.repeat(32),
+        publicPOI: '0x' + 'bb'.repeat(32),
+      } as ActionInput
+
+      expect(isValidActionInput(missingPoiBlockNumber)).toBe(false)
+    })
+
     test('validates RESIZE action requires deploymentID, allocationID, and amount', () => {
       const validResize: ActionInput = {
         ...baseAction,

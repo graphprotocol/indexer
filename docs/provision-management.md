@@ -4,7 +4,7 @@
 ## Glossary
 
 - **indexer stake**: all of the tokens that have been staked by the indexer
-- **idle stake**: indexer's stake that has not been assigned to a provision and it's not part of legacy allocations
+- **idle stake**: indexer's stake that has not been assigned to a provision
 - **provisioned stake**: stake that has been assigned to a provision
 - **delegated stake**: stake that has been delegated to a specific (indexer, provision). Pre-horizon delegation is automatically credited to the `SubgraphService` provision.
 - **available stake**: stake that is available within the provision to be used, for example for allocations. Note that this will include provisioned tokens plus delegated stake.
@@ -16,7 +16,6 @@
 
 ```
 idle stake > 100k GRT
-indexer stake - legacy allocated stake > 100k GRT
 ```
 
 For the provision to be created the agent needs to be configured with a max initial provision size, this can be done by:

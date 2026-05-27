@@ -125,8 +125,7 @@ yarn migrator:down      # Rollback last migration
 - **Graph Node**: Queries subgraph data and manages deployments
 - **Ethereum/Arbitrum**: On-chain transactions for allocations
 - **Network Subgraph**: Queries protocol state
-- **TAP (Timeline Aggregation Protocol)**: Handles query fee collection and redemption
-- **TAP Subgraph**: Tracks TAP receipts and RAVs
+- **TAP (Timeline Aggregation Protocol)**: Handles query fee collection and redemption via TAP v2 (GraphTallyCollector)
 
 ## Testing Requirements
 
@@ -145,39 +144,34 @@ The `scripts/run-tests.sh` script:
 - Runs the test suite with proper environment variables
 - Cleans up the PostgreSQL container when done
 
-## Horizon Support
+## Horizon
 
-The indexer now supports Graph Horizon, the next-generation architecture for The Graph Protocol:
-
-### Key Changes
-- **Dual Contract System**: Supports both legacy and Horizon contracts simultaneously
-- **New Contracts**: HorizonStaking, SubgraphService, PaymentsEscrow, GraphTallyCollector
-- **Enhanced TAP v2**: Receipt Aggregate Vouchers v2 (RAV v2) with collection-based aggregation
-- **Automatic Detection**: System automatically detects Horizon-enabled networks
-- **Address Books**: Separate configuration for horizon, subgraph-service, and TAP contracts
+The indexer-agent runs exclusively against Graph Horizon contracts (`HorizonStaking`, `SubgraphService`, `PaymentsEscrow`, `GraphTallyCollector`). All allocations are Horizon allocations; TAP v2 (via `GraphTallyCollector`) is the only receipt/RAV system.
 
 ### Configuration
 ```bash
-# New Horizon-specific options
 --horizon-address-book           # Path to Horizon contracts address book
 --subgraph-service-address-book  # Path to SubgraphService contracts address book
---tap-address-book               # Path to TAP contracts address book
---max-provision-initial-size    # Initial SubgraphService provision size
+--max-provision-initial-size     # Initial SubgraphService provision size
 --payments-destination           # Separate payment collection address
 ```
 
 ### Database Migrations
-- Migration 21: Adds TAP Horizon tables for receipts and RAVs
-- Migration 22: Adds TAP Horizon deny list functionality
+- Migrations 12, 13, 15, 16, 19: Pre-Horizon schema. Still run on fresh installs (Umzug applies all migrations in order); their effects are then reverted by migrations 25 and 26. Kept in the tree as historical record.
+- Migration 21: Adds TAP Horizon tables for receipts and RAVs.
+- Migration 22: Adds TAP Horizon deny list functionality.
+- Migration 23: Adds Actions new types for Horizon allocation management.
+- Migration 24: Adds DIPS-related tables.
+- Migration 25: Dropped legacy TAP (`scalar_tap_*`) tables.
+- Migration 26: Dropped the `Actions.isLegacy` column.
 
 ## Package Architecture
 
 ### indexer-common
 Core shared library providing:
-- **Allocations**: Horizon and legacy allocation management (`allocations/`)
-  - TAP collector for query fee collection
-  - Graph tally collector for aggregating receipts
-  - Escrow account management for both Horizon and legacy
+- **Allocations**: Horizon allocation management (`allocations/`)
+  - Graph tally collector for aggregating TAP v2 receipts
+  - Escrow account management for Horizon
 - **Indexer Management**: GraphQL server and resolvers for managing indexer operations
   - Action queue management
   - Allocation lifecycle
@@ -213,4 +207,4 @@ Command-line interface providing commands for:
 - Main branch: main
 - Package manager: Yarn 1.22.22
 - Beta software status
-- Horizon support: Active on supported networks
+- Horizon: required (legacy protocol not supported)

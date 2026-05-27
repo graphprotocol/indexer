@@ -117,7 +117,6 @@ module.exports = {
         'failureReason',
         'transaction',
         'reason',
-        'isLegacy',
       ]
 
       // Format Actions 'protocolNetwork' field to display human-friendly chain aliases instead of CAIP2-IDs

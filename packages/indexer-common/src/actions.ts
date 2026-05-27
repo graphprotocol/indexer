@@ -22,7 +22,6 @@ export interface ActionItem {
   reason: string
   status?: ActionStatus
   protocolNetwork: string
-  isLegacy?: boolean
 }
 
 export interface ActionUpdateInput {
@@ -37,7 +36,6 @@ export interface ActionUpdateInput {
   status?: ActionStatus
   reason?: string
   protocolNetwork?: string
-  isLegacy?: boolean
 }
 
 export interface ActionInput {
@@ -54,7 +52,6 @@ export interface ActionInput {
   status: ActionStatus
   priority: number | undefined
   protocolNetwork: string
-  isLegacy: boolean
 }
 
 export const isValidActionInput = (
@@ -72,11 +69,9 @@ export const isValidActionInput = (
     case ActionType.UNALLOCATE:
       hasActionParams =
         'deploymentID' in variableToCheck && 'allocationID' in variableToCheck
-
-      if (!variableToCheck.isLegacy && variableToCheck.poi !== undefined) {
+      if (variableToCheck.poi !== undefined) {
         hasActionParams =
           hasActionParams &&
-          'poi' in variableToCheck &&
           'publicPOI' in variableToCheck &&
           'poiBlockNumber' in variableToCheck
       }
@@ -203,7 +198,6 @@ export interface ActionFilter {
   reason?: string
   updatedAt?: WhereOperators
   protocolNetwork?: string
-  isLegacy?: boolean
 }
 
 export const actionFilterToWhereOptions = (filter: ActionFilter): WhereOptions => {
@@ -237,7 +231,6 @@ export interface ActionResult {
   failureReason: string | null
   transaction: string | null
   protocolNetwork: string
-  isLegacy: boolean
 }
 
 export enum ActionType {
@@ -275,5 +268,4 @@ export enum ActionParams {
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
   PROTOCOL_NETWORK = 'protocolNetwork',
-  IS_LEGACY = 'isLegacy',
 }

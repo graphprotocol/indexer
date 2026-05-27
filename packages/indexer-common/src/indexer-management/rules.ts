@@ -139,18 +139,15 @@ export const ensureAllocationLifetime = async (
 ): Promise<[boolean, number]> => {
   if (rule.allocationLifetime) {
     const maxAllocationDuration = await network.networkMonitor.maxAllocationDuration()
-    const isHorizon = await network.isHorizon.value()
 
-    if (isHorizon) {
-      // Don't enforce for altruistic allocations
-      if (
-        rule.allocationLifetime > maxAllocationDuration.horizon &&
-        (rule.allocationAmount === undefined ||
-          rule.allocationAmount === null ||
-          Number(rule.allocationAmount) > 0)
-      ) {
-        return [false, maxAllocationDuration.horizon]
-      }
+    // Don't enforce for altruistic allocations
+    if (
+      rule.allocationLifetime > maxAllocationDuration &&
+      (rule.allocationAmount === undefined ||
+        rule.allocationAmount === null ||
+        Number(rule.allocationAmount) > 0)
+    ) {
+      return [false, maxAllocationDuration]
     }
   }
 

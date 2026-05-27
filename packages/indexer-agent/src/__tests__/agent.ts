@@ -413,9 +413,8 @@ describe('reconcileDeploymentAllocationAction', () => {
     }
   }
 
-  function createNetwork(isHorizon: boolean) {
+  function createNetwork() {
     return {
-      isHorizon: { value: jest.fn().mockResolvedValue(isHorizon) },
       specification: { networkIdentifier: 'eip155:42161' },
       networkMonitor: {
         closedAllocations: jest.fn().mockResolvedValue([]),
@@ -423,16 +422,16 @@ describe('reconcileDeploymentAllocationAction', () => {
     }
   }
 
-  it('calls presentPOIForAllocations for expiring Horizon allocations', async () => {
+  it('calls presentPOIForAllocations for expiring allocations', async () => {
     const agent = createAgent()
     const operator = createOperator()
-    const network = createNetwork(true)
+    const network = createNetwork()
 
     await agent.reconcileDeploymentAllocationAction(
       decision,
       activeAllocations,
       10,
-      { value: jest.fn().mockResolvedValue(28) },
+      28,
       network,
       operator,
       false,
@@ -444,25 +443,6 @@ describe('reconcileDeploymentAllocationAction', () => {
       [activeAllocations[0]],
       network,
     )
-  })
-
-  it('does nothing for expiring legacy allocations', async () => {
-    const agent = createAgent()
-    const operator = createOperator()
-    const network = createNetwork(false)
-
-    await agent.reconcileDeploymentAllocationAction(
-      decision,
-      activeAllocations,
-      10,
-      { value: jest.fn().mockResolvedValue(28) },
-      network,
-      operator,
-      false,
-    )
-
-    expect(agent.identifyExpiringAllocations).not.toHaveBeenCalled()
-    expect(operator.presentPOIForAllocations).not.toHaveBeenCalled()
   })
 })
 
