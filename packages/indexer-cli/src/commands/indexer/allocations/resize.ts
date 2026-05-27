@@ -7,6 +7,7 @@ import { resizeAllocation } from '../../../allocations'
 import {
   extractProtocolNetworkOption,
   printObjectOrArray,
+  getRawPositionalArgs,
 } from '../../../command-helpers'
 
 const HELP = `
@@ -54,7 +55,7 @@ module.exports = {
       return
     }
 
-    const [id, amount] = parameters.array || []
+    const [id, amount] = getRawPositionalArgs(parameters.array || [])
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)

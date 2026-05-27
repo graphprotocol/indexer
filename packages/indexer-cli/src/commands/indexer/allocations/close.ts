@@ -8,6 +8,7 @@ import {
   validatePOI,
   printObjectOrArray,
   extractProtocolNetworkOption,
+  getRawPositionalArgs,
 } from '../../../command-helpers'
 
 const HELP = `
@@ -58,7 +59,7 @@ module.exports = {
     }
 
     const [id, unformattedPoi, unformattedBlockNumber, unformattedPublicPOI] =
-      parameters.array || []
+      getRawPositionalArgs(parameters.array || [])
 
     if (id === undefined) {
       spinner.fail(`Missing required argument: 'id'`)

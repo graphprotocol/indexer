@@ -4,7 +4,11 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { disputes, printDisputes } from '../../../disputes'
-import { parseOutputFormat, extractProtocolNetworkOption } from '../../../command-helpers'
+import {
+  parseOutputFormat,
+  extractProtocolNetworkOption,
+  getRawPositionalArgs,
+} from '../../../command-helpers'
 
 const HELP = `
 ${chalk.bold(
@@ -26,7 +30,9 @@ module.exports = {
     const { print, parameters } = toolbox
 
     const { h, help, o, output } = parameters.options
-    const [status, minAllocationClosedEpoch] = parameters.array || []
+    const [status, minAllocationClosedEpoch] = getRawPositionalArgs(
+      parameters.array || [],
+    )
     const outputFormat = parseOutputFormat(print, o || output || 'table')
 
     if (help || h) {

@@ -8,6 +8,7 @@ import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexe
 import {
   extractProtocolNetworkOption,
   printObjectOrArray,
+  getRawPositionalArgs,
 } from '../../../command-helpers'
 
 const HELP = `
@@ -49,7 +50,7 @@ module.exports = {
       return
     }
 
-    const [deploymentID, amount, indexNode] = parameters.array || []
+    const [deploymentID, amount, indexNode] = getRawPositionalArgs(parameters.array || [])
 
     try {
       const protocolNetwork = extractProtocolNetworkOption(parameters.options, true)

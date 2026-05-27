@@ -49,23 +49,31 @@ function normalizePOIParams(
     normalizedPoi = zeroPOI
   }
 
-  let normalizedPublicPoi = publicPOI
-  if (normalizedPublicPoi === '0' || normalizedPublicPoi === '0x0') {
+  // Normalize publicPOI: convert '0' or '0x0' to zeroPOI
+  let normalizedPublicPoi: string | undefined = publicPOI
+  if (publicPOI === '0' || publicPOI === '0x0') {
     normalizedPublicPoi = zeroPOI
   }
 
-  let poiBlockNumber: number | undefined = undefined
+  // Normalize blockNumber: parse to number if provided
+  let normalizedBlockNumber: number | undefined = undefined
   if (blockNumber !== undefined) {
-    poiBlockNumber = parseInt(blockNumber, 10)
-    if (isNaN(poiBlockNumber)) {
+    normalizedBlockNumber = parseInt(blockNumber, 10)
+    if (isNaN(normalizedBlockNumber)) {
       throw new Error(`Invalid block number: ${blockNumber}`)
     }
+  }
+
+  // When POI is zero, default publicPOI and blockNumber to zero as well
+  if (normalizedPoi === zeroPOI) {
+    normalizedPublicPoi = normalizedPublicPoi ?? zeroPOI
+    normalizedBlockNumber = normalizedBlockNumber ?? 0
   }
 
   return {
     poi: normalizedPoi,
     publicPOI: normalizedPublicPoi,
-    poiBlockNumber,
+    poiBlockNumber: normalizedBlockNumber,
   }
 }
 
