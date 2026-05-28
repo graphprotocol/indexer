@@ -151,6 +151,10 @@ export const ProtocolSubgraphs = z
     freshnessSleepMilliseconds: positiveNumber().default(10_000),
     networkSubgraph: Subgraph,
     epochSubgraph: Subgraph,
+    // Source of truth for on-chain RCA offers. The DIPs accept path
+    // queries this before calling acceptIndexingAgreement so the
+    // contract's rcaOffers check doesn't revert on a race where the
+    // offer tx hasn't landed yet.
     indexingPaymentsSubgraph: OptionalSubgraph,
   })
   .strict()

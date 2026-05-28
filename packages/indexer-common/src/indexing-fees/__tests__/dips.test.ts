@@ -667,6 +667,62 @@ describe('DipsManager', () => {
           dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
         ).toBe(true)
       })
+
+      test('CanceledByPayer skips on-chain cancel and only runs final collect', async () => {
+        const canceledByPayer = { ...mockAgreement, state: 'CanceledByPayer' as const }
+        const mockCollectReceipt = { hash: '0xcollect456' }
+
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockResolvedValueOnce(mockCollectReceipt) // only collect, no cancel
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(
+          canceledByPayer.id,
+          canceledByPayer,
+        )
+
+        expect(result).toBe(true)
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+      })
+
+      test('CanceledByPayer with failing final collect still returns true', async () => {
+        const canceledByPayer = { ...mockAgreement, state: 'CanceledByPayer' as const }
+
+        network.transactionManager.executeTransaction = jest
+          .fn()
+          .mockRejectedValueOnce(new Error('collect failed'))
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
+
+        const result = await dipsManager.cancelAgreement(
+          canceledByPayer.id,
+          canceledByPayer,
+        )
+
+        expect(result).toBe(true)
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+        expect(
+          dipsManager.collectionTracker.isReadyForCollection(canceledByPayer.id, 0),
+        ).toBe(true)
+      })
     })
 
     describe('cleanupFinishedAgreement', () => {
@@ -797,6 +853,36 @@ describe('DipsManager', () => {
           .mockResolvedValue(true)
 
         await dipsManager.cancelBlocklistedAgreements([mockAgreement])
+
+        expect(cancelSpy).not.toHaveBeenCalled()
+      })
+
+      test('skips CanceledByPayer agreements even when a NEVER rule exists', async () => {
+        // Reproduces the bug where the payer canceled on-chain first
+        // (via dipper) and the agent's own NEVER rule for the closed
+        // allocation would otherwise route the agreement back through
+        // cancelAgreement, which would attempt a redundant on-chain
+        // cancel and skip the final collection.
+        await managementModels.IndexingRule.create({
+          identifier: testDeploymentId,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.NEVER,
+          requireSupported: true,
+          safety: true,
+          protocolNetwork: 'eip155:421614',
+          allocationAmount: '0',
+        })
+
+        const cancelSpy = jest
+          .spyOn(dipsManager, 'cancelAgreement')
+          .mockResolvedValue(true)
+
+        const canceledByPayer: SubgraphIndexingAgreement = {
+          ...mockAgreement,
+          state: 'CanceledByPayer',
+        }
+
+        await dipsManager.cancelBlocklistedAgreements([canceledByPayer])
 
         expect(cancelSpy).not.toHaveBeenCalled()
       })
