@@ -517,6 +517,8 @@ export class DipsManager {
     }
   }
 
+  // Returns true once the final-collect step ran (whether we canceled on-chain
+  // or the payer already had); false only when our own on-chain cancel failed.
   async cancelAgreement(
     agreementId: string,
     agreement: SubgraphIndexingAgreement,
@@ -526,36 +528,42 @@ export class DipsManager {
       agreementId,
     })
 
-    // Step 1: Cancel on-chain
+    // Step 1: Cancel on-chain (skipped if payer already canceled).
     const indexerAddress = this.network.specification.indexerOptions.address
-    try {
-      const receipt = await this.network.transactionManager.executeTransaction(
-        async () =>
-          this.network.contracts.SubgraphService.cancelIndexingAgreement.estimateGas(
-            indexerAddress,
-            agreementId,
-          ),
-        async (gasLimit) =>
-          this.network.contracts.SubgraphService.cancelIndexingAgreement(
-            indexerAddress,
-            agreementId,
-            { gasLimit },
-          ),
-        logger.child({ function: 'SubgraphService.cancelIndexingAgreement' }),
+    if (agreement.state === 'CanceledByPayer') {
+      logger.info(
+        'Payer already canceled on-chain; skipping cancel, proceeding to final collection',
       )
+    } else {
+      try {
+        const receipt = await this.network.transactionManager.executeTransaction(
+          async () =>
+            this.network.contracts.SubgraphService.cancelIndexingAgreement.estimateGas(
+              indexerAddress,
+              agreementId,
+            ),
+          async (gasLimit) =>
+            this.network.contracts.SubgraphService.cancelIndexingAgreement(
+              indexerAddress,
+              agreementId,
+              { gasLimit },
+            ),
+          logger.child({ function: 'SubgraphService.cancelIndexingAgreement' }),
+        )
 
-      if (receipt === 'paused' || receipt === 'unauthorized') {
-        logger.warn('Cannot cancel: network paused or unauthorized')
+        if (receipt === 'paused' || receipt === 'unauthorized') {
+          logger.warn('Cannot cancel: network paused or unauthorized')
+          return false
+        }
+
+        logger.info('Successfully cancelled agreement on-chain', {
+          txHash: receipt.hash,
+        })
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        logger.error('Failed to cancel agreement on-chain', { error: errorMsg })
         return false
       }
-
-      logger.info('Successfully cancelled agreement on-chain', {
-        txHash: receipt.hash,
-      })
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.error('Failed to cancel agreement on-chain', { error: errorMsg })
-      return false
     }
 
     // Step 2: Best-effort final collection
@@ -565,7 +573,8 @@ export class DipsManager {
       logger.info('Final collection succeeded after cancel')
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.warn('Final collection after cancel failed, fees may be lost', {
+      logger.error('Final collection after cancel failed, fees may be lost', {
+        deployment: agreement.subgraphDeploymentId,
         error: errorMsg,
       })
     }
@@ -590,6 +599,12 @@ export class DipsManager {
     })
 
     for (const agreement of agreements) {
+      // Only act on actively-collectable agreements. Anything else is
+      // either pre-acceptance, already canceled, or otherwise terminal —
+      // the regular collection loop handles the final-collect step.
+      if (agreement.state !== 'Accepted') {
+        continue
+      }
       const subgraphDeploymentID = new SubgraphDeploymentID(
         agreement.subgraphDeploymentId,
       )
