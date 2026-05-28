@@ -56,22 +56,16 @@ export interface ActionInput {
 
 const ZERO_POI = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-// Validates POI-related fields for non-legacy actions.
-// When POI is zero, publicPOI and poiBlockNumber are optional.
-// When POI is non-zero, all three fields are required.
+// Validates POI-related fields.
+// Zero POI is a sentinel meaning "no POI to submit", so publicPOI and
+// poiBlockNumber are not required in that case (nor when POI is omitted).
+// When POI is a real value, publicPOI and poiBlockNumber are required.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const hasValidPOIParams = (variableToCheck: any): boolean => {
-  if (variableToCheck.isLegacy || variableToCheck.poi === undefined) {
+  if (variableToCheck.poi === undefined || variableToCheck.poi === ZERO_POI) {
     return true
   }
-  if (variableToCheck.poi === ZERO_POI) {
-    return 'poi' in variableToCheck
-  }
-  return (
-    'poi' in variableToCheck &&
-    'publicPOI' in variableToCheck &&
-    'poiBlockNumber' in variableToCheck
-  )
+  return 'publicPOI' in variableToCheck && 'poiBlockNumber' in variableToCheck
 }
 
 export const isValidActionInput = (

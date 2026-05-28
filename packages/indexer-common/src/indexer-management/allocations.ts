@@ -37,7 +37,6 @@ import {
   POIData,
   ExecuteActionResult,
   isPartialActionFailure,
-  isTransactionReceiptArray,
 } from '@graphprotocol/indexer-common'
 import {
   encodeStartServiceData,
@@ -220,78 +219,15 @@ export class AllocationManager {
       preparedTransactions: preparedTransactions,
     })
 
-    // Staking and SubgraphService transactions cannot be multicalled together,
-    // so we partition by target contract and execute each batch independently.
-    const stakingTransactions = preparedTransactions.filter(
-      (tx: TransactionRequest) => tx.to === this.network.contracts.HorizonStaking.target,
-    )
-    const subgraphServiceTransactions = preparedTransactions.filter(
-      (tx: TransactionRequest) => tx.to === this.network.contracts.SubgraphService.target,
-    )
-
-    // -- STAKING CONTRACT --
-    const callDataStakingContract = stakingTransactions
-      .filter((tx: TransactionRequest) => !!tx.data)
+    // Guard against a future prepared transaction targeting something other
+    // than SubgraphService — its calldata must not slip into the multicall.
+    const callDataSubgraphService = preparedTransactions
+      .filter(
+        (tx: TransactionRequest) =>
+          tx.to === this.network.contracts.SubgraphService.target && !!tx.data,
+      )
       .map((tx) => tx.data as string)
 
-    logger.debug('Found staking contract transactions', {
-      count: callDataStakingContract.length,
-    })
-    logger.trace('Prepared staking contract transaction calldata', {
-      callDataStakingContract,
-    })
-
-    if (callDataStakingContract.length > 0) {
-      try {
-        const stakingTransactionResult =
-          await this.network.transactionManager.executeTransaction(
-            async () =>
-              this.network.contracts.HorizonStaking.multicall.estimateGas(
-                callDataStakingContract,
-              ),
-            async (gasLimit) =>
-              this.network.contracts.HorizonStaking.multicall(callDataStakingContract, {
-                gasLimit,
-              }),
-            this.logger.child({
-              actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
-              function: 'staking.multicall',
-            }),
-          )
-
-        this.processActionResults(
-          actionResults,
-          stakingTransactions,
-          stakingTransactionResult,
-        )
-      } catch (error) {
-        const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute staking contract transaction', {
-          error: parsedError,
-        })
-        this.processActionResults(actionResults, stakingTransactions, {
-          failureReason: `Failed to execute staking contract transaction: ${
-            typeof parsedError === 'string' ? parsedError : error.message
-          }`,
-        })
-      }
-    }
-
-    // -- SUBGRAPH SERVICE --
-    const callDataSubgraphService = subgraphServiceTransactions
-      // If a per-action staking tx failed, skip its companion SubgraphService tx
-      // so we never leave the on-chain state half-applied for that action.
-      .filter((tx: ActionTransactionRequest) => {
-        const actionStakingTransaction = actionResults.find(
-          (result) => result.actionID === tx.actionID,
-        )
-        return (
-          actionStakingTransaction === undefined ||
-          actionStakingTransaction.success === true
-        )
-      })
-      .filter((tx: TransactionRequest) => !!tx.data)
-      .map((tx) => tx.data as string)
     logger.debug('Found subgraph service transactions', {
       count: callDataSubgraphService.length,
     })
@@ -319,7 +255,7 @@ export class AllocationManager {
 
         this.processActionResults(
           actionResults,
-          subgraphServiceTransactions,
+          preparedTransactions,
           subgraphServiceTransactionResult,
         )
       } catch (error) {
@@ -327,7 +263,7 @@ export class AllocationManager {
         logger.error('Failed to execute subgraph service transaction', {
           error: parsedError,
         })
-        this.processActionResults(actionResults, subgraphServiceTransactions, {
+        this.processActionResults(actionResults, preparedTransactions, {
           failureReason: `Failed to execute subgraph service transaction: ${
             typeof parsedError === 'string' ? parsedError : error.message
           }`,
@@ -349,14 +285,11 @@ export class AllocationManager {
   }
 
   /**
-   * Processes the result of transaction batches for an action
+   * Record a per-action result from a transaction-batch outcome.
    *
-   * Reallocate actions can have multiple transaction batches associated with it (one for the staking contract and one for the subgraph service).
-   * This method is used to consolidate the results to one per action.
-   *
-   * @param actionResults - Track the result of each action
-   * @param transactions - The transactions to process, multicalled together
-   * @param transactionResult - The result of the transaction that was multicalled and executed
+   * @param actionResults - List to append results into
+   * @param transactions - The transactions whose outcome we're recording
+   * @param transactionResult - The receipt (or failure) returned by the batch
    */
   processActionResults(
     actionResults: ExecuteActionResult[],
@@ -377,20 +310,6 @@ export class AllocationManager {
     })
 
     for (const transaction of transactions) {
-      const existing = actionResults.find(
-        (result) => result.actionID === transaction.actionID,
-      )
-
-      if (existing) {
-        if (actionFailed) {
-          existing.success = false
-          existing.result.push(buildActionFailureResult(transaction))
-        } else if (existing.success) {
-          existing.result.push(transactionResult)
-        }
-        continue
-      }
-
       actionResults.push(
         actionFailed
           ? {
@@ -408,12 +327,10 @@ export class AllocationManager {
   }
 
   /**
-   * Confirms the execution of an action.
+   * Confirm a batch of executed actions by inspecting each transaction outcome.
    *
-   * Note that an unallocate actions can require multiple transaction batches to resolve.
-   *
-   * @param actionResults - The results of the action
-   * @param actions - The actions to confirm
+   * @param actionResults - The per-action outcomes produced by executeTransactions
+   * @param actions - The original actions being confirmed
    */
   async confirmTransactions(
     actionResults: ExecuteActionResult[],
@@ -436,58 +353,43 @@ export class AllocationManager {
           throw new Error('No action found for action result')
         }
 
-        // Action fails if any of the transaction batches fail
-        // TODO: handle multiple transaction batches failing. Here we only handle the first one.
-        if (actionResult.result.some(isActionFailure)) {
-          const actionFailure = actionResult.result.find(isActionFailure)!
-          logger.debug('Execute action failed', {
-            actionBatchResult: actionResult,
-            reason: actionFailure.failureReason,
-          })
-          return actionFailure
-        }
-
-        // Action fails if any of the transaction batches fail
-        // TODO: handle multiple transaction batches failing. Here we only handle the first one.
-        if (
-          actionResult.result.some(
-            (result) => result === 'paused' || result === 'unauthorized',
-          )
-        ) {
-          const transactionFailureReason = actionResult.result.find(
-            (result) => result === 'paused' || result === 'unauthorized',
-          )!
-          logger.debug('Execute batch transaction failed', {
-            actionBatchResult: actionResult,
-            reason: transactionFailureReason,
+        if (actionResult.result.length === 0) {
+          logger.error('No transaction result recorded for action', {
+            actionResult,
           })
           return {
             actionID: actionResult.actionID,
             transactionID: undefined,
-            failureReason: transactionFailureReason as string, // ts not narrowing down this to a string
+            failureReason: 'No transaction result recorded for action',
             protocolNetwork: action.protocolNetwork,
           }
         }
 
-        // Sanity check that all transaction results are receipts
-        if (!isTransactionReceiptArray(actionResult.result)) {
-          logger.error('Inconsistency confirming transaction results', {
+        const outcome = actionResult.result[0]
+
+        if (isActionFailure(outcome)) {
+          logger.debug('Execute action failed', {
             actionBatchResult: actionResult,
+            reason: outcome.failureReason,
           })
-          throw new Error('Inconsistency confirming transaction results')
+          return outcome
         }
 
-        const receipts = actionResult.result
+        if (outcome === 'paused' || outcome === 'unauthorized') {
+          logger.debug('Execute batch transaction failed', {
+            actionBatchResult: actionResult,
+            reason: outcome,
+          })
+          return {
+            actionID: actionResult.actionID,
+            transactionID: undefined,
+            failureReason: outcome,
+            protocolNetwork: action.protocolNetwork,
+          }
+        }
 
         try {
-          if (receipts.length === 0) {
-            this.logger.error('No receipts found for action', {
-              action: actionResult.actionID,
-            })
-            throw new Error('No receipts found for action')
-          }
-
-          return await this.confirmActionExecution(receipts, action)
+          return await this.confirmActionExecution(outcome, action)
         } catch (error) {
           this.logger.error('Failed to confirm batch transaction', {
             error,
@@ -507,15 +409,13 @@ export class AllocationManager {
   }
 
   /**
-   * Confirms the execution of an action using transaction receipts.
+   * Confirm the execution of a single action using its transaction receipt.
    *
-   * Reallocate actions can have multiple receipts.
-   *
-   * @param receipts - The receipts to process
-   * @param action - The action to confirm
+   * @param receipt - The receipt for the action's transaction
+   * @param action - The action being confirmed
    */
   async confirmActionExecution(
-    receipts: TransactionReceipt[],
+    receipt: TransactionReceipt,
     action: Action,
   ): Promise<AllocationResult> {
     // Ensure we are handling an action for the same configured network
@@ -529,60 +429,36 @@ export class AllocationManager {
 
     switch (action.type) {
       case ActionType.ALLOCATE:
-        if (receipts.length !== 1) {
-          this.logger.error('Invalid number of receipts for allocate action', {
-            receipts,
-          })
-          throw new Error('Invalid number of receipts for allocate action')
-        }
         return await this.confirmAllocate(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.deploymentID!,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.amount!,
-          receipts[0],
+          receipt,
         )
       case ActionType.UNALLOCATE:
-        if (receipts.length !== 1) {
-          this.logger.error('Invalid number of receipts for unallocate action', {
-            receipts,
-          })
-          throw new Error('Invalid number of receipts for unallocate action')
-        }
         return await this.confirmUnallocate(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
-          receipts[0],
+          receipt,
         )
       case ActionType.PRESENT_POI:
-        if (receipts.length !== 1) {
-          this.logger.error('Invalid number of receipts for present-poi action', {
-            receipts,
-          })
-          throw new Error('Invalid number of receipts for present-poi action')
-        }
         return await this.confirmPresentPOI(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
-          receipts[0],
+          receipt,
         )
       case ActionType.RESIZE:
-        if (receipts.length !== 1) {
-          this.logger.error('Invalid number of receipts for resize action', {
-            receipts,
-          })
-          throw new Error('Invalid number of receipts for resize action')
-        }
         return await this.confirmResize(
           action.id,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.amount!,
-          receipts[0],
+          receipt,
         )
     }
   }
