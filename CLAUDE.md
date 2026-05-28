@@ -164,6 +164,7 @@ The indexer-agent runs exclusively against Graph Horizon contracts (`HorizonStak
 - Migration 24: Adds DIPS-related tables.
 - Migration 25: Dropped legacy TAP (`scalar_tap_*`) tables.
 - Migration 26: Dropped the `Actions.isLegacy` column.
+- Migration 27: Dropped `'reallocate'` from the `Actions.type` ENUM. Any rows still carrying that legacy type are deleted first.
 
 ## Package Architecture
 
