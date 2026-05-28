@@ -84,15 +84,6 @@ export const isPartialActionFailure = (
   variableToCheck: any,
 ): variableToCheck is Partial<ActionFailure> => 'failureReason' in variableToCheck
 
-export function isTransactionReceiptArray(
-  arr: (ActionFailure | TransactionReceipt | 'paused' | 'unauthorized')[],
-): arr is TransactionReceipt[] {
-  return arr.every(
-    (r): r is TransactionReceipt =>
-      r !== 'paused' && r !== 'unauthorized' && !isActionFailure(r),
-  )
-}
-
 export const isActionFailureArray = (
   variableToCheck: any,
 ): variableToCheck is ActionFailure[] =>
