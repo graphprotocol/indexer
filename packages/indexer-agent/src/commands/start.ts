@@ -358,7 +358,7 @@ export const start = {
       .option('dips-allocation-amount', {
         description: 'Amount of GRT to allocate for DIPs',
         type: 'number',
-        default: 1,
+        default: 0,
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
