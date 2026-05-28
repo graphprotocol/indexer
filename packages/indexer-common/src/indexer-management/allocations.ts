@@ -220,78 +220,15 @@ export class AllocationManager {
       preparedTransactions: preparedTransactions,
     })
 
-    // Staking and SubgraphService transactions cannot be multicalled together,
-    // so we partition by target contract and execute each batch independently.
-    const stakingTransactions = preparedTransactions.filter(
-      (tx: TransactionRequest) => tx.to === this.network.contracts.HorizonStaking.target,
-    )
-    const subgraphServiceTransactions = preparedTransactions.filter(
-      (tx: TransactionRequest) => tx.to === this.network.contracts.SubgraphService.target,
-    )
-
-    // -- STAKING CONTRACT --
-    const callDataStakingContract = stakingTransactions
-      .filter((tx: TransactionRequest) => !!tx.data)
+    // Guard against a future prepared transaction targeting something other
+    // than SubgraphService — its calldata must not slip into the multicall.
+    const callDataSubgraphService = preparedTransactions
+      .filter(
+        (tx: TransactionRequest) =>
+          tx.to === this.network.contracts.SubgraphService.target && !!tx.data,
+      )
       .map((tx) => tx.data as string)
 
-    logger.debug('Found staking contract transactions', {
-      count: callDataStakingContract.length,
-    })
-    logger.trace('Prepared staking contract transaction calldata', {
-      callDataStakingContract,
-    })
-
-    if (callDataStakingContract.length > 0) {
-      try {
-        const stakingTransactionResult =
-          await this.network.transactionManager.executeTransaction(
-            async () =>
-              this.network.contracts.HorizonStaking.multicall.estimateGas(
-                callDataStakingContract,
-              ),
-            async (gasLimit) =>
-              this.network.contracts.HorizonStaking.multicall(callDataStakingContract, {
-                gasLimit,
-              }),
-            this.logger.child({
-              actions: `${JSON.stringify(validatedActions.map((action) => action.id))}`,
-              function: 'staking.multicall',
-            }),
-          )
-
-        this.processActionResults(
-          actionResults,
-          stakingTransactions,
-          stakingTransactionResult,
-        )
-      } catch (error) {
-        const parsedError = tryParseCustomError(error)
-        logger.error('Failed to execute staking contract transaction', {
-          error: parsedError,
-        })
-        this.processActionResults(actionResults, stakingTransactions, {
-          failureReason: `Failed to execute staking contract transaction: ${
-            typeof parsedError === 'string' ? parsedError : error.message
-          }`,
-        })
-      }
-    }
-
-    // -- SUBGRAPH SERVICE --
-    const callDataSubgraphService = subgraphServiceTransactions
-      // If a per-action staking tx failed, skip its companion SubgraphService tx
-      // so we never leave the on-chain state half-applied for that action.
-      .filter((tx: ActionTransactionRequest) => {
-        const actionStakingTransaction = actionResults.find(
-          (result) => result.actionID === tx.actionID,
-        )
-        return (
-          actionStakingTransaction === undefined ||
-          actionStakingTransaction.success === true
-        )
-      })
-      .filter((tx: TransactionRequest) => !!tx.data)
-      .map((tx) => tx.data as string)
     logger.debug('Found subgraph service transactions', {
       count: callDataSubgraphService.length,
     })
@@ -319,7 +256,7 @@ export class AllocationManager {
 
         this.processActionResults(
           actionResults,
-          subgraphServiceTransactions,
+          preparedTransactions,
           subgraphServiceTransactionResult,
         )
       } catch (error) {
@@ -327,7 +264,7 @@ export class AllocationManager {
         logger.error('Failed to execute subgraph service transaction', {
           error: parsedError,
         })
-        this.processActionResults(actionResults, subgraphServiceTransactions, {
+        this.processActionResults(actionResults, preparedTransactions, {
           failureReason: `Failed to execute subgraph service transaction: ${
             typeof parsedError === 'string' ? parsedError : error.message
           }`,
