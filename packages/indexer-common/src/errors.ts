@@ -100,7 +100,6 @@ export enum IndexerErrorCode {
   IE087 = 'IE087',
   IE088 = 'IE088',
   IE089 = 'IE089',
-  IE090 = 'IE090',
 }
 
 export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
@@ -194,7 +193,6 @@ export const INDEXER_ERROR_MESSAGES: Record<IndexerErrorCode, string> = {
   IE087: 'Failed to resize allocation',
   IE088: 'Failed to present POI',
   IE089: 'Failed to collect indexing rewards',
-  IE090: 'Failed to reallocate: indexer is overallocated',
 }
 
 export type IndexerErrorCause = unknown
