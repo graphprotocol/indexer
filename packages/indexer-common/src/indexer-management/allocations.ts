@@ -286,14 +286,11 @@ export class AllocationManager {
   }
 
   /**
-   * Processes the result of transaction batches for an action
+   * Record a per-action result from a transaction-batch outcome.
    *
-   * Reallocate actions can have multiple transaction batches associated with it (one for the staking contract and one for the subgraph service).
-   * This method is used to consolidate the results to one per action.
-   *
-   * @param actionResults - Track the result of each action
-   * @param transactions - The transactions to process, multicalled together
-   * @param transactionResult - The result of the transaction that was multicalled and executed
+   * @param actionResults - List to append results into
+   * @param transactions - The transactions whose outcome we're recording
+   * @param transactionResult - The receipt (or failure) returned by the batch
    */
   processActionResults(
     actionResults: ExecuteActionResult[],
@@ -314,20 +311,6 @@ export class AllocationManager {
     })
 
     for (const transaction of transactions) {
-      const existing = actionResults.find(
-        (result) => result.actionID === transaction.actionID,
-      )
-
-      if (existing) {
-        if (actionFailed) {
-          existing.success = false
-          existing.result.push(buildActionFailureResult(transaction))
-        } else if (existing.success) {
-          existing.result.push(transactionResult)
-        }
-        continue
-      }
-
       actionResults.push(
         actionFailed
           ? {
