@@ -1083,6 +1083,14 @@ export class Agent {
                 safety: deploymentAllocationDecision.ruleMatch.rule?.safety,
               },
             )
+          } else if (
+            deploymentAllocationDecision.ruleMatch.rule?.decisionBasis ===
+            IndexingDecisionBasis.DIPS
+          ) {
+            // DipsManager creates DIPS allocations atomically with acceptance; reconcile would race it.
+            logger.debug(
+              'Deferring allocation creation to DipsManager for DIPS-basis deployment',
+            )
           } else {
             // Fetch the latest closed allocation, if any
             const mostRecentlyClosedAllocation = (

@@ -444,6 +444,39 @@ describe('reconcileDeploymentAllocationAction', () => {
       network,
     )
   })
+
+  // DipsManager owns DIPS allocation creation; reconcile racing it produces orphan allocations.
+  it('skips createAllocation for DIPS-basis rules with no active allocation', async () => {
+    const agent = createAgent()
+    const operator = createOperator()
+    const network = createNetwork()
+
+    const dipsDecision = new AllocationDecision(
+      deployment,
+      {
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        allocationAmount: '1000',
+        decisionBasis: IndexingDecisionBasis.DIPS,
+      } as IndexingRuleAttributes,
+      true,
+      ActivationCriteria.DIPS,
+      'eip155:42161',
+    )
+
+    await agent.reconcileDeploymentAllocationAction(
+      dipsDecision,
+      [],
+      10,
+      28,
+      network,
+      operator,
+      false,
+    )
+
+    expect(operator.createAllocation).not.toHaveBeenCalled()
+    expect(network.networkMonitor.closedAllocations).not.toHaveBeenCalled()
+  })
 })
 
 describe('addIndexingPaymentsSubgraphToTarget function', () => {
