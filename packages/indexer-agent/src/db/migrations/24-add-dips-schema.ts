@@ -16,11 +16,13 @@ export async function up({ context }: Context): Promise<void> {
   // 1. Add 'dips' to the IndexingRules.decisionBasis enum.
   // Skipped on fresh DBs — sequelize.sync() will create the enum already
   // including 'dips' from the model definition. Existing prod DBs need this
-  // ALTER to add the value to a pre-existing enum type.
+  // ALTER to add the value to a pre-existing enum type. IF NOT EXISTS keeps
+  // the migration idempotent against DBs that already have the value from
+  // the now-deleted migration 19-add-dips-to-decision-basis.
   if (await queryInterface.tableExists('IndexingRules')) {
     logger.info(`Adding 'dips' to enum_IndexingRules_decisionBasis`)
     await queryInterface.sequelize.query(
-      `ALTER TYPE "enum_IndexingRules_decisionBasis" ADD VALUE 'dips'`,
+      `ALTER TYPE "enum_IndexingRules_decisionBasis" ADD VALUE IF NOT EXISTS 'dips'`,
     )
   } else {
     logger.debug(

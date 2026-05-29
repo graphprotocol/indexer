@@ -749,6 +749,13 @@ export async function run(
       new Operator(logger, indexerManagementClient, spec),
   )
 
+  // Start the DIPs acceptance loop only on the long-running agent. The CLI and
+  // jest setups go through the same management-client path but don't want
+  // this timer running for their short-lived processes.
+  for (const operator of operators) {
+    operator.dipsManager?.startProposalAcceptanceLoop()
+  }
+
   // --------------------------------------------------------------------------------
   // * The Agent itself
   // --------------------------------------------------------------------------------

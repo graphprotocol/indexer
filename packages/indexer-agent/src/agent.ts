@@ -703,17 +703,15 @@ export class Agent {
           return
         }
 
-        await this.multiNetworks.mapNetworkMapped(
-          activeAllocations,
-          async ({ network, operator }, activeAllocations: Allocation[]) => {
-            if (network.specification.indexerOptions.enableDips) {
-              await operator.dipsManager!.acceptPendingProposals(
-                activeAllocations,
-              )
-              await operator.dipsManager!.collectAgreementPayments()
+        await this.multiNetworks.map(async ({ network, operator }) => {
+          if (network.specification.indexerOptions.enableDips) {
+            if (!operator.dipsManager) {
+              throw new Error('DipsManager is not available')
             }
-          },
-        )
+
+            await operator.dipsManager.collectAgreementPayments()
+          }
+        })
       },
     )
   }

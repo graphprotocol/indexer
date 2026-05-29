@@ -25,6 +25,13 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 
+// Hard cap on how long a single submission can hold the nonce-serialisation
+// lock before subsequent submissions are unblocked. A genuine submission
+// typically completes in well under a second; this ceiling exists so an
+// unresponsive provider or a stuck `transaction(...)` call can't block every
+// future tx from the same wallet indefinitely.
+const SUBMISSION_LOCK_TIMEOUT_MS = 60_000
+
 export class TransactionManager {
   ethereum: Provider
   wallet: HDNodeWallet
@@ -33,6 +40,10 @@ export class TransactionManager {
   specification: TransactionMonitoring
   adjustedGasIncreaseFactor: bigint
   adjustedBaseFeePerGasMax: number
+  // Serialises transaction submission so concurrent callers get sequential
+  // nonces from the single operator wallet instead of colliding on the same
+  // one. Uncontended (so effectively a no-op) for the agent's serial paths.
+  private submissionLock: Promise<unknown> = Promise.resolve()
 
   constructor(
     ethereum: Provider,
@@ -52,6 +63,42 @@ export class TransactionManager {
     )
     this.adjustedBaseFeePerGasMax =
       specification.baseFeePerGasMax || specification.gasPriceMax
+  }
+
+  // Run `submit` after any in-flight submission completes, so the wallet's
+  // nonce is assigned and the tx broadcast before the next submission begins.
+  // Errors are swallowed from the lock chain so one failed submission doesn't
+  // reject every caller queued behind it, and a SUBMISSION_LOCK_TIMEOUT_MS
+  // hard cap releases the lock if a single submit hangs indefinitely.
+  private async withSerializedSubmission<T>(submit: () => Promise<T>): Promise<T> {
+    const submitWithTimeout = (): Promise<T> => {
+      let timer: ReturnType<typeof setTimeout> | undefined
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () =>
+            reject(
+              new Error(
+                `Transaction submission held the nonce lock for over ` +
+                  `${SUBMISSION_LOCK_TIMEOUT_MS}ms; releasing so other ` +
+                  `submissions can proceed`,
+              ),
+            ),
+          SUBMISSION_LOCK_TIMEOUT_MS,
+        )
+      })
+      return Promise.race([
+        submit().finally(() => {
+          if (timer) clearTimeout(timer)
+        }),
+        timeout,
+      ])
+    }
+    const result = this.submissionLock.then(submitWithTimeout, submitWithTimeout)
+    this.submissionLock = result.then(
+      () => undefined,
+      () => undefined,
+    )
+    return result
   }
 
   async executeTransaction(
@@ -75,8 +122,9 @@ export class TransactionManager {
     const feeData = await this.waitForGasPricesBelowThreshold(logger)
     const paddedGasLimit = Math.ceil(Number(await gasEstimation()) * 1.5)
 
-    const txPromise = transaction(paddedGasLimit)
-    let tx: TransactionResponse = await txPromise
+    let tx: TransactionResponse = await this.withSerializedSubmission(() =>
+      transaction(paddedGasLimit),
+    )
     let txRequest: TransactionRequest | undefined = undefined
 
     let txConfig: TransactionConfig = {
