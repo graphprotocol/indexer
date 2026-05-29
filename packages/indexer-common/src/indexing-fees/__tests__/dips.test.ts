@@ -16,7 +16,10 @@ import {
   MultiNetworks,
 } from '@graphprotocol/indexer-common'
 import type { SubgraphIndexingAgreement } from '../agreement-monitor'
-import { DIPS_RULE_GRACE_SECONDS } from '../dips'
+import {
+  DIPS_RULE_GRACE_SECONDS,
+  DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS,
+} from '../dips'
 import { definePendingRcaProposalModel } from '../../indexer-management/models/pending-rca-proposal'
 import {
   connectDatabase,
@@ -69,12 +72,39 @@ const mockSubgraphDeployment = (id: string) => {
   }
 }
 
-const setCollectableAgreements = (agreements: SubgraphIndexingAgreement[]) => {
+const setCollectableAgreements = (
+  agreements: SubgraphIndexingAgreement[],
+  opts: { subgraphTimestamp?: number; subgraphMetaUnreadable?: boolean } = {},
+) => {
+  // The subgraph client answers two distinct queries: the paginated agreement
+  // list (first call returns the agreements, the rest are empty) and the _meta
+  // freshness probe. Default _meta to "now" so the rule reaper treats the
+  // subgraph as fresh; tests override it to exercise the staleness guard.
+  let agreementsServed = false
   network.indexingPaymentsSubgraph = {
-    query: jest
-      .fn()
-      .mockResolvedValueOnce({ data: { indexingAgreements: agreements } })
-      .mockResolvedValueOnce({ data: { indexingAgreements: [] } }),
+    query: jest.fn().mockImplementation(async (doc: unknown) => {
+      const body =
+        (doc as { loc?: { source?: { body?: string } } })?.loc?.source?.body ?? ''
+      if (body.includes('_meta')) {
+        if (opts.subgraphMetaUnreadable) {
+          return { data: { _meta: null } }
+        }
+        return {
+          data: {
+            _meta: {
+              block: {
+                timestamp: opts.subgraphTimestamp ?? Math.floor(Date.now() / 1000),
+              },
+            },
+          },
+        }
+      }
+      if (agreementsServed) {
+        return { data: { indexingAgreements: [] } }
+      }
+      agreementsServed = true
+      return { data: { indexingAgreements: agreements } }
+    }),
   } as unknown as Network['indexingPaymentsSubgraph']
 }
 
@@ -552,6 +582,60 @@ describe('DipsManager', () => {
       })
       expect(rule).toBeNull()
       expect(internal.recentlyAcceptedDeployments.has(deploymentKey)).toBe(false)
+    })
+
+    test('skips rule cleanup when the indexing-payments subgraph is stale', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      // Subgraph head is well behind wall clock: its agreement list can't be
+      // trusted, so the reaper must leave the otherwise-unbacked rule alone.
+      setCollectableAgreements([], {
+        subgraphTimestamp:
+          Math.floor(Date.now() / 1000) -
+          (DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS + 60),
+      })
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+    })
+
+    test('skips rule cleanup when the subgraph head timestamp cannot be read', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      setCollectableAgreements([], { subgraphMetaUnreadable: true })
+
+      await dipsManager.ensureAgreementRules()
+
+      const rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
     })
 
     test('keeps DIPS rule whose deployment is covered by an active accepted agreement', async () => {
