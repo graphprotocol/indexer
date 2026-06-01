@@ -42,15 +42,6 @@ const RECENT_BLOCK_OFFSET = 10
 // a stuck call from head-of-lining the rest.
 const DIPS_ACCEPT_CONCURRENCY = 4
 
-// Window during which a just-accepted deployment's DIPS rule is shielded from
-// the ensureAgreementRules reaper. The accept loop creates the rule and clears
-// the pending row the moment the accept tx confirms, but the indexing-payments
-// subgraph needs a few blocks to index the on-chain agreement. Without this
-// shield the reconcile tick sees the deployment in neither the pending set nor
-// the on-chain-accepted set and reaps the freshly-paid rule, churning the
-// deployment and its allocation until the subgraph catches up.
-export const DIPS_RULE_GRACE_SECONDS = 300
-
 // Reaping rules trusts the indexing-payments subgraph's list of backed
 // agreements. If that subgraph is lagging, the list is incomplete and reaping
 // would delete rules for agreements that are actually live. Skip the cleanup
@@ -66,13 +57,6 @@ export class DipsManager {
   declare pendingRcaConsumer: PendingRcaConsumer
   declare collectionTracker: CollectionTracker
   declare offerVerifier: OfferVerifier | null
-  // bytes32 deployment id (lowercased) -> epoch seconds when the accept loop last
-  // accepted an agreement for it. ensureAgreementRules consults this to shield a
-  // rule from the reaper during the subgraph-indexing lag. In-memory by design:
-  // the race is intra-process (accept loop vs reconcile tick on the same
-  // instance), and a restart gives the subgraph ample time to index before the
-  // next reap, so the entry need not survive it.
-  private recentlyAcceptedDeployments = new Map<string, number>()
   constructor(
     private logger: Logger,
     private models: IndexerManagementModels,
@@ -100,12 +84,17 @@ export class DipsManager {
       return
     }
 
-    const { fromPendingProposals, fromActiveAgreements, deployments } =
-      await this.getDipsTargetDeployments()
+    const {
+      fromPendingProposals,
+      fromAcceptedProposals,
+      fromActiveAgreements,
+      deployments,
+    } = await this.getDipsTargetDeployments()
 
     this.logger.debug(
       `Ensuring DIPS indexing rules: ${fromPendingProposals.length} pending, ` +
-        `${fromActiveAgreements.length} active accepted, ${deployments.length} unique deployments`,
+        `${fromAcceptedProposals.length} locally accepted, ` +
+        `${fromActiveAgreements.length} active on subgraph, ${deployments.length} unique deployments`,
     )
 
     const allDeploymentRules = await this.models.IndexingRule.findAll({
@@ -156,14 +145,37 @@ export class DipsManager {
       })
     }
 
+    // Locally accepted agreements the subgraph hasn't picked up yet: ensure the
+    // rule survives the indexing gap. Already accepted on-chain, so a blocklist
+    // can't undo it here (cancelBlocklistedAgreements handles that separately).
+    for (const proposal of fromAcceptedProposals) {
+      const deploymentId = proposal.subgraphDeploymentId
+      const blocklisted = allDeploymentRules.find((r) =>
+        this.isOnChainOptOutRule(r, deploymentId),
+      )
+      if (blocklisted) {
+        this.logger.debug(
+          `Blocklisted accepted deployment ${deploymentId.toString()}; rule creation skipped`,
+        )
+        continue
+      }
+      await this.upsertDipsRuleFor(deploymentId, {
+        allocationLifetime: Math.max(
+          Number(proposal.minSecondsPerCollection),
+          Number(proposal.maxSecondsPerCollection),
+        ),
+      })
+    }
+
     // Skip the reaper when the indexing-payments subgraph is lagging or its
     // freshness can't be read: its agreement list would be incomplete and the
     // reaper would delete rules for agreements that are actually live. Only
     // applies when a subgraph is configured; without one the reaper falls back
-    // to its pending-proposal basis as before. Fails safe — an unreadable
+    // to local pending and accepted rows as before. Fails safe — an unreadable
     // subgraph never drives deletion.
+    let subgraphHeadTimestamp: number | null = null
     if (this.network.indexingPaymentsSubgraph) {
-      const subgraphHeadTimestamp = await this.indexingPaymentsSubgraphHeadTimestamp()
+      subgraphHeadTimestamp = await this.indexingPaymentsSubgraphHeadTimestamp()
       const nowSeconds = Math.floor(Date.now() / 1000)
       const lagSeconds =
         subgraphHeadTimestamp === null ? null : nowSeconds - subgraphHeadTimestamp
@@ -181,18 +193,11 @@ export class DipsManager {
       }
     }
 
-    // Drop DIPS rules whose deployment is no longer in the target set, unless
-    // the accept loop accepted it within the grace window: the on-chain
-    // agreement may not have been indexed by the subgraph yet, so it is absent
-    // from the target set for a benign reason. Prune grace entries that have
-    // aged out so the map stays bounded and an aged deployment becomes reapable.
+    // Drop DIPS rules whose deployment is in none of the target sets: pending
+    // proposal, local accepted row, or active agreement on the subgraph. A
+    // freshly accepted agreement stays in the set via its local accepted row
+    // until the subgraph indexes it, so its rule is never reaped during the gap.
     const targetSet = new Set(deployments.map((d) => d.bytes32))
-    const graceCutoff = Math.floor(Date.now() / 1000) - DIPS_RULE_GRACE_SECONDS
-    for (const [deployment, acceptedAt] of this.recentlyAcceptedDeployments) {
-      if (acceptedAt <= graceCutoff) {
-        this.recentlyAcceptedDeployments.delete(deployment)
-      }
-    }
     const dipsRules = await this.models.IndexingRule.findAll({
       where: {
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
@@ -202,21 +207,26 @@ export class DipsManager {
     for (const rule of dipsRules) {
       const ruleDeploymentId = new SubgraphDeploymentID(rule.identifier)
       if (targetSet.has(ruleDeploymentId.bytes32)) {
-        // Durably backed by the subgraph now; no longer needs the grace shield.
-        this.recentlyAcceptedDeployments.delete(ruleDeploymentId.bytes32.toLowerCase())
-        continue
-      }
-      if (this.recentlyAcceptedDeployments.has(ruleDeploymentId.bytes32.toLowerCase())) {
-        this.logger.debug(
-          `Keeping recently-accepted DIPS rule for deployment ${ruleDeploymentId.toString()} ` +
-            'while the indexing-payments subgraph catches up',
-        )
         continue
       }
       this.logger.info(
         `Removing stale DIPS indexing rule for deployment ${ruleDeploymentId.toString()}`,
       )
       await this.models.IndexingRule.destroy({ where: { id: rule.id } })
+    }
+
+    // Retire accepted rows the subgraph has caught up to. Once its head has
+    // indexed past when we accepted, the subgraph reflects the agreement's true
+    // state — active, or gone — and becomes the source of truth, so the local
+    // row no longer needs to keep the rule alive. Guarded on a configured, fresh
+    // subgraph (stale returns above), so the head timestamp is trustworthy.
+    if (subgraphHeadTimestamp !== null) {
+      for (const accepted of fromAcceptedProposals) {
+        const acceptedAtSeconds = Math.floor(accepted.updatedAt.getTime() / 1000)
+        if (subgraphHeadTimestamp >= acceptedAtSeconds) {
+          await this.pendingRcaConsumer.markCompleted(accepted.id)
+        }
+      }
     }
   }
 
@@ -256,10 +266,14 @@ export class DipsManager {
 
   private async getDipsTargetDeployments(): Promise<{
     fromPendingProposals: DecodedRcaProposal[]
+    fromAcceptedProposals: DecodedRcaProposal[]
     fromActiveAgreements: SubgraphIndexingAgreement[]
     deployments: SubgraphDeploymentID[]
   }> {
     const fromPendingProposals = await this.pendingRcaConsumer.getPendingProposals()
+    // Locally accepted but not yet retired: keeps a deployment's rule alive after
+    // acceptance until the subgraph indexes the agreement and takes over.
+    const fromAcceptedProposals = await this.pendingRcaConsumer.getAcceptedProposals()
 
     let fromActiveAgreements: SubgraphIndexingAgreement[] = []
     if (this.network.indexingPaymentsSubgraph) {
@@ -282,7 +296,7 @@ export class DipsManager {
 
     const seen = new Set<string>()
     const deployments: SubgraphDeploymentID[] = []
-    for (const p of fromPendingProposals) {
+    for (const p of [...fromPendingProposals, ...fromAcceptedProposals]) {
       const key = p.subgraphDeploymentId.bytes32
       if (!seen.has(key)) {
         seen.add(key)
@@ -297,7 +311,12 @@ export class DipsManager {
       }
     }
 
-    return { fromPendingProposals, fromActiveAgreements, deployments }
+    return {
+      fromPendingProposals,
+      fromAcceptedProposals,
+      fromActiveAgreements,
+      deployments,
+    }
   }
 
   // Returns the indexing-payments subgraph's latest indexed block timestamp, or
@@ -587,13 +606,6 @@ export class DipsManager {
       }
 
       await consumer.markAccepted(proposal.id)
-      // markAccepted clears the pending row, so the deployment drops out of the
-      // reconcile target set until the subgraph indexes the agreement. Shield
-      // its rule from the reaper meanwhile.
-      this.recentlyAcceptedDeployments.set(
-        proposal.subgraphDeploymentId.bytes32.toLowerCase(),
-        Math.floor(Date.now() / 1000),
-      )
       this.logger.info('Proposal accepted on-chain', {
         proposalId: proposal.id,
         allocationId: allocation.id,
@@ -720,13 +732,6 @@ export class DipsManager {
       }
 
       await consumer.markAccepted(proposal.id)
-      // markAccepted clears the pending row, so the deployment drops out of the
-      // reconcile target set until the subgraph indexes the agreement. Shield
-      // its rule from the reaper meanwhile.
-      this.recentlyAcceptedDeployments.set(
-        proposal.subgraphDeploymentId.bytes32.toLowerCase(),
-        Math.floor(Date.now() / 1000),
-      )
       this.logger.info('Proposal accepted on-chain with new allocation', {
         proposalId: proposal.id,
         allocationId,
