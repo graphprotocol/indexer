@@ -183,7 +183,12 @@ export const validateActionInputs = async (
         )
       }
 
-      // Check for active DIPS agreement on UNALLOCATE
+      // An allocation is protected from closing while it still owes a DIPS payment.
+      // Closing it makes SubgraphService.collect revert (collect requires the
+      // allocation to be open), so a canceled agreement must keep its allocation
+      // alive until its final fees have been collected. Two cases protect:
+      //   - an Accepted agreement: still live, closing would cancel it on-chain;
+      //   - a payer-canceled agreement whose fees aren't fully collected yet.
       if (action.type === ActionType.UNALLOCATE && action.allocationID) {
         const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(
           action.allocationID,
