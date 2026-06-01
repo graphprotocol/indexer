@@ -17,6 +17,7 @@ import {
   upsertIndexingRule,
 } from '@graphprotocol/indexer-common'
 import pMap from 'p-map'
+import gql from 'graphql-tag'
 
 import { PendingRcaProposal } from '../indexer-management/models/pending-rca-proposal'
 import { PendingRcaConsumer } from './pending-rca-consumer'
@@ -50,6 +51,14 @@ const DIPS_ACCEPT_CONCURRENCY = 4
 // the on-chain-accepted set and reaps the freshly-paid rule, churning the
 // deployment and its allocation until the subgraph catches up.
 export const DIPS_RULE_GRACE_SECONDS = 300
+
+// Reaping rules trusts the indexing-payments subgraph's list of backed
+// agreements. If that subgraph is lagging, the list is incomplete and reaping
+// would delete rules for agreements that are actually live. Skip the cleanup
+// whenever the subgraph's latest indexed block is more than this far behind
+// wall-clock time. A healthy subgraph indexes within seconds, so the threshold
+// only trips on a genuinely stalled subgraph; it also absorbs modest clock skew.
+export const DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS = 300
 
 const elapsedMs = (start: bigint): number =>
   Number(process.hrtime.bigint() - start) / 1_000_000
@@ -146,6 +155,31 @@ export class DipsManager {
           Number(agreement.maxSecondsPerCollection),
         ),
       })
+    }
+
+    // Skip the reaper when the indexing-payments subgraph is lagging or its
+    // freshness can't be read: its agreement list would be incomplete and the
+    // reaper would delete rules for agreements that are actually live. Only
+    // applies when a subgraph is configured; without one the reaper falls back
+    // to its pending-proposal basis as before. Fails safe — an unreadable
+    // subgraph never drives deletion.
+    if (this.network.indexingPaymentsSubgraph) {
+      const subgraphHeadTimestamp = await this.indexingPaymentsSubgraphHeadTimestamp()
+      const nowSeconds = Math.floor(Date.now() / 1000)
+      const lagSeconds =
+        subgraphHeadTimestamp === null ? null : nowSeconds - subgraphHeadTimestamp
+      if (lagSeconds === null || lagSeconds > DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS) {
+        this.logger.warn(
+          'Skipping DIPS rule cleanup: indexing-payments subgraph is stale or unreadable',
+          {
+            subgraphHeadTimestamp,
+            nowSeconds,
+            lagSeconds,
+            thresholdSeconds: DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS,
+          },
+        )
+        return
+      }
     }
 
     // Drop DIPS rules whose deployment is no longer in the target set, unless
@@ -265,6 +299,37 @@ export class DipsManager {
     }
 
     return { fromPendingProposals, fromActiveAgreements, deployments }
+  }
+
+  // Returns the indexing-payments subgraph's latest indexed block timestamp, or
+  // null if it isn't configured or the value can't be read. Used to decide
+  // whether the subgraph is fresh enough to drive rule cleanup.
+  private async indexingPaymentsSubgraphHeadTimestamp(): Promise<number | null> {
+    const subgraph = this.network.indexingPaymentsSubgraph
+    if (!subgraph) {
+      return null
+    }
+    try {
+      const result = await subgraph.query(
+        gql`
+          {
+            _meta {
+              block {
+                timestamp
+              }
+            }
+          }
+        `,
+        {},
+      )
+      const timestamp = Number(result.data?._meta?.block?.timestamp)
+      return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : null
+    } catch (err) {
+      this.logger.warn('Failed to read indexing-payments subgraph head timestamp', {
+        err,
+      })
+      return null
+    }
   }
 
   private async getDipsAllocationAmount(
