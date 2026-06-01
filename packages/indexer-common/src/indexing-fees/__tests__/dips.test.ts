@@ -529,6 +529,7 @@ describe('DipsManager', () => {
         .mockResolvedValue([
           {
             id: 'accepted-1',
+            agreementId: testAgreementId,
             status: 'accepted',
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -552,8 +553,68 @@ describe('DipsManager', () => {
         },
       })
       expect(rule).not.toBeNull()
-      // Head hasn't reached the acceptance time, so the row is not retired yet.
+      // Not in the active set and the head is behind acceptance, so neither
+      // presence nor the time backstop retires it yet.
       expect(markCompleted).not.toHaveBeenCalled()
+    })
+
+    test('retires the accepted row by presence once its agreement appears in the active set, even before the head reaches acceptance', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const markCompleted = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+        .mockResolvedValue(undefined)
+      // Accepted just now; the durable row's agreementId matches an agreement the
+      // subgraph now reports, proving the subgraph indexed the acceptance.
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      // Head is behind the just-now acceptance, so the time backstop cannot fire;
+      // only presence in the active set can retire the row here.
+      setCollectableAgreements(
+        [
+          {
+            id: testAgreementId,
+            allocationId: testAllocationId,
+            subgraphDeploymentId: testDeploymentId,
+            state: 'Accepted',
+            lastCollectionAt: '0',
+            endsAt: farFuture,
+            maxInitialTokens: '0',
+            maxOngoingTokensPerSecond: '0',
+            tokensPerSecond: '0',
+            tokensPerEntityPerSecond: '0',
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 1800,
+            canceledAt: '0',
+          },
+        ],
+        { subgraphTimestamp: Math.floor(Date.now() / 1000) - 30 },
+      )
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markCompleted).toHaveBeenCalledWith('accepted-1')
     })
 
     test('retires the accepted row and reaps its rule once the subgraph catches up but the agreement is gone', async () => {
@@ -579,6 +640,7 @@ describe('DipsManager', () => {
       acceptedProposals.mockResolvedValue([
         {
           id: 'accepted-1',
+          agreementId: testAgreementId,
           status: 'accepted',
           createdAt: new Date(),
           updatedAt: new Date(Date.now() - 100_000),

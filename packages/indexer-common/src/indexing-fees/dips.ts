@@ -88,6 +88,7 @@ export class DipsManager {
       fromPendingProposals,
       fromAcceptedProposals,
       fromActiveAgreements,
+      subgraphAgreementIds,
       deployments,
     } = await this.getDipsTargetDeployments()
 
@@ -193,10 +194,9 @@ export class DipsManager {
       }
     }
 
-    // Drop DIPS rules whose deployment is in none of the target sets: pending
-    // proposal, local accepted row, or active agreement on the subgraph. A
-    // freshly accepted agreement stays in the set via its local accepted row
-    // until the subgraph indexes it, so its rule is never reaped during the gap.
+    // Drop DIPS rules whose deployment is in none of the target sets (pending,
+    // local accepted, or active on the subgraph). A freshly accepted agreement
+    // stays via its accepted row until the subgraph indexes it, so it's not reaped.
     const targetSet = new Set(deployments.map((d) => d.bytes32))
     const dipsRules = await this.models.IndexingRule.findAll({
       where: {
@@ -215,16 +215,24 @@ export class DipsManager {
       await this.models.IndexingRule.destroy({ where: { id: rule.id } })
     }
 
-    // Retire accepted rows the subgraph has caught up to. Once its head has
-    // indexed past when we accepted, the subgraph reflects the agreement's true
-    // state — active, or gone — and becomes the source of truth, so the local
-    // row no longer needs to keep the rule alive. Guarded on a configured, fresh
-    // subgraph (stale returns above), so the head timestamp is trustworthy.
+    // Retire accepted rows once the subgraph indexes the agreement (presence,
+    // the primary signal) or the head-time backstop fires for ones it never
+    // listed. Per-row failures are logged and retried next tick, never aborting.
     if (subgraphHeadTimestamp !== null) {
       for (const accepted of fromAcceptedProposals) {
-        const acceptedAtSeconds = Math.floor(accepted.updatedAt.getTime() / 1000)
-        if (subgraphHeadTimestamp >= acceptedAtSeconds) {
-          await this.pendingRcaConsumer.markCompleted(accepted.id)
+        try {
+          const seenBySubgraph = subgraphAgreementIds.has(
+            accepted.agreementId.toLowerCase(),
+          )
+          const acceptedAtSeconds = Math.floor(accepted.updatedAt.getTime() / 1000)
+          if (seenBySubgraph || subgraphHeadTimestamp >= acceptedAtSeconds) {
+            await this.pendingRcaConsumer.markCompleted(accepted.id)
+          }
+        } catch (err) {
+          this.logger.warn('Failed to retire accepted DIPS row; will retry next tick', {
+            acceptedId: accepted.id,
+            err,
+          })
         }
       }
     }
@@ -268,6 +276,7 @@ export class DipsManager {
     fromPendingProposals: DecodedRcaProposal[]
     fromAcceptedProposals: DecodedRcaProposal[]
     fromActiveAgreements: SubgraphIndexingAgreement[]
+    subgraphAgreementIds: Set<string>
     deployments: SubgraphDeploymentID[]
   }> {
     const fromPendingProposals = await this.pendingRcaConsumer.getPendingProposals()
@@ -276,12 +285,18 @@ export class DipsManager {
     const fromAcceptedProposals = await this.pendingRcaConsumer.getAcceptedProposals()
 
     let fromActiveAgreements: SubgraphIndexingAgreement[] = []
+    // Agreement ids the subgraph reports as collectable (Accepted or CanceledByPayer).
+    // Lets us retire accepted rows by presence rather than a head-timestamp race.
+    const subgraphAgreementIds = new Set<string>()
     if (this.network.indexingPaymentsSubgraph) {
       const indexerAddress = this.network.specification.indexerOptions.address
       const all = await fetchCollectableAgreements(
         this.network.indexingPaymentsSubgraph,
         indexerAddress,
       )
+      for (const a of all) {
+        subgraphAgreementIds.add(a.id.toLowerCase())
+      }
       const nowSeconds = Math.floor(Date.now() / 1000)
       fromActiveAgreements = all.filter(
         (a) =>
@@ -315,6 +330,7 @@ export class DipsManager {
       fromPendingProposals,
       fromAcceptedProposals,
       fromActiveAgreements,
+      subgraphAgreementIds,
       deployments,
     }
   }
