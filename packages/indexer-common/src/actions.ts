@@ -56,10 +56,8 @@ export interface ActionInput {
 
 const ZERO_POI = '0x0000000000000000000000000000000000000000000000000000000000000000'
 
-// Validates POI-related fields.
-// Zero POI is a sentinel meaning "no POI to submit", so publicPOI and
-// poiBlockNumber are not required in that case (nor when POI is omitted).
-// When POI is a real value, publicPOI and poiBlockNumber are required.
+// Zero POI is a sentinel for "no POI to submit", so publicPOI and poiBlockNumber
+// are optional then (and when POI is omitted); a real POI requires both.
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const hasValidPOIParams = (variableToCheck: any): boolean => {
   if (variableToCheck.poi === undefined || variableToCheck.poi === ZERO_POI) {
@@ -183,20 +181,22 @@ export const validateActionInputs = async (
         )
       }
 
-      // Check for active DIPS agreement on UNALLOCATE
+      // Block closing an allocation that still owes DIPS fees: SubgraphService.collect
+      // requires the allocation open, so an early close would cancel a live agreement
+      // on-chain or strand fees a canceled agreement hasn't finished collecting.
       if (action.type === ActionType.UNALLOCATE && action.allocationID) {
-        const hasAgreement = await networkMonitor.hasActiveDipsAgreement(
+        const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(
           action.allocationID,
         )
         if (hasAgreement && !action.force) {
           throw new Error(
-            `Allocation ${action.allocationID} has an active DIPS agreement. ` +
-              `Closing this allocation will cancel the agreement on-chain. ` +
-              `Use force=true to proceed anyway.`,
+            `Allocation ${action.allocationID} has a DIPS agreement that can still collect fees. ` +
+              `Closing it now would cancel a live agreement on-chain, or strand fees that a ` +
+              `canceled agreement has not finished collecting. Use force=true to proceed anyway.`,
           )
         }
         if (hasAgreement && action.force) {
-          logger.warn('Force-closing allocation with active DIPS agreement', {
+          logger.warn('Force-closing allocation with a collectable DIPS agreement', {
             allocationId: action.allocationID,
             actionType: action.type,
           })

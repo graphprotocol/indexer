@@ -8,7 +8,7 @@ const mockAllocation = {
 }
 
 const createMockNetworkMonitor = (hasAgreement: boolean) => ({
-  hasActiveDipsAgreement: jest.fn().mockResolvedValue(hasAgreement),
+  hasCollectableDipsAgreement: jest.fn().mockResolvedValue(hasAgreement),
   allocation: jest.fn().mockResolvedValue(mockAllocation),
   subgraphDeployment: jest.fn().mockResolvedValue({}),
 })
@@ -35,16 +35,16 @@ const baseAction: ActionInput = {
 }
 
 describe('validateActionInputs DIPS agreement protection', () => {
-  it('should reject UNALLOCATE with active DIPS agreement when force is not set', async () => {
+  it('should reject UNALLOCATE with a collectable DIPS agreement when force is not set', async () => {
     const monitor = createMockNetworkMonitor(true)
     const logger = createMockLogger()
 
     await expect(
       validateActionInputs([baseAction], monitor as any, logger as any),
-    ).rejects.toThrow(/active DIPS agreement/)
+    ).rejects.toThrow(/DIPS agreement that can still collect fees/)
   })
 
-  it('should allow UNALLOCATE with active DIPS agreement when force is true', async () => {
+  it('should allow UNALLOCATE with a collectable DIPS agreement when force is true', async () => {
     const monitor = createMockNetworkMonitor(true)
     const logger = createMockLogger()
 
@@ -55,12 +55,12 @@ describe('validateActionInputs DIPS agreement protection', () => {
     ).resolves.toBeUndefined()
 
     expect(logger.warn).toHaveBeenCalledWith(
-      'Force-closing allocation with active DIPS agreement',
+      'Force-closing allocation with a collectable DIPS agreement',
       expect.objectContaining({ allocationId: action.allocationID }),
     )
   })
 
-  it('should allow UNALLOCATE with no active DIPS agreement', async () => {
+  it('should allow UNALLOCATE with no collectable DIPS agreement', async () => {
     const monitor = createMockNetworkMonitor(false)
     const logger = createMockLogger()
 
@@ -84,6 +84,6 @@ describe('validateActionInputs DIPS agreement protection', () => {
       validateActionInputs([action], monitor as any, logger as any),
     ).resolves.toBeUndefined()
 
-    expect(monitor.hasActiveDipsAgreement).not.toHaveBeenCalled()
+    expect(monitor.hasCollectableDipsAgreement).not.toHaveBeenCalled()
   })
 })

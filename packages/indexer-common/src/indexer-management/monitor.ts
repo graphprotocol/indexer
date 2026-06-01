@@ -57,7 +57,7 @@ export class NetworkMonitor {
     private indexingPaymentsSubgraph?: SubgraphClient,
   ) {}
 
-  async hasActiveDipsAgreement(allocationId: string): Promise<boolean> {
+  async hasCollectableDipsAgreement(allocationId: string): Promise<boolean> {
     // No DIPS subgraph configured → no agreement can exist
     if (!this.indexingPaymentsSubgraph) {
       return false
@@ -67,15 +67,47 @@ export class NetworkMonitor {
         query indexingAgreements($allocationId: Bytes!) {
           indexingAgreements(
             where: { allocationId: $allocationId, state_in: [Accepted, CanceledByPayer] }
-            first: 1
           ) {
             id
+            state
           }
         }
       `,
       { allocationId: allocationId.toLowerCase() },
     )
-    return (result.data?.indexingAgreements?.length ?? 0) > 0
+    const agreements: { id: string; state: string }[] =
+      result.data?.indexingAgreements ?? []
+
+    // Any still-active agreement protects the allocation outright.
+    if (agreements.some((agreement) => agreement.state === 'Accepted')) {
+      return true
+    }
+
+    // For payer-canceled agreements, defer to the on-chain collector: it reports
+    // fees as collectable until the collection window is fully drained. Protect
+    // while anything remains; release once drained so the allocation can close.
+    for (const agreement of agreements.filter(
+      (agreement) => agreement.state === 'CanceledByPayer',
+    )) {
+      try {
+        const [isCollectable] = await this.contracts.RecurringCollector.getCollectionInfo(
+          agreement.id,
+        )
+        if (isCollectable) {
+          return true
+        }
+      } catch (err) {
+        // Can't confirm the agreement is drained → keep protecting (fail safe);
+        // closing now would risk stranding uncollected fees.
+        this.logger.warn(
+          'Could not read DIPS collection info; keeping allocation protected',
+          { allocationId, agreementId: agreement.id, err },
+        )
+        return true
+      }
+    }
+
+    return false
   }
 
   poiDisputeMonitoringEnabled(): boolean {
