@@ -185,7 +185,7 @@ export const validateActionInputs = async (
 
       // Check for active DIPS agreement on UNALLOCATE
       if (action.type === ActionType.UNALLOCATE && action.allocationID) {
-        const hasAgreement = await networkMonitor.hasActiveDipsAgreement(
+        const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(
           action.allocationID,
         )
         if (hasAgreement && !action.force) {

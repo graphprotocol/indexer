@@ -46,10 +46,10 @@ const createMonitor = (opts: {
   )
 }
 
-describe('NetworkMonitor.hasActiveDipsAgreement', () => {
+describe('NetworkMonitor.hasCollectableDipsAgreement', () => {
   it('returns false when no indexing-payments subgraph is configured', async () => {
     const monitor = createMonitor({ agreements: null })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(false)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(false)
   })
 
   it('protects an Accepted agreement without consulting the collector', async () => {
@@ -58,7 +58,7 @@ describe('NetworkMonitor.hasActiveDipsAgreement', () => {
       agreements: [{ id: AGREEMENT_ID, state: 'Accepted' }],
       getCollectionInfo,
     })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(true)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(true)
     expect(getCollectionInfo).not.toHaveBeenCalled()
   })
 
@@ -68,7 +68,7 @@ describe('NetworkMonitor.hasActiveDipsAgreement', () => {
       agreements: [{ id: AGREEMENT_ID, state: 'CanceledByPayer' }],
       getCollectionInfo,
     })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(true)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(true)
     expect(getCollectionInfo).toHaveBeenCalledWith(AGREEMENT_ID)
   })
 
@@ -78,7 +78,7 @@ describe('NetworkMonitor.hasActiveDipsAgreement', () => {
       agreements: [{ id: AGREEMENT_ID, state: 'CanceledByPayer' }],
       getCollectionInfo,
     })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(false)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(false)
   })
 
   it('keeps protecting when the collector call fails, to avoid stranding fees', async () => {
@@ -87,11 +87,11 @@ describe('NetworkMonitor.hasActiveDipsAgreement', () => {
       agreements: [{ id: AGREEMENT_ID, state: 'CanceledByPayer' }],
       getCollectionInfo,
     })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(true)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(true)
   })
 
   it('returns false when there are no protecting agreements for the allocation', async () => {
     const monitor = createMonitor({ agreements: [] })
-    expect(await monitor.hasActiveDipsAgreement(ALLOCATION_ID)).toBe(false)
+    expect(await monitor.hasCollectableDipsAgreement(ALLOCATION_ID)).toBe(false)
   })
 })

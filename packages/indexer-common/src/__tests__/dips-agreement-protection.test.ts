@@ -8,7 +8,7 @@ const mockAllocation = {
 }
 
 const createMockNetworkMonitor = (hasAgreement: boolean) => ({
-  hasActiveDipsAgreement: jest.fn().mockResolvedValue(hasAgreement),
+  hasCollectableDipsAgreement: jest.fn().mockResolvedValue(hasAgreement),
   allocation: jest.fn().mockResolvedValue(mockAllocation),
   subgraphDeployment: jest.fn().mockResolvedValue({}),
 })
@@ -84,6 +84,6 @@ describe('validateActionInputs DIPS agreement protection', () => {
       validateActionInputs([action], monitor as any, logger as any),
     ).resolves.toBeUndefined()
 
-    expect(monitor.hasActiveDipsAgreement).not.toHaveBeenCalled()
+    expect(monitor.hasCollectableDipsAgreement).not.toHaveBeenCalled()
   })
 })

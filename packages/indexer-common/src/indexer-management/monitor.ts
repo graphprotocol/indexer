@@ -57,7 +57,7 @@ export class NetworkMonitor {
     private indexingPaymentsSubgraph?: SubgraphClient,
   ) {}
 
-  async hasActiveDipsAgreement(allocationId: string): Promise<boolean> {
+  async hasCollectableDipsAgreement(allocationId: string): Promise<boolean> {
     // No DIPS subgraph configured → no agreement can exist
     if (!this.indexingPaymentsSubgraph) {
       return false
