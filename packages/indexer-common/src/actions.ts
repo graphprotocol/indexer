@@ -195,13 +195,13 @@ export const validateActionInputs = async (
         )
         if (hasAgreement && !action.force) {
           throw new Error(
-            `Allocation ${action.allocationID} has an active DIPS agreement. ` +
-              `Closing this allocation will cancel the agreement on-chain. ` +
-              `Use force=true to proceed anyway.`,
+            `Allocation ${action.allocationID} has a DIPS agreement that can still collect fees. ` +
+              `Closing it now would cancel a live agreement on-chain, or strand fees that a ` +
+              `canceled agreement has not finished collecting. Use force=true to proceed anyway.`,
           )
         }
         if (hasAgreement && action.force) {
-          logger.warn('Force-closing allocation with active DIPS agreement', {
+          logger.warn('Force-closing allocation with a collectable DIPS agreement', {
             allocationId: action.allocationID,
             actionType: action.type,
           })
