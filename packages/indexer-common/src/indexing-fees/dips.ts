@@ -34,7 +34,6 @@ import { CollectionTracker } from './collection-tracker'
 import { sequentialTimerMap } from '../sequential-timer'
 import { OfferVerifier } from './offer-verifier'
 
-const DIPS_ACCEPTANCE_INTERVAL = 5_000
 // POIs are computed against a recent-but-not-tip block to avoid reorg edge cases.
 const RECENT_BLOCK_OFFSET = 10
 // Per-tick parallelism cap across distinct deployments. acceptPendingProposals
@@ -1183,7 +1182,9 @@ export class DipsManager {
     sequentialTimerMap(
       {
         logger: this.logger,
-        milliseconds: DIPS_ACCEPTANCE_INTERVAL,
+        // Config is in seconds; sequentialTimerMap wants milliseconds.
+        milliseconds:
+          this.network.specification.indexerOptions.dipsAcceptanceInterval * 1000,
       },
       async () => {
         // Cheap local check first so we skip the network allocations query on

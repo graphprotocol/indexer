@@ -78,6 +78,7 @@ export const IndexerOptions = z
     dipsEpochsMargin: positiveNumber().default(1),
     dipsCollectionTarget: positiveNumber().min(1).max(90).default(50),
     dipsCollectionSlippage: positiveNumber().min(0).max(100).default(1),
+    dipsAcceptanceInterval: positiveNumber().default(5),
   })
   .strict()
 export type IndexerOptions = z.infer<typeof IndexerOptions>
