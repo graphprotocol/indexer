@@ -235,6 +235,19 @@ export class DipsManager {
           })
         }
       }
+    } else if (fromAcceptedProposals.length > 0) {
+      // No subgraph configured but accepted rows exist (it was unset after they
+      // were accepted): we can't tell if their agreements still live, so surface
+      // the stuck rows instead of silently keeping their rules forever.
+      this.logger.warn(
+        'DIPS accepted rows cannot be retired without the indexing-payments subgraph; ' +
+          'their rules will be kept until it is configured',
+        {
+          stuckDeployments: fromAcceptedProposals.map((p) =>
+            p.subgraphDeploymentId.toString(),
+          ),
+        },
+      )
     }
   }
 

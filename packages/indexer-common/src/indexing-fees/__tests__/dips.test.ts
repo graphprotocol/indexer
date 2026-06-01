@@ -617,6 +617,50 @@ describe('DipsManager', () => {
       expect(markCompleted).toHaveBeenCalledWith('accepted-1')
     })
 
+    test('keeps accepted rows and warns when no indexing-payments subgraph is configured', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const markCompleted = jest.spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+      const warn = jest.spyOn(logger, 'warn')
+      // No subgraph configured: it can't drive retirement, so the rule is kept and
+      // the stuck state is surfaced rather than lingering silently forever.
+      network.indexingPaymentsSubgraph = undefined
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markCompleted).not.toHaveBeenCalled()
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'cannot be retired without the indexing-payments subgraph',
+        ),
+        expect.objectContaining({
+          stuckDeployments: [new SubgraphDeploymentID(testDeploymentId).toString()],
+        }),
+      )
+    })
+
     test('retires the accepted row and reaps its rule once the subgraph catches up but the agreement is gone', async () => {
       await managementModels.IndexingRule.create({
         identifier: testDeploymentId,
