@@ -380,6 +380,14 @@ export const start = {
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
+      .option('dips-acceptance-interval', {
+        description:
+          'How often the DIPs proposal-acceptance loop runs, in seconds',
+        type: 'number',
+        default: 5,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -460,6 +468,7 @@ export async function createNetworkSpecification(
     dipsEpochsMargin: argv.dipsEpochsMargin,
     dipsCollectionTarget: argv.dipsCollectionTarget,
     dipsCollectionSlippage: argv.dipsCollectionSlippage,
+    dipsAcceptanceInterval: argv.dipsAcceptanceInterval,
   }
 
   const transactionMonitoring = {
