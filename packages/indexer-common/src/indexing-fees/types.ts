@@ -5,6 +5,10 @@ export interface DecodedRcaProposal {
   id: string
   status: string
   createdAt: Date
+  // Last time the row changed status. For an 'accepted' row this is when the
+  // agreement was accepted on-chain; the rule reaper uses it to decide when the
+  // indexing-payments subgraph has had time to index the acceptance.
+  updatedAt: Date
 
   // Locally derived bytes16 on-chain agreement id (0x-prefixed lowercase).
   // Derived from (payer, dataService, serviceProvider, deadline, nonce).

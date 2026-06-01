@@ -258,6 +258,40 @@ describe('PendingRcaConsumer', () => {
     })
   })
 
+  describe('getAcceptedProposals', () => {
+    test('queries only accepted rows', async () => {
+      const model = createMockModel([])
+      const consumer = new PendingRcaConsumer(logger, model)
+
+      await consumer.getAcceptedProposals()
+
+      expect(model.findAll).toHaveBeenCalledWith({
+        where: { status: 'accepted' },
+      })
+    })
+
+    test('exposes the row updatedAt as the acceptance time', async () => {
+      const acceptedAt = new Date('2024-02-02T03:04:05Z')
+      const model = createMockModel([
+        {
+          id: 'accepted-uuid',
+          signed_payload: encodeTestPayload(),
+          version: 2,
+          status: 'accepted',
+          created_at: new Date('2024-01-01'),
+          updated_at: acceptedAt,
+        },
+      ])
+      const consumer = new PendingRcaConsumer(logger, model)
+
+      const proposals = await consumer.getAcceptedProposals()
+
+      expect(proposals).toHaveLength(1)
+      expect(proposals[0].status).toBe('accepted')
+      expect(proposals[0].updatedAt).toEqual(acceptedAt)
+    })
+  })
+
   describe('markAccepted', () => {
     test('updates status to accepted', async () => {
       const model = createMockModel()
@@ -267,6 +301,20 @@ describe('PendingRcaConsumer', () => {
 
       expect(model.update).toHaveBeenCalledWith(
         { status: 'accepted' },
+        { where: { id: 'test-uuid' } },
+      )
+    })
+  })
+
+  describe('markCompleted', () => {
+    test('updates status to completed', async () => {
+      const model = createMockModel()
+      const consumer = new PendingRcaConsumer(logger, model)
+
+      await consumer.markCompleted('test-uuid')
+
+      expect(model.update).toHaveBeenCalledWith(
+        { status: 'completed' },
         { where: { id: 'test-uuid' } },
       )
     })
