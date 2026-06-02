@@ -111,7 +111,13 @@ jobs:
           images: ${{ env.AGENT_IMAGE }}
           tags: |
             type=sha
+            type=ref,event=branch
             type=ref,event=tag
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+        
 
       # Glob `*` expands to digest-named files written by the build job's Export digest step.
       - name: Create manifest list and push
