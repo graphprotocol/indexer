@@ -749,15 +749,15 @@ describe('DipsManager', () => {
         })
       })
 
-      test('successful cancel + final collect attempt', async () => {
-        const mockReceipt = { hash: '0xcancel123' }
+      test('pre-cancel collect attempt + successful cancel', async () => {
         const mockCollectReceipt = { hash: '0xcollect456' }
+        const mockReceipt = { hash: '0xcancel123' }
 
-        // Mock cancel transaction
+        // Order: collect (best-effort, before cancel) then the SP cancel.
         network.transactionManager.executeTransaction = jest
           .fn()
+          .mockResolvedValueOnce(mockCollectReceipt) // collect (before cancel)
           .mockResolvedValueOnce(mockReceipt) // cancel
-          .mockResolvedValueOnce(mockCollectReceipt) // collect
 
         // Mock block number and graph node methods for collect
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
@@ -773,7 +773,7 @@ describe('DipsManager', () => {
         const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(true)
-        // executeTransaction called twice: once for cancel, once for collect
+        // executeTransaction called twice: once for collect, once for cancel
         expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(2)
         // Tracker should be cleaned up (untracked = ready)
         expect(
@@ -781,27 +781,41 @@ describe('DipsManager', () => {
         ).toBe(true)
       })
 
-      test('cancel fails returns false, no collect attempted', async () => {
-        // Mock cancel transaction failure
+      test('cancel fails returns false (after the pre-cancel collect attempt)', async () => {
+        const mockCollectReceipt = { hash: '0xcollect456' }
+
+        // Collect (before cancel) succeeds, then the on-chain cancel reverts.
         network.transactionManager.executeTransaction = jest
           .fn()
-          .mockRejectedValueOnce(new Error('cancel tx reverted'))
+          .mockResolvedValueOnce(mockCollectReceipt) // collect (before cancel)
+          .mockRejectedValueOnce(new Error('cancel tx reverted')) // cancel
+
+        network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
+        graphNode.entityCount = jest.fn().mockResolvedValue([250000])
+        graphNode.subgraphFeatures = jest.fn().mockResolvedValue({ network: 'mainnet' })
+        graphNode.blockHashFromNumber = jest.fn().mockResolvedValue('0xblockhash')
+        graphNode.proofOfIndexing = jest
+          .fn()
+          .mockResolvedValue(
+            '0x0000000000000000000000000000000000000000000000000000000000000001',
+          )
 
         const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(false)
-        // executeTransaction called only once (for cancel)
-        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+        // collect attempted first, then the failing cancel
+        expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(2)
       })
 
-      test('cancel succeeds but collect fails returns true, tracker still cleaned up', async () => {
+      test('pre-cancel collect fails but cancel succeeds returns true, tracker cleaned up', async () => {
         const mockReceipt = { hash: '0xcancel123' }
 
-        // Mock cancel succeeds
+        // Collect (before cancel) reverts — outside the collection window — then
+        // the SP cancel succeeds anyway.
         network.transactionManager.executeTransaction = jest
           .fn()
+          .mockRejectedValueOnce(new Error('collect failed')) // collect (before cancel)
           .mockResolvedValueOnce(mockReceipt) // cancel succeeds
-          .mockRejectedValueOnce(new Error('collect failed')) // collect fails
 
         // Mock block number and graph node methods
         network.networkProvider.getBlockNumber = jest.fn().mockResolvedValue(100)
@@ -817,7 +831,7 @@ describe('DipsManager', () => {
         const result = await dipsManager.cancelAgreement(mockAgreement.id, mockAgreement)
 
         expect(result).toBe(true)
-        // Tracker should be cleaned up even though collect failed
+        // Tracker should be cleaned up even though the pre-cancel collect failed
         expect(
           dipsManager.collectionTracker.isReadyForCollection(mockAgreement.id, 0),
         ).toBe(true)

@@ -748,13 +748,23 @@ export class DipsManager {
       agreementId,
     })
 
-    // Step 1: Cancel on-chain (skipped if payer already canceled — a second
-    // cancel reverts on `InvalidAgreementState` and would skip the final collect).
+    // Step 1: Best-effort final collection BEFORE cancelling.
+    try {
+      const blockNumber = await this.network.networkProvider.getBlockNumber()
+      await this.tryCollectAgreement(agreement, blockNumber, logger)
+      logger.info('Final collection succeeded before cancel')
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err)
+      logger.warn(
+        'Final collection before cancel failed (likely outside the collection window); proceeding to cancel',
+        { deployment: agreement.subgraphDeploymentId, error: errorMsg },
+      )
+    }
+
+    // Step 2: Cancel on-chain, skipped if payer already canceled.
     const indexerAddress = this.network.specification.indexerOptions.address
     if (agreement.state === 'CanceledByPayer') {
-      logger.info(
-        'Payer already canceled on-chain; skipping cancel, proceeding to final collection',
-      )
+      logger.info('Payer already canceled on-chain; skipping service-provider cancel')
     } else {
       try {
         const receipt = await this.network.transactionManager.executeTransaction(
@@ -785,19 +795,6 @@ export class DipsManager {
         logger.error('Failed to cancel agreement on-chain', { error: errorMsg })
         return false
       }
-    }
-
-    // Step 2: Best-effort final collection
-    try {
-      const blockNumber = await this.network.networkProvider.getBlockNumber()
-      await this.tryCollectAgreement(agreement, blockNumber, logger)
-      logger.info('Final collection succeeded after cancel')
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err)
-      logger.error('Final collection after cancel failed, fees may be lost', {
-        deployment: agreement.subgraphDeploymentId,
-        error: errorMsg,
-      })
     }
 
     // Step 3: Cleanup
