@@ -1,0 +1,5 @@
+Manage DIPs (Direct Indexer Payments)
+
+  indexer dips agreements get    List one or more DIPs indexing agreements 
+  indexer dips agreements        Manage DIPs indexing agreements           
+  indexer dips                   Manage DIPs (Direct Indexer Payments)     

@@ -1,0 +1,4 @@
+Manage DIPs indexing agreements
+
+  indexer dips agreements get    List one or more DIPs indexing agreements 
+  indexer dips agreements        Manage DIPs indexing agreements           
