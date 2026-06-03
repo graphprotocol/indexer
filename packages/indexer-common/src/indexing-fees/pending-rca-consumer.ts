@@ -15,8 +15,19 @@ export class PendingRcaConsumer {
   ) {}
 
   async getPendingProposals(): Promise<DecodedRcaProposal[]> {
+    return this.getProposalsByStatus('pending')
+  }
+
+  // Proposals accepted on-chain but not yet retired. The rule reaper keeps these
+  // deployments' rules alive across the window where the agreement is accepted
+  // on-chain but the indexing-payments subgraph hasn't indexed it yet.
+  async getAcceptedProposals(): Promise<DecodedRcaProposal[]> {
+    return this.getProposalsByStatus('accepted')
+  }
+
+  private async getProposalsByStatus(status: string): Promise<DecodedRcaProposal[]> {
     const rows = await this.model.findAll({
-      where: { status: 'pending' },
+      where: { status },
     })
 
     const decoded: DecodedRcaProposal[] = []
@@ -29,7 +40,7 @@ export class PendingRcaConsumer {
         }
         decoded.push(proposal)
       } catch (error) {
-        this.logger.warn(`Failed to decode pending RCA proposal ${row.id}, skipping`, {
+        this.logger.warn(`Failed to decode ${status} RCA proposal ${row.id}, skipping`, {
           error,
         })
       }
@@ -46,6 +57,13 @@ export class PendingRcaConsumer {
 
   async markAccepted(id: string): Promise<void> {
     await this.model.update({ status: 'accepted' }, { where: { id } })
+  }
+
+  // Retires an accepted row once the indexing-payments subgraph has indexed the
+  // agreement and become its source of truth. After this the row no longer keeps
+  // the deployment's rule alive; the subgraph does.
+  async markCompleted(id: string): Promise<void> {
+    await this.model.update({ status: 'completed' }, { where: { id } })
   }
 
   async markRejected(id: string, reason?: string): Promise<void> {
@@ -99,6 +117,7 @@ export class PendingRcaConsumer {
       id: row.id,
       status: row.status,
       createdAt: row.created_at,
+      updatedAt: row.updated_at,
 
       agreementId,
 

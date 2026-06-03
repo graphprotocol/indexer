@@ -16,10 +16,7 @@ import {
   MultiNetworks,
 } from '@graphprotocol/indexer-common'
 import type { SubgraphIndexingAgreement } from '../agreement-monitor'
-import {
-  DIPS_RULE_GRACE_SECONDS,
-  DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS,
-} from '../dips'
+import { DIPS_SUBGRAPH_STALENESS_THRESHOLD_SECONDS } from '../dips'
 import { definePendingRcaProposalModel } from '../../indexer-management/models/pending-rca-proposal'
 import {
   connectDatabase,
@@ -514,7 +511,7 @@ describe('DipsManager', () => {
       expect(rule).toBeNull()
     })
 
-    test('keeps a freshly accepted DIPS rule within the grace window despite no backing agreement yet', async () => {
+    test('keeps a freshly accepted DIPS rule while the subgraph has not yet indexed the agreement', async () => {
       await managementModels.IndexingRule.create({
         identifier: testDeploymentId,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
@@ -525,17 +522,27 @@ describe('DipsManager', () => {
       jest
         .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
         .mockResolvedValue([])
-      setCollectableAgreements([])
-      // Simulate the accept loop having just accepted this deployment on-chain;
-      // the indexing-payments subgraph has not indexed the agreement yet, so the
-      // deployment is in neither the pending set nor the on-chain-accepted set.
-      const internal = dipsManager as unknown as {
-        recentlyAcceptedDeployments: Map<string, number>
-      }
-      internal.recentlyAcceptedDeployments.set(
-        new SubgraphDeploymentID(testDeploymentId).bytes32.toLowerCase(),
-        Math.floor(Date.now() / 1000),
-      )
+      // Accepted on-chain just now; its durable accepted row keeps the rule alive
+      // even though the subgraph has not indexed the agreement into the active set.
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const markCompleted = jest.spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+      // Subgraph is fresh but its head is behind the just-now acceptance.
+      setCollectableAgreements([], {
+        subgraphTimestamp: Math.floor(Date.now() / 1000) - 30,
+      })
 
       await dipsManager.ensureAgreementRules()
 
@@ -546,9 +553,12 @@ describe('DipsManager', () => {
         },
       })
       expect(rule).not.toBeNull()
+      // Not in the active set and the head is behind acceptance, so neither
+      // presence nor the time backstop retires it yet.
+      expect(markCompleted).not.toHaveBeenCalled()
     })
 
-    test('reaps a DIPS rule and prunes the grace entry once the grace window expires', async () => {
+    test('retires the accepted row by presence once its agreement appears in the active set, even before the head reaches acceptance', async () => {
       await managementModels.IndexingRule.create({
         identifier: testDeploymentId,
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
@@ -559,29 +569,156 @@ describe('DipsManager', () => {
       jest
         .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
         .mockResolvedValue([])
-      setCollectableAgreements([])
-      const internal = dipsManager as unknown as {
-        recentlyAcceptedDeployments: Map<string, number>
-      }
-      const deploymentKey = new SubgraphDeploymentID(
-        testDeploymentId,
-      ).bytes32.toLowerCase()
-      // Accepted longer ago than the grace window: no longer shielded.
-      internal.recentlyAcceptedDeployments.set(
-        deploymentKey,
-        Math.floor(Date.now() / 1000) - (DIPS_RULE_GRACE_SECONDS + 1),
+      const markCompleted = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+        .mockResolvedValue(undefined)
+      // Accepted just now; the durable row's agreementId matches an agreement the
+      // subgraph now reports, proving the subgraph indexed the acceptance.
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const farFuture = String(Math.floor(Date.now() / 1000) + 7 * 24 * 3600)
+      // Head is behind the just-now acceptance, so the time backstop cannot fire;
+      // only presence in the active set can retire the row here.
+      setCollectableAgreements(
+        [
+          {
+            id: testAgreementId,
+            allocationId: testAllocationId,
+            subgraphDeploymentId: testDeploymentId,
+            state: 'Accepted',
+            lastCollectionAt: '0',
+            endsAt: farFuture,
+            maxInitialTokens: '0',
+            maxOngoingTokensPerSecond: '0',
+            tokensPerSecond: '0',
+            tokensPerEntityPerSecond: '0',
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 1800,
+            canceledAt: '0',
+          },
+        ],
+        { subgraphTimestamp: Math.floor(Date.now() / 1000) - 30 },
       )
 
       await dipsManager.ensureAgreementRules()
 
-      const rule = await managementModels.IndexingRule.findOne({
+      expect(markCompleted).toHaveBeenCalledWith('accepted-1')
+    })
+
+    test('keeps accepted rows and warns when no indexing-payments subgraph is configured', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getAcceptedProposals')
+        .mockResolvedValue([
+          {
+            id: 'accepted-1',
+            agreementId: testAgreementId,
+            status: 'accepted',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+            minSecondsPerCollection: 60,
+            maxSecondsPerCollection: 3600,
+          } as never,
+        ])
+      const markCompleted = jest.spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+      const warn = jest.spyOn(logger, 'warn')
+      // No subgraph configured: it can't drive retirement, so the rule is kept and
+      // the stuck state is surfaced rather than lingering silently forever.
+      network.indexingPaymentsSubgraph = undefined
+
+      await dipsManager.ensureAgreementRules()
+
+      expect(markCompleted).not.toHaveBeenCalled()
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'cannot be retired without the indexing-payments subgraph',
+        ),
+        expect.objectContaining({
+          stuckDeployments: [new SubgraphDeploymentID(testDeploymentId).toString()],
+        }),
+      )
+    })
+
+    test('retires the accepted row and reaps its rule once the subgraph catches up but the agreement is gone', async () => {
+      await managementModels.IndexingRule.create({
+        identifier: testDeploymentId,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.DIPS,
+        protocolNetwork: 'eip155:421614',
+        allocationLifetime: 3600,
+      })
+      jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'getPendingProposals')
+        .mockResolvedValue([])
+      const markCompleted = jest
+        .spyOn(dipsManager.pendingRcaConsumer!, 'markCompleted')
+        .mockResolvedValue(undefined)
+      // Accepted a while ago; the subgraph head (now) has indexed past it, yet
+      // the agreement is not in the active set — it is gone (or never active).
+      const acceptedProposals = jest.spyOn(
+        dipsManager.pendingRcaConsumer!,
+        'getAcceptedProposals',
+      )
+      acceptedProposals.mockResolvedValue([
+        {
+          id: 'accepted-1',
+          agreementId: testAgreementId,
+          status: 'accepted',
+          createdAt: new Date(),
+          updatedAt: new Date(Date.now() - 100_000),
+          subgraphDeploymentId: new SubgraphDeploymentID(testDeploymentId),
+          minSecondsPerCollection: 60,
+          maxSecondsPerCollection: 3600,
+        } as never,
+      ])
+      setCollectableAgreements([], { subgraphTimestamp: Math.floor(Date.now() / 1000) })
+
+      // First pass: the accepted row still keeps the rule this tick, but the
+      // subgraph has caught up to the acceptance, so the row is retired.
+      await dipsManager.ensureAgreementRules()
+      expect(markCompleted).toHaveBeenCalledWith('accepted-1')
+      let rule = await managementModels.IndexingRule.findOne({
+        where: {
+          identifier: testDeploymentId,
+          decisionBasis: IndexingDecisionBasis.DIPS,
+        },
+      })
+      expect(rule).not.toBeNull()
+
+      // Second pass: with the row retired, nothing backs the deployment, so the
+      // rule is reaped.
+      acceptedProposals.mockResolvedValue([])
+      setCollectableAgreements([], { subgraphTimestamp: Math.floor(Date.now() / 1000) })
+      await dipsManager.ensureAgreementRules()
+      rule = await managementModels.IndexingRule.findOne({
         where: {
           identifier: testDeploymentId,
           decisionBasis: IndexingDecisionBasis.DIPS,
         },
       })
       expect(rule).toBeNull()
-      expect(internal.recentlyAcceptedDeployments.has(deploymentKey)).toBe(false)
     })
 
     test('skips rule cleanup when the indexing-payments subgraph is stale', async () => {

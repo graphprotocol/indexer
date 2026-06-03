@@ -35,6 +35,7 @@ function createMockProposal(
     id: 'proposal-1',
     status: 'pending',
     createdAt: new Date(),
+    updatedAt: new Date(),
     agreementId: '0xabcd1234567890abcdef1234567890ab',
     payer: '0x1111111111111111111111111111111111111111',
     serviceProvider: '0x3333333333333333333333333333333333333333',
