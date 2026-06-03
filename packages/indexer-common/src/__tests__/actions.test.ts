@@ -1,4 +1,11 @@
-import { ActionInput, ActionStatus, ActionType, isValidActionInput } from '../actions'
+import {
+  ActionInput,
+  ActionStatus,
+  ActionType,
+  isValidActionInput,
+  presentPOIReason,
+  presentPOIReasonEpoch,
+} from '../actions'
 
 describe('Action Validation', () => {
   describe('isValidActionInput', () => {
@@ -244,5 +251,18 @@ describe('Action Validation', () => {
 
       expect(isValidActionInput(noType)).toBe(false)
     })
+  })
+})
+
+describe('present-POI reason encoding', () => {
+  test('round-trips the epoch through the reason string', () => {
+    expect(presentPOIReasonEpoch(presentPOIReason(853))).toBe(853)
+    expect(presentPOIReasonEpoch(presentPOIReason(0))).toBe(0)
+  })
+
+  test('returns undefined for a reason without an epoch', () => {
+    expect(presentPOIReasonEpoch('presentPOI:staleness-prevention')).toBeUndefined()
+    expect(presentPOIReasonEpoch('some-other-reason')).toBeUndefined()
+    expect(presentPOIReasonEpoch(null)).toBeUndefined()
   })
 })

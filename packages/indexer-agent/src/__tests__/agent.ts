@@ -442,6 +442,7 @@ describe('reconcileDeploymentAllocationAction', () => {
       expect.anything(),
       [activeAllocations[0]],
       network,
+      10,
     )
   })
 

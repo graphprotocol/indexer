@@ -17,6 +17,7 @@ import {
   Action,
   POIDisputeAttributes,
   DipsManager,
+  presentPOIReason,
 } from '@graphprotocol/indexer-common'
 import { Logger, formatGRT } from '@graphprotocol/common-ts'
 import { hexlify } from 'ethers'
@@ -569,11 +570,13 @@ export class Operator {
     network: {
       specification: { networkIdentifier: string }
     },
+    epoch: number,
   ): Promise<void> {
     for (const allocation of expiringAllocations) {
       logger.info('Scheduling presentPOI for Horizon allocation', {
         allocationId: allocation.id,
         deployment: allocation.subgraphDeployment.id.ipfsHash,
+        epoch,
       })
 
       await this.queueAction(
@@ -584,7 +587,7 @@ export class Operator {
             poi: undefined,
           },
           type: ActionType.PRESENT_POI,
-          reason: 'presentPOI:staleness-prevention',
+          reason: presentPOIReason(epoch),
           protocolNetwork: network.specification.networkIdentifier,
         },
         false,

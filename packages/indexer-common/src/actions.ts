@@ -256,6 +256,22 @@ export enum ActionType {
   RESIZE = 'resize',
 }
 
+// Rewards accrue per block, so a present-POI mid-epoch collects only what accrued
+// since the last and mostly wastes gas; one per epoch suffices. We record the epoch
+// in the action `reason` so the agent can skip allocations already harvested this epoch.
+const PRESENT_POI_REASON_PREFIX = 'presentPOI:staleness-prevention'
+
+export function presentPOIReason(epoch: number): string {
+  return `${PRESENT_POI_REASON_PREFIX}:epoch=${epoch}`
+}
+
+// Returns the epoch encoded in a present-POI action `reason`, or undefined if
+// the reason carries no epoch (e.g. an action queued before this field existed).
+export function presentPOIReasonEpoch(reason: string | null): number | undefined {
+  const match = reason?.match(/:epoch=(\d+)$/)
+  return match ? Number(match[1]) : undefined
+}
+
 export enum ActionStatus {
   QUEUED = 'queued',
   APPROVED = 'approved',

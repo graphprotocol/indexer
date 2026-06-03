@@ -8,7 +8,9 @@ import {
   timer,
 } from '@graphprotocol/common-ts'
 import {
+  ActionManager,
   ActionStatus,
+  ActionType,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
@@ -20,6 +22,7 @@ import {
   IndexingRuleAttributes,
   Network,
   POIDisputeAttributes,
+  presentPOIReasonEpoch,
   RewardsPool,
   Subgraph,
   SubgraphDeployment,
@@ -1023,7 +1026,62 @@ export class Agent {
         }
       },
     )
+
+    // Rewards accrue per block, so a second present-POI the same epoch collects only
+    // the little earned since the last and mostly wastes gas. Skip allocations already
+    // harvested this epoch.
+    const harvestedThisEpoch = await this.allocationsHarvestedInEpoch(
+      deploymentAllocationDecision.deployment.ipfsHash,
+      network.specification.networkIdentifier,
+      epoch,
+    )
+    expiredAllocations = expiredAllocations.filter(allocation => {
+      if (harvestedThisEpoch.has(allocation.id)) {
+        logger.debug(
+          'Allocation already harvested this epoch, skipping presentPOI',
+          {
+            allocation: allocation.id,
+            epoch,
+          },
+        )
+        return false
+      }
+      return true
+    })
+
     return expiredAllocations
+  }
+
+  // Returns the set of allocation ids that already had a successful present-POI
+  // scheduled for the current epoch, read from the actions table.
+  async allocationsHarvestedInEpoch(
+    deploymentID: string,
+    protocolNetwork: string,
+    epoch: number,
+  ): Promise<Set<string>> {
+    const actionManager = this.indexerManagement.actionManager
+    if (!actionManager) {
+      return new Set()
+    }
+    const recentPresentPOIActions = await ActionManager.fetchActions(
+      actionManager.models,
+      null,
+      {
+        type: ActionType.PRESENT_POI,
+        status: ActionStatus.SUCCESS,
+        protocolNetwork,
+      },
+    )
+    return new Set(
+      recentPresentPOIActions
+        .filter(
+          action =>
+            action.deploymentID === deploymentID &&
+            action.allocationID !== null &&
+            presentPOIReasonEpoch(action.reason) === epoch,
+        )
+        .map(action => action.allocationID as string),
+    )
   }
 
   async reconcileDeploymentAllocationAction(
@@ -1125,6 +1183,7 @@ export class Agent {
                 logger,
                 expiringAllocations,
                 network,
+                epoch,
               )
             }
           }

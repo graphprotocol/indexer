@@ -61,7 +61,7 @@ describe('presentPOIForAllocations', () => {
       id: '0x0000000000000000000000000000000000000002',
     })
 
-    await operator.presentPOIForAllocations(mockLogger, [alloc1, alloc2], network)
+    await operator.presentPOIForAllocations(mockLogger, [alloc1, alloc2], network, 853)
 
     expect(queueActionSpy).toHaveBeenCalledTimes(2)
     expect(queueActionSpy).toHaveBeenCalledWith(
@@ -71,7 +71,7 @@ describe('presentPOIForAllocations', () => {
           allocationID: alloc1.id,
           deploymentID: deployment.ipfsHash,
         }),
-        reason: 'presentPOI:staleness-prevention',
+        reason: 'presentPOI:staleness-prevention:epoch=853',
         protocolNetwork: 'eip155:421614',
       }),
       false,
@@ -87,7 +87,7 @@ describe('presentPOIForAllocations', () => {
   })
 
   it('should not queue anything when no allocations are passed', async () => {
-    await operator.presentPOIForAllocations(mockLogger, [], network)
+    await operator.presentPOIForAllocations(mockLogger, [], network, 853)
     expect(queueActionSpy).not.toHaveBeenCalled()
   })
 })
