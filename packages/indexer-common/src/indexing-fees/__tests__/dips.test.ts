@@ -884,6 +884,10 @@ describe('DipsManager', () => {
           minSecondsPerCollection: 60,
           maxSecondsPerCollection: 300,
         })
+
+        const getCollectionInfo = jest.fn().mockResolvedValue([true, 1000n, 0n])
+        network.contracts.RecurringCollector.getCollectionInfo =
+          getCollectionInfo as unknown as typeof network.contracts.RecurringCollector.getCollectionInfo
       })
 
       test('pre-cancel collect attempt + successful cancel', async () => {
