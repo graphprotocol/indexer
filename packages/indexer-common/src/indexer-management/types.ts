@@ -139,6 +139,7 @@ export const parseGraphQLAllocation = (
   poi: allocation.poi,
   queryFeeRebates: allocation.queryFeeRebates,
   queryFeesCollected: allocation.queryFeesCollected,
+  lastPresentedPoiEpoch: allocation.pois?.[0]?.submittedAtEpoch,
 })
 
 export const parseGraphQLProvision = (provision: any): Provision => ({

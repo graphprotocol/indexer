@@ -260,6 +260,9 @@ export class NetworkMonitor {
                 closedAt
                 closedAtEpoch
                 createdAtBlockHash
+                pois(first: 1, orderBy: submittedAtEpoch, orderDirection: desc) {
+                  submittedAtEpoch
+                }
                 subgraphDeployment {
                   id
                   stakedTokens

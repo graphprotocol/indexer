@@ -20,6 +20,7 @@ export interface Allocation {
   poi: string | undefined
   queryFeeRebates: bigint | undefined
   queryFeesCollected: bigint | undefined
+  lastPresentedPoiEpoch: number | undefined
 }
 
 export interface Provision {

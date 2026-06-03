@@ -992,7 +992,10 @@ export class Agent {
           .rule?.allocationLifetime
           ? deploymentAllocationDecision.ruleMatch.rule.allocationLifetime
           : maxAllocationDuration
-        return epoch >= allocation.createdAtEpoch + desiredAllocationLifetime
+
+        const lastCollectedEpoch =
+          allocation.lastPresentedPoiEpoch ?? allocation.createdAtEpoch
+        return epoch >= lastCollectedEpoch + desiredAllocationLifetime
       },
     )
     logger.debug('Expired allocations found', {
