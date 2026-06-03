@@ -1,0 +1,15 @@
+- Processing inputs
+💁 
+graph indexer dips agreements get [options]
+graph indexer dips agreements get [options] <agreement-id>
+graph indexer dips agreements get [options] all
+
+Options:
+
+  -h, --help                                                              Show usage information
+  -n, --network <network>                                                 Filter agreements by their protocol network (mainnet, arbitrum-one, sepolia, arbitrum-sepolia)
+      --status Accepted|CanceledByPayer|CanceledByServiceProvider|NotAccepted  Filter by agreement state
+      --deployment <id>                                                   Fetch only agreements for a specific subgraph deployment
+  -o, --output table|json|yaml                                            Choose the output format: table (default), JSON, or YAML
+  -w, --wrap [N]                                                          Wrap the output to a specific width (default: 0, no wrapping)
+

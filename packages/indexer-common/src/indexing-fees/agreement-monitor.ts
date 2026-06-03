@@ -48,6 +48,81 @@ const INDEXING_AGREEMENTS_QUERY = gql`
   }
 `
 
+export interface IndexingAgreementDetails {
+  id: string
+  payer: string
+  indexer: string
+  allocationId: string
+  subgraphDeploymentId: string
+  state: AgreementState
+  acceptedAt: string
+  lastCollectionAt: string
+  endsAt: string
+  tokensPerSecond: string
+  tokensCollected: string
+  canceledAt: string
+  canceledBy: string
+}
+
+const INDEXING_AGREEMENT_DETAILS_QUERY = gql`
+  query indexingAgreements($where: IndexingAgreement_filter!, $lastId: String!) {
+    indexingAgreements(
+      where: { and: [$where, { id_gt: $lastId }] }
+      orderBy: id
+      orderDirection: asc
+      first: 1000
+    ) {
+      id
+      payer
+      indexer
+      allocationId
+      subgraphDeploymentId
+      state
+      acceptedAt
+      lastCollectionAt
+      endsAt
+      tokensPerSecond
+      tokensCollected
+      canceledAt
+      canceledBy
+    }
+  }
+`
+
+export async function fetchIndexingAgreements(
+  subgraphClient: SubgraphClient,
+  indexerAddress: string,
+  filter?: { state?: AgreementState; id?: string },
+): Promise<IndexingAgreementDetails[]> {
+  const where: Record<string, unknown> = { indexer: indexerAddress.toLowerCase() }
+  if (filter?.state) where.state = filter.state
+  if (filter?.id) where.id = filter.id.toLowerCase()
+
+  const all: IndexingAgreementDetails[] = []
+  let lastId = ''
+
+  for (;;) {
+    const result = await subgraphClient.query(INDEXING_AGREEMENT_DETAILS_QUERY, {
+      where,
+      lastId,
+    })
+    if (result.error) {
+      throw result.error
+    }
+
+    const agreements: IndexingAgreementDetails[] =
+      result.data?.indexingAgreements ?? []
+    if (!agreements.length) break
+
+    all.push(...agreements)
+
+    if (agreements.length < 1000) break
+    lastId = agreements[agreements.length - 1].id
+  }
+
+  return all
+}
+
 export async function fetchCollectableAgreements(
   subgraphClient: SubgraphClient,
   indexerAddress: string,

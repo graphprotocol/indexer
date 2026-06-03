@@ -13,6 +13,7 @@ import indexingRuleResolvers from './resolvers/indexing-rules'
 import poiDisputeResolvers from './resolvers/poi-disputes'
 import statusResolvers from './resolvers/indexer-status'
 import provisionResolvers from './resolvers/provisions'
+import dipsResolvers from './resolvers/dips'
 import { GraphNode } from '../graph-node'
 import {
   ActionManager,
@@ -116,6 +117,29 @@ const SCHEMA_SDL = gql`
     allocation: String!
     previousAmount: String!
     newAmount: String!
+    protocolNetwork: String!
+  }
+
+  input IndexingAgreementFilter {
+    status: String
+    agreementId: String
+    protocolNetwork: String
+  }
+
+  type IndexingAgreement {
+    id: String!
+    payer: String!
+    indexer: String!
+    allocationId: String!
+    subgraphDeploymentId: String!
+    state: String!
+    acceptedAt: String!
+    lastCollectionAt: String!
+    endsAt: String!
+    tokensPerSecond: String!
+    tokensCollected: String!
+    canceledAt: String!
+    canceledBy: String!
     protocolNetwork: String!
   }
 
@@ -471,6 +495,7 @@ const SCHEMA_SDL = gql`
     disputesClosedAfter(closedAfterBlock: BigInt!, protocolNetwork: String): [POIDispute]!
 
     allocations(filter: AllocationFilter!): [Allocation!]!
+    indexingAgreements(filter: IndexingAgreementFilter!): [IndexingAgreement!]!
 
     action(actionID: String!): Action
     actions(
@@ -584,6 +609,7 @@ export const createIndexerManagementClient = async (
     ...allocationResolvers,
     ...actionResolvers,
     ...provisionResolvers,
+    ...dipsResolvers,
   }
 
   const actionManager = multiNetworks
