@@ -388,6 +388,17 @@ export const start = {
         required: false,
         group: 'Indexing Fees ("DIPs")',
       })
+      .option('dips-on-chain-accept-delay', {
+        description:
+          'How long after the off-chain accept to wait before the first on-chain ' +
+          'acceptIndexingAgreement attempt, in seconds. Gives the payer time to land ' +
+          "the offer() tx so fewer attempts hit 'offer not yet present'. The deployment " +
+          'starts syncing immediately regardless of this delay.',
+        type: 'number',
+        default: 5,
+        required: false,
+        group: 'Indexing Fees ("DIPs")',
+      })
       .check(argv => {
         if (
           !argv['network-subgraph-endpoint'] &&
@@ -469,6 +480,7 @@ export async function createNetworkSpecification(
     dipsCollectionTarget: argv.dipsCollectionTarget,
     dipsCollectionSlippage: argv.dipsCollectionSlippage,
     dipsAcceptanceInterval: argv.dipsAcceptanceInterval,
+    dipsOnChainAcceptDelay: argv.dipsOnChainAcceptDelay,
   }
 
   const transactionMonitoring = {
@@ -566,10 +578,8 @@ export async function run(
   logger: Logger,
 ): Promise<void> {
   await common_init(logger)
-  // --------------------------------------------------------------------------------
-  // * Configure event  listeners for unhandled promise  rejections and uncaught
+  // Configure event listeners for unhandled promise rejections and uncaught
   // exceptions.
-  // --------------------------------------------------------------------------------
   process.on('unhandledRejection', err => {
     logger.warn(`Unhandled promise rejection`, {
       err: indexerError(IndexerErrorCode.IE035, err),
@@ -786,9 +796,8 @@ export async function run(
 }
 
 // Review CLI arguments, emit non-interrupting warnings about expected behavior.
-// Perform this check immediately after parsing the command line arguments.
-// Ideally, this check could be made inside yargs.check, but we can't access a Logger
-// instance in that context.
+// Runs right after parsing; can't live in yargs.check because a Logger instance
+// isn't accessible there.
 export function reviewArgumentsForWarnings(argv: AgentOptions, logger: Logger) {
   const {
     gasIncreaseTimeout,
