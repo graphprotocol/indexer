@@ -73,7 +73,9 @@ export class TransactionManager {
     let output: TransactionReceipt | undefined = undefined
 
     const feeData = await this.waitForGasPricesBelowThreshold(logger)
-    const paddedGasLimit = Math.ceil(Number(await gasEstimation()) * 1.5)
+    const paddedGasLimit = Math.ceil(
+      Number(await gasEstimation()) * this.specification.gasLimitMultiplier,
+    )
 
     const txPromise = transaction(paddedGasLimit)
     let tx: TransactionResponse = await txPromise

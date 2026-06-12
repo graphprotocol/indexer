@@ -62,7 +62,7 @@ export const IndexerOptions = z
       .default('auto')
       .transform((x) => x as AllocationManagementMode),
     autoAllocationMinBatchSize: positiveNumber().default(1),
-    autoAllocationMaxBatchSize: positiveNumber().optional(),
+    autoAllocationMaxBatchSize: positiveNumber().default(50),
     allocateOnNetworkSubgraph: z.boolean().default(false),
     register: z.boolean().default(true),
     maxProvisionInitialSize: GRT()
@@ -83,6 +83,7 @@ export const TransactionMonitoring = z
       .default(240)
       .transform((x) => x * 10 ** 3),
     gasIncreaseFactor: positiveNumber().default(1.2),
+    gasLimitMultiplier: positiveNumber().default(1.5),
     gasPriceMax: positiveNumber()
       .default(100)
       .transform((x) => x * 10 ** 9),
