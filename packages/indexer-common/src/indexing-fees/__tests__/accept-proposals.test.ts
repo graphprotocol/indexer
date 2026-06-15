@@ -732,10 +732,9 @@ describe('DipsManager.acceptPendingProposals', () => {
 
   describe('same-deployment dedup', () => {
     test('accepts one proposal per deployment per tick and rejects neither', async () => {
-      // Two proposals for the same deployment with no existing allocation.
-      // Without dedup both would derive the same allocation id and race to
-      // open it, getting one wrongly rejected; with dedup only the first is
-      // processed this tick and the other is left pending for the next.
+      // Two proposals for the same deployment with no existing allocation would
+      // both derive the same allocation id and race to open it, wrongly rejecting
+      // one; dedup processes only the first this tick, leaving the other pending.
       const proposalA = createMockProposal({
         id: 'proposal-a',
         agreementId: '0x' + 'a'.repeat(32),
@@ -915,6 +914,31 @@ describe('DipsManager.acceptPendingProposals', () => {
 
       expect(consumer.markAccepted).toHaveBeenCalledTimes(1)
       expect(network.transactionManager.executeTransaction).toHaveBeenCalledTimes(1)
+    })
+
+    test('clamps the delay below the deadline so a near-deadline proposal is not held back', async () => {
+      // Configured delay (1 hour) far exceeds the time left to the deadline. Without
+      // the clamp the gate would wait an hour and miss the deadline; the clamp caps
+      // the wait below the deadline, so the on-chain accept is attempted right away.
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + 4)
+      const proposal = createMockProposal({ createdAt: new Date(), deadline })
+      const allocation = createMockAllocation()
+      const consumer = createMockConsumer([proposal])
+      const models = createMockModels()
+      const network = createMockNetwork()
+      ;(
+        network.specification.indexerOptions as { dipsOnChainAcceptDelay: number }
+      ).dipsOnChainAcceptDelay = 3600
+      ;(network.transactionManager.executeTransaction as jest.Mock).mockResolvedValue({
+        hash: '0xtx',
+        status: 1,
+      })
+      const dm = createDipsManager(network, models, consumer)
+
+      await dm.acceptPendingProposals([allocation])
+
+      expect(network.transactionManager.executeTransaction).toHaveBeenCalled()
+      expect(consumer.markAccepted).toHaveBeenCalledWith(proposal.id)
     })
   })
 })
