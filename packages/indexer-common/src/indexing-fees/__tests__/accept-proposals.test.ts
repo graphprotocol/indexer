@@ -34,7 +34,9 @@ function createMockProposal(
   return {
     id: 'proposal-1',
     status: 'pending',
-    createdAt: new Date(),
+    // Default to the past so the accept-delay gate is already cleared; tests that
+    // exercise the delay window set a recent createdAt explicitly.
+    createdAt: new Date(Date.now() - 120 * 1000),
     updatedAt: new Date(),
     agreementId: '0xabcd1234567890abcdef1234567890ab',
     payer: '0x1111111111111111111111111111111111111111',
@@ -161,9 +163,10 @@ function createMockNetwork() {
         enableDips: true,
         dipsAllocationAmount: 0n,
         defaultAllocationAmount: 10000000000000000000n, // 10 GRT
-        // 0 disables the accept-delay gate so existing tests reach the accept path
-        // immediately; the delay-specific tests override this.
-        dipsOnChainAcceptDelay: 0,
+        // A valid positive default (0 is rejected at config load). createMockProposal
+        // defaults createdAt to the past, so the gate is already cleared for tests that
+        // don't exercise the delay window; delay-specific tests set createdAt explicitly.
+        dipsOnChainAcceptDelay: 5,
       },
       networkIdentifier: 'eip155:1337',
     },
