@@ -77,7 +77,7 @@ export const IndexerOptions = z
     ravCollectionInterval: positiveNumber().default(14400),
     dipsEpochsMargin: positiveNumber().default(1),
     dipsCollectionTarget: positiveNumber().min(1).max(90).default(50),
-    dipsCollectionSlippage: positiveNumber().min(0).max(100).default(1),
+    dipsCollectionSlippage: z.number().nonnegative().max(100).finite().default(1),
     dipsAcceptanceInterval: positiveNumber().default(5),
   })
   .strict()
