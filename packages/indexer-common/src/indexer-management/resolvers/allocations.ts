@@ -469,6 +469,24 @@ async function createAllocation(
 /**
  * Execute collect transaction for indexing rewards
  */
+// RewardsManager reverts with this string `require` when the indexer is
+// ineligible for rewards and `revertOnIneligible` is enabled on-chain.
+const INDEXER_INELIGIBLE_REVERT = 'Indexer not eligible for rewards'
+
+function isIndexerIneligibleRevert(error: unknown): boolean {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+  const { reason, shortMessage, message } = error as {
+    reason?: unknown
+    shortMessage?: unknown
+    message?: unknown
+  }
+  return [reason, shortMessage, message].some(
+    (field) => typeof field === 'string' && field.includes(INDEXER_INELIGIBLE_REVERT),
+  )
+}
+
 async function executeCollectTransaction(
   network: Network,
   allocationId: string,
@@ -479,22 +497,33 @@ async function executeCollectTransaction(
   const transactionManager = network.transactionManager
   const address = network.specification.indexerOptions.address
 
-  const receipt = await transactionManager.executeTransaction(
-    async () =>
-      contracts.SubgraphService.collect.estimateGas(
-        address,
-        PaymentTypes.IndexingRewards,
-        collectData,
-      ),
-    async (gasLimit) =>
-      contracts.SubgraphService.collect(
-        address,
-        PaymentTypes.IndexingRewards,
-        collectData,
-        { gasLimit },
-      ),
-    logger,
-  )
+  let receipt: TransactionReceipt | 'paused' | 'unauthorized'
+  try {
+    receipt = await transactionManager.executeTransaction(
+      async () =>
+        contracts.SubgraphService.collect.estimateGas(
+          address,
+          PaymentTypes.IndexingRewards,
+          collectData,
+        ),
+      async (gasLimit) =>
+        contracts.SubgraphService.collect(
+          address,
+          PaymentTypes.IndexingRewards,
+          collectData,
+          { gasLimit },
+        ),
+      logger,
+    )
+  } catch (error) {
+    if (isIndexerIneligibleRevert(error)) {
+      throw indexerError(
+        IndexerErrorCode.IE090,
+        `Collect indexing rewards for allocation '${allocationId}' reverted: indexer not eligible for rewards`,
+      )
+    }
+    throw error
+  }
 
   if (receipt === 'paused' || receipt === 'unauthorized') {
     throw indexerError(
