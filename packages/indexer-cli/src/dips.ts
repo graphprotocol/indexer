@@ -15,8 +15,8 @@ export interface IndexingAgreement {
   acceptedAt: string
   lastCollectionAt: string
   endsAt: string
-  tokensPerSecond: bigint
-  tokensCollected: bigint
+  tokensPerSecond: string
+  tokensCollected: string
   canceledAt: string
   canceledBy: string
   protocolNetwork: string
