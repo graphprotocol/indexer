@@ -110,8 +110,7 @@ export async function fetchIndexingAgreements(
       throw result.error
     }
 
-    const agreements: IndexingAgreementDetails[] =
-      result.data?.indexingAgreements ?? []
+    const agreements: IndexingAgreementDetails[] = result.data?.indexingAgreements ?? []
     if (!agreements.length) break
 
     all.push(...agreements)

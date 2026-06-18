@@ -3,10 +3,7 @@ import chalk from 'chalk'
 
 import { loadValidatedConfig } from '../../../../config'
 import { createIndexerManagementClient } from '../../../../client'
-import {
-  extractProtocolNetworkOption,
-  fixParameters,
-} from '../../../../command-helpers'
+import { extractProtocolNetworkOption, fixParameters } from '../../../../command-helpers'
 import gql from 'graphql-tag'
 import { SubgraphDeploymentID } from '@graphprotocol/common-ts'
 import { processIdentifier, SubgraphIdentifierType } from '@graphprotocol/indexer-common'
@@ -130,8 +127,7 @@ module.exports = {
           {
             filter: {
               status: status ? status : null,
-              agreementId:
-                agreementId && agreementId !== 'all' ? agreementId : null,
+              agreementId: agreementId && agreementId !== 'all' ? agreementId : null,
               protocolNetwork,
             },
           },

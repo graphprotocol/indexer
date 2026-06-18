@@ -23,9 +23,7 @@ export default {
   ): Promise<IndexingAgreementInfo[]> => {
     logger.debug('Execute indexingAgreements() query', { filter })
     if (!multiNetworks) {
-      throw Error(
-        'IndexerManagementClient must be in `network` mode to fetch agreements',
-      )
+      throw Error('IndexerManagementClient must be in `network` mode to fetch agreements')
     }
 
     const agreementsByNetwork = await multiNetworks.map(
