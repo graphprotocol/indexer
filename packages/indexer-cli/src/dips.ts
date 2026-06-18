@@ -22,25 +22,23 @@ export interface IndexingAgreement {
   protocolNetwork: string
 }
 
-const AGREEMENT_FORMATTERS: Record<
-  keyof IndexingAgreement,
-  (x: never) => string | null
-> = {
-  id: x => x,
-  payer: x => x,
-  indexer: x => x,
-  allocationId: x => x,
-  subgraphDeploymentId: (d: string) => new SubgraphDeploymentID(d).ipfsHash,
-  state: x => x,
-  acceptedAt: x => x,
-  lastCollectionAt: x => x,
-  endsAt: x => x,
-  tokensPerSecond: x => commify(formatGRT(x)),
-  tokensCollected: x => commify(formatGRT(x)),
-  canceledAt: x => x,
-  canceledBy: x => x,
-  protocolNetwork: resolveChainAlias,
-}
+const AGREEMENT_FORMATTERS: Record<keyof IndexingAgreement, (x: never) => string | null> =
+  {
+    id: x => x,
+    payer: x => x,
+    indexer: x => x,
+    allocationId: x => x,
+    subgraphDeploymentId: (d: string) => new SubgraphDeploymentID(d).ipfsHash,
+    state: x => x,
+    acceptedAt: x => x,
+    lastCollectionAt: x => x,
+    endsAt: x => x,
+    tokensPerSecond: x => commify(formatGRT(x)),
+    tokensCollected: x => commify(formatGRT(x)),
+    canceledAt: x => x,
+    canceledBy: x => x,
+    protocolNetwork: resolveChainAlias,
+  }
 
 export const formatIndexingAgreement = (
   agreement: Partial<IndexingAgreement>,
@@ -57,10 +55,7 @@ export const formatIndexingAgreement = (
 export const printIndexingAgreements = (
   print: GluegunPrint,
   outputFormat: OutputFormat,
-  agreementOrAgreements:
-    | Partial<IndexingAgreement>
-    | Partial<IndexingAgreement>[]
-    | null,
+  agreementOrAgreements: Partial<IndexingAgreement> | Partial<IndexingAgreement>[] | null,
   keys: (keyof IndexingAgreement)[],
   wrapWidth: number = 0,
 ): void => {
