@@ -1,0 +1,42 @@
+name: lint
+
+on:
+  push:
+    branches: [main]
+  pull_request: {}
+
+jobs:
+  prettier:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: npx lerna run format
+      - run: git diff --exit-code
+
+  eslint:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: npx lerna run lint
+      - run: git diff --exit-code
+
+  typecheck:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'yarn'
+      - run: yarn install --frozen-lockfile
+      - run: npx lerna run compile
