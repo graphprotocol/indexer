@@ -536,16 +536,16 @@ export class GraphNode {
 
   async create(name: string): Promise<void> {
     try {
-      this.logger.info(`Create subgraph name`, { name })
+      this.logger.info(`Create subgraph name`, { subgraphName: name })
       const response = await this.admin.request('subgraph_create', { name })
       if (response.error) {
         throw response.error
       }
-      this.logger.info(`Successfully created subgraph name`, { name })
+      this.logger.info(`Successfully created subgraph name`, { subgraphName: name })
     } catch (error) {
       if (error.message.includes('already exists')) {
         this.logger.debug(`Subgraph name already exists, will deploy to existing name`, {
-          name,
+          subgraphName: name,
         })
         return
       }
@@ -556,7 +556,7 @@ export class GraphNode {
   async deploy(name: string, deployment: SubgraphDeploymentID): Promise<void> {
     try {
       this.logger.info(`Deploy subgraph deployment`, {
-        name,
+        subgraphName: name,
         deployment: deployment.display,
       })
       const response = await this.admin.request('subgraph_deploy', {
@@ -566,7 +566,7 @@ export class GraphNode {
 
       this.logger.trace(`Response from 'subgraph_deploy' call`, {
         deployment: deployment.display,
-        name,
+        subgraphName: name,
         response,
       })
 
@@ -574,7 +574,7 @@ export class GraphNode {
         throw response.error
       }
       this.logger.info(`Successfully deployed subgraph deployment`, {
-        name,
+        subgraphName: name,
         deployment: deployment.display,
       })
     } catch (error) {
@@ -587,7 +587,7 @@ export class GraphNode {
 
       const err = indexerError(errorCode, error)
       this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
-        name,
+        subgraphName: name,
         deployment: deployment.display,
         err,
       })
@@ -678,7 +678,7 @@ export class GraphNode {
     currentAssignments?: SubgraphDeploymentAssignment[],
   ): Promise<void> {
     this.logger.debug('Ensure subgraph deployment is syncing', {
-      name,
+      subgraphName: name,
       deployment: deployment.ipfsHash,
     })
     try {
@@ -693,12 +693,12 @@ export class GraphNode {
 
       if (matchingAssignment?.paused == false) {
         this.logger.debug('Subgraph deployment already syncing, ensure() is a no-op', {
-          name,
+          subgraphName: name,
           deployment: deployment.ipfsHash,
         })
       } else if (matchingAssignment?.paused == true) {
         this.logger.debug('Subgraph deployment paused, resuming', {
-          name,
+          subgraphName: name,
           deployment: deployment.ipfsHash,
         })
         await this.resume(deployment)
@@ -714,7 +714,7 @@ export class GraphNode {
         this.logger.debug(
           'Subgraph deployment not found, creating subgraph name and deploying...',
           {
-            name,
+            subgraphName: name,
             deployment: deployment.ipfsHash,
           },
         )
@@ -725,7 +725,7 @@ export class GraphNode {
       if (!(error instanceof IndexerError)) {
         const errorCode = IndexerErrorCode.IE020
         this.logger.error(INDEXER_ERROR_MESSAGES[errorCode], {
-          name,
+          subgraphName: name,
           deployment: deployment.display,
           error: indexerError(errorCode, error),
         })
@@ -753,7 +753,7 @@ export class GraphNode {
     // Safety check - should not happen if called correctly from ensure()
     if (!this.manifestResolver) {
       this.logger.error('Auto-graft called but manifest resolver not initialized', {
-        name,
+        subgraphName: name,
         deployment: deployment.display,
       })
       return
@@ -763,7 +763,7 @@ export class GraphNode {
     const dependencies = await this.manifestResolver.resolveWithDependencies(deployment)
     if (dependencies.dependencies.length == 0) {
       this.logger.debug('No subgraph dependencies found', {
-        name,
+        subgraphName: name,
         deployment: deployment.display,
       })
     } else {
@@ -788,7 +788,7 @@ export class GraphNode {
 
         if (dependencyAssignment) {
           this.logger.info("Dependency subgraph found, checking if it's healthy", {
-            name,
+            subgraphName: name,
             deployment: dependency.base.display,
             block_required: dependency.block,
           })
@@ -940,11 +940,9 @@ export class GraphNode {
         throw new Error(`Chain not found in indexing status for deployment`)
       }
 
-      // NOTES:
-      // - latestBlock is the latest block that has been indexed
-      // - earliestBlock and chainHeadBlock are the earliest and latest blocks on the chain, respectively
-      // if the deployment is paused and latestBlock is null or lower than we need, unpause it,
-      // otherwise, if it's paused, we can't unpause it, so just wait
+      // Unpause a paused deployment only when its indexed head (latestBlock) is null
+      // or below the block we need; once paused past that point it can't be resumed,
+      // so wait instead.
       if (
         deployed[0].paused &&
         (!chain.latestBlock || chain.latestBlock.number < blockHeight)
