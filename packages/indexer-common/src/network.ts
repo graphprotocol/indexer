@@ -125,7 +125,7 @@ export class Network {
       networkProvider,
       specification.subgraphs.maxBlockDistance,
       specification.subgraphs.freshnessSleepMilliseconds,
-      logger.child({ component: 'FreshnessChecker' }),
+      logger.child({ subComponent: 'FreshnessChecker' }),
       Infinity,
     )
 
@@ -162,7 +162,7 @@ export class Network {
         networkProvider,
         specification.subgraphs.maxBlockDistance,
         specification.subgraphs.freshnessSleepMilliseconds,
-        logger.child({ component: 'FreshnessChecker' }),
+        logger.child({ subComponent: 'FreshnessChecker' }),
         Infinity,
       )
       indexingPaymentsSubgraph = await SubgraphClient.create({
@@ -214,7 +214,7 @@ export class Network {
       networkProvider,
       specification.subgraphs.maxBlockDistance,
       specification.subgraphs.freshnessSleepMilliseconds,
-      logger.child({ component: 'FreshnessChecker' }),
+      logger.child({ subComponent: 'FreshnessChecker' }),
       Infinity,
     )
 
@@ -243,8 +243,7 @@ export class Network {
       contracts,
       specification.indexerOptions,
       logger.child({
-        component: 'NetworkMonitor',
-        protocolNetwork: specification.networkIdentifier,
+        subComponent: 'NetworkMonitor',
       }),
       graphNode,
       networkSubgraph,
