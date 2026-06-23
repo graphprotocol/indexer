@@ -528,11 +528,16 @@ describe('reconcileDeployments indexing-payments carve-out wiring', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     network: any,
     dipsDeployments: SubgraphDeploymentID[] = [],
+    dipsManagerPresent = true,
   ) {
     const operator = {
-      dipsManager: {
-        getActiveDipsDeployments: jest.fn().mockResolvedValue(dipsDeployments),
-      },
+      dipsManager: dipsManagerPresent
+        ? {
+            getActiveDipsDeployments: jest
+              .fn()
+              .mockResolvedValue(dipsDeployments),
+          }
+        : null,
     }
     const agent = Object.create(Agent.prototype)
     agent.logger = mockLogger
@@ -633,5 +638,24 @@ describe('reconcileDeployments indexing-payments carve-out wiring', () => {
       (call: any[]) => (call[0] as SubgraphDeploymentID).bytes32,
     )
     expect(pausedDeployments).toContain(orphan.bytes32)
+  })
+
+  it('skips DIPS protection without throwing when the DipsManager is not yet available', async () => {
+    const orphan = new SubgraphDeploymentID(
+      'QmNYBVzrWYrhmNF7srCs9qNUUnK1urXA1dNACrRp9xVPrH',
+    )
+    const agent = createAgentUnderTest(
+      {
+        networkSubgraph: { deployment: undefined },
+        specification: { indexerOptions: { enableDips: true } },
+        indexingPaymentsSubgraph: { deployment: undefined },
+      },
+      [],
+      false, // DIPS enabled, but the DipsManager has not been registered yet.
+    )
+
+    await expect(
+      agent.reconcileDeployments([orphan], [], []),
+    ).resolves.not.toThrow()
   })
 })

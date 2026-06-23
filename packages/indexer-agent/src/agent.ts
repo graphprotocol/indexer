@@ -296,10 +296,13 @@ export class Agent {
         async () => {
           return this.multiNetworks.map(async ({ network, operator }) => {
             if (network.specification.indexerOptions.enableDips) {
-              logger.debug('Ensuring indexing rules for DIPs', {
-                protocolNetwork: network.specification.networkIdentifier,
-              })
-              await operator.dipsManager!.ensureAgreementRules()
+              const dipsManager = this.readyDipsManager(network, operator)
+              if (dipsManager) {
+                logger.debug('Ensuring indexing rules for DIPs', {
+                  protocolNetwork: network.specification.networkIdentifier,
+                })
+                await dipsManager.ensureAgreementRules()
+              }
             } else {
               logger.debug(
                 'DIPs is disabled, skipping indexing rule enforcement',
@@ -384,14 +387,14 @@ export class Agent {
             protocolNetwork: network.specification.networkIdentifier,
           })
           const deployments = network.networkMonitor.subgraphDeployments()
-          if (network.specification.indexerOptions.enableDips) {
+          const dipsManager = network.specification.indexerOptions.enableDips
+            ? this.readyDipsManager(network, operator)
+            : null
+          if (dipsManager) {
             const resolvedDeployments = await deployments
             const dipsDeployments = await Promise.all(
-              (await operator.dipsManager!.getActiveDipsDeployments()).map(
-                deployment =>
-                  network.networkMonitor.subgraphDeployment(
-                    deployment.ipfsHash,
-                  ),
+              (await dipsManager.getActiveDipsDeployments()).map(deployment =>
+                network.networkMonitor.subgraphDeployment(deployment.ipfsHash),
               ),
             )
             for (const deployment of dipsDeployments) {
@@ -872,6 +875,22 @@ export class Agent {
     })
   }
 
+  // The DipsManager is built lazily once the action manager registers its allocation
+  // manager, so it can briefly be absent at startup even with DIPS enabled. Return it when
+  // ready, otherwise null with a debug log so callers skip their DIPS step rather than crash.
+  private readyDipsManager(
+    network: Network,
+    operator: Operator,
+  ): Operator['dipsManager'] {
+    if (!operator.dipsManager) {
+      this.logger.debug(
+        'DIPS enabled but DipsManager not ready; skipping DIPS work this pass',
+        { protocolNetwork: network.specification.networkIdentifier },
+      )
+    }
+    return operator.dipsManager
+  }
+
   // This function assumes that allocations and deployments passed to it have already
   // been retrieved from multiple networks.
   async reconcileDeployments(
@@ -913,8 +932,11 @@ export class Agent {
       if (!network.specification.indexerOptions.enableDips) {
         return
       }
-      const dipsDeployments =
-        await operator.dipsManager!.getActiveDipsDeployments()
+      const dipsManager = this.readyDipsManager(network, operator)
+      if (!dipsManager) {
+        return
+      }
+      const dipsDeployments = await dipsManager.getActiveDipsDeployments()
       for (const deployment of dipsDeployments) {
         if (!deploymentInList(targetDeployments, deployment)) {
           targetDeployments.push(deployment)
