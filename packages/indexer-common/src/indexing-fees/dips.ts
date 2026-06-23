@@ -290,9 +290,7 @@ export class DipsManager {
   // in epochs (agent expires at createdAtEpoch + allocationLifetime). Convert so a seconds
   // value like 86400 isn't read as epochs, which would make the allocation never expire.
   private async secondsToEpochs(seconds: number): Promise<number> {
-    const BLOCK_IN_SECONDS = 12n
-    const epochLengthInBlocks = await this.network.contracts.EpochManager.epochLength()
-    const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+    const epochLengthInSeconds = await this.network.networkMonitor.epochLengthInSeconds()
     // Round up so the allocation outlives the window; floor at 1 epoch so a sub-epoch
     // window still yields a valid non-zero lifetime (0 would expire the allocation each tick).
     return Math.max(1, Math.ceil(seconds / epochLengthInSeconds))

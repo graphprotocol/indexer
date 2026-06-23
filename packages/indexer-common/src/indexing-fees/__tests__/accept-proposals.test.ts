@@ -131,8 +131,6 @@ function createMockNetwork() {
       },
       EpochManager: {
         currentEpoch: jest.fn().mockResolvedValue(100n),
-        // Epoch length for the seconds→epochs allocation-lifetime conversion: 5 blocks × 12s = 60s/epoch.
-        epochLength: jest.fn().mockResolvedValue(5n),
       },
       RewardsManager: {
         isDenied: jest.fn().mockResolvedValue(false),
@@ -156,6 +154,8 @@ function createMockNetwork() {
     },
     networkMonitor: {
       currentEpoch: jest.fn().mockResolvedValue(100n),
+      // 5 blocks x 12s = 60s/epoch for the seconds->epochs allocation-lifetime conversion.
+      epochLengthInSeconds: jest.fn().mockResolvedValue(60),
     },
     specification: {
       indexerOptions: {
