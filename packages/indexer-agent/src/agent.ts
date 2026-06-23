@@ -954,7 +954,7 @@ export class Agent {
         const name = `indexer-agent/${deployment.ipfsHash.slice(-10)}`
 
         logger.info(`Index subgraph deployment`, {
-          name,
+          subgraphName: name,
           deployment: deployment.display,
         })
 

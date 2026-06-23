@@ -164,10 +164,8 @@ export class NetworkMonitor {
    * @returns network `alias` if the network is supported, `null` otherwise
    */
   async allocationNetworkAlias(allocation: Allocation): Promise<string | null> {
-    // TODO:
-    // resolveChainId will throw an Error when we can't resolve the chainId in
-    // the future, let's get this from the epoch subgraph (perhaps at startup)
-    // and then resolve it here.
+    // TODO: resolveChainId will throw when we can't resolve the chainId; in the future
+    // get this from the epoch subgraph (perhaps at startup) and resolve it here.
     try {
       const { network: allocationNetworkAlias } = await this.graphNode.subgraphFeatures(
         allocation.subgraphDeployment.id,
@@ -947,7 +945,7 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       } else {
         this.logger.error(`Failed to query latest epoch number`, {
           err,
-          msg: err.message,
+          errorMessage: err.message,
           networkID,
           networkAlias,
         })
@@ -1388,10 +1386,9 @@ Please submit an issue at https://github.com/graphprotocol/block-oracle/issues/n
       return [hexlify(new Uint8Array(32).fill(0)), 0]
     }
 
-    // poi = undefined, force=true  -- submit even if poi is 0x0
-    // poi = defined,   force=true  -- no generatedPOI needed, just submit the POI supplied (with some sanitation?)
-    // poi = undefined, force=false -- submit with generated POI if one available
-    // poi = defined,   force=false -- submit user defined POI only if generated POI matches
+    // force=true:  poi undefined -> submit even if 0x0;  poi defined -> submit the supplied POI
+    // force=false: poi undefined -> submit a generated POI if available;  poi defined -> submit the
+    //              user POI only if it matches the generated POI
     switch (force) {
       case true:
         switch (!!poi) {
