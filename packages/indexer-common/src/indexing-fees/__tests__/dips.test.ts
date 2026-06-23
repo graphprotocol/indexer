@@ -213,6 +213,13 @@ describe('DipsManager', () => {
       // Clear mock calls between tests
       jest.clearAllMocks()
 
+      // Deterministic epoch length for the seconds→epochs conversion: 5 blocks × 12s = 60s/epoch.
+      network.contracts.EpochManager.epochLength = jest
+        .fn()
+        .mockResolvedValue(
+          5n,
+        ) as unknown as typeof network.contracts.EpochManager.epochLength
+
       const allocationManager = new AllocationManager(
         logger,
         managementModels,
@@ -264,7 +271,7 @@ describe('DipsManager', () => {
         identifierType: SubgraphIdentifierType.DEPLOYMENT,
         decisionBasis: IndexingDecisionBasis.DIPS,
         autoRenewal: true,
-        allocationLifetime: 3600, // max(min, max) seconds
+        allocationLifetime: 60, // ceil(max(min,max)=3600s / 60s-per-epoch)
       })
     })
 
@@ -302,7 +309,7 @@ describe('DipsManager', () => {
       })
       expect(rules).toHaveLength(1)
       expect(rules[0].decisionBasis).toBe(IndexingDecisionBasis.DIPS)
-      expect(rules[0].allocationLifetime).toBe(1800)
+      expect(rules[0].allocationLifetime).toBe(30)
     })
 
     test('deduplicates when a deployment has both a pending proposal and an accepted agreement', async () => {

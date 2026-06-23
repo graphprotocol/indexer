@@ -118,7 +118,7 @@ export class DipsManager {
         continue
       }
       await this.upsertDipsRuleFor(deploymentId, {
-        allocationLifetime: Math.max(
+        maxCollectionSeconds: Math.max(
           Number(proposal.minSecondsPerCollection),
           Number(proposal.maxSecondsPerCollection),
         ),
@@ -139,7 +139,7 @@ export class DipsManager {
         continue
       }
       await this.upsertDipsRuleFor(deploymentId, {
-        allocationLifetime: Math.max(
+        maxCollectionSeconds: Math.max(
           Number(agreement.minSecondsPerCollection),
           Number(agreement.maxSecondsPerCollection),
         ),
@@ -161,7 +161,7 @@ export class DipsManager {
         continue
       }
       await this.upsertDipsRuleFor(deploymentId, {
-        allocationLifetime: Math.max(
+        maxCollectionSeconds: Math.max(
           Number(proposal.minSecondsPerCollection),
           Number(proposal.maxSecondsPerCollection),
         ),
@@ -253,7 +253,7 @@ export class DipsManager {
 
   private async upsertDipsRuleFor(
     deploymentId: SubgraphDeploymentID,
-    opts: { allocationLifetime: number },
+    opts: { maxCollectionSeconds: number },
   ): Promise<void> {
     const ruleExists = await this.parent!.matchingRuleExists(this.logger, deploymentId)
     if (ruleExists) {
@@ -270,6 +270,7 @@ export class DipsManager {
     )
 
     const { amount } = await this.getDipsAllocationAmount(deploymentId)
+    const allocationLifetime = await this.secondsToEpochs(opts.maxCollectionSeconds)
     this.logger.info(
       `Creating DIPS indexing rule for deployment ${deploymentId.toString()}`,
     )
@@ -280,9 +281,21 @@ export class DipsManager {
       decisionBasis: IndexingDecisionBasis.DIPS,
       protocolNetwork: this.network.specification.networkIdentifier,
       autoRenewal: true,
-      allocationLifetime: opts.allocationLifetime,
+      allocationLifetime,
       requireSupported: false,
     } as Partial<IndexingRuleAttributes>)
+  }
+
+  // A DIPS agreement's collection window is in seconds, but allocationLifetime is consumed
+  // in epochs (agent expires at createdAtEpoch + allocationLifetime). Convert so a seconds
+  // value like 86400 isn't read as epochs, which would make the allocation never expire.
+  private async secondsToEpochs(seconds: number): Promise<number> {
+    const BLOCK_IN_SECONDS = 12n
+    const epochLengthInBlocks = await this.network.contracts.EpochManager.epochLength()
+    const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+    // Round up so the allocation outlives the window; floor at 1 epoch so a sub-epoch
+    // window still yields a valid non-zero lifetime (0 would expire the allocation each tick).
+    return Math.max(1, Math.ceil(seconds / epochLengthInSeconds))
   }
 
   private async getDipsTargetDeployments(): Promise<{
@@ -514,7 +527,7 @@ export class DipsManager {
       return
     }
     await this.upsertDipsRuleFor(proposal.subgraphDeploymentId, {
-      allocationLifetime: Math.max(
+      maxCollectionSeconds: Math.max(
         Number(proposal.minSecondsPerCollection),
         Number(proposal.maxSecondsPerCollection),
       ),
