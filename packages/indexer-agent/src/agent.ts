@@ -662,22 +662,18 @@ export class Agent {
             }
             break
           case DeploymentManagementMode.MANUAL:
-            await this.multiNetworks.map(async ({ network, operator }) => {
+            await this.multiNetworks.map(async ({ network }) => {
               if (network.specification.indexerOptions.enableDips) {
-                // Reconcile DIPs deployments anyways
+                // Manual mode normally leaves deployments untouched, but reconcileDeployments
+                // keeps deployments with an active DIPS agreement out of the pause path, so
+                // still run it here; it resolves the active DIPS deployments itself.
                 this.logger.warn(
                   `Deployment management is manual, but DIPs is enabled. Reconciling DIPs deployments anyways.`,
                 )
-                const dipsDeployments =
-                  await operator.dipsManager!.getActiveDipsDeployments()
-                const newTargetDeployments = new Set([
-                  ...activeDeployments,
-                  ...dipsDeployments,
-                ])
                 try {
                   await this.reconcileDeployments(
                     activeDeployments,
-                    Array.from(newTargetDeployments),
+                    [...activeDeployments],
                     eligibleAllocations,
                   )
                 } catch (err) {
