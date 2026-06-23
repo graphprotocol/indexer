@@ -580,7 +580,6 @@ export class Agent {
       disputableAllocations,
     }).pipe(
       async ({
-        currentEpochNumber,
         maxAllocationDuration,
         activeDeployments,
         targetDeployments,
@@ -589,8 +588,22 @@ export class Agent {
         recentlyClosedAllocations,
         disputableAllocations,
       }) => {
+        // Read the epoch fresh once per pass instead of the separately-timed Eventual, which
+        // can lag the chain by an epoch and make a just-created allocation look stale.
+        const currentEpochNumberWithProvenance = await this.multiNetworks.map(
+          async ({ network }) =>
+            network.networkMonitor.currentEpochNumberWithProvenance(),
+        )
+        const currentEpochNumber = await this.multiNetworks.mapNetworkMapped(
+          currentEpochNumberWithProvenance,
+          async (
+            _: NetworkAndOperator,
+            provenance: { epoch: number; readAtBlock: number },
+          ) => provenance.epoch,
+        )
         logger.info(`Reconcile with the network`, {
           currentEpochNumber,
+          epochProvenance: currentEpochNumberWithProvenance,
         })
 
         try {
@@ -895,6 +908,22 @@ export class Agent {
         network.indexingPaymentsSubgraph?.deployment?.id,
         targetDeployments,
       )
+    })
+
+    // Keep deployments with an active DIPS agreement indexed even when a lagging or removed
+    // DIPS rule has dropped them from the target set; otherwise the pause path below would
+    // stop indexing a deployment the agreement is still paying for.
+    await this.multiNetworks.map(async ({ network, operator }) => {
+      if (!network.specification.indexerOptions.enableDips) {
+        return
+      }
+      const dipsDeployments =
+        await operator.dipsManager!.getActiveDipsDeployments()
+      for (const deployment of dipsDeployments) {
+        if (!deploymentInList(targetDeployments, deployment)) {
+          targetDeployments.push(deployment)
+        }
+      }
     })
 
     // ----------------------------------------------------------------------------------------

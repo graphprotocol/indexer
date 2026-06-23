@@ -118,6 +118,17 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
+  // Read the chain block alongside the epoch so a reconcile pass can log where its epoch
+  // came from; the block is provenance only, the epoch is what every decision then uses.
+  async currentEpochNumberWithProvenance(): Promise<{
+    epoch: number
+    readAtBlock: number
+  }> {
+    const readAtBlock = await this.ethereum.getBlockNumber()
+    const epoch = Number(await this.contracts.EpochManager.currentEpoch())
+    return { epoch, readAtBlock }
+  }
+
   // Maximum allocation duration is measured in seconds, determined by maxPOIStaleness.
   // This function converts the value to epochs.
   async maxAllocationDuration(): Promise<number> {
