@@ -220,22 +220,16 @@ describe('PendingRcaConsumer', () => {
       expect(proposals[1].tokensPerSecond).toBe(200n)
     })
 
-    test('rejects rows with non-empty signature (producer regression)', async () => {
-      const errorSpy = jest.fn()
-      const testLogger = {
-        ...logger,
-        error: errorSpy,
-        info: jest.fn(),
-        warn: jest.fn(),
-        child: () => testLogger,
-      } as unknown as Logger
-
-      const badPayload = encodeTestPayload({ signature: '0xdeadbeef' })
+    test('ignores a non-empty signer signature and decodes the proposal', async () => {
+      const signedPayload = encodeTestPayload({
+        signature: '0xdeadbeef',
+        tokensPerSecond: 150n,
+      })
 
       const model = createMockModel([
         {
-          id: 'bad-sig-uuid',
-          signed_payload: badPayload,
+          id: 'signed-uuid',
+          signed_payload: signedPayload,
           version: 2,
           status: 'pending',
           created_at: new Date(),
@@ -243,18 +237,13 @@ describe('PendingRcaConsumer', () => {
         },
       ])
 
-      const consumer = new PendingRcaConsumer(testLogger, model)
+      const consumer = new PendingRcaConsumer(logger, model)
       const proposals = await consumer.getPendingProposals()
 
-      expect(proposals).toHaveLength(0)
-      expect(model.update).toHaveBeenCalledWith(
-        { status: 'rejected' },
-        { where: { id: 'bad-sig-uuid' } },
-      )
-      expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('non-empty signature'),
-        expect.any(Object),
-      )
+      expect(proposals).toHaveLength(1)
+      expect(proposals[0].id).toBe('signed-uuid')
+      expect(proposals[0].tokensPerSecond).toBe(150n)
+      expect(model.update).not.toHaveBeenCalled()
     })
   })
 
