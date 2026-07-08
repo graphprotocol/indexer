@@ -140,6 +140,22 @@ export function encodeCollectData(allocationId: string, poiData: POIData): strin
   return encodeCollectIndexingRewardsData(allocationId, poiData.poi, encodedPOIMetadata)
 }
 
+// A queued close can outlive the rule that justified it. Find a deployment
+// rule that currently asks for allocation (operator `always` or DIPs-managed);
+// stamping `never` over it would also blocklist the deployment for DIPs.
+export function findRuleRequestingAllocation(
+  rules: IndexingRuleAttributes[],
+  deployment: SubgraphDeploymentID,
+): IndexingRuleAttributes | undefined {
+  return rules.find(
+    (rule) =>
+      rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
+      new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.bytes32 &&
+      (rule.decisionBasis === IndexingDecisionBasis.ALWAYS ||
+        rule.decisionBasis === IndexingDecisionBasis.DIPS),
+  )
+}
+
 export class AllocationManager {
   declare dipsManager: DipsManager | null
   constructor(
@@ -911,18 +927,38 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
-    logger.debug(
-      `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't allocate to it`,
+    // The rule that justified this close may have changed while the action
+    // sat in the queue: an operator flipping the deployment back to `always`
+    // (or DIPs taking it over) must not be overwritten with `never`.
+    const currentRules = await this.models.IndexingRule.findAll({
+      where: { protocolNetwork: this.network.specification.networkIdentifier },
+    })
+    const allocateRule = findRuleRequestingAllocation(
+      currentRules,
+      allocation.subgraphDeployment.id,
     )
-    const neverIndexingRule = {
-      identifier: allocation.subgraphDeployment.id.ipfsHash,
-      protocolNetwork: this.network.specification.networkIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.NEVER,
-    } as Partial<IndexingRuleAttributes>
+    if (allocateRule) {
+      logger.info(
+        `Keeping the current indexing rule: it requests allocation, so skipping the never-rule stamp after this close`,
+        {
+          deployment: allocation.subgraphDeployment.id.ipfsHash,
+          currentDecisionBasis: allocateRule.decisionBasis,
+        },
+      )
+    } else {
+      // Upsert a rule so the agent keeps the deployment synced but doesn't allocate to it
+      logger.debug(
+        `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't allocate to it`,
+      )
+      const neverIndexingRule = {
+        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        protocolNetwork: this.network.specification.networkIdentifier,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.NEVER,
+      } as Partial<IndexingRuleAttributes>
 
-    await upsertIndexingRule(logger, this.models, neverIndexingRule)
+      await upsertIndexingRule(logger, this.models, neverIndexingRule)
+    }
 
     return {
       actionID,
