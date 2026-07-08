@@ -9,12 +9,14 @@ import {
 } from '@graphprotocol/common-ts'
 import {
   ActionStatus,
+  ActivationCriteria,
   Allocation,
   AllocationManagementMode,
   allocationRewardsPool,
   AllocationStatus,
   indexerError,
   IndexerErrorCode,
+  INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
   IndexerManagementClient,
   IndexingRuleAttributes,
@@ -1036,6 +1038,7 @@ export class Agent {
     maxAllocationDuration: number,
     network: Network,
     operator: Operator,
+    currentIndexingRules: IndexingRuleAttributes[],
     forceAction: boolean = false,
   ): Promise<void> {
     const logger = this.logger.child({
@@ -1053,13 +1056,44 @@ export class Agent {
     )
 
     switch (deploymentAllocationDecision.toAllocate) {
-      case false:
+      case false: {
+        // A close decided purely by an opt-out rule (never/offchain) can be
+        // stale: the operator may have flipped the deployment back to allocate.
+        // Closes from other gates (unsupported, overrides) must still proceed.
+        const optOutDecision =
+          deploymentAllocationDecision.ruleMatch.activationCriteria ===
+            ActivationCriteria.NEVER ||
+          deploymentAllocationDecision.ruleMatch.activationCriteria ===
+            ActivationCriteria.OFFCHAIN
+        if (optOutDecision) {
+          const currentRule =
+            currentIndexingRules.find(
+              rule =>
+                rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
+                new SubgraphDeploymentID(rule.identifier).bytes32 ===
+                  deploymentAllocationDecision.deployment.bytes32,
+            ) ??
+            currentIndexingRules.find(
+              rule => rule.identifier === INDEXING_RULE_GLOBAL,
+            )
+          if (
+            currentRule?.decisionBasis === IndexingDecisionBasis.ALWAYS ||
+            currentRule?.decisionBasis === IndexingDecisionBasis.DIPS
+          ) {
+            logger.info(
+              `Skipping allocation close: the opt-out rule behind this decision has changed and the current rule requests allocation`,
+              { currentDecisionBasis: currentRule.decisionBasis },
+            )
+            return
+          }
+        }
         return await operator.closeEligibleAllocations(
           logger,
           deploymentAllocationDecision,
           activeDeploymentAllocations,
           forceAction,
         )
+      }
       case true: {
         // If no active allocations and subgraph health passes safety check, create one
         const indexingStatuses = await this.graphNode.indexingStatus([
@@ -1221,6 +1255,15 @@ export class Agent {
         const activeAllocations: Allocation[] =
           await network.networkMonitor.allocations(AllocationStatus.ACTIVE)
 
+        // The decisions carry rules from a snapshot up to several polling
+        // intervals old; when this pass will close something, read the rules
+        // fresh too so opt-out closes re-validate against current intent.
+        const currentIndexingRules = allocationDecisions.some(
+          decision => !decision.toAllocate,
+        )
+          ? await operator.indexingRules(true)
+          : []
+
         this.logger.trace(`Reconcile allocation actions`, {
           protocolNetwork: network.specification.networkIdentifier,
           epoch,
@@ -1243,6 +1286,7 @@ export class Agent {
             maxAllocationDuration,
             network,
             operator,
+            currentIndexingRules,
           ),
         )
       },
