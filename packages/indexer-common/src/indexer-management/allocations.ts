@@ -8,6 +8,7 @@ import {
   Action,
   ActionFailure,
   ActionType,
+  ActivationCriteria,
   Allocation,
   AllocationResult,
   AllocationStatus,
@@ -20,6 +21,7 @@ import {
   IndexerError,
   IndexerErrorCode,
   IndexerManagementModels,
+  INDEXING_RULE_GLOBAL,
   IndexingDecisionBasis,
   IndexingRuleAttributes,
   IndexingStatus,
@@ -28,6 +30,7 @@ import {
   preprocessRules,
   Network,
   PresentPOIResult,
+  RECONCILE_ACTION_SOURCE,
   ResizeAllocationResult,
   SubgraphIdentifierType,
   SubgraphStatus,
@@ -140,19 +143,49 @@ export function encodeCollectData(allocationId: string, poiData: POIData): strin
   return encodeCollectIndexingRewardsData(allocationId, poiData.poi, encodedPOIMetadata)
 }
 
-// A queued close can outlive the rule that justified it. Find a deployment
-// rule that currently asks for allocation (operator `always` or DIPs-managed);
-// stamping `never` over it would also blocklist the deployment for DIPs.
+// A queued close can outlive the rule that justified it. Find the effective
+// rule (deployment-specific first, else global) when it currently asks for
+// allocation; a `never` stamp over it would also blocklist DIPs proposals.
 export function findRuleRequestingAllocation(
   rules: IndexingRuleAttributes[],
   deployment: SubgraphDeploymentID,
 ): IndexingRuleAttributes | undefined {
-  return rules.find(
-    (rule) =>
-      rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
-      new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.bytes32 &&
-      (rule.decisionBasis === IndexingDecisionBasis.ALWAYS ||
-        rule.decisionBasis === IndexingDecisionBasis.DIPS),
+  const effective =
+    rules.find(
+      (rule) =>
+        rule.identifierType === SubgraphIdentifierType.DEPLOYMENT &&
+        new SubgraphDeploymentID(rule.identifier).bytes32 === deployment.bytes32,
+    ) ?? rules.find((rule) => rule.identifier === INDEXING_RULE_GLOBAL)
+  return effective?.decisionBasis === IndexingDecisionBasis.ALWAYS ||
+    effective?.decisionBasis === IndexingDecisionBasis.DIPS
+    ? effective
+    : undefined
+}
+
+// Reconcile records each queued action's reason as `<identifierType>:<criteria>`;
+// only the never/offchain criteria mark a close that an opt-out rule decided.
+export function isOptOutReason(reason: string): boolean {
+  const criteria = reason.split(':').pop()
+  return criteria === ActivationCriteria.NEVER || criteria === ActivationCriteria.OFFCHAIN
+}
+
+// Approved closes that reconcile queued under an opt-out rule which has since
+// flipped back to allocate: safe to cancel, since live operator intent
+// contradicts the queued decision. Manual and API closes carry other sources.
+export function staleQueuedCloses(
+  actions: Action[],
+  rules: IndexingRuleAttributes[],
+): Action[] {
+  return actions.filter(
+    (action) =>
+      action.type === ActionType.UNALLOCATE &&
+      action.source === RECONCILE_ACTION_SOURCE &&
+      isOptOutReason(action.reason) &&
+      !!action.deploymentID &&
+      findRuleRequestingAllocation(
+        rules,
+        new SubgraphDeploymentID(action.deploymentID),
+      ) !== undefined,
   )
 }
 
@@ -462,6 +495,8 @@ export class AllocationManager {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           action.allocationID!,
           receipt,
+          action.source,
+          action.reason,
         )
       case ActionType.PRESENT_POI:
         return await this.confirmPresentPOI(
@@ -867,6 +902,8 @@ export class AllocationManager {
     actionID: number,
     allocationID: string,
     receipt: TransactionReceipt | 'paused' | 'unauthorized',
+    source: string,
+    reason: string,
   ): Promise<CloseAllocationResult> {
     const logger = this.logger.child({ action: actionID })
     logger.info(`Confirming unallocate transaction`)
@@ -927,22 +964,26 @@ export class AllocationManager {
     })
     const allocation = await this.network.networkMonitor.allocation(allocationID)
 
-    // The rule that justified this close may have changed while the action
-    // sat in the queue: an operator flipping the deployment back to `always`
-    // (or DIPs taking it over) must not be overwritten with `never`.
-    const currentRules = await this.models.IndexingRule.findAll({
-      where: { protocolNetwork: this.network.specification.networkIdentifier },
-    })
-    const allocateRule = findRuleRequestingAllocation(
-      currentRules,
-      allocation.subgraphDeployment.id,
-    )
+    // Agent-queued closes re-check the live rule: a stale opt-out close and a
+    // health-check close under a live allocate rule must not stamp `never`.
+    // Manual and API closes stamp unconditionally, so a hand-queued close sticks.
+    let allocateRule: IndexingRuleAttributes | undefined
+    if (source === RECONCILE_ACTION_SOURCE) {
+      const currentRules = await this.models.IndexingRule.findAll({
+        where: { protocolNetwork: this.network.specification.networkIdentifier },
+      })
+      allocateRule = findRuleRequestingAllocation(
+        currentRules,
+        allocation.subgraphDeployment.id,
+      )
+    }
     if (allocateRule) {
       logger.info(
         `Keeping the current indexing rule: it requests allocation, so skipping the never-rule stamp after this close`,
         {
           deployment: allocation.subgraphDeployment.id.ipfsHash,
           currentDecisionBasis: allocateRule.decisionBasis,
+          queuedReason: reason,
         },
       )
     } else {

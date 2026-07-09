@@ -14,6 +14,7 @@ import {
   Network,
   NetworkMapped,
   OrderDirection,
+  RECONCILE_ACTION_SOURCE,
   validateActionInputs,
   validateNetworkIdentifier,
 } from '@graphprotocol/indexer-common'
@@ -37,7 +38,7 @@ async function executeQueueOperation(
   // Check for previously failed conflicting actions
   const conflictingActions = recentlyAttemptedActions.filter(function (recentAction) {
     const areEqual = compareActions(recentAction, action)
-    const fromAgent = action.source === 'indexerAgent'
+    const fromAgent = action.source === RECONCILE_ACTION_SOURCE
     return areEqual && fromAgent
   })
   if (conflictingActions.length > 0) {

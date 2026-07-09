@@ -19,6 +19,7 @@ import {
   OrderDirection,
   GraphNode,
   sequentialTimerMap,
+  staleQueuedCloses,
 } from '@graphprotocol/indexer-common'
 
 import { Order, Transaction } from 'sequelize'
@@ -356,6 +357,46 @@ export class ActionManager {
           return []
         }
 
+        // A close queued under an opt-out rule can outlive that rule. Cancel it
+        // here, inside the same lock that guards execution, rather than close an
+        // allocation the operator has since asked to keep.
+        try {
+          const currentRules = await this.models.IndexingRule.findAll({
+            where: { protocolNetwork },
+            transaction,
+          })
+          const staleCloses = staleQueuedCloses(approvedAndDeployingActions, currentRules)
+          if (staleCloses.length > 0) {
+            logger.info(
+              `Canceling queued closes whose opt-out rule has since flipped back to allocate`,
+              {
+                canceled: staleCloses.map((action) => ({
+                  id: action.id,
+                  deploymentID: action.deploymentID,
+                  reason: action.reason,
+                })),
+              },
+            )
+            const staleIds = staleCloses.map((action) => action.id)
+            await this.models.Action.update(
+              { status: ActionStatus.CANCELED },
+              { where: { id: staleIds }, transaction },
+            )
+            approvedAndDeployingActions = approvedAndDeployingActions.filter(
+              (action) => !staleIds.includes(action.id),
+            )
+            if (approvedAndDeployingActions.length === 0) {
+              logger.debug('All approved actions were canceled as stale closes')
+              return []
+            }
+          }
+        } catch (error) {
+          // Fail open: a veto failure must not block the batch. A stale close
+          // may then execute, but the post-close rule guard still prevents the
+          // never-stamp, so the allocation is recreated rather than blocklisted.
+          logger.warn('Failed to check queued closes against current rules', { error })
+        }
+
         // Limit batch size to prevent multicall failures when there are many allocations
         const maxBatchSize =
           network.specification.indexerOptions.autoAllocationMaxBatchSize
@@ -380,6 +421,12 @@ export class ActionManager {
         return actionsToExecute
       },
     )
+
+    // An empty batch (nothing approved, or everything canceled as stale) has
+    // nothing to execute; executeBatch treats it as an error, so return early.
+    if (prioritizedActions.length === 0) {
+      return []
+    }
 
     try {
       logger.debug('Executing batch action', {

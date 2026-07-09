@@ -256,6 +256,10 @@ export enum ActionType {
   RESIZE = 'resize',
 }
 
+// Source stamped on every action the agent's own reconcile loop queues; other
+// producers (CLI, management API) choose their own source string.
+export const RECONCILE_ACTION_SOURCE = 'indexerAgent'
+
 export enum ActionStatus {
   QUEUED = 'queued',
   APPROVED = 'approved',
