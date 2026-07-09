@@ -377,13 +377,13 @@ export class ActionManager {
                 })),
               },
             )
-            const staleIds = staleCloses.map((action) => action.id)
+            const staleIds = new Set(staleCloses.map((action) => action.id))
             await this.models.Action.update(
               { status: ActionStatus.CANCELED },
-              { where: { id: staleIds }, transaction },
+              { where: { id: Array.from(staleIds) }, transaction },
             )
             approvedAndDeployingActions = approvedAndDeployingActions.filter(
-              (action) => !staleIds.includes(action.id),
+              (action) => !staleIds.has(action.id),
             )
             if (approvedAndDeployingActions.length === 0) {
               logger.debug('All approved actions were canceled as stale closes')
