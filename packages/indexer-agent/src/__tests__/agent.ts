@@ -537,6 +537,37 @@ describe('reconcileDeploymentAllocationAction', () => {
       expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
     })
 
+    // The incident's close was decided under an offchain rule (the management
+    // API's close stamp), so pin that flavour of the guard explicitly.
+    it('skips an offchain-decided close when the current rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const offchainDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.OFFCHAIN,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        offchainDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
     it('closes when the current rule still opts out', async () => {
       const agent = createAgent()
       const operator = createOperator()
