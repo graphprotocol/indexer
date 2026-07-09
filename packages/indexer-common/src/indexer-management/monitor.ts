@@ -118,13 +118,30 @@ export class NetworkMonitor {
     return Number(await this.contracts.EpochManager.currentEpoch())
   }
 
+  // Read the chain block alongside the epoch so a reconcile pass can log where its epoch
+  // came from; the block is provenance only, the epoch is what every decision then uses.
+  async currentEpochNumberWithProvenance(): Promise<{
+    epoch: number
+    readAtBlock: number
+  }> {
+    const readAtBlock = await this.ethereum.getBlockNumber()
+    const epoch = Number(await this.contracts.EpochManager.currentEpoch())
+    return { epoch, readAtBlock }
+  }
+
+  // One epoch in seconds, the single place that turns the on-chain epoch length (in
+  // blocks) into wall-clock time for the seconds<->epochs conversions callers need.
+  // TODO HORIZON: assumes a 12s block time, true for the current protocol chain but not always.
+  async epochLengthInSeconds(): Promise<number> {
+    const BLOCK_IN_SECONDS = 12n
+    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
+    return Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+  }
+
   // Maximum allocation duration is measured in seconds, determined by maxPOIStaleness.
   // This function converts the value to epochs.
   async maxAllocationDuration(): Promise<number> {
-    // TODO HORIZON: this assumes a block time of 12 seconds which is true for current protocol chain but not always
-    const BLOCK_IN_SECONDS = 12n
-    const epochLengthInBlocks = await this.contracts.EpochManager.epochLength()
-    const epochLengthInSeconds = Number(epochLengthInBlocks * BLOCK_IN_SECONDS)
+    const epochLengthInSeconds = await this.epochLengthInSeconds()
 
     // When converting to epochs we give it a bit of leeway since missing the allocation expiration in horizon
     // incurs in a severe penalty (missing out on indexing rewards)
