@@ -73,34 +73,13 @@ export class PendingRcaConsumer {
     }
   }
 
-  // Returns the decoded proposal, or null if the row was rejected here
-  // (non-empty signature — producer regression, marked rejected in the DB
-  // before returning).
-  //
-  // Decode failures from toolshed (malformed payload, bad metadata, etc.)
-  // propagate as throws; the caller skip-logs them, leaving the row pending
-  // for the next cycle.
+  // Returns the decoded proposal, or throws on a malformed payload (the caller
+  // skip-logs those, leaving the row pending). An embedded signer signature is
+  // ignored — acceptance is offer-based, so the agent has no use for it.
   private async decodeRow(row: PendingRcaProposal): Promise<DecodedRcaProposal | null> {
     const signedPayload = new Uint8Array(row.signed_payload)
     const signedRca = decodeSignedRCA(signedPayload)
-    const { rca, signature } = signedRca
-
-    if (signature && signature !== '0x') {
-      const sigByteLength = Math.max(0, (signature.length - 2) / 2)
-      this.logger.error(
-        `Pending RCA proposal ${row.id} has non-empty signature (producer regression); rejecting`,
-        { id: row.id, signatureLength: sigByteLength },
-      )
-      try {
-        await this.markRejected(row.id, 'non_empty_signature')
-      } catch (err) {
-        this.logger.error('Failed to mark non-empty-signature proposal as rejected', {
-          id: row.id,
-          error: err instanceof Error ? err.message : String(err),
-        })
-      }
-      return null
-    }
+    const { rca } = signedRca
 
     const metadata = decodeAcceptIndexingAgreementMetadata(rca.metadata)
     const terms = decodeIndexingAgreementTermsV1(metadata.terms)
