@@ -7,6 +7,7 @@ import {
 import {
   Action,
   ActionFailure,
+  ActionStatus,
   ActionType,
   ActivationCriteria,
   Allocation,
@@ -169,9 +170,9 @@ export function isOptOutReason(reason: string): boolean {
   return criteria === ActivationCriteria.NEVER || criteria === ActivationCriteria.OFFCHAIN
 }
 
-// Approved closes that reconcile queued under an opt-out rule which has since
-// flipped back to allocate: safe to cancel, since live operator intent
-// contradicts the queued decision. Manual and API closes carry other sources.
+// Closes that reconcile queued under an opt-out rule which has since flipped
+// back to allocate: safe to cancel while still approved. A deploying close may
+// already be on-chain; manual and API closes carry other sources.
 export function staleQueuedCloses(
   actions: Action[],
   rules: IndexingRuleAttributes[],
@@ -179,6 +180,7 @@ export function staleQueuedCloses(
   return actions.filter(
     (action) =>
       action.type === ActionType.UNALLOCATE &&
+      action.status === ActionStatus.APPROVED &&
       action.source === RECONCILE_ACTION_SOURCE &&
       isOptOutReason(action.reason) &&
       !!action.deploymentID &&

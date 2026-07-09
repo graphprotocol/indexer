@@ -14,7 +14,7 @@ import {
   AllocationDecision,
   SubgraphIdentifierType,
 } from '../../subgraphs'
-import { ActionType, RECONCILE_ACTION_SOURCE } from '../../actions'
+import { ActionStatus, ActionType, RECONCILE_ACTION_SOURCE } from '../../actions'
 import { Action } from '../models/action'
 
 // Pure-function coverage for the guard that stops confirmUnallocate stamping a
@@ -191,6 +191,7 @@ describe('staleQueuedCloses', () => {
     ({
       id: 1,
       type: ActionType.UNALLOCATE,
+      status: ActionStatus.APPROVED,
       source: RECONCILE_ACTION_SOURCE,
       reason: 'deployment:offchain',
       deploymentID: deployment.ipfsHash,
@@ -213,5 +214,13 @@ describe('staleQueuedCloses', () => {
       staleQueuedCloses([close({ reason: 'deployment:always' })], [alwaysRule]),
     ).toHaveLength(0)
     expect(staleQueuedCloses([close({})], [])).toHaveLength(0)
+  })
+
+  // A deploying close is crash-recovery residue whose transaction may already
+  // be on-chain; cancelling its record would contradict what actually happened.
+  it('never matches a close that is already deploying', () => {
+    expect(
+      staleQueuedCloses([close({ status: ActionStatus.DEPLOYING })], [alwaysRule]),
+    ).toHaveLength(0)
   })
 })
