@@ -9,9 +9,15 @@ import {
   getRawPositionalArgs,
 } from '../../../command-helpers'
 import { buildActionInput, queueActions, validateActionType } from '../../../actions'
+import { indexingRule } from '../../../rules'
+import {
+  isDipsManagedRule,
+  queuedUnallocateAgreementWarning,
+} from '../../../indexing-agreement-notices'
 import {
   ActionInput,
   ActionStatus,
+  ActionType,
   resolveChainAlias,
 } from '@graphprotocol/indexer-common'
 
@@ -129,6 +135,29 @@ module.exports = {
         'source',
         'reason',
       ])
+
+      if (actionInputParams.type === ActionType.UNALLOCATE && queuedAction.length > 0) {
+        try {
+          const rule = await indexingRule(
+            client,
+            {
+              identifier: actionInputParams.deploymentID,
+              protocolNetwork: actionInputParams.protocolNetwork,
+            },
+            false,
+          )
+          if (isDipsManagedRule(rule)) {
+            print.warning(
+              queuedUnallocateAgreementWarning(
+                queuedAction[0].id,
+                resolveChainAlias(actionInputParams.protocolNetwork),
+              ),
+            )
+          }
+        } catch (ruleError) {
+          print.info(`Could not check for an indexing agreement rule: ${ruleError}`)
+        }
+      }
     } catch (error) {
       actionSpinner.fail(error.toString())
       process.exitCode = 1
