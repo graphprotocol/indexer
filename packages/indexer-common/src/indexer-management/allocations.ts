@@ -140,13 +140,14 @@ export function encodeCollectData(allocationId: string, poiData: POIData): strin
   return encodeCollectIndexingRewardsData(allocationId, poiData.poi, encodedPOIMetadata)
 }
 
-// The post-close `never` stamp must not overwrite a DIPS rule: the DIPS module
-// reads `never` as a blocklist and cancels the active agreement on-chain.
-// Ending an agreement stays explicit (`rules never`), not a close side effect.
-export function neverRuleAfterClose(
+// The rule stamped after a close must not overwrite a DIPS rule: the DIPS module
+// reads both `never` and `offchain` as a blocklist that cancels agreements
+// on-chain. Ending an agreement stays explicit (`rules never`), not a side effect.
+export function ruleAfterClose(
   existingRule: IndexingRuleAttributes | null,
   deployment: SubgraphDeploymentID,
   protocolNetwork: string,
+  decisionBasis: IndexingDecisionBasis.NEVER | IndexingDecisionBasis.OFFCHAIN,
 ): Partial<IndexingRuleAttributes> | null {
   if (existingRule?.decisionBasis === IndexingDecisionBasis.DIPS) {
     return null
@@ -155,7 +156,7 @@ export function neverRuleAfterClose(
     identifier: deployment.ipfsHash,
     protocolNetwork,
     identifierType: SubgraphIdentifierType.DEPLOYMENT,
-    decisionBasis: IndexingDecisionBasis.NEVER,
+    decisionBasis,
   }
 }
 
@@ -940,10 +941,11 @@ export class AllocationManager {
         protocolNetwork: this.network.specification.networkIdentifier,
       },
     })
-    const neverIndexingRule = neverRuleAfterClose(
+    const neverIndexingRule = ruleAfterClose(
       existingRule,
       allocation.subgraphDeployment.id,
       this.network.specification.networkIdentifier,
+      IndexingDecisionBasis.NEVER,
     )
 
     if (neverIndexingRule) {
