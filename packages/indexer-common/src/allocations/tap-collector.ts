@@ -41,6 +41,8 @@ interface RavMetrics {
   ravRedeemsFailed: Counter<string>
   ravsRedeemDuration: Histogram<string>
   ravCollectedFees: Gauge<string>
+  ravsBelowThreshold: Gauge<string>
+  ravsBelowThresholdValueGRT: Gauge<string>
 }
 
 interface TapCollectorOptions {
@@ -162,14 +164,17 @@ export class TapCollector {
 
   startRAVProcessing() {
     const notifyAndMapEligible = (signedRavs: ValidRavs) => {
+      const totalValue = signedRavs.belowThreshold.reduce(
+        (total, signedRav) => total + BigInt(signedRav.rav.rav.valueAggregate),
+        0n,
+      )
+      // Set every pass, including to 0, so the gauges decay once deferrals clear
+      this.metrics.ravsBelowThreshold.set(signedRavs.belowThreshold.length)
+      this.metrics.ravsBelowThresholdValueGRT.set(parseFloat(formatGRT(totalValue)))
+
       if (signedRavs.belowThreshold.length > 0) {
         const logger = this.logger.child({ function: 'startRAVProcessing()' })
-        const totalValueGRT = formatGRT(
-          signedRavs.belowThreshold.reduce(
-            (total, signedRav) => total + BigInt(signedRav.rav.rav.valueAggregate),
-            0n,
-          ),
-        )
+        const totalValueGRT = formatGRT(totalValue)
         logger.info(`[TAPv1] Query RAVs below the redemption threshold`, {
           hint: 'If you would like to redeem RAVs like this, reduce the voucher redemption threshold',
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
@@ -377,10 +382,12 @@ export class TapCollector {
   }
 
   // redeem only if last is true
-  // Later can add order and limit
+  // Highest value first, so that RAVs worth collecting are never crowded out of the
+  // 100 row batch by dust that sits below the redemption threshold indefinitely.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucher[]> {
     return await this.models.receiptAggregateVouchers.findAll({
       where: { last: true, final: false },
+      order: [['valueAggregate', 'DESC']],
       limit: 100,
     })
   }
@@ -880,5 +887,17 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     help: 'Amount of query fees collected for a rav',
     registers: [metrics.registry],
     labelNames: ['allocation'],
+  }),
+
+  ravsBelowThreshold: new metrics.client.Gauge({
+    name: `indexer_agent_ravs_below_threshold_${networkIdentifier}`,
+    help: 'Number of pending ravs deferred because their value is below the redemption threshold',
+    registers: [metrics.registry],
+  }),
+
+  ravsBelowThresholdValueGRT: new metrics.client.Gauge({
+    name: `indexer_agent_ravs_below_threshold_value_grt_${networkIdentifier}`,
+    help: 'Total GRT value of pending ravs deferred below the redemption threshold',
+    registers: [metrics.registry],
   }),
 })

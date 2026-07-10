@@ -43,6 +43,8 @@ interface RavMetrics {
   ravRedeemsFailed: Counter<string>
   ravsRedeemDuration: Histogram<string>
   ravCollectedFees: Gauge<string>
+  ravsBelowThreshold: Gauge<string>
+  ravsBelowThresholdValueGRT: Gauge<string>
 }
 
 interface TapCollectorOptions {
@@ -59,6 +61,9 @@ interface TapCollectorOptions {
 interface ValidRavs {
   belowThreshold: RavWithAllocation[]
   eligible: RavWithAllocation[]
+  // Sum of what the below threshold RAVs would still pay out, which for TAPv2 is the
+  // aggregate value minus whatever the payer has already collected against it.
+  belowThresholdRemaining: bigint
 }
 
 export interface RavWithAllocation {
@@ -162,6 +167,12 @@ export class GraphTallyCollector {
     const notifyAndMapEligible = (signedRavs: ValidRavs) => {
       const logger = this.logger.child({ function: 'startRAVProcessingV2()' })
 
+      // Set every pass, including to 0, so the gauges decay once deferrals clear
+      this.metrics.ravsBelowThreshold.set(signedRavs.belowThreshold.length)
+      this.metrics.ravsBelowThresholdValueGRT.set(
+        parseFloat(formatGRT(signedRavs.belowThresholdRemaining)),
+      )
+
       if (signedRavs.belowThreshold.length > 0) {
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
@@ -174,6 +185,9 @@ export class GraphTallyCollector {
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
+          // What is still collectible on those RAVs, once already collected tokens are
+          // subtracted. This, not totalValueGRT, is the revenue being left on the table.
+          remainingValueGRT: formatGRT(signedRavs.belowThresholdRemaining),
           allocations: signedRavs.belowThreshold.map((signedRav) =>
             collectionIdToAllocationId(signedRav.rav.rav.collectionId),
           ),
@@ -399,12 +413,18 @@ export class GraphTallyCollector {
             })
             if (belowThreshold) {
               results.belowThreshold.push(rav)
+              results.belowThresholdRemaining +=
+                BigInt(rav.rav.rav.valueAggregate) - tokensCollected
             } else {
               results.eligible.push(rav)
             }
             return results
           },
-          { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
+          {
+            belowThreshold: <RavWithAllocation[]>[],
+            eligible: <RavWithAllocation[]>[],
+            belowThresholdRemaining: 0n,
+          },
         )
       },
       {
@@ -415,10 +435,12 @@ export class GraphTallyCollector {
   }
 
   // redeem only if last is true
-  // Later can add order and limit
+  // Highest value first, so that RAVs worth collecting are never crowded out of the
+  // 100 row batch by dust that sits below the redemption threshold indefinitely.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
     return await this.models.receiptAggregateVouchersV2.findAll({
       where: { last: true, final: false },
+      order: [['valueAggregate', 'DESC']],
       limit: 100,
     })
   }
@@ -1106,6 +1128,18 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     help: 'Amount of query fees collected for a rav v2',
     registers: [metrics.registry],
     labelNames: ['collection'],
+  }),
+
+  ravsBelowThreshold: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_${networkIdentifier}`,
+    help: 'Number of pending rav v2s deferred because their collectible value is below the redemption threshold',
+    registers: [metrics.registry],
+  }),
+
+  ravsBelowThresholdValueGRT: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_value_grt_${networkIdentifier}`,
+    help: 'Total GRT still collectible on pending rav v2s deferred below the redemption threshold',
+    registers: [metrics.registry],
   }),
 })
 
