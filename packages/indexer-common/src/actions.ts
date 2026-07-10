@@ -106,6 +106,30 @@ export const isValidActionInput = (
   )
 }
 
+// Closing an allocation that still owes DIPS fees cancels a live agreement
+// on-chain or strands fees a canceled agreement hasn't finished collecting,
+// so every close path shares this guard; force acknowledges the loss.
+export const assertSafeToCloseAllocation = async (
+  networkMonitor: NetworkMonitor,
+  allocationID: string,
+  force: boolean,
+  logger: Logger,
+): Promise<void> => {
+  const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(allocationID)
+  if (hasAgreement && !force) {
+    throw new Error(
+      `Allocation ${allocationID} has a DIPS agreement that can still collect fees. ` +
+        `Closing it now would cancel a live agreement on-chain, or strand fees that a ` +
+        `canceled agreement has not finished collecting. Use force=true to proceed anyway.`,
+    )
+  }
+  if (hasAgreement && force) {
+    logger.warn('Force-closing allocation with a collectable DIPS agreement', {
+      allocationId: allocationID,
+    })
+  }
+}
+
 export const validateActionInputs = async (
   actions: ActionInput[],
   networkMonitor: NetworkMonitor,
@@ -181,26 +205,13 @@ export const validateActionInputs = async (
         )
       }
 
-      // Block closing an allocation that still owes DIPS fees: SubgraphService.collect
-      // requires the allocation open, so an early close would cancel a live agreement
-      // on-chain or strand fees a canceled agreement hasn't finished collecting.
       if (action.type === ActionType.UNALLOCATE && action.allocationID) {
-        const hasAgreement = await networkMonitor.hasCollectableDipsAgreement(
+        await assertSafeToCloseAllocation(
+          networkMonitor,
           action.allocationID,
+          action.force ?? false,
+          logger,
         )
-        if (hasAgreement && !action.force) {
-          throw new Error(
-            `Allocation ${action.allocationID} has a DIPS agreement that can still collect fees. ` +
-              `Closing it now would cancel a live agreement on-chain, or strand fees that a ` +
-              `canceled agreement has not finished collecting. Use force=true to proceed anyway.`,
-          )
-        }
-        if (hasAgreement && action.force) {
-          logger.warn('Force-closing allocation with a collectable DIPS agreement', {
-            allocationId: action.allocationID,
-            actionType: action.type,
-          })
-        }
       }
     }
   }

@@ -16,6 +16,7 @@ import {
 import {
   Allocation,
   AllocationStatus,
+  assertSafeToCloseAllocation,
   CloseAllocationResult,
   CreateAllocationResult,
   encodeCollectData,
@@ -909,6 +910,10 @@ export default {
     const network = extractNetwork(protocolNetwork, multiNetworks)
     const networkMonitor = network.networkMonitor
     const allocationData = await networkMonitor.allocation(allocation)
+
+    // Same guard the queued unallocate path applies in validateActionInputs:
+    // an unforced close must not cancel a collectable DIPS agreement on-chain.
+    await assertSafeToCloseAllocation(networkMonitor, allocation, force, logger)
 
     try {
       logger.debug('Resolving POI')

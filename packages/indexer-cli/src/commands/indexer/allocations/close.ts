@@ -1,23 +1,15 @@
 import { GluegunToolbox } from 'gluegun'
 import chalk from 'chalk'
-import gql from 'graphql-tag'
 
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { closeAllocation } from '../../../allocations'
-import { indexingRule } from '../../../rules'
-import {
-  isDipsManagedRule,
-  closedAllocationAgreementNotice,
-  activeAgreementRevertGuidance,
-} from '../../../indexing-agreement-notices'
 import {
   validatePOI,
   printObjectOrArray,
   extractProtocolNetworkOption,
   getRawPositionalArgs,
 } from '../../../command-helpers'
-import { resolveChainAlias } from '@graphprotocol/indexer-common'
 
 const HELP = `
 ${chalk.bold(
@@ -102,55 +94,15 @@ module.exports = {
 
       const config = loadValidatedConfig()
       const client = await createIndexerManagementClient({ url: config.api })
-
-      // Fetched before the close so the DIPS notice (and the revert guidance
-      // below) can name the deployment; the close result does not carry it.
-      let deployment: string | undefined
-      try {
-        const result = await client
-          .query(
-            gql`
-              query allocations($filter: AllocationFilter!) {
-                allocations(filter: $filter) {
-                  id
-                  subgraphDeployment
-                }
-              }
-            `,
-            { filter: { allocation: id, protocolNetwork } },
-          )
-          .toPromise()
-        deployment = result.data?.allocations?.[0]?.subgraphDeployment
-      } catch (lookupError) {
-        print.info(`Could not look up the allocation's deployment: ${lookupError}`)
-      }
-      const networkAlias = resolveChainAlias(protocolNetwork)
-
-      let closeResult
-      try {
-        closeResult = await closeAllocation(
-          client,
-          id,
-          poi,
-          blockNumber,
-          publicPOI,
-          toForce,
-          protocolNetwork,
-        )
-      } catch (closeError) {
-        const guidance = activeAgreementRevertGuidance(
-          closeError.toString(),
-          deployment,
-          networkAlias,
-        )
-        if (guidance) {
-          spinner.fail('Allocation close blocked by the network')
-          print.warning(guidance)
-          process.exitCode = 1
-          return
-        }
-        throw closeError
-      }
+      const closeResult = await closeAllocation(
+        client,
+        id,
+        poi,
+        blockNumber,
+        publicPOI,
+        toForce,
+        protocolNetwork,
+      )
 
       spinner.succeed('Allocation closed')
       printObjectOrArray(
@@ -160,21 +112,6 @@ module.exports = {
         ['allocation', 'allocatedTokens', 'indexingRewards'],
         wrapWidth,
       )
-
-      if (deployment) {
-        try {
-          const rule = await indexingRule(
-            client,
-            { identifier: deployment, protocolNetwork },
-            false,
-          )
-          if (isDipsManagedRule(rule)) {
-            print.warning(closedAllocationAgreementNotice(deployment, networkAlias))
-          }
-        } catch (ruleError) {
-          print.info(`Could not check for an indexing agreement rule: ${ruleError}`)
-        }
-      }
     } catch (error) {
       spinner.fail(error.toString())
       process.exitCode = 1
