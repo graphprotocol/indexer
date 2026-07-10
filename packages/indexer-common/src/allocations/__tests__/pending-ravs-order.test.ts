@@ -4,7 +4,12 @@
 import { defineQueryFeeModels, QueryFeeModels } from '../../query-fees/models'
 import { TapCollector } from '../tap-collector'
 import { GraphTallyCollector } from '../graph-tally-collector'
-import { connectDatabase, createLogger, Logger, toAddress } from '@graphprotocol/common-ts'
+import {
+  connectDatabase,
+  createLogger,
+  Logger,
+  toAddress,
+} from '@graphprotocol/common-ts'
 import { Sequelize } from 'sequelize'
 
 // Make global Jest variables available
@@ -74,10 +79,10 @@ describe('pendingRAVs ordering', () => {
         redeemedAt: null,
       })
     }
-    const collector: TapCollector = Object.assign(
-      Object.create(TapCollector.prototype),
-      { logger, models: queryFeeModels },
-    )
+    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
+      logger,
+      models: queryFeeModels,
+    })
 
     // Act
     const ravs = await collector['pendingRAVs']()
@@ -140,10 +145,10 @@ describe('pendingRAVs ordering', () => {
       final: false,
       redeemedAt: null,
     })
-    const collector: TapCollector = Object.assign(
-      Object.create(TapCollector.prototype),
-      { logger, models: queryFeeModels },
-    )
+    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
+      logger,
+      models: queryFeeModels,
+    })
 
     // Act
     const ravs = await collector['pendingRAVs']()
@@ -228,10 +233,10 @@ describe('pendingRAVs ordering', () => {
       final: false,
       redeemedAt: null,
     })
-    const collector: TapCollector = Object.assign(
-      Object.create(TapCollector.prototype),
-      { logger, models: queryFeeModels },
-    )
+    const collector: TapCollector = Object.assign(Object.create(TapCollector.prototype), {
+      logger,
+      models: queryFeeModels,
+    })
 
     // Act
     const ravs = await collector['pendingRAVs']()
