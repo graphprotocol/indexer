@@ -140,6 +140,25 @@ export function encodeCollectData(allocationId: string, poiData: POIData): strin
   return encodeCollectIndexingRewardsData(allocationId, poiData.poi, encodedPOIMetadata)
 }
 
+// The post-close `never` stamp must not overwrite a DIPS rule: the DIPS module
+// reads `never` as a blocklist and cancels the active agreement on-chain.
+// Ending an agreement stays explicit (`rules never`), not a close side effect.
+export function neverRuleAfterClose(
+  existingRule: IndexingRuleAttributes | null,
+  deployment: SubgraphDeploymentID,
+  protocolNetwork: string,
+): Partial<IndexingRuleAttributes> | null {
+  if (existingRule?.decisionBasis === IndexingDecisionBasis.DIPS) {
+    return null
+  }
+  return {
+    identifier: deployment.ipfsHash,
+    protocolNetwork,
+    identifierType: SubgraphIdentifierType.DEPLOYMENT,
+    decisionBasis: IndexingDecisionBasis.NEVER,
+  }
+}
+
 export class AllocationManager {
   declare dipsManager: DipsManager | null
   constructor(
@@ -915,14 +934,26 @@ export class AllocationManager {
     logger.debug(
       `Updating indexing rules so indexer-agent keeps the deployment synced but doesn't allocate to it`,
     )
-    const neverIndexingRule = {
-      identifier: allocation.subgraphDeployment.id.ipfsHash,
-      protocolNetwork: this.network.specification.networkIdentifier,
-      identifierType: SubgraphIdentifierType.DEPLOYMENT,
-      decisionBasis: IndexingDecisionBasis.NEVER,
-    } as Partial<IndexingRuleAttributes>
+    const existingRule = await this.models.IndexingRule.findOne({
+      where: {
+        identifier: allocation.subgraphDeployment.id.ipfsHash,
+        protocolNetwork: this.network.specification.networkIdentifier,
+      },
+    })
+    const neverIndexingRule = neverRuleAfterClose(
+      existingRule,
+      allocation.subgraphDeployment.id,
+      this.network.specification.networkIdentifier,
+    )
 
-    await upsertIndexingRule(logger, this.models, neverIndexingRule)
+    if (neverIndexingRule) {
+      await upsertIndexingRule(logger, this.models, neverIndexingRule)
+    } else {
+      logger.info(
+        `Deployment is managed by an indexing agreement, keeping its DIPS rule instead of stamping never`,
+        { deployment: allocation.subgraphDeployment.id.ipfsHash },
+      )
+    }
 
     return {
       actionID,
