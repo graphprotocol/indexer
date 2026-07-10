@@ -120,11 +120,11 @@ describe('pendingRAVs ordering', () => {
     expect(ravs.map((rav) => rav.valueAggregate)).toEqual([900n, 42n, 7n, 3n])
   })
 
-  test('TAPv1 ordering surfaces high value RAVs from beyond the 100 row limit', async () => {
-    // Arrange: 100 dust RAVs that would fill the batch on their own, plus one
+  test('TAPv1 ordering surfaces high value RAVs from beyond a full batch', async () => {
+    // Arrange: 1,000 dust RAVs that would fill the batch on their own, plus one
     // valuable RAV inserted last so insertion order alone would exclude it.
-    for (let i = 0; i < 100; i++) {
-      await queryFeeModels.receiptAggregateVouchers.create({
+    await queryFeeModels.receiptAggregateVouchers.bulkCreate(
+      Array.from({ length: 1000 }, (_, i) => ({
         allocationId: toAddress(i.toString(16).padStart(40, '0')),
         senderAddress: PAYER,
         signature: SIGNATURE,
@@ -133,8 +133,8 @@ describe('pendingRAVs ordering', () => {
         last: true,
         final: false,
         redeemedAt: null,
-      })
-    }
+      })),
+    )
     await queryFeeModels.receiptAggregateVouchers.create({
       allocationId: toAddress('ffffffffffffffffffffffffffffffffffffffff'),
       senderAddress: PAYER,
@@ -154,14 +154,14 @@ describe('pendingRAVs ordering', () => {
     const ravs = await collector['pendingRAVs']()
 
     // Assert
-    expect(ravs).toHaveLength(100)
+    expect(ravs).toHaveLength(1000)
     expect(ravs[0].valueAggregate).toEqual(10n ** 21n)
   })
 
-  test('TAPv2 ordering surfaces high value RAVs from beyond the 100 row limit', async () => {
+  test('TAPv2 ordering surfaces high value RAVs from beyond a full batch', async () => {
     // Arrange
-    for (let i = 0; i < 100; i++) {
-      await queryFeeModels.receiptAggregateVouchersV2.create({
+    await queryFeeModels.receiptAggregateVouchersV2.bulkCreate(
+      Array.from({ length: 1000 }, (_, i) => ({
         collectionId: `0x${i.toString(16).padStart(64, '0')}`,
         payer: PAYER,
         dataService: DATA_SERVICE,
@@ -173,8 +173,8 @@ describe('pendingRAVs ordering', () => {
         last: true,
         final: false,
         redeemedAt: null,
-      })
-    }
+      })),
+    )
     await queryFeeModels.receiptAggregateVouchersV2.create({
       collectionId: `0x${'f'.repeat(64)}`,
       payer: PAYER,
@@ -197,8 +197,46 @@ describe('pendingRAVs ordering', () => {
     const ravs = await collector['pendingRAVs']()
 
     // Assert
-    expect(ravs).toHaveLength(100)
+    expect(ravs).toHaveLength(1000)
     expect(ravs[0].valueAggregate).toEqual(10n ** 21n)
+  })
+
+  test('findTransactionsForRavs chunks the allocation id filter and pins one block', async () => {
+    // Arrange: 250 pending RAVs with distinct allocations, and a fake subgraph client
+    // that records each request it receives.
+    const ravs = Array.from({ length: 250 }, (_, i) => ({
+      collectionId: `0x${i.toString(16).padStart(64, '0')}`,
+      payer: PAYER,
+      redeemedAt: null,
+    })) as unknown as Parameters<GraphTallyCollector['findTransactionsForRavs']>[0]
+    const query = jest.fn().mockResolvedValue({
+      data: {
+        paymentsEscrowTransactions: [],
+        _meta: { block: { hash: 'pinned-block', timestamp: 1 } },
+      },
+    })
+    const collector: GraphTallyCollector = Object.assign(
+      Object.create(GraphTallyCollector.prototype),
+      { logger, networkSubgraph: { query } },
+    )
+
+    // Act
+    const response = await collector.findTransactionsForRavs(ravs)
+
+    // Assert: 250 ids split into chunks of at most 100, so 3 requests
+    expect(query).toHaveBeenCalledTimes(3)
+    const variables = query.mock.calls.map((call) => call[1])
+    for (const vars of variables) {
+      expect(vars.unfinalizedRavsAllocationIds.length).toBeLessThanOrEqual(100)
+    }
+    expect(variables.flatMap((vars) => vars.unfinalizedRavsAllocationIds)).toHaveLength(
+      250,
+    )
+    // The first request floats to the chain head; all later ones are pinned to it
+    expect(variables[0].block).toBeUndefined()
+    expect(variables[1].block).toEqual({ hash: 'pinned-block' })
+    expect(variables[2].block).toEqual({ hash: 'pinned-block' })
+    expect(response._meta.block.hash).toEqual('pinned-block')
   })
 
   test('pendingRAVs excludes final and non-last RAVs regardless of value', async () => {

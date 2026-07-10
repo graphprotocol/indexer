@@ -37,6 +37,15 @@ const RAV_CHECK_INTERVAL_MS = 900_000
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
+// How many pending RAVs are reconciled per pass. Rows beyond this stay pending and are
+// picked up on later passes once higher value rows settle and leave the set.
+const PENDING_RAV_BATCH_SIZE = 1_000
+
+// How many allocation ids go into a single subgraph request. The id filter travels in
+// every request body, so it is chunked to keep requests the size they had when the
+// batch itself was capped at 100 rows (see the http 413 note above).
+const FILTER_CHUNK_SIZE = 100
+
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
   ravRedeemsInvalid: Counter<string>
@@ -436,13 +445,20 @@ export class GraphTallyCollector {
 
   // redeem only if last is true
   // Highest value first, so that RAVs worth collecting are never crowded out of the
-  // 100 row batch by dust that sits below the redemption threshold indefinitely.
+  // batch by dust that sits below the redemption threshold indefinitely.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
-    return await this.models.receiptAggregateVouchersV2.findAll({
+    const ravs = await this.models.receiptAggregateVouchersV2.findAll({
       where: { last: true, final: false },
       order: [['valueAggregate', 'DESC']],
-      limit: 100,
+      limit: PENDING_RAV_BATCH_SIZE,
     })
+    if (ravs.length === PENDING_RAV_BATCH_SIZE) {
+      this.logger.warn(
+        '[TAPv2] Pending RAV batch is full, RAVs below the value cutoff are not reconciled this pass',
+        { batchSize: PENDING_RAV_BATCH_SIZE },
+      )
+    }
+    return ravs
   }
 
   private async filterAndUpdateRavs(
@@ -543,7 +559,6 @@ export class GraphTallyCollector {
     ravs: ReceiptAggregateVoucherV2[],
   ): Promise<SubgraphResponse> {
     let meta: GraphTallyMeta | undefined = undefined
-    let lastId = ''
     const paymentsEscrowTransactions: GraphTallyTransaction[] = []
 
     const unfinalizedRavsAllocationIds = [
@@ -558,69 +573,81 @@ export class GraphTallyCollector {
       ...new Set(ravs.map((value) => toAddress(value.payer).toLowerCase())),
     ]
 
-    for (;;) {
-      let block: { hash: string } | undefined = undefined
-      if (meta?.block?.hash) {
-        block = {
-          hash: meta?.block?.hash,
+    // chunk() yields nothing for an empty input, but a query must still run in that
+    // case so the caller gets subgraph block metadata back, hence the explicit [[]].
+    const allocationIdChunks =
+      unfinalizedRavsAllocationIds.length === 0
+        ? [[] as string[]]
+        : chunk(unfinalizedRavsAllocationIds, FILTER_CHUNK_SIZE)
+
+    for (const allocationIdsChunk of allocationIdChunks) {
+      let lastId = ''
+      for (;;) {
+        // After the first response, every request (across pages and chunks) is pinned
+        // to that block, so the whole pass sees one consistent snapshot of the chain.
+        let block: { hash: string } | undefined = undefined
+        if (meta?.block?.hash) {
+          block = {
+            hash: meta?.block?.hash,
+          }
         }
-      }
 
-      const result: QueryResult<SubgraphResponse> =
-        await this.networkSubgraph.query<SubgraphResponse>(
-          gql`
-            query paymentsEscrowTransactions(
-              $lastId: String!
-              $pageSize: Int!
-              $block: Block_height
-              $unfinalizedRavsAllocationIds: [String!]!
-              $payerAddresses: [String!]!
-            ) {
-              paymentsEscrowTransactions(
-                first: $pageSize
-                block: $block
-                orderBy: id
-                orderDirection: asc
-                where: {
-                  id_gt: $lastId
-                  type: "redeem"
-                  allocationId_in: $unfinalizedRavsAllocationIds
-                  payer_: { id_in: $payerAddresses }
-                }
+        const result: QueryResult<SubgraphResponse> =
+          await this.networkSubgraph.query<SubgraphResponse>(
+            gql`
+              query paymentsEscrowTransactions(
+                $lastId: String!
+                $pageSize: Int!
+                $block: Block_height
+                $unfinalizedRavsAllocationIds: [String!]!
+                $payerAddresses: [String!]!
               ) {
-                id
-                allocationId
-                timestamp
-                payer {
+                paymentsEscrowTransactions(
+                  first: $pageSize
+                  block: $block
+                  orderBy: id
+                  orderDirection: asc
+                  where: {
+                    id_gt: $lastId
+                    type: "redeem"
+                    allocationId_in: $unfinalizedRavsAllocationIds
+                    payer_: { id_in: $payerAddresses }
+                  }
+                ) {
                   id
-                }
-              }
-              _meta {
-                block {
-                  hash
+                  allocationId
                   timestamp
+                  payer {
+                    id
+                  }
+                }
+                _meta {
+                  block {
+                    hash
+                    timestamp
+                  }
                 }
               }
-            }
-          `,
-          {
-            lastId,
-            pageSize: PAGE_SIZE,
-            block,
-            unfinalizedRavsAllocationIds,
-            payerAddresses,
-          },
-        )
+            `,
+            {
+              lastId,
+              pageSize: PAGE_SIZE,
+              block,
+              unfinalizedRavsAllocationIds: allocationIdsChunk,
+              payerAddresses,
+            },
+          )
 
-      if (!result.data) {
-        throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        if (!result.data) {
+          throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        }
+        meta = result.data._meta
+        paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
+        if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
+          break
+        }
+        lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
       }
-      meta = result.data._meta
-      paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
-      if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
-        break
-      }
-      lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
     }
 
     return {
