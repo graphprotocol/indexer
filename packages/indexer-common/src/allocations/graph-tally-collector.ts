@@ -29,7 +29,7 @@ import {
   SubgraphServiceContracts,
 } from '@graphprotocol/toolshed/deployments'
 import { encodeCollectQueryFeesData, PaymentTypes } from '@graphprotocol/toolshed'
-import { dataSlice, hexlify, zeroPadValue, TransactionReceipt } from 'ethers'
+import { dataSlice, hexlify, TransactionReceipt } from 'ethers'
 
 // every 15 minutes
 const RAV_CHECK_INTERVAL_MS = 900_000
@@ -429,8 +429,38 @@ export class GraphTallyCollector {
     // look for all transactions for that includes senderaddress[] and allocations[]
     const subgraphResponse = await this.findTransactionsForRavs(ravsLastNotFinal)
 
+    // The collector contract pays out (value_aggregate - tokensCollected) each time, and
+    // value_aggregate keeps growing while the allocation earns, so one RAV can be
+    // collected many times. It is settled only once tokensCollected covers its value.
+    const escrowAccounts = await getEscrowAccounts(
+      this.logger,
+      this.networkSubgraph,
+      this.indexerAddress,
+      this.contracts.GraphTallyCollector.target.toString(),
+    )
+
+    const settledRavKeys = new Set<string>()
+    for (const rav of ravsLastNotFinal) {
+      const tokensCollected = escrowAccounts.getTokensCollectedForReceiver(
+        hexPrefixed(rav.payer),
+        hexPrefixed(rav.collectionId),
+      )
+      const settled = tokensCollected >= BigInt(rav.valueAggregate)
+      if (settled) {
+        settledRavKeys.add(ravKey(rav.payer, rav.collectionId))
+      }
+      this.logger.trace('[TAPv2] RAV settlement check', {
+        collectionId: rav.collectionId,
+        payer: rav.payer,
+        valueAggregate: formatGRT(rav.valueAggregate),
+        tokensCollected: formatGRT(tokensCollected),
+        settled,
+      })
+    }
+
     this.logger.trace('[TAPv2] Cross checking RAVs indexer database with subgraph', {
       subgraphResponse,
+      settledCount: settledRavKeys.size,
       ravsLastNotFinal: ravsLastNotFinal.map((rav) => ({
         collectionId: rav.collectionId,
         payer: rav.payer,
@@ -439,37 +469,39 @@ export class GraphTallyCollector {
       })),
     })
 
-    // check for redeemed ravs in tx list but not marked as redeemed in our database
-    this.markRavsInTransactionsAsRedeemed(subgraphResponse, ravsLastNotFinal)
+    // check for settled ravs in tx list but not marked as redeemed in our database
+    await this.markRavsInTransactionsAsRedeemed(
+      subgraphResponse,
+      ravsLastNotFinal,
+      settledRavKeys,
+    )
 
-    // Filter unfinalized RAVS fetched from DB, keeping RAVs that have not yet been redeemed on-chain
-    const nonRedeemedRavs = ravsLastNotFinal
-      // get all ravs that were marked as redeemed in our database
-      .filter((rav) => !!rav.redeemedAt)
-      // get all ravs that wasn't possible to find the transaction
-      .filter(
-        (rav) =>
+    // Rows carrying a redeemed_at stamp they no longer deserve: either a chain reorg
+    // undid the collection transaction, or the RAV has grown since it was collected and
+    // is not settled. Clearing redeemed_at puts the row back on the submission list.
+    const ravsToClear = ravsLastNotFinal.filter(
+      (rav) =>
+        !!rav.redeemedAt &&
+        (!settledRavKeys.has(ravKey(rav.payer, rav.collectionId)) ||
           !subgraphResponse.paymentsEscrowTransactions.find(
             (tx) =>
               toAddress(rav.payer) === toAddress(tx.payer.id) &&
               toAddress(collectionIdToAllocationId(rav.collectionId)) ===
                 toAddress(tx.allocationId),
-          ),
-      )
+          )),
+    )
 
     // we use the subgraph timestamp to make decisions
     // block timestamp minus 1 minute (because of blockchain timestamp uncertainty)
     const ONE_MINUTE = 60
     const blockTimestampSecs = subgraphResponse._meta.block.timestamp - ONE_MINUTE
 
-    // Mark RAVs as unredeemed in DB if the TAP subgraph couldn't find the redeem Tx.
-    // To handle a chain reorg that "unredeemed" the RAVs.
-    if (nonRedeemedRavs.length > 0) {
-      await this.revertRavsRedeemed(nonRedeemedRavs, blockTimestampSecs)
+    if (ravsToClear.length > 0) {
+      await this.clearRavsRedeemedAt(ravsToClear, blockTimestampSecs)
     }
 
-    // For all RAVs that passed finality time, we mark it as final
-    await this.markRavsAsFinal(blockTimestampSecs)
+    // For all settled RAVs that passed finality time, we mark it as final
+    await this.markRavsAsFinal(blockTimestampSecs, settledRavKeys)
 
     return await this.models.receiptAggregateVouchersV2.findAll({
       where: { redeemedAt: null, final: false, last: true },
@@ -479,41 +511,43 @@ export class GraphTallyCollector {
   public async markRavsInTransactionsAsRedeemed(
     subgraphResponse: SubgraphResponse,
     ravsLastNotFinal: ReceiptAggregateVoucherV2[],
+    settledRavKeys: Set<string>,
   ) {
-    // get a list of transactions for ravs marked as not redeemed in our database
-    const redeemedRavsNotOnOurDatabase = subgraphResponse.paymentsEscrowTransactions
-      // get only the transactions that exists, this prevents errors marking as redeemed
-      // transactions for different senders with the same allocation id
-      .filter((tx) => {
-        // check if exists in the ravsLastNotFinal list
-        return !!ravsLastNotFinal.find(
-          (rav) =>
-            // rav has the same sender address as tx
-            toAddress(rav.payer) === toAddress(tx.payer.id) &&
-            // rav has the same allocation id as tx
-            toAddress(collectionIdToAllocationId(rav.collectionId)) ===
-              toAddress(tx.allocationId) &&
-            // rav was marked as not redeemed in the db
-            !rav.redeemedAt,
-        )
-      })
-
-    // for each transaction that is not redeemed on our database
-    // but was redeemed on the blockchain, update it to redeemed
-    if (redeemedRavsNotOnOurDatabase.length > 0) {
-      for (const rav of redeemedRavsNotOnOurDatabase) {
-        this.logger.trace(
-          '[TAPv2] Found transaction for RAV that was redeemed on the blockchain but not on our database, marking it as redeemed',
-          {
-            rav,
-          },
-        )
-        await this.markRavAsRedeemed(
-          zeroPadValue(rav.allocationId, 32),
-          rav.payer.id,
-          rav.timestamp,
-        )
+    // The newest transaction per payer and allocation is the one that completed the
+    // settlement, so its timestamp is the one that starts the finality countdown.
+    const newestTransactionTimestamps = new Map<string, number>()
+    for (const tx of subgraphResponse.paymentsEscrowTransactions) {
+      const key = `${toAddress(tx.payer.id)}-${toAddress(tx.allocationId)}`
+      const newest = newestTransactionTimestamps.get(key)
+      if (newest === undefined || tx.timestamp > newest) {
+        newestTransactionTimestamps.set(key, tx.timestamp)
       }
+    }
+
+    // Only stamp redeemed_at on a RAV that has a collection transaction on chain AND
+    // whose full value has been paid out. A partially collected RAV stays unredeemed so
+    // the rest of its value still gets collected.
+    for (const rav of ravsLastNotFinal) {
+      if (rav.redeemedAt || !settledRavKeys.has(ravKey(rav.payer, rav.collectionId))) {
+        continue
+      }
+      const timestamp = newestTransactionTimestamps.get(
+        `${toAddress(rav.payer)}-${toAddress(
+          collectionIdToAllocationId(rav.collectionId),
+        )}`,
+      )
+      if (timestamp === undefined) {
+        continue
+      }
+      this.logger.trace(
+        '[TAPv2] Found transaction for RAV that was fully collected on the blockchain but not marked as redeemed on our database, marking it as redeemed',
+        {
+          collectionId: rav.collectionId,
+          payer: rav.payer,
+          timestamp,
+        },
+      )
+      await this.markRavAsRedeemed(rav.collectionId, rav.payer, timestamp)
     }
   }
 
@@ -607,67 +641,84 @@ export class GraphTallyCollector {
     }
   }
 
-  // for every allocation_id of this list that contains the redeemedAt less than the current
-  // subgraph timestamp
-  private async revertRavsRedeemed(
-    ravsNotRedeemed: { collectionId: string; payer: string }[],
+  // The redeemed_at guard leaves a RAV submitted moments ago alone: the subgraph has not
+  // indexed its transaction yet, so we would otherwise clear a stamp that is still valid.
+  private async clearRavsRedeemedAt(
+    ravsToClear: { collectionId: string; payer: string }[],
     blockTimestampSecs: number,
   ) {
-    if (ravsNotRedeemed.length == 0) {
+    if (ravsToClear.length == 0) {
       return
     }
 
-    this.logger.trace(
-      '[TAPv2] Could not find transaction for RAV that was redeemed on the database, unsetting redeemed_at',
-      {
-        ravsNotRedeemed,
-      },
-    )
+    this.logger.trace('[TAPv2] Unsetting redeemed_at for RAVs that are not settled', {
+      ravsToClear: ravsToClear.map((rav) => ({
+        collectionId: rav.collectionId,
+        payer: rav.payer,
+      })),
+    })
 
-    // WE use sql directly due to a bug in sequelize update:
-    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+    // We use raw SQL because of a bug in sequelize update:
+    // https://github.com/sequelize/sequelize/issues/7664 (open for 7 years, no fix yet)
     const query = `
         UPDATE tap_horizon_ravs
         SET redeemed_at = NULL
-        WHERE (collection_id::char(64), payer::char(40)) IN (VALUES ${ravsNotRedeemed
-          .map(
-            (rav) =>
-              `('${rav.collectionId
-                .toString()
-                .toLowerCase()
-                .replace('0x', '')}'::char(64), '${rav.payer
-                .toString()
-                .toLowerCase()
-                .replace('0x', '')}'::char(40))`,
-          )
-          .join(', ')})
-        AND redeemed_at < to_timestamp(${blockTimestampSecs})
+        WHERE (collection_id, payer) IN (
+          SELECT * FROM unnest($1::char(64)[], $2::char(40)[])
+        )
+        AND redeemed_at < to_timestamp($3)
       `
 
-    await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
+    await this.models.receiptAggregateVouchersV2.sequelize?.query(query, {
+      bind: [
+        ravsToClear.map((rav) => dbCollectionId(rav.collectionId)),
+        ravsToClear.map((rav) => dbPayer(rav.payer)),
+        blockTimestampSecs,
+      ],
+    })
 
     this.logger.warn(
-      `[TAPv2] Reverted Redeemed RAVs: ${ravsNotRedeemed
+      `[TAPv2] Cleared redeemed_at for RAVs: ${ravsToClear
         .map((rav) => `(${rav.payer},${rav.collectionId})`)
         .join(', ')}`,
     )
   }
 
-  // we use blockTimestamp instead of NOW() because we must be older than
-  // the subgraph timestamp
-  private async markRavsAsFinal(blockTimestampSecs: number) {
+  // Only settled RAVs may be finalized: finalizing one that still has value left to
+  // collect would hide it from the submission list forever and strand its query fees.
+  // We use blockTimestamp instead of NOW() because we must be older than the subgraph.
+  private async markRavsAsFinal(blockTimestampSecs: number, settledRavKeys: Set<string>) {
+    if (settledRavKeys.size === 0) {
+      this.logger.debug('[TAPv2] No settled RAVs to mark as final')
+      return
+    }
+
+    const settled = [...settledRavKeys].map((key) => {
+      const [payer, collectionId] = key.split('-')
+      return { payer, collectionId }
+    })
     const query = `
         UPDATE tap_horizon_ravs
         SET final = TRUE
-        WHERE last = TRUE 
-        AND final = FALSE 
+        WHERE (collection_id, payer) IN (
+          SELECT * FROM unnest($1::char(64)[], $2::char(40)[])
+        )
+        AND last = TRUE
+        AND final = FALSE
         AND redeemed_at IS NOT NULL
-        AND redeemed_at < to_timestamp(${blockTimestampSecs - this.finalityTime})
+        AND redeemed_at < to_timestamp($3)
       `
 
-    const result = await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
+    const result = await this.models.receiptAggregateVouchersV2.sequelize?.query(query, {
+      bind: [
+        settled.map((rav) => dbCollectionId(rav.collectionId)),
+        settled.map((rav) => dbPayer(rav.payer)),
+        blockTimestampSecs - this.finalityTime,
+      ],
+    })
     this.logger.debug('[TAPv2] Marked RAVs as final', {
       result,
+      settledCount: settledRavKeys.size,
       blockTimestampSecs,
       finalityTime: this.finalityTime,
       threshold: blockTimestampSecs - this.finalityTime,
@@ -1056,20 +1107,40 @@ export class GraphTallyCollector {
     payer: string,
     timestamp?: number,
   ) {
-    // WE use sql directly due to a bug in sequelize update:
-    // https://github.com/sequelize/sequelize/issues/7664 (bug been open for 7 years no fix yet or ever)
+    // We use raw SQL because of a bug in sequelize update:
+    // https://github.com/sequelize/sequelize/issues/7664 (open for 7 years, no fix yet)
     const query = `
             UPDATE tap_horizon_ravs
-            SET redeemed_at = ${timestamp ? `to_timestamp(${timestamp})` : 'NOW()'}
-            WHERE collection_id = '${collectionId
-              .toString()
-              .toLowerCase()
-              .replace('0x', '')}'
-            AND payer = '${payer.toString().toLowerCase().replace('0x', '')}'
+            SET redeemed_at = COALESCE(to_timestamp($3::double precision), NOW())
+            WHERE collection_id = $1
+            AND payer = $2
           `
 
-    await this.models.receiptAggregateVouchersV2.sequelize?.query(query)
+    await this.models.receiptAggregateVouchersV2.sequelize?.query(query, {
+      bind: [dbCollectionId(collectionId), dbPayer(payer), timestamp ?? null],
+    })
   }
+}
+
+// The database stores collection ids and addresses lowercased and without the 0x prefix,
+// while the subgraph, the contracts and the signed RAV objects all keep the prefix.
+function dbCollectionId(collectionId: string): string {
+  return collectionId.toString().toLowerCase().replace(/^0x/, '')
+}
+
+function dbPayer(payer: string): string {
+  return payer.toString().toLowerCase().replace(/^0x/, '')
+}
+
+function hexPrefixed(value: string): string {
+  const lowercased = value.toString().toLowerCase()
+  return lowercased.startsWith('0x') ? lowercased : `0x${lowercased}`
+}
+
+// Keyed the way the escrow accounts key their tokensCollected lookup, so a RAV read from
+// the database and one read from the subgraph always agree on identity.
+function ravKey(payer: string, collectionId: string): string {
+  return `${hexPrefixed(payer)}-${hexPrefixed(collectionId)}`
 }
 
 const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => ({
