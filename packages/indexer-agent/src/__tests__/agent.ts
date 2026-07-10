@@ -434,6 +434,7 @@ describe('reconcileDeploymentAllocationAction', () => {
       28,
       network,
       operator,
+      [],
       false,
     )
 
@@ -471,11 +472,222 @@ describe('reconcileDeploymentAllocationAction', () => {
       28,
       network,
       operator,
+      [],
       false,
     )
 
     expect(operator.createAllocation).not.toHaveBeenCalled()
     expect(network.networkMonitor.closedAllocations).not.toHaveBeenCalled()
+  })
+
+  // The close decision embeds a rule snapshot up to several polling intervals
+  // old; the fresh-rules re-check must win when the two disagree.
+  describe('re-validates a close decision against the current rules', () => {
+    const closeDecision = new AllocationDecision(
+      deployment,
+      {
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: IndexingDecisionBasis.NEVER,
+      } as IndexingRuleAttributes,
+      false,
+      ActivationCriteria.NEVER,
+      'eip155:42161',
+    )
+    const currentRule = (basis: IndexingDecisionBasis) =>
+      ({
+        identifier: deployment.ipfsHash,
+        identifierType: SubgraphIdentifierType.DEPLOYMENT,
+        decisionBasis: basis,
+      }) as IndexingRuleAttributes
+
+    it('skips the close when the current rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    it('skips the close when the current rule says dips', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.DIPS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    // The incident's close was decided under an offchain rule (the management
+    // API's close stamp), so pin that flavour of the guard explicitly.
+    it('skips an offchain-decided close when the current rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const offchainDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.OFFCHAIN,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.OFFCHAIN,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        offchainDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    it('closes when the current rule still opts out', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.NEVER)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    it('closes when no current rule exists for the deployment', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    it('skips the close when a global always rule governs the deployment', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const globalRule = {
+        identifier: INDEXING_RULE_GLOBAL,
+        identifierType: SubgraphIdentifierType.GROUP,
+        decisionBasis: IndexingDecisionBasis.ALWAYS,
+      } as IndexingRuleAttributes
+
+      await agent.reconcileDeploymentAllocationAction(
+        closeDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [globalRule],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).not.toHaveBeenCalled()
+    })
+
+    // A denied deployment yields toAllocate=false with UNSUPPORTED criteria
+    // even under an always rule; that close is current and must proceed.
+    it('closes an unsupported deployment even when the rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const unsupportedDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.UNSUPPORTED,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        unsupportedDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
+
+    // reconcileActions flips toAllocate to false for the network subgraph
+    // while its rule still says always; that deliberate override must win.
+    it('closes a config-overridden decision even when the rule says always', async () => {
+      const agent = createAgent()
+      const operator = createOperator()
+      const overriddenDecision = new AllocationDecision(
+        deployment,
+        {
+          identifier: deployment.ipfsHash,
+          identifierType: SubgraphIdentifierType.DEPLOYMENT,
+          decisionBasis: IndexingDecisionBasis.ALWAYS,
+        } as IndexingRuleAttributes,
+        false,
+        ActivationCriteria.ALWAYS,
+        'eip155:42161',
+      )
+
+      await agent.reconcileDeploymentAllocationAction(
+        overriddenDecision,
+        activeAllocations,
+        10,
+        28,
+        createNetwork(),
+        operator,
+        [currentRule(IndexingDecisionBasis.ALWAYS)],
+        false,
+      )
+
+      expect(operator.closeEligibleAllocations).toHaveBeenCalled()
+    })
   })
 })
 
