@@ -18,6 +18,10 @@ import { defineQueryFeeModels } from '../../../query-fees/models'
 declare const __DATABASE__: any
 declare const __LOG_LEVEL__: never
 
+// This suite reaches a live RPC endpoint, whose transient connection drops (socket hang
+// up, ECONNRESET) would otherwise fail CI, so failed tests retry up to 2 times.
+jest.retryTimes(2, { logErrorsBeforeRetry: true })
+
 const SET_COST_MODEL_MUTATION = gql`
   mutation setCostModel($costModel: CostModelInput!) {
     setCostModel(costModel: $costModel) {
