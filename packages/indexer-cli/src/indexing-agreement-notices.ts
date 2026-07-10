@@ -1,4 +1,7 @@
-import { IndexingDecisionBasis, IndexingRuleAttributes } from '@graphprotocol/indexer-common'
+import {
+  IndexingDecisionBasis,
+  IndexingRuleAttributes,
+} from '@graphprotocol/indexer-common'
 
 // The network settles an indexing agreement inside the allocation close itself
 // (SubgraphService cancels it, or reverts the close when its guard is enabled).
