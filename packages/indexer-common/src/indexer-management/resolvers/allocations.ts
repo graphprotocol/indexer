@@ -28,6 +28,7 @@ import {
   IndexingRuleAttributes,
   Network,
   POIData,
+  ruleAfterClose,
   SubgraphClient,
   SubgraphIdentifierType,
   uniqueAllocationID,
@@ -939,23 +940,36 @@ export default {
       logger.debug(
         `Updating indexing rules, so indexer-agent keeps the deployment synced but doesn't allocate to it`,
       )
-      const offchainIndexingRule = {
-        protocolNetwork: network.specification.networkIdentifier,
-        identifier: allocationData.subgraphDeployment.id.ipfsHash,
-        identifierType: SubgraphIdentifierType.DEPLOYMENT,
-        decisionBasis: IndexingDecisionBasis.OFFCHAIN,
-      } as Partial<IndexingRuleAttributes>
-
-      await models.IndexingRule.upsert(offchainIndexingRule)
-
-      // Since upsert succeeded, we _must_ have a rule
-      const updatedRule = await models.IndexingRule.findOne({
-        where: { identifier: offchainIndexingRule.identifier },
+      const existingRule = await models.IndexingRule.findOne({
+        where: {
+          identifier: allocationData.subgraphDeployment.id.ipfsHash,
+          protocolNetwork: network.specification.networkIdentifier,
+        },
       })
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      logger.info(`DecisionBasis.OFFCHAIN rule merged into indexing rules`, {
-        rule: updatedRule,
-      })
+      const offchainIndexingRule = ruleAfterClose(
+        existingRule,
+        allocationData.subgraphDeployment.id,
+        network.specification.networkIdentifier,
+        IndexingDecisionBasis.OFFCHAIN,
+      )
+
+      if (offchainIndexingRule) {
+        await models.IndexingRule.upsert(offchainIndexingRule)
+
+        // Since upsert succeeded, we _must_ have a rule
+        const updatedRule = await models.IndexingRule.findOne({
+          where: { identifier: offchainIndexingRule.identifier },
+        })
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        logger.info(`DecisionBasis.OFFCHAIN rule merged into indexing rules`, {
+          rule: updatedRule,
+        })
+      } else {
+        logger.info(
+          `Deployment is managed by an indexing agreement, keeping its DIPS rule instead of stamping offchain`,
+          { deployment: allocationData.subgraphDeployment.id.ipfsHash },
+        )
+      }
 
       return {
         actionID: 0,
