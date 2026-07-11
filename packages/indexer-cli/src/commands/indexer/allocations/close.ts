@@ -4,6 +4,7 @@ import chalk from 'chalk'
 import { loadValidatedConfig } from '../../../config'
 import { createIndexerManagementClient } from '../../../client'
 import { closeAllocation } from '../../../allocations'
+import { activeAgreementRevertGuidance } from '../../../indexing-agreement-notices'
 import {
   validatePOI,
   printObjectOrArray,
@@ -20,7 +21,7 @@ ${chalk.dim('Options:')}
 
   -h, --help                    Show usage information
   -n, --network <network>       The network to close the allocation on: mainnet, arbitrum-one, sepolia or arbitrum sepolia
-  -f, --force                   Bypass POI accuracy checks and submit transaction with provided data
+  -f, --force                   Bypass POI accuracy checks and the indexing agreement guard, then submit with provided data
   -o, --output table|json|yaml  Choose the output format: table (default), JSON, or YAML
   -w, --wrap [N]                Wrap the output to a specific width (default: 0, no wrapping)
 
@@ -114,6 +115,10 @@ module.exports = {
       )
     } catch (error) {
       spinner.fail(error.toString())
+      const guidance = activeAgreementRevertGuidance(error.toString())
+      if (guidance) {
+        print.warning(guidance)
+      }
       process.exitCode = 1
       return
     }
