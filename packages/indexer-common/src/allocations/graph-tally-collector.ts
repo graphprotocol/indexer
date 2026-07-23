@@ -34,12 +34,23 @@ import { dataSlice, hexlify, zeroPadValue, TransactionReceipt } from 'ethers'
 // 1000 here was leading to http 413 request entity too large
 const PAGE_SIZE = 200
 
+// How many pending RAVs are reconciled per pass. Rows beyond this stay pending and are
+// picked up on later passes once higher value rows settle and leave the set.
+const PENDING_RAV_BATCH_SIZE = 1_000
+
+// How many allocation ids go into a single subgraph request. The id filter travels in
+// every request body, so it is chunked to keep requests the size they had when the
+// batch itself was capped at 100 rows (see the http 413 note above).
+const FILTER_CHUNK_SIZE = 100
+
 interface RavMetrics {
   ravRedeemsSuccess: Counter<string>
   ravRedeemsInvalid: Counter<string>
   ravRedeemsFailed: Counter<string>
   ravsRedeemDuration: Histogram<string>
   ravCollectedFees: Gauge<string>
+  ravsBelowThreshold: Gauge<string>
+  ravsBelowThresholdValueGRT: Gauge<string>
 }
 
 interface TapCollectorOptions {
@@ -56,6 +67,9 @@ interface TapCollectorOptions {
 interface ValidRavs {
   belowThreshold: RavWithAllocation[]
   eligible: RavWithAllocation[]
+  // Sum of what the below threshold RAVs would still pay out, which for TAPv2 is the
+  // aggregate value minus whatever the payer has already collected against it.
+  belowThresholdRemaining: bigint
 }
 
 export interface RavWithAllocation {
@@ -179,6 +193,12 @@ export class GraphTallyCollector {
     const notifyAndMapEligible = (signedRavs: ValidRavs) => {
       const logger = this.logger.child({ function: 'startRAVProcessingV2()' })
 
+      // Set every pass, including to 0, so the gauges decay once deferrals clear
+      this.metrics.ravsBelowThreshold.set(signedRavs.belowThreshold.length)
+      this.metrics.ravsBelowThresholdValueGRT.set(
+        parseFloat(formatGRT(signedRavs.belowThresholdRemaining)),
+      )
+
       if (signedRavs.belowThreshold.length > 0) {
         const totalValueGRT = formatGRT(
           signedRavs.belowThreshold.reduce(
@@ -191,6 +211,9 @@ export class GraphTallyCollector {
           ravRedemptionThreshold: formatGRT(this.ravRedemptionThreshold),
           belowThresholdCount: signedRavs.belowThreshold.length,
           totalValueGRT,
+          // What is still collectible on those RAVs, once already collected tokens are
+          // subtracted. This, not totalValueGRT, is the revenue being left on the table.
+          remainingValueGRT: formatGRT(signedRavs.belowThresholdRemaining),
           allocations: signedRavs.belowThreshold.map((signedRav) =>
             collectionIdToAllocationId(signedRav.rav.rav.collectionId),
           ),
@@ -416,6 +439,8 @@ export class GraphTallyCollector {
             })
             if (belowThreshold) {
               results.belowThreshold.push(rav)
+              results.belowThresholdRemaining +=
+                BigInt(rav.rav.rav.valueAggregate) - tokensCollected
               return results
             }
 
@@ -440,7 +465,11 @@ export class GraphTallyCollector {
             results.eligible.push(rav)
             return results
           },
-          { belowThreshold: <RavWithAllocation[]>[], eligible: <RavWithAllocation[]>[] },
+          {
+            belowThreshold: <RavWithAllocation[]>[],
+            eligible: <RavWithAllocation[]>[],
+            belowThresholdRemaining: 0n,
+          },
         )
       },
       {
@@ -450,12 +479,22 @@ export class GraphTallyCollector {
     )
   }
 
-  // Fetch all non-finalized RAVs (both active and closed allocations)
+  // Fetch all non-finalized RAVs (both active and closed allocations).
+  // Highest value first, so that RAVs worth collecting are never crowded out of the
+  // batch by dust that sits below the redemption threshold indefinitely.
   private async pendingRAVs(): Promise<ReceiptAggregateVoucherV2[]> {
-    return await this.models.receiptAggregateVouchersV2.findAll({
+    const ravs = await this.models.receiptAggregateVouchersV2.findAll({
       where: { final: false },
-      limit: 100,
+      order: [['valueAggregate', 'DESC']],
+      limit: PENDING_RAV_BATCH_SIZE,
     })
+    if (ravs.length === PENDING_RAV_BATCH_SIZE) {
+      this.logger.warn(
+        '[TAPv2] Pending RAV batch is full, RAVs below the value cutoff are not reconciled this pass',
+        { batchSize: PENDING_RAV_BATCH_SIZE },
+      )
+    }
+    return ravs
   }
 
   private async filterAndUpdateRavs(
@@ -556,7 +595,6 @@ export class GraphTallyCollector {
     ravs: ReceiptAggregateVoucherV2[],
   ): Promise<SubgraphResponse> {
     let meta: GraphTallyMeta | undefined = undefined
-    let lastId = ''
     const paymentsEscrowTransactions: GraphTallyTransaction[] = []
 
     const unfinalizedRavsAllocationIds = [
@@ -571,69 +609,81 @@ export class GraphTallyCollector {
       ...new Set(ravs.map((value) => toAddress(value.payer).toLowerCase())),
     ]
 
-    for (;;) {
-      let block: { hash: string } | undefined = undefined
-      if (meta?.block?.hash) {
-        block = {
-          hash: meta?.block?.hash,
+    // chunk() yields nothing for an empty input, but a query must still run in that
+    // case so the caller gets subgraph block metadata back, hence the explicit [[]].
+    const allocationIdChunks =
+      unfinalizedRavsAllocationIds.length === 0
+        ? [[] as string[]]
+        : chunk(unfinalizedRavsAllocationIds, FILTER_CHUNK_SIZE)
+
+    for (const allocationIdsChunk of allocationIdChunks) {
+      let lastId = ''
+      for (;;) {
+        // After the first response, every request (across pages and chunks) is pinned
+        // to that block, so the whole pass sees one consistent snapshot of the chain.
+        let block: { hash: string } | undefined = undefined
+        if (meta?.block?.hash) {
+          block = {
+            hash: meta?.block?.hash,
+          }
         }
-      }
 
-      const result: QueryResult<SubgraphResponse> =
-        await this.networkSubgraph.query<SubgraphResponse>(
-          gql`
-            query paymentsEscrowTransactions(
-              $lastId: String!
-              $pageSize: Int!
-              $block: Block_height
-              $unfinalizedRavsAllocationIds: [String!]!
-              $payerAddresses: [String!]!
-            ) {
-              paymentsEscrowTransactions(
-                first: $pageSize
-                block: $block
-                orderBy: id
-                orderDirection: asc
-                where: {
-                  id_gt: $lastId
-                  type: "redeem"
-                  allocationId_in: $unfinalizedRavsAllocationIds
-                  payer_: { id_in: $payerAddresses }
-                }
+        const result: QueryResult<SubgraphResponse> =
+          await this.networkSubgraph.query<SubgraphResponse>(
+            gql`
+              query paymentsEscrowTransactions(
+                $lastId: String!
+                $pageSize: Int!
+                $block: Block_height
+                $unfinalizedRavsAllocationIds: [String!]!
+                $payerAddresses: [String!]!
               ) {
-                id
-                allocationId
-                timestamp
-                payer {
+                paymentsEscrowTransactions(
+                  first: $pageSize
+                  block: $block
+                  orderBy: id
+                  orderDirection: asc
+                  where: {
+                    id_gt: $lastId
+                    type: "redeem"
+                    allocationId_in: $unfinalizedRavsAllocationIds
+                    payer_: { id_in: $payerAddresses }
+                  }
+                ) {
                   id
-                }
-              }
-              _meta {
-                block {
-                  hash
+                  allocationId
                   timestamp
+                  payer {
+                    id
+                  }
+                }
+                _meta {
+                  block {
+                    hash
+                    timestamp
+                  }
                 }
               }
-            }
-          `,
-          {
-            lastId,
-            pageSize: PAGE_SIZE,
-            block,
-            unfinalizedRavsAllocationIds,
-            payerAddresses,
-          },
-        )
+            `,
+            {
+              lastId,
+              pageSize: PAGE_SIZE,
+              block,
+              unfinalizedRavsAllocationIds: allocationIdsChunk,
+              payerAddresses,
+            },
+          )
 
-      if (!result.data) {
-        throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        if (!result.data) {
+          throw `[TAPv2] There was an error while querying Network Subgraph. Errors: ${result.error}`
+        }
+        meta = result.data._meta
+        paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
+        if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
+          break
+        }
+        lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
       }
-      meta = result.data._meta
-      paymentsEscrowTransactions.push(...result.data.paymentsEscrowTransactions)
-      if (result.data.paymentsEscrowTransactions.length < PAGE_SIZE) {
-        break
-      }
-      lastId = result.data.paymentsEscrowTransactions.slice(-1)[0].id
     }
 
     return {
@@ -1164,6 +1214,18 @@ const registerReceiptMetrics = (metrics: Metrics, networkIdentifier: string) => 
     help: 'Amount of query fees collected for a rav v2',
     registers: [metrics.registry],
     labelNames: ['collection'],
+  }),
+
+  ravsBelowThreshold: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_${networkIdentifier}`,
+    help: 'Number of pending rav v2s deferred because their collectible value is below the redemption threshold',
+    registers: [metrics.registry],
+  }),
+
+  ravsBelowThresholdValueGRT: new metrics.client.Gauge({
+    name: `indexer_agent_rav_v2_ravs_below_threshold_value_grt_${networkIdentifier}`,
+    help: 'Total GRT still collectible on pending rav v2s deferred below the redemption threshold',
+    registers: [metrics.registry],
   }),
 })
 

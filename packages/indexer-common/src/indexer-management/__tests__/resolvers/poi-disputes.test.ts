@@ -21,6 +21,10 @@ declare const __DATABASE__: any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __LOG_LEVEL__: any
 
+// This suite reaches a live RPC endpoint, whose transient connection drops (socket hang
+// up, ECONNRESET) would otherwise fail CI, so failed tests retry up to 2 times.
+jest.retryTimes(2, { logErrorsBeforeRetry: true })
+
 const STORE_POI_DISPUTES_MUTATION = gql`
   mutation storeDisputes($disputes: [POIDisputeInput!]!) {
     storeDisputes(disputes: $disputes) {

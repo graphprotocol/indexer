@@ -26,6 +26,10 @@ declare const __DATABASE__: any
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 declare const __LOG_LEVEL__: any
 
+// This suite reaches a live RPC endpoint, whose transient connection drops (socket hang
+// up, ECONNRESET) would otherwise fail CI, so failed tests retry up to 2 times.
+jest.retryTimes(2, { logErrorsBeforeRetry: true })
+
 const SET_INDEXING_RULE_MUTATION = gql`
   mutation setIndexingRule($rule: IndexingRuleInput!) {
     setIndexingRule(rule: $rule) {
@@ -258,7 +262,6 @@ describe('Indexing rules', () => {
       protocolNetwork: 'eip155:421614',
     }
 
-    // Write the original
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
@@ -324,7 +327,6 @@ describe('Indexing rules', () => {
       protocolNetwork: 'eip155:421614',
     }
 
-    // Write the original
     await expect(
       client.mutation(SET_INDEXING_RULE_MUTATION, { rule: originalInput }).toPromise(),
     ).resolves.toHaveProperty('data.setIndexingRule', original)
